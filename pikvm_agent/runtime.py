@@ -104,7 +104,10 @@ class Runtime:
         operator = build_operator(config, backend)
         policy = SafetyPolicyEngine(config.policy)
         ocr = build_ocr_provider(config, backend)
-        executor = GuardedTransactionExecutor(backend, ocr)
+        from pikvm_agent.executor.typing import WatchedTyper
+
+        typer = WatchedTyper(backend, ocr)
+        executor = GuardedTransactionExecutor(backend, ocr, typer=typer)
         recovery = Recovery(backend)
         graph_db = str(Path(config.daemon.sqlite_path).with_name("graph.sqlite3"))
         checkpointer = await build_checkpointer(graph_db)
