@@ -33,8 +33,13 @@ MismatchKind = Literal["layout", "prepend-autocorrect", "prefix-tail"]
 # Shell metacharacters that force strict verification + a split Enter.
 HIGH_RISK_CHARS: set[str] = set("|&;><$`~*\"'\\!{}[]()")
 
-# Quote glyphs OCR cannot tell apart at terminal font sizes — fold ALL to `'`.
-QUOTE_RE = re.compile(r"['\"`´‘’“”′″]")
+# Quote folding is family-aware: OCR confuses *within* a family (straight vs
+# curly), so fold curly/smart glyphs to their straight equivalent — but DO NOT
+# merge single vs double, and leave the backtick alone. `"x"` vs `'x'` and
+# `` `cmd` `` vs `'cmd'` are semantic differences in shell/code that strict
+# verification must catch (Codex P1.5).
+_SINGLE_QUOTES = "'‘’´′"  # ' ‘ ’ ´ ′  -> '
+_DOUBLE_QUOTES = '"“”″'  # " “ ” ″  -> "
 
 # Alphanumeric confusables (lenient mode only, applied AFTER lowercasing). The
 # pipe `|` is deliberately NOT folded: it must stay a distinguishing symbol so a
@@ -77,8 +82,21 @@ _NON_ALNUM_LOWER = re.compile(r"[^a-z0-9]")
 
 
 def fold_quotes(s: str) -> str:
-    """Fold every quote glyph to a single canonical `'`."""
-    return QUOTE_RE.sub("'", s)
+    """Fold curly/smart quotes to their straight equivalent, within family.
+
+    Single-family glyphs collapse to `'` and double-family to `"`; the backtick
+    is left untouched. This kills OCR's straight-vs-curly noise without erasing
+    the `'` / `"` / `` ` `` distinctions that change shell and code semantics.
+    """
+    out: list[str] = []
+    for ch in s:
+        if ch in _SINGLE_QUOTES:
+            out.append("'")
+        elif ch in _DOUBLE_QUOTES:
+            out.append('"')
+        else:
+            out.append(ch)
+    return "".join(out)
 
 
 def norm(s: str, precise: bool = False) -> str:
