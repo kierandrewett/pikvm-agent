@@ -99,9 +99,11 @@ small, single-purpose chunks.
   action type (debug-only by construction); typed text verified by the verifier;
   scroll never (0,0). `tests/test_transactions.py`, `test_typing.py`,
   `test_recovery.py`, `test_sprintc_hardening.py`.
-- [ ] **Phase 5 — OpenRouter operator**: client, JSON-schema response, Pydantic
-  validation, prompt, model lanes, schema retry. *Accept:* malformed never
-  executes; low-risk navigation proposes; risky send/delete/sudo ⇒ interrupt.
+- [x] **Phase 5 — OpenRouter operator**: OpenRouterOperator — json_schema
+  structured output, Pydantic validation, prompt builder, model lanes, schema
+  retry, vision content block. *Accept:* ✅ malformed never executes (retry →
+  OperatorError); offline-tested via httpx.MockTransport (`tests/test_openrouter.py`);
+  risky categories route through the LangGraph approval interrupt.
 - [x] **Phase 6 — E1–E10 regression suite**: `bench/test_incidents.py` — all ten
   incidents as named tests against the owned components (verifier, policy,
   executor, typer, recovery, models). ✅ 13/13.
