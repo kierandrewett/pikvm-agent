@@ -69,7 +69,7 @@ def build_graph(checkpointer: Any) -> Any:
     builder.add_conditional_edges(
         "human_interrupt",
         route_after_interrupt,
-        {"execute": "execute_transaction", "blocked": "finalise"},
+        {"execute": "execute_transaction", "replan": "observe_frame", "blocked": "finalise"},
     )
     builder.add_edge("execute_transaction", "verify_result")
     builder.add_conditional_edges(

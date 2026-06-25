@@ -88,6 +88,7 @@ async def observe_frame(state: dict, config: RunnableConfig) -> dict:
         "frame_age_ms": frame.age_ms,
         "keyboard_state": frame.keyboard_state.model_dump(),
         "status": "running",
+        "replan": False,  # consumed: we are (re-)observing now
     }
     if not state.get("max_steps"):
         out["max_steps"] = deps.max_steps
@@ -197,11 +198,13 @@ async def human_interrupt(state: dict, config: RunnableConfig) -> dict:
         deps.trace.append("approved", approval_id=req.get("approval_id"))
         return {"approval_response": response, "approved": True, "status": "running"}
     if rtype in ("edit", "respond"):
+        # The human is CHANGING the request — never execute the original action.
+        # Re-plan with their instruction in context instead.
         event = {"type": f"human_{rtype}", "message": response.get("message"),
                  "instruction": response.get("instruction")}
         deps.trace.append("human_response", type=rtype)
         return {
-            "approval_response": response, "approved": True, "status": "running",
+            "approval_response": response, "approved": False, "status": "running", "replan": True,
             "recent_events": (state.get("recent_events", []) + [event])[-10:],
         }
     deps.trace.append("approval_denied", type=rtype)
@@ -212,21 +215,26 @@ async def human_interrupt(state: dict, config: RunnableConfig) -> dict:
 async def execute_transaction(state: dict, config: RunnableConfig) -> dict:
     deps = get_deps(config)
     decision = state["operator_decision"]
-    # Approval is NOT force-execute: re-check freshness + hard-block before acting.
-    pr = deps.policy.policy_gate(
-        decision, state["frame_id"], state["world_version"], approved=state.get("approved", False)
-    )
-    if pr.status != "allowed":
-        deps.trace.append("execute_refused", reason=pr.reason)
-        stale = pr.reason in ("stale_frame", "stale_world")
-        return {
-            "transaction_result": {
-                "status": "failed_stale_frame" if stale else "blocked_by_policy",
-                "error": pr.reason,
-            },
-            "status": "running" if stale else "blocked",
-            "approved": False,
-        }
+    # Approval is NOT force-execute. Re-observe NOW and verify the WORLD still
+    # matches the plan: frame_id always advances on capture, so the invariant is
+    # world_version. A change during a human's deliberation makes this stale.
+    fresh = await deps.frames.capture()
+    fresh_fields = {"frame_id": fresh.frame_id, "world_version": fresh.world_version,
+                    "frame_path": fresh.image_path}
+    if decision["based_on_world_version"] != fresh.world_version:
+        deps.trace.append("execute_refused", reason="stale_world",
+                          planned=decision["based_on_world_version"], current=fresh.world_version)
+        return {**fresh_fields, "approved": False, "status": "running",
+                "transaction_result": {"status": "failed_stale_frame", "error": "stale_world"}}
+    risk = deps.policy.classify_local_risk(decision)
+    if risk["blocked"]:
+        deps.trace.append("execute_refused", reason=risk["reason"])
+        return {**fresh_fields, "approved": False, "status": "blocked",
+                "transaction_result": {"status": "blocked_by_policy", "error": risk["reason"]}}
+    if risk["requires_human"] and not state.get("approved", False):
+        deps.trace.append("execute_refused", reason="requires_human")
+        return {**fresh_fields, "approved": False, "status": "needs_approval",
+                "transaction_result": {"status": "blocked_by_policy", "error": "requires_human"}}
 
     tx = GuardedTransaction(
         id="tx_" + uuid.uuid4().hex[:10],
@@ -246,6 +254,7 @@ async def execute_transaction(state: dict, config: RunnableConfig) -> dict:
     deps.trace.append("executed", status=result.status,
                       actions=[a["type"] for a in decision["actions"]])
     return {
+        **fresh_fields,
         "transaction_result": result.model_dump(),
         "approved": False,
         "recent_actions": (state.get("recent_actions", []) + [{"intent": decision["intent"]}])[-10:],
@@ -254,9 +263,16 @@ async def execute_transaction(state: dict, config: RunnableConfig) -> dict:
 
 async def verify_result(state: dict, config: RunnableConfig) -> dict:
     # Routing happens in route_after_verify; this node attaches the verification
-    # carried by the transaction result (the executor is the verifier).
+    # carried by the transaction result (the executor is the verifier). It also
+    # turns max-step exhaustion into a FAILURE — never a silent "done".
     tr = state.get("transaction_result") or {}
-    return {"verification_result": tr.get("verification") or {}}
+    out: dict[str, Any] = {"verification_result": tr.get("verification") or {}}
+    if state.get("status") not in ("done", "failed", "blocked") and \
+            state.get("step", 0) >= state.get("max_steps", 12):
+        get_deps(config).trace.append("max_steps_exhausted", step=state.get("step"))
+        out["status"] = "failed"
+        out["error"] = "max_steps_exhausted"
+    return out
 
 
 async def recover(state: dict, config: RunnableConfig) -> dict:

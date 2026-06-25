@@ -44,6 +44,7 @@ class AgentState(TypedDict, total=False):
     approval_request: dict[str, Any]
     approval_response: dict[str, Any]
     approved: bool
+    replan: bool  # human edited/responded — re-plan instead of executing
 
     # Loop control.
     step: int

@@ -29,12 +29,24 @@ def route_after_policy(state: dict[str, Any]) -> str:
 
 
 def route_after_interrupt(state: dict[str, Any]) -> str:
-    """execute | blocked — a reject/abort must never reach execution."""
-    return "blocked" if state.get("status") == "blocked" else "execute"
+    """execute | replan | blocked.
+
+    A reject/abort never reaches execution; an edit/respond re-plans rather than
+    executing the (now-superseded) original action; an approve executes.
+    """
+    if state.get("status") == "blocked":
+        return "blocked"
+    if state.get("replan"):
+        return "replan"
+    return "execute"
 
 
 def route_after_verify(state: dict[str, Any]) -> str:
-    """continue | recover | done | failed."""
+    """continue | recover | done | failed.
+
+    Max-step exhaustion is turned into a ``failed`` status by verify_result, so
+    it is caught by the failed branch — it is never reported as ``done``.
+    """
     if state.get("status") == "done":
         return "done"
     if state.get("status") in ("failed", "blocked"):
@@ -44,7 +56,4 @@ def route_after_verify(state: dict[str, Any]) -> str:
         return "recover"
     if tr.get("status") in ("blocked_by_policy", "failed"):
         return "failed"
-    # Loop backstop: don't run forever if the operator never signals done.
-    if state.get("step", 0) >= state.get("max_steps", 12):
-        return "done"
     return "continue"
