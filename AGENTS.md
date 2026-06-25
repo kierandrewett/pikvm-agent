@@ -102,7 +102,9 @@ small, single-purpose chunks.
 - [ ] **Phase 5 — OpenRouter operator**: client, JSON-schema response, Pydantic
   validation, prompt, model lanes, schema retry. *Accept:* malformed never
   executes; low-risk navigation proposes; risky send/delete/sudo ⇒ interrupt.
-- [ ] **Phase 6 — E1–E10 regression suite**: turn the incident log into tests.
+- [x] **Phase 6 — E1–E10 regression suite**: `bench/test_incidents.py` — all ten
+  incidents as named tests against the owned components (verifier, policy,
+  executor, typer, recovery, models). ✅ 13/13.
 - [ ] **Phase 7 — Human console**: live frame, set-of-marks overlay, event feed,
   interrupt approvals, takeover/resume, abort, memory export.
 - [ ] **Phase 8 — Atlas memory loop**: `pikvm_export_memory_update`, page
