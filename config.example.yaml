@@ -1,0 +1,77 @@
+# PiKVM Agent configuration. Copy to config.yaml (or point $PIKVM_AGENT_CONFIG
+# at it). Secrets are NOT stored here — only the names of the env vars to read.
+
+daemon:
+  listen: "127.0.0.1:8765"
+  session_dir: "~/.local/share/pikvm-agent/sessions"
+  sqlite_path: "~/.local/share/pikvm-agent/state.sqlite3"
+
+pikvm:
+  base_url: "https://pikvm.local"
+  verify_tls: false
+  username_env: "PIKVM_USER"
+  password_env: "PIKVM_PASSWORD"
+  token_env: "PIKVM_TOKEN" # alternative: an auth_token cookie value
+  layout: "us" # us | uk — refined live from the Pi's configured keymap
+
+# Optional local UI-grounding server. Disabled by default; the runtime falls
+# back to OCR-only element evidence when this is off or unreachable.
+omniparser:
+  enabled: false
+  mode: "managed_child_process"
+  base_url: "http://127.0.0.1:8000"
+  health_url: "http://127.0.0.1:8000/probe"
+  timeout_s: 20
+  command:
+    - "/home/kieran/.conda/envs/omni/bin/python"
+    - "-m"
+    - "omniparserserver"
+  cwd: "/home/kieran/dev/OmniParser/omnitool/omniparserserver"
+
+ocr:
+  # "pikvm" = built-in tesseract over /api/streamer/snapshot?ocr=1 (default,
+  # zero local deps). "paddleocr" = local PP-OCRv5 (needs the [vision] extra).
+  provider: "pikvm"
+  lang: "en"
+  device: "cpu" # or gpu (paddleocr only)
+  disable_doc_orientation: true
+  disable_doc_unwarping: true
+  disable_textline_orientation: true
+
+operator:
+  # "fake" = deterministic stub (no network). Set to "openrouter" once a key is
+  # present in the environment named by api_key_env.
+  provider: "fake"
+  base_url: "https://openrouter.ai/api/v1"
+  api_key_env: "OPENROUTER_API_KEY"
+  lanes:
+    cheap:
+      model: "qwen/qwen3-vl-8b-instruct"
+    default:
+      model: "qwen/qwen3-vl-32b-instruct"
+    hard:
+      model: "qwen/qwen3-vl-235b-a22b-thinking"
+
+policy:
+  default_profile: "read_only_diagnostics"
+  require_human_for:
+    - communication_send
+    - credential_entry
+    - terminal_mutating
+    - sudo
+    - delete
+    - local_file_edit
+    - software_installation
+    - system_setting_change
+    - power_or_firmware
+    - disk_or_partition
+    - financial_or_purchase
+    - legal_or_consent
+
+watchers:
+  interval_ms: 350
+  stable_frame_count: 2
+  global_change_threshold: 0.08
+  fp_move: 0.04
+  fp_settle: 0.015
+  fp_meaningful: 0.05
