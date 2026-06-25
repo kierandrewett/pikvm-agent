@@ -105,10 +105,13 @@ small, single-purpose chunks.
 - [x] **Phase 6 — E1–E10 regression suite**: `bench/test_incidents.py` — all ten
   incidents as named tests against the owned components (verifier, policy,
   executor, typer, recovery, models). ✅ 13/13.
-- [ ] **Phase 7 — Human console**: live frame, set-of-marks overlay, event feed,
-  interrupt approvals, takeover/resume, abort, memory export.
-- [ ] **Phase 8 — Atlas memory loop**: `pikvm_export_memory_update`, page
-  templates, post-session exporter, supervisor instructions.
+- [x] **Phase 7 — Human console**: daemon-served dependency-free console
+  (`pikvm_agent/webui/`) — live frame, event feed, approval queue
+  (approve/reject), continue/abort, memory export. *Accept:* ✅ pause/approve/
+  abort + persisted approvals via the daemon (`tests/test_phase7_console.py`).
+- [x] **Phase 8 — Atlas memory loop**: `build_memory_update` → redacted
+  playbook/incident proposal (no screenshots/secrets/typed bodies), wired into
+  `pikvm_export_memory_update`. ✅ `tests/test_atlas_export.py`.
 
 ## Deviations from the plan (and why)
 
