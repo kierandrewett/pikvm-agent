@@ -116,14 +116,22 @@ class Runtime:
         omniparser: OmniParserManager | None = None
         if config.omniparser.enabled:
             omniparser = OmniParserManager(config.omniparser)
-            up = await omniparser.ensure_running()
-            if not up:
-                msg = ("OmniParser is enabled but not reachable at %s — element "
-                       "grounding will be unavailable", config.omniparser.base_url)
-                if config.omniparser.required:
-                    log.error("REQUIRED %s; sessions will fail until it is up", msg[0] % msg[1])
-                else:
-                    log.warning(msg[0], msg[1])
+            up = await omniparser.ensure_running(wait_s=config.omniparser.startup_wait_s)
+            base = config.omniparser.base_url
+            if up:
+                log.info("OmniParser ready at %s", base)
+            elif omniparser.spawned_child:
+                # We launched it; it just isn't healthy within the short boot window.
+                log.warning(
+                    "OmniParser launched at %s but not ready yet — it loads models on "
+                    "boot (the first GPU run can take a few minutes); sessions needing "
+                    "element grounding will be unavailable until it finishes loading", base)
+            else:
+                # Not managed here and nothing is listening — the user must start it.
+                sev = log.error if config.omniparser.required else log.warning
+                sev("OmniParser is not reachable at %s and is not managed by the daemon "
+                    "(omniparser.mode=%s) — start it; sessions will fail until it is up",
+                    base, config.omniparser.mode)
 
         graph_db = str(Path(config.daemon.sqlite_path).with_name("graph.sqlite3"))
         checkpointer = await build_checkpointer(graph_db)
