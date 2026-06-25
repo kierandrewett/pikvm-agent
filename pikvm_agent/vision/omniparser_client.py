@@ -134,15 +134,27 @@ def bbox_to_pixels(bbox: list[float] | list[int], width: int, height: int) -> BB
 
 
 class OmniParserProvider:
-    """ScreenElementProvider backed by an OmniParser server (graceful on failure)."""
+    """ScreenElementProvider backed by an OmniParser server.
 
-    def __init__(self, client: OmniParserClient) -> None:
+    When ``required`` is False a parse failure degrades to an empty element map
+    (OCR-only evidence). When ``required`` is True a failure RAISES — OmniParser
+    is the primary perception and the operator must not act blind on its absence.
+    """
+
+    def __init__(self, client: OmniParserClient, *, required: bool = False) -> None:
         self._client = client
+        self._required = required
 
     async def parse_elements(self, image_path: Path, frame_id: int, world_version: int) -> ElementMap:
         try:
             result = await self._client.parse_image(image_path)
-        except Exception as exc:  # noqa: BLE001 - degrade to OCR-only
+        except Exception as exc:  # noqa: BLE001
+            if self._required:
+                from pikvm_agent.core.errors import BackendError
+
+                raise BackendError(
+                    f"OmniParser is required but unreachable at {self._client.base_url}: {exc}"
+                ) from exc
             log.warning("OmniParser parse failed (%s); returning empty element map", exc)
             return ElementMap(frame_id=frame_id, world_version=world_version)
         with Image.open(image_path) as im:

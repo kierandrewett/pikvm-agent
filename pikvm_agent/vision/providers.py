@@ -31,7 +31,8 @@ def build_element_provider(config: AppConfig) -> ScreenElementProvider:
     op = config.omniparser
     if op.enabled:
         return OmniParserProvider(
-            OmniParserClient(base_url=op.base_url, health_url=op.health_url, timeout_s=op.timeout_s)
+            OmniParserClient(base_url=op.base_url, health_url=op.health_url, timeout_s=op.timeout_s),
+            required=op.required,
         )
     return NullElementProvider()
 
