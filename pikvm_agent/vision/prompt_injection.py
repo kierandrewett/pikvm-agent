@@ -28,7 +28,10 @@ _PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"you\s+are\s+now\b", _I), "you are now"),
     (re.compile(r"system\s+prompt\b", _I), "system prompt"),
     (re.compile(r"developer\s+mode\b", _I), "developer mode"),
-    (re.compile(r"do\s+anything\s+now\b|\bDAN\b"), "do anything now"),
+    # "do anything now" is case-insensitive like every other phrase; the bare
+    # DAN acronym stays case-sensitive so it doesn't fire on the name "Dan".
+    (re.compile(r"do\s+anything\s+now\b", _I), "do anything now"),
+    (re.compile(r"\bDAN\b"), "DAN"),
     (re.compile(r"new\s+instructions?\s*:", _I), "new instructions:"),
     (re.compile(r"override\s+(?:your\s+|the\s+)?(?:safety|system|previous)\b", _I),
      "override your instructions"),
