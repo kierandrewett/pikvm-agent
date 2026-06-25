@@ -155,3 +155,30 @@ async def test_composite_parser_attaches_and_keeps(tmp_path) -> None:
     em2 = await CompositeScreenParser(StubEP(), TesseractOcrProvider()).parse(img, 5, 2)
     inp = next(e for e in em2.elements if e.kind == "input")
     assert inp.text and "open" in inp.text.lower() and "tesseract" in inp.source
+
+
+# ---- set-of-marks overlay ------------------------------------------------- #
+
+def test_set_of_marks_overlay(tmp_path) -> None:
+    from pikvm_agent.vision.set_of_marks import draw_set_of_marks
+
+    img = tmp_path / "f.png"
+    img.write_bytes(render_text_image("hi"))
+    with Image.open(img) as im:
+        src_size = im.size
+    em = ElementMap(
+        frame_id=1, world_version=1,
+        elements=[
+            VisualElement(id="e0", frame_id=1, world_version=1,
+                          bbox=BBox(x=10, y=10, w=80, h=30), kind="button", text="OK"),
+            VisualElement(id="e1", frame_id=1, world_version=1,
+                          bbox=BBox(x=10, y=60, w=120, h=24), kind="text", text="hello"),
+        ],
+    )
+    out = draw_set_of_marks(img, em)
+    assert out.exists()
+    with Image.open(out) as im:
+        assert im.size == src_size  # overlay preserves frame dimensions
+    # empty map still yields a valid file at the requested path
+    out2 = draw_set_of_marks(img, ElementMap(frame_id=1, world_version=1), tmp_path / "empty.png")
+    assert out2.exists() and out2.name == "empty.png"
