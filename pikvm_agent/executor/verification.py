@@ -180,8 +180,12 @@ def looks_like_code(s: str) -> bool:
 
 
 def is_exact_text(s: str) -> bool:
-    """Compare in precise mode? Shell metachars, flags/paths, urls, code, or a
-    common command head all make case + symbols load-bearing."""
+    """Compare in precise mode? ANY high-risk character, shell metachars,
+    flags/paths, urls, code, or a common command head all make case + symbols
+    load-bearing. A single dropped/transposed metacharacter changes meaning, so
+    such text must be verified exactly (per the plan's high-risk-char rule)."""
+    if any(ch in HIGH_RISK_CHARS for ch in s):
+        return True
     if looks_like_code(s):
         return True
     if _SHELL_METACHARS.search(s):
