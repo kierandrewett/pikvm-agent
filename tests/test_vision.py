@@ -120,6 +120,27 @@ async def test_omniparser_provider_builds_and_degrades(tmp_path) -> None:
     assert (await NullElementProvider().parse_elements(img, 1, 1)).elements == []
 
 
+async def test_omniparser_interactivity_maps_to_button(tmp_path) -> None:
+    # OmniParser flags clickable elements; an interactable the keyword classifier
+    # left "unknown" becomes a button (so the operator sees it as clickable).
+    img = tmp_path / "f.png"
+    img.write_bytes(render_text_image("x"))
+    result = OmniParserClient._normalize(
+        {"parsed_content_list": [
+            {"bbox": [0.1, 0.1, 0.2, 0.2], "content": "Submit", "type": "text", "interactivity": True},
+            {"bbox": [0.5, 0.5, 0.6, 0.6], "content": "just a label", "type": "text", "interactivity": False},
+        ]}
+    )
+
+    class Stub:
+        async def parse_image(self, _p):
+            return result
+
+    em = await OmniParserProvider(Stub()).parse_elements(img, 1, 1)
+    assert em.elements[0].kind == "button" and em.elements[0].text == "Submit"
+    assert em.elements[1].kind == "text"  # non-interactive stays text
+
+
 # ---- composite parser ----------------------------------------------------- #
 
 def test_bbox_from_ocr_and_iou() -> None:

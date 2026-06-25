@@ -32,6 +32,7 @@ class OmniParserElement(BaseModel):
     text: str | None = None
     caption: str | None = None
     type: str | None = None
+    interactivity: bool | None = None  # OmniParser flags clickable elements
     confidence: float | None = None
     raw: dict[str, Any] = {}
 
@@ -45,7 +46,8 @@ class OmniParserClient:
     def __init__(self, base_url: str = "http://127.0.0.1:47625",
                  health_url: str | None = None, timeout_s: float = 30.0) -> None:
         self.base_url = base_url.rstrip("/")
-        self.health_url = health_url or f"{self.base_url}/probe"
+        # The OmniParser omnitool server's routes carry a trailing slash.
+        self.health_url = health_url or f"{self.base_url}/probe/"
         self.timeout_s = timeout_s
 
     async def health(self) -> bool:
@@ -59,7 +61,8 @@ class OmniParserClient:
     async def parse_image(self, image_path: Path) -> OmniParserResult:
         image_b64 = base64.b64encode(Path(image_path).read_bytes()).decode("ascii")
         async with httpx.AsyncClient(timeout=self.timeout_s) as client:
-            resp = await client.post(f"{self.base_url}/parse", json={"image": image_b64})
+            # OmniParser omnitool API: POST /parse/ with {"base64_image": ...}.
+            resp = await client.post(f"{self.base_url}/parse/", json={"base64_image": image_b64})
             resp.raise_for_status()
             raw = resp.json()
         return self._normalize(raw)
@@ -88,6 +91,7 @@ class OmniParserClient:
                     text=item.get("text") or item.get("content"),
                     caption=item.get("caption") or item.get("description"),
                     type=item.get("type") or item.get("label"),
+                    interactivity=item.get("interactivity"),
                     confidence=item.get("confidence") or item.get("score"),
                     raw=item,
                 )
@@ -161,13 +165,21 @@ class OmniParserProvider:
             width, height = im.size
         elements: list[VisualElement] = []
         for i, el in enumerate(result.elements):
+            kind = classify_kind(el.type, el.caption, el.text)
+            # OmniParser marks interactable elements; a generic interactable the
+            # keyword classifier left unspecific is a button to the operator. A
+            # non-interactive text region stays text.
+            if el.interactivity and kind in ("unknown", "text"):
+                kind = "button"
+            elif not el.interactivity and kind == "unknown" and (el.type or "").lower() == "text":
+                kind = "text"
             elements.append(
                 VisualElement(
                     id=f"e{i}",
                     frame_id=frame_id,
                     world_version=world_version,
                     bbox=bbox_to_pixels(el.bbox, width, height),
-                    kind=classify_kind(el.type, el.caption, el.text),
+                    kind=kind,
                     text=el.text,
                     caption=el.caption,
                     confidence=el.confidence or 0.5,
