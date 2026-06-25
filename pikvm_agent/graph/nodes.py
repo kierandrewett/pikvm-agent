@@ -277,7 +277,12 @@ async def verify_result(state: dict, config: RunnableConfig) -> dict:
 
 async def recover(state: dict, config: RunnableConfig) -> dict:
     deps = get_deps(config)
-    deps.trace.append("recover", from_status=state.get("status"))
+    result: dict[str, Any] = {"action": "none"}
+    if deps.recovery is not None:
+        raw = state.get("element_map")
+        em = ElementMap.model_validate(raw) if raw else None
+        result = await deps.recovery.recover(state.get("mode", "unknown"), em)
+    deps.trace.append("recover", from_status=state.get("status"), result=result)
     return {"status": "running"}
 
 

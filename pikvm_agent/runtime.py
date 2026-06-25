@@ -20,6 +20,8 @@ from langgraph.types import Command
 
 from pikvm_agent.config import AppConfig, load_config
 from pikvm_agent.core.errors import SessionNotFoundError
+from pikvm_agent.executor.recovery import Recovery
+from pikvm_agent.executor.transactions import GuardedTransactionExecutor
 from pikvm_agent.graph.checkpoints import build_checkpointer, close_checkpointer
 from pikvm_agent.graph.deps import GraphDeps
 from pikvm_agent.graph.graph import build_graph
@@ -30,7 +32,7 @@ from pikvm_agent.policy.safety import SafetyPolicyEngine
 from pikvm_agent.store.frames import FrameStore
 from pikvm_agent.store.sqlite import SessionStore
 from pikvm_agent.store.trace import TraceLog
-from pikvm_agent.vision.providers import build_screen_parser
+from pikvm_agent.vision.providers import build_ocr_provider, build_screen_parser
 
 log = logging.getLogger("pikvm_agent.runtime")
 
@@ -79,7 +81,7 @@ class SessionRuntime:
 class Runtime:
     def __init__(self, config: AppConfig, store: SessionStore, backend: Any, *,
                  screen_parser: Any, operator: Any, policy: SafetyPolicyEngine,
-                 graph: Any, checkpointer: Any) -> None:
+                 graph: Any, checkpointer: Any, executor: Any, recovery: Any) -> None:
         self.config = config
         self.store = store
         self.backend = backend
@@ -88,6 +90,8 @@ class Runtime:
         self._policy = policy
         self._graph = graph
         self._checkpointer = checkpointer
+        self._executor = executor
+        self._recovery = recovery
         self._sessions: dict[str, SessionRuntime] = {}
 
     @classmethod
@@ -99,11 +103,15 @@ class Runtime:
         screen_parser = build_screen_parser(config, backend)
         operator = build_operator(config, backend)
         policy = SafetyPolicyEngine(config.policy)
+        ocr = build_ocr_provider(config, backend)
+        executor = GuardedTransactionExecutor(backend, ocr)
+        recovery = Recovery(backend)
         graph_db = str(Path(config.daemon.sqlite_path).with_name("graph.sqlite3"))
         checkpointer = await build_checkpointer(graph_db)
         graph = build_graph(checkpointer)
         return cls(config, store, backend, screen_parser=screen_parser, operator=operator,
-                   policy=policy, graph=graph, checkpointer=checkpointer)
+                   policy=policy, graph=graph, checkpointer=checkpointer,
+                   executor=executor, recovery=recovery)
 
     async def aclose(self) -> None:
         try:
@@ -134,6 +142,7 @@ class Runtime:
         deps = GraphDeps(
             backend=self.backend, frames=frames, trace=trace,
             screen_parser=self._screen_parser, operator=self._operator, policy=self._policy,
+            execute=self._executor.execute, recovery=self._recovery,
             max_steps=DEFAULT_MAX_STEPS,
         )
         self._sessions[session_id] = SessionRuntime(

@@ -30,6 +30,7 @@ class GraphDeps:
     # execute(tx, state) -> TransactionResult. Phase 3 uses a record-only default
     # (see nodes.execute_transaction); Phase 4 injects the guarded executor.
     execute: Callable[["GuardedTransaction", dict], Awaitable["TransactionResult"]] | None = None
+    recovery: Any = None  # Recovery (pager-quit / dismiss-modal / refocus)
     lane: str = "default"
     max_steps: int = 12
 
