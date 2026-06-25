@@ -262,9 +262,12 @@ class WatchedTyper:
         return grid(frame.data)
 
     async def _read_field(self, region: Region) -> str:
-        """Crop the field via the backend, save it, OCR it; ``""`` on any failure."""
+        """OCR the field. Capture the FULL frame and pass the region to the OCR
+        provider so it reads the field crop on every backend: file OCR
+        (tesseract) crops the saved frame by region, while live PiKVM OCR reads
+        that region on the live screen — never the whole frame. ``""`` on failure."""
         try:
-            frame = await self.backend.screenshot(region=region)
+            frame = await self.backend.screenshot()
         except Exception:
             return ""
         if not frame or not frame.data:
@@ -275,7 +278,7 @@ class WatchedTyper:
             fd.write(frame.data)
             fd.close()
             tmp = Path(fd.name)
-            result = await self.ocr.ocr(tmp)
+            result = await self.ocr.ocr(tmp, region=region)
             return result.text
         except Exception:
             return ""
@@ -462,8 +465,13 @@ class WatchedTyper:
 
         # Final correctness check if we never got a clean read mid-stream.
         if not verified_clean and cur_region is not None and can_vision:
+            corrections_before = corrections
             rb = await self._read_field(cur_region)
             await maybe_correct(rb, text)
+            if corrections > corrections_before:
+                # The final read triggered a clear+retype — re-read so the verdict
+                # reflects the corrected field, not the pre-correction mismatch.
+                last_read = await self._read_field(cur_region)
 
         verdict = compute_verdict(text, last_read, precise)
         corrected = corrections > 0
