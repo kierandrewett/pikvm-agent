@@ -30,6 +30,13 @@ class OmniParserManager:
     async def healthy(self) -> bool:
         return await self.client.health()
 
+    @property
+    def spawned_child(self) -> bool:
+        """True once this manager has launched its OWN OmniParser child process
+        (vs adopting an externally-running server, or finding none). Lets callers
+        distinguish "we started it, still booting" from "it's just not there"."""
+        return self._proc is not None
+
     async def _spawn(self) -> None:
         if self._proc is not None or self.config.mode != "managed_child_process":
             return

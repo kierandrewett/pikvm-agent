@@ -82,6 +82,10 @@ class OmniParserConfig(BaseModel):
     base_url: str = "http://127.0.0.1:47625"
     health_url: str = "http://127.0.0.1:47625/probe"
     timeout_s: float = 20.0
+    # How long the daemon blocks waiting for OmniParser to become healthy on boot
+    # before continuing. It keeps loading asynchronously after this — the first GPU
+    # boot (model load + kernel compile) can take minutes, so we don't block on it.
+    startup_wait_s: float = 8.0
     command: list[str] = Field(default_factory=list)
     cwd: str | None = None
 

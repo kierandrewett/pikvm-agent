@@ -82,6 +82,7 @@ async def test_manager_healthy_skips_spawn(monkeypatch: pytest.MonkeyPatch) -> N
     monkeypatch.setattr(mgr.client, "health", _healthy)
     assert await mgr.ensure_running(wait_s=0.1) is True
     assert mgr._proc is None  # already up ⇒ never spawned
+    assert mgr.spawned_child is False  # adopted an existing server, didn't launch one
 
 
 async def test_manager_spawns_and_stops() -> None:
@@ -94,8 +95,23 @@ async def test_manager_spawns_and_stops() -> None:
     up = await mgr.ensure_running(wait_s=0.3, poll_s=0.1)  # nothing serving ⇒ stays down
     assert up is False
     assert mgr._proc is not None and mgr._proc.returncode is None  # but the child is running
+    assert mgr.spawned_child is True  # we launched it (it's just still booting)
     await mgr.stop()
     assert mgr._proc is None
+    assert mgr.spawned_child is False  # stopped ⇒ no longer ours
+
+
+async def test_manager_external_mode_never_spawns() -> None:
+    # External mode = the server runs elsewhere; the manager only health-checks it.
+    cfg = OmniParserConfig(
+        enabled=True, mode="external",
+        command=[sys.executable, "-c", "import time; time.sleep(30)"],  # ignored in external mode
+        base_url="http://127.0.0.1:59600", health_url="http://127.0.0.1:59600/probe",
+    )
+    mgr = OmniParserManager(cfg)
+    up = await mgr.ensure_running(wait_s=0.2, poll_s=0.1)
+    assert up is False
+    assert mgr.spawned_child is False  # external ⇒ never spawns, even when down
 
 
 # ---- config CLI ----------------------------------------------------------- #
