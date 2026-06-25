@@ -30,5 +30,32 @@ def version() -> None:
     typer.echo(__version__)
 
 
+@app.command()
+def daemon(
+    host: str = typer.Option("", help="Override listen host (default: config)."),
+    port: int = typer.Option(0, help="Override listen port (default: config)."),
+) -> None:
+    """Run the FastAPI daemon (owns sessions, watchers, execution)."""
+    import uvicorn
+
+    from pikvm_agent.config import load_config
+
+    cfg = load_config()
+    uvicorn.run(
+        "pikvm_agent.daemon:app",
+        host=host or cfg.daemon.host,
+        port=port or cfg.daemon.port,
+        log_level="info",
+    )
+
+
+@app.command()
+def mcp() -> None:
+    """Run the stdio MCP facade (forwards to the daemon)."""
+    from pikvm_agent.mcp_server import main as mcp_main
+
+    mcp_main()
+
+
 if __name__ == "__main__":  # pragma: no cover
     app()
