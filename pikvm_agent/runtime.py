@@ -274,6 +274,20 @@ class Runtime:
             row["live_status"] = live.get(row["id"], row["status"])
         return rows
 
+    async def status(self) -> dict[str, Any]:
+        """Readiness snapshot for UIs. The daemon is obviously up if this responds;
+        we additionally report whether OmniParser (element grounding) is enabled and
+        currently reachable — it loads models on boot, so it can lag the daemon by
+        minutes on the first GPU run."""
+        omni: dict[str, Any] = {
+            "enabled": self.config.omniparser.enabled,
+            "required": self.config.omniparser.required,
+            "reachable": False,
+        }
+        if self._omniparser is not None:
+            omni["reachable"] = await self._omniparser.healthy()
+        return {"ok": True, "omniparser": omni}
+
     def latest_frame_path(self, session_id: str) -> str | None:
         sr = self._sessions.get(session_id)
         if sr is None:

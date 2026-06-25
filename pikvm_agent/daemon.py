@@ -58,6 +58,10 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
     async def healthz() -> dict[str, Any]:
         return {"ok": True}
 
+    @app.get("/status")
+    async def status(request: Request) -> dict[str, Any]:
+        return await rt(request).status()
+
     # ---- human console (Phase 7) ----------------------------------------- #
 
     @app.get("/", response_class=HTMLResponse)
