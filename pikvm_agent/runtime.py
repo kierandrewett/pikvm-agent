@@ -194,6 +194,12 @@ class Runtime:
                              decision: dict) -> dict[str, Any]:
         """Resume a paused graph with the human's approval decision."""
         sr = self._get(session_id)
+        # Validate the id matches THIS session's pending approval before resuming —
+        # a stale/mistyped id must never approve the current pending action.
+        appr = await self.store.get_approval(approval_id)
+        if appr is None or appr.get("session_id") != session_id or appr.get("status") != "pending":
+            return {"session_id": session_id, "approval_id": approval_id, "status": "error",
+                    "error": "unknown or already-resolved approval_id for this session"}
         result = await self._graph.ainvoke(Command(resume=decision), self._graph_config(sr))
         status_word = "approved" if decision.get("type") == "approve" else decision.get("type", "resolved")
         try:
