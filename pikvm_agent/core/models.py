@@ -132,6 +132,19 @@ class BBox(BaseModel):
         return max(0, self.w) * max(0, self.h)
 
 
+class Region(BaseModel):
+    """A crop rectangle for screenshot/OCR, in displayed frame-pixel space.
+
+    Distinct from BBox by field name (`width`/`height`) to match the inherited
+    PiKVM client contract, where regions are passed to snapshot/OCR endpoints.
+    """
+
+    x: float
+    y: float
+    width: float
+    height: float
+
+
 # --------------------------------------------------------------------------- #
 # Keyboard / frame
 # --------------------------------------------------------------------------- #
@@ -145,6 +158,21 @@ class KeyboardState(BaseModel):
     num_lock: bool | None = None
     scroll_lock: bool | None = None
     online: bool | None = None
+
+
+class CapturedFrame(BaseModel):
+    """Raw pixels straight from the backend, before the runtime stamps it with a
+    frame_id / world_version. The backend deals only in pixels + dimensions."""
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    data: bytes
+    width: int
+    height: int
+    mime_type: str = "image/jpeg"
+    sha256: str = ""
+    captured_at: str = ""  # ISO-8601 UTC
+    monotonic_ms: int = 0
 
 
 class FrameRecord(BaseModel):
