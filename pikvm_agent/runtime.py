@@ -32,6 +32,7 @@ from pikvm_agent.policy.safety import SafetyPolicyEngine
 from pikvm_agent.store.frames import FrameStore
 from pikvm_agent.store.sqlite import SessionStore
 from pikvm_agent.store.trace import TraceLog
+from pikvm_agent.vision.omniparser_manager import OmniParserManager
 from pikvm_agent.vision.providers import build_ocr_provider, build_screen_parser
 
 log = logging.getLogger("pikvm_agent.runtime")
@@ -81,7 +82,8 @@ class SessionRuntime:
 class Runtime:
     def __init__(self, config: AppConfig, store: SessionStore, backend: Any, *,
                  screen_parser: Any, operator: Any, policy: SafetyPolicyEngine,
-                 graph: Any, checkpointer: Any, executor: Any, recovery: Any) -> None:
+                 graph: Any, checkpointer: Any, executor: Any, recovery: Any,
+                 omniparser: OmniParserManager | None = None) -> None:
         self.config = config
         self.store = store
         self.backend = backend
@@ -92,6 +94,7 @@ class Runtime:
         self._checkpointer = checkpointer
         self._executor = executor
         self._recovery = recovery
+        self._omniparser = omniparser
         self._sessions: dict[str, SessionRuntime] = {}
 
     @classmethod
@@ -109,17 +112,32 @@ class Runtime:
         typer = WatchedTyper(backend, ocr)
         executor = GuardedTransactionExecutor(backend, ocr, typer=typer)
         recovery = Recovery(backend)
+
+        omniparser: OmniParserManager | None = None
+        if config.omniparser.enabled:
+            omniparser = OmniParserManager(config.omniparser)
+            up = await omniparser.ensure_running()
+            if not up:
+                msg = ("OmniParser is enabled but not reachable at %s — element "
+                       "grounding will be unavailable", config.omniparser.base_url)
+                if config.omniparser.required:
+                    log.error("REQUIRED %s; sessions will fail until it is up", msg[0] % msg[1])
+                else:
+                    log.warning(msg[0], msg[1])
+
         graph_db = str(Path(config.daemon.sqlite_path).with_name("graph.sqlite3"))
         checkpointer = await build_checkpointer(graph_db)
         graph = build_graph(checkpointer)
         return cls(config, store, backend, screen_parser=screen_parser, operator=operator,
                    policy=policy, graph=graph, checkpointer=checkpointer,
-                   executor=executor, recovery=recovery)
+                   executor=executor, recovery=recovery, omniparser=omniparser)
 
     async def aclose(self) -> None:
         try:
             await self.backend.aclose()
         finally:
+            if self._omniparser is not None:
+                await self._omniparser.stop()
             await close_checkpointer(self._checkpointer)
             await self.store.close()
 
