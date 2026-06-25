@@ -8,15 +8,18 @@ shared across requests.
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse
 from pydantic import BaseModel
 
 from pikvm_agent.config import AppConfig
 from pikvm_agent.core.errors import PikvmAgentError, SessionNotFoundError
 from pikvm_agent.runtime import Runtime
+
+_WEBUI = Path(__file__).resolve().parent / "webui"
 
 
 class StartSessionRequest(BaseModel):
@@ -54,6 +57,36 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
     @app.get("/healthz")
     async def healthz() -> dict[str, Any]:
         return {"ok": True}
+
+    # ---- human console (Phase 7) ----------------------------------------- #
+
+    @app.get("/", response_class=HTMLResponse)
+    async def console() -> str:
+        return (_WEBUI / "console.html").read_text()
+
+    @app.get("/ui/app.js", response_class=PlainTextResponse)
+    async def console_js() -> PlainTextResponse:
+        return PlainTextResponse((_WEBUI / "app.js").read_text(),
+                                 media_type="application/javascript")
+
+    @app.get("/sessions")
+    async def list_sessions(request: Request) -> list[dict[str, Any]]:
+        return await rt(request).list_sessions()
+
+    @app.get("/sessions/{session_id}/frame")
+    async def session_frame(session_id: str, request: Request):
+        path = rt(request).latest_frame_path(session_id)
+        if not path or not Path(path).exists():
+            return JSONResponse(status_code=404, content={"error": "no_frame"})
+        return FileResponse(path, media_type="image/jpeg")
+
+    @app.get("/sessions/{session_id}/approvals")
+    async def session_approvals(session_id: str, request: Request) -> list[dict[str, Any]]:
+        return await rt(request).pending_approvals(session_id)
+
+    @app.get("/sessions/{session_id}/trace")
+    async def session_trace(session_id: str, request: Request) -> list[dict[str, Any]]:
+        return rt(request).recent_trace(session_id)
 
     @app.post("/sessions")
     async def start_session(req: StartSessionRequest, request: Request) -> dict[str, Any]:
