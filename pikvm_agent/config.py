@@ -75,9 +75,13 @@ class OmniParserConfig(BaseModel):
 
 
 class OcrConfig(BaseModel):
-    # "pikvm" = built-in tesseract over the snapshot endpoint (zero local deps,
-    # the default). "paddleocr" = local PP-OCRv5 (needs the [vision] extra).
-    provider: str = "pikvm"
+    # Box-capable OCR for screen parsing (grounding needs per-word boxes):
+    #   "tesseract"  = system tesseract CLI on the saved frame (default, zero
+    #                  Python deps; falls back to live PiKVM OCR if absent).
+    #   "paddleocr"  = local PP-OCRv5 (needs the [vision] extra).
+    #   "pikvm"      = PiKVM's built-in tesseract over the live snapshot
+    #                  (zero local cost, but text-only — no boxes).
+    provider: str = "tesseract"
     lang: str = "en"
     device: str | None = None  # "cpu" | "gpu" | None
     disable_doc_orientation: bool = True
