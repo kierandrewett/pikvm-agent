@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Virtualenvs
+.venv/
+venv/
+.uv/
+
+# Runtime state (sessions, frames, sqlite, debug overlays)
+.local/
+*.sqlite3
+*.sqlite3-*
+sessions/
+output/
+*.marks.png
+
+# Secrets / local config
+.env
+config.local.yaml
+
+# Tooling
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Editors
+.vscode/
+.idea/
