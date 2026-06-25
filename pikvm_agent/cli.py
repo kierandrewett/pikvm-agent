@@ -59,6 +59,95 @@ def mcp() -> None:
     mcp_main()
 
 
+_CONFIG_TEMPLATE = """\
+# PiKVM Agent config (XDG). Secrets are NOT stored here — set them as env vars
+# (the desktop app forwards them to the daemon automatically).
+
+daemon:
+  listen: "127.0.0.1:8765"
+
+pikvm:
+  base_url: "https://pikvm.local"   # <-- your PiKVM address
+  verify_tls: false
+  username_env: "PIKVM_USER"        # export PIKVM_USER=...
+  password_env: "PIKVM_PASSWORD"    # export PIKVM_PASSWORD=...
+  layout: "uk"
+
+# OmniParser is the primary perception (grounded clickable elements). Required:
+# the runtime will NOT silently fall back to OCR-only when it is down.
+omniparser:
+  enabled: true
+  required: true
+  mode: "managed_child_process"
+  base_url: "http://127.0.0.1:8000"
+  health_url: "http://127.0.0.1:8000/probe"
+  timeout_s: 60
+  command:
+    - "/home/kieran/dev/OmniParser/.venv/bin/python"
+    - "-m"
+    - "omniparserserver"
+    - "--port"
+    - "8000"
+  cwd: "/home/kieran/dev/OmniParser/omnitool/omniparserserver"
+
+# OCR is for text read-back/verification (complements OmniParser's elements).
+# PaddleOCR preferred; tesseract is the last-resort fallback.
+ocr:
+  provider: "paddleocr"
+  lang: "en"
+  device: "cpu"
+
+operator:
+  provider: "openrouter"            # set OPENROUTER_API_KEY in the environment
+  api_key_env: "OPENROUTER_API_KEY"
+  lanes:
+    cheap: { model: "qwen/qwen3-vl-8b-instruct" }
+    default: { model: "qwen/qwen3-vl-32b-instruct" }
+    hard: { model: "qwen/qwen3-vl-235b-a22b-thinking" }
+"""
+
+
+_ENV_TEMPLATE = """\
+# Secrets for the PiKVM Agent daemon. Loaded automatically from this folder.
+# (The desktop app forwards these at spawn time; this file is for standalone runs.)
+PIKVM_USER=
+PIKVM_PASSWORD=
+# Or a PiKVM session cookie instead of user/pass:
+# PIKVM_TOKEN=
+# Override the PiKVM address without editing config.yaml:
+# PIKVM_BASE_URL=https://pikvm.local
+OPENROUTER_API_KEY=
+"""
+
+
+@app.command("config-path")
+def config_path() -> None:
+    """Show where the config + .env are read from (XDG by default)."""
+    from pikvm_agent.config import DEFAULT_CONFIG_PATH, _find_config_file
+
+    active = _find_config_file(None)
+    typer.echo(f"active config: {active or '(built-in defaults — no file found)'}")
+    typer.echo(f"default config: {DEFAULT_CONFIG_PATH}")
+    typer.echo(f".env:           {DEFAULT_CONFIG_PATH.parent / '.env'}")
+
+
+@app.command("config-init")
+def config_init(force: bool = typer.Option(False, "--force", help="Overwrite if present.")) -> None:
+    """Scaffold the XDG config + .env (~/.config/pikvm-agent/)."""
+    from pikvm_agent.config import DEFAULT_CONFIG_PATH
+
+    DEFAULT_CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    env_path = DEFAULT_CONFIG_PATH.parent / ".env"
+    for path, body in ((DEFAULT_CONFIG_PATH, _CONFIG_TEMPLATE), (env_path, _ENV_TEMPLATE)):
+        if path.exists() and not force:
+            typer.echo(f"exists: {path}  (use --force to overwrite)")
+            continue
+        path.write_text(body)
+        if path is env_path:
+            path.chmod(0o600)  # secrets file — owner-only
+        typer.echo(f"wrote {path}")
+
+
 @app.command(name="smoke-test")
 def smoke_test(
     screenshot: Path = typer.Option(..., "--screenshot", help="Image to parse."),
