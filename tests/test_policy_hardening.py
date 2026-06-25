@@ -5,7 +5,18 @@ from __future__ import annotations
 from pikvm_agent.config import PolicyConfig
 from pikvm_agent.core.models import ApprovalResponse, OperatorDecision, RiskAssessment
 from pikvm_agent.policy.approvals import recheck_after_approval
+from pikvm_agent.policy.risk import classify_command
 from pikvm_agent.policy.safety import SafetyPolicyEngine
+
+
+def test_rm_recursive_flags_anywhere_are_dangerous() -> None:
+    # P1.3: recursive/force flags after operands or as long options must catch.
+    assert classify_command("rm /tmp/foo -rf") == "dangerous"
+    assert classify_command("rm --recursive /tmp/foo") == "dangerous"
+    assert classify_command("rm -fr build") == "dangerous"
+    assert classify_command("rm -rf /") == "dangerous"
+    # a non-recursive single-file delete stays non-dangerous
+    assert classify_command("rm notes.txt") in ("medium", "safe")
 
 
 def _dec(category: str, *, frame: int = 1, world: int = 1, requires_human: bool = False,

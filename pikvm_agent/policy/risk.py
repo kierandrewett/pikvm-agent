@@ -24,6 +24,9 @@ CommandRisk = Literal["safe", "medium", "dangerous", "side_effect"]
 # --------------------------------------------------------------------------- #
 
 DANGEROUS_COMMAND_RE: list[re.Pattern[str]] = [
+    # rm with a recursive/force flag ANYWHERE in the clause — short flags before
+    # OR after the operands (GNU `rm /tmp/foo -rf`) and long options (Codex P1.3).
+    re.compile(r"\brm\b[^|;&\n]*(?:\s-\w*[rf]|\s--(?:recursive|force|dir))", re.IGNORECASE),
     re.compile(r"\brm\s+(-\w*\s+)*-?\w*[rf]\w*", re.IGNORECASE),  # rm with -r/-f in any combo
     re.compile(r"\brm\s+-[a-z]*[rf]", re.IGNORECASE),
     re.compile(r"\bdd\s+if=", re.IGNORECASE),  # raw disk write
