@@ -9,6 +9,7 @@ the next approval interrupt or completion; ``submit_approval`` resumes it.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import uuid
@@ -33,7 +34,9 @@ from pikvm_agent.store.frames import FrameStore
 from pikvm_agent.store.sqlite import SessionStore
 from pikvm_agent.store.trace import TraceLog
 from pikvm_agent.vision.omniparser_manager import OmniParserManager
+from pikvm_agent.vision.paddleocr_client import paddleocr_available
 from pikvm_agent.vision.providers import build_ocr_provider, build_screen_parser
+from pikvm_agent.vision.tesseract_ocr import tesseract_available
 
 log = logging.getLogger("pikvm_agent.runtime")
 
@@ -275,18 +278,65 @@ class Runtime:
         return rows
 
     async def status(self) -> dict[str, Any]:
-        """Readiness snapshot for UIs. The daemon is obviously up if this responds;
-        we additionally report whether OmniParser (element grounding) is enabled and
-        currently reachable — it loads models on boot, so it can lag the daemon by
-        minutes on the first GPU run."""
-        omni: dict[str, Any] = {
-            "enabled": self.config.omniparser.enabled,
-            "required": self.config.omniparser.required,
-            "reachable": False,
-        }
+        """Readiness snapshot for UIs. The daemon is up if this responds; we report
+        each dependency the daemon needs to actually drive a session:
+
+          * pikvm       — the target host (reachable?)
+          * omniparser  — element grounding (enabled/required/reachable; lags the
+                          daemon by minutes on the first GPU boot)
+          * operator    — the planner LLM (provider + whether its API key is set)
+          * ocr         — the read-back engine (provider + whether it's installed)
+          * store       — the local session/checkpoint sqlite (connected at boot)
+
+        ``ok`` is True only when every REQUIRED dependency is satisfied (the target
+        reachable, the operator configured, and OmniParser reachable when required).
+        """
+        cfg = self.config
+
+        async def _probe(coro: Any) -> bool:
+            try:
+                return bool(await coro)
+            except Exception:  # noqa: BLE001 - a probe failure is just "not ready"
+                return False
+
+        probes = [_probe(self.backend.health())]
         if self._omniparser is not None:
-            omni["reachable"] = await self._omniparser.healthy()
-        return {"ok": True, "omniparser": omni}
+            probes.append(_probe(self._omniparser.healthy()))
+        results = await asyncio.gather(*probes)
+        pikvm_ok = results[0]
+        omni_ok = results[1] if self._omniparser is not None else False
+
+        op = cfg.operator
+        operator = {
+            "provider": op.provider,
+            "configured": op.provider == "fake" or op.api_key is not None,
+        }
+
+        ocr_provider = cfg.ocr.provider
+        if ocr_provider == "paddleocr":
+            ocr_available = paddleocr_available()
+        elif ocr_provider == "tesseract":
+            ocr_available = tesseract_available()
+        else:  # "pikvm" — uses the target's built-in OCR, so it tracks pikvm reachability
+            ocr_available = True
+
+        deps: dict[str, Any] = {
+            "pikvm": {"base_url": cfg.pikvm.base_url, "reachable": pikvm_ok},
+            "omniparser": {
+                "enabled": cfg.omniparser.enabled,
+                "required": cfg.omniparser.required,
+                "reachable": omni_ok,
+            },
+            "operator": operator,
+            "ocr": {"provider": ocr_provider, "available": ocr_available},
+            "store": {"connected": True},
+        }
+        ready = (
+            pikvm_ok
+            and operator["configured"]
+            and (omni_ok or not cfg.omniparser.required)
+        )
+        return {"ok": ready, "dependencies": deps}
 
     def latest_frame_path(self, session_id: str) -> str | None:
         sr = self._sessions.get(session_id)
