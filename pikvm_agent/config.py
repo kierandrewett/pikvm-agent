@@ -8,8 +8,9 @@ disabled, so the daemon starts with nothing but PiKVM credentials.
 Resolution order for the config file:
     1. explicit path argument
     2. $PIKVM_AGENT_CONFIG
-    3. ./config.yaml in the current working directory
-    4. built-in defaults (no file needed)
+    3. $XDG_CONFIG_HOME/pikvm-agent/config.yaml  (default ~/.config/pikvm-agent/config.yaml)
+    4. ./config.yaml in the current working directory (legacy)
+    5. built-in defaults (no file needed)
 """
 
 from __future__ import annotations
@@ -26,6 +27,13 @@ from pikvm_agent.core.errors import ConfigError
 _DATA_HOME = Path(
     os.environ.get("XDG_DATA_HOME", str(Path.home() / ".local" / "share"))
 ) / "pikvm-agent"
+
+_CONFIG_HOME = Path(
+    os.environ.get("XDG_CONFIG_HOME", str(Path.home() / ".config"))
+) / "pikvm-agent"
+
+DEFAULT_CONFIG_PATH = _CONFIG_HOME / "config.yaml"
+"""Where the active config lives (XDG). The repo only ships config.example.yaml."""
 
 
 class DaemonConfig(BaseModel):
@@ -66,6 +74,10 @@ class PikvmConfig(BaseModel):
 
 class OmniParserConfig(BaseModel):
     enabled: bool = False
+    # When required, the runtime will NOT silently fall back to OCR-only element
+    # evidence: a parse failure raises loudly (OmniParser is the primary
+    # perception, not a nice-to-have). The desktop default config sets this True.
+    required: bool = False
     mode: str = "external"  # external | managed_child_process
     base_url: str = "http://127.0.0.1:8000"
     health_url: str = "http://127.0.0.1:8000/probe"
@@ -168,12 +180,42 @@ class AppConfig(BaseModel):
     watchers: WatchersConfig = Field(default_factory=WatchersConfig)
 
 
+def _load_dotenv(path: Path, *, override: bool = False) -> int:
+    """Load KEY=VALUE lines from a ``.env`` file into the environment.
+
+    By default does NOT override an already-set var (so env forwarded by the
+    desktop app at spawn time wins over the file). Supports ``export KEY=...``,
+    ``#`` comments, blank lines, and single/double-quoted values. Returns the
+    number of vars set."""
+    if not path.exists():
+        return 0
+    count = 0
+    for raw in path.read_text().splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("export "):
+            line = line[len("export "):].lstrip()
+        if "=" not in line:
+            continue
+        key, val = line.split("=", 1)
+        key, val = key.strip(), val.strip()
+        if len(val) >= 2 and val[0] == val[-1] and val[0] in ("'", '"'):
+            val = val[1:-1]
+        if key and (override or key not in os.environ):
+            os.environ[key] = val
+            count += 1
+    return count
+
+
 def _find_config_file(path: str | os.PathLike[str] | None) -> Path | None:
     if path:
         return Path(path).expanduser()
     env = os.environ.get("PIKVM_AGENT_CONFIG")
     if env:
         return Path(env).expanduser()
+    if DEFAULT_CONFIG_PATH.exists():
+        return DEFAULT_CONFIG_PATH
     cwd = Path.cwd() / "config.yaml"
     if cwd.exists():
         return cwd
@@ -181,8 +223,16 @@ def _find_config_file(path: str | os.PathLike[str] | None) -> Path | None:
 
 
 def load_config(path: str | os.PathLike[str] | None = None) -> AppConfig:
-    """Load configuration, applying a YAML file over the built-in defaults."""
+    """Load configuration, applying a YAML file over the built-in defaults.
+
+    A ``.env`` in the config folder (``~/.config/pikvm-agent/.env`` and/or the
+    directory of an explicit config file) is loaded first, so PiKVM/OpenRouter
+    secrets can live beside the config rather than being exported by hand.
+    """
+    _load_dotenv(DEFAULT_CONFIG_PATH.parent / ".env")
     cfg_path = _find_config_file(path)
+    if cfg_path is not None and cfg_path.parent != DEFAULT_CONFIG_PATH.parent:
+        _load_dotenv(cfg_path.parent / ".env")
     data: dict[str, Any] = {}
     if cfg_path is not None:
         if not cfg_path.exists():
@@ -195,6 +245,14 @@ def load_config(path: str | os.PathLike[str] | None = None) -> AppConfig:
             raise ConfigError(f"config root must be a mapping: {cfg_path}")
         data = loaded
     try:
-        return AppConfig.model_validate(data)
+        cfg = AppConfig.model_validate(data)
     except Exception as exc:  # pragma: no cover - pydantic message passthrough
         raise ConfigError(f"invalid configuration: {exc}") from exc
+
+    # Env overrides for the few values the desktop app forwards at spawn time, so
+    # it can inject the live PiKVM origin without writing a config file.
+    if os.environ.get("PIKVM_BASE_URL"):
+        cfg.pikvm.base_url = os.environ["PIKVM_BASE_URL"]
+    if os.environ.get("PIKVM_VERIFY_TLS"):
+        cfg.pikvm.verify_tls = os.environ["PIKVM_VERIFY_TLS"].lower() in ("1", "true", "yes", "on")
+    return cfg
