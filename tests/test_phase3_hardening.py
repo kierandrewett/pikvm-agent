@@ -114,3 +114,25 @@ async def test_max_steps_exhaustion_is_failed(tmp_path) -> None:
     result = await graph.ainvoke({"session_id": "s", "task": "t", "step": 0, "max_steps": 3}, config)
     assert result["status"] == "failed"
     assert "max_steps" in result.get("error", "")
+
+
+async def test_failed_transaction_is_failed_not_done(tmp_path) -> None:
+    # A failed action must finalise as "failed" with its reason — never a silent "done".
+    os.environ["PIKVM_AGENT_FAKE"] = "1"
+    backend = FakeBackend()
+
+    async def _failing_execute(tx, state):
+        return TransactionResult(status="failed", error="click missed: element not found")
+
+    deps = GraphDeps(
+        backend=backend, frames=FrameStore("s", tmp_path, backend), trace=TraceLog("s", tmp_path),
+        screen_parser=build_screen_parser(AppConfig(), backend),
+        operator=ScriptOp([{"intent": "click the Chat icon", "risk": _LOW,
+                            "actions": [{"type": "keypress", "keys": ["KeyA"]}]}]),
+        policy=SafetyPolicyEngine(PolicyConfig()), max_steps=5, execute=_failing_execute,
+    )
+    graph = build_graph(await build_checkpointer(None))
+    config = {"configurable": {"deps": deps, "thread_id": "fail"}}
+    result = await graph.ainvoke({"session_id": "s", "task": "t", "step": 0, "max_steps": 5}, config)
+    assert result["status"] == "failed"
+    assert "click missed" in result.get("error", "")

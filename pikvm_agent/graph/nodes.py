@@ -267,11 +267,17 @@ async def verify_result(state: dict, config: RunnableConfig) -> dict:
     # turns max-step exhaustion into a FAILURE — never a silent "done".
     tr = state.get("transaction_result") or {}
     out: dict[str, Any] = {"verification_result": tr.get("verification") or {}}
-    if state.get("status") not in ("done", "failed", "blocked") and \
-            state.get("step", 0) >= state.get("max_steps", 12):
-        get_deps(config).trace.append("max_steps_exhausted", step=state.get("step"))
-        out["status"] = "failed"
-        out["error"] = "max_steps_exhausted"
+    status = state.get("status")
+    if status not in ("done", "failed", "blocked"):
+        if state.get("step", 0) >= state.get("max_steps", 12):
+            get_deps(config).trace.append("max_steps_exhausted", step=state.get("step"))
+            out["status"] = "failed"
+            out["error"] = "max_steps_exhausted"
+        elif tr.get("status") in ("failed", "blocked_by_policy"):
+            # A failed/blocked execution is a genuine failure — surface it (with its
+            # reason) so the session reports "failed", not a misleading "done".
+            out["status"] = "blocked" if tr.get("status") == "blocked_by_policy" else "failed"
+            out["error"] = tr.get("error") or tr.get("status") or "execution failed"
     return out
 
 
@@ -299,6 +305,9 @@ async def recover(state: dict, config: RunnableConfig) -> dict:
 async def finalise(state: dict, config: RunnableConfig) -> dict:
     deps = get_deps(config)
     status = state.get("status")
-    final = status if status in ("failed", "blocked") else "done"
+    # Only an explicit "done" (the operator declared the task complete) is success.
+    # Reaching finalise in any other non-terminal state — e.g. after a failed
+    # transaction — is a FAILURE, never a silent "done".
+    final = status if status in ("done", "failed", "blocked") else "failed"
     deps.trace.append("finalise", status=final, steps=state.get("step", 0))
     return {"status": final}
