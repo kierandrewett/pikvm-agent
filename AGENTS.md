@@ -83,9 +83,13 @@ small, single-purpose chunks.
   provider (+ Null default), CompositeScreenParser, set-of-marks overlay,
   provider factory. *Accept:* `pikvm-agent smoke-test --screenshot sample.png`
   reports ocr/omni/merged counts + overlay. ✅ verified (real OCR via tesseract).
-- [ ] **Phase 3 — LangGraph**: AgentState, StateGraph, checkpointing, interrupt
-  wrapper, fake operator, replay backend. *Accept:* observe→parse→fake
-  decision→policy→finalise runs; pauses on approval and resumes; survives restart.
+- [x] **Phase 3 — LangGraph**: AgentState, GraphDeps injection, StateGraph wiring
+  (observe→parse→detect→decide→validate→policy→[interrupt]→execute→verify→
+  continue/recover/finalise), async SQLite checkpointing, approval interrupt,
+  FakeOperator + OpenRouterOperator. Runtime drives it (continue/approve).
+  *Accept:* ✅ happy path runs to finalise; pauses on approval + resumes; state
+  survives a simulated restart (`tests/test_phase3_graph.py` +
+  `tests/test_phase3_runtime.py`).
 - [ ] **Phase 4 — Guarded transactions**: GuardedTransaction, freshness +
   policy validation, visual locator, actionability checker, post-action
   screenshot, verification enums. *Accept:* no frame_id/world_version ⇒ rejected;
