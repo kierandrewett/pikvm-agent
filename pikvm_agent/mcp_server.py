@@ -16,7 +16,7 @@ from typing import Any
 import httpx
 from mcp.server.fastmcp import FastMCP
 
-DAEMON_URL = os.environ.get("PIKVM_AGENT_DAEMON", "http://127.0.0.1:8765")
+DAEMON_URL = os.environ.get("PIKVM_AGENT_DAEMON", "http://127.0.0.1:47615")
 
 mcp = FastMCP("pikvm", json_response=True)
 

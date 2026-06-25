@@ -83,12 +83,12 @@ See [`docs/PLAN.md`](docs/PLAN.md) for the full design and build order.
 The MCP server is a thin stdio facade; the **daemon** owns the sessions, the
 operator loop, watchers, approvals, and execution. Run the daemon first, then
 the MCP server (the daemon address is `PIKVM_AGENT_DAEMON`, default
-`http://127.0.0.1:8765`):
+`http://127.0.0.1:47615`):
 
 ```bash
 # 1. the daemon (FastAPI). Set PiKVM creds, or PIKVM_AGENT_FAKE=1 for no hardware.
 PIKVM_USER=admin PIKVM_PASSWORD=… uv run pikvm-agent daemon
-#    → human console at http://127.0.0.1:8765/  (live frame, event feed, approvals)
+#    → human console at http://127.0.0.1:47615/  (live frame, event feed, approvals)
 
 # 2. the MCP facade (stdio) — usually launched by Claude Code / Codex via .mcp.json
 uv run pikvm-agent mcp

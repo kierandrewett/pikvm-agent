@@ -37,7 +37,7 @@ DEFAULT_CONFIG_PATH = _CONFIG_HOME / "config.yaml"
 
 
 class DaemonConfig(BaseModel):
-    listen: str = "127.0.0.1:8765"
+    listen: str = "127.0.0.1:47615"
     session_dir: str = str(_DATA_HOME / "sessions")
     sqlite_path: str = str(_DATA_HOME / "state.sqlite3")
 
@@ -79,8 +79,8 @@ class OmniParserConfig(BaseModel):
     # perception, not a nice-to-have). The desktop default config sets this True.
     required: bool = False
     mode: str = "external"  # external | managed_child_process
-    base_url: str = "http://127.0.0.1:8000"
-    health_url: str = "http://127.0.0.1:8000/probe"
+    base_url: str = "http://127.0.0.1:47625"
+    health_url: str = "http://127.0.0.1:47625/probe"
     timeout_s: float = 20.0
     command: list[str] = Field(default_factory=list)
     cwd: str | None = None

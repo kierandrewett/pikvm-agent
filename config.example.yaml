@@ -2,7 +2,7 @@
 # at it). Secrets are NOT stored here — only the names of the env vars to read.
 
 daemon:
-  listen: "127.0.0.1:8765"
+  listen: "127.0.0.1:47615"
   session_dir: "~/.local/share/pikvm-agent/sessions"
   sqlite_path: "~/.local/share/pikvm-agent/state.sqlite3"
 
@@ -19,8 +19,8 @@ pikvm:
 omniparser:
   enabled: false
   mode: "managed_child_process"
-  base_url: "http://127.0.0.1:8000"
-  health_url: "http://127.0.0.1:8000/probe"
+  base_url: "http://127.0.0.1:47625"
+  health_url: "http://127.0.0.1:47625/probe"
   timeout_s: 20
   command:
     - "/home/kieran/.conda/envs/omni/bin/python"

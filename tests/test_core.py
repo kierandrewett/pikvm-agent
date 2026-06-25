@@ -66,7 +66,7 @@ def test_config_defaults() -> None:
     c = load_config()
     assert c.operator.provider == "fake"
     assert c.ocr.provider == "tesseract"
-    assert c.daemon.host == "127.0.0.1" and c.daemon.port == 8765
+    assert c.daemon.host == "127.0.0.1" and c.daemon.port == 47615
     assert (c.watchers.fp_move, c.watchers.fp_settle, c.watchers.fp_meaningful) == (0.04, 0.015, 0.05)
     assert "sudo" in c.policy.require_human_for
 

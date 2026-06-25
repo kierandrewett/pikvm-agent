@@ -64,7 +64,7 @@ _CONFIG_TEMPLATE = """\
 # (the desktop app forwards them to the daemon automatically).
 
 daemon:
-  listen: "127.0.0.1:8765"
+  listen: "127.0.0.1:47615"
 
 pikvm:
   base_url: "https://pikvm.local"   # <-- your PiKVM address
@@ -79,15 +79,15 @@ omniparser:
   enabled: true
   required: true
   mode: "managed_child_process"
-  base_url: "http://127.0.0.1:8000"
-  health_url: "http://127.0.0.1:8000/probe"
+  base_url: "http://127.0.0.1:47625"
+  health_url: "http://127.0.0.1:47625/probe"
   timeout_s: 60
   command:
     - "/home/kieran/dev/OmniParser/.venv/bin/python"
     - "-m"
     - "omniparserserver"
     - "--port"
-    - "8000"
+    - "47625"
   cwd: "/home/kieran/dev/OmniParser/omnitool/omniparserserver"
 
 # OCR is for text read-back/verification (complements OmniParser's elements).
