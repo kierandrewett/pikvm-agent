@@ -112,14 +112,21 @@ class SafetyPolicyEngine:
         decision: OperatorDecision | dict[str, Any],
         current_frame_id: int,
         current_world_version: int,
+        *,
+        approved: bool = False,
     ) -> PolicyResult:
-        """Gate a decision: freshness first, then policy.
+        """Gate a decision: freshness first, then hard-block, then human gate.
 
         A plan is only valid against the exact ``(frame_id, world_version)`` it
         was built on. A frame mismatch yields ``blocked`` "stale_frame"; a world
-        mismatch yields ``blocked`` "stale_world". Otherwise the local risk
-        decides: human-required → ``approval_required``; blocked → ``blocked``;
-        else ``allowed``.
+        mismatch yields ``blocked`` "stale_world" — even an approved decision
+        fails a stale check (approval is not a force-execute button).
+
+        Order then is **hard-block before human gate**: an ``always_block``
+        category is blocked and is *not* approvable. Otherwise a
+        ``requires_human`` category needs approval — unless ``approved=True``
+        (the human already said yes and the frame/world is still fresh), in which
+        case it is ``allowed``.
         """
         dec = _as_decision(decision)
 
@@ -132,15 +139,6 @@ class SafetyPolicyEngine:
         category: RiskCategory = risk["category"]  # type: ignore[assignment]
         level = risk["level"]
 
-        if risk["requires_human"]:
-            return PolicyResult(
-                status="approval_required",
-                category=category,
-                level=level,  # type: ignore[arg-type]
-                requires_human=True,
-                blocked=False,
-                reason=risk["reason"] or "human approval required",
-            )
         if risk["blocked"]:
             return PolicyResult(
                 status="blocked",
@@ -149,6 +147,15 @@ class SafetyPolicyEngine:
                 requires_human=False,
                 blocked=True,
                 reason=risk["reason"] or "blocked by policy",
+            )
+        if risk["requires_human"] and not approved:
+            return PolicyResult(
+                status="approval_required",
+                category=category,
+                level=level,  # type: ignore[arg-type]
+                requires_human=True,
+                blocked=False,
+                reason=risk["reason"] or "human approval required",
             )
         return PolicyResult(
             status="allowed",

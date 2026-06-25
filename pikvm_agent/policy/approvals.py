@@ -61,8 +61,10 @@ def recheck_after_approval(
     """Re-run the policy gate after a human responds to an approval.
 
     A reject/abort blocks. An approve (or edit/respond/take_over) re-runs the
-    full gate against the *current* frame/world — so an approval granted on a
-    stale screen still fails freshness and is blocked, never force-executed.
+    full gate against the *current* frame/world with ``approved=True`` — so the
+    human-approval requirement is satisfied and a fresh decision proceeds, while
+    a stale screen still fails freshness and a hard-blocked category is still
+    blocked. Approval is never a force-execute button.
     """
     if response.type in ("reject", "abort"):
         return PolicyResult(
@@ -71,4 +73,6 @@ def recheck_after_approval(
             reason=response.reason or f"human {response.type}",
         )
 
-    return engine.policy_gate(decision, current_frame_id, current_world_version)
+    return engine.policy_gate(
+        decision, current_frame_id, current_world_version, approved=True
+    )
