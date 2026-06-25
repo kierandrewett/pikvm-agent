@@ -1,0 +1,115 @@
+# PiKVM Agent Implementation Directive
+
+We own the daemon and MCP server.
+
+Use existing libraries aggressively, but **do not let them own the runtime**.
+
+## Core rule
+
+- The PiKVM daemon is our process.
+- The PiKVM MCP server is our server.
+- Only our daemon talks to PiKVM.
+- Only our daemon executes keyboard/mouse.
+- Only our daemon declares actions safe or verified.
+
+## Use libraries as bounded adapters
+
+- **OmniParser** — parse screenshots into UI elements, captions, and boxes.
+- **PaddleOCR** — OCR text and text boxes for read-back, popup detection, and
+  verification evidence.
+- **LangGraph** — state graph, conditional routing, checkpointing,
+  interrupts/resume.
+- **MCP Python SDK** — MCP protocol plumbing only.
+- **FastAPI** — local daemon API.
+- **OpenRouter** — structured operator decisions only.
+
+## Do not
+
+- Use OmniTool as the main runtime.
+- Let OmniParser produce executable actions.
+- Let PaddleOCR decide whether typing succeeded.
+- Let LangGraph nodes contain PiKVM-specific logic directly.
+- Expose raw HID tools as normal MCP tools.
+- Build a generic screenshot/click/type MCP server.
+
+## Architecture
+
+Claude Code / Codex talks to:
+
+1. **atlas** MCP server — durable knowledgebase (before and after sessions, never
+   inside the fast click/type loop).
+2. **pikvm** MCP server — high-level guarded PiKVM sessions.
+
+The daemon runs:
+
+```text
+observe_frame → parse_screen → detect_state → operator_decide
+  → validate_decision → policy_gate → [human_interrupt]
+  → execute_transaction → verify_result → continue / recover / finalise
+```
+
+Every operator decision must include: `based_on_frame_id`,
+`based_on_world_version`, `intent`, `risk`, `preconditions`, `actions`,
+`postconditions`.
+
+## The invariant
+
+```text
+No action is valid unless the world still matches the frame it was planned against.
+No success is real unless our verifier proves it.
+No consequential action happens without explicit approval.
+
+Third-party libraries produce evidence.
+Our daemon makes decisions.
+Our daemon executes actions.
+Our daemon verifies outcomes.
+Atlas remembers durable lessons.
+```
+
+---
+
+## Build order (track progress here)
+
+Reference: `docs/PLAN.md` → *Build order*. Tick items as they land; commit in
+small, single-purpose chunks.
+
+- [ ] **Phase 1 — Own the shell**: FastAPI daemon, MCP facade, config loader,
+  session store, trace log, PiKVM screenshot capture. *Accept:* `pikvm_start_task`
+  creates a session; `pikvm_observe` returns frame_id/world_version/screenshot
+  path; no OmniParser/OpenRouter required.
+- [ ] **Phase 2 — Library adapters**: PaddleOCRClient, OmniParserClient,
+  CompositeScreenParser, ElementMap, set-of-marks overlay. *Accept:*
+  `pikvm-agent smoke-test --screenshot sample.png` reports ocr/omni/merged counts.
+- [ ] **Phase 3 — LangGraph**: AgentState, StateGraph, checkpointing, interrupt
+  wrapper, fake operator, replay backend. *Accept:* observe→parse→fake
+  decision→policy→finalise runs; pauses on approval and resumes; survives restart.
+- [ ] **Phase 4 — Guarded transactions**: GuardedTransaction, freshness +
+  policy validation, visual locator, actionability checker, post-action
+  screenshot, verification enums. *Accept:* no frame_id/world_version ⇒ rejected;
+  stale world blocks; click_element resolves via ElementMap; raw click debug-only.
+- [ ] **Phase 5 — OpenRouter operator**: client, JSON-schema response, Pydantic
+  validation, prompt, model lanes, schema retry. *Accept:* malformed never
+  executes; low-risk navigation proposes; risky send/delete/sudo ⇒ interrupt.
+- [ ] **Phase 6 — E1–E10 regression suite**: turn the incident log into tests.
+- [ ] **Phase 7 — Human console**: live frame, set-of-marks overlay, event feed,
+  interrupt approvals, takeover/resume, abort, memory export.
+- [ ] **Phase 8 — Atlas memory loop**: `pikvm_export_memory_update`, page
+  templates, post-session exporter, supervisor instructions.
+
+## Deviations from the plan (and why)
+
+These are deliberate, minimal adaptations to the host environment. Everything
+else follows `docs/PLAN.md` as written.
+
+- **Default OCR is PiKVM's built-in tesseract** (`/api/streamer/snapshot?ocr=1`),
+  a zero-dependency `OCRProvider`. PaddleOCR and OmniParser are optional (`[vision]`
+  extra) and the pipeline degrades gracefully when their servers are absent — so
+  the daemon, graph, policy, verifier, and E1–E10 suite all run without a native
+  ML toolchain.
+- **Verification logic is ported from the battle-tested TypeScript implementation**
+  in `~/dev/pikvm-desktop-agentic` (watched typing, fingerprint thresholds, the
+  E1–E10 incidents). See `docs/PIKVM_API.md` for the inherited PiKVM API + tuning
+  constants.
+- The existing TypeScript MCP server in `~/dev/pikvm-desktop-agentic` is left in
+  place (the Electron app depends on it); this Python runtime is the additive,
+  transactional successor.
