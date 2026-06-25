@@ -53,17 +53,6 @@ class CompositeScreenParser:
         merged: list[VisualElement] = list(em.elements)
         source_tag = self._ocr_source()
 
-        # OmniParser/Florence captions for INTERACTABLE elements (icons/buttons) are
-        # often hallucinated — a calendar cell captioned "14 September", a toolbar icon
-        # "Skype". Demote that guess to a low-trust `caption` so the authoritative
-        # `text` comes from OCR overlap below (and stays empty when there's no real
-        # text), instead of a fabricated label outranking the real OCR.
-        for el in merged:
-            if el.kind in _INTERACTABLE and el.text:
-                if not el.caption:
-                    el.caption = el.text
-                el.text = None
-
         next_idx = len(merged)
         for line in ocr.lines:
             box = bbox_from_ocr(line.bbox)
@@ -72,8 +61,16 @@ class CompositeScreenParser:
             attached = False
             for el in merged:
                 if el.kind in _INTERACTABLE and iou(box, el.bbox) > 0.3:
-                    if not el.text:
-                        el.text = line.text
+                    # OCR text is authoritative for an interactable element's label.
+                    # OmniParser/Florence captions for icons are frequently
+                    # hallucinated (a calendar cell -> "14 September", an icon ->
+                    # "Skype"), so when real OCR overlaps, it WINS — and the prior
+                    # OmniParser guess is demoted to a low-trust `caption` hint
+                    # (never discarded, so a label still survives when OCR can't
+                    # reach it, e.g. box-less PiKVM OCR or an OCR miss).
+                    if el.text and el.text != line.text and not el.caption:
+                        el.caption = el.text
+                    el.text = line.text
                     if source_tag not in el.source:
                         el.source.append(source_tag)
                     attached = True

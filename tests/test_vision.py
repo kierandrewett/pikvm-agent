@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import io
+from pathlib import Path
 
 import pytest
 from PIL import Image
 
-from pikvm_agent.core.models import BBox, ElementMap, Region, VisualElement
+from pikvm_agent.core.models import BBox, ElementMap, OCRLine, OCRResult, Region, VisualElement
 from pikvm_agent.pikvm.fake import FakeBackend
 from pikvm_agent.store.frames import FrameStore
 from pikvm_agent.vision.frame_diff import (
@@ -178,34 +179,34 @@ async def test_composite_parser_attaches_and_keeps(tmp_path) -> None:
     assert inp.text and "open" in inp.text.lower() and "tesseract" in inp.source
 
 
-async def test_composite_parser_ocr_beats_hallucinated_caption(tmp_path) -> None:
-    # OmniParser/Florence captions for icons are often hallucinated; real OCR must
-    # win for `text`, and the guess is kept only as a low-trust `caption`.
-    img = tmp_path / "f.png"
-    img.write_bytes(render_text_image("Open the README\nfind . -name README"))
-    base = await CompositeScreenParser(NullElementProvider(), TesseractOcrProvider()).parse(img, 1, 1)
-    first = base.elements[0].bbox
-
+async def test_composite_parser_ocr_beats_hallucinated_caption() -> None:
+    # Real OCR wins over OmniParser/Florence captions for an interactable element's
+    # label (those captions are often hallucinated), and the prior guess is demoted
+    # to a `caption` hint. A label OCR can't corroborate is PRESERVED, so click-by-
+    # label still works (e.g. box-less PiKVM OCR or an OCR miss). No tesseract needed.
     class StubEP:
         async def parse_elements(self, _p, fid, wv):
             return ElementMap(frame_id=fid, world_version=wv, elements=[
-                # over the first OCR line, but with a bogus Florence caption as text
+                # bogus Florence caption as text, but a real OCR line overlaps it
                 VisualElement(id="e0", frame_id=fid, world_version=wv,
-                              bbox=BBox(x=first.x - 4, y=first.y - 4, w=first.w + 8, h=first.h + 8),
+                              bbox=BBox(x=10, y=10, w=80, h=20),
                               kind="button", text="Skype", source=["omniparser"]),
-                # an icon with a bogus caption but NO overlapping OCR text
+                # an icon with a bogus caption and NO overlapping OCR
                 VisualElement(id="e1", frame_id=fid, world_version=wv,
-                              bbox=BBox(x=4000, y=4000, w=20, h=20),
+                              bbox=BBox(x=400, y=400, w=20, h=20),
                               kind="button", text="14, September, 2024", source=["omniparser"]),
             ])
 
-    em = await CompositeScreenParser(StubEP(), TesseractOcrProvider()).parse(img, 1, 1)
+    class StubOCR:
+        async def ocr(self, _p, region=None):
+            return OCRResult(lines=[OCRLine(text="Settings", bbox=[12, 12, 78, 28])])
+
+    em = await CompositeScreenParser(StubEP(), StubOCR()).parse(Path("/x.png"), 1, 1)
     overlapped = next(e for e in em.elements if e.id == "e0")
-    assert overlapped.text and "open" in overlapped.text.lower()  # real OCR won
-    assert overlapped.caption == "Skype"                          # hallucination demoted to a hint
+    assert overlapped.text == "Settings"            # real OCR won
+    assert overlapped.caption == "Skype"            # hallucination demoted to a hint
     floating = next(e for e in em.elements if e.id == "e1")
-    assert floating.text is None                                  # no real text -> stays empty
-    assert floating.caption == "14, September, 2024"              # kept only as a hint
+    assert floating.text == "14, September, 2024"   # no OCR overlap -> label preserved
 
 
 # ---- set-of-marks overlay ------------------------------------------------- #
