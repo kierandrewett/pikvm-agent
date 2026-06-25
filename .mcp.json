@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "atlas": {
+      "command": "/home/kieran/dev/atlas-2/atlas-app-v16/target/release/atlas",
+      "args": ["mcp", "/home/kieran/Documents/Atlas/Capgemini"]
+    },
+    "pikvm": {
+      "command": "/home/kieran/dev/pikvm-agent/.venv/bin/python",
+      "args": ["-m", "pikvm_agent.mcp_server"]
+    }
+  }
+}

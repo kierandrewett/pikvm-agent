@@ -78,7 +78,43 @@ Copy `config.example.yaml` to `config.yaml` (or set `PIKVM_AGENT_CONFIG`) and se
 PiKVM credentials via the `PIKVM_USER` / `PIKVM_PASSWORD` environment variables.
 See [`docs/PLAN.md`](docs/PLAN.md) for the full design and build order.
 
+## Run
+
+The MCP server is a thin stdio facade; the **daemon** owns the sessions, the
+operator loop, watchers, approvals, and execution. Run the daemon first, then
+the MCP server (the daemon address is `PIKVM_AGENT_DAEMON`, default
+`http://127.0.0.1:8765`):
+
+```bash
+# 1. the daemon (FastAPI). Set PiKVM creds, or PIKVM_AGENT_FAKE=1 for no hardware.
+PIKVM_USER=admin PIKVM_PASSWORD=… uv run pikvm-agent daemon
+#    → human console at http://127.0.0.1:8765/  (live frame, event feed, approvals)
+
+# 2. the MCP facade (stdio) — usually launched by Claude Code / Codex via .mcp.json
+uv run pikvm-agent mcp
+```
+
+`.mcp.json` (in this repo) registers both the **atlas** knowledgebase server and
+the **pikvm** session server for Claude Code / Codex. Atlas is consulted before
+and after a task (durable memory), never inside the fast click/type loop.
+
+MCP tools: `pikvm_start_task`, `pikvm_continue`, `pikvm_observe`,
+`pikvm_approve`, `pikvm_abort`, `pikvm_export_memory_update`. Raw HID is **not**
+exposed as a normal tool (see `AGENTS.md`).
+
+Validate the vision pipeline against a still image without a Pi:
+
+```bash
+uv run pikvm-agent smoke-test --screenshot sample.png
+```
+
 ## Status
 
-Built in phases (see `docs/PLAN.md` → *Build order*). This repository tracks that
-plan closely; see `AGENTS.md` for the implementation directive.
+All eight build phases are complete (see `docs/PLAN.md` → *Build order* and the
+checklist in `AGENTS.md`): daemon + MCP facade, PiKVM client, world-versioned
+frames, OmniParser/PaddleOCR/Tesseract vision, the hard-coded safety policy, the
+text-verification + watched-typing subsystem, visual locator + actionability, the
+LangGraph operator loop with approval interrupts + SQLite checkpointing, the
+OpenRouter operator, the guarded executor + recovery, the E1–E10 regression
+bench, the human console, and the Atlas memory export. Run the suite with
+`uv run pytest`.
