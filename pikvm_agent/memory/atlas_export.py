@@ -327,6 +327,33 @@ def _lessons(events: list[dict[str, Any]], stats: dict[str, Any]) -> list[str]:
 
 
 # --------------------------------------------------------------------------- #
+# Free-text redaction (the task + error strings aren't structured trace fields)
+# --------------------------------------------------------------------------- #
+
+_SECRET_KW = re.compile(
+    r"(?i)\b(password|passwd|secret|token|api[_-]?key|credential|cookie|auth|bearer)\b\s*[:=]\s*\S+"
+)
+# Pydantic validation errors echo the offending value as `input_value=...`.
+_PYDANTIC_INPUT = re.compile(r"input_value=.*?(?=,\s*input_type=|$)", re.DOTALL)
+# Quoted text/body/message/content values inside an error or task string.
+_BODY_KV = re.compile(
+    r"(?i)(['\"]?(?:text|body|message|content|prompt|instruction)['\"]?\s*[:=]\s*)(['\"]).*?\2"
+)
+
+
+def _redact_text(s: str) -> tuple[str, bool]:
+    """Mask sensitive substrings in a FREE-TEXT string (the task, an error
+    message) — these aren't structured trace fields so ``_scrub`` never sees
+    them. Masks Pydantic ``input_value=`` echoes, quoted body/message values,
+    and ``key: value`` secret pairs. Returns ``(clean, changed)``."""
+    original = s or ""
+    out = _PYDANTIC_INPUT.sub("input_value=<redacted>", original)
+    out = _BODY_KV.sub(r"\1<redacted>", out)
+    out = _SECRET_KW.sub(r"\1=<redacted>", out)
+    return out, out != original
+
+
+# --------------------------------------------------------------------------- #
 # Public entry point
 # --------------------------------------------------------------------------- #
 
@@ -353,7 +380,22 @@ def build_memory_update(
 
     stats = _compute_stats(events)
     final, reasons = _final_status(events, status)
-    summary = _summary_line(task, final, stats)
+
+    # Redact free-text that can carry secrets/bodies: the task itself and any
+    # error/reason strings (e.g. a Pydantic error echoing a typed value). These
+    # are not structured trace fields, so _scrub never reaches them.
+    safe_task, task_red = _redact_text((task or "PiKVM session").strip())
+    safe_reasons: list[str] = []
+    reason_red = False
+    for r in reasons:
+        rr, changed = _redact_text(r)
+        safe_reasons.append(rr)
+        reason_red = reason_red or changed
+    reasons = safe_reasons
+    if task_red or reason_red:
+        redaction_flag[0] = True
+
+    summary = _summary_line(safe_task, final, stats)
     worked = _worked(stats)
     blocked = _blocked(stats, reasons)
     lessons = _lessons(events, stats)
@@ -363,14 +405,14 @@ def build_memory_update(
     )
     kind = "incident" if is_incident else "playbook"
 
-    title_task = (task or "PiKVM session").strip()
+    title_task = safe_task
     title = f'{"Incident" if is_incident else "Playbook"}: {title_task}'
 
     template = INCIDENT_TEMPLATE if is_incident else PLAYBOOK_TEMPLATE
     if is_incident:
         markdown = template.format(
             title=title,
-            task=task,
+            task=safe_task,
             summary=summary,
             steps=_bullets(blocked),
             lessons=_bullets(lessons),
@@ -378,7 +420,7 @@ def build_memory_update(
     else:
         markdown = template.format(
             title=title,
-            task=task,
+            task=safe_task,
             summary=summary,
             steps=_bullets(worked),
             blocked=_bullets(blocked),
@@ -389,7 +431,7 @@ def build_memory_update(
     incident: dict[str, Any] = {
         "kind": kind,
         "session_id": session_id,
-        "task": task,
+        "task": safe_task,
         "final_status": final,
         "summary": summary,
         "signals": {
@@ -406,7 +448,7 @@ def build_memory_update(
         "lessons": lessons,
     }
 
-    slug = memory_slug(task)
+    slug = memory_slug(safe_task)
     page_path = f"memory/pikvm/{slug}.md"
 
     return MemoryUpdate(
