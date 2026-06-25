@@ -39,7 +39,8 @@ uv pip install --python .venv fastapi uvicorn
 echo "==> downloading OmniParser V2 weights"
 rm -rf weights/icon_detect weights/icon_caption weights/icon_caption_florence
 for folder in icon_caption icon_detect; do
-  uv run --python .venv -- huggingface-cli download microsoft/OmniParser-v2.0 \
+  # NB: `huggingface-cli download` is deprecated and silently no-ops — use `hf`.
+  uv run --python .venv -- hf download microsoft/OmniParser-v2.0 \
     --local-dir weights --repo-type model --include "$folder/*"
 done
 [ -d weights/icon_caption ] && mv weights/icon_caption weights/icon_caption_florence
@@ -50,9 +51,9 @@ cat <<EOF
     $OMNI_DIR/.venv/bin/python -c "import torch; print('cuda/rocm available:', torch.cuda.is_available())"
 
 The PiKVM Agent daemon will start the server for you (managed_child_process). To
-run it manually:
+run it manually (on the GPU — ROCm presents AMD as 'cuda'):
     cd $OMNI_DIR/omnitool/omniparserserver
-    $OMNI_DIR/.venv/bin/python -m omniparserserver --port $PORT
+    $OMNI_DIR/.venv/bin/python -m omniparserserver --device cuda --port $PORT
 
-Then: pikvm-agent daemon   (it health-checks http://127.0.0.1:$PORT/probe)
+Then: pikvm-agent daemon   (it health-checks http://127.0.0.1:$PORT/probe/)
 EOF
