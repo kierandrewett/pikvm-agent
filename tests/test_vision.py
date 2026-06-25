@@ -178,6 +178,36 @@ async def test_composite_parser_attaches_and_keeps(tmp_path) -> None:
     assert inp.text and "open" in inp.text.lower() and "tesseract" in inp.source
 
 
+async def test_composite_parser_ocr_beats_hallucinated_caption(tmp_path) -> None:
+    # OmniParser/Florence captions for icons are often hallucinated; real OCR must
+    # win for `text`, and the guess is kept only as a low-trust `caption`.
+    img = tmp_path / "f.png"
+    img.write_bytes(render_text_image("Open the README\nfind . -name README"))
+    base = await CompositeScreenParser(NullElementProvider(), TesseractOcrProvider()).parse(img, 1, 1)
+    first = base.elements[0].bbox
+
+    class StubEP:
+        async def parse_elements(self, _p, fid, wv):
+            return ElementMap(frame_id=fid, world_version=wv, elements=[
+                # over the first OCR line, but with a bogus Florence caption as text
+                VisualElement(id="e0", frame_id=fid, world_version=wv,
+                              bbox=BBox(x=first.x - 4, y=first.y - 4, w=first.w + 8, h=first.h + 8),
+                              kind="button", text="Skype", source=["omniparser"]),
+                # an icon with a bogus caption but NO overlapping OCR text
+                VisualElement(id="e1", frame_id=fid, world_version=wv,
+                              bbox=BBox(x=4000, y=4000, w=20, h=20),
+                              kind="button", text="14, September, 2024", source=["omniparser"]),
+            ])
+
+    em = await CompositeScreenParser(StubEP(), TesseractOcrProvider()).parse(img, 1, 1)
+    overlapped = next(e for e in em.elements if e.id == "e0")
+    assert overlapped.text and "open" in overlapped.text.lower()  # real OCR won
+    assert overlapped.caption == "Skype"                          # hallucination demoted to a hint
+    floating = next(e for e in em.elements if e.id == "e1")
+    assert floating.text is None                                  # no real text -> stays empty
+    assert floating.caption == "14, September, 2024"              # kept only as a hint
+
+
 # ---- set-of-marks overlay ------------------------------------------------- #
 
 def test_set_of_marks_overlay(tmp_path) -> None:

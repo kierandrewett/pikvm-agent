@@ -53,6 +53,17 @@ class CompositeScreenParser:
         merged: list[VisualElement] = list(em.elements)
         source_tag = self._ocr_source()
 
+        # OmniParser/Florence captions for INTERACTABLE elements (icons/buttons) are
+        # often hallucinated — a calendar cell captioned "14 September", a toolbar icon
+        # "Skype". Demote that guess to a low-trust `caption` so the authoritative
+        # `text` comes from OCR overlap below (and stays empty when there's no real
+        # text), instead of a fabricated label outranking the real OCR.
+        for el in merged:
+            if el.kind in _INTERACTABLE and el.text:
+                if not el.caption:
+                    el.caption = el.text
+                el.text = None
+
         next_idx = len(merged)
         for line in ocr.lines:
             box = bbox_from_ocr(line.bbox)
