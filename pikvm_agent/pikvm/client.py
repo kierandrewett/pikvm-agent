@@ -86,6 +86,18 @@ class PiKVMBackend:
         await self.hid.close()
         await self._http.aclose()
 
+    async def health(self) -> bool:
+        """Cheap reachability probe for status UIs: did the PiKVM host answer? Any
+        HTTP response (even an auth error) means the host is up; only a transport
+        error / timeout counts as unreachable. Uses kvmd's lightweight info route."""
+        try:
+            await self._http.get(
+                f"{self._http_base()}/api/info", headers=self._auth_headers(), timeout=4.0
+            )
+            return True
+        except Exception:  # noqa: BLE001 - transport error / timeout ⇒ unreachable
+            return False
+
     # ---- KVMD state getters ---------------------------------------------- #
 
     def get_caps_lock(self) -> bool | None:

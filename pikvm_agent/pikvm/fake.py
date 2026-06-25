@@ -108,3 +108,6 @@ class FakeBackend:
 
     async def aclose(self) -> None:
         return None
+
+    async def health(self) -> bool:
+        return True
