@@ -239,6 +239,38 @@ class Runtime:
         await self.store.update_session(sr.session_id, status=status, error=sr.error)
         return {**base, "status": status, "error": sr.error}
 
-    async def export_memory_update(self, session_id: str) -> dict[str, Any]:
+    # ---- console support -------------------------------------------------- #
+
+    async def list_sessions(self) -> list[dict[str, Any]]:
+        rows = await self.store.list_sessions()
+        live = {sid: sr.status for sid, sr in self._sessions.items()}
+        for row in rows:
+            row["live_status"] = live.get(row["id"], row["status"])
+        return rows
+
+    def latest_frame_path(self, session_id: str) -> str | None:
+        sr = self._sessions.get(session_id)
+        if sr is None:
+            return None
+        frame = sr.frames.latest()
+        return frame.image_path if frame else None
+
+    async def pending_approvals(self, session_id: str) -> list[dict[str, Any]]:
         self._get(session_id)
-        return {"session_id": session_id, "note": "Atlas memory export arrives in Phase 8"}
+        return await self.store.pending_approvals(session_id)
+
+    def recent_trace(self, session_id: str, limit: int = 40) -> list[dict[str, Any]]:
+        sr = self._get(session_id)
+        return sr.trace.read()[-limit:]
+
+    async def export_memory_update(self, session_id: str) -> dict[str, Any]:
+        """Produce a safe Atlas memory-update proposal from the session trace.
+
+        Returns a redacted markdown page + structured incident (no screenshots,
+        secrets, credentials, or verbatim typed/message bodies) for Claude/Codex
+        to write to Atlas via the atlas MCP tools."""
+        from pikvm_agent.memory.atlas_export import build_memory_update
+
+        sr = self._get(session_id)
+        mu = build_memory_update(session_id, sr.task, sr.trace.read(), status=sr.status)
+        return mu.model_dump()
