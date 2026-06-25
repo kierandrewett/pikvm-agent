@@ -29,6 +29,11 @@ class PaddleOCRProvider:
             "use_doc_orientation_classify": False,
             "use_doc_unwarping": False,
             "use_textline_orientation": False,
+            # paddlepaddle 3.x's PIR executor + the oneDNN CPU backend crash at
+            # inference ("ConvertPirAttribute2RuntimeAttribute not support …",
+            # onednn_instruction.cc). Disabling oneDNN uses the plain CPU kernels
+            # (a little slower, but it actually runs).
+            "enable_mkldnn": False,
         }
         if device:
             kwargs["device"] = device
@@ -38,8 +43,13 @@ class PaddleOCRProvider:
         output = self._ocr.predict(str(image_path))
         lines: list[OCRLine] = []
         for res in output:
-            if hasattr(res, "json") and callable(res.json):
-                data = res.json()
+            # PaddleOCR 3.x exposes the result as a `.json` DICT property (not a
+            # method); older builds had `.json()`/`.to_json()` methods. Handle all.
+            raw = getattr(res, "json", None)
+            if isinstance(raw, dict):
+                data = raw
+            elif callable(raw):
+                data = raw()
             elif hasattr(res, "to_json") and callable(res.to_json):
                 data = res.to_json()
             else:
