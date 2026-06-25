@@ -81,14 +81,24 @@ class SafetyPolicyEngine:
         requires_human: bool = bool(dec.risk.requires_human)
 
         # Re-derive risk from the text being typed — never trust the label alone.
-        for action in dec.actions:
-            if getattr(action, "type", None) == "type_text":
-                if classify_command(getattr(action, "text", "")) == "dangerous":
-                    category = "terminal_mutating"
-                    level = "high"
-                    requires_human = True
-                    reason = "dangerous shell command in type_text"
-                    break
+        # A destructive command can't ride in as low-risk text_entry, and a
+        # side-effecting one (send/submit/deploy/publish) needs human approval
+        # even if the operator mislabeled it (Codex P1.2).
+        cmd_risks = [
+            classify_command(getattr(action, "text", ""))
+            for action in dec.actions
+            if getattr(action, "type", None) == "type_text"
+        ]
+        if "dangerous" in cmd_risks:
+            category = "terminal_mutating"
+            level = "high"
+            requires_human = True
+            reason = reason or "dangerous shell command in type_text"
+        elif "side_effect" in cmd_risks:
+            requires_human = True
+            if level == "low":
+                level = "medium"
+            reason = reason or "side-effecting command in type_text requires human approval"
 
         if category in self._require_human:
             requires_human = True

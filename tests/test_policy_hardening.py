@@ -43,6 +43,21 @@ def test_hard_block_wins_over_approval() -> None:
     assert eng.policy_gate(d, 1, 1, approved=True).status == "blocked"  # not approvable
 
 
+def test_side_effecting_typed_command_requires_human() -> None:
+    # P1.2: a side-effecting command typed as low-risk text_entry must escalate.
+    eng = SafetyPolicyEngine(PolicyConfig())
+    d = _dec("text_entry", actions=[{"type": "type_text", "text": "sendmail alice@example.com"}])
+    assert eng.classify_local_risk(d)["requires_human"] is True
+    assert eng.policy_gate(d, 1, 1).status == "approval_required"
+    # dangerous still escalates to terminal_mutating
+    d2 = _dec("text_entry", actions=[{"type": "type_text", "text": "sudo rm -rf /tmp/x"}])
+    r2 = eng.classify_local_risk(d2)
+    assert r2["requires_human"] and r2["category"] == "terminal_mutating"
+    # benign typed text is not escalated
+    d3 = _dec("text_entry", actions=[{"type": "type_text", "text": "ls"}])
+    assert eng.classify_local_risk(d3)["requires_human"] is False
+
+
 def test_recheck_after_approval_flow() -> None:
     eng = SafetyPolicyEngine(PolicyConfig())
     d = _dec("communication_send")
