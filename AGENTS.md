@@ -78,9 +78,11 @@ small, single-purpose chunks.
   creates a session; `pikvm_observe` returns frame_id/world_version/screenshot
   path; no OmniParser/OpenRouter required. ✅ `pytest tests/test_phase1_shell.py`
   + live `pikvm-agent daemon` boot verified.
-- [ ] **Phase 2 — Library adapters**: PaddleOCRClient, OmniParserClient,
-  CompositeScreenParser, ElementMap, set-of-marks overlay. *Accept:*
-  `pikvm-agent smoke-test --screenshot sample.png` reports ocr/omni/merged counts.
+- [x] **Phase 2 — Library adapters**: TesseractOcrProvider (zero-dep default) +
+  PaddleOCRProvider (optional) + PiKVMOcrProvider (live), OmniParser client +
+  provider (+ Null default), CompositeScreenParser, set-of-marks overlay,
+  provider factory. *Accept:* `pikvm-agent smoke-test --screenshot sample.png`
+  reports ocr/omni/merged counts + overlay. ✅ verified (real OCR via tesseract).
 - [ ] **Phase 3 — LangGraph**: AgentState, StateGraph, checkpointing, interrupt
   wrapper, fake operator, replay backend. *Accept:* observe→parse→fake
   decision→policy→finalise runs; pauses on approval and resumes; survives restart.
