@@ -81,7 +81,13 @@ class GuardedTransactionExecutor:
             elif kind == "wait":
                 await asyncio.sleep(max(0, int(a.get("ms", 0))) / 1000.0)
             elif kind == "wait_for_mode":
-                await asyncio.sleep(min(int(a.get("timeout_ms", 500)), 2000) / 1000.0)
+                reached = await self._wait_for_mode(a["mode"], int(a.get("timeout_ms", 1000)))
+                if not reached:
+                    executed.append(a)
+                    return TransactionResult(
+                        status="failed", executed_actions=executed,
+                        error=f"mode '{a['mode']}' not reached before typing/acting",
+                    )
             executed.append(a)
 
         return TransactionResult(
@@ -90,6 +96,27 @@ class GuardedTransactionExecutor:
             verification=verification,
             world_version_after=tx.based_on_world_version,
         )
+
+    async def _wait_for_mode(self, target: str, timeout_ms: int) -> bool:
+        """Observe + detect until the screen reaches ``target`` mode, or timeout.
+        Prevents typing into the wrong target if a shortcut is delayed/swallowed."""
+        from pikvm_agent.vision.mode_detector import detect_mode
+
+        deadline = asyncio.get_event_loop().time() + min(timeout_ms, 10000) / 1000.0
+        while True:
+            frame = await self.backend.screenshot()
+            with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as fh:
+                fh.write(frame.data)
+                tmp = Path(fh.name)
+            try:
+                text = (await self.ocr.ocr(tmp)).text
+            finally:
+                tmp.unlink(missing_ok=True)
+            if detect_mode(text, None) == target:
+                return True
+            if asyncio.get_event_loop().time() >= deadline:
+                return False
+            await asyncio.sleep(0.15)
 
     async def _type_and_verify(self, text: str, state: dict[str, Any]) -> VerificationResult:
         if self.typer is not None:

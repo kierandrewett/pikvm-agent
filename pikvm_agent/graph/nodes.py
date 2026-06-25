@@ -277,13 +277,23 @@ async def verify_result(state: dict, config: RunnableConfig) -> dict:
 
 async def recover(state: dict, config: RunnableConfig) -> dict:
     deps = get_deps(config)
+    # Recovery is an ACTION on the screen — it must target the CURRENT screen, not
+    # the invalidated one that triggered recovery. Re-observe/parse/detect first.
+    from pikvm_agent.vision.mode_detector import detect_mode as _default_detect
+
+    frame = await deps.frames.capture()
+    em = await deps.screen_parser.parse(Path(frame.image_path), frame.frame_id, frame.world_version)
+    detect = deps.detect_mode or _default_detect
+    mode = detect(em.ocr_text, em)
     result: dict[str, Any] = {"action": "none"}
     if deps.recovery is not None:
-        raw = state.get("element_map")
-        em = ElementMap.model_validate(raw) if raw else None
-        result = await deps.recovery.recover(state.get("mode", "unknown"), em)
-    deps.trace.append("recover", from_status=state.get("status"), result=result)
-    return {"status": "running"}
+        result = await deps.recovery.recover(mode, em)
+    deps.trace.append("recover", from_status=state.get("status"), mode=mode, result=result)
+    return {
+        "status": "running", "mode": mode,
+        "frame_id": frame.frame_id, "world_version": frame.world_version,
+        "frame_path": frame.image_path, "element_map": em.model_dump(), "ocr_text": em.ocr_text,
+    }
 
 
 async def finalise(state: dict, config: RunnableConfig) -> dict:
