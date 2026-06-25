@@ -90,10 +90,15 @@ small, single-purpose chunks.
   *Accept:* ✅ happy path runs to finalise; pauses on approval + resumes; state
   survives a simulated restart (`tests/test_phase3_graph.py` +
   `tests/test_phase3_runtime.py`).
-- [ ] **Phase 4 — Guarded transactions**: GuardedTransaction, freshness +
-  policy validation, visual locator, actionability checker, post-action
-  screenshot, verification enums. *Accept:* no frame_id/world_version ⇒ rejected;
-  stale world blocks; click_element resolves via ElementMap; raw click debug-only.
+- [x] **Phase 4 — Guarded transactions**: GuardedTransactionExecutor (locator +
+  actionability clicks, scroll, verified typing, wait_for_mode polling),
+  WatchedTyper (self-correcting typing), Recovery (pager/modal/refocus), wired
+  into the graph (real execution + recover node). Freshness = re-observe +
+  world-version check before execute. *Accept:* ✅ click resolves via ElementMap
+  + actionability blocks obscured/ambiguous; raw coordinate click is not an
+  action type (debug-only by construction); typed text verified by the verifier;
+  scroll never (0,0). `tests/test_transactions.py`, `test_typing.py`,
+  `test_recovery.py`, `test_sprintc_hardening.py`.
 - [ ] **Phase 5 — OpenRouter operator**: client, JSON-schema response, Pydantic
   validation, prompt, model lanes, schema retry. *Accept:* malformed never
   executes; low-risk navigation proposes; risky send/delete/sudo ⇒ interrupt.
