@@ -73,10 +73,11 @@ Atlas remembers durable lessons.
 Reference: `docs/PLAN.md` → *Build order*. Tick items as they land; commit in
 small, single-purpose chunks.
 
-- [ ] **Phase 1 — Own the shell**: FastAPI daemon, MCP facade, config loader,
+- [x] **Phase 1 — Own the shell**: FastAPI daemon, MCP facade, config loader,
   session store, trace log, PiKVM screenshot capture. *Accept:* `pikvm_start_task`
   creates a session; `pikvm_observe` returns frame_id/world_version/screenshot
-  path; no OmniParser/OpenRouter required.
+  path; no OmniParser/OpenRouter required. ✅ `pytest tests/test_phase1_shell.py`
+  + live `pikvm-agent daemon` boot verified.
 - [ ] **Phase 2 — Library adapters**: PaddleOCRClient, OmniParserClient,
   CompositeScreenParser, ElementMap, set-of-marks overlay. *Accept:*
   `pikvm-agent smoke-test --screenshot sample.png` reports ocr/omni/merged counts.
