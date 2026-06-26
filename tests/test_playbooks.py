@@ -49,3 +49,19 @@ async def test_run_playbook_unknown_returns_available(runtime: Runtime) -> None:
     res = await runtime.run_playbook(sid, "bogus.thing", {})
     assert res["status"] == "failed" and "available" in res
     assert "vscode.quick_open_file" in res["available"]
+
+
+def test_windows_run_expands_and_waits_before_typing() -> None:
+    # The reliability contract: open Run, then a settle/wait BEFORE type_text, then submit.
+    actions = playbooks.expand("windows.run", {"command": "calc"})
+    kinds = [a["type"] for a in actions]
+    assert kinds[0] == "key" and actions[0]["keys"] == ["META", "r"]
+    ti = kinds.index("type_text")
+    assert "wait_for_stable_screen" in kinds[:ti]  # we settle before typing
+    assert actions[ti]["text"] == "calc"
+    assert {"type": "key", "keys": ["ENTER"]} in actions  # and submit
+
+
+def test_windows_run_dialog_does_not_submit() -> None:
+    actions = playbooks.expand("windows.run_dialog", {"command": "notepad"})
+    assert not any(a.get("type") == "key" and a.get("keys") == ["ENTER"] for a in actions)

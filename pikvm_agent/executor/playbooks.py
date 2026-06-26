@@ -52,12 +52,40 @@ PLAYBOOKS: dict[str, list[dict[str, Any]]] = {
     "terminal.submit": [
         {"type": "key", "keys": ["ENTER"]},
     ],
-    # --- Windows / browser ---------------------------------------------------
-    "windows.start_search": [
+    # --- Windows app launch --------------------------------------------------
+    # The reliability trick for all of these: after opening Start/Run, WAIT for the dialog
+    # to actually appear + settle before typing (a short wait so the animation starts, then
+    # wait_for_stable_screen so it's focused). Typing too early is why search "doesn't stick"
+    # — the first keystrokes land before the box is ready and are lost.
+    "windows.run": [  # MOST RELIABLE launcher: Run dialog -> exact command -> execute
+        {"type": "key", "keys": ["META", "r"]},
+        {"type": "wait", "ms": 200},
+        {"type": "wait_for_stable_screen", "stable_ms": 250, "timeout_ms": 1500},
+        {"type": "type_text", "text": "{{command}}"},
+        {"type": "key", "keys": ["ENTER"]},
+        {"type": "wait_for_stable_screen", "stable_ms": 400, "timeout_ms": 4000},
+    ],
+    "windows.run_dialog": [  # open Run + type the command but DON'T submit (review first)
+        {"type": "key", "keys": ["META", "r"]},
+        {"type": "wait", "ms": 200},
+        {"type": "wait_for_stable_screen", "stable_ms": 250, "timeout_ms": 1500},
+        {"type": "type_text", "text": "{{command}}"},
+    ],
+    "windows.start_search": [  # open Start, wait until it's focused, type, wait for results
         {"type": "key", "keys": ["META"]},
-        {"type": "wait", "ms": 300},
+        {"type": "wait", "ms": 250},
+        {"type": "wait_for_stable_screen", "stable_ms": 300, "timeout_ms": 1500},
         {"type": "type_text", "text": "{{query}}"},
-        {"type": "wait", "ms": 300},
+        {"type": "wait_for_stable_screen", "stable_ms": 350, "timeout_ms": 1500},
+    ],
+    "windows.launch_via_search": [  # Start search, then Enter to open the top result
+        {"type": "key", "keys": ["META"]},
+        {"type": "wait", "ms": 250},
+        {"type": "wait_for_stable_screen", "stable_ms": 300, "timeout_ms": 1500},
+        {"type": "type_text", "text": "{{query}}"},
+        {"type": "wait_for_stable_screen", "stable_ms": 400, "timeout_ms": 2000},
+        {"type": "key", "keys": ["ENTER"]},
+        {"type": "wait_for_stable_screen", "stable_ms": 400, "timeout_ms": 4000},
     ],
     "browser.goto_url": [
         {"type": "key", "keys": ["CTRL", "L"]},

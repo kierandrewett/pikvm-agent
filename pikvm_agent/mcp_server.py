@@ -184,8 +184,12 @@ async def pikvm_run_playbook(session_id: str, name: str, args: dict | None = Non
     """FAST PATH — run a named burst macro (a canned HID sequence for a common task) with
     your args filled in. e.g. name="vscode.quick_open_file", args={"path":"src/app.ts"}.
     Built-ins include vscode.quick_open_file / command_palette / find_replace / save /
-    focus_terminal, terminal.type_command / submit, windows.start_search, browser.goto_url.
-    An unknown name returns the available list. Same freshness/control gates as a burst."""
+    focus_terminal, terminal.type_command / submit, browser.goto_url, and Windows app
+    launchers: windows.run (Run dialog -> command -> Enter, the most reliable),
+    windows.run_dialog (type but don't submit), windows.start_search,
+    windows.launch_via_search. These WAIT for the dialog to settle before typing, which is
+    why search "sticks" instead of dropping the first keystrokes. An unknown name returns
+    the available list. Same freshness/control gates as a burst."""
     body = {"name": name, "args": args or {},
             "based_on_world_version": based_on_world_version,
             "based_on_control_epoch": based_on_control_epoch}
