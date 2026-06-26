@@ -80,6 +80,9 @@ class FakeBackend:
     async def click(self, x: int, y: int, button: str = "left") -> None:
         self._record("click", x=x, y=y, button=button)
 
+    async def double_click(self, x: int, y: int, button: str = "left") -> None:
+        self._record("double_click", x=x, y=y, button=button)
+
     async def move_mouse(self, x: int, y: int) -> None:
         self._record("move_mouse", x=x, y=y)
 
