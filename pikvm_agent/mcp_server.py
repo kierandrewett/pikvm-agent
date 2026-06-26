@@ -20,7 +20,27 @@ from mcp.server.fastmcp import FastMCP
 
 DAEMON_URL = os.environ.get("PIKVM_AGENT_DAEMON", "http://127.0.0.1:47615")
 
-mcp = FastMCP("pikvm", json_response=True)
+_INSTRUCTIONS = """\
+Drive a physical computer through PiKVM raw video + HID. There is NO agent on the target,
+no accessibility API, no clipboard, no SSH — only the same keyboard/mouse input a human
+would send. YOU are the brain: look at the screenshot, decide the next few HID steps.
+
+Default workflow (fast):
+  1. pikvm_open() -> session_id + first screenshot (frame_id, world_version, control_epoch).
+  2. Read the screenshot, then send ONE pikvm_run_burst(session_id, actions,
+     based_on_world_version, based_on_control_epoch) covering a logical chunk (e.g. opening
+     a file is one burst: Ctrl+P -> type path -> Enter -> wait_for_stable_screen). The daemon
+     runs it locally and returns a fresh screenshot.
+  3. Look, send the next burst. Repeat. Always pass world_version + control_epoch so a stale
+     plan is refused instead of acting on a changed screen.
+Use pikvm_run_playbook for common canned sequences. Use pikvm_parse_screen / find_text only
+when you can't read the screen yourself (they're slow). pikvm_panic_stop halts everything.
+Risky/irreversible steps (send, delete, run a mutating command): draft up to that point,
+show the screenshot, and confirm before committing. pikvm_autonomous_* is opt-in and slow —
+avoid unless the user explicitly wants hands-off operation.
+"""
+
+mcp = FastMCP("pikvm", json_response=True, instructions=_INSTRUCTIONS)
 
 
 def _daemon_client(timeout: float) -> httpx.AsyncClient:
