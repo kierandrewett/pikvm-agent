@@ -33,6 +33,9 @@ class GraphDeps:
     recovery: Any = None  # Recovery (pager-quit / dismiss-modal / refocus)
     lane: str = "default"
     max_steps: int = 12
+    # Reads the session's LIVE controller epoch. operator_decide captures it into the
+    # state; execute_transaction refuses if it changed (abort/panic/steer happened).
+    control_epoch_getter: Callable[[], int] | None = None
 
 
 def get_deps(config: dict[str, Any] | None) -> GraphDeps:

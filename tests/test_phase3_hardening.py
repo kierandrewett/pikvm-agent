@@ -136,3 +136,40 @@ async def test_failed_transaction_is_failed_not_done(tmp_path) -> None:
     result = await graph.ainvoke({"session_id": "s", "task": "t", "step": 0, "max_steps": 5}, config)
     assert result["status"] == "failed"
     assert "click missed" in result.get("error", "")
+
+
+async def test_control_epoch_change_refuses_execution(tmp_path) -> None:
+    # If the controller epoch changes between decide and execute (an abort / panic /
+    # steer happened), the transaction is REFUSED — the action never runs.
+    os.environ["PIKVM_AGENT_FAKE"] = "1"
+    backend = FakeBackend()
+    executed: list = []
+
+    async def _record_execute(tx, state):
+        executed.append(tx)
+        return TransactionResult(status="verified")
+
+    seq = iter([0, 1])  # decide() captures epoch 0; execute() then sees 1 -> stale
+    deps = GraphDeps(
+        backend=backend, frames=FrameStore("s", tmp_path, backend), trace=TraceLog("s", tmp_path),
+        screen_parser=build_screen_parser(AppConfig(), backend),
+        operator=ScriptOp([{"intent": "click something", "risk": _LOW,
+                            "actions": [{"type": "keypress", "keys": ["KeyA"]}]}]),
+        policy=SafetyPolicyEngine(PolicyConfig()), max_steps=5, execute=_record_execute,
+        control_epoch_getter=lambda: next(seq, 1),
+    )
+    graph = build_graph(await build_checkpointer(None))
+    config = {"configurable": {"deps": deps, "thread_id": "ce"}}
+    result = await graph.ainvoke({"session_id": "s", "task": "t", "step": 0, "max_steps": 5}, config)
+    assert result["status"] == "failed"
+    assert "control" in result.get("error", "").lower()
+    assert executed == []  # the action was refused, never executed
+
+
+async def test_panic_stop_halts_all_sessions(runtime: Runtime) -> None:
+    sid = (await runtime.start_session("do a thing"))["session_id"]
+    epoch0 = runtime._sessions[sid].control_epoch
+    res = await runtime.panic_stop()
+    assert res["ok"] and sid in res["stopped"]
+    assert runtime._sessions[sid].status == "failed"
+    assert runtime._sessions[sid].control_epoch == epoch0 + 1  # in-flight plans invalidated

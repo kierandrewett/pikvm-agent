@@ -49,6 +49,10 @@ class AgentState(TypedDict, total=False):
     # Loop control.
     step: int
     max_steps: int
+    # Controller epoch captured when the current decision was made. If the LIVE epoch
+    # (bumped by abort / panic / steering) differs at execute time, the decision is
+    # stale and the transaction is refused — the hard control gate.
+    control_epoch: int
 
     status: Literal[
         "running",

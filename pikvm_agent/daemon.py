@@ -113,6 +113,11 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
     async def abort(session_id: str, body: AbortRequest, request: Request) -> dict[str, Any]:
         return await rt(request).abort_session(session_id, body.reason)
 
+    @app.post("/panic-stop")
+    async def panic_stop(request: Request) -> dict[str, Any]:
+        # Emergency brake — out-of-band, no agent involved. Halts every session.
+        return await rt(request).panic_stop()
+
     @app.get("/sessions/{session_id}/memory-update")
     async def memory_update(session_id: str, request: Request) -> dict[str, Any]:
         return await rt(request).export_memory_update(session_id)

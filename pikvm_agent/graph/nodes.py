@@ -128,7 +128,11 @@ async def operator_decide(state: dict, config: RunnableConfig) -> dict:
         actions=[a["type"] for a in dd["actions"]], risk=dd["risk"]["category"],
     )
     done = (not decision.actions) or decision.intent.strip().upper().startswith("DONE")
-    return {"operator_decision": dd, "step": step, "status": "done" if done else "running"}
+    # Stamp the decision with the controller epoch it was made under; execute_transaction
+    # refuses it if the live epoch has since changed (abort / panic / steer).
+    epoch = deps.control_epoch_getter() if deps.control_epoch_getter else 0
+    return {"operator_decision": dd, "step": step,
+            "status": "done" if done else "running", "control_epoch": epoch}
 
 
 async def validate_decision(state: dict, config: RunnableConfig) -> dict:
@@ -215,6 +219,15 @@ async def human_interrupt(state: dict, config: RunnableConfig) -> dict:
 async def execute_transaction(state: dict, config: RunnableConfig) -> dict:
     deps = get_deps(config)
     decision = state["operator_decision"]
+    # HARD CONTROL GATE (checked before EVERY transaction, so a stop lands within one
+    # action): if the live controller epoch differs from the one this decision was made
+    # under, an abort / panic / steer happened — refuse to execute the stale plan.
+    getter = deps.control_epoch_getter
+    if getter is not None and state.get("control_epoch") is not None and getter() != state["control_epoch"]:
+        deps.trace.append("execute_refused", reason="control_changed",
+                          planned=state["control_epoch"], current=getter())
+        return {"status": "failed", "error": "control changed (aborted / panic / steered)",
+                "transaction_result": {"status": "blocked_by_policy", "error": "control_changed"}}
     # Approval is NOT force-execute. Re-observe NOW and verify the WORLD still
     # matches the plan: frame_id always advances on capture, so the invariant is
     # world_version. A change during a human's deliberation makes this stale.

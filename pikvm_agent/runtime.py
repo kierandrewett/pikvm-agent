@@ -80,6 +80,9 @@ class SessionRuntime:
     status: str = "running"
     events: list[dict[str, Any]] = field(default_factory=list)
     error: str = ""
+    # Bumped on abort / panic / steer; the executor refuses a transaction whose
+    # decision was made under a stale epoch (see graph.nodes.execute_transaction).
+    control_epoch: int = 0
 
 
 class Runtime:
@@ -177,9 +180,11 @@ class Runtime:
             execute=self._executor.execute, recovery=self._recovery,
             max_steps=DEFAULT_MAX_STEPS,
         )
-        self._sessions[session_id] = SessionRuntime(
-            session_id=session_id, task=task, frames=frames, trace=trace, deps=deps
-        )
+        sr = SessionRuntime(session_id=session_id, task=task, frames=frames, trace=trace, deps=deps)
+        # The executor reads the session's LIVE epoch through deps; bumping it (abort /
+        # panic) invalidates any in-flight decision before it executes.
+        deps.control_epoch_getter = lambda: sr.control_epoch
+        self._sessions[session_id] = sr
         return {"session_id": session_id, "status": row["status"], "task": task,
                 "created_at": row["created_at"]}
 
@@ -205,11 +210,32 @@ class Runtime:
 
     async def abort_session(self, session_id: str, reason: str = "") -> dict[str, Any]:
         sr = self._get(session_id)
+        sr.control_epoch += 1  # invalidate any in-flight transaction
         sr.status = "failed"
         sr.error = reason or "aborted by human"
         sr.trace.append("abort", reason=reason)
         await self.store.update_session(session_id, status="failed", error=sr.error)
         return {"session_id": session_id, "status": "failed", "reason": reason}
+
+    async def panic_stop(self) -> dict[str, Any]:
+        """Emergency brake — independent of any agent/MCP. Bumps every session's
+        control epoch (so any in-flight transaction is refused before it executes) and
+        marks active sessions failed. The currently-executing micro-action may finish,
+        but no further action runs without a fresh decision under the new epoch."""
+        stopped: list[str] = []
+        for sid, sr in list(self._sessions.items()):
+            sr.control_epoch += 1
+            if sr.status in ("running", "needs_approval"):
+                sr.status = "failed"
+                sr.error = "panic_stop"
+                sr.trace.append("panic_stop")
+                try:
+                    await self.store.update_session(sid, status="failed", error="panic_stop")
+                except Exception as exc:  # noqa: BLE001 - best-effort persistence
+                    log.warning("panic_stop persist failed for %s: %s", sid, exc)
+                stopped.append(sid)
+        log.warning("PANIC STOP — halted %d session(s): %s", len(stopped), stopped)
+        return {"ok": True, "stopped": stopped}
 
     # ---- operator loop (LangGraph) --------------------------------------- #
 

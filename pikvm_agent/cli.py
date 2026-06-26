@@ -59,6 +59,24 @@ def mcp() -> None:
     mcp_main()
 
 
+@app.command(name="panic-stop")
+def panic_stop() -> None:
+    """EMERGENCY STOP — halt every PiKVM session immediately (no agent involved)."""
+    import os
+
+    import httpx
+
+    url = os.environ.get("PIKVM_AGENT_DAEMON", "http://127.0.0.1:47615").rstrip("/")
+    try:
+        resp = httpx.post(f"{url}/panic-stop", timeout=10.0)
+        resp.raise_for_status()
+        stopped = resp.json().get("stopped", [])
+        typer.echo(f"PANIC STOP sent — halted {len(stopped)} session(s).")
+    except Exception as exc:  # noqa: BLE001
+        typer.echo(f"panic-stop failed (is the daemon running at {url}?): {exc}", err=True)
+        raise typer.Exit(1)
+
+
 _CONFIG_TEMPLATE = """\
 # PiKVM Agent config (XDG). Secrets are NOT stored here — set them as env vars
 # (the desktop app forwards them to the daemon automatically).
