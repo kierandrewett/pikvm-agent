@@ -12,6 +12,7 @@ the pipeline degrades to OCR-only evidence rather than failing.
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import logging
 from pathlib import Path
@@ -49,23 +50,36 @@ class OmniParserClient:
         # The OmniParser omnitool server's routes carry a trailing slash.
         self.health_url = health_url or f"{self.base_url}/probe/"
         self.timeout_s = timeout_s
+        # One pooled client reused across parses — a new client per call would re-pay the
+        # TCP/TLS handshake on every GPU parse in the hot loop.
+        self._client: httpx.AsyncClient | None = None
+
+    def _get_client(self) -> httpx.AsyncClient:
+        if self._client is None or self._client.is_closed:
+            self._client = httpx.AsyncClient(timeout=self.timeout_s)
+        return self._client
+
+    async def aclose(self) -> None:
+        if self._client is not None and not self._client.is_closed:
+            await self._client.aclose()
+        self._client = None
 
     async def health(self) -> bool:
         try:
-            async with httpx.AsyncClient(timeout=3.0) as client:
-                resp = await client.get(self.health_url)
-                return resp.status_code < 500
+            resp = await self._get_client().get(self.health_url, timeout=3.0)
+            return resp.status_code < 500
         except Exception:  # noqa: BLE001
             return False
 
     async def parse_image(self, image_path: Path) -> OmniParserResult:
-        image_b64 = base64.b64encode(Path(image_path).read_bytes()).decode("ascii")
-        async with httpx.AsyncClient(timeout=self.timeout_s) as client:
-            # OmniParser omnitool API: POST /parse/ with {"base64_image": ...}.
-            resp = await client.post(f"{self.base_url}/parse/", json={"base64_image": image_b64})
-            resp.raise_for_status()
-            raw = resp.json()
-        return self._normalize(raw)
+        # Read + base64-encode off the loop (sync file read + encode of a ~200KB JPEG).
+        image_b64 = await asyncio.to_thread(
+            lambda: base64.b64encode(Path(image_path).read_bytes()).decode("ascii")
+        )
+        # OmniParser omnitool API: POST /parse/ with {"base64_image": ...}.
+        resp = await self._get_client().post(f"{self.base_url}/parse/", json={"base64_image": image_b64})
+        resp.raise_for_status()
+        return self._normalize(resp.json())
 
     @staticmethod
     def _normalize(raw: dict[str, Any]) -> OmniParserResult:

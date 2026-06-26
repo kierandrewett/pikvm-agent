@@ -10,6 +10,7 @@ Merge rule (from docs/PLAN.md):
 
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 
 from pikvm_agent.core.models import BBox, ElementMap, VisualElement
@@ -48,8 +49,13 @@ class CompositeScreenParser:
         self.ocr = ocr_provider
 
     async def parse(self, image_path: Path, frame_id: int, world_version: int) -> ElementMap:
-        em = await self.elements.parse_elements(image_path, frame_id, world_version)
-        ocr = await self.ocr.ocr(image_path)
+        # Element grounding (OmniParser GPU/network) and OCR (thread/subprocess) are
+        # independent reads of the same image — run them concurrently so parse latency is
+        # max(omni, ocr), not omni + ocr.
+        em, ocr = await asyncio.gather(
+            self.elements.parse_elements(image_path, frame_id, world_version),
+            self.ocr.ocr(image_path),
+        )
         merged: list[VisualElement] = list(em.elements)
         source_tag = self._ocr_source()
 
