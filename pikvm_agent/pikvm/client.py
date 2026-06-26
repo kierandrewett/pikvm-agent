@@ -137,7 +137,9 @@ class PiKVMBackend:
         if not hw or not hh:
             parsed = jpeg_size(data) or (self.dims["width"], self.dims["height"])
             hw, hh = parsed
-        return self._finalize(data, hw, hh, region)
+        # Decode + LANCZOS downscale + JPEG re-encode is tens of ms of pure CPU — run it
+        # off the event loop so it can't stall other sessions / status polls.
+        return await asyncio.to_thread(self._finalize, data, hw, hh, region)
 
     def _finalize(self, raw: bytes, fw: int, fh: int, region: Region | None) -> CapturedFrame:
         if region is not None:

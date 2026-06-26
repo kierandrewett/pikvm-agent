@@ -8,6 +8,7 @@ decision is only valid against the exact ``(frame_id, world_version)`` it cited.
 
 from __future__ import annotations
 
+import asyncio
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -62,7 +63,8 @@ class FrameStore:
         kb = self._keyboard_state()
 
         if region is None:
-            fp = fingerprint(cf.data)
+            # Fingerprint decodes + resizes the JPEG — offload so it doesn't block the loop.
+            fp = await asyncio.to_thread(fingerprint, cf.data)
             kb_sig = (kb.layout, kb.caps_lock)
             if self._last_fp is not None and float(
                 np.abs(self._last_fp.astype(np.int32) - fp.astype(np.int32)).sum()
@@ -83,7 +85,7 @@ class FrameStore:
 
         name = f"frame_{frame_id:06d}.jpg" if region is None else f"crop_{frame_id:06d}_{int(time.monotonic()*1000)}.jpg"
         path = self._dir / name
-        path.write_bytes(cf.data)
+        await asyncio.to_thread(path.write_bytes, cf.data)
 
         record = FrameRecord(
             frame_id=frame_id,

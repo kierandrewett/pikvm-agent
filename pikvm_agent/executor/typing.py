@@ -261,7 +261,7 @@ class WatchedTyper:
             return None
         if not frame or not frame.data:
             return None
-        return grid(frame.data)
+        return await asyncio.to_thread(grid, frame.data)
 
     async def _read_field(self, region: Region) -> str:
         """OCR the field. Capture the FULL frame and pass the region to the OCR
