@@ -591,11 +591,13 @@ class Runtime:
             "ocr": {"provider": ocr_provider, "available": ocr_available},
             "store": {"connected": True},
         }
-        ready = (
-            pikvm_ok
-            and operator["configured"]
-            and (omni_ok or not cfg.omniparser.required)
-        )
+        # Burst-first: the daemon can drive the machine the moment the TARGET is reachable.
+        # OmniParser + the operator LLM are only for the opt-in Layer-2 (perception) and
+        # Layer-3 (autonomous) paths, so they're REPORTED as dependencies but don't gate
+        # overall readiness — the default direct-control path needs neither.
+        deps["operator"]["needed_for"] = "autonomous mode only"
+        deps["omniparser"]["needed_for"] = "on-demand perception / autonomous mode only"
+        ready = pikvm_ok
         result = {"ok": ready, "dependencies": deps}
         self._status_cache = (time.monotonic(), result)
         return result
