@@ -41,3 +41,17 @@ async def test_new_client_distrusts_tracked_position() -> None:
     be.hid.state.clients = {"count": 2}
     await be._on_kvmd_event("clients", None)
     assert be.cursor()["trusted"] is False and be.other_clients() == 1
+
+
+async def test_external_cursor_report_updates_tracked_position(runtime) -> None:
+    # The desktop live-view reports a manual move (norm ±32767); the daemon's tracked
+    # cursor follows it and is trusted.
+    sid = (await runtime.start_session("direct"))["session_id"]
+    # norm 0 ~ centre; +32767 ~ right/bottom edge.
+    runtime.report_external_cursor(0, 0)
+    c = runtime._cursor_state()
+    w = runtime.backend.dims["width"]
+    assert abs(c["x"] - w // 2) <= 1 and c["trusted"] is True
+    # a screenshot now carries that cursor
+    obs = await runtime.get_session_summary(sid, capture=False)
+    assert obs["cursor"]["x"] == c["x"]

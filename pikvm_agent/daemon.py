@@ -180,6 +180,12 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
     async def abort(session_id: str, body: AbortRequest, request: Request) -> dict[str, Any]:
         return await rt(request).abort_session(session_id, body.reason)
 
+    @app.post("/cursor")
+    async def report_cursor(body: dict[str, Any], request: Request) -> dict[str, Any]:
+        # The desktop live-view reports the user's manual mouse position (norm ±32767) so the
+        # daemon's tracked cursor follows external moves kvmd doesn't broadcast.
+        return rt(request).report_external_cursor(float(body.get("x", 0)), float(body.get("y", 0)))
+
     @app.post("/panic-stop")
     async def panic_stop(request: Request) -> dict[str, Any]:
         # Emergency brake — out-of-band, no agent involved. Halts every session.

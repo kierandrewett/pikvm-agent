@@ -179,6 +179,14 @@ class Runtime:
         getter = getattr(self.backend, "cursor", None)
         return getter() if callable(getter) else None
 
+    def report_external_cursor(self, nx: float, ny: float) -> dict[str, Any]:
+        """The desktop live-view reports where the USER just moved the cursor (norm ±32767),
+        so the daemon's tracked position stays current with manual moves kvmd won't report."""
+        setter = getattr(self.backend, "set_cursor_from_norm", None)
+        if callable(setter):
+            setter(nx, ny)
+        return self._cursor_state() or {}
+
     async def _ensure_omniparser(self) -> None:
         """Spawn + warm OmniParser the first time perception/autonomous mode actually needs
         it (it loads GPU models on boot — minutes — so we never pay that with the daemon)."""

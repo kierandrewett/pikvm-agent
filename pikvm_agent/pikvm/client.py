@@ -22,7 +22,7 @@ from pikvm_agent.debuglog import DEBUG
 from pikvm_agent.core.models import CapturedFrame, Region
 from pikvm_agent.pikvm import keyboard_state as ks
 from pikvm_agent.pikvm import timing
-from pikvm_agent.pikvm.hid import HidChannel, to_norm
+from pikvm_agent.pikvm.hid import HidChannel, clamp_norm, to_norm
 from pikvm_agent.pikvm.windmouse import WindMouseOptions, wind_mouse_path
 from pikvm_agent.pikvm.screenshot import crop, downscale, jpeg_size, to_captured_frame
 
@@ -109,6 +109,15 @@ class PiKVMBackend:
         w, h = self.dims["width"], self.dims["height"]
         self._cursor = {"x": max(0.0, min(float(px), w - 1)),
                         "y": max(0.0, min(float(py), h - 1)), "trusted": trusted}
+
+    def set_cursor_from_norm(self, nx: float, ny: float) -> None:
+        """Record the cursor from an EXTERNAL absolute report in HID norm units (±32767) —
+        e.g. the desktop live-view telling us where the USER just moved it. We were told the
+        position, so trust it (this is how we observe moves kvmd won't report)."""
+        w, h = self.dims["width"], self.dims["height"]
+        px = (clamp_norm(nx) + 32767) / 65534.0 * w
+        py = (clamp_norm(ny) + 32767) / 65534.0 * h
+        self._set_cursor(px, py, trusted=True)
 
     def other_clients(self) -> int:
         """How many OTHER kvmd clients are connected (could move the mouse externally)."""

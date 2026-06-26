@@ -96,6 +96,11 @@ class FakeBackend:
     def other_clients(self) -> int:
         return 0
 
+    def set_cursor_from_norm(self, nx: float, ny: float) -> None:
+        w, h = self.dims["width"], self.dims["height"]
+        self._cursor = {"x": round((nx + 32767) / 65534.0 * w),
+                        "y": round((ny + 32767) / 65534.0 * h), "trusted": True}
+
     async def scroll(self, dx: int = 0, dy: int = 0) -> None:
         self._record("scroll", dx=dx, dy=dy)
 
