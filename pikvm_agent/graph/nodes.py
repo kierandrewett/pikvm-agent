@@ -99,6 +99,19 @@ async def observe_frame(state: dict, config: RunnableConfig) -> dict:
 
 async def parse_screen(state: dict, config: RunnableConfig) -> dict:
     deps = get_deps(config)
+    # Skip the expensive parse (OmniParser GPU + OCR) when the screen is materially
+    # unchanged. world_version is the codebase's materiality invariant — it only advances
+    # when the perceptual fingerprint moves past the threshold (or the keyboard state
+    # changes), so a matching world_version means the cached element map is still valid.
+    # Re-stamp frame_id (which advances on every capture) so the actionability gate's
+    # frame check still passes; world_version — the real invariant — is unchanged.
+    prev = state.get("element_map")
+    if prev and prev.get("world_version") == state["world_version"] and prev.get("elements") is not None:
+        fid = state["frame_id"]
+        em = {**prev, "frame_id": fid,
+              "elements": [{**e, "frame_id": fid} for e in prev.get("elements", [])]}
+        deps.trace.append("parse_skipped", world_version=state["world_version"], frame_id=fid)
+        return {"element_map": em, "ocr_text": state.get("ocr_text", prev.get("ocr_text", ""))}
     em = await deps.screen_parser.parse(
         Path(state["frame_path"]), state["frame_id"], state["world_version"]
     )

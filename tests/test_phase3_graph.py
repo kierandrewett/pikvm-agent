@@ -130,3 +130,49 @@ async def test_state_survives_restart(tmp_path) -> None:
     kinds = [e["kind"] for e in deps2.trace.read()]
     assert "approved" in kinds and "executed" in kinds
     await close_checkpointer(ck2)
+
+
+async def test_parse_screen_skips_when_world_unchanged(tmp_path) -> None:
+    # Perf: parse_screen must reuse the cached element map (skip OmniParser + OCR) when
+    # world_version is unchanged, and re-stamp frame_id so the actionability gate passes.
+    import os as _os
+
+    from pikvm_agent.core.models import ElementMap, VisualElement, BBox
+    from pikvm_agent.graph.nodes import parse_screen
+
+    _os.environ["PIKVM_AGENT_FAKE"] = "1"
+    calls = {"n": 0}
+
+    class CountingParser:
+        async def parse(self, path, frame_id, world_version):
+            calls["n"] += 1
+            el = VisualElement(id="e0", frame_id=frame_id, world_version=world_version,
+                               bbox=BBox(x=1, y=1, w=10, h=10), kind="button", text="OK")
+            return ElementMap(frame_id=frame_id, world_version=world_version,
+                              elements=[el], ocr_text="hello")
+
+    backend = FakeBackend()
+    deps = GraphDeps(
+        backend=backend, frames=FrameStore("s", tmp_path, backend), trace=TraceLog("s", tmp_path),
+        screen_parser=CountingParser(), operator=ScriptOp([]),
+        policy=SafetyPolicyEngine(PolicyConfig()),
+    )
+    config = {"configurable": {"deps": deps, "thread_id": "p"}}
+
+    # First parse at world_version 7, frame 1 -> real parse.
+    s1 = {"frame_path": str(tmp_path / "f.jpg"), "frame_id": 1, "world_version": 7}
+    out1 = await parse_screen(s1, config)
+    assert calls["n"] == 1 and out1["element_map"]["world_version"] == 7
+
+    # Same world_version, NEW frame id 2 -> skipped; reuse map but re-stamp frame_id.
+    s2 = {**out1, "frame_path": str(tmp_path / "f.jpg"), "frame_id": 2, "world_version": 7}
+    out2 = await parse_screen(s2, config)
+    assert calls["n"] == 1  # NOT re-parsed
+    assert out2["element_map"]["frame_id"] == 2
+    assert out2["element_map"]["elements"][0]["frame_id"] == 2  # elements re-stamped too
+    assert out2["element_map"]["elements"][0]["world_version"] == 7  # world invariant kept
+
+    # World moved (8) -> parse runs again.
+    s3 = {**out2, "frame_path": str(tmp_path / "f.jpg"), "frame_id": 3, "world_version": 8}
+    await parse_screen(s3, config)
+    assert calls["n"] == 2
