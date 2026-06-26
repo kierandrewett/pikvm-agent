@@ -158,13 +158,18 @@ async def pikvm_run_burst(session_id: str, actions: list[dict],
 
     Each action in `actions` is one of:
       {"type":"key","keys":["CTRL","P"]}                 — a chord (friendly names or PiKVM codes)
-      {"type":"type_text","text":"...","method":"print"}  — print = fast PiKVM HID print; omit for humanized typing; add "verify":true to read-back
+      {"type":"type_text","text":"..."}                  — DEFAULT: humanized typing that READS THE
+            FIELD BACK and self-corrects; if the text is confirmed wrong it STOPS the burst (so the
+            next Enter can't run on a typo). USE THIS for search terms, commands, paths, anything a
+            typo would ruin. Only add "method":"print" for long, non-critical PROSE (fast, NO check).
       {"type":"click","x":840,"y":300,"button":"left"}   — raw coordinate click (WindMouse)
       {"type":"double_click","x":840,"y":300}
       {"type":"move","x":840,"y":300}
       {"type":"scroll","direction":"down","amount":3}
       {"type":"wait","ms":250}
       {"type":"wait_for_stable_screen","stable_ms":300,"timeout_ms":1500}  — wait for the screen to settle
+      {"type":"wait_for_change","timeout_ms":20000}  — wait until the screen CHANGES (e.g. an app
+            finishes launching / a remote desktop connects); far better than a blind long wait
 
     Pass based_on_world_version + based_on_control_epoch (from pikvm_screenshot/pikvm_open)
     so a stale plan is refused (status "stale_world"/"control_changed") instead of acting on
@@ -205,8 +210,9 @@ async def pikvm_key(session_id: str, keys: list[str]) -> dict:
 
 @mcp.tool()
 async def pikvm_type_text(session_id: str, text: str, method: str = "") -> dict:
-    """Type text now via PiKVM HID (method="print" for the fast HID printer, else
-    humanized per-key). Never submits — send a separate Enter key. Sugar over a burst."""
+    """Type text now via PiKVM HID. DEFAULT humanized typing READS THE FIELD BACK and
+    self-corrects (use for search terms, commands, paths). method="print" is the fast,
+    no-read-back path — long non-critical prose only. Never submits — send a separate Enter."""
     return await pikvm_run_burst(session_id, [{"type": "type_text", "text": text, "method": method}])
 
 

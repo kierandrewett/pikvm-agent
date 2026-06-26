@@ -187,11 +187,43 @@ async def _dispatch(a: dict[str, Any], kind: str | None, *, backend: Any, typer:
         await wait_for_stable_screen(backend, stable_ms=int(a.get("stable_ms", 300)),
                                      timeout_ms=int(a.get("timeout_ms", 1500)),
                                      should_continue=should_continue)
+    elif kind == "wait_for_change":
+        await wait_for_screen_change(backend, timeout_ms=int(a.get("timeout_ms", 8000)),
+                                     should_continue=should_continue)
     else:
         raise BurstError(f"unsupported burst action: {kind!r}")
 
 
 _SCROLL = {"up": (0, 1), "down": (0, -1), "right": (1, 0), "left": (-1, 0)}
+
+
+async def wait_for_screen_change(backend: Any, *, timeout_ms: int = 8000, poll_ms: int = 150,
+                                 should_continue: ShouldContinue | None = None) -> bool:
+    """Block until the screen CHANGES from how it looks right now (an app launching, a remote
+    desktop connecting, a page loading), or ``timeout_ms`` elapses — so a burst can say 'wait
+    for it to appear' instead of guessing a blind 20s wait. Returns True if it changed."""
+    import numpy as np
+
+    deadline = time.monotonic() * 1000 + max(0, timeout_ms)
+    base = None
+    while True:
+        if should_continue is not None and not should_continue():
+            return False
+        try:
+            frame = await backend.screenshot()
+            g = await asyncio.to_thread(grid, frame.data) if frame and frame.data else None
+        except Exception:  # noqa: BLE001
+            g = None
+        if g is not None:
+            if base is None:
+                base = g
+            else:
+                delta = float(np.abs(g.astype(np.int32) - base.astype(np.int32)).sum()) / max(1, g.size) / 255.0
+                if delta > FP_MEANINGFUL:
+                    return True
+        if time.monotonic() * 1000 >= deadline:
+            return False
+        await asyncio.sleep(poll_ms / 1000.0)
 
 
 async def wait_for_stable_screen(backend: Any, *, stable_ms: int = 300, timeout_ms: int = 1500,

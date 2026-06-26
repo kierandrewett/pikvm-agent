@@ -386,10 +386,13 @@ class Runtime:
         deadline = (time.monotonic() * 1000 + max_runtime_ms) if max_runtime_ms else None
         sr.status = "running"
         try:
+            # The watched typer can't read back a synthetic FakeBackend screen, so skip it
+            # under the fake (the verify path is unit-tested directly in test_burst.py).
+            typer = None if os.environ.get("PIKVM_AGENT_FAKE") else getattr(self._executor, "typer", None)
             with DEBUG.span("burst.run", actions=len(actions)) as result:
                 outcome = await _burst.run_burst(
                     actions, backend=self.backend, should_continue=gate,
-                    deadline_ms=deadline, typer=getattr(self._executor, "typer", None))
+                    deadline_ms=deadline, typer=typer)
                 result(status=outcome.status, completed=outcome.completed, reason=outcome.reason)
         except _burst.BurstError as exc:
             sr.status = "paused"

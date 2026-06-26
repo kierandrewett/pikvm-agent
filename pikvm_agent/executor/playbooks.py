@@ -20,7 +20,7 @@ PLAYBOOKS: dict[str, list[dict[str, Any]]] = {
     "vscode.quick_open_file": [
         {"type": "key", "keys": ["CTRL", "P"]},
         {"type": "wait", "ms": 200},
-        {"type": "type_text", "text": "{{path}}", "method": "print"},
+        {"type": "type_text", "text": "{{path}}"},  # verified read-back — a wrong path won't open
         {"type": "key", "keys": ["ENTER"]},
         {"type": "wait_for_stable_screen", "stable_ms": 300, "timeout_ms": 1500},
     ],
@@ -47,7 +47,7 @@ PLAYBOOKS: dict[str, list[dict[str, Any]]] = {
     ],
     # --- terminal (type vs submit kept separate ON PURPOSE) ------------------
     "terminal.type_command": [  # types but never submits — review before Enter
-        {"type": "type_text", "text": "{{command}}", "method": "print"},
+        {"type": "type_text", "text": "{{command}}"},  # verified — read back before you submit
     ],
     "terminal.submit": [
         {"type": "key", "keys": ["ENTER"]},
