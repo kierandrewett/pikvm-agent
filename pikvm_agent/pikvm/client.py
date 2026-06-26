@@ -10,6 +10,7 @@ server-side print path. Newlines never auto-submit.
 from __future__ import annotations
 
 import asyncio
+import math
 import random
 from urllib.parse import urlsplit, urlunsplit
 
@@ -20,6 +21,7 @@ from pikvm_agent.core.errors import BackendError
 from pikvm_agent.core.models import CapturedFrame, Region
 from pikvm_agent.pikvm import keyboard_state as ks
 from pikvm_agent.pikvm.hid import HidChannel, to_norm
+from pikvm_agent.pikvm.windmouse import WindMouseOptions, wind_mouse_path
 from pikvm_agent.pikvm.screenshot import crop, downscale, jpeg_size, to_captured_frame
 
 
@@ -252,9 +254,44 @@ class PiKVMBackend:
 
     # ---- mouse ------------------------------------------------------------ #
 
+    @staticmethod
+    def _from_norm(n: float, span: int) -> float:
+        """Inverse of hid.to_norm — normalized HID units back to frame pixels."""
+        return (n + 32767) / 65534.0 * span
+
     async def move_mouse(self, x: int, y: int) -> None:
-        tx = to_norm(x, self.dims["width"])
-        ty = to_norm(y, self.dims["height"])
+        """Move the cursor along a WindMouse path: gravity pulls toward the target
+        while a random wind walk perturbs it, giving an organic curved trajectory with
+        a natural speed profile, tremor and an off-centre landing. Generated in frame-
+        pixel space (where the force constants are tuned) and converted to HID units;
+        always lands EXACTLY on the target so clicks hit the resolved site."""
+        w, h = self.dims["width"], self.dims["height"]
+        tx, ty = to_norm(x, w), to_norm(y, h)
+        start = (self._from_norm(self._mouse["x"], w), self._from_norm(self._mouse["y"], h))
+        end = (float(x), float(y))
+        if math.hypot(end[0] - start[0], end[1] - start[1]) < 2:
+            await self.hid.mouse_move(tx, ty)
+            self._mouse = {"x": tx, "y": ty}
+            return
+
+        hum = max(0.0, self._cfg.mouse_humanize)
+        opts = WindMouseOptions(speed=self._cfg.mouse_speed,
+                                tremor=0.5 * hum, end_scatter=2.0 * hum, hes=0.04 * hum)
+        samples = wind_mouse_path(start, end, opts)
+        # WindMouse emits ~one point per integration step (a long move can be 100+).
+        # Decimate to a sane cap (timing preserved) so we don't flood the HID socket.
+        cap = 80
+        if len(samples) > cap:
+            samples = [samples[round(i * (len(samples) - 1) / (cap - 1))] for i in range(cap)]
+
+        prev_t = 0.0
+        for i, (sx, sy, t) in enumerate(samples):
+            await self.hid.mouse_move(to_norm(sx, w), to_norm(sy, h))
+            dt = t - prev_t
+            prev_t = t
+            if i < len(samples) - 1 and dt > 0.5:
+                await _sleep(dt)
+        # Land exactly on the requested target (the click site).
         await self.hid.mouse_move(tx, ty)
         self._mouse = {"x": tx, "y": ty}
 

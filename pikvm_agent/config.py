@@ -58,6 +58,12 @@ class PikvmConfig(BaseModel):
     # Optional explicit auth token cookie env (alternative to user/pass).
     token_env: str = "PIKVM_TOKEN"
     layout: str = "us"  # us | uk; refined live from the Pi's keymap
+    # Humanized pointer motion (WindMouse). speed: higher is faster (shorter move).
+    # humanize: 0..1 intensity of the extra tremor / endpoint-scatter / hesitation;
+    # 0 keeps the curved geometry + timing but drops the jitter. Set humanize 0 and
+    # a high speed for the fastest, straightest moves.
+    mouse_speed: float = 1.9
+    mouse_humanize: float = 1.0
 
     @property
     def username(self) -> str | None:
