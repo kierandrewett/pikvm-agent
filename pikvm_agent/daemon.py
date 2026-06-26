@@ -137,6 +137,14 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
             based_on_control_epoch=body.based_on_control_epoch,
             max_runtime_ms=body.max_runtime_ms, return_screenshot=body.return_screenshot)
 
+    @app.post("/sessions/{session_id}/playbook")
+    async def run_playbook(session_id: str, body: dict[str, Any], request: Request) -> dict[str, Any]:
+        return await rt(request).run_playbook(
+            session_id, str(body.get("name", "")), body.get("args") or {},
+            based_on_world_version=body.get("based_on_world_version"),
+            based_on_control_epoch=body.get("based_on_control_epoch"),
+            max_runtime_ms=int(body.get("max_runtime_ms", 4000)))
+
     @app.post("/sessions/{session_id}/parse")
     async def parse_screen(session_id: str, request: Request) -> dict[str, Any]:
         return await rt(request).parse_screen_now(session_id)

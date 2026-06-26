@@ -316,6 +316,23 @@ class Runtime:
             result = await self._graph.ainvoke(None, config)
         return await self._after_run(sr, result)
 
+    # ---- playbooks (named burst macros) ---------------------------------- #
+
+    async def run_playbook(self, session_id: str, name: str, args: dict[str, Any] | None = None,
+                           **burst_kw: Any) -> dict[str, Any]:
+        """Expand a named playbook to a burst and run it (same gates as run_burst)."""
+        from pikvm_agent.executor import playbooks
+
+        try:
+            actions = playbooks.expand(name, args or {})
+        except playbooks.UnknownPlaybook:
+            return {"session_id": session_id, "status": "failed",
+                    "error": f"unknown playbook: {name}", "available": playbooks.names()}
+        except playbooks.MissingPlaybookArg as exc:
+            return {"session_id": session_id, "status": "failed",
+                    "error": f"playbook {name} missing arg: {exc}"}
+        return await self.run_burst(session_id, actions, **burst_kw)
+
     # ---- direct burst control (the fast model-in-the-loop path) ---------- #
 
     async def run_burst(self, session_id: str, actions: list[dict[str, Any]], *,

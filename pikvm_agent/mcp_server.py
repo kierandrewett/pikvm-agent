@@ -130,6 +130,21 @@ async def pikvm_run_burst(session_id: str, actions: list[dict],
 
 
 @mcp.tool()
+async def pikvm_run_playbook(session_id: str, name: str, args: dict | None = None,
+                            based_on_world_version: int | None = None,
+                            based_on_control_epoch: int | None = None) -> dict:
+    """FAST PATH — run a named burst macro (a canned HID sequence for a common task) with
+    your args filled in. e.g. name="vscode.quick_open_file", args={"path":"src/app.ts"}.
+    Built-ins include vscode.quick_open_file / command_palette / find_replace / save /
+    focus_terminal, terminal.type_command / submit, windows.start_search, browser.goto_url.
+    An unknown name returns the available list. Same freshness/control gates as a burst."""
+    body = {"name": name, "args": args or {},
+            "based_on_world_version": based_on_world_version,
+            "based_on_control_epoch": based_on_control_epoch}
+    return await _run_or_abort(session_id, _post(f"/sessions/{session_id}/playbook", body))
+
+
+@mcp.tool()
 async def pikvm_key(session_id: str, keys: list[str]) -> dict:
     """Send one key chord now (e.g. keys=["CTRL","S"]). Sugar over pikvm_run_burst."""
     return await pikvm_run_burst(session_id, [{"type": "key", "keys": keys}])
