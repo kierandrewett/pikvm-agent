@@ -24,10 +24,10 @@ def test_all_delays_stay_within_bounds() -> None:
 
 
 def test_base_gap_is_a_plausible_typing_speed() -> None:
-    # ~65-130 WPM -> per-char gap of roughly 92-185 ms.
+    # ~48-100 WPM (deliberately careful) -> per-char gap of roughly 120-250 ms.
     for seed in range(100):
         g = timing.base_gap_ms(random.Random(seed))
-        assert 90 <= g <= 190
+        assert 118 <= g <= 252
 
 
 def test_inter_key_gap_skews_positive_and_pauses_at_boundaries() -> None:

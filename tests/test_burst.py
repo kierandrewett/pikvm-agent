@@ -86,3 +86,48 @@ async def test_burst_backend_failure_is_reported_not_raised() -> None:
     be.keypress = boom  # type: ignore[method-assign]
     out = await run_burst([{"type": "key", "keys": ["KeyA"]}], backend=be)
     assert out.status == "failed" and "hid offline" in out.error
+
+
+class _StubTyper:
+    """Stand-in watched typer that returns a chosen verification status."""
+    def __init__(self, status: str) -> None:
+        self.status = status
+        self.calls: list[str] = []
+
+    async def type_text(self, text, *, code=False, secret=False, should_continue=None):
+        self.calls.append(text)
+        class _R:
+            pass
+        r = _R(); r.status = self.status; r.ok = not self.status.startswith("failed_"); r.summary = "stub"
+        return r
+
+
+async def test_burst_type_text_verifies_and_stops_on_mismatch() -> None:
+    # Confirmed-wrong typing must stop the burst BEFORE the following Enter (the Ctrl+F risk).
+    be = FakeBackend()
+    typer = _StubTyper("failed_focus_lost")
+    out = await run_burst(
+        [{"type": "type_text", "text": "securityadmin"}, {"type": "key", "keys": ["ENTER"]}],
+        backend=be, typer=typer)
+    assert out.status == "failed" and out.reason == "type_unverified"
+    assert typer.calls == ["securityadmin"]
+    assert not any(m == "keypress" for m, _ in be.calls)  # ENTER never ran
+
+
+async def test_burst_type_text_proceeds_when_verified() -> None:
+    be = FakeBackend()
+    typer = _StubTyper("verified_exact")
+    out = await run_burst(
+        [{"type": "type_text", "text": "hi"}, {"type": "key", "keys": ["ENTER"]}],
+        backend=be, typer=typer)
+    assert out.status == "completed"
+    assert any(m == "keypress" for m, _ in be.calls)
+
+
+async def test_burst_print_method_skips_verify() -> None:
+    be = FakeBackend()
+    typer = _StubTyper("failed_focus_lost")  # would fail IF consulted
+    out = await run_burst([{"type": "type_text", "text": "long", "method": "print"}],
+                          backend=be, typer=typer)
+    assert out.status == "completed" and typer.calls == []  # fast path didn't use the typer
+    assert any(m == "print_text" for m, _ in be.calls)

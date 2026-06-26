@@ -26,9 +26,10 @@ def _clamp(v: float, lo: float, hi: float) -> float:
 # ---- keystrokes ----------------------------------------------------------- #
 
 def base_gap_ms(rng: random.Random = _DEFAULT) -> float:
-    """A session's baseline inter-key gap, from a per-persona WPM (~65-130, mean 95).
-    Drawn ONCE per backend so a session types at a consistent personal speed."""
-    wpm = _clamp(rng.gauss(95, 12), 65, 130)
+    """A session's baseline inter-key gap, from a per-persona WPM (~50-100, mean 70). Drawn
+    ONCE per backend so a session types at a consistent personal speed — deliberately on the
+    careful side (the agent should not type at superhuman speed)."""
+    wpm = _clamp(rng.gauss(70, 11), 48, 100)
     return 60000.0 / (wpm * 5.0)  # 5 chars/word
 
 

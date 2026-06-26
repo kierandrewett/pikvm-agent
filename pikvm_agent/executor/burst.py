@@ -86,6 +86,11 @@ class BurstError(Exception):
     """A malformed/unsupported burst action — surfaced to the controller, never executed."""
 
 
+class TypingNotVerified(Exception):
+    """Typed text was read back and is CONFIRMED wrong (or the field wasn't focused). The
+    burst stops here so the next action (e.g. Enter) can't act on the wrong text."""
+
+
 # --- the engine ------------------------------------------------------------ #
 
 ShouldContinue = Callable[[], bool]
@@ -122,6 +127,10 @@ async def run_burst(
             await _dispatch(a, kind, backend=backend, typer=typer, should_continue=should_continue)
         except BurstError:
             raise
+        except TypingNotVerified as exc:
+            # Confirmed wrong typed text — stop BEFORE the next action (don't Enter on it).
+            return BurstOutcome("failed", i, total, reason="type_unverified",
+                                error=str(exc), executed=executed)
         except Exception as exc:  # noqa: BLE001 - a backend failure ends the burst, not the daemon
             return BurstOutcome("failed", i, total, reason="action_error",
                                 error=f"{kind}: {exc}", executed=executed)
@@ -140,12 +149,25 @@ async def _dispatch(a: dict[str, Any], kind: str | None, *, backend: Any, typer:
     elif kind == "type_text":
         text = a.get("text", "")
         method = str(a.get("method", "")).lower()
-        if method in ("print", "hid_print", "pikvm_hid_print") and hasattr(backend, "print_text"):
+        code, secret = bool(a.get("code")), bool(a.get("secret"))
+        fast = method in ("print", "hid_print", "pikvm_hid_print")
+        if fast and hasattr(backend, "print_text"):
+            # Explicit FAST path: server-side HID printer, no read-back. Use only when you
+            # don't care to confirm what landed (and it's plain, non-secret text).
             await backend.print_text(text)
-        elif a.get("verify") and typer is not None:
-            await typer.type_text(text, should_continue=should_continue)
+        elif typer is not None and not a.get("no_verify") and not secret:
+            # DEFAULT: watched typer — humanized, reads the field back, self-corrects once.
+            # A CONFIRMED wrong result (not merely "couldn't read it") stops the burst so the
+            # next action can't run on bad text — exactly the Ctrl+F mistake-blindness risk.
+            res = await typer.type_text(text, code=code, secret=secret,
+                                        should_continue=should_continue)
+            status = str(getattr(res, "status", "") or "")
+            if status.startswith("failed_"):
+                raise TypingNotVerified(
+                    f"typed {text!r} but read-back disagrees ({status}): "
+                    f"{getattr(res, 'summary', '')}")
         else:
-            await backend.type_text(text, code=bool(a.get("code")), secret=bool(a.get("secret")))
+            await backend.type_text(text, code=code, secret=secret)
     elif kind in ("click", "double_click"):
         x, y = int(a["x"]), int(a["y"])
         button = a.get("button", "left")
