@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import os
 
 import httpx
@@ -85,3 +86,28 @@ async def test_mcp_facade_forwards_to_daemon(app_config: AppConfig,
         assert obs["frame_id"] == 1 and os.path.exists(obs["screenshot_path"])
     finally:
         await rt.aclose()
+
+
+async def test_cancel_continue_aborts_session(monkeypatch) -> None:
+    # Cancelling a blocking call (e.g. Esc in Claude) must abort the daemon session,
+    # so interrupting the agent actually stops the machine instead of leaving the
+    # daemon driving on its own.
+    calls: list[str] = []
+
+    async def fake_post(path, json=None, timeout=60.0):
+        calls.append(path)
+        if path.endswith("/continue"):
+            await asyncio.sleep(5)  # hang so we can cancel mid-run
+        return {"ok": True}
+
+    monkeypatch.setattr(mcp_server, "_post", fake_post)
+    task = asyncio.ensure_future(mcp_server.pikvm_continue("s_abc"))
+    await asyncio.sleep(0.05)  # let it reach the hanging continue
+    assert calls == ["/sessions/s_abc/continue"]
+
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    await asyncio.sleep(0.05)  # let the abort land
+
+    assert "/sessions/s_abc/abort" in calls  # cancellation fired the abort
