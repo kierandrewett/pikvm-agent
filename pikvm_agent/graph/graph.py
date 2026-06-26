@@ -13,6 +13,7 @@ from typing import Any
 from langgraph.graph import END, START, StateGraph
 
 from pikvm_agent.graph.nodes import (
+    budget_pause,
     detect_state,
     execute_transaction,
     finalise,
@@ -46,6 +47,7 @@ def build_graph(checkpointer: Any) -> Any:
     builder.add_node("execute_transaction", execute_transaction)
     builder.add_node("verify_result", verify_result)
     builder.add_node("recover", recover)
+    builder.add_node("budget_pause", budget_pause)
     builder.add_node("finalise", finalise)
 
     builder.add_edge(START, "observe_frame")
@@ -78,11 +80,13 @@ def build_graph(checkpointer: Any) -> Any:
         {
             "continue": "observe_frame",
             "recover": "recover",
+            "pause": "budget_pause",
             "done": "finalise",
             "failed": "finalise",
         },
     )
     builder.add_edge("recover", "observe_frame")
+    builder.add_edge("budget_pause", "observe_frame")  # resume -> keep going
     builder.add_edge("finalise", END)
 
     return builder.compile(checkpointer=checkpointer)

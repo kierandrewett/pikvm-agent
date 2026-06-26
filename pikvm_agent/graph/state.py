@@ -54,6 +54,14 @@ class AgentState(TypedDict, total=False):
     # stale and the transaction is refused — the hard control gate.
     control_epoch: int
 
+    # Per-continue-CALL budget so one pikvm_continue can't run unbounded: it does at
+    # most max_transactions executions (0 = unbounded) or until deadline_ms (monotonic
+    # ms; 0 = none), then PAUSES (resumable) instead of running on. tx_this_call counts
+    # executions this call; it's reset to 0 each call.
+    max_transactions: int
+    tx_this_call: int
+    deadline_ms: float
+
     status: Literal[
         "running",
         "needs_approval",

@@ -80,12 +80,21 @@ async def pikvm_start_task(task: str, policy: dict | None = None,
 
 
 @mcp.tool()
-async def pikvm_continue(session_id: str) -> dict:
-    """Continue a session until the next checkpoint, approval, or completion.
+async def pikvm_continue(session_id: str, max_transactions: int = 1,
+                         max_runtime_ms: int = 2500) -> dict:
+    """Continue a session until the next checkpoint, approval, completion, or until this
+    call's budget (max_transactions / max_runtime_ms) is spent — then it returns
+    status="paused"; just call pikvm_continue again to resume.
 
-    If the caller cancels this call (e.g. you press Esc in Claude), the daemon run
-    is aborted too, so interrupting the agent actually stops the machine."""
-    return await _run_or_abort(session_id, _post(f"/sessions/{session_id}/continue", timeout=900.0))
+    The small default bound keeps the agent at most one tiny transaction ahead of you,
+    and if you cancel this call (e.g. press Esc in Claude) the session is aborted too,
+    so interrupting actually stops the machine."""
+    return await _run_or_abort(
+        session_id,
+        _post(f"/sessions/{session_id}/continue",
+              {"max_transactions": max_transactions, "max_runtime_ms": max_runtime_ms},
+              timeout=900.0),
+    )
 
 
 @mcp.tool()

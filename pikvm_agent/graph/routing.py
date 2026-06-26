@@ -8,6 +8,7 @@ backstop.
 
 from __future__ import annotations
 
+import time
 from typing import Any
 
 
@@ -42,10 +43,12 @@ def route_after_interrupt(state: dict[str, Any]) -> str:
 
 
 def route_after_verify(state: dict[str, Any]) -> str:
-    """continue | recover | done | failed.
+    """continue | recover | done | failed | pause.
 
-    Max-step exhaustion is turned into a ``failed`` status by verify_result, so
-    it is caught by the failed branch — it is never reported as ``done``.
+    Max-step exhaustion is turned into a ``failed`` status by verify_result, so it is
+    caught by the failed branch — never reported as ``done``. A live (non-terminal) run
+    that has spent its per-call budget routes to ``pause`` (resumable), so one
+    pikvm_continue can't run unbounded.
     """
     if state.get("status") == "done":
         return "done"
@@ -56,4 +59,14 @@ def route_after_verify(state: dict[str, Any]) -> str:
         return "recover"
     if tr.get("status") in ("blocked_by_policy", "failed"):
         return "failed"
+    if _budget_spent(state):
+        return "pause"
     return "continue"
+
+
+def _budget_spent(state: dict[str, Any]) -> bool:
+    max_tx = state.get("max_transactions") or 0
+    if max_tx and state.get("tx_this_call", 0) >= max_tx:
+        return True
+    deadline = state.get("deadline_ms") or 0
+    return bool(deadline and time.monotonic() * 1000 >= deadline)

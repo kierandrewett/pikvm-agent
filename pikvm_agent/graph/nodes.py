@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from langchain_core.runnables import RunnableConfig
+from langgraph.types import interrupt
 
 from pikvm_agent.core.errors import OperatorError
 from pikvm_agent.core.models import (
@@ -271,7 +272,23 @@ async def execute_transaction(state: dict, config: RunnableConfig) -> dict:
         "transaction_result": result.model_dump(),
         "approved": False,
         "recent_actions": (state.get("recent_actions", []) + [{"intent": decision["intent"]}])[-10:],
+        "tx_this_call": state.get("tx_this_call", 0) + 1,  # counts toward the per-call budget
     }
+
+
+async def budget_pause(state: dict, config: RunnableConfig) -> dict:
+    """Pause the loop when this pikvm_continue call has spent its transaction/time
+    budget. interrupt() checkpoints the graph; the runtime reports status='paused' and
+    the next continue resumes here. The interrupt is CONDITIONAL on the budget: on
+    resume the runtime resets tx_this_call (Command update), so it's no longer spent and
+    we fall straight through to observe_frame and keep going. Resumable — NOT terminal."""
+    from pikvm_agent.graph.routing import _budget_spent
+
+    if not _budget_spent(state):  # resumed with a fresh budget -> keep going
+        return {}
+    get_deps(config).trace.append("budget_pause", tx_this_call=state.get("tx_this_call", 0))
+    interrupt({"reason": "budget_paused", "tx_this_call": state.get("tx_this_call", 0)})
+    return {}
 
 
 async def verify_result(state: dict, config: RunnableConfig) -> dict:

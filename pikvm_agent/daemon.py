@@ -32,6 +32,13 @@ class AbortRequest(BaseModel):
     reason: str = ""
 
 
+class ContinueRequest(BaseModel):
+    # Per-call budget. None = unbounded (the daemon-direct default). The MCP facade
+    # passes small values so a single continue can't run on for minutes.
+    max_transactions: int | None = None
+    max_runtime_ms: int | None = None
+
+
 def create_app(config: AppConfig | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -97,8 +104,10 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
         return await rt(request).start_session(req.task, req.policy, req.operator)
 
     @app.post("/sessions/{session_id}/continue")
-    async def continue_session(session_id: str, request: Request) -> dict[str, Any]:
-        return await rt(request).continue_session(session_id)
+    async def continue_session(session_id: str, request: Request,
+                               body: ContinueRequest | None = None) -> dict[str, Any]:
+        b = body or ContinueRequest()
+        return await rt(request).continue_session(session_id, b.max_transactions, b.max_runtime_ms)
 
     @app.get("/sessions/{session_id}")
     async def get_session(session_id: str, request: Request) -> dict[str, Any]:

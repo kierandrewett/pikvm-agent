@@ -12,6 +12,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import time
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -244,23 +245,39 @@ class Runtime:
 
     # ---- operator loop (LangGraph) --------------------------------------- #
 
-    async def continue_session(self, session_id: str) -> dict[str, Any]:
-        """Run the graph until the next approval interrupt or completion."""
+    async def continue_session(self, session_id: str, max_transactions: int | None = None,
+                               max_runtime_ms: int | None = None) -> dict[str, Any]:
+        """Run the graph until the next approval, completion, or the per-call budget is
+        spent — then it PAUSES (resumable). None/None = unbounded (daemon-direct
+        default); the MCP facade passes small bounds so interrupting the agent stops it
+        within one transaction instead of letting one call run for minutes."""
         sr = self._get(session_id)
         try:
             await self.backend.connect()
         except Exception as exc:  # noqa: BLE001
             log.warning("backend.connect failed: %s", exc)
         config = self._graph_config(sr)
+        budget = self._budget_fields(max_transactions, max_runtime_ms)
         if not sr.started:
             sr.started = True
             initial = {"session_id": session_id, "task": sr.task, "step": 0,
-                       "max_steps": DEFAULT_MAX_STEPS}
+                       "max_steps": DEFAULT_MAX_STEPS, **budget}
             result = await self._graph.ainvoke(initial, config)
+        elif sr.status == "paused":
+            # Resume a budget pause: reset the per-call counter + apply the new budget.
+            sr.status = "running"
+            result = await self._graph.ainvoke(Command(resume=None, update=budget), config)
         else:
             # Already running/paused without a pending approval — let it proceed.
             result = await self._graph.ainvoke(None, config)
         return await self._after_run(sr, result)
+
+    @staticmethod
+    def _budget_fields(max_transactions: int | None, max_runtime_ms: int | None) -> dict[str, Any]:
+        deadline = (time.monotonic() * 1000 + max_runtime_ms) if max_runtime_ms else 0
+        return {"tx_this_call": 0,
+                "max_transactions": max_transactions if max_transactions is not None else 0,
+                "deadline_ms": deadline}
 
     async def submit_approval(self, session_id: str, approval_id: str,
                              decision: dict) -> dict[str, Any]:
@@ -287,6 +304,14 @@ class Runtime:
             "screenshot_path": result.get("frame_path"), "step": result.get("step", 0),
         }
         if "__interrupt__" in result:
+            itr = result["__interrupt__"]
+            val = getattr(itr[0], "value", None) if itr else None
+            # A budget pause is a RESUMABLE checkpoint, not an approval — report it as
+            # "paused" so the next continue resumes the loop (rather than awaiting input).
+            if isinstance(val, dict) and val.get("reason") == "budget_paused":
+                sr.status = "paused"
+                await self.store.update_session(sr.session_id, status="paused")
+                return {**base, "status": "paused"}
             appr = result.get("approval_request") or {}
             sr.status = "needs_approval"
             if appr.get("approval_id"):

@@ -174,3 +174,37 @@ async def test_panic_stop_halts_all_sessions(runtime: Runtime) -> None:
     assert runtime._sessions[sid].status == "failed"
     assert runtime._sessions[sid].control_epoch == epoch0 + 1  # in-flight plans invalidated
     assert any(c[0] == "release_all" for c in runtime.backend.calls)  # held HID released
+
+
+async def test_bounded_continue_pauses_then_resumes(tmp_path) -> None:
+    # A per-call budget of 1 transaction runs ONE action then pauses (resumable);
+    # resuming with a fresh budget runs one more — so the agent can't run unbounded.
+    os.environ["PIKVM_AGENT_FAKE"] = "1"
+    backend = FakeBackend()
+    executed: list = []
+
+    async def _exec(tx, state):
+        executed.append(tx.intent)
+        return TransactionResult(status="verified")
+
+    deps = GraphDeps(
+        backend=backend, frames=FrameStore("s", tmp_path, backend), trace=TraceLog("s", tmp_path),
+        screen_parser=build_screen_parser(AppConfig(), backend),
+        operator=ScriptOp([{"intent": "click", "risk": _LOW,
+                            "actions": [{"type": "keypress", "keys": ["KeyA"]}]}]),
+        policy=SafetyPolicyEngine(PolicyConfig()), max_steps=10, execute=_exec,
+    )
+    graph = build_graph(await build_checkpointer(None))
+    config = {"configurable": {"deps": deps, "thread_id": "bud"}}
+
+    r1 = await graph.ainvoke(
+        {"session_id": "s", "task": "t", "step": 0, "max_steps": 10,
+         "max_transactions": 1, "tx_this_call": 0, "deadline_ms": 0}, config)
+    assert "__interrupt__" in r1
+    assert r1["__interrupt__"][0].value.get("reason") == "budget_paused"
+    assert len(executed) == 1  # exactly one transaction this call
+
+    r2 = await graph.ainvoke(
+        Command(resume=None, update={"tx_this_call": 0, "max_transactions": 1, "deadline_ms": 0}), config)
+    assert "__interrupt__" in r2
+    assert len(executed) == 2  # resumed and ran exactly one more
