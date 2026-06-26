@@ -277,3 +277,58 @@ async def test_explicit_region_skips_autolocate() -> None:
     assert result.verdict == "match"
     assert result.ok is True
     _assert_no_enter(backend)
+
+
+# --------------------------------------------------------------------------- #
+# interruptible HID (Layer 4): a long type stops mid-text when control changes
+# --------------------------------------------------------------------------- #
+
+
+async def test_type_text_interrupts_mid_text_and_releases() -> None:
+    # A long string is typed in word-boundary chunks; if control is taken away
+    # (should_continue flips False) the typer must STOP after the current chunk —
+    # not run the whole string — and drop any held keys.
+    backend = FakeBackend()
+    backend.caps_lock = True  # force the humanized per-chunk path (not fast-print)
+    intended = (
+        "the quick brown fox jumps over the lazy dog while the agent keeps typing"
+    )
+    assert len(chunk_text(intended)) > 2  # several chunks, so "mid-text" is meaningful
+
+    ocr = ScriptedOCR(intended)
+    typer = WatchedTyper(backend, ocr)
+
+    def gate() -> bool:
+        # Allow exactly one chunk to land, then revoke control.
+        typed = sum(1 for m, _ in backend.calls if m == "type_text")
+        return typed < 1
+
+    # Explicit region so the loop trusts focus (the static fake screen would otherwise
+    # auto-locate to "no focus" before the gate is reached); we're testing the gate.
+    region = Region(x=10, y=10, width=400, height=40)
+    result = await typer.type_text(intended, region=region, should_continue=gate)
+
+    typed_chunks = sum(1 for m, _ in backend.calls if m == "type_text")
+    assert typed_chunks == 1  # stopped after the first chunk — not the whole string
+    assert any(m == "release_all" for m, _ in backend.calls)  # held keys dropped
+    assert result.status == "blocked_by_policy"
+    assert result.ok is False
+    _assert_no_enter(backend)
+
+
+async def test_type_text_runs_to_completion_when_control_held() -> None:
+    # The same gate, but control is never revoked — the whole string types normally.
+    backend = FakeBackend()
+    backend.caps_lock = True
+    intended = "the quick brown fox jumps over the lazy dog"
+    chunks = chunk_text(intended)
+
+    ocr = ScriptedOCR(intended)
+    typer = WatchedTyper(backend, ocr)
+
+    region = Region(x=10, y=10, width=400, height=40)
+    result = await typer.type_text(intended, region=region, should_continue=lambda: True)
+    typed_chunks = sum(1 for m, _ in backend.calls if m == "type_text")
+    assert typed_chunks == len(chunks)  # every chunk typed
+    assert not any(m == "release_all" for m, _ in backend.calls)
+    assert result.status != "blocked_by_policy"

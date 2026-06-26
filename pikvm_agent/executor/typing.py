@@ -20,8 +20,10 @@ and is reused verbatim; this module owns only the *typing loop* + correction.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import re
 import tempfile
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
@@ -308,8 +310,15 @@ class WatchedTyper:
         region: Region | None = None,
         code: bool = False,
         secret: bool = False,
+        should_continue: Callable[[], bool] | None = None,
     ) -> WatchedTypingResult:
-        """Type ``text`` while watching the field; verify (and at most once correct)."""
+        """Type ``text`` while watching the field; verify (and at most once correct).
+
+        ``should_continue`` (when given) is polled between word-boundary chunks: if it
+        ever returns False — an abort / panic / steer bumped the controller epoch — the
+        typer drops any held keys and stops MID-text instead of running the whole string
+        to completion. This makes a long ``type_text`` interruptible, not just the gaps
+        between transactions."""
         precise = code or is_exact_text(text)
         total = len(text)
 
@@ -319,6 +328,9 @@ class WatchedTyper:
         # humanized self-correcting path below.
         print_text = getattr(self.backend, "print_text", None)
         caps_on = self.backend.get_caps_lock()
+        if should_continue is not None and not should_continue():
+            await self._release_all_quietly()
+            return self._interrupted_result()
         if (
             callable(print_text)
             and not secret
@@ -329,7 +341,8 @@ class WatchedTyper:
             return await self._fast_print(text, region=region, precise=precise)
 
         return await self._humanized(
-            text, region=region, code=code, secret=secret, precise=precise
+            text, region=region, code=code, secret=secret, precise=precise,
+            should_continue=should_continue,
         )
 
     # ---- fast print path -------------------------------------------------- #
@@ -385,6 +398,7 @@ class WatchedTyper:
         code: bool,
         secret: bool,
         precise: bool,
+        should_continue: Callable[[], bool] | None = None,
     ) -> WatchedTypingResult:
         dims = self._dims()
         chunks = chunk_text(text)
@@ -412,6 +426,10 @@ class WatchedTyper:
             last_read = read_back
             if corrections >= MAX_TOTAL_CORRECTIONS:
                 return
+            # A correction re-types everything typed so far; don't start it if control
+            # was just taken away.
+            if should_continue is not None and not should_continue():
+                return
             kind = classify_mismatch(intended_snapshot, read_back, precise)
             if kind is None:
                 # Only declare the WHOLE field clean when this read covered all of it.
@@ -432,6 +450,12 @@ class WatchedTyper:
         grid_prev = await self._grid()
 
         for i, chunk in enumerate(chunks):
+            # Cooperative cancellation: an abort / panic / steer between chunks stops the
+            # type MID-text. Drop any held keys first so a half-finished combo/modifier
+            # doesn't stick on the target.
+            if should_continue is not None and not should_continue():
+                await self._release_all_quietly()
+                return self._interrupted_result(field_text=last_read, corrected=corrections > 0)
             await self.backend.type_text(chunk, code=code, secret=secret)
             typed_so_far += chunk
             grid_now = await self._grid()
@@ -480,6 +504,30 @@ class WatchedTyper:
         )
 
     # ---- result assembly -------------------------------------------------- #
+
+    async def _release_all_quietly(self) -> None:
+        """Best-effort drop of every held key/button (the backend exposes it; the
+        fake does too). Used when typing is interrupted so nothing stays pressed."""
+        rel = getattr(self.backend, "release_all", None)
+        if callable(rel):
+            with contextlib.suppress(Exception):
+                await rel()
+
+    def _interrupted_result(self, *, field_text: str = "",
+                            corrected: bool = False) -> WatchedTypingResult:
+        """Typing was cut short because control changed (abort / panic / steer). Report
+        it as blocked — not a typing failure of the field — so the caller knows the text
+        is partial by design, not because the keystrokes missed."""
+        return WatchedTypingResult(
+            verdict="mismatch",
+            ok=False,
+            status="blocked_by_policy",
+            field_text=field_text,
+            corrected=corrected,
+            used_fast_path=False,
+            summary="Typing interrupted: control changed (abort / panic / steer) mid-text; "
+                    "held keys released. The field holds only what was typed before the stop.",
+        )
 
     def _no_focus_result(self, *, used_fast_path: bool) -> WatchedTypingResult:
         return WatchedTypingResult(

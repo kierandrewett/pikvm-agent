@@ -25,6 +25,28 @@ def _button_map(extra: list[VisualElement] | None = None) -> ElementMap:
 _STATE = {"frame_id": 1, "world_version": 1, "mode": "unknown"}
 
 
+async def test_control_change_stops_remaining_actions() -> None:
+    # Layer 4: a mid-transaction abort/panic/steer (should_continue flips False) must
+    # stop the REST of a multi-action transaction and drop any held keys.
+    be = FakeBackend()
+    ex = GuardedTransactionExecutor(be, PiKVMOcrProvider(be))
+    n = {"calls": 0}
+
+    def gate() -> bool:
+        n["calls"] += 1
+        return n["calls"] <= 1  # allow the first action's check, refuse the second
+
+    res = await ex.execute(_tx([
+        {"type": "keypress", "keys": ["KeyA"]},
+        {"type": "keypress", "keys": ["KeyB"]},
+    ]), dict(_STATE), should_continue=gate)
+
+    assert res.status == "blocked_by_policy"
+    assert res.error == "control_changed"
+    assert len(res.executed_actions) == 1  # only the first action ran
+    assert any(m == "release_all" for m, _ in be.calls)  # held keys dropped
+
+
 async def test_keypress_and_scroll_and_wait() -> None:
     be = FakeBackend()
     ex = GuardedTransactionExecutor(be, PiKVMOcrProvider(be))
