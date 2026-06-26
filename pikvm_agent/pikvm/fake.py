@@ -42,6 +42,7 @@ class FakeBackend:
         self.ocr_text = ""
         self._frame = render_frame("desktop", (width, height))
         self.calls: list[tuple[str, dict[str, Any]]] = []
+        self._cursor = {"x": width // 2, "y": height // 2, "trusted": False}
 
     # ---- test/dev controls ----------------------------------------------- #
 
@@ -79,12 +80,21 @@ class FakeBackend:
 
     async def click(self, x: int, y: int, button: str = "left") -> None:
         self._record("click", x=x, y=y, button=button)
+        self._cursor = {"x": x, "y": y, "trusted": True}
 
     async def double_click(self, x: int, y: int, button: str = "left") -> None:
         self._record("double_click", x=x, y=y, button=button)
+        self._cursor = {"x": x, "y": y, "trusted": True}
 
     async def move_mouse(self, x: int, y: int) -> None:
         self._record("move_mouse", x=x, y=y)
+        self._cursor = {"x": x, "y": y, "trusted": True}
+
+    def cursor(self) -> dict[str, Any]:
+        return {**self._cursor, "other_clients": 0}
+
+    def other_clients(self) -> int:
+        return 0
 
     async def scroll(self, dx: int = 0, dy: int = 0) -> None:
         self._record("scroll", dx=dx, dy=dy)

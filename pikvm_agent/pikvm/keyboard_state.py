@@ -113,6 +113,7 @@ class KvmdState:
     keymaps: dict[str, Any] = field(default_factory=dict)
     streamer: dict[str, Any] = field(default_factory=dict)
     ocr: dict[str, Any] = field(default_factory=dict)
+    clients: dict[str, Any] = field(default_factory=dict)
     ready: bool = False
 
 
@@ -140,9 +141,17 @@ def merge_kvmd_event(prev: KvmdState, event_type: str, event: Any) -> KvmdState:
         prev.streamer = _deep_merge(prev.streamer, event)
     elif event_type == "ocr":
         prev.ocr = _deep_merge(prev.ocr, event)
+    elif event_type == "clients":
+        prev.clients = _deep_merge(prev.clients, event)
     elif event_type == "loop":
         prev.ready = True
     return prev
+
+
+def client_count_of(state: KvmdState) -> int | None:
+    """How many clients (us + others) kvmd reports connected, or None if unknown."""
+    c = state.clients.get("count")
+    return int(c) if isinstance(c, int) else None
 
 
 def caps_lock_of(state: KvmdState) -> bool | None:

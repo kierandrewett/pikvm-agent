@@ -174,6 +174,11 @@ class Runtime:
     def _graph_config(self, sr: SessionRuntime) -> dict[str, Any]:
         return {"configurable": {"deps": sr.deps, "thread_id": sr.session_id}}
 
+    def _cursor_state(self) -> dict[str, Any] | None:
+        """The backend's tracked cursor (pixel x/y, trusted, other_clients), if it tracks."""
+        getter = getattr(self.backend, "cursor", None)
+        return getter() if callable(getter) else None
+
     async def _ensure_omniparser(self) -> None:
         """Spawn + warm OmniParser the first time perception/autonomous mode actually needs
         it (it loads GPU models on boot — minutes — so we never pay that with the daemon)."""
@@ -231,7 +236,8 @@ class Runtime:
         row = await self.store.get_session(session_id)
         status = row["status"] if row else sr.status
         base = {"session_id": session_id, "status": status, "task": sr.task,
-                "control_epoch": sr.control_epoch, "events": sr.events[-20:], "error": sr.error}
+                "control_epoch": sr.control_epoch, "cursor": self._cursor_state(),
+                "events": sr.events[-20:], "error": sr.error}
         if frame is None:  # read-only poll before the first capture
             return {**base, "frame_id": None, "world_version": None, "screenshot_path": None,
                     "width": None, "height": None, "keyboard_state": None}
@@ -390,7 +396,7 @@ class Runtime:
             "session_id": session_id, "status": outcome.status,
             "completed_actions": outcome.completed, "remaining_actions": outcome.remaining,
             "reason": outcome.reason or None, "error": outcome.error or None,
-            "control_epoch": sr.control_epoch,
+            "control_epoch": sr.control_epoch, "cursor": self._cursor_state(),
         }
         if final is not None:
             out.update({"frame_id": final.frame_id, "world_version": final.world_version,

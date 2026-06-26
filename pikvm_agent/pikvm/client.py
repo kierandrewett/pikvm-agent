@@ -52,7 +52,16 @@ class PiKVMBackend:
         self.native_dims: tuple[int, int] | None = None
         self.layout: ks.Layout = "uk" if cfg.layout == "uk" else "us"
         self._layout_from_user = False
-        self._mouse = {"x": 0, "y": 0}  # last normalized position
+        # Single source of truth for the cursor, in FRAME PIXELS. Updated on EVERY mouse
+        # operation the daemon performs (moves, clicks). `trusted` is False until we've
+        # actually positioned it, and flips back to False when another kvmd client connects
+        # (it may have moved the cursor — kvmd doesn't report position, so we can't know).
+        # Absolute moves always LAND correctly regardless; `trusted` only governs the
+        # WindMouse curve's start point + informs the controller.
+        self._cursor: dict[str, Any] = {
+            "x": self.dims["width"] / 2.0, "y": self.dims["height"] / 2.0, "trusted": False,
+        }
+        self._client_count: int | None = None
         self._shift_held = False
         # Per-session typing persona — a consistent personal speed for this session.
         self._type_base_gap = timing.base_gap_ms()
@@ -84,6 +93,31 @@ class PiKVMBackend:
             res = ks.native_resolution_of(self.hid.state)
             if res:
                 self.native_dims = res
+        elif event_type == "clients":
+            cnt = ks.client_count_of(self.hid.state)
+            if cnt is not None and self._client_count is not None and cnt != self._client_count:
+                # The set of connected clients changed — another client may have moved the
+                # cursor. kvmd doesn't report position, so distrust our stored one until our
+                # next move re-establishes it.
+                self._cursor["trusted"] = False
+            self._client_count = cnt
+
+    # ---- cursor tracking -------------------------------------------------- #
+
+    def _set_cursor(self, px: float, py: float, *, trusted: bool = True) -> None:
+        """Record the cursor at frame-pixel (px, py). Called after every mouse op."""
+        w, h = self.dims["width"], self.dims["height"]
+        self._cursor = {"x": max(0.0, min(float(px), w - 1)),
+                        "y": max(0.0, min(float(py), h - 1)), "trusted": trusted}
+
+    def other_clients(self) -> int:
+        """How many OTHER kvmd clients are connected (could move the mouse externally)."""
+        return max(0, (self._client_count or 1) - 1)
+
+    def cursor(self) -> dict[str, Any]:
+        """Current tracked cursor: pixel x/y, whether we trust it, and other-client count."""
+        return {"x": round(self._cursor["x"]), "y": round(self._cursor["y"]),
+                "trusted": self._cursor["trusted"], "other_clients": self.other_clients()}
 
     async def connect(self) -> None:
         await self.hid.connect()
@@ -284,24 +318,20 @@ class PiKVMBackend:
 
     # ---- mouse ------------------------------------------------------------ #
 
-    @staticmethod
-    def _from_norm(n: float, span: int) -> float:
-        """Inverse of hid.to_norm — normalized HID units back to frame pixels."""
-        return (n + 32767) / 65534.0 * span
-
     async def move_mouse(self, x: int, y: int) -> None:
         """Move the cursor along a WindMouse path: gravity pulls toward the target
         while a random wind walk perturbs it, giving an organic curved trajectory with
         a natural speed profile, tremor and an off-centre landing. Generated in frame-
         pixel space (where the force constants are tuned) and converted to HID units;
-        always lands EXACTLY on the target so clicks hit the resolved site."""
+        always lands EXACTLY on the target so clicks hit the resolved site. The tracked
+        cursor is updated to the landing point (our single source of truth)."""
         w, h = self.dims["width"], self.dims["height"]
         tx, ty = to_norm(x, w), to_norm(y, h)
-        start = (self._from_norm(self._mouse["x"], w), self._from_norm(self._mouse["y"], h))
+        start = (self._cursor["x"], self._cursor["y"])  # last known position, in pixels
         end = (float(x), float(y))
         if math.hypot(end[0] - start[0], end[1] - start[1]) < 2:
             await self.hid.mouse_move(tx, ty)
-            self._mouse = {"x": tx, "y": ty}
+            self._set_cursor(x, y)
             return
 
         hum = max(0.0, self._cfg.mouse_humanize)
@@ -323,7 +353,7 @@ class PiKVMBackend:
                 await _sleep(dt)
         # Land exactly on the requested target (the click site).
         await self.hid.mouse_move(tx, ty)
-        self._mouse = {"x": tx, "y": ty}
+        self._set_cursor(x, y)
 
     async def click(self, x: int, y: int, button: str = "left") -> None:
         await self.move_mouse(x, y)
