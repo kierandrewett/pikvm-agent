@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 
 import httpx
@@ -98,21 +99,30 @@ async def test_mcp_facade_forwards_to_daemon(app_config: AppConfig,
             "pikvm_scroll",
             "pikvm_type_text",
         ]
-        started = await mcp_server.pikvm_autonomous_start("open the README")
-        obs = await mcp_server.pikvm_screenshot(session_id=started["session_id"])
-        assert obs["frame_id"] == 1 and os.path.exists(obs["screenshot_path"])
+        from mcp.server.fastmcp.utilities.types import Image
 
-        # Fast path: a burst runs locally and returns a fresh screenshot + control_epoch.
-        opened = await mcp_server.pikvm_open("direct")
+        def _state(result):
+            # Screen-producing tools return [Image, json-state]; the image is INLINE so the
+            # controller never reads a file, and screenshot_path is intentionally absent.
+            assert isinstance(result, list) and isinstance(result[0], Image)
+            state = json.loads(result[-1])
+            assert "screenshot_path" not in state
+            return state
+
+        started = await mcp_server.pikvm_autonomous_start("open the README")
+        obs = _state(await mcp_server.pikvm_screenshot(session_id=started["session_id"]))
+        assert obs["frame_id"] == 1
+
+        # Fast path: a burst runs locally and returns the screen INLINE + control_epoch.
+        opened = _state(await mcp_server.pikvm_open("direct"))
         sid = opened["session_id"]
         assert "control_epoch" in opened
-        res = await mcp_server.pikvm_run_burst(sid, [
+        res = _state(await mcp_server.pikvm_run_burst(sid, [
             {"type": "key", "keys": ["CTRL", "P"]},
             {"type": "type_text", "text": "readme.md", "method": "print"},
             {"type": "key", "keys": ["ENTER"]},
-        ])
+        ]))
         assert res["status"] == "completed" and res["completed_actions"] == 3
-        assert os.path.exists(res["screenshot_path"])
     finally:
         await rt.aclose()
 

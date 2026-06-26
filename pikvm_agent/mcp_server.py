@@ -12,11 +12,13 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import json
 import os
 from typing import Any
 
 import httpx
 from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp.utilities.types import Image
 
 DAEMON_URL = os.environ.get("PIKVM_AGENT_DAEMON", "http://127.0.0.1:47615")
 
@@ -61,6 +63,31 @@ async def _post(path: str, json: dict[str, Any] | None = None, timeout: float = 
         resp = await client.post(path, json=json or {})
         resp.raise_for_status()
         return resp.json()
+
+
+async def _get_bytes(path: str, timeout: float = 30.0) -> bytes:
+    async with _daemon_client(timeout) as client:
+        resp = await client.get(path)
+        resp.raise_for_status()
+        return resp.content
+
+
+async def _screen_result(state: dict[str, Any]) -> list[Any]:
+    """Return the screen INLINE — the actual JPEG as an image block + a JSON state block —
+    so the controller SEES the result of its action instead of a file path it has to open.
+    ``screenshot_path`` is intentionally dropped from the JSON so the controller uses the
+    inline pixels (which carry the dimensions, world_version + control_epoch for the next
+    burst) rather than reading the file every step."""
+    import json as _json  # module (the name `json` is shadowed by _post's param elsewhere)
+
+    parts: list[Any] = []
+    sid, fid = state.get("session_id"), state.get("frame_id")
+    if sid and fid is not None:
+        with contextlib.suppress(Exception):
+            parts.append(Image(data=await _get_bytes(f"/sessions/{sid}/frame"), format="jpeg"))
+    info = {k: v for k, v in state.items() if k != "screenshot_path"}
+    parts.append(_json.dumps(info))
+    return parts
 
 
 # Strong refs to in-flight abort tasks so the GC doesn't drop a detached one.
@@ -109,7 +136,7 @@ async def pikvm_open(label: str = "direct control") -> dict:
     sid = s.get("session_id")
     shot = await _get(f"/sessions/{sid}?capture=true") if sid else {}
     keep = ("frame_id", "world_version", "control_epoch", "screenshot_path", "width", "height")
-    return {**s, **{k: shot.get(k) for k in keep}}
+    return await _screen_result({**s, **{k: shot.get(k) for k in keep}})
 
 
 @mcp.tool()
@@ -117,7 +144,7 @@ async def pikvm_screenshot(session_id: str) -> dict:
     """Capture the current screen. Returns frame_id, world_version, control_epoch and
     screenshot_path. Pass world_version + control_epoch into pikvm_run_burst so the
     daemon refuses the burst if the screen changed under you (a popup, etc.)."""
-    return await _get(f"/sessions/{session_id}?capture=true")
+    return await _screen_result(await _get(f"/sessions/{session_id}?capture=true"))
 
 
 @mcp.tool()
@@ -146,7 +173,8 @@ async def pikvm_run_burst(session_id: str, actions: list[dict],
     body = {"actions": actions, "max_runtime_ms": max_runtime_ms,
             "based_on_world_version": based_on_world_version,
             "based_on_control_epoch": based_on_control_epoch}
-    return await _run_or_abort(session_id, _post(f"/sessions/{session_id}/burst", body, timeout=120.0))
+    return await _screen_result(
+        await _run_or_abort(session_id, _post(f"/sessions/{session_id}/burst", body, timeout=120.0)))
 
 
 @mcp.tool()
@@ -161,7 +189,8 @@ async def pikvm_run_playbook(session_id: str, name: str, args: dict | None = Non
     body = {"name": name, "args": args or {},
             "based_on_world_version": based_on_world_version,
             "based_on_control_epoch": based_on_control_epoch}
-    return await _run_or_abort(session_id, _post(f"/sessions/{session_id}/playbook", body))
+    return await _screen_result(
+        await _run_or_abort(session_id, _post(f"/sessions/{session_id}/playbook", body)))
 
 
 @mcp.tool()
