@@ -23,6 +23,7 @@ from langgraph.types import Command
 from pikvm_agent.config import AppConfig, load_config
 from pikvm_agent.core.errors import SessionNotFoundError
 from pikvm_agent.debuglog import DEBUG
+from pikvm_agent.executor import burst as _burst
 from pikvm_agent.executor.recovery import Recovery
 from pikvm_agent.executor.transactions import GuardedTransactionExecutor
 from pikvm_agent.graph.checkpoints import build_checkpointer, close_checkpointer
@@ -232,7 +233,7 @@ class Runtime:
         row = await self.store.get_session(session_id)
         status = row["status"] if row else sr.status
         base = {"session_id": session_id, "status": status, "task": sr.task,
-                "events": sr.events[-20:], "error": sr.error}
+                "control_epoch": sr.control_epoch, "events": sr.events[-20:], "error": sr.error}
         if frame is None:  # read-only poll before the first capture
             return {**base, "frame_id": None, "world_version": None, "screenshot_path": None,
                     "width": None, "height": None, "keyboard_state": None}
@@ -314,6 +315,72 @@ class Runtime:
             # Already running/paused without a pending approval — let it proceed.
             result = await self._graph.ainvoke(None, config)
         return await self._after_run(sr, result)
+
+    # ---- direct burst control (the fast model-in-the-loop path) ---------- #
+
+    async def run_burst(self, session_id: str, actions: list[dict[str, Any]], *,
+                        based_on_world_version: int | None = None,
+                        based_on_control_epoch: int | None = None,
+                        max_runtime_ms: int = 4000,
+                        return_screenshot: bool = True) -> dict[str, Any]:
+        """Execute a controller-authored HID burst LOCALLY in one shot (no perception
+        loop). Gates first on freshness (world_version) + control epoch, runs the burst
+        with a live abort/panic/deadline gate, then returns one screenshot so the
+        controller can decide the next burst."""
+        DEBUG.set_session(session_id)
+        sr = self._get(session_id)
+        if sr.stopped:
+            return {"session_id": session_id, "status": "stopped", "error": sr.error or "stopped"}
+        try:
+            await self.backend.connect()
+        except Exception as exc:  # noqa: BLE001
+            log.warning("backend.connect failed: %s", exc)
+
+        # FRESHNESS: the screen must still be the one the controller planned against.
+        frame = await sr.frames.capture()
+        if based_on_world_version is not None and frame.world_version != based_on_world_version:
+            sr.trace.append("burst_stale", planned=based_on_world_version,
+                            current=frame.world_version)
+            return {"session_id": session_id, "status": "stale_world",
+                    "frame_id": frame.frame_id, "world_version": frame.world_version,
+                    "control_epoch": sr.control_epoch, "screenshot_path": frame.image_path,
+                    "width": frame.width, "height": frame.height}
+        planned_epoch = based_on_control_epoch if based_on_control_epoch is not None else sr.control_epoch
+        if sr.control_epoch != planned_epoch:
+            return {"session_id": session_id, "status": "control_changed",
+                    "control_epoch": sr.control_epoch}
+
+        def gate() -> bool:
+            return (not sr.stopped) and sr.control_epoch == planned_epoch
+
+        deadline = (time.monotonic() * 1000 + max_runtime_ms) if max_runtime_ms else None
+        sr.status = "running"
+        try:
+            with DEBUG.span("burst.run", actions=len(actions)) as result:
+                outcome = await _burst.run_burst(
+                    actions, backend=self.backend, should_continue=gate,
+                    deadline_ms=deadline, typer=getattr(self._executor, "typer", None))
+                result(status=outcome.status, completed=outcome.completed, reason=outcome.reason)
+        except _burst.BurstError as exc:
+            sr.status = "paused"
+            return {"session_id": session_id, "status": "failed",
+                    "error": f"bad burst: {exc}", "control_epoch": sr.control_epoch}
+
+        sr.trace.append("burst", status=outcome.status, completed=outcome.completed,
+                        total=outcome.total, reason=outcome.reason, actions=outcome.executed)
+        final = await sr.frames.capture() if return_screenshot else sr.frames.latest()
+        sr.status = "paused"  # idle, awaiting the controller's next burst
+        out: dict[str, Any] = {
+            "session_id": session_id, "status": outcome.status,
+            "completed_actions": outcome.completed, "remaining_actions": outcome.remaining,
+            "reason": outcome.reason or None, "error": outcome.error or None,
+            "control_epoch": sr.control_epoch,
+        }
+        if final is not None:
+            out.update({"frame_id": final.frame_id, "world_version": final.world_version,
+                        "screenshot_path": final.image_path,
+                        "width": final.width, "height": final.height})
+        return out
 
     @staticmethod
     def _budget_fields(max_transactions: int | None, max_runtime_ms: int | None) -> dict[str, Any]:

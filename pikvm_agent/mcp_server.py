@@ -98,6 +98,83 @@ async def pikvm_continue(session_id: str, max_transactions: int = 1,
 
 
 @mcp.tool()
+async def pikvm_open(label: str = "direct control") -> dict:
+    """FAST PATH — open a direct-control session and return its session_id + first
+    screenshot (frame_id, world_version, control_epoch, screenshot_path).
+
+    Use this when YOU are driving: look at the screenshot, then send HID bursts with
+    pikvm_run_burst. No autonomous operator loop, no OmniParser/OCR — you are the brain
+    and the daemon just executes your HID locally."""
+    s = await _post("/sessions", {"task": label})
+    sid = s.get("session_id")
+    shot = await _get(f"/sessions/{sid}?capture=true") if sid else {}
+    keep = ("frame_id", "world_version", "control_epoch", "screenshot_path", "width", "height")
+    return {**s, **{k: shot.get(k) for k in keep}}
+
+
+@mcp.tool()
+async def pikvm_screenshot(session_id: str) -> dict:
+    """Capture the current screen. Returns frame_id, world_version, control_epoch and
+    screenshot_path. Pass world_version + control_epoch into pikvm_run_burst so the
+    daemon refuses the burst if the screen changed under you (a popup, etc.)."""
+    return await _get(f"/sessions/{session_id}?capture=true")
+
+
+@mcp.tool()
+async def pikvm_run_burst(session_id: str, actions: list[dict],
+                          based_on_world_version: int | None = None,
+                          based_on_control_epoch: int | None = None,
+                          max_runtime_ms: int = 4000) -> dict:
+    """FAST PATH — run a short HID burst LOCALLY in one shot, then return one screenshot.
+    One call covers several steps (e.g. open a file: Ctrl+P → type path → Enter → wait),
+    instead of a model round-trip per keystroke.
+
+    Each action in `actions` is one of:
+      {"type":"key","keys":["CTRL","P"]}                 — a chord (friendly names or PiKVM codes)
+      {"type":"type_text","text":"...","method":"print"}  — print = fast PiKVM HID print; omit for humanized typing; add "verify":true to read-back
+      {"type":"click","x":840,"y":300,"button":"left"}   — raw coordinate click (WindMouse)
+      {"type":"double_click","x":840,"y":300}
+      {"type":"move","x":840,"y":300}
+      {"type":"scroll","direction":"down","amount":3}
+      {"type":"wait","ms":250}
+      {"type":"wait_for_stable_screen","stable_ms":300,"timeout_ms":1500}  — wait for the screen to settle
+
+    Pass based_on_world_version + based_on_control_epoch (from pikvm_screenshot/pikvm_open)
+    so a stale plan is refused (status "stale_world"/"control_changed") instead of acting on
+    a changed screen. The burst stops mid-sequence on abort/panic/steer or the deadline and
+    reports completed/remaining. Cancelling this call aborts the session."""
+    body = {"actions": actions, "max_runtime_ms": max_runtime_ms,
+            "based_on_world_version": based_on_world_version,
+            "based_on_control_epoch": based_on_control_epoch}
+    return await _run_or_abort(session_id, _post(f"/sessions/{session_id}/burst", body, timeout=120.0))
+
+
+@mcp.tool()
+async def pikvm_key(session_id: str, keys: list[str]) -> dict:
+    """Send one key chord now (e.g. keys=["CTRL","S"]). Sugar over pikvm_run_burst."""
+    return await pikvm_run_burst(session_id, [{"type": "key", "keys": keys}])
+
+
+@mcp.tool()
+async def pikvm_type_text(session_id: str, text: str, method: str = "") -> dict:
+    """Type text now via PiKVM HID (method="print" for the fast HID printer, else
+    humanized per-key). Never submits — send a separate Enter key. Sugar over a burst."""
+    return await pikvm_run_burst(session_id, [{"type": "type_text", "text": text, "method": method}])
+
+
+@mcp.tool()
+async def pikvm_click(session_id: str, x: int, y: int, button: str = "left") -> dict:
+    """Click at a raw screen coordinate now (WindMouse path). Sugar over a burst."""
+    return await pikvm_run_burst(session_id, [{"type": "click", "x": x, "y": y, "button": button}])
+
+
+@mcp.tool()
+async def pikvm_scroll(session_id: str, direction: str = "down", amount: int = 3) -> dict:
+    """Scroll the wheel now (direction up|down|left|right). Sugar over a burst."""
+    return await pikvm_run_burst(session_id, [{"type": "scroll", "direction": direction, "amount": amount}])
+
+
+@mcp.tool()
 async def pikvm_observe(session_id: str) -> dict:
     """Return the current screen summary: frame id, world version, events, and
     the screenshot path. Takes a FRESH screenshot (an explicit look)."""

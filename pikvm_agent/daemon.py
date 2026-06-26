@@ -32,6 +32,16 @@ class AbortRequest(BaseModel):
     reason: str = ""
 
 
+class BurstRequest(BaseModel):
+    # A controller-authored HID burst (the fast path). Actions are raw HID steps; the
+    # daemon gates on freshness + control, runs them locally, returns one screenshot.
+    actions: list[dict[str, Any]] = []
+    based_on_world_version: int | None = None
+    based_on_control_epoch: int | None = None
+    max_runtime_ms: int = 4000
+    return_screenshot: bool = True
+
+
 class ContinueRequest(BaseModel):
     # Per-call budget. None = unbounded (the daemon-direct default). The MCP facade
     # passes small values so a single continue can't run on for minutes.
@@ -118,6 +128,14 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
     @app.post("/sessions")
     async def start_session(req: StartSessionRequest, request: Request) -> dict[str, Any]:
         return await rt(request).start_session(req.task, req.policy, req.operator)
+
+    @app.post("/sessions/{session_id}/burst")
+    async def run_burst(session_id: str, body: BurstRequest, request: Request) -> dict[str, Any]:
+        return await rt(request).run_burst(
+            session_id, body.actions,
+            based_on_world_version=body.based_on_world_version,
+            based_on_control_epoch=body.based_on_control_epoch,
+            max_runtime_ms=body.max_runtime_ms, return_screenshot=body.return_screenshot)
 
     @app.post("/sessions/{session_id}/continue")
     async def continue_session(session_id: str, request: Request,

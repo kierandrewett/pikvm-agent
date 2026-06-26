@@ -271,3 +271,40 @@ async def test_bounded_continue_pauses_then_resumes(tmp_path) -> None:
         Command(resume=None, update={"tx_this_call": 0, "max_transactions": 1, "deadline_ms": 0}), config)
     assert "__interrupt__" in r2
     assert len(executed) == 2  # resumed and ran exactly one more
+
+
+async def test_run_burst_refuses_stale_world(runtime: Runtime) -> None:
+    # A burst planned against a screen that has since changed (world_version moved) is
+    # refused as stale — the HID never fires; the controller must re-look.
+    sid = (await runtime.start_session("direct"))["session_id"]
+    shot = await runtime.get_session_summary(sid, capture=True)
+    runtime.backend.set_screen("a popup appeared", bg=(200, 20, 20))  # screen changes
+    res = await runtime.run_burst(sid, [{"type": "key", "keys": ["KeyA"]}],
+                                  based_on_world_version=shot["world_version"])
+    assert res["status"] == "stale_world"
+    assert not any(m == "keypress" for m, _ in runtime.backend.calls)  # nothing executed
+
+
+async def test_run_burst_refuses_changed_control_epoch(runtime: Runtime) -> None:
+    sid = (await runtime.start_session("direct"))["session_id"]
+    shot = await runtime.get_session_summary(sid, capture=True)
+    res = await runtime.run_burst(sid, [{"type": "key", "keys": ["KeyA"]}],
+                                  based_on_world_version=shot["world_version"],
+                                  based_on_control_epoch=shot["control_epoch"] + 1)
+    assert res["status"] == "control_changed"
+    assert not any(m == "keypress" for m, _ in runtime.backend.calls)
+
+
+async def test_run_burst_executes_and_returns_screenshot(runtime: Runtime) -> None:
+    sid = (await runtime.start_session("direct"))["session_id"]
+    shot = await runtime.get_session_summary(sid, capture=True)
+    res = await runtime.run_burst(
+        sid,
+        [{"type": "key", "keys": ["CTRL", "P"]}, {"type": "click", "x": 50, "y": 60}],
+        based_on_world_version=shot["world_version"],
+        based_on_control_epoch=shot["control_epoch"],
+    )
+    assert res["status"] == "completed" and res["completed_actions"] == 2
+    assert os.path.exists(res["screenshot_path"])
+    assert any(m == "keypress" for m, _ in runtime.backend.calls)
+    assert any(m == "click" for m, _ in runtime.backend.calls)

@@ -82,14 +82,33 @@ async def test_mcp_facade_forwards_to_daemon(app_config: AppConfig,
         assert names == [
             "pikvm_abort",
             "pikvm_approve",
+            "pikvm_click",
             "pikvm_continue",
             "pikvm_export_memory_update",
+            "pikvm_key",
             "pikvm_observe",
+            "pikvm_open",
+            "pikvm_run_burst",
+            "pikvm_screenshot",
+            "pikvm_scroll",
             "pikvm_start_task",
+            "pikvm_type_text",
         ]
         started = await mcp_server.pikvm_start_task("open the README")
         obs = await mcp_server.pikvm_observe(session_id=started["session_id"])
         assert obs["frame_id"] == 1 and os.path.exists(obs["screenshot_path"])
+
+        # Fast path: a burst runs locally and returns a fresh screenshot + control_epoch.
+        opened = await mcp_server.pikvm_open("direct")
+        sid = opened["session_id"]
+        assert "control_epoch" in opened
+        res = await mcp_server.pikvm_run_burst(sid, [
+            {"type": "key", "keys": ["CTRL", "P"]},
+            {"type": "type_text", "text": "readme.md", "method": "print"},
+            {"type": "key", "keys": ["ENTER"]},
+        ])
+        assert res["status"] == "completed" and res["completed_actions"] == 3
+        assert os.path.exists(res["screenshot_path"])
     finally:
         await rt.aclose()
 
