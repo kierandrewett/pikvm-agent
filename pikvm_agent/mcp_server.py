@@ -72,29 +72,9 @@ async def _run_or_abort(session_id: str, coro: Any) -> dict[str, Any]:
         raise
 
 
-@mcp.tool()
-async def pikvm_start_task(task: str, policy: dict | None = None,
-                           operator: dict | None = None) -> dict:
-    """Start a guarded PiKVM computer-use session for a high-level task."""
-    return await _post("/sessions", {"task": task, "policy": policy or {}, "operator": operator or {}})
-
-
-@mcp.tool()
-async def pikvm_continue(session_id: str, max_transactions: int = 1,
-                         max_runtime_ms: int = 2500) -> dict:
-    """Continue a session until the next checkpoint, approval, completion, or until this
-    call's budget (max_transactions / max_runtime_ms) is spent — then it returns
-    status="paused"; just call pikvm_continue again to resume.
-
-    The small default bound keeps the agent at most one tiny transaction ahead of you,
-    and if you cancel this call (e.g. press Esc in Claude) the session is aborted too,
-    so interrupting actually stops the machine."""
-    return await _run_or_abort(
-        session_id,
-        _post(f"/sessions/{session_id}/continue",
-              {"max_transactions": max_transactions, "max_runtime_ms": max_runtime_ms},
-              timeout=900.0),
-    )
+# ============================ LAYER 1 — fast direct control (the default) ===== #
+# You look at the screen and drive it yourself with HID bursts. No OmniParser, no OCR,
+# no operator LLM — the daemon just executes your input locally through PiKVM.
 
 
 @mcp.tool()
@@ -174,32 +154,86 @@ async def pikvm_scroll(session_id: str, direction: str = "down", amount: int = 3
     return await pikvm_run_burst(session_id, [{"type": "scroll", "direction": direction, "amount": amount}])
 
 
-@mcp.tool()
-async def pikvm_observe(session_id: str) -> dict:
-    """Return the current screen summary: frame id, world version, events, and
-    the screenshot path. Takes a FRESH screenshot (an explicit look)."""
-    return await _get(f"/sessions/{session_id}?capture=true")
+# ============================ LAYER 2 — on-demand perception (only when stuck) = #
+# Heavy (OmniParser GPU / OCR) — NOT for every step. Call these only when you can't tell
+# what's on screen or need exact coordinates for a click.
 
 
 @mcp.tool()
-async def pikvm_approve(session_id: str, approval_id: str, decision: dict) -> dict:
-    """Approve / edit / reject / respond to a pending approval request.
+async def pikvm_parse_screen(session_id: str) -> dict:
+    """ON DEMAND (slow). Run OmniParser + OCR on the current screen and return grounded
+    elements (id, kind, text, bbox, center) + full OCR text. Use only when you can't read
+    the screenshot yourself — then click element centers with pikvm_click."""
+    return await _post(f"/sessions/{session_id}/parse", timeout=120.0)
 
-    Resuming runs more actions, so cancelling this call aborts the session too."""
+
+@mcp.tool()
+async def pikvm_ocr_region(session_id: str, x: int, y: int, w: int, h: int) -> dict:
+    """ON DEMAND. OCR just one rectangle of the screen (cheaper than the whole frame) —
+    e.g. to read a status line or confirm typed text landed."""
+    return await _post(f"/sessions/{session_id}/ocr-region", {"x": x, "y": y, "w": w, "h": h})
+
+
+@mcp.tool()
+async def pikvm_find_text(session_id: str, text: str) -> dict:
+    """ON DEMAND (slow). Find on-screen text and return matching elements with click
+    centers. Convenience over pikvm_parse_screen when you just need 'where is X'."""
+    return await _post(f"/sessions/{session_id}/find-text", {"text": text})
+
+
+@mcp.tool()
+async def pikvm_abort(session_id: str, reason: str = "") -> dict:
+    """Stop a session (also drops any held keys/buttons)."""
+    return await _post(f"/sessions/{session_id}/abort", {"reason": reason})
+
+
+@mcp.tool()
+async def pikvm_panic_stop() -> dict:
+    """EMERGENCY BRAKE — halt every session immediately and release all held HID. Out of
+    band; no agent involved. Use if anything is acting unexpectedly."""
+    return await _post("/panic-stop")
+
+
+# ============================ LAYER 3 — autonomous mode (OPT-IN, slow) ======== #
+# A self-driving perceive->plan->act loop using OmniParser + OCR + a separate operator
+# LLM. Only use these when the user EXPLICITLY asks for autonomous/hands-off operation —
+# they are much slower and less reliable than driving it yourself with bursts above.
+
+
+@mcp.tool()
+async def pikvm_autonomous_start(task: str, policy: dict | None = None,
+                                 operator: dict | None = None) -> dict:
+    """OPT-IN, SLOW. Start a self-driving session for a high-level task (uses the operator
+    LLM + OmniParser/OCR loop). Prefer driving it yourself with pikvm_open + bursts."""
+    return await _post("/sessions", {"task": task, "policy": policy or {}, "operator": operator or {}})
+
+
+@mcp.tool()
+async def pikvm_autonomous_continue(session_id: str, max_transactions: int = 1,
+                                    max_runtime_ms: int = 2500) -> dict:
+    """OPT-IN, SLOW. Advance an autonomous session until the next checkpoint/approval/
+    completion or the per-call budget is spent (then status="paused"; call again).
+    Cancelling aborts the session."""
+    return await _run_or_abort(
+        session_id,
+        _post(f"/sessions/{session_id}/continue",
+              {"max_transactions": max_transactions, "max_runtime_ms": max_runtime_ms},
+              timeout=900.0),
+    )
+
+
+@mcp.tool()
+async def pikvm_autonomous_approve(session_id: str, approval_id: str, decision: dict) -> dict:
+    """OPT-IN. Resolve an autonomous session's pending approval (approve/edit/reject/
+    respond). Cancelling aborts the session."""
     return await _run_or_abort(
         session_id, _post(f"/sessions/{session_id}/approvals/{approval_id}", decision)
     )
 
 
 @mcp.tool()
-async def pikvm_abort(session_id: str, reason: str = "") -> dict:
-    """Abort a PiKVM session."""
-    return await _post(f"/sessions/{session_id}/abort", {"reason": reason})
-
-
-@mcp.tool()
 async def pikvm_export_memory_update(session_id: str) -> dict:
-    """Export a safe Atlas memory-update proposal from the session trace."""
+    """Export a safe Atlas memory-update proposal from a session's trace."""
     return await _get(f"/sessions/{session_id}/memory-update")
 
 

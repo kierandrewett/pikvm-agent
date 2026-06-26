@@ -382,6 +382,65 @@ class Runtime:
                         "width": final.width, "height": final.height})
         return out
 
+    # ---- on-demand perception (Layer 2 — OFF the hot path, opt-in) ------- #
+
+    async def parse_screen_now(self, session_id: str) -> dict[str, Any]:
+        """Run OmniParser + OCR on the CURRENT screen on demand (the controller calls this
+        only when it's stuck). Returns grounded elements (id, kind, text, bbox, center) +
+        full OCR text — so the controller can pick a click target by coordinate."""
+        from pathlib import Path as _Path
+
+        DEBUG.set_session(session_id)
+        sr = self._get(session_id)
+        try:
+            await self.backend.connect()
+        except Exception as exc:  # noqa: BLE001
+            log.warning("backend.connect failed: %s", exc)
+        frame = await sr.frames.capture()
+        with DEBUG.span("perception.parse"):
+            em = await self._screen_parser.parse(_Path(frame.image_path), frame.frame_id,
+                                                 frame.world_version)
+        elements = [
+            {"id": e.id, "kind": e.kind, "text": e.text or e.caption or "",
+             "bbox": {"x": e.bbox.x, "y": e.bbox.y, "w": e.bbox.w, "h": e.bbox.h},
+             "center": list(e.bbox.center())}
+            for e in em.elements
+        ]
+        return {"session_id": session_id, "frame_id": frame.frame_id,
+                "world_version": frame.world_version, "control_epoch": sr.control_epoch,
+                "screenshot_path": frame.image_path, "elements": elements,
+                "ocr_text": em.ocr_text}
+
+    async def ocr_region(self, session_id: str, x: int, y: int, w: int, h: int) -> dict[str, Any]:
+        """OCR a single rectangular region of the current screen (cheap vs full-frame)."""
+        from pathlib import Path as _Path
+
+        from pikvm_agent.core.models import Region
+
+        DEBUG.set_session(session_id)
+        sr = self._get(session_id)
+        try:
+            await self.backend.connect()
+        except Exception as exc:  # noqa: BLE001
+            log.warning("backend.connect failed: %s", exc)
+        frame = await sr.frames.capture()
+        region = Region(x=x, y=y, width=w, height=h)
+        with DEBUG.span("perception.ocr_region"):
+            res = await self._screen_parser.ocr.ocr(_Path(frame.image_path), region=region)
+        return {"session_id": session_id, "frame_id": frame.frame_id,
+                "world_version": frame.world_version, "control_epoch": sr.control_epoch,
+                "region": {"x": x, "y": y, "w": w, "h": h}, "text": res.text}
+
+    async def find_text(self, session_id: str, text: str) -> dict[str, Any]:
+        """Locate on-screen text: parse the screen and return the elements whose label
+        contains ``text`` (with their click centers)."""
+        parsed = await self.parse_screen_now(session_id)
+        needle = (text or "").strip().lower()
+        matches = [e for e in parsed["elements"] if needle and needle in (e["text"] or "").lower()]
+        return {"session_id": session_id, "frame_id": parsed["frame_id"],
+                "world_version": parsed["world_version"], "control_epoch": parsed["control_epoch"],
+                "query": text, "matches": matches}
+
     @staticmethod
     def _budget_fields(max_transactions: int | None, max_runtime_ms: int | None) -> dict[str, Any]:
         deadline = (time.monotonic() * 1000 + max_runtime_ms) if max_runtime_ms else 0

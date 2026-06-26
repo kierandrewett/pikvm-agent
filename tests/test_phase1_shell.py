@@ -81,21 +81,24 @@ async def test_mcp_facade_forwards_to_daemon(app_config: AppConfig,
         names = sorted(t.name for t in await mcp_server.mcp.list_tools())
         assert names == [
             "pikvm_abort",
-            "pikvm_approve",
+            "pikvm_autonomous_approve",
+            "pikvm_autonomous_continue",
+            "pikvm_autonomous_start",
             "pikvm_click",
-            "pikvm_continue",
             "pikvm_export_memory_update",
+            "pikvm_find_text",
             "pikvm_key",
-            "pikvm_observe",
+            "pikvm_ocr_region",
             "pikvm_open",
+            "pikvm_panic_stop",
+            "pikvm_parse_screen",
             "pikvm_run_burst",
             "pikvm_screenshot",
             "pikvm_scroll",
-            "pikvm_start_task",
             "pikvm_type_text",
         ]
-        started = await mcp_server.pikvm_start_task("open the README")
-        obs = await mcp_server.pikvm_observe(session_id=started["session_id"])
+        started = await mcp_server.pikvm_autonomous_start("open the README")
+        obs = await mcp_server.pikvm_screenshot(session_id=started["session_id"])
         assert obs["frame_id"] == 1 and os.path.exists(obs["screenshot_path"])
 
         # Fast path: a burst runs locally and returns a fresh screenshot + control_epoch.
@@ -126,7 +129,7 @@ async def test_cancel_continue_aborts_session(monkeypatch) -> None:
         return {"ok": True}
 
     monkeypatch.setattr(mcp_server, "_post", fake_post)
-    task = asyncio.ensure_future(mcp_server.pikvm_continue("s_abc"))
+    task = asyncio.ensure_future(mcp_server.pikvm_autonomous_continue("s_abc"))
     await asyncio.sleep(0.05)  # let it reach the hanging continue
     assert calls == ["/sessions/s_abc/continue"]
 

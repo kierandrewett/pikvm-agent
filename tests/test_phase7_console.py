@@ -43,8 +43,11 @@ def test_console_data_endpoints(app_config: AppConfig) -> None:
         sid = c.post("/sessions", json={"task": "open the readme"}).json()["session_id"]
         # before any observe there is no frame yet
         assert c.get(f"/sessions/{sid}/frame").status_code == 404
-        # observe captures + saves a frame
+        # a read-only poll must NOT capture (no frame appears)
         c.get(f"/sessions/{sid}")
+        assert c.get(f"/sessions/{sid}/frame").status_code == 404
+        # an explicit observe (capture=true) captures + saves a frame
+        c.get(f"/sessions/{sid}?capture=true")
         frame = c.get(f"/sessions/{sid}/frame")
         assert frame.status_code == 200 and frame.headers["content-type"].startswith("image/")
         # session list + trace + (empty) approvals

@@ -137,6 +137,19 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
             based_on_control_epoch=body.based_on_control_epoch,
             max_runtime_ms=body.max_runtime_ms, return_screenshot=body.return_screenshot)
 
+    @app.post("/sessions/{session_id}/parse")
+    async def parse_screen(session_id: str, request: Request) -> dict[str, Any]:
+        return await rt(request).parse_screen_now(session_id)
+
+    @app.post("/sessions/{session_id}/ocr-region")
+    async def ocr_region(session_id: str, body: dict[str, Any], request: Request) -> dict[str, Any]:
+        return await rt(request).ocr_region(session_id, int(body.get("x", 0)), int(body.get("y", 0)),
+                                            int(body.get("w", 0)), int(body.get("h", 0)))
+
+    @app.post("/sessions/{session_id}/find-text")
+    async def find_text(session_id: str, body: dict[str, Any], request: Request) -> dict[str, Any]:
+        return await rt(request).find_text(session_id, str(body.get("text", "")))
+
     @app.post("/sessions/{session_id}/continue")
     async def continue_session(session_id: str, request: Request,
                                body: ContinueRequest | None = None) -> dict[str, Any]:
