@@ -108,6 +108,7 @@ class Runtime:
         self._executor = executor
         self._recovery = recovery
         self._omniparser = omniparser
+        self._omniparser_started = False  # lazy: spawned on first perception/autonomous use
         self._sessions: dict[str, SessionRuntime] = {}
         # /status is polled constantly by the readiness UI; cache it so each poll doesn't
         # re-run the (network) health probes and contend with real work.
@@ -132,25 +133,13 @@ class Runtime:
         executor = GuardedTransactionExecutor(backend, ocr, typer=typer)
         recovery = Recovery(backend)
 
-        omniparser: OmniParserManager | None = None
-        if config.omniparser.enabled:
-            omniparser = OmniParserManager(config.omniparser)
-            up = await omniparser.ensure_running(wait_s=config.omniparser.startup_wait_s)
-            base = config.omniparser.base_url
-            if up:
-                log.info("OmniParser ready at %s", base)
-            elif omniparser.spawned_child:
-                # We launched it; it just isn't healthy within the short boot window.
-                log.warning(
-                    "OmniParser launched at %s but not ready yet — it loads models on "
-                    "boot (the first GPU run can take a few minutes); sessions needing "
-                    "element grounding will be unavailable until it finishes loading", base)
-            else:
-                # Not managed here and nothing is listening — the user must start it.
-                sev = log.error if config.omniparser.required else log.warning
-                sev("OmniParser is not reachable at %s and is not managed by the daemon "
-                    "(omniparser.mode=%s) — start it; sessions will fail until it is up",
-                    base, config.omniparser.mode)
+        # Construct the OmniParser manager but DON'T start it — element grounding is only
+        # needed by the opt-in Layer-2 perception + Layer-3 autonomous paths, so the (heavy,
+        # GPU) child process spawns lazily on first use, not with the daemon. Burst mode
+        # never touches it.
+        omniparser: OmniParserManager | None = (
+            OmniParserManager(config.omniparser) if config.omniparser.enabled else None
+        )
 
         graph_db = str(Path(config.daemon.sqlite_path).with_name("graph.sqlite3"))
         checkpointer = await build_checkpointer(graph_db)
@@ -184,6 +173,15 @@ class Runtime:
 
     def _graph_config(self, sr: SessionRuntime) -> dict[str, Any]:
         return {"configurable": {"deps": sr.deps, "thread_id": sr.session_id}}
+
+    async def _ensure_omniparser(self) -> None:
+        """Spawn + warm OmniParser the first time perception/autonomous mode actually needs
+        it (it loads GPU models on boot — minutes — so we never pay that with the daemon)."""
+        if self._omniparser is None or self._omniparser_started:
+            return
+        self._omniparser_started = True
+        with DEBUG.span("omniparser.lazy_start"):
+            await self._omniparser.ensure_running(wait_s=self.config.omniparser.startup_wait_s)
 
     # ---- lifecycle -------------------------------------------------------- #
 
@@ -291,6 +289,7 @@ class Runtime:
         default); the MCP facade passes small bounds so interrupting the agent stops it
         within one transaction instead of letting one call run for minutes."""
         DEBUG.set_session(session_id)
+        await self._ensure_omniparser()  # autonomous mode needs element grounding
         sr = self._get(session_id)
         if sr.stopped:
             # Aborted / panicked — never resume the loop (a paused session must stay dead).
@@ -408,6 +407,7 @@ class Runtime:
         from pathlib import Path as _Path
 
         DEBUG.set_session(session_id)
+        await self._ensure_omniparser()  # Layer-2 grounding needs OmniParser — spawn on demand
         sr = self._get(session_id)
         try:
             await self.backend.connect()

@@ -22,25 +22,35 @@ def paddleocr_available() -> bool:
 
 class PaddleOCRProvider:
     def __init__(self, lang: str = "en", device: str | None = None) -> None:
-        from paddleocr import PaddleOCR  # lazy: only when actually used
+        # Don't load the (heavy) PaddleOCR model here — defer to the first OCR call so the
+        # daemon starts lean. OCR is only used for type read-back verification and the
+        # opt-in Layer-2 perception, never the default burst path.
+        self._lang = lang
+        self._device = device
+        self._ocr: Any | None = None
 
-        kwargs: dict[str, Any] = {
-            "lang": lang,
-            "use_doc_orientation_classify": False,
-            "use_doc_unwarping": False,
-            "use_textline_orientation": False,
-            # paddlepaddle 3.x's PIR executor + the oneDNN CPU backend crash at
-            # inference ("ConvertPirAttribute2RuntimeAttribute not support …",
-            # onednn_instruction.cc). Disabling oneDNN uses the plain CPU kernels
-            # (a little slower, but it actually runs).
-            "enable_mkldnn": False,
-        }
-        if device:
-            kwargs["device"] = device
-        self._ocr = PaddleOCR(**kwargs)
+    def _engine(self) -> Any:
+        if self._ocr is None:
+            from paddleocr import PaddleOCR  # lazy: only when actually used
+
+            kwargs: dict[str, Any] = {
+                "lang": self._lang,
+                "use_doc_orientation_classify": False,
+                "use_doc_unwarping": False,
+                "use_textline_orientation": False,
+                # paddlepaddle 3.x's PIR executor + the oneDNN CPU backend crash at
+                # inference ("ConvertPirAttribute2RuntimeAttribute not support …",
+                # onednn_instruction.cc). Disabling oneDNN uses the plain CPU kernels
+                # (a little slower, but it actually runs).
+                "enable_mkldnn": False,
+            }
+            if self._device:
+                kwargs["device"] = self._device
+            self._ocr = PaddleOCR(**kwargs)
+        return self._ocr
 
     def _predict(self, image_path: Path) -> OCRResult:
-        output = self._ocr.predict(str(image_path))
+        output = self._engine().predict(str(image_path))
         lines: list[OCRLine] = []
         for res in output:
             # PaddleOCR 3.x exposes the result as a `.json` DICT property (not a
