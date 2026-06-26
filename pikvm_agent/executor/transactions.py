@@ -13,10 +13,13 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import os
 import tempfile
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
+
+from pikvm_agent.pikvm import timing
 
 from pikvm_agent.core.models import (
     ElementMap,
@@ -53,6 +56,10 @@ class GuardedTransactionExecutor:
         # 2-arg contract); an explicit arg still wins for direct callers/tests.
         if should_continue is None:
             should_continue = state.get("_should_continue")
+        # Human reaction time: a brief "saw the screen, now act" pause before touching
+        # HID. Skipped under the fake backend so tests stay fast.
+        if tx.actions and not os.environ.get("PIKVM_AGENT_FAKE"):
+            await asyncio.sleep(timing.reaction_s())
         element_map = ElementMap.model_validate(
             state.get("element_map") or {"frame_id": tx.based_on_frame_id,
                                          "world_version": tx.based_on_world_version}

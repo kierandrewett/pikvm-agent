@@ -114,7 +114,11 @@ def test_E6_wrong_region_is_unverified_not_mismatch() -> None:
 # E7 — long Teams text uses the fast paste/print path --------------------------
 async def test_E7_long_prose_uses_fast_print() -> None:
     backend = FakeBackend()
-    text = "Hi team, just a quick note to confirm the rollout window is unchanged and on track."
+    # Genuinely long prose (> FAST_PRINT_MIN = 120) takes the fast (bursty) print path;
+    # shorter sentences now stay on the fully-humanized per-key path.
+    text = ("Hi team, just a quick note to confirm the rollout window is unchanged and on "
+            "track for Thursday evening, and that the rollback plan is ready if we need it.")
+    assert len(text) > 120
     backend.ocr_text = text
     typer = WatchedTyper(backend, PiKVMOcrProvider(backend))
     res = await typer.type_text(text, region=None)

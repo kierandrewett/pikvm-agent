@@ -59,7 +59,8 @@ MAX_BOX_HEIGHT_FRAC = 0.6  # a change taller than this frac of screen = repaint
 CHUNK_TARGET = 16         # word-boundary chunk target length
 MAX_TOTAL_CORRECTIONS = 1  # one clean retry; never a compounding loop
 MAX_BACKSPACES = 400      # safety cap on a correction's clear
-FAST_PRINT_MIN = 40       # above this, plain text takes the fast print path
+FAST_PRINT_MIN = 120      # above this, plain text takes the (bursty) fast print path;
+                          # shorter text stays on the fully-humanized per-key path
 
 # Pauses (seconds) — let a print / clear land and the video settle before reading.
 _PRINT_SETTLE_S = 0.45
