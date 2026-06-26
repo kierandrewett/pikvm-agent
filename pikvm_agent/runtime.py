@@ -108,6 +108,9 @@ class Runtime:
         self._recovery = recovery
         self._omniparser = omniparser
         self._sessions: dict[str, SessionRuntime] = {}
+        # /status is polled constantly by the readiness UI; cache it so each poll doesn't
+        # re-run the (network) health probes and contend with real work.
+        self._status_cache: tuple[float, dict[str, Any]] | None = None
 
     @classmethod
     async def from_config(cls, config: AppConfig | None = None) -> "Runtime":
@@ -398,10 +401,19 @@ class Runtime:
         """
         cfg = self.config
 
+        # Serve a recent snapshot — the readiness pill polls this every few seconds and
+        # the health probes are network calls; recomputing each time piled up slow /status
+        # requests that contended with everything else (panel polls, the loop).
+        cached = self._status_cache
+        if cached is not None and (time.monotonic() - cached[0]) < 3.0:
+            return cached[1]
+
         async def _probe(coro: Any) -> bool:
+            # Hard-bound each probe: a busy OmniParser (mid GPU-parse) or a slow PiKVM
+            # must not make /status take many seconds.
             try:
-                return bool(await coro)
-            except Exception:  # noqa: BLE001 - a probe failure is just "not ready"
+                return bool(await asyncio.wait_for(coro, timeout=2.0))
+            except Exception:  # noqa: BLE001 - a probe failure/timeout is just "not ready"
                 return False
 
         probes = [_probe(self.backend.health())]
@@ -441,7 +453,9 @@ class Runtime:
             and operator["configured"]
             and (omni_ok or not cfg.omniparser.required)
         )
-        return {"ok": ready, "dependencies": deps}
+        result = {"ok": ready, "dependencies": deps}
+        self._status_cache = (time.monotonic(), result)
+        return result
 
     def latest_frame_path(self, session_id: str) -> str | None:
         sr = self._sessions.get(session_id)
