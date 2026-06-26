@@ -84,6 +84,10 @@ class SessionRuntime:
     # Bumped on abort / panic / steer; the executor refuses a transaction whose
     # decision was made under a stale epoch (see graph.nodes.execute_transaction).
     control_epoch: int = 0
+    # Sticky terminal brake — latched by abort / panic. The epoch invalidates an
+    # in-flight decision but a re-planned loop re-stamps the new epoch and would pass;
+    # this latch makes the stop survive re-planning AND blocks resume of a paused session.
+    stopped: bool = False
 
 
 class Runtime:
@@ -182,9 +186,11 @@ class Runtime:
             max_steps=DEFAULT_MAX_STEPS,
         )
         sr = SessionRuntime(session_id=session_id, task=task, frames=frames, trace=trace, deps=deps)
-        # The executor reads the session's LIVE epoch through deps; bumping it (abort /
-        # panic) invalidates any in-flight decision before it executes.
+        # The executor reads the session's LIVE epoch + stop latch through deps; bumping
+        # the epoch (steer) invalidates an in-flight decision, and the latch (abort / panic)
+        # refuses every subsequent action even after a re-plan.
         deps.control_epoch_getter = lambda: sr.control_epoch
+        deps.stop_getter = lambda: sr.stopped
         self._sessions[session_id] = sr
         return {"session_id": session_id, "status": row["status"], "task": task,
                 "created_at": row["created_at"]}
@@ -212,6 +218,7 @@ class Runtime:
     async def abort_session(self, session_id: str, reason: str = "") -> dict[str, Any]:
         sr = self._get(session_id)
         sr.control_epoch += 1  # invalidate any in-flight transaction
+        sr.stopped = True       # latch: refuse re-planned actions + block resume
         sr.status = "failed"
         sr.error = reason or "aborted by human"
         sr.trace.append("abort", reason=reason)
@@ -231,7 +238,10 @@ class Runtime:
         stopped: list[str] = []
         for sid, sr in list(self._sessions.items()):
             sr.control_epoch += 1
-            if sr.status in ("running", "needs_approval"):
+            sr.stopped = True  # latch ALL sessions so none can be resumed after a panic
+            # Any non-terminal session is halted — including a budget-`paused` one, which
+            # would otherwise stay resumable and re-plan under the bumped epoch.
+            if sr.status in ("running", "needs_approval", "paused"):
                 sr.status = "failed"
                 sr.error = "panic_stop"
                 sr.trace.append("panic_stop")
@@ -252,6 +262,10 @@ class Runtime:
         default); the MCP facade passes small bounds so interrupting the agent stops it
         within one transaction instead of letting one call run for minutes."""
         sr = self._get(session_id)
+        if sr.stopped:
+            # Aborted / panicked — never resume the loop (a paused session must stay dead).
+            return {"session_id": session_id, "task": sr.task, "status": "failed",
+                    "error": sr.error or "stopped"}
         try:
             await self.backend.connect()
         except Exception as exc:  # noqa: BLE001
@@ -303,6 +317,14 @@ class Runtime:
             "frame_id": result.get("frame_id"), "world_version": result.get("world_version"),
             "screenshot_path": result.get("frame_path"), "step": result.get("step", 0),
         }
+        # If a panic / abort landed WHILE this graph run was in flight, the run may return
+        # a stale "paused"/"done"/"needs_approval" — the latch wins, force it terminal so
+        # the emergency stop can't be overwritten by an already-running invocation.
+        if sr.stopped:
+            sr.status = "failed"
+            sr.error = sr.error or "stopped"
+            await self.store.update_session(sr.session_id, status="failed", error=sr.error)
+            return {**base, "status": "failed", "error": sr.error}
         if "__interrupt__" in result:
             itr = result["__interrupt__"]
             val = getattr(itr[0], "value", None) if itr else None

@@ -10,6 +10,7 @@ the policy gate, verification in the executor.
 from __future__ import annotations
 
 import base64
+import time
 import uuid
 from pathlib import Path
 from typing import Any
@@ -220,6 +221,14 @@ async def human_interrupt(state: dict, config: RunnableConfig) -> dict:
 async def execute_transaction(state: dict, config: RunnableConfig) -> dict:
     deps = get_deps(config)
     decision = state["operator_decision"]
+    # STICKY TERMINAL BRAKE (checked first): abort / panic latch a stop that survives
+    # re-planning. The epoch alone is a one-shot — operator_decide re-stamps each loop with
+    # the CURRENT epoch, so a fresh decision would pass the epoch gate after a panic; this
+    # latch refuses every action regardless, so the stop is truly terminal.
+    if deps.stop_getter is not None and deps.stop_getter():
+        deps.trace.append("execute_refused", reason="stopped")
+        return {"status": "failed", "error": "stopped (abort / panic)",
+                "transaction_result": {"status": "blocked_by_policy", "error": "stopped"}}
     # HARD CONTROL GATE (checked before EVERY transaction, so a stop lands within one
     # action): if the live controller epoch differs from the one this decision was made
     # under, an abort / panic / steer happened — refuse to execute the stale plan.
@@ -229,6 +238,14 @@ async def execute_transaction(state: dict, config: RunnableConfig) -> dict:
                           planned=state["control_epoch"], current=getter())
         return {"status": "failed", "error": "control changed (aborted / panic / steered)",
                 "transaction_result": {"status": "blocked_by_policy", "error": "control_changed"}}
+    # TIME-BUDGET PRE-CHECK: the per-call deadline can lapse during observe/parse/operator
+    # latency. Don't START a new action after it — defer to a resumable pause (route_after_
+    # verify sees the spent budget and routes to budget_pause). tx-COUNT is enforced
+    # post-execute so the first action of a call still runs.
+    deadline = state.get("deadline_ms") or 0
+    if deadline and time.monotonic() * 1000 >= deadline:
+        deps.trace.append("execute_deferred", reason="deadline")
+        return {"transaction_result": {"status": "deferred_budget"}}
     # Approval is NOT force-execute. Re-observe NOW and verify the WORLD still
     # matches the plan: frame_id always advances on capture, so the invariant is
     # world_version. A change during a human's deliberation makes this stale.
@@ -261,8 +278,14 @@ async def execute_transaction(state: dict, config: RunnableConfig) -> dict:
         risk=decision["risk"],
         approval_id=(state.get("approval_request") or {}).get("approval_id"),
     )
+    # Live control gate threaded INTO the action: a long type / multi-action transaction
+    # polls this between chunks/actions and stops mid-flight if control changed. Passed
+    # through a transient state copy so deps.execute stays a (tx, state) contract and the
+    # non-serialisable callable is never checkpointed.
+    planned_epoch = state.get("control_epoch")
+    gate = (lambda: getter() == planned_epoch) if (getter is not None and planned_epoch is not None) else None
     execute = deps.execute or (lambda t, s: _record_only_execute(deps, t))
-    result = await execute(tx, state)
+    result = await execute(tx, {**state, "_should_continue": gate} if gate is not None else state)
     if not isinstance(result, TransactionResult):
         result = TransactionResult.model_validate(result)
     deps.trace.append("executed", status=result.status,

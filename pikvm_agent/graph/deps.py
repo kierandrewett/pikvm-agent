@@ -36,6 +36,11 @@ class GraphDeps:
     # Reads the session's LIVE controller epoch. operator_decide captures it into the
     # state; execute_transaction refuses if it changed (abort/panic/steer happened).
     control_epoch_getter: Callable[[], int] | None = None
+    # Sticky terminal brake. Unlike the epoch (a one-shot invalidation that a fresh
+    # decision re-stamps past), this latches True on abort / panic and execute_transaction
+    # refuses EVERY subsequent action regardless of epoch — so a re-planned loop can't
+    # slip an action through after the stop.
+    stop_getter: Callable[[], bool] | None = None
 
 
 def get_deps(config: dict[str, Any] | None) -> GraphDeps:

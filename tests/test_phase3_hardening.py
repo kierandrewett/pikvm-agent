@@ -173,7 +173,70 @@ async def test_panic_stop_halts_all_sessions(runtime: Runtime) -> None:
     assert res["ok"] and sid in res["stopped"]
     assert runtime._sessions[sid].status == "failed"
     assert runtime._sessions[sid].control_epoch == epoch0 + 1  # in-flight plans invalidated
+    assert runtime._sessions[sid].stopped is True               # sticky terminal latch set
     assert any(c[0] == "release_all" for c in runtime.backend.calls)  # held HID released
+
+
+async def test_panic_stop_halts_paused_session_and_blocks_resume(runtime: Runtime) -> None:
+    # Codex P1/P2a: a budget-PAUSED session must be halted by a panic AND must not be
+    # resumable afterwards — otherwise the next continue re-plans under the bumped epoch
+    # and the emergency stop is not terminal.
+    runtime._operator = ScriptOp([{"intent": "tap", "risk": _LOW,
+                                   "actions": [{"type": "keypress", "keys": ["KeyA"]}]}])
+    sid = (await runtime.start_session("loop"))["session_id"]
+    paused = await runtime.continue_session(sid, max_transactions=1)
+    assert paused["status"] == "paused"
+
+    res = await runtime.panic_stop()
+    assert sid in res["stopped"]                       # the paused session WAS halted
+    assert runtime._sessions[sid].status == "failed"
+    assert runtime._sessions[sid].stopped is True
+
+    # Resuming a stopped session must NOT run the loop again — it stays failed.
+    resumed = await runtime.continue_session(sid, max_transactions=1)
+    assert resumed["status"] == "failed"
+
+
+async def test_abort_blocks_resume(runtime: Runtime) -> None:
+    # The same latch applies to a normal abort: once aborted, continue can't revive it.
+    runtime._operator = ScriptOp([{"intent": "tap", "risk": _LOW,
+                                   "actions": [{"type": "keypress", "keys": ["KeyA"]}]}])
+    sid = (await runtime.start_session("loop"))["session_id"]
+    await runtime.continue_session(sid, max_transactions=1)
+    await runtime.abort_session(sid, "human stop")
+    resumed = await runtime.continue_session(sid, max_transactions=1)
+    assert resumed["status"] == "failed"
+
+
+async def test_expired_deadline_pauses_before_executing(tmp_path) -> None:
+    # Codex P2b: if the per-call TIME budget is already spent when we reach execution
+    # (slow observe/parse/operator), the action must NOT run — it defers to a resumable
+    # pause instead of doing HID after the deadline.
+    os.environ["PIKVM_AGENT_FAKE"] = "1"
+    backend = FakeBackend()
+    executed: list = []
+
+    async def _exec(tx, state):
+        executed.append(tx.intent)
+        return TransactionResult(status="verified")
+
+    deps = GraphDeps(
+        backend=backend, frames=FrameStore("s", tmp_path, backend), trace=TraceLog("s", tmp_path),
+        screen_parser=build_screen_parser(AppConfig(), backend),
+        operator=ScriptOp([{"intent": "click", "risk": _LOW,
+                            "actions": [{"type": "keypress", "keys": ["KeyA"]}]}]),
+        policy=SafetyPolicyEngine(PolicyConfig()), max_steps=10, execute=_exec,
+    )
+    graph = build_graph(await build_checkpointer(None))
+    config = {"configurable": {"deps": deps, "thread_id": "dl"}}
+
+    # deadline_ms = 1.0 is far in the past (monotonic clock is well past 1ms) -> spent.
+    r = await graph.ainvoke(
+        {"session_id": "s", "task": "t", "step": 0, "max_steps": 10,
+         "max_transactions": 0, "tx_this_call": 0, "deadline_ms": 1.0}, config)
+    assert "__interrupt__" in r
+    assert r["__interrupt__"][0].value.get("reason") == "budget_paused"
+    assert executed == []  # the deadline pre-check deferred the action — nothing ran
 
 
 async def test_bounded_continue_pauses_then_resumes(tmp_path) -> None:
