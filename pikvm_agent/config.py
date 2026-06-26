@@ -40,6 +40,13 @@ class DaemonConfig(BaseModel):
     listen: str = "127.0.0.1:47615"
     session_dir: str = str(_DATA_HOME / "sessions")
     sqlite_path: str = str(_DATA_HOME / "state.sqlite3")
+    # Ultimate debug log: one JSONL stream of every LLM call, vision call, screenshot,
+    # HID action, graph node and HTTP request, with durations. Tail it to see where the
+    # time goes:  tail -f <debug_log_path> | jq .
+    debug_log: bool = True
+    debug_log_path: str = str(_DATA_HOME / "debug.jsonl")
+    # Start a fresh log file each daemon boot (False = append across runs).
+    debug_log_truncate: bool = False
 
     @property
     def host(self) -> str:

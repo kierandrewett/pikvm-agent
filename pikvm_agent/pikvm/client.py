@@ -18,6 +18,7 @@ import httpx
 
 from pikvm_agent.config import PikvmConfig
 from pikvm_agent.core.errors import BackendError
+from pikvm_agent.debuglog import DEBUG
 from pikvm_agent.core.models import CapturedFrame, Region
 from pikvm_agent.pikvm import keyboard_state as ks
 from pikvm_agent.pikvm import timing
@@ -128,21 +129,25 @@ class PiKVMBackend:
     # ---- screen ----------------------------------------------------------- #
 
     async def screenshot(self, region: Region | None = None) -> CapturedFrame:
-        resp = await self._http.get(
-            f"{self._http_base()}/api/streamer/snapshot",
-            headers=self._auth_headers(),
-            params={"allow_offline": 1},
-        )
-        resp.raise_for_status()
-        data = resp.content
-        hw = int(resp.headers.get("x-ustreamer-width", 0) or 0)
-        hh = int(resp.headers.get("x-ustreamer-height", 0) or 0)
-        if not hw or not hh:
-            parsed = jpeg_size(data) or (self.dims["width"], self.dims["height"])
-            hw, hh = parsed
-        # Decode + LANCZOS downscale + JPEG re-encode is tens of ms of pure CPU — run it
-        # off the event loop so it can't stall other sessions / status polls.
-        return await asyncio.to_thread(self._finalize, data, hw, hh, region)
+        with DEBUG.span("pikvm.screenshot", region=region is not None) as result:
+            resp = await self._http.get(
+                f"{self._http_base()}/api/streamer/snapshot",
+                headers=self._auth_headers(),
+                params={"allow_offline": 1},
+            )
+            resp.raise_for_status()
+            data = resp.content
+            hw = int(resp.headers.get("x-ustreamer-width", 0) or 0)
+            hh = int(resp.headers.get("x-ustreamer-height", 0) or 0)
+            if not hw or not hh:
+                parsed = jpeg_size(data) or (self.dims["width"], self.dims["height"])
+                hw, hh = parsed
+            # Decode + LANCZOS downscale + JPEG re-encode is tens of ms of pure CPU — run it
+            # off the event loop so it can't stall other sessions / status polls.
+            frame = await asyncio.to_thread(self._finalize, data, hw, hh, region)
+            result(raw_bytes=len(data), out_bytes=len(frame.data or b""),
+                   w=frame.width, h=frame.height)
+            return frame
 
     def _finalize(self, raw: bytes, fw: int, fh: int, region: Region | None) -> CapturedFrame:
         if region is not None:

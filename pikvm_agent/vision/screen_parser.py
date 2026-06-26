@@ -52,10 +52,21 @@ class CompositeScreenParser:
         # Element grounding (OmniParser GPU/network) and OCR (thread/subprocess) are
         # independent reads of the same image — run them concurrently so parse latency is
         # max(omni, ocr), not omni + ocr.
-        em, ocr = await asyncio.gather(
-            self.elements.parse_elements(image_path, frame_id, world_version),
-            self.ocr.ocr(image_path),
-        )
+        from pikvm_agent.debuglog import DEBUG
+
+        async def _elements():
+            with DEBUG.span("vision.omniparser", frame_id=frame_id) as r:
+                em = await self.elements.parse_elements(image_path, frame_id, world_version)
+                r(elements=len(em.elements))
+                return em
+
+        async def _ocr():
+            with DEBUG.span("vision.ocr", frame_id=frame_id) as r:
+                res = await self.ocr.ocr(image_path)
+                r(lines=len(getattr(res, "lines", []) or []))
+                return res
+
+        em, ocr = await asyncio.gather(_elements(), _ocr())
         merged: list[VisualElement] = list(em.elements)
         source_tag = self._ocr_source()
 

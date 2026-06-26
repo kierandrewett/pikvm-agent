@@ -124,41 +124,64 @@ class OpenRouterOperator:
         messages = self._build_messages(request)
         url = f"{self._config.base_url}/chat/completions"
 
+        from pikvm_agent.debuglog import DEBUG
+
+        img = request.frame.get("image")
+        DEBUG.event("operator.request", model=model, lane=lane, url=url,
+                    messages=len(messages), has_image=bool(img),
+                    image_bytes=(len(img) if isinstance(img, str) else 0),
+                    structured_output=self._config.structured_output)
+
         last_error: Exception | None = None
         drop_format = False
         client = self._client()
-        for _ in range(self._max_retries + 1):
-            try:
-                resp = await client.post(
-                    url, headers=self._headers,
-                    json=self._payload(model, messages, drop_format=drop_format),
-                )
-                resp.raise_for_status()
-                content = resp.json()["choices"][0]["message"]["content"]
-                return validate_decision(content)
-            except httpx.HTTPStatusError as exc:
-                last_error = exc
-                # A 400 usually means the model/provider rejected response_format (a
-                # strict json_schema, or json_object on a model that lacks it). Drop it
-                # and let the prompt + our Pydantic validation enforce JSON instead.
-                if exc.response.status_code == 400 and not drop_format:
-                    drop_format = True
-            except OperatorError as exc:
-                # Schema/JSON failure: nudge the model toward strict JSON.
-                last_error = exc
-                messages = messages + [
-                    {
-                        "role": "user",
-                        "content": (
-                            "Your previous response could not be parsed: "
-                            f"{exc}. Return only valid JSON matching the "
-                            "operator_decision schema, with no prose, "
-                            "markdown, or code fences."
-                        ),
-                    }
-                ]
-            except (httpx.HTTPError, KeyError, ValueError) as exc:
-                last_error = exc
+        for attempt in range(self._max_retries + 1):
+            with DEBUG.span("operator.call", model=model, attempt=attempt,
+                            drop_format=drop_format) as result:
+                try:
+                    resp = await client.post(
+                        url, headers=self._headers,
+                        json=self._payload(model, messages, drop_format=drop_format),
+                    )
+                    result(http_status=resp.status_code)
+                    resp.raise_for_status()
+                    content = resp.json()["choices"][0]["message"]["content"]
+                    result(content_len=len(content or ""))
+                    return validate_decision(content)
+                except httpx.HTTPStatusError as exc:
+                    last_error = exc
+                    # Capture the provider's error body — this is where a 400's real reason
+                    # (e.g. "response_format not supported") shows up.
+                    body = ""
+                    try:
+                        body = exc.response.text[:600]
+                    except Exception:  # noqa: BLE001
+                        pass
+                    result(http_status=exc.response.status_code, error_body=body)
+                    # A 400 usually means the model/provider rejected response_format (a
+                    # strict json_schema, or json_object on a model that lacks it). Drop it
+                    # and let the prompt + our Pydantic validation enforce JSON instead.
+                    if exc.response.status_code == 400 and not drop_format:
+                        drop_format = True
+                    continue
+                except OperatorError as exc:
+                    # Schema/JSON failure: nudge the model toward strict JSON.
+                    last_error = exc
+                    result(parse_error=str(exc)[:300])
+                    messages = messages + [
+                        {
+                            "role": "user",
+                            "content": (
+                                "Your previous response could not be parsed: "
+                                f"{exc}. Return only valid JSON matching the "
+                                "operator_decision schema, with no prose, "
+                                "markdown, or code fences."
+                            ),
+                        }
+                    ]
+                except (httpx.HTTPError, KeyError, ValueError) as exc:
+                    last_error = exc
+                    result(error_kind=type(exc).__name__)
 
         raise OperatorError(
             f"operator failed after {self._max_retries + 1} attempts: {last_error}"

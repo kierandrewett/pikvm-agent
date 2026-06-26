@@ -50,6 +50,22 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
 
     app = FastAPI(title="PiKVM Agent Daemon", version="0.1.0", lifespan=lifespan)
 
+    @app.middleware("http")
+    async def _timing(request: Request, call_next):
+        import time as _t
+
+        from pikvm_agent.debuglog import DEBUG
+
+        start = _t.monotonic()
+        status = 0
+        try:
+            resp = await call_next(request)
+            status = resp.status_code
+            return resp
+        finally:
+            DEBUG.event("http", method=request.method, path=request.url.path,
+                        status=status, dur_ms=round((_t.monotonic() - start) * 1000, 1))
+
     def rt(request: Request) -> Runtime:
         return request.app.state.runtime
 

@@ -22,6 +22,7 @@ from langgraph.types import Command
 
 from pikvm_agent.config import AppConfig, load_config
 from pikvm_agent.core.errors import SessionNotFoundError
+from pikvm_agent.debuglog import DEBUG
 from pikvm_agent.executor.recovery import Recovery
 from pikvm_agent.executor.transactions import GuardedTransactionExecutor
 from pikvm_agent.graph.checkpoints import build_checkpointer, close_checkpointer
@@ -111,6 +112,9 @@ class Runtime:
     @classmethod
     async def from_config(cls, config: AppConfig | None = None) -> "Runtime":
         config = config or load_config()
+        # Wire the ultimate debug log first so startup itself is captured.
+        DEBUG.configure(config.daemon.debug_log_path, session_dir=config.daemon.session_dir,
+                        enabled=config.daemon.debug_log, truncate=config.daemon.debug_log_truncate)
         store = SessionStore(config.daemon.sqlite_path)
         await store.connect()
         backend = build_backend(config)
@@ -210,6 +214,7 @@ class Runtime:
         ``observe`` step — an explicit "look now". ``capture=False`` is read-only: it
         returns the LAST captured frame without touching the backend or the trace, so a
         UI can poll it cheaply (polling must never drive captures or flood the trace)."""
+        DEBUG.set_session(session_id)
         sr = self._get(session_id)
         if capture:
             try:
@@ -281,6 +286,7 @@ class Runtime:
         spent — then it PAUSES (resumable). None/None = unbounded (daemon-direct
         default); the MCP facade passes small bounds so interrupting the agent stops it
         within one transaction instead of letting one call run for minutes."""
+        DEBUG.set_session(session_id)
         sr = self._get(session_id)
         if sr.stopped:
             # Aborted / panicked — never resume the loop (a paused session must stay dead).
@@ -316,6 +322,7 @@ class Runtime:
     async def submit_approval(self, session_id: str, approval_id: str,
                              decision: dict) -> dict[str, Any]:
         """Resume a paused graph with the human's approval decision."""
+        DEBUG.set_session(session_id)
         sr = self._get(session_id)
         # Validate the id matches THIS session's pending approval before resuming —
         # a stale/mistyped id must never approve the current pending action.

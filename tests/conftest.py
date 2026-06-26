@@ -38,6 +38,7 @@ def app_config(tmp_path) -> AppConfig:
         daemon=DaemonConfig(
             session_dir=str(tmp_path / "sessions"),
             sqlite_path=str(tmp_path / "state.sqlite3"),
+            debug_log_path=str(tmp_path / "debug.jsonl"),  # don't write the real log in tests
         )
     )
 
