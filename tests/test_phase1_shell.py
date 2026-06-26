@@ -55,8 +55,14 @@ def test_daemon_http_endpoints(app_config: AppConfig) -> None:
     with TestClient(app) as client:
         assert client.get("/healthz").json() == {"ok": True}
         sid = client.post("/sessions", json={"task": "t"}).json()["session_id"]
-        obs = client.get(f"/sessions/{sid}").json()
+        # Plain GET is read-only — no capture yet, so no frame (polling must not capture).
+        poll = client.get(f"/sessions/{sid}").json()
+        assert poll["frame_id"] is None and poll["status"] == "running"
+        # capture=true takes a fresh screenshot (the pikvm_observe path).
+        obs = client.get(f"/sessions/{sid}?capture=true").json()
         assert obs["frame_id"] == 1 and obs["world_version"] == 1
+        # A subsequent read-only poll returns that last frame WITHOUT advancing it.
+        assert client.get(f"/sessions/{sid}").json()["frame_id"] == 1
         assert client.get("/sessions/does-not-exist").status_code == 404
 
 

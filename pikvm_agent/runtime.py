@@ -195,24 +195,36 @@ class Runtime:
         return {"session_id": session_id, "status": row["status"], "task": task,
                 "created_at": row["created_at"]}
 
-    async def get_session_summary(self, session_id: str) -> dict[str, Any]:
-        """pikvm_observe: capture the current screen and report frame metadata."""
+    async def get_session_summary(self, session_id: str, capture: bool = True) -> dict[str, Any]:
+        """Report the session's status + frame metadata.
+
+        ``capture=True`` (pikvm_observe) grabs a FRESH screenshot and records an
+        ``observe`` step — an explicit "look now". ``capture=False`` is read-only: it
+        returns the LAST captured frame without touching the backend or the trace, so a
+        UI can poll it cheaply (polling must never drive captures or flood the trace)."""
         sr = self._get(session_id)
-        try:
-            await self.backend.connect()
-        except Exception as exc:  # noqa: BLE001
-            log.warning("backend.connect failed: %s", exc)
-        frame = await sr.frames.capture()
-        sr.trace.append("observe", frame_id=frame.frame_id, world_version=frame.world_version,
-                        screenshot_path=frame.image_path)
+        if capture:
+            try:
+                await self.backend.connect()
+            except Exception as exc:  # noqa: BLE001
+                log.warning("backend.connect failed: %s", exc)
+            frame = await sr.frames.capture()
+            sr.trace.append("observe", frame_id=frame.frame_id, world_version=frame.world_version,
+                            screenshot_path=frame.image_path)
+        else:
+            frame = sr.frames.latest()
         row = await self.store.get_session(session_id)
         status = row["status"] if row else sr.status
+        base = {"session_id": session_id, "status": status, "task": sr.task,
+                "events": sr.events[-20:], "error": sr.error}
+        if frame is None:  # read-only poll before the first capture
+            return {**base, "frame_id": None, "world_version": None, "screenshot_path": None,
+                    "width": None, "height": None, "keyboard_state": None}
         return {
-            "session_id": session_id, "status": status, "task": sr.task,
+            **base,
             "frame_id": frame.frame_id, "world_version": frame.world_version,
             "screenshot_path": frame.image_path, "width": frame.width, "height": frame.height,
             "keyboard_state": frame.keyboard_state.model_dump(),
-            "events": sr.events[-20:], "error": sr.error,
         }
 
     async def abort_session(self, session_id: str, reason: str = "") -> dict[str, Any]:

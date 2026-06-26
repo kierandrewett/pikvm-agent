@@ -100,8 +100,8 @@ async def pikvm_continue(session_id: str, max_transactions: int = 1,
 @mcp.tool()
 async def pikvm_observe(session_id: str) -> dict:
     """Return the current screen summary: frame id, world version, events, and
-    the screenshot path."""
-    return await _get(f"/sessions/{session_id}")
+    the screenshot path. Takes a FRESH screenshot (an explicit look)."""
+    return await _get(f"/sessions/{session_id}?capture=true")
 
 
 @mcp.tool()

@@ -110,8 +110,11 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
         return await rt(request).continue_session(session_id, b.max_transactions, b.max_runtime_ms)
 
     @app.get("/sessions/{session_id}")
-    async def get_session(session_id: str, request: Request) -> dict[str, Any]:
-        return await rt(request).get_session_summary(session_id)
+    async def get_session(session_id: str, request: Request,
+                          capture: bool = False) -> dict[str, Any]:
+        # Read-only by default so UI polling can't drive screenshot captures or spam the
+        # trace; pikvm_observe passes capture=true for an explicit fresh look.
+        return await rt(request).get_session_summary(session_id, capture=capture)
 
     @app.post("/sessions/{session_id}/approvals/{approval_id}")
     async def approval(session_id: str, approval_id: str, decision: dict[str, Any],
