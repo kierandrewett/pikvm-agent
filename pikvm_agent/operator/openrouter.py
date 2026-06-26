@@ -43,10 +43,19 @@ class OpenRouterOperator:
         self._transport = transport
         self._max_retries = max_retries
         self._timeout = timeout
+        self._http: httpx.AsyncClient | None = None
 
     def _client(self) -> httpx.AsyncClient:
-        """A fresh client per call; injectable transport keeps tests offline."""
-        return httpx.AsyncClient(transport=self._transport, timeout=self._timeout)
+        """One pooled client, reused across calls (a fresh client per decision would
+        re-pay the TLS handshake every step). Injectable transport keeps tests offline."""
+        if self._http is None or self._http.is_closed:
+            self._http = httpx.AsyncClient(transport=self._transport, timeout=self._timeout)
+        return self._http
+
+    async def aclose(self) -> None:
+        if self._http is not None and not self._http.is_closed:
+            await self._http.aclose()
+        self._http = None
 
     def _build_messages(self, request: OperatorRequest) -> list[dict[str, Any]]:
         """Assemble chat messages, attaching the frame image when present.
@@ -64,25 +73,30 @@ class OpenRouterOperator:
                 {"type": "text", "text": user["content"]},
                 {
                     "type": "image_url",
-                    "image_url": {"url": f"data:image/png;base64,{image}"},
+                    "image_url": {"url": f"data:image/jpeg;base64,{image}"},
                 },
             ]
         return messages
 
-    def _payload(self, model: str, messages: list[dict[str, Any]]) -> dict[str, Any]:
-        return {
-            "model": model,
-            "messages": messages,
-            "temperature": 0,
-            "response_format": {
-                "type": "json_schema",
-                "json_schema": {
-                    "name": "operator_decision",
-                    "strict": True,
-                    "schema": decision_json_schema(),
-                },
-            },
-        }
+    def _payload(self, model: str, messages: list[dict[str, Any]],
+                 drop_format: bool = False) -> dict[str, Any]:
+        payload: dict[str, Any] = {"model": model, "messages": messages, "temperature": 0}
+        rf = self._response_format()
+        if rf is not None and not drop_format:
+            payload["response_format"] = rf
+        return payload
+
+    def _response_format(self) -> dict[str, Any] | None:
+        """Structured-output mode per config. Defaults to the widely-supported
+        ``json_object``; ``json_schema`` sends a strict schema (rejected by many
+        providers, incl. Qwen-VL, with a 400); ``none`` omits it entirely."""
+        mode = (self._config.structured_output or "json_object").lower()
+        if mode == "none":
+            return None
+        if mode == "json_schema":
+            return {"type": "json_schema", "json_schema": {
+                "name": "operator_decision", "strict": True, "schema": decision_json_schema()}}
+        return {"type": "json_object"}
 
     @property
     def _headers(self) -> dict[str, str]:
@@ -111,31 +125,40 @@ class OpenRouterOperator:
         url = f"{self._config.base_url}/chat/completions"
 
         last_error: Exception | None = None
-        async with self._client() as client:
-            for _ in range(self._max_retries + 1):
-                try:
-                    resp = await client.post(
-                        url, headers=self._headers, json=self._payload(model, messages)
-                    )
-                    resp.raise_for_status()
-                    content = resp.json()["choices"][0]["message"]["content"]
-                    return validate_decision(content)
-                except OperatorError as exc:
-                    # Schema/JSON failure: nudge the model toward strict JSON.
-                    last_error = exc
-                    messages = messages + [
-                        {
-                            "role": "user",
-                            "content": (
-                                "Your previous response could not be parsed: "
-                                f"{exc}. Return only valid JSON matching the "
-                                "operator_decision schema, with no prose, "
-                                "markdown, or code fences."
-                            ),
-                        }
-                    ]
-                except (httpx.HTTPError, KeyError, ValueError) as exc:
-                    last_error = exc
+        drop_format = False
+        client = self._client()
+        for _ in range(self._max_retries + 1):
+            try:
+                resp = await client.post(
+                    url, headers=self._headers,
+                    json=self._payload(model, messages, drop_format=drop_format),
+                )
+                resp.raise_for_status()
+                content = resp.json()["choices"][0]["message"]["content"]
+                return validate_decision(content)
+            except httpx.HTTPStatusError as exc:
+                last_error = exc
+                # A 400 usually means the model/provider rejected response_format (a
+                # strict json_schema, or json_object on a model that lacks it). Drop it
+                # and let the prompt + our Pydantic validation enforce JSON instead.
+                if exc.response.status_code == 400 and not drop_format:
+                    drop_format = True
+            except OperatorError as exc:
+                # Schema/JSON failure: nudge the model toward strict JSON.
+                last_error = exc
+                messages = messages + [
+                    {
+                        "role": "user",
+                        "content": (
+                            "Your previous response could not be parsed: "
+                            f"{exc}. Return only valid JSON matching the "
+                            "operator_decision schema, with no prose, "
+                            "markdown, or code fences."
+                        ),
+                    }
+                ]
+            except (httpx.HTTPError, KeyError, ValueError) as exc:
+                last_error = exc
 
         raise OperatorError(
             f"operator failed after {self._max_retries + 1} attempts: {last_error}"

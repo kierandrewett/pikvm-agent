@@ -122,6 +122,11 @@ class OperatorConfig(BaseModel):
     api_key_env: str = "OPENROUTER_API_KEY"
     referer: str = "https://github.com/kierandrewett/pikvm-agent"
     title: str = "PiKVM Agent"
+    # How to request structured JSON. "json_object" is widely supported (incl. the
+    # Qwen-VL models below); "json_schema" sends a strict schema that many providers
+    # reject with a 400; "none" relies on the prompt + our Pydantic validation alone.
+    # On a 400 the client auto-drops response_format and falls back regardless.
+    structured_output: str = "json_object"
     lanes: dict[str, OperatorLane] = Field(
         default_factory=lambda: {
             "cheap": OperatorLane(model="qwen/qwen3-vl-8b-instruct"),

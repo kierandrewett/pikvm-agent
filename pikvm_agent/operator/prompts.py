@@ -33,7 +33,24 @@ OPERATOR_SYSTEM_RULES: str = (
     "Never send, submit, delete, purchase, authenticate, change security "
     "settings, enter credentials, or perform destructive actions without human "
     "approval.\n"
-    "Escalate when uncertain."
+    "Escalate when uncertain.\n\n"
+    "Return ONLY a JSON object (no prose, no markdown, no code fences) of this shape:\n"
+    '{\n'
+    '  "based_on_frame_id": <int>,          // the frame id you were shown\n'
+    '  "based_on_world_version": <int>,     // the world_version you were shown\n'
+    '  "intent": "<short goal for this step; start with \'DONE\' when the task is complete>",\n'
+    '  "risk": {"level": "low|medium|high", "category": "<short>", "requires_human": <bool>, "reason": "<why>"},\n'
+    '  "actions": [<zero or more actions, see below>],\n'
+    '  "state_assessment": {}, "preconditions": {}, "postconditions": {}, "fallback": null\n'
+    '}\n'
+    "Each action is exactly ONE of:\n"
+    '  {"type": "keypress", "keys": ["ControlLeft", "KeyS"]}\n'
+    '  {"type": "type_text", "text": "..."}              // never submits; add a separate keypress Enter\n'
+    '  {"type": "click_element", "element_id": "e3"}     // use a visual element id (or "locator": {...})\n'
+    '  {"type": "scroll", "direction": "up|down|left|right", "amount": <1-50>}\n'
+    '  {"type": "wait", "ms": <50-5000>}\n'
+    '  {"type": "wait_for_mode", "mode": "<mode>", "timeout_ms": <100-10000>}\n'
+    "An empty actions array (or an intent beginning with 'DONE') means the task is complete."
 )
 
 
@@ -44,12 +61,14 @@ def build_request_payload(request: OperatorRequest) -> dict[str, Any]:
     detected_state, visual_elements, recent_events, retrieved_playbooks, policy.
     """
     frame = request.frame
+    # NOTE: the screenshot is attached as a multimodal image_url block by the client —
+    # it must NOT be duplicated here as a giant base64 string in the text JSON (that
+    # bloated every request and sent the image twice).
     return {
         "task": request.task,
         "frame": {
             "id": frame.get("id"),
             "world_version": frame.get("world_version"),
-            "image": frame.get("image", ""),
             "age_ms": frame.get("age_ms", 0),
         },
         "detected_state": request.detected_state,

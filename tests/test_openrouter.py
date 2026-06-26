@@ -151,6 +151,31 @@ async def test_decide_attaches_image_as_content_block(
     assert isinstance(user["content"], list)
     image_blocks = [b for b in user["content"] if b.get("type") == "image_url"]
     assert image_blocks
-    assert image_blocks[0]["image_url"]["url"] == f"data:image/png;base64,{b64}"
-    # The task text is still carried alongside the image.
-    assert any(b.get("type") == "text" for b in user["content"])
+    assert image_blocks[0]["image_url"]["url"] == f"data:image/jpeg;base64,{b64}"
+    # The image must NOT also be duplicated into the text-JSON block.
+    text_blocks = [b for b in user["content"] if b.get("type") == "text"]
+    assert b64 not in text_blocks[0]["text"]
+
+
+async def test_decide_defaults_to_json_object_and_falls_back_on_400(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
+    seen: list = []
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        body = json.loads(req.content)
+        seen.append(body.get("response_format"))
+        # First call (json_object) is rejected with a 400; the client must drop
+        # response_format and retry, which then succeeds.
+        if len(seen) == 1:
+            return httpx.Response(400, json={"error": "response_format not supported"})
+        return _choice(_valid_decision_json())
+
+    op = OpenRouterOperator(OperatorConfig(), transport=httpx.MockTransport(handler))
+    decision = await op.decide(_request())
+
+    assert decision.based_on_frame_id == 18429
+    assert seen[0] == {"type": "json_object"}  # default mode
+    assert "response_format" not in str(seen[1])  # dropped on the 400 retry
+    assert seen[1] is None

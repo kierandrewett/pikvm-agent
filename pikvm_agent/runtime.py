@@ -155,6 +155,14 @@ class Runtime:
         try:
             await self.backend.aclose()
         finally:
+            # Close pooled HTTP clients on the operator / element parser if present.
+            for owner in (self._operator, getattr(self._screen_parser, "elements", None)):
+                closer = getattr(owner, "aclose", None)
+                if closer is not None:
+                    try:
+                        await closer()
+                    except Exception:  # noqa: BLE001 - best-effort cleanup
+                        pass
             if self._omniparser is not None:
                 await self._omniparser.stop()
             await close_checkpointer(self._checkpointer)
