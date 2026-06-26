@@ -65,6 +65,9 @@ class FakeBackend:
     async def keypress(self, keys: list[str]) -> None:
         self._record("keypress", keys=keys)
 
+    async def release_all(self) -> None:
+        self._record("release_all")
+
     async def press_key(self, code: str) -> None:
         self._record("press_key", code=code)
 

@@ -222,6 +222,11 @@ class Runtime:
         control epoch (so any in-flight transaction is refused before it executes) and
         marks active sessions failed. The currently-executing micro-action may finish,
         but no further action runs without a fresh decision under the new epoch."""
+        # Drop any held keys/mouse buttons first (a hotkey or drag in flight).
+        try:
+            await self.backend.release_all()
+        except Exception as exc:  # noqa: BLE001
+            log.warning("panic_stop release_all failed: %s", exc)
         stopped: list[str] = []
         for sid, sr in list(self._sessions.items()):
             sr.control_epoch += 1

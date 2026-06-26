@@ -199,6 +199,23 @@ class PiKVMBackend:
         for c in reversed(keys):
             await self.hid.key(c, False)
 
+    async def release_all(self) -> None:
+        """Best-effort HID safety: release the modifiers + mouse buttons that could be
+        held (during a hotkey or drag). We don't track arbitrary held keys, so this
+        targets the dangerous ones; each release is independent so one failure doesn't
+        block the rest."""
+        for mod in ("ShiftLeft", "ShiftRight", "ControlLeft", "ControlRight",
+                    "AltLeft", "AltRight", "MetaLeft", "MetaRight"):
+            try:
+                await self.hid.key(mod, False)
+            except Exception:  # noqa: BLE001
+                pass
+        for btn in ("left", "right", "middle"):
+            try:
+                await self.hid.mouse_button(btn, False)
+            except Exception:  # noqa: BLE001
+                pass
+
     async def press_key(self, code: str) -> None:
         await self.hid.key(code, True)
         await _sleep(40)

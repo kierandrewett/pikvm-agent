@@ -173,3 +173,4 @@ async def test_panic_stop_halts_all_sessions(runtime: Runtime) -> None:
     assert res["ok"] and sid in res["stopped"]
     assert runtime._sessions[sid].status == "failed"
     assert runtime._sessions[sid].control_epoch == epoch0 + 1  # in-flight plans invalidated
+    assert any(c[0] == "release_all" for c in runtime.backend.calls)  # held HID released
