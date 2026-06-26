@@ -39,7 +39,7 @@ OPERATOR_SYSTEM_RULES: str = (
     '  "based_on_frame_id": <int>,          // the frame id you were shown\n'
     '  "based_on_world_version": <int>,     // the world_version you were shown\n'
     '  "intent": "<short goal for this step; start with \'DONE\' when the task is complete>",\n'
-    '  "risk": {"level": "low|medium|high", "category": "<short>", "requires_human": <bool>, "reason": "<why>"},\n'
+    '  "risk": {"level": "low|medium|high", "category": <one of the allowed categories below>, "requires_human": <bool>, "reason": "<why>"},\n'
     '  "actions": [<zero or more actions, see below>],\n'
     '  "state_assessment": {}, "preconditions": {}, "postconditions": {}, "fallback": null\n'
     '}\n'
@@ -50,7 +50,14 @@ OPERATOR_SYSTEM_RULES: str = (
     '  {"type": "scroll", "direction": "up|down|left|right", "amount": <1-50>}\n'
     '  {"type": "wait", "ms": <50-5000>}\n'
     '  {"type": "wait_for_mode", "mode": "<mode>", "timeout_ms": <100-10000>}\n'
-    "An empty actions array (or an intent beginning with 'DONE') means the task is complete."
+    "An empty actions array (or an intent beginning with 'DONE') means the task is complete.\n"
+    "risk.category MUST be exactly one of: navigation, text_entry, read_only_inspection, "
+    "local_file_edit, terminal_read_only, terminal_mutating, communication_draft, "
+    "communication_send, credential_entry, sensitive_data_view, sensitive_data_transmit, "
+    "account_or_permission_change, software_installation, system_setting_change, "
+    "power_or_firmware, disk_or_partition, financial_or_purchase, legal_or_consent, unknown. "
+    "Use 'read_only_inspection' for just looking/screenshotting and 'navigation' for "
+    "clicks/scrolls/keystrokes that don't change data."
 )
 
 
