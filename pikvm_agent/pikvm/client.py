@@ -20,6 +20,7 @@ from pikvm_agent.config import PikvmConfig
 from pikvm_agent.core.errors import BackendError
 from pikvm_agent.core.models import CapturedFrame, Region
 from pikvm_agent.pikvm import keyboard_state as ks
+from pikvm_agent.pikvm import timing
 from pikvm_agent.pikvm.hid import HidChannel, to_norm
 from pikvm_agent.pikvm.windmouse import WindMouseOptions, wind_mouse_path
 from pikvm_agent.pikvm.screenshot import crop, downscale, jpeg_size, to_captured_frame
@@ -52,6 +53,8 @@ class PiKVMBackend:
         self._layout_from_user = False
         self._mouse = {"x": 0, "y": 0}  # last normalized position
         self._shift_held = False
+        # Per-session typing persona — a consistent personal speed for this session.
+        self._type_base_gap = timing.base_gap_ms()
 
     # ---- wiring ----------------------------------------------------------- #
 
@@ -180,6 +183,16 @@ class PiKVMBackend:
         body = " ".join(text.splitlines())  # never auto-submit
         if not body:
             return
+        # Send as word-boundary bursts with human pauses between, rather than one long
+        # perfectly-uniform stream (the metronomic ~20ms/char of a single slow=1 print is
+        # the most detectable signal).
+        chunks = timing.word_chunks(body)
+        for i, chunk in enumerate(chunks):
+            await self._print_chunk(chunk)
+            if i < len(chunks) - 1:
+                await _sleep(timing.print_chunk_pause_ms(chunk))
+
+    async def _print_chunk(self, chunk: str) -> None:
         params: dict[str, object] = {"limit": 0, "slow": 1}
         km = self.get_keymap_default()
         if km:
@@ -187,7 +200,7 @@ class PiKVMBackend:
         resp = await self._http.post(
             f"{self._http_base()}/api/hid/print",
             headers={**self._auth_headers(), "Content-Type": "text/plain"},
-            content=body.encode("utf-8"),
+            content=chunk.encode("utf-8"),
             params=params,
             timeout=120.0,
         )
@@ -196,11 +209,17 @@ class PiKVMBackend:
     # ---- keyboard --------------------------------------------------------- #
 
     async def keypress(self, keys: list[str]) -> None:
-        """Press a chord: hold each key down in order, then release in reverse."""
-        for c in keys:
+        """Press a chord: hold each key down in order, then release in reverse.
+        Keys are staggered (a human presses modifier→key, not all in one instant)
+        and the hold is randomized."""
+        for i, c in enumerate(keys):
+            if i:
+                await _sleep(timing.chord_stagger_ms())
             await self.hid.key(c, True)
-        await _sleep(60)
-        for c in reversed(keys):
+        await _sleep(timing.chord_hold_ms())
+        for i, c in enumerate(reversed(keys)):
+            if i:
+                await _sleep(timing.chord_stagger_ms())
             await self.hid.key(c, False)
 
     async def release_all(self) -> None:
@@ -222,7 +241,7 @@ class PiKVMBackend:
 
     async def press_key(self, code: str) -> None:
         await self.hid.key(code, True)
-        await _sleep(40)
+        await _sleep(timing.press_dwell_ms())
         await self.hid.key(code, False)
 
     async def type_text(self, text: str, *, code: bool = False, secret: bool = False) -> None:
@@ -234,9 +253,10 @@ class PiKVMBackend:
             info = ks.key_for(ch, self.layout)
             if info is None:
                 continue
-            strokes.append({"code": info.code, "shift": info.shift})
+            strokes.append({"code": info.code, "shift": info.shift, "ch": ch})
         ks.compensate_caps_lock(strokes, self.get_caps_lock() is True)
         try:
+            prev: str | None = None
             for s in strokes:
                 want_shift = bool(s["shift"])
                 if want_shift and not self._shift_held:
@@ -245,10 +265,13 @@ class PiKVMBackend:
                 elif not want_shift and self._shift_held:
                     await self.hid.key("ShiftLeft", False)
                     self._shift_held = False
+                ch = str(s.get("ch", ""))
                 await self.hid.key(str(s["code"]), True)
-                await _sleep(12 + random.random() * 28)
+                await _sleep(timing.key_hold_ms())            # key-down hold (log-normal)
                 await self.hid.key(str(s["code"]), False)
-                await _sleep(20 + random.random() * 40)
+                # Inter-key gap: persona-anchored, right-skewed, with think-pauses.
+                await _sleep(timing.inter_key_gap_ms(prev, ch, self._type_base_gap))
+                prev = ch
         finally:
             if self._shift_held:
                 await self.hid.key("ShiftLeft", False)
@@ -299,9 +322,17 @@ class PiKVMBackend:
 
     async def click(self, x: int, y: int, button: str = "left") -> None:
         await self.move_mouse(x, y)
-        await _sleep(40)
+        await _sleep(timing.click_settle_ms())  # hover-settle after the cursor arrives
         await self.hid.mouse_button(button, True)
-        await _sleep(40 + random.random() * 60)
+        await _sleep(timing.click_hold_ms())
+        await self.hid.mouse_button(button, False)
+
+    async def double_click(self, x: int, y: int, button: str = "left") -> None:
+        """Two clicks at one site with a human inter-click gap (no second move)."""
+        await self.click(x, y, button)
+        await _sleep(timing.double_click_gap_ms())
+        await self.hid.mouse_button(button, True)
+        await _sleep(timing.click_hold_ms())
         await self.hid.mouse_button(button, False)
 
     async def scroll(self, dx: int = 0, dy: int = 0) -> None:
