@@ -345,7 +345,7 @@ class PiKVMBackend:
 
         hum = max(0.0, self._cfg.mouse_humanize)
         opts = WindMouseOptions(speed=self._cfg.mouse_speed,
-                                tremor=0.5 * hum, end_scatter=2.0 * hum, hes=0.04 * hum)
+                                tremor=0.75 * hum, end_scatter=2.5 * hum, hes=0.06 * hum)
         samples = wind_mouse_path(start, end, opts)
         # WindMouse emits ~one point per integration step (a long move can be 100+).
         # Decimate to a sane cap (timing preserved) so we don't flood the HID socket.

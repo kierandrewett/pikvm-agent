@@ -27,14 +27,15 @@ Rng = Callable[[], float]
 @dataclass(frozen=True)
 class WindMouseOptions:
     speed: float = 1.9        # higher is faster (shorter duration)
-    gravity: float = 9.0      # pull toward the target
-    wind: float = 3.0         # random-walk magnitude
+    gravity: float = 8.0      # pull toward the target (lower = more wander)
+    wind: float = 4.2         # random-walk magnitude (higher = curvier / less robotic)
     max_step: float = 15.0    # maximum per-step velocity
     hz: float = 120.0         # sample rate the bursty timing is built around
-    tremor: float = 0.5       # perpendicular tremor amplitude (0 disables jitter)
+    tremor: float = 0.7       # perpendicular tremor amplitude (0 disables jitter)
     end_scatter: float = 2.0  # std-dev of the off-centre landing scatter (px)
     hes: float = 0.04         # hesitation rate (chance of a small mid-move pause)
-    dtjit: float = 0.3        # per-step dt jitter fraction
+    dtjit: float = 0.35       # per-step dt jitter fraction
+    ease: float = 1.1         # slow-start + slow-land envelope strength (0 = uniform pace)
 
 
 def _gauss(rng: Rng) -> float:
@@ -151,7 +152,8 @@ def wind_mouse_path(start: Pt, end: Pt, opts: WindMouseOptions | None = None,
     # ~6% coalesced bursts, occasional hesitations, bulk near the poll interval).
     dt_base = 1000.0 / o.hz
     raw_dt = [0.0]
-    for _ in range(1, len(samples)):
+    nseg = max(1, len(samples) - 1)
+    for i in range(1, len(samples)):
         roll = rng()
         if roll < 0.06:
             dt = rng() * 1.5
@@ -159,6 +161,12 @@ def wind_mouse_path(start: Pt, end: Pt, opts: WindMouseOptions | None = None,
             dt = 25 + rng() * 110
         else:
             dt = dt_base * (1 + (rng() * 2 - 1) * o.dtjit)
+        # Velocity envelope: spend MORE time per step near the start and the landing, less in
+        # the middle — so the cursor visibly starts slow, accelerates, then eases into the
+        # target (the classic human reach), instead of a near-uniform pace. Renormalised
+        # below so total duration is unchanged. (1 - sin(pi*f)) is 1 at the ends, 0 mid.
+        f = i / nseg
+        dt *= 1.0 + o.ease * (1.0 - math.sin(math.pi * f))
         raw_dt.append(dt)
     sum_dt = sum(raw_dt) or 1.0
     scale = dur / sum_dt
