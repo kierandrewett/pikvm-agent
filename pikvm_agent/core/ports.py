@@ -57,7 +57,9 @@ class ScreenElementProvider(Protocol):
 
 @runtime_checkable
 class OperatorProvider(Protocol):
-    async def decide(self, request: OperatorRequest) -> OperatorDecision: ...
+    async def decide(
+        self, request: OperatorRequest, *, lane: str = "default"
+    ) -> OperatorDecision: ...
 
 
 @runtime_checkable

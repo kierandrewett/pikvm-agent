@@ -31,6 +31,7 @@ class GraphDeps:
     # (see nodes.execute_transaction); Phase 4 injects the guarded executor.
     execute: Callable[["GuardedTransaction", dict], Awaitable["TransactionResult"]] | None = None
     recovery: Any = None  # Recovery (pager-quit / dismiss-modal / refocus)
+    model_router: Any = None
     lane: str = "default"
     max_steps: int = 12
     # Reads the session's LIVE controller epoch. operator_decide captures it into the

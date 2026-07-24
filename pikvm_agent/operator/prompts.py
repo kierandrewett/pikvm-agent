@@ -83,6 +83,18 @@ def build_request_payload(request: OperatorRequest) -> dict[str, Any]:
         "recent_events": request.recent_events,
         "retrieved_playbooks": request.retrieved_playbooks,
         "policy": request.policy,
+        "orchestration": {
+            "role": request.model_role,
+            "lane": request.model_lane,
+            "reasoning_plan": request.reasoning_plan,
+            "instructions": (
+                "Create or refresh a concise plan in state_assessment.plan, "
+                "then propose only the next bounded action."
+                if request.model_role == "reasoner"
+                else "Follow the supplied reasoning_plan for one bounded step. "
+                "Do not expand its scope; request replanning when it is stale."
+            ),
+        },
     }
 
 

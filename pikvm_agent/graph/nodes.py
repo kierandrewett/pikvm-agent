@@ -10,6 +10,7 @@ the policy gate, verification in the executor.
 from __future__ import annotations
 
 import base64
+import inspect
 import time
 import uuid
 from pathlib import Path
@@ -35,7 +36,12 @@ def _app_from_mode(mode: str) -> str:
     return mode.split(".", 1)[0] if "." in mode else mode
 
 
-def _build_request(state: dict[str, Any]) -> OperatorRequest:
+def _build_request(
+    state: dict[str, Any],
+    *,
+    role: str = "single",
+    lane: str = "default",
+) -> OperatorRequest:
     image_b64 = ""
     path = state.get("frame_path")
     if path and Path(path).exists():
@@ -56,7 +62,28 @@ def _build_request(state: dict[str, Any]) -> OperatorRequest:
         },
         visual_elements=(state.get("element_map") or {}).get("elements", []),
         recent_events=state.get("recent_events", []),
+        reasoning_plan=state.get("reasoning_plan"),
+        model_role=role,
+        model_lane=lane,
     )
+
+
+async def _operator_call(
+    operator: Any,
+    request: OperatorRequest,
+    *,
+    lane: str,
+) -> Any:
+    """Pass a lane when supported, preserving third-party provider adapters."""
+    parameters = inspect.signature(operator.decide).parameters.values()
+    supports_lane = any(
+        parameter.name == "lane"
+        or parameter.kind == inspect.Parameter.VAR_KEYWORD
+        for parameter in parameters
+    )
+    if supports_lane:
+        return await operator.decide(request, lane=lane)
+    return await operator.decide(request)
 
 
 async def _record_only_execute(deps: Any, tx: GuardedTransaction) -> TransactionResult:
@@ -132,22 +159,63 @@ async def detect_state(state: dict, config: RunnableConfig) -> dict:
 async def operator_decide(state: dict, config: RunnableConfig) -> dict:
     deps = get_deps(config)
     step = state.get("step", 0) + 1
+    if deps.model_router is not None:
+        route = deps.model_router.select(state)
+        role, lane, route_reason = route.role, route.lane, route.reason
+    else:
+        role, lane, route_reason = "single", deps.lane, "fixed_lane"
     try:
-        decision = await deps.operator.decide(_build_request(state))
+        decision = await _operator_call(
+            deps.operator,
+            _build_request(state, role=role, lane=lane),
+            lane=lane,
+        )
     except OperatorError as exc:
-        deps.trace.append("operator_error", step=step, error=str(exc))
-        return {"step": step, "status": "failed", "error": f"operator: {exc}"}
+        deps.trace.append(
+            "operator_error",
+            step=step,
+            error=str(exc),
+            model_role=role,
+            model_lane=lane,
+            route_reason=route_reason,
+        )
+        return {
+            "step": step,
+            "status": "failed",
+            "error": f"operator: {exc}",
+            "model_role": role,
+            "model_lane": lane,
+            "model_route_reason": route_reason,
+        }
     dd = decision.model_dump()
     deps.trace.append(
         "decision", step=step, intent=decision.intent,
         actions=[a["type"] for a in dd["actions"]], risk=dd["risk"]["category"],
+        model_role=role, model_lane=lane, route_reason=route_reason,
     )
     done = (not decision.actions) or decision.intent.strip().upper().startswith("DONE")
     # Stamp the decision with the controller epoch it was made under; execute_transaction
     # refuses it if the live epoch has since changed (abort / panic / steer).
     epoch = deps.control_epoch_getter() if deps.control_epoch_getter else 0
-    return {"operator_decision": dd, "step": step,
-            "status": "done" if done else "running", "control_epoch": epoch}
+    proposed_plan = decision.state_assessment.get("plan")
+    reasoning_plan = state.get("reasoning_plan")
+    if role == "reasoner":
+        reasoning_plan = (
+            proposed_plan
+            if proposed_plan is not None
+            else {"summary": decision.intent, "source": "reasoner_fallback"}
+        )
+    return {
+        "operator_decision": dd,
+        "step": step,
+        "status": "done" if done else "running",
+        "control_epoch": epoch,
+        "reasoning_plan": reasoning_plan,
+        "model_role": role,
+        "model_lane": lane,
+        "model_route_reason": route_reason,
+        "model_replan": False,
+    }
 
 
 async def validate_decision(state: dict, config: RunnableConfig) -> dict:
@@ -223,7 +291,8 @@ async def human_interrupt(state: dict, config: RunnableConfig) -> dict:
                  "instruction": response.get("instruction")}
         deps.trace.append("human_response", type=rtype)
         return {
-            "approval_response": response, "approved": False, "status": "running", "replan": True,
+            "approval_response": response, "approved": False, "status": "running",
+            "replan": True, "model_replan": True,
             "recent_events": (state.get("recent_events", []) + [event])[-10:],
         }
     deps.trace.append("approval_denied", type=rtype)

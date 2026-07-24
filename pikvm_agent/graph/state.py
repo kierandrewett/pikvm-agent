@@ -34,6 +34,10 @@ class AgentState(TypedDict, total=False):
     # Rolling context.
     recent_events: list[dict[str, Any]]
     recent_actions: list[dict[str, Any]]
+    reasoning_plan: Any
+    model_role: str
+    model_lane: str
+    model_route_reason: str
 
     # Per-iteration artefacts.
     operator_decision: dict[str, Any]
@@ -45,6 +49,7 @@ class AgentState(TypedDict, total=False):
     approval_response: dict[str, Any]
     approved: bool
     replan: bool  # human edited/responded — re-plan instead of executing
+    model_replan: bool
 
     # Loop control.
     step: int

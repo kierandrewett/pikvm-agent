@@ -24,7 +24,7 @@ from pikvm_agent.core.models import (
 )
 
 Verdict = Literal["match", "contains", "mismatch", "unverified"]
-MismatchKind = Literal["layout", "prepend-autocorrect", "prefix-tail"]
+MismatchKind = Literal["layout", "case", "prepend-autocorrect", "prefix-tail"]
 
 # --------------------------------------------------------------------------- #
 # Constants
@@ -74,6 +74,7 @@ _COMMAND_HEAD = re.compile(
 _WHITESPACE = re.compile(r"\s+")
 _NON_ALNUM = re.compile(r"[^a-z0-9]", re.IGNORECASE)
 _NON_ALNUM_LOWER = re.compile(r"[^a-z0-9]")
+_CARET_GLYPHS = frozenset({"|", "│", "┃", "I"})
 
 
 # --------------------------------------------------------------------------- #
@@ -146,6 +147,15 @@ def read_caught_extra(ni: str, nr: str) -> bool:
     """Read is much longer than the intent and doesn't contain it — the crop
     likely caught surrounding UI, not a typing error."""
     return len(ni) >= 3 and len(nr) > len(ni) * 1.6 and ni not in nr
+
+
+def looks_like_trailing_caret(intended_norm: str, read_norm: str) -> bool:
+    """Recognise a focused edit control's caret as ambiguous OCR evidence."""
+    return (
+        len(read_norm) == len(intended_norm) + 1
+        and read_norm[:-1] == intended_norm
+        and read_norm[-1] in _CARET_GLYPHS
+    )
 
 
 def overlap_ratio(a: str, b: str) -> float:
@@ -230,6 +240,8 @@ def compute_verdict(intended: str, read_back: str, precise: bool = False) -> Ver
     nr = norm(strip_prompt(read_back), precise)
     if ni == nr:
         return "match"
+    if precise and looks_like_trailing_caret(ni, nr):
+        return "unverified"
     if ni in nr:
         return "contains"
     if is_prefix_read(ni, nr):
@@ -241,6 +253,14 @@ def compute_verdict(intended: str, read_back: str, precise: bool = False) -> Ver
     if read_caught_extra(ni, nr):
         return "unverified"
     if precise:
+        # OCR on small monospace code often substitutes a handful of letters
+        # even when the pixels are correct. That is not sufficient evidence to
+        # clear/retype exact text. Symbol-only differences were already caught
+        # above as a strong layout/case mismatch; mixed small edit distance is
+        # ambiguity and must stop before commit without destructive correction.
+        tol = max(1, math.ceil(len(ni) * 0.08))
+        if levenshtein(ni, nr, tol) <= tol:
+            return "unverified"
         return "unverified" if overlap_ratio(ni, nr) < 0.5 else "mismatch"
     ck = conf_key(intended, precise)
     cr = conf_key(read_back, precise)
@@ -268,15 +288,26 @@ def classify_mismatch(
         return None
     if ni == nr:
         return None
+    if precise and looks_like_trailing_caret(ni, nr):
+        return None
     if ni in nr:
         return None
     if is_prefix_read(ni, nr):
         return None
+    # Preserve case as its own signal before throwing punctuation away.  This
+    # commonly means the guest's real Caps Lock state differs from the state a
+    # VNC adapter can observe; changing the configured keyboard layout cannot
+    # correct it.
+    if precise and ni.casefold() == nr.casefold():
+        return "case"
     if alnum_fold_case(ni) and alnum_fold_case(ni) == alnum_fold_case(nr):
         return "layout"
     if read_caught_extra(ni, nr):
         return None
     if precise:
+        tol = max(1, math.ceil(len(ni) * 0.08))
+        if levenshtein(ni, nr, tol) <= tol:
+            return None
         if overlap_ratio(ni, nr) < 0.5:
             return None
         return "prefix-tail"

@@ -1,0 +1,182 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-24T19:46:49Z",
+  "title": "Design System: PiKVM Operator Harness",
+  "extensions": {
+    "colorMeta": {
+      "command-blue": {
+        "role": "primary",
+        "displayName": "Command Blue",
+        "canonical": "#3b82f6",
+        "tonalRamp": ["#07152d", "#0c2654", "#123a7d", "#1d4ed8", "#3b82f6", "#72a7fa", "#accbfc", "#e7f0ff"]
+      },
+      "night-canvas": {
+        "role": "neutral",
+        "displayName": "Night Canvas",
+        "canonical": "#11141a",
+        "tonalRamp": ["#090b0f", "#11141a", "#202631", "#353d4c", "#576276", "#818da2", "#b5becd", "#eef1f6"]
+      },
+      "evidence-green": {
+        "role": "secondary",
+        "displayName": "Evidence Green",
+        "canonical": "#7ee29a",
+        "tonalRamp": ["#092214", "#14361f", "#1c5630", "#278044", "#44ad62", "#7ee29a", "#b3f0c4", "#e9fbed"]
+      },
+      "caution-amber": {
+        "role": "tertiary",
+        "displayName": "Caution Amber",
+        "canonical": "#f0c869",
+        "tonalRamp": ["#271b07", "#3a2c0e", "#614916", "#8d6b20", "#bd9135", "#f0c869", "#f8dda0", "#fff5dc"]
+      },
+      "stop-red": {
+        "role": "tertiary",
+        "displayName": "Stop Red",
+        "canonical": "#f08aa0",
+        "tonalRamp": ["#271017", "#3a1620", "#622332", "#92354a", "#c6536d", "#f08aa0", "#f7bbc8", "#fdebef"]
+      }
+    },
+    "typographyMeta": {
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Product orientation and empty-state headings."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Working-region and active-transaction headings."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Task text, reasons, and operational explanations."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Controls, roles, status, and terse metadata."
+      },
+      "telemetry": {
+        "displayName": "Telemetry",
+        "purpose": "Machine identifiers, tool arguments, timestamps, and freshness."
+      }
+    },
+    "shadows": [],
+    "motion": [
+      {
+        "name": "state-response",
+        "value": "160ms cubic-bezier(0.22, 1, 0.36, 1)",
+        "purpose": "Hover, focus, disclosure, and status changes only."
+      }
+    ],
+    "breakpoints": [
+      {"name": "compact", "value": "720px"},
+      {"name": "stacked", "value": "1080px"},
+      {"name": "wide", "value": "1440px"}
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The single affirmative operator command in a region.",
+      "html": "<button class=\"ds-btn-primary\">Continue task</button>",
+      "css": ".ds-btn-primary { background:#1e40af;color:#e8edf5;border:1px solid #3b82f6;border-radius:6px;padding:9px 14px;font:600 12px/1.35 Inter,ui-sans-serif,system-ui,sans-serif;letter-spacing:.02em;transition:background 160ms cubic-bezier(.22,1,.36,1),border-color 160ms cubic-bezier(.22,1,.36,1); } .ds-btn-primary:hover { background:#2854c5; } .ds-btn-primary:focus-visible { outline:2px solid #3b82f6;outline-offset:2px; } .ds-btn-primary:active { background:#172554; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "A reversible supporting command.",
+      "html": "<button class=\"ds-btn-secondary\">Take over</button>",
+      "css": ".ds-btn-secondary { background:#1c2230;color:#e8edf5;border:1px solid #2b3447;border-radius:6px;padding:9px 14px;font:600 12px/1.35 Inter,ui-sans-serif,system-ui,sans-serif;letter-spacing:.02em;transition:background 160ms cubic-bezier(.22,1,.36,1),border-color 160ms cubic-bezier(.22,1,.36,1); } .ds-btn-secondary:hover { background:#242c3d;border-color:#3b82f6; } .ds-btn-secondary:focus-visible { outline:2px solid #3b82f6;outline-offset:2px; } .ds-btn-secondary:active { background:#161a23; }"
+    },
+    {
+      "name": "Danger Button",
+      "kind": "button",
+      "refersTo": "button-danger",
+      "description": "Rejects or stops work and always carries explicit language.",
+      "html": "<button class=\"ds-btn-danger\">Abort task</button>",
+      "css": ".ds-btn-danger { background:#3a1620;color:#f08aa0;border:1px solid #7e3043;border-radius:6px;padding:9px 14px;font:600 12px/1.35 Inter,ui-sans-serif,system-ui,sans-serif;letter-spacing:.02em;transition:background 160ms cubic-bezier(.22,1,.36,1),border-color 160ms cubic-bezier(.22,1,.36,1); } .ds-btn-danger:hover { background:#53202d;border-color:#f08aa0; } .ds-btn-danger:focus-visible { outline:2px solid #f08aa0;outline-offset:2px; } .ds-btn-danger:active { background:#271017; }"
+    },
+    {
+      "name": "Task Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "A focused task instruction without decorative chrome.",
+      "html": "<label class=\"ds-field\"><span>Task</span><textarea rows=\"3\" placeholder=\"Describe the outcome on the remote machine\"></textarea></label>",
+      "css": ".ds-field { display:grid;gap:6px;color:#9aa6bd;font:600 12px/1.35 Inter,ui-sans-serif,system-ui,sans-serif;letter-spacing:.02em; } .ds-field textarea { resize:vertical;background:#0b0d12;color:#e8edf5;border:1px solid #2b3447;border-radius:6px;padding:10px 12px;min-height:64px;font:400 14px/1.5 Inter,ui-sans-serif,system-ui,sans-serif;transition:border-color 160ms cubic-bezier(.22,1,.36,1); } .ds-field textarea:hover { border-color:#44506a; } .ds-field textarea:focus-visible { border-color:#3b82f6;outline:2px solid #3b82f6;outline-offset:2px; }"
+    },
+    {
+      "name": "Run Navigation",
+      "kind": "nav",
+      "refersTo": "transaction",
+      "description": "A compact chronological run row with an unambiguous active state.",
+      "html": "<nav class=\"ds-run-nav\"><button class=\"ds-run-active\"><span>Open release notes</span><small><i></i> Running · 18:42</small></button><button><span>Verify deployment</span><small>Completed · 18:30</small></button></nav>",
+      "css": ".ds-run-nav { display:grid;background:#11141a;border:1px solid #2b3447;border-radius:8px;overflow:hidden; } .ds-run-nav button { display:grid;gap:5px;text-align:left;background:#161a23;color:#e8edf5;border:0;border-bottom:1px solid #2b3447;padding:12px;font:600 12px/1.35 Inter,ui-sans-serif,system-ui,sans-serif; } .ds-run-nav button:last-child { border-bottom:0; } .ds-run-nav button:hover { background:#1c2230; } .ds-run-nav button:focus-visible { outline:2px solid #3b82f6;outline-offset:-2px; } .ds-run-nav .ds-run-active { background:#242c3d;box-shadow:inset 3px 0 #3b82f6; } .ds-run-nav small { color:#9aa6bd;font-weight:400; } .ds-run-nav i { display:inline-block;width:6px;height:6px;border-radius:50%;background:#7ee29a;margin-right:4px; }"
+    },
+    {
+      "name": "Status Chip",
+      "kind": "chip",
+      "refersTo": "status-chip",
+      "description": "Text and signal together communicate current machine state.",
+      "html": "<span class=\"ds-status\"><svg viewBox=\"0 0 8 8\" aria-hidden=\"true\"><circle cx=\"4\" cy=\"4\" r=\"3\"/></svg>Connected</span>",
+      "css": ".ds-status { display:inline-flex;align-items:center;gap:6px;background:#14361f;color:#b3f0c4;border:1px solid #27633a;border-radius:999px;padding:4px 8px;font:600 12px/1.35 Inter,ui-sans-serif,system-ui,sans-serif;letter-spacing:.02em; } .ds-status svg { width:8px;height:8px;fill:#7ee29a; } .ds-status:focus-visible { outline:2px solid #3b82f6;outline-offset:2px; }"
+    },
+    {
+      "name": "Approval Shelf",
+      "kind": "custom",
+      "refersTo": "transaction",
+      "description": "The persistent human authority boundary for consequential action.",
+      "html": "<section class=\"ds-approval\"><div><strong>Approval required</strong><p>Send the prepared message to the selected recipients.</p><code>approval a_7f2 · frame 18 · epoch 4</code></div><div class=\"ds-approval-actions\"><button class=\"ds-reject\">Reject</button><button class=\"ds-approve\">Approve once</button></div></section>",
+      "css": ".ds-approval { display:flex;align-items:center;justify-content:space-between;gap:16px;background:#3a2c0e;color:#fff5dc;border:1px solid #8d6b20;border-radius:8px;padding:12px 16px;font:400 14px/1.5 Inter,ui-sans-serif,system-ui,sans-serif; } .ds-approval strong { display:block;font-size:15px; } .ds-approval p { margin:3px 0;color:#f8dda0; } .ds-approval code { color:#f0c869;font:450 12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace; } .ds-approval-actions { display:flex;gap:8px;white-space:nowrap; } .ds-approval button { border-radius:6px;padding:9px 14px;font:600 12px/1.35 Inter,ui-sans-serif,system-ui,sans-serif;letter-spacing:.02em; } .ds-approval button:focus-visible { outline:2px solid #fff5dc;outline-offset:2px; } .ds-reject { background:#3a1620;color:#f08aa0;border:1px solid #7e3043; } .ds-reject:hover { background:#53202d; } .ds-approve { background:#f0c869;color:#271b07;border:1px solid #f8dda0; } .ds-approve:hover { background:#f8dda0; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Night Operations Desk",
+    "overview": "The harness is a dim, orderly operations desk built for the person supervising a live machine. The machine frame is the largest object, the current transaction is the clearest object, and every supporting surface earns its place by answering one question: what is happening, why, and who has authority to continue it? Density is deliberate but never noisy. Stable structure, short factual labels, and flat tonal layers let an operator scan the whole workflow without reading a terminal transcript. The interface rejects decorative AI theatre, generic SaaS cards, and opaque model choreography. It should remain calm when the workflow is not.",
+    "keyCharacteristics": [
+      "Live machine state dominates the composition.",
+      "Plan, model, MCP, policy, HID action, and verification form one traceable transaction.",
+      "Human approval is persistent, explicit, and visually separate from model output.",
+      "Structural borders and tonal surfaces replace ornamental depth.",
+      "The full control surface remains usable at narrow widths and 200% zoom."
+    ],
+    "rules": [
+      {
+        "name": "The Semantic Signal Rule",
+        "body": "Blue commands, green proves, amber pauses, and red stops. Never reuse those colors to decorate unrelated content.",
+        "section": "colors"
+      },
+      {
+        "name": "The Ten Percent Rule",
+        "body": "Saturated color occupies no more than ten percent of the screen at rest. The machine and evidence, not the chrome, command attention.",
+        "section": "colors"
+      },
+      {
+        "name": "The Evidence Mono Rule",
+        "body": "Monospace identifies machine facts; it never becomes the overall visual theme or turns the product into a faux terminal.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat Operations Rule",
+        "body": "A surface may become lighter when active, but it never floats for decoration. If a panel can be removed without losing structure, remove the panel.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do make the live machine the largest region and preserve its aspect ratio.",
+      "Do connect intent, exact tool arguments, freshness, outcome, and verifier evidence in one transaction.",
+      "Do keep pause, reject, take-over, and abort reachable by keyboard and pointer.",
+      "Do use Primary Text and Muted Text at WCAG 2.2 AA contrast.",
+      "Do reduce to one working column below 720px instead of shrinking critical controls.",
+      "Do make state changes immediate and restrained, with no animation longer than 160ms."
+    ],
+    "donts": [
+      "Don't recreate opaque Claude Code or Codex loops where the user sees prose but not the live screen and exact action transaction.",
+      "Don't build terminal-log walls that expose volume instead of meaning.",
+      "Don't use generic card-heavy SaaS dashboards that bury the active machine and approval.",
+      "Don't add decorative AI control centre visuals, glowing glass panels, gradients, bloom, or gratuitous animation.",
+      "Don't make pause, reject, take-over, or panic stop hard to reach.",
+      "Don't turn every event into a bordered card; use shared rails, rows, and disclosures.",
+      "Don't put access tokens in URLs, event-stream query strings, rendered markup, or persisted local storage."
+    ]
+  }
+}

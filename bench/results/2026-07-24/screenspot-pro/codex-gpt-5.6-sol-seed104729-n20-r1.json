@@ -1,0 +1,438 @@
+{
+  "schema_version": 1,
+  "suite": "screenspot-pro",
+  "suite_revision": "dbe00114bc53a32c61c1a267786da85967710da8",
+  "dataset_revision": "210e78d3844251110bff86c95835ebd37a6930fa",
+  "seed": 104729,
+  "cases_discovered": 1581,
+  "cases_evaluated": 20,
+  "correct": 18,
+  "accuracy": 0.9,
+  "model_errors": 0,
+  "evaluation_wall_ms": 53744,
+  "throughput_cases_per_second": 0.37213456385829113,
+  "median_latency_ms": 7931.5,
+  "p95_latency_ms": 21264.5,
+  "results": [
+    {
+      "case_id": "vscode_macos_5",
+      "application": "vscode",
+      "platform": "macos",
+      "ui_type": "icon",
+      "target_bbox": [
+        2289,
+        1545,
+        2320,
+        1575
+      ],
+      "predicted_point": [
+        2302,
+        1562
+      ],
+      "correct": true,
+      "provider": "codex-gpt-5-6-sol",
+      "model": "gpt-5.6-sol",
+      "latency_ms": 11970,
+      "error_class": null
+    },
+    {
+      "case_id": "fruitloops_windows_55",
+      "application": "fruitloops",
+      "platform": "windows",
+      "ui_type": "text",
+      "target_bbox": [
+        1224,
+        844,
+        1336,
+        878
+      ],
+      "predicted_point": [
+        1280,
+        858
+      ],
+      "correct": true,
+      "provider": "codex-gpt-5-6-sol",
+      "model": "gpt-5.6-sol",
+      "latency_ms": 9338,
+      "error_class": null
+    },
+    {
+      "case_id": "powerpoint_windows_65",
+      "application": "powerpoint",
+      "platform": "windows",
+      "ui_type": "text",
+      "target_bbox": [
+        68,
+        65,
+        141,
+        137
+      ],
+      "predicted_point": [
+        103,
+        103
+      ],
+      "correct": true,
+      "provider": "codex-gpt-5-6-sol",
+      "model": "gpt-5.6-sol",
+      "latency_ms": 8321,
+      "error_class": null
+    },
+    {
+      "case_id": "word_macos_4",
+      "application": "word",
+      "platform": "macos",
+      "ui_type": "text",
+      "target_bbox": [
+        952,
+        312,
+        1025,
+        336
+      ],
+      "predicted_point": [
+        963,
+        324
+      ],
+      "correct": true,
+      "provider": "codex-gpt-5-6-sol",
+      "model": "gpt-5.6-sol",
+      "latency_ms": 8050,
+      "error_class": null
+    },
+    {
+      "case_id": "fruitloops_windows_15",
+      "application": "fruitloops",
+      "platform": "windows",
+      "ui_type": "icon",
+      "target_bbox": [
+        1721,
+        451,
+        1736,
+        468
+      ],
+      "predicted_point": [
+        1729,
+        457
+      ],
+      "correct": true,
+      "provider": "codex-gpt-5-6-sol",
+      "model": "gpt-5.6-sol",
+      "latency_ms": 23478,
+      "error_class": null
+    },
+    {
+      "case_id": "windows_common_windows_14",
+      "application": "windows_common",
+      "platform": "windows",
+      "ui_type": "text",
+      "target_bbox": [
+        3707,
+        1882,
+        3809,
+        1941
+      ],
+      "predicted_point": [
+        3759,
+        1912
+      ],
+      "correct": true,
+      "provider": "codex-gpt-5-6-sol",
+      "model": "gpt-5.6-sol",
+      "latency_ms": 16058,
+      "error_class": null
+    },
+    {
+      "case_id": "photoshop_windows_16",
+      "application": "photoshop",
+      "platform": "windows",
+      "ui_type": "text",
+      "target_bbox": [
+        29,
+        262,
+        301,
+        285
+      ],
+      "predicted_point": [
+        165,
+        276
+      ],
+      "correct": true,
+      "provider": "codex-gpt-5-6-sol",
+      "model": "gpt-5.6-sol",
+      "latency_ms": 21148,
+      "error_class": null
+    },
+    {
+      "case_id": "matlab_macos_38",
+      "application": "matlab",
+      "platform": "macos",
+      "ui_type": "text",
+      "target_bbox": [
+        889,
+        1300,
+        1143,
+        1325
+      ],
+      "predicted_point": [
+        1016,
+        1313
+      ],
+      "correct": true,
+      "provider": "codex-gpt-5-6-sol",
+      "model": "gpt-5.6-sol",
+      "latency_ms": 18278,
+      "error_class": null
+    },
+    {
+      "case_id": "eviews_windows_9",
+      "application": "eviews",
+      "platform": "windows",
+      "ui_type": "text",
+      "target_bbox": [
+        936,
+        824,
+        1268,
+        847
+      ],
+      "predicted_point": [
+        1102,
+        836
+      ],
+      "correct": true,
+      "provider": "codex-gpt-5-6-sol",
+      "model": "gpt-5.6-sol",
+      "latency_ms": 6301,
+      "error_class": null
+    },
+    {
+      "case_id": "eviews_windows_25",
+      "application": "eviews",
+      "platform": "windows",
+      "ui_type": "icon",
+      "target_bbox": [
+        1100,
+        771,
+        1194,
+        791
+      ],
+      "predicted_point": [
+        1147,
+        782
+      ],
+      "correct": true,
+      "provider": "codex-gpt-5-6-sol",
+      "model": "gpt-5.6-sol",
+      "latency_ms": 6469,
+      "error_class": null
+    },
+    {
+      "case_id": "solidworks_windows_13",
+      "application": "solidworks",
+      "platform": "windows",
+      "ui_type": "text",
+      "target_bbox": [
+        57,
+        35,
+        103,
+        95
+      ],
+      "predicted_point": [
+        83,
+        83
+      ],
+      "correct": true,
+      "provider": "codex-gpt-5-6-sol",
+      "model": "gpt-5.6-sol",
+      "latency_ms": 9528,
+      "error_class": null
+    },
+    {
+      "case_id": "eviews_windows_15",
+      "application": "eviews",
+      "platform": "windows",
+      "ui_type": "text",
+      "target_bbox": [
+        1074,
+        717,
+        1108,
+        734
+      ],
+      "predicted_point": [
+        1093,
+        726
+      ],
+      "correct": true,
+      "provider": "codex-gpt-5-6-sol",
+      "model": "gpt-5.6-sol",
+      "latency_ms": 8041,
+      "error_class": null
+    },
+    {
+      "case_id": "vivado_windows_73",
+      "application": "vivado",
+      "platform": "windows",
+      "ui_type": "text",
+      "target_bbox": [
+        341,
+        324,
+        371,
+        352
+      ],
+      "predicted_point": [
+        192,
+        989
+      ],
+      "correct": false,
+      "provider": "codex-gpt-5-6-sol",
+      "model": "gpt-5.6-sol",
+      "latency_ms": 7573,
+      "error_class": null
+    },
+    {
+      "case_id": "origin_windows_6",
+      "application": "origin",
+      "platform": "windows",
+      "ui_type": "text",
+      "target_bbox": [
+        1726,
+        1078,
+        1801,
+        1099
+      ],
+      "predicted_point": [
+        1774,
+        1091
+      ],
+      "correct": true,
+      "provider": "codex-gpt-5-6-sol",
+      "model": "gpt-5.6-sol",
+      "latency_ms": 7623,
+      "error_class": null
+    },
+    {
+      "case_id": "pycharm_macos_37",
+      "application": "pycharm",
+      "platform": "macos",
+      "ui_type": "icon",
+      "target_bbox": [
+        443,
+        1542,
+        492,
+        1591
+      ],
+      "predicted_point": [
+        470,
+        1565
+      ],
+      "correct": true,
+      "provider": "codex-gpt-5-6-sol",
+      "model": "gpt-5.6-sol",
+      "latency_ms": 6541,
+      "error_class": null
+    },
+    {
+      "case_id": "unreal_engine_windows_10",
+      "application": "unreal_engine",
+      "platform": "windows",
+      "ui_type": "icon",
+      "target_bbox": [
+        7,
+        59,
+        45,
+        92
+      ],
+      "predicted_point": [
+        25,
+        77
+      ],
+      "correct": true,
+      "provider": "codex-gpt-5-6-sol",
+      "model": "gpt-5.6-sol",
+      "latency_ms": 6812,
+      "error_class": null
+    },
+    {
+      "case_id": "premiere_windows_28",
+      "application": "premiere",
+      "platform": "windows",
+      "ui_type": "text",
+      "target_bbox": [
+        723,
+        933,
+        741,
+        954
+      ],
+      "predicted_point": [
+        731,
+        945
+      ],
+      "correct": true,
+      "provider": "codex-gpt-5-6-sol",
+      "model": "gpt-5.6-sol",
+      "latency_ms": 6606,
+      "error_class": null
+    },
+    {
+      "case_id": "excel_macos_60",
+      "application": "excel",
+      "platform": "macos",
+      "ui_type": "icon",
+      "target_bbox": [
+        1205,
+        72,
+        1215,
+        110
+      ],
+      "predicted_point": [
+        1390,
+        106
+      ],
+      "correct": false,
+      "provider": "codex-gpt-5-6-sol",
+      "model": "gpt-5.6-sol",
+      "latency_ms": 6841,
+      "error_class": null
+    },
+    {
+      "case_id": "blender_windows_68",
+      "application": "blender",
+      "platform": "windows",
+      "ui_type": "icon",
+      "target_bbox": [
+        1600,
+        253,
+        1628,
+        279
+      ],
+      "predicted_point": [
+        1615,
+        265
+      ],
+      "correct": true,
+      "provider": "codex-gpt-5-6-sol",
+      "model": "gpt-5.6-sol",
+      "latency_ms": 7628,
+      "error_class": null
+    },
+    {
+      "case_id": "vscode_macos_39",
+      "application": "vscode",
+      "platform": "macos",
+      "ui_type": "text",
+      "target_bbox": [
+        2032,
+        385,
+        2104,
+        425
+      ],
+      "predicted_point": [
+        2068,
+        403
+      ],
+      "correct": true,
+      "provider": "codex-gpt-5-6-sol",
+      "model": "gpt-5.6-sol",
+      "latency_ms": 7822,
+      "error_class": null
+    }
+  ]
+}

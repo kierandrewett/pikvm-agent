@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from pikvm_agent.core.models import VERIFIED_STATUSES
 from pikvm_agent.executor.verification import (
+    classify_mismatch,
     compute_verdict,
     is_exact_text,
     verify_text,
@@ -127,6 +128,17 @@ def test_empty_read_is_unverified() -> None:
     assert verify_text("anything", "").status == "unverified_ambiguous"
 
 
+def test_focused_editor_caret_is_ambiguous_not_a_layout_mismatch() -> None:
+    intended = "IDEMPOTENCY_RETRY_MUST_APPEAR_ONCE_104729"
+    observed = intended + "|"
+
+    assert compute_verdict(intended, observed, precise=True) == "unverified"
+    assert classify_mismatch(intended, observed, precise=True) is None
+    result = verify_text(intended, observed, code=True)
+    assert result.status == "unverified_ambiguous"
+    assert result.safe_to_continue is False
+
+
 def test_contains_is_warning() -> None:
     res = verify_text("hello", "well hello there friend")
     assert res.status == "verified_with_warnings"
@@ -142,8 +154,18 @@ def test_precise_match_is_exact() -> None:
 def test_case_only_mismatch_in_precise() -> None:
     # Letters match case-folded, only the case differs, symbols identical.
     res = verify_text("MyVar = value;", "myvar = value;", code=True)
-    assert res.status in {"failed_case_mismatch", "failed_keyboard_layout"}
+    assert res.status == "failed_case_mismatch"
     assert res.safe_to_continue is False
+
+
+def test_small_alphanumeric_ocr_noise_is_ambiguous_for_precise_text() -> None:
+    intended = "const retry = (attempt, limit) => attempt < limit;"
+    observed = "const retry = (atteapt, Limit) => attempt < limit;"
+
+    assert compute_verdict(intended, observed, precise=True) == "unverified"
+    result = verify_text(intended, observed, code=True)
+    assert result.status == "unverified_ambiguous"
+    assert result.safe_to_continue is False
 
 
 def test_pipe_is_not_confusable_folded() -> None:

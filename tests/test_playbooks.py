@@ -31,14 +31,27 @@ def test_names_lists_builtins() -> None:
     assert "vscode.quick_open_file" in n and "terminal.type_command" in n
 
 
-async def test_run_playbook_executes_burst(runtime: Runtime) -> None:
+async def test_run_playbook_requires_approval_for_bare_enter_then_executes(
+    runtime: Runtime,
+) -> None:
     sid = (await runtime.start_session("direct"))["session_id"]
     shot = await runtime.get_session_summary(sid, capture=True)
     res = await runtime.run_playbook(
         sid, "vscode.quick_open_file", {"path": "readme.md"},
         based_on_world_version=shot["world_version"],
         based_on_control_epoch=shot["control_epoch"])
-    assert res["status"] == "completed"
+    assert res["status"] == "needs_approval"
+    assert not [
+        call for call in runtime.backend.calls if call[0] == "keypress"
+    ]
+
+    approved = await runtime.submit_approval(
+        sid,
+        res["approval_request"]["approval_id"],
+        {"type": "approve"},
+    )
+
+    assert approved["status"] == "completed"
     # Ctrl+P + Enter both went through as keypresses.
     pressed = [kw["keys"] for m, kw in runtime.backend.calls if m == "keypress"]
     assert ["ControlLeft", "KeyP"] in pressed and ["Enter"] in pressed

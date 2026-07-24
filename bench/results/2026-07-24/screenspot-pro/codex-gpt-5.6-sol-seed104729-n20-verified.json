@@ -1,0 +1,788 @@
+{
+  "schema_version": 2,
+  "suite": "screenspot-pro",
+  "suite_revision": "dbe00114bc53a32c61c1a267786da85967710da8",
+  "dataset_revision": "210e78d3844251110bff86c95835ebd37a6930fa",
+  "seed": 104729,
+  "cases_discovered": 1581,
+  "cases_evaluated": 20,
+  "initial_correct": 15,
+  "initial_accuracy": 0.75,
+  "correct": 16,
+  "accuracy": 0.8,
+  "model_calls": 40,
+  "model_active_ms": 345282,
+  "model_errors": 0,
+  "evaluation_wall_ms": 94321,
+  "throughput_cases_per_second": 0.21204185706258416,
+  "median_latency_ms": 7878.0,
+  "p95_latency_ms": 12555.300000000003,
+  "by_platform": {
+    "macos": {
+      "cases": 6,
+      "correct": 4,
+      "accuracy": 0.6666666666666666
+    },
+    "windows": {
+      "cases": 14,
+      "correct": 12,
+      "accuracy": 0.8571428571428571
+    }
+  },
+  "by_ui_type": {
+    "icon": {
+      "cases": 7,
+      "correct": 5,
+      "accuracy": 0.7142857142857143
+    },
+    "text": {
+      "cases": 13,
+      "correct": 11,
+      "accuracy": 0.8461538461538461
+    }
+  },
+  "by_application": {
+    "blender": {
+      "cases": 1,
+      "correct": 1,
+      "accuracy": 1.0
+    },
+    "eviews": {
+      "cases": 3,
+      "correct": 3,
+      "accuracy": 1.0
+    },
+    "excel": {
+      "cases": 1,
+      "correct": 0,
+      "accuracy": 0.0
+    },
+    "fruitloops": {
+      "cases": 2,
+      "correct": 2,
+      "accuracy": 1.0
+    },
+    "matlab": {
+      "cases": 1,
+      "correct": 1,
+      "accuracy": 1.0
+    },
+    "origin": {
+      "cases": 1,
+      "correct": 1,
+      "accuracy": 1.0
+    },
+    "photoshop": {
+      "cases": 1,
+      "correct": 1,
+      "accuracy": 1.0
+    },
+    "powerpoint": {
+      "cases": 1,
+      "correct": 1,
+      "accuracy": 1.0
+    },
+    "premiere": {
+      "cases": 1,
+      "correct": 1,
+      "accuracy": 1.0
+    },
+    "pycharm": {
+      "cases": 1,
+      "correct": 1,
+      "accuracy": 1.0
+    },
+    "solidworks": {
+      "cases": 1,
+      "correct": 0,
+      "accuracy": 0.0
+    },
+    "unreal_engine": {
+      "cases": 1,
+      "correct": 1,
+      "accuracy": 1.0
+    },
+    "vivado": {
+      "cases": 1,
+      "correct": 0,
+      "accuracy": 0.0
+    },
+    "vscode": {
+      "cases": 2,
+      "correct": 1,
+      "accuracy": 0.5
+    },
+    "windows_common": {
+      "cases": 1,
+      "correct": 1,
+      "accuracy": 1.0
+    },
+    "word": {
+      "cases": 1,
+      "correct": 1,
+      "accuracy": 1.0
+    }
+  },
+  "results": [
+    {
+      "case_id": "vscode_macos_5",
+      "application": "vscode",
+      "platform": "macos",
+      "ui_type": "icon",
+      "target_bbox": [
+        2289,
+        1545,
+        2320,
+        1575
+      ],
+      "initial_point": [
+        2298,
+        2125
+      ],
+      "initial_correct": false,
+      "predicted_point": [
+        2298,
+        2125
+      ],
+      "click_error_pixels": 565.037388143475,
+      "correct": false,
+      "correction_applied": false,
+      "verification_verdict": "hit",
+      "provider": "codex-gpt-5-6-sol",
+      "model": "gpt-5.6-sol",
+      "verifier_provider": "codex-gpt-5-6-sol",
+      "verifier_model": "gpt-5.6-sol",
+      "latency_ms": 8125,
+      "verification_latency_ms": 8116,
+      "error_class": null,
+      "failure_kind": "target_miss"
+    },
+    {
+      "case_id": "fruitloops_windows_55",
+      "application": "fruitloops",
+      "platform": "windows",
+      "ui_type": "text",
+      "target_bbox": [
+        1224,
+        844,
+        1336,
+        878
+      ],
+      "initial_point": [
+        1279,
+        859
+      ],
+      "initial_correct": true,
+      "predicted_point": [
+        1279,
+        859
+      ],
+      "click_error_pixels": 2.23606797749979,
+      "correct": true,
+      "correction_applied": false,
+      "verification_verdict": "hit",
+      "provider": "codex-gpt-5-6-sol",
+      "model": "gpt-5.6-sol",
+      "verifier_provider": "codex-gpt-5-6-sol",
+      "verifier_model": "gpt-5.6-sol",
+      "latency_ms": 7173,
+      "verification_latency_ms": 6213,
+      "error_class": null,
+      "failure_kind": null
+    },
+    {
+      "case_id": "powerpoint_windows_65",
+      "application": "powerpoint",
+      "platform": "windows",
+      "ui_type": "text",
+      "target_bbox": [
+        68,
+        65,
+        141,
+        137
+      ],
+      "initial_point": [
+        101,
+        94
+      ],
+      "initial_correct": true,
+      "predicted_point": [
+        101,
+        94
+      ],
+      "click_error_pixels": 7.826237921249264,
+      "correct": true,
+      "correction_applied": false,
+      "verification_verdict": "hit",
+      "provider": "codex-gpt-5-6-sol",
+      "model": "gpt-5.6-sol",
+      "verifier_provider": "codex-gpt-5-6-sol",
+      "verifier_model": "gpt-5.6-sol",
+      "latency_ms": 7893,
+      "verification_latency_ms": 6598,
+      "error_class": null,
+      "failure_kind": null
+    },
+    {
+      "case_id": "word_macos_4",
+      "application": "word",
+      "platform": "macos",
+      "ui_type": "text",
+      "target_bbox": [
+        952,
+        312,
+        1025,
+        336
+      ],
+      "initial_point": [
+        961,
+        323
+      ],
+      "initial_correct": true,
+      "predicted_point": [
+        961,
+        323
+      ],
+      "click_error_pixels": 27.518175811634027,
+      "correct": true,
+      "correction_applied": false,
+      "verification_verdict": "hit",
+      "provider": "codex-gpt-5-6-sol",
+      "model": "gpt-5.6-sol",
+      "verifier_provider": "codex-gpt-5-6-sol",
+      "verifier_model": "gpt-5.6-sol",
+      "latency_ms": 7335,
+      "verification_latency_ms": 8812,
+      "error_class": null,
+      "failure_kind": null
+    },
+    {
+      "case_id": "fruitloops_windows_15",
+      "application": "fruitloops",
+      "platform": "windows",
+      "ui_type": "icon",
+      "target_bbox": [
+        1721,
+        451,
+        1736,
+        468
+      ],
+      "initial_point": [
+        1728,
+        456
+      ],
+      "initial_correct": true,
+      "predicted_point": [
+        1728,
+        456
+      ],
+      "click_error_pixels": 3.5355339059327378,
+      "correct": true,
+      "correction_applied": false,
+      "verification_verdict": "hit",
+      "provider": "codex-gpt-5-6-sol",
+      "model": "gpt-5.6-sol",
+      "verifier_provider": "codex-gpt-5-6-sol",
+      "verifier_model": "gpt-5.6-sol",
+      "latency_ms": 6522,
+      "verification_latency_ms": 12526,
+      "error_class": null,
+      "failure_kind": null
+    },
+    {
+      "case_id": "windows_common_windows_14",
+      "application": "windows_common",
+      "platform": "windows",
+      "ui_type": "text",
+      "target_bbox": [
+        3707,
+        1882,
+        3809,
+        1941
+      ],
+      "initial_point": [
+        3744,
+        1912
+      ],
+      "initial_correct": true,
+      "predicted_point": [
+        3744,
+        1912
+      ],
+      "click_error_pixels": 14.0089257261219,
+      "correct": true,
+      "correction_applied": false,
+      "verification_verdict": "hit",
+      "provider": "codex-gpt-5-6-sol",
+      "model": "gpt-5.6-sol",
+      "verifier_provider": "codex-gpt-5-6-sol",
+      "verifier_model": "gpt-5.6-sol",
+      "latency_ms": 8699,
+      "verification_latency_ms": 6506,
+      "error_class": null,
+      "failure_kind": null
+    },
+    {
+      "case_id": "photoshop_windows_16",
+      "application": "photoshop",
+      "platform": "windows",
+      "ui_type": "text",
+      "target_bbox": [
+        29,
+        262,
+        301,
+        285
+      ],
+      "initial_point": [
+        166,
+        275
+      ],
+      "initial_correct": true,
+      "predicted_point": [
+        166,
+        275
+      ],
+      "click_error_pixels": 1.8027756377319946,
+      "correct": true,
+      "correction_applied": false,
+      "verification_verdict": "hit",
+      "provider": "codex-gpt-5-6-sol",
+      "model": "gpt-5.6-sol",
+      "verifier_provider": "codex-gpt-5-6-sol",
+      "verifier_model": "gpt-5.6-sol",
+      "latency_ms": 7507,
+      "verification_latency_ms": 6634,
+      "error_class": null,
+      "failure_kind": null
+    },
+    {
+      "case_id": "matlab_macos_38",
+      "application": "matlab",
+      "platform": "macos",
+      "ui_type": "text",
+      "target_bbox": [
+        889,
+        1300,
+        1143,
+        1325
+      ],
+      "initial_point": [
+        1016,
+        1313
+      ],
+      "initial_correct": true,
+      "predicted_point": [
+        1016,
+        1313
+      ],
+      "click_error_pixels": 0.5,
+      "correct": true,
+      "correction_applied": false,
+      "verification_verdict": "hit",
+      "provider": "codex-gpt-5-6-sol",
+      "model": "gpt-5.6-sol",
+      "verifier_provider": "codex-gpt-5-6-sol",
+      "verifier_model": "gpt-5.6-sol",
+      "latency_ms": 7412,
+      "verification_latency_ms": 6393,
+      "error_class": null,
+      "failure_kind": null
+    },
+    {
+      "case_id": "eviews_windows_9",
+      "application": "eviews",
+      "platform": "windows",
+      "ui_type": "text",
+      "target_bbox": [
+        936,
+        824,
+        1268,
+        847
+      ],
+      "initial_point": [
+        1102,
+        836
+      ],
+      "initial_correct": true,
+      "predicted_point": [
+        1102,
+        836
+      ],
+      "click_error_pixels": 0.5,
+      "correct": true,
+      "correction_applied": false,
+      "verification_verdict": "hit",
+      "provider": "codex-gpt-5-6-sol",
+      "model": "gpt-5.6-sol",
+      "verifier_provider": "codex-gpt-5-6-sol",
+      "verifier_model": "gpt-5.6-sol",
+      "latency_ms": 16285,
+      "verification_latency_ms": 5733,
+      "error_class": null,
+      "failure_kind": null
+    },
+    {
+      "case_id": "eviews_windows_25",
+      "application": "eviews",
+      "platform": "windows",
+      "ui_type": "icon",
+      "target_bbox": [
+        1100,
+        771,
+        1194,
+        791
+      ],
+      "initial_point": [
+        1146,
+        782
+      ],
+      "initial_correct": true,
+      "predicted_point": [
+        1146,
+        782
+      ],
+      "click_error_pixels": 1.4142135623730951,
+      "correct": true,
+      "correction_applied": false,
+      "verification_verdict": "hit",
+      "provider": "codex-gpt-5-6-sol",
+      "model": "gpt-5.6-sol",
+      "verifier_provider": "codex-gpt-5-6-sol",
+      "verifier_model": "gpt-5.6-sol",
+      "latency_ms": 6091,
+      "verification_latency_ms": 8131,
+      "error_class": null,
+      "failure_kind": null
+    },
+    {
+      "case_id": "solidworks_windows_13",
+      "application": "solidworks",
+      "platform": "windows",
+      "ui_type": "text",
+      "target_bbox": [
+        57,
+        35,
+        103,
+        95
+      ],
+      "initial_point": [
+        41,
+        623
+      ],
+      "initial_correct": false,
+      "predicted_point": [
+        41,
+        623
+      ],
+      "click_error_pixels": 559.3612428475896,
+      "correct": false,
+      "correction_applied": false,
+      "verification_verdict": "hit",
+      "provider": "codex-gpt-5-6-sol",
+      "model": "gpt-5.6-sol",
+      "verifier_provider": "codex-gpt-5-6-sol",
+      "verifier_model": "gpt-5.6-sol",
+      "latency_ms": 9115,
+      "verification_latency_ms": 8783,
+      "error_class": null,
+      "failure_kind": "target_miss"
+    },
+    {
+      "case_id": "eviews_windows_15",
+      "application": "eviews",
+      "platform": "windows",
+      "ui_type": "text",
+      "target_bbox": [
+        1074,
+        717,
+        1108,
+        734
+      ],
+      "initial_point": [
+        1093,
+        727
+      ],
+      "initial_correct": true,
+      "predicted_point": [
+        1093,
+        727
+      ],
+      "click_error_pixels": 2.5,
+      "correct": true,
+      "correction_applied": false,
+      "verification_verdict": "hit",
+      "provider": "codex-gpt-5-6-sol",
+      "model": "gpt-5.6-sol",
+      "verifier_provider": "codex-gpt-5-6-sol",
+      "verifier_model": "gpt-5.6-sol",
+      "latency_ms": 7863,
+      "verification_latency_ms": 6488,
+      "error_class": null,
+      "failure_kind": null
+    },
+    {
+      "case_id": "vivado_windows_73",
+      "application": "vivado",
+      "platform": "windows",
+      "ui_type": "text",
+      "target_bbox": [
+        341,
+        324,
+        371,
+        352
+      ],
+      "initial_point": [
+        186,
+        988
+      ],
+      "initial_correct": false,
+      "predicted_point": [
+        186,
+        988
+      ],
+      "click_error_pixels": 671.863081289633,
+      "correct": false,
+      "correction_applied": false,
+      "verification_verdict": "hit",
+      "provider": "codex-gpt-5-6-sol",
+      "model": "gpt-5.6-sol",
+      "verifier_provider": "codex-gpt-5-6-sol",
+      "verifier_model": "gpt-5.6-sol",
+      "latency_ms": 12359,
+      "verification_latency_ms": 6934,
+      "error_class": null,
+      "failure_kind": "target_miss"
+    },
+    {
+      "case_id": "origin_windows_6",
+      "application": "origin",
+      "platform": "windows",
+      "ui_type": "text",
+      "target_bbox": [
+        1726,
+        1078,
+        1801,
+        1099
+      ],
+      "initial_point": [
+        1732,
+        1255
+      ],
+      "initial_correct": false,
+      "predicted_point": [
+        1736,
+        1089
+      ],
+      "click_error_pixels": 27.504545078950134,
+      "correct": true,
+      "correction_applied": true,
+      "verification_verdict": "miss",
+      "provider": "codex-gpt-5-6-sol",
+      "model": "gpt-5.6-sol",
+      "verifier_provider": "codex-gpt-5-6-sol",
+      "verifier_model": "gpt-5.6-sol",
+      "latency_ms": 5655,
+      "verification_latency_ms": 9185,
+      "error_class": null,
+      "failure_kind": null
+    },
+    {
+      "case_id": "pycharm_macos_37",
+      "application": "pycharm",
+      "platform": "macos",
+      "ui_type": "icon",
+      "target_bbox": [
+        443,
+        1542,
+        492,
+        1591
+      ],
+      "initial_point": [
+        467,
+        1565
+      ],
+      "initial_correct": true,
+      "predicted_point": [
+        467,
+        1565
+      ],
+      "click_error_pixels": 1.5811388300841898,
+      "correct": true,
+      "correction_applied": false,
+      "verification_verdict": "hit",
+      "provider": "codex-gpt-5-6-sol",
+      "model": "gpt-5.6-sol",
+      "verifier_provider": "codex-gpt-5-6-sol",
+      "verifier_model": "gpt-5.6-sol",
+      "latency_ms": 6685,
+      "verification_latency_ms": 11347,
+      "error_class": null,
+      "failure_kind": null
+    },
+    {
+      "case_id": "unreal_engine_windows_10",
+      "application": "unreal_engine",
+      "platform": "windows",
+      "ui_type": "icon",
+      "target_bbox": [
+        7,
+        59,
+        45,
+        92
+      ],
+      "initial_point": [
+        25,
+        76
+      ],
+      "initial_correct": true,
+      "predicted_point": [
+        25,
+        76
+      ],
+      "click_error_pixels": 1.118033988749895,
+      "correct": true,
+      "correction_applied": false,
+      "verification_verdict": "hit",
+      "provider": "codex-gpt-5-6-sol",
+      "model": "gpt-5.6-sol",
+      "verifier_provider": "codex-gpt-5-6-sol",
+      "verifier_model": "gpt-5.6-sol",
+      "latency_ms": 8158,
+      "verification_latency_ms": 16215,
+      "error_class": null,
+      "failure_kind": null
+    },
+    {
+      "case_id": "premiere_windows_28",
+      "application": "premiere",
+      "platform": "windows",
+      "ui_type": "text",
+      "target_bbox": [
+        723,
+        933,
+        741,
+        954
+      ],
+      "initial_point": [
+        730,
+        945
+      ],
+      "initial_correct": true,
+      "predicted_point": [
+        730,
+        945
+      ],
+      "click_error_pixels": 2.5,
+      "correct": true,
+      "correction_applied": false,
+      "verification_verdict": "hit",
+      "provider": "codex-gpt-5-6-sol",
+      "model": "gpt-5.6-sol",
+      "verifier_provider": "codex-gpt-5-6-sol",
+      "verifier_model": "gpt-5.6-sol",
+      "latency_ms": 10998,
+      "verification_latency_ms": 10063,
+      "error_class": null,
+      "failure_kind": null
+    },
+    {
+      "case_id": "excel_macos_60",
+      "application": "excel",
+      "platform": "macos",
+      "ui_type": "icon",
+      "target_bbox": [
+        1205,
+        72,
+        1215,
+        110
+      ],
+      "initial_point": [
+        1244,
+        112
+      ],
+      "initial_correct": false,
+      "predicted_point": [
+        1213,
+        112
+      ],
+      "click_error_pixels": 21.213203435596427,
+      "correct": false,
+      "correction_applied": true,
+      "verification_verdict": "miss",
+      "provider": "codex-gpt-5-6-sol",
+      "model": "gpt-5.6-sol",
+      "verifier_provider": "codex-gpt-5-6-sol",
+      "verifier_model": "gpt-5.6-sol",
+      "latency_ms": 7791,
+      "verification_latency_ms": 11324,
+      "error_class": null,
+      "failure_kind": "target_miss"
+    },
+    {
+      "case_id": "blender_windows_68",
+      "application": "blender",
+      "platform": "windows",
+      "ui_type": "icon",
+      "target_bbox": [
+        1600,
+        253,
+        1628,
+        279
+      ],
+      "initial_point": [
+        1615,
+        266
+      ],
+      "initial_correct": true,
+      "predicted_point": [
+        1615,
+        266
+      ],
+      "click_error_pixels": 1.0,
+      "correct": true,
+      "correction_applied": false,
+      "verification_verdict": "hit",
+      "provider": "codex-gpt-5-6-sol",
+      "model": "gpt-5.6-sol",
+      "verifier_provider": "codex-gpt-5-6-sol",
+      "verifier_model": "gpt-5.6-sol",
+      "latency_ms": 11669,
+      "verification_latency_ms": 9753,
+      "error_class": null,
+      "failure_kind": null
+    },
+    {
+      "case_id": "vscode_macos_39",
+      "application": "vscode",
+      "platform": "macos",
+      "ui_type": "text",
+      "target_bbox": [
+        2032,
+        385,
+        2104,
+        425
+      ],
+      "initial_point": [
+        2070,
+        403
+      ],
+      "initial_correct": true,
+      "predicted_point": [
+        2070,
+        403
+      ],
+      "click_error_pixels": 2.8284271247461903,
+      "correct": true,
+      "correction_applied": false,
+      "verification_verdict": "hit",
+      "provider": "codex-gpt-5-6-sol",
+      "model": "gpt-5.6-sol",
+      "verifier_provider": "codex-gpt-5-6-sol",
+      "verifier_model": "gpt-5.6-sol",
+      "latency_ms": 8775,
+      "verification_latency_ms": 7418,
+      "error_class": null,
+      "failure_kind": null
+    }
+  ]
+}

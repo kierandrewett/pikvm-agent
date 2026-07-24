@@ -29,7 +29,9 @@ class FakeOperator:
         # Copied so the caller's list isn't mutated as we pop replayed steps.
         self._scripted: list[OperatorDecision] = list(scripted or [])
 
-    async def decide(self, request: OperatorRequest) -> OperatorDecision:
+    async def decide(
+        self, request: OperatorRequest, *, lane: str = "default"
+    ) -> OperatorDecision:
         """Return the next scripted decision, or a deterministic safe no-op.
 
         The fallback always references ``request.frame["id"]`` /
@@ -37,6 +39,7 @@ class FakeOperator:
         the frame carries a ``"keys"`` hint, the no-op becomes that keypress;
         otherwise it is a short ``wait``.
         """
+        del lane
         if self._scripted:
             return self._scripted.pop(0)
 
