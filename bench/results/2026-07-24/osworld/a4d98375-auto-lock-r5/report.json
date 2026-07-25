@@ -1,0 +1,89 @@
+{
+  "schema_version": 2,
+  "suite": "osworld-verified",
+  "suite_revision": "b7db4d8c85d9e95e0b1db44de5bec954cf37f0cf",
+  "task_id": "a4d98375-215b-4a4d-aee9-3d4370fccc41",
+  "domain": "os",
+  "instruction": "I want to have my computer automatically locked after I leaved. Can you help me?",
+  "docker_image": "happysixd/osworld-docker:latest",
+  "docker_image_id": "sha256:0e6497a9295647cf05bf2b2af522fdd79bdeba2737595259cab310a3bcf6baa9",
+  "vm_image_sha256": "6bf667a852b3c307f61d9f09c42559351f45e0607e428b4997becf534cf4d313",
+  "control_plane": "agent-harness -> MCP stdio -> isolated daemon",
+  "target_adapter": "official in-guest server through PiKVM-shaped lab",
+  "policy_profile": "isolated_benchmark",
+  "harness_status": "needs_approval",
+  "official_score": 0.0,
+  "evaluator": "exact_match(vm_command_line, rule)",
+  "approvals_required": 1,
+  "cycles": 6,
+  "performance": {
+    "run_id": "6caf8300-fcd4-4cbc-bb9c-dc0779063d99",
+    "status": "needs_approval",
+    "wall_clock_ms": 132194,
+    "model_active_ms": 118463,
+    "model_lanes": [
+      {
+        "role": "controller",
+        "provider": "codex-gpt-5-6-sol",
+        "model": "gpt-5.6-sol",
+        "latency": {
+          "samples": 6,
+          "min_ms": 5482.0,
+          "median_ms": 6002.0,
+          "p95_ms": 7224.75,
+          "max_ms": 7516.0,
+          "mean_ms": 6171.666666666667
+        }
+      },
+      {
+        "role": "reasoner",
+        "provider": "codex-gpt-5-6-sol",
+        "model": "gpt-5.6-sol",
+        "latency": {
+          "samples": 6,
+          "min_ms": 5689.0,
+          "median_ms": 7522.0,
+          "p95_ms": 10920.5,
+          "max_ms": 11606.0,
+          "mean_ms": 7854.666666666667
+        }
+      },
+      {
+        "role": "verifier",
+        "provider": "codex-gpt-5-6-sol",
+        "model": "gpt-5.6-sol",
+        "latency": {
+          "samples": 3,
+          "min_ms": 10048.0,
+          "median_ms": 11586.0,
+          "p95_ms": 12562.5,
+          "max_ms": 12671.0,
+          "mean_ms": 11435.0
+        }
+      }
+    ],
+    "model_failures": 0,
+    "actions_checkpointed": 6,
+    "actions_attempted": 6,
+    "actions_completed": 3,
+    "action_recoverable_failures": 0,
+    "repeated_actions_stopped": 0,
+    "non_idempotent_retries_stopped": 0,
+    "provider_attempts": 15,
+    "provider_failures": 0,
+    "provider_fallbacks": 0,
+    "provider_schema_repairs": 0,
+    "action_latency": {
+      "samples": 3,
+      "min_ms": 2684.767,
+      "median_ms": 3006.461,
+      "p95_ms": 4004.0543000000002,
+      "max_ms": 4114.898,
+      "mean_ms": 3268.708666666667
+    },
+    "completion_efficiency": 0.5
+  },
+  "run_state_path": "/home/kieran/dev/pikvm-agent/bench/results/2026-07-24/osworld/a4d98375-auto-lock-r5/harness.sqlite3",
+  "artifact_dir": "/home/kieran/dev/pikvm-agent/bench/results/2026-07-24/osworld/a4d98375-auto-lock-r5/artifacts",
+  "report_path": "/home/kieran/dev/pikvm-agent/bench/results/2026-07-24/osworld/a4d98375-auto-lock-r5/report.json"
+}

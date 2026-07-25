@@ -69,7 +69,7 @@ _SAFE_COMMANDS: frozenset[str] = frozenset(
         "basename", "dirname", "whoami", "id", "hostname", "uname", "date", "uptime", "env",
         "printenv", "history", "man", "ps", "top", "htop", "free", "lscpu", "lsblk", "lsusb",
         "lspci", "ip", "ifconfig", "ping", "diff", "cmp", "sort", "uniq", "cut", "jq",
-        "column", "tac", "nl",
+        "column", "tac", "nl", "ffprobe",
     }
 )
 
@@ -86,6 +86,10 @@ _SAFE_GIT_SUBCOMMANDS: frozenset[str] = frozenset(
 HIGH_RISK_CHARS: set[str] = set("|&;><$`~*\"'\\!{}[]()")
 
 _CLAUSE_SPLIT_RE: re.Pattern[str] = re.compile(r"\s*(?:\|\||&&|;|\||&)\s*")
+_COMMAND_QUERY_RE: re.Pattern[str] = re.compile(
+    r"^\s*command\s+-(?:v|V)\s+[A-Za-z0-9_.+:-]+"
+    r"(?:\s+[A-Za-z0-9_.+:-]+)*\s*$"
+)
 
 
 def _is_benign_git_verb(clause: str) -> bool:
@@ -96,6 +100,11 @@ def _is_benign_git_verb(clause: str) -> bool:
 
 def _is_safe_clause(clause: str) -> bool:
     """Is a single command clause read-only / inspection?"""
+    # `command -v/-V name...` only queries shell command resolution. Keep the
+    # accepted grammar deliberately narrow: no substitutions, redirects,
+    # wrappers, or arbitrary `command <program>` execution.
+    if _COMMAND_QUERY_RE.fullmatch(clause):
+        return True
     words = clause.strip().split()
     if not words:
         return False

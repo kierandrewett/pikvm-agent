@@ -1,0 +1,381 @@
+{
+  "schema_version": 1,
+  "suite": "osworld-verified-model-comparison",
+  "suite_revision": "b7db4d8c85d9e95e0b1db44de5bec954cf37f0cf",
+  "task_id": "9f3bb592-209d-43bc-bb47-d77d9df56504",
+  "comparison_status": "diagnostic_failure",
+  "definition": "Selected mature attempts of the same official subtitle-extraction task. The attempts include incremental harness fixes and are not a clean frozen-code model leaderboard.",
+  "official_passes": 0,
+  "runs": [
+    {
+      "route": "all_codex",
+      "report": "9f3bb592-subtitles-r3/report.json",
+      "reasoner": "codex-gpt-5-6-sol/gpt-5.6-sol",
+      "controller": "codex-gpt-5-6-sol/gpt-5.6-sol",
+      "verifier": "codex-gpt-5-6-sol/gpt-5.6-sol",
+      "harness_status": "blocked",
+      "official_score": 0.0,
+      "wall_clock_ms": 411220,
+      "model_active_ms": 300156,
+      "provider_attempts": 29,
+      "provider_failures": 1,
+      "actions_completed": 9,
+      "actions_checkpointed": 11,
+      "execution_completion_efficiency": 0.8181818181818182,
+      "median_role_latency_ms": {
+        "reasoner": 12741,
+        "controller": 9007,
+        "verifier": 13212
+      },
+      "terminal_failure": "The run failed before completing subtitle extraction; exact terminal typing could not be proven reliably from the observed pixels."
+    },
+    {
+      "route": "all_claude",
+      "report": "9f3bb592-subtitles-r9-claude-command-query-fixed/report.json",
+      "reasoner": "claude-opus/opus",
+      "controller": "claude-opus/opus",
+      "verifier": "claude-opus/opus",
+      "harness_status": "aborted",
+      "official_score": 0.0,
+      "wall_clock_ms": 900069,
+      "model_active_ms": 838688,
+      "provider_attempts": 23,
+      "provider_failures": 0,
+      "actions_completed": 6,
+      "actions_checkpointed": 10,
+      "execution_completion_efficiency": 0.6,
+      "median_role_latency_ms": {
+        "reasoner": 52392.5,
+        "controller": 25274,
+        "verifier": 37039
+      },
+      "terminal_failure": "The run found the video but exhausted the 900-second model budget before creating or validating subtitles.srt."
+    },
+    {
+      "route": "claude_reasoner_codex_controller_verifier",
+      "report": "9f3bb592-subtitles-r11-mixed-stale-plan-preserved/report.json",
+      "reasoner": "claude-opus/opus",
+      "controller": "codex-gpt-5-6-sol/gpt-5.6-sol",
+      "verifier": "codex-gpt-5-6-sol/gpt-5.6-sol",
+      "harness_status": "aborted",
+      "official_score": 0.0,
+      "wall_clock_ms": 900038,
+      "model_active_ms": 657421,
+      "provider_attempts": 49,
+      "provider_failures": 2,
+      "provider_schema_repairs": 3,
+      "actions_completed": 16,
+      "actions_checkpointed": 18,
+      "execution_completion_efficiency": 0.8888888888888888,
+      "progress_actions_completed": 11,
+      "observation_only_actions_completed": 5,
+      "progress_action_ratio": 0.6875,
+      "median_role_latency_ms": {
+        "reasoner": 47469,
+        "controller": 8310,
+        "verifier": 13469
+      },
+      "terminal_failure": "The run found video.mp4 but exhausted the 900-second budget after the controller spent later cycles on observation-only pointer movement instead of issuing the next terminal command."
+    },
+    {
+      "route": "claude_reasoner_codex_controller_verifier",
+      "report": "9f3bb592-subtitles-r12-mixed-pointer-wiggle-guarded/report.json",
+      "reasoner": "claude-opus/opus",
+      "controller": "codex-gpt-5-6-sol/gpt-5.6-sol",
+      "verifier": "codex-gpt-5-6-sol/gpt-5.6-sol",
+      "harness_status": "aborted",
+      "official_score": 0.0,
+      "wall_clock_ms": 900032,
+      "model_active_ms": 594915,
+      "provider_attempts": 41,
+      "provider_failures": 2,
+      "provider_schema_repairs": 2,
+      "actions_completed": 14,
+      "actions_checkpointed": 17,
+      "execution_completion_efficiency": 0.8235294117647058,
+      "progress_actions_completed": 12,
+      "observation_only_actions_completed": 2,
+      "progress_action_ratio": 0.8571428571428571,
+      "median_role_latency_ms": {
+        "reasoner": 45741,
+        "controller": 8717,
+        "verifier": 13518
+      },
+      "terminal_failure": "The run exhausted the 900-second budget after two recoverable typing failures. One controller response embedded a newline in type_text and another bundled typed terminal text with Enter."
+    },
+    {
+      "route": "claude_reasoner_codex_controller_verifier",
+      "report": "9f3bb592-subtitles-r13-mixed-text-commit-separated/report.json",
+      "reasoner": "claude-opus/opus",
+      "controller": "codex-gpt-5-6-sol/gpt-5.6-sol",
+      "verifier": "codex-gpt-5-6-sol/gpt-5.6-sol",
+      "harness_status": "blocked",
+      "official_score": 0.0,
+      "wall_clock_ms": 262828,
+      "model_active_ms": 129068,
+      "provider_attempts": 13,
+      "provider_failures": 2,
+      "provider_schema_repairs": 3,
+      "actions_completed": 2,
+      "actions_checkpointed": 5,
+      "execution_completion_efficiency": 0.4,
+      "progress_actions_completed": 2,
+      "observation_only_actions_completed": 0,
+      "progress_action_ratio": 1.0,
+      "median_role_latency_ms": {
+        "reasoner": 51583,
+        "controller": 10894,
+        "verifier": 13918.5
+      },
+      "terminal_failure": "The new action contract rejected bundled text/commit output before HID. The controller exhausted its bounded structured-output repairs after a stale-frame refresh, and the run stopped after two cycles without durable progress."
+    },
+    {
+      "route": "claude_reasoner_codex_controller_verifier",
+      "report": "9f3bb592-subtitles-r14-mixed-safe-draft-downgrade/report.json",
+      "reasoner": "claude-opus/opus",
+      "controller": "codex-gpt-5-6-sol/gpt-5.6-sol",
+      "verifier": "codex-gpt-5-6-sol/gpt-5.6-sol",
+      "harness_status": "blocked",
+      "official_score": 0.0,
+      "wall_clock_ms": 185031,
+      "model_active_ms": 112197,
+      "provider_attempts": 8,
+      "provider_failures": 1,
+      "provider_schema_repairs": 0,
+      "provider_safety_downgrades": 0,
+      "actions_completed": 2,
+      "actions_checkpointed": 4,
+      "execution_completion_efficiency": 0.5,
+      "progress_actions_completed": 2,
+      "observation_only_actions_completed": 0,
+      "progress_action_ratio": 1.0,
+      "median_role_latency_ms": {
+        "reasoner": 53665,
+        "controller": 8482,
+        "verifier": 12368
+      },
+      "terminal_failure": "Two exact text drafts were refused against stale moving-video frames. A later Codex controller timeout then exhausted the original two-cycle stagnation budget; no refused action reached HID."
+    },
+    {
+      "route": "claude_reasoner_codex_controller_verifier",
+      "report": "9f3bb592-subtitles-r15-mixed-stale-draft-retry/report.json",
+      "reasoner": "claude-opus/opus",
+      "controller": "codex-gpt-5-6-sol/gpt-5.6-sol",
+      "verifier": "codex-gpt-5-6-sol/gpt-5.6-sol",
+      "harness_status": "blocked",
+      "official_score": 0.0,
+      "wall_clock_ms": 696621,
+      "model_active_ms": 411050,
+      "provider_attempts": 33,
+      "provider_failures": 4,
+      "provider_schema_repairs": 2,
+      "provider_safety_downgrades": 1,
+      "actions_completed": 9,
+      "actions_checkpointed": 13,
+      "execution_completion_efficiency": 0.6923076923076923,
+      "progress_actions_completed": 9,
+      "observation_only_actions_completed": 0,
+      "progress_action_ratio": 1.0,
+      "median_role_latency_ms": {
+        "reasoner": 46523,
+        "controller": 8510.5,
+        "verifier": 13739
+      },
+      "terminal_failure": "The run reached terminal search and completed nine progress actions, but four Codex provider timeouts plus one repeated focus action were incorrectly combined by the benchmark stagnation guard."
+    },
+    {
+      "route": "claude_reasoner_codex_primary_claude_fallback",
+      "report": "9f3bb592-subtitles-r16-mixed-fallback-outage-aware/report.json",
+      "reasoner": "claude-opus/opus",
+      "controller": [
+        "codex-gpt-5-6-sol/gpt-5.6-sol",
+        "claude-opus/opus"
+      ],
+      "verifier": [
+        "codex-gpt-5-6-sol/gpt-5.6-sol",
+        "claude-opus/opus"
+      ],
+      "harness_status": "needs_approval",
+      "official_score": 0.0,
+      "wall_clock_ms": 860527,
+      "model_active_ms": 657599,
+      "provider_attempts": 45,
+      "provider_failures": 3,
+      "provider_fallbacks": 3,
+      "provider_schema_repairs": 3,
+      "provider_safety_downgrades": 2,
+      "actions_completed": 13,
+      "actions_checkpointed": 19,
+      "execution_completion_efficiency": 0.6842105263157895,
+      "progress_actions_completed": 12,
+      "observation_only_actions_completed": 1,
+      "progress_action_ratio": 0.9230769230769231,
+      "approvals_required": 1,
+      "median_role_latency_ms": {
+        "reasoner_claude": 42403,
+        "controller_codex": 8166,
+        "controller_claude_fallback": 21282,
+        "verifier_codex": 15361
+      },
+      "terminal_failure": "The multi-model route found /home/user/video.mp4, proved H.264 video, AAC audio, and mov_text subtitles with ffprobe, then correctly paused before typing the mutating ffmpeg extraction command because no human approval was supplied."
+    },
+    {
+      "route": "claude_reasoner_codex_primary_claude_fallback",
+      "report": "9f3bb592-subtitles-r17-mixed-post-r16-fixes/report.json",
+      "reasoner": "claude-opus/opus",
+      "controller": [
+        "codex-gpt-5-6-sol/gpt-5.6-sol",
+        "claude-opus/opus"
+      ],
+      "verifier": [
+        "codex-gpt-5-6-sol/gpt-5.6-sol",
+        "claude-opus/opus"
+      ],
+      "harness_status": "blocked",
+      "official_score": 0.0,
+      "wall_clock_ms": 103508,
+      "model_active_ms": 77167,
+      "provider_attempts": 6,
+      "provider_failures": 0,
+      "provider_fallbacks": 0,
+      "provider_schema_repairs": 2,
+      "provider_safety_downgrades": 0,
+      "actions_completed": 0,
+      "actions_checkpointed": 3,
+      "execution_completion_efficiency": 0.0,
+      "progress_actions_completed": 0,
+      "observation_only_actions_completed": 0,
+      "progress_action_ratio": 0.0,
+      "approvals_required": 0,
+      "median_role_latency_ms": {
+        "reasoner_claude": 51650,
+        "controller_codex": 7980
+      },
+      "terminal_failure": "A continuously playing video advanced the full-frame world version before each action. Three keyboard or pointer proposals were refused before HID, and the two-cycle semantic stagnation guard blocked the run."
+    },
+    {
+      "route": "claude_reasoner_codex_primary_claude_fallback",
+      "report": "9f3bb592-subtitles-r18-mixed-global-shortcut-rebase/report.json",
+      "reasoner": "claude-opus/opus",
+      "controller": [
+        "codex-gpt-5-6-sol/gpt-5.6-sol",
+        "claude-opus/opus"
+      ],
+      "verifier": [
+        "codex-gpt-5-6-sol/gpt-5.6-sol",
+        "claude-opus/opus"
+      ],
+      "harness_status": "blocked",
+      "official_score": 0.0,
+      "wall_clock_ms": 80703,
+      "model_active_ms": 75742,
+      "provider_attempts": 4,
+      "provider_failures": 0,
+      "provider_fallbacks": 0,
+      "provider_schema_repairs": 0,
+      "provider_safety_downgrades": 0,
+      "actions_completed": 0,
+      "actions_checkpointed": 3,
+      "execution_completion_efficiency": 0.0,
+      "progress_actions_completed": 0,
+      "observation_only_actions_completed": 0,
+      "progress_action_ratio": 0.0,
+      "approvals_required": 0,
+      "median_role_latency_ms": {
+        "reasoner_claude": 53470,
+        "controller_codex": 7159
+      },
+      "terminal_failure": "The first two proposals contained Escape and the controller's META alias, which the initial narrow stale rebase did not recognize. All three proposals were refused before HID; the alias and two-key navigation sequence are now regression-covered."
+    },
+    {
+      "route": "claude_reasoner_codex_primary_claude_fallback",
+      "report": "9f3bb592-subtitles-r19-mixed-navigation-rebase/report.json",
+      "reasoner": "claude-opus/opus",
+      "controller": [
+        "codex-gpt-5-6-sol/gpt-5.6-sol",
+        "claude-opus/opus"
+      ],
+      "verifier": [
+        "codex-gpt-5-6-sol/gpt-5.6-sol",
+        "claude-opus/opus"
+      ],
+      "harness_status": "needs_approval",
+      "official_score": 0.0,
+      "wall_clock_ms": 745723,
+      "model_active_ms": 528272,
+      "provider_attempts": 39,
+      "provider_failures": 4,
+      "provider_fallbacks": 4,
+      "provider_schema_repairs": 3,
+      "provider_safety_downgrades": 1,
+      "actions_completed": 10,
+      "actions_checkpointed": 15,
+      "execution_completion_efficiency": 0.6666666666666666,
+      "progress_actions_completed": 10,
+      "observation_only_actions_completed": 0,
+      "progress_action_ratio": 1.0,
+      "approvals_required": 1,
+      "median_role_latency_ms": {
+        "reasoner_claude": 47062,
+        "controller_codex": 8639.5,
+        "controller_claude_fallback": 20718,
+        "verifier_codex": 12208
+      },
+      "terminal_failure": "The run closed the playing video, found and probed /home/user/video.mp4, rejected a pointer-only no-op, and separated a typed command from submission. It then correctly paused before typing the mutating ffmpeg extraction command because no human approval was supplied."
+    },
+    {
+      "route": "claude_reasoner_codex_primary_claude_fallback",
+      "report": "9f3bb592-subtitles-r20-interactive-approval/report.json",
+      "reasoner": "claude-opus/opus",
+      "controller": [
+        "codex-gpt-5-6-sol/gpt-5.6-sol",
+        "claude-opus/opus"
+      ],
+      "verifier": [
+        "codex-gpt-5-6-sol/gpt-5.6-sol",
+        "claude-opus/opus"
+      ],
+      "harness_status": "blocked",
+      "official_score": 0.0,
+      "wall_clock_ms": 1071885,
+      "model_active_ms": 833082,
+      "provider_attempts": 54,
+      "provider_failures": 3,
+      "provider_fallbacks": 2,
+      "provider_schema_repairs": 5,
+      "provider_safety_downgrades": 1,
+      "actions_completed": 13,
+      "actions_checkpointed": 16,
+      "action_attempts": 19,
+      "execution_completion_efficiency": 0.8125,
+      "progress_actions_completed": 13,
+      "observation_only_actions_completed": 0,
+      "progress_action_ratio": 1.0,
+      "action_stale_retries": 3,
+      "repeated_actions_stopped": 5,
+      "approvals_required": 0,
+      "median_role_latency_ms": {
+        "reasoner_claude": 45786,
+        "controller_codex": 8474,
+        "controller_claude_fallback": 15992,
+        "verifier_codex": 11585
+      },
+      "terminal_failure": "The run live-proved three bounded stale-world retries, but exact terminal OCR remained ambiguous, one recovery click widened the wrong window, and the controller later emitted duplicated pointer activations. The stagnation guard blocked the run before any approval request or file mutation."
+    }
+  ],
+  "findings": [
+    "No route passed the official evaluator, so this comparison does not support a model-accuracy winner.",
+    "The mixed route reduced controller median latency by 67.1% versus the all-Claude route and reduced summed model-active time by 21.6%, while completing more guarded actions.",
+    "Raw action completion overstated useful progress in the mixed run: 16 actions completed transport and verification, but only 11 contained a click, key, text entry, or scroll.",
+    "After the multi-move pointer guard, R12 reduced observation-only completions from five to two and raised the progress-action ratio from 68.8% to 85.7%, but still timed out.",
+    "R12 exposed newline-in-text and text-plus-Enter controller outputs. R13 live-proved that the new schema rejects those shapes before HID, but the controller could not repair consistently and the task still failed.",
+    "R14 and R15 exposed that moving pixels and transient provider outages were consuming the same stagnation budget as semantic controller loops. Provider outages no longer increment that counter.",
+    "R16 live-proved the multi-model fallback route: Claude completed three controller fallbacks after Codex failures. The run reached an exact ffprobe result and then stopped at a visible terminal-mutation approval boundary.",
+    "R16 also exposed one four-character typing truncation and one pointer-only no-op. Both were stopped or rejected by independent verification; post-run regressions cover bounded missing-chunk retry and pre-HID no-op rejection.",
+    "R17 and R18 retained a moving-video failure: full-frame freshness rejected safe desktop navigation before HID. The rebase rule now recognizes unchanged-control-epoch Escape, META/SUPER, Ctrl+Alt+T, and their non-committing sequences; Enter, clicks, editing shortcuts, and secret text remain excluded.",
+    "R19 escaped the moving-video state, live-proved pointer no-op rejection and corrected safe-draft evidence, reached ffprobe, and hit the approval boundary in 745.72 seconds. A late exact-text capture still caused one false type-unverified result; a second read-only settled reread is regression-covered after the run.",
+    "R20 live-proved both allowed stale rebase classes with three same-idempotency retries, but exposed repeated ambiguous terminal OCR, one wrong-window click, and a move-click-move-click duplicate inside a single burst. Duplicate pointer activations are now rejected by the controller schema before checkpoint or HID.",
+    "The harness now reports progress-bearing and observation-only actions separately; task score remains the primary outcome.",
+    "Provider token counters are retained in each run event stream but are not compared as equivalent units because Codex and Claude expose materially different cache-accounting semantics."
+  ]
+}

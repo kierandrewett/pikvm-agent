@@ -29,6 +29,7 @@ def _isolate_config(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
     monkeypatch.delenv("PIKVM_AGENT_CONFIG", raising=False)
     for var in ("PIKVM_BASE_URL", "PIKVM_VERIFY_TLS"):
         monkeypatch.delenv(var, raising=False)
+    monkeypatch.delenv("PIKVM_MACHINE_ID", raising=False)
     monkeypatch.chdir(tmp_path)
 
 

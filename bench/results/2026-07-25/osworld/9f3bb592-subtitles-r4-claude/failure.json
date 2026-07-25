@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "suite": "osworld-verified",
+  "suite_revision": "b7db4d8c85d9e95e0b1db44de5bec954cf37f0cf",
+  "task_id": "9f3bb592-209d-43bc-bb47-d77d9df56504",
+  "status": "unscored",
+  "stage": "provider_initialization",
+  "error_type": "ValidationError",
+  "error": "1 validation error for HarnessSettings\nproviders.claude-opus.max_turns\n  Extra inputs are not permitted [type=extra_forbidden, input_value=4, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden",
+  "official_score": null,
+  "harness_status": null,
+  "elapsed_ms": 25
+}

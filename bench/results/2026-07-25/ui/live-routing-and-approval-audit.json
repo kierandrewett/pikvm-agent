@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-07-25",
+  "environment": {
+    "backend": "isolated fake machine",
+    "production_pikvm_touched": false,
+    "remote_endpoint_persisted": false
+  },
+  "provider_fallback": {
+    "run_id": "ef45b92d-a53b-4f9b-8a44-5e586990be3a",
+    "primary": {
+      "provider": "intentional-failure",
+      "model": "always-exits-nonzero",
+      "calls": 3,
+      "successes": 0,
+      "failures": 3,
+      "sanitized_error": "RuntimeError: intentional-failure exited 1: class=provider-error"
+    },
+    "fallback": {
+      "provider": "codex-fallback",
+      "model": "gpt-5.6-sol",
+      "authentication": "CLI-owned saved login",
+      "calls": 3,
+      "successes": 3,
+      "failures": 0,
+      "role_latency_ms": {
+        "reasoner": 6146,
+        "controller": 4840,
+        "verifier": 9652
+      }
+    },
+    "durably_visible_fields": [
+      "role",
+      "provider",
+      "route_index",
+      "attempt",
+      "error_type",
+      "sanitized_error",
+      "model",
+      "latency_ms"
+    ],
+    "task_outcome": {
+      "status": "paused",
+      "verdict": "uncertain",
+      "reason": "The fake frame did not render a visually discernible cursor."
+    },
+    "claim": "provider fallback passed; task success did not pass"
+  },
+  "dangerous_action_approval": {
+    "run_id": "076d01b8-9d1f-4531-8808-a0e19fd51ce0",
+    "probe": "side-effecting terminal communication command",
+    "risk": "communication_send",
+    "approval_reason": "side-effecting command requires human review",
+    "pre_decision_harness_status": "needs_approval",
+    "pre_decision_daemon_status": "needs_approval",
+    "decision_without_exact_intent_header_http_status": 409,
+    "human_decision": "reject",
+    "post_decision_harness_status": "rejected",
+    "post_decision_daemon_status": "failed",
+    "post_decision_control_epoch": 1,
+    "action_completed_event": false,
+    "computer_aborted_after_rejection_event": true,
+    "hid_committed": false
+  },
+  "defects_found_and_fixed": [
+    {
+      "id": "direct-approval-status-not-persisted",
+      "observed": "The direct burst returned needs_approval while daemon polling still reported running.",
+      "resolution": "Direct approval and burst lifecycle states are now persisted for truthful polling."
+    },
+    {
+      "id": "rejected-harness-run-left-computer-session-live",
+      "observed": "The harness became terminal rejected while the underlying daemon session remained available.",
+      "resolution": "An explicit rejection now aborts the underlying computer session and records the closure event."
+    }
+  ],
+  "automated_verification": {
+    "pytest_passed": 450,
+    "pytest_skipped": 1,
+    "javascript_syntax": "passed",
+    "git_diff_check": "passed"
+  }
+}

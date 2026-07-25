@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-25",
+  "status": "failing_release_gate",
+  "provider": "local Tesseract raw-plus-enhanced confidence ensemble",
+  "corpus": {
+    "cases": 1000,
+    "corpus_seed": 104729,
+    "evaluation_seed": 65537,
+    "categories": 10,
+    "cases_per_category": 100,
+    "ground_truth_hidden_until_evaluation_complete": true,
+    "all_scored_text_visible_in_rendered_image": true
+  },
+  "validity_correction": {
+    "superseded_normalized_exact_rate": 0.202,
+    "superseded_mean_character_error_rate": 0.16058329882032638,
+    "invalid_overflow_cases": 450,
+    "reason": "The old generator scored full strings even when the rendered image clipped their suffixes.",
+    "corrected_single_candidate_normalized_exact_rate": 0.312,
+    "corrected_single_candidate_mean_character_error_rate": 0.04674513534274624
+  },
+  "result": {
+    "exact_matches": 302,
+    "normalized_exact_matches": 373,
+    "exact_rate": 0.302,
+    "normalized_exact_rate": 0.373,
+    "mean_character_error_rate": 0.04042598080382845,
+    "median_latency_ms": 173.0,
+    "p95_latency_ms": 239.04999999999995,
+    "evaluation_wall_ms": 44600,
+    "throughput_images_per_second": 22.42152466367713
+  },
+  "by_category": {
+    "code": {
+      "normalized_exact_rate": 0.59,
+      "mean_character_error_rate": 0.02107820136852395
+    },
+    "identifier": {
+      "normalized_exact_rate": 0.61,
+      "mean_character_error_rate": 0.03067867317867318
+    },
+    "mixed_case": {
+      "normalized_exact_rate": 0.46,
+      "mean_character_error_rate": 0.015423728813559322
+    },
+    "numeric": {
+      "normalized_exact_rate": 0.0,
+      "mean_character_error_rate": 0.07781710556710557
+    },
+    "path": {
+      "normalized_exact_rate": 0.21,
+      "mean_character_error_rate": 0.03891106442577031
+    },
+    "prose": {
+      "normalized_exact_rate": 0.77,
+      "mean_character_error_rate": 0.005524178867989448
+    },
+    "punctuation": {
+      "normalized_exact_rate": 0.0,
+      "mean_character_error_rate": 0.07421686746987952
+    },
+    "terminal": {
+      "normalized_exact_rate": 0.52,
+      "mean_character_error_rate": 0.019513914656771797
+    },
+    "ui_label": {
+      "normalized_exact_rate": 0.43,
+      "mean_character_error_rate": 0.07396026272577996
+    },
+    "url": {
+      "normalized_exact_rate": 0.14,
+      "mean_character_error_rate": 0.04713581096423143
+    }
+  },
+  "environment": {
+    "production_pikvm_contacted": false,
+    "vnc_contacted": false,
+    "network_used": false
+  },
+  "limitations": [
+    "The synthetic corpus is a diagnostic, not a production desktop distribution.",
+    "Numeric confusables and punctuation both remain at zero normalized exact.",
+    "The ensemble runs two local OCR candidates and increases median latency by about 40 ms.",
+    "This result does not authorize OCR-only verification of code, commands, URLs, identifiers, or irreversible actions."
+  ]
+}

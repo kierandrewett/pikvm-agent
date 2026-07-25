@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-25",
+  "status": "diagnostic_sample",
+  "provider": "PaddleOCR PP-OCRv6 medium CPU",
+  "model_source": "pre-existing local cache",
+  "corpus": {
+    "cases": 100,
+    "corpus_seed": 104729,
+    "evaluation_seed": 65537,
+    "categories": 10,
+    "cases_per_category": 10,
+    "ground_truth_hidden_until_evaluation_complete": true,
+    "all_scored_text_visible_in_rendered_image": true
+  },
+  "result": {
+    "exact_matches": 62,
+    "normalized_exact_matches": 77,
+    "exact_rate": 0.62,
+    "normalized_exact_rate": 0.77,
+    "mean_character_error_rate": 0.009629484341109126,
+    "median_latency_ms": 881.5,
+    "p95_latency_ms": 2411.7999999999997,
+    "evaluation_wall_ms": 103459,
+    "throughput_images_per_second": 0.9665664659430305
+  },
+  "by_category": {
+    "code": {
+      "normalized_exact_rate": 1.0,
+      "mean_character_error_rate": 0.0
+    },
+    "identifier": {
+      "normalized_exact_rate": 1.0,
+      "mean_character_error_rate": 0.0
+    },
+    "mixed_case": {
+      "normalized_exact_rate": 0.6,
+      "mean_character_error_rate": 0.006779661016949152
+    },
+    "numeric": {
+      "normalized_exact_rate": 0.0,
+      "mean_character_error_rate": 0.06745206745206746
+    },
+    "path": {
+      "normalized_exact_rate": 0.7,
+      "mean_character_error_rate": 0.009628851540616245
+    },
+    "prose": {
+      "normalized_exact_rate": 1.0,
+      "mean_character_error_rate": 0.0
+    },
+    "punctuation": {
+      "normalized_exact_rate": 0.7,
+      "mean_character_error_rate": 0.004819277108433735
+    },
+    "terminal": {
+      "normalized_exact_rate": 0.8,
+      "mean_character_error_rate": 0.006122448979591836
+    },
+    "ui_label": {
+      "normalized_exact_rate": 1.0,
+      "mean_character_error_rate": 0.0
+    },
+    "url": {
+      "normalized_exact_rate": 0.9,
+      "mean_character_error_rate": 0.0014925373134328358
+    }
+  },
+  "environment": {
+    "device": "CPU",
+    "workers": 1,
+    "production_pikvm_contacted": false,
+    "vnc_contacted": false,
+    "network_used": false
+  },
+  "limitations": [
+    "This is a balanced 100-case diagnostic, not the full 1000-case release denominator.",
+    "PaddleOCR is about five times slower at median than the Tesseract ensemble in these runs.",
+    "Numeric confusables remain at zero normalized exact.",
+    "The result supports selective fallback evaluation, not a general production pass."
+  ]
+}

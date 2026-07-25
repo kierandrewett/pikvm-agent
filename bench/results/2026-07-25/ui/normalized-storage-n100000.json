@@ -1,0 +1,32 @@
+{
+  "append_checkpoint_latency": {
+    "max_ms": 0.804,
+    "median_ms": 0.038,
+    "p95_ms": 0.073
+  },
+  "append_repetitions": 100,
+  "checkpoint_write_reduction_ratio": 12182.954,
+  "event_free_inventory_latency": {
+    "max_ms": 0.032,
+    "median_ms": 0.007,
+    "p95_ms": 0.013
+  },
+  "events_after_repetitions": 100100,
+  "events_before_repetitions": 100000,
+  "initial_history_import_ms": 186.162,
+  "latest_500_event_page_latency": {
+    "max_ms": 66.501,
+    "median_ms": 0.798,
+    "p95_ms": 1.119
+  },
+  "latest_event_append_bytes": 97,
+  "legacy_full_checkpoint_bytes": 9587985,
+  "limitations": [
+    "This isolates serialization and storage-contract costs.",
+    "It does not include aiosqlite, filesystem, model, OCR, HID, or network latency."
+  ],
+  "normalized_state_plus_summary_bytes": 690,
+  "schema_version": 1,
+  "storage_adapter": "in-memory normalized contract",
+  "suite": "harness-normalized-storage"
+}

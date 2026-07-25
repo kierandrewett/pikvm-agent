@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-25",
+  "suite": "osworld-verified",
+  "suite_revision": "b7db4d8c85d9e95e0b1db44de5bec954cf37f0cf",
+  "tasks_discovered": 369,
+  "prior_tracer_compatible_tasks": 7,
+  "current_tracer_compatible_tasks": 10,
+  "current_live_scored_tasks": 9,
+  "current_live_exercised_tasks": 10,
+  "newly_compatible_unscored_tasks": [
+    {
+      "task_id": "48d05431-6cd5-4e76-82eb-12b60d823f7d",
+      "domain": "multi_apps",
+      "setup_types": [
+        "launch",
+        "execute",
+        "activate_window"
+      ],
+      "evaluator": "exact_match(vm_command_line, rule)"
+    },
+    {
+      "task_id": "869de13e-bef9-4b91-ba51-f6708c40b096",
+      "domain": "multi_apps",
+      "setup_types": [
+        "command",
+        "download",
+        "execute"
+      ],
+      "evaluator": "implicit-and(3 x exact_match(vm_command_line, rule))"
+    },
+    {
+      "task_id": "9f3bb592-209d-43bc-bb47-d77d9df56504",
+      "domain": "multi_apps",
+      "setup_types": [
+        "download",
+        "open",
+        "activate_window"
+      ],
+      "evaluator": "exact_match(vm_command_line, rule)"
+    }
+  ],
+  "official_setup_contracts_added": {
+    "launch": "/setup/launch",
+    "open": "/setup/open_file",
+    "activate_window": "/setup/activate_window",
+    "command": "/execute"
+  },
+  "official_evaluator_semantics_added": {
+    "missing_conjunction": "defaults to and",
+    "postconfig": "validated and applied before official evaluation"
+  },
+  "validation": {
+    "focused_contract_tests": 10,
+    "public_desktop_suite_tests": 30,
+    "public_desktop_suite_tests_passed": 30,
+    "similarity_scan": "no actionable production duplication; repeated setup examples are intentional contract tests"
+  },
+  "live_evidence": [
+    {
+      "task_id": "48d05431-6cd5-4e76-82eb-12b60d823f7d",
+      "attempt": "48d05431-conda-r1/report.json",
+      "status": "needs_approval",
+      "official_score": 0.0
+    },
+    {
+      "task_id": "869de13e-bef9-4b91-ba51-f6708c40b096",
+      "attempt": "869de13e-organize-r1/failure.json",
+      "status": "unscored_cancelled",
+      "official_score": null
+    },
+    {
+      "task_id": "9f3bb592-209d-43bc-bb47-d77d9df56504",
+      "attempt_index": "model-comparison.json",
+      "status": "scored_failures",
+      "official_score": 0.0
+    }
+  ],
+  "status": "live_failures_recorded",
+  "limitations": [
+    "All three newly compatible tasks were exercised. Conda and subtitle extraction reached the evaluator and scored 0.0; desktop organization was cancelled after 1,232.582 seconds and remains unscored.",
+    "Only exact command-line and UTC evaluators are currently executable through this tracer.",
+    "The tracer still lacks official browser CDP setup and the richer file/application evaluators that dominate OSWorld.",
+    "Ten compatible tasks out of 369 is not representative suite coverage."
+  ],
+  "defects_found_and_fixed": [
+    "Official evaluator postconfig actions were previously neither validated nor applied. A failing contract reproduced the defect; the coordinator now applies them outside the model/MCP boundary before scoring."
+  ]
+}

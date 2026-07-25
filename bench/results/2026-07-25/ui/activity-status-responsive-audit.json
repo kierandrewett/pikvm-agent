@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-07-25",
+  "purpose": "Verify that long live provider and MCP activity labels remain visible without overflowing the narrow operator console header.",
+  "environment": {
+    "browser": "real in-app Chromium",
+    "fixture": "temporary local operator-header DOM and production stylesheet injected into an isolated browser tab",
+    "application_data_transmitted": false,
+    "computer_target_contacted": false,
+    "production_pikvm_touched": false,
+    "vnc_contacted": false,
+    "hid_emitted": false
+  },
+  "activity_fixture": {
+    "label": "Controller · extremely-long-provider-route-name call in flight · 12m 34s",
+    "requested_viewport_css_px": {
+      "width": 390,
+      "height": 844
+    }
+  },
+  "responsive_measurements_css_px": {
+    "reported_inner_width": 390,
+    "document_client_width": 390,
+    "document_scroll_width": 390,
+    "body_client_width": 390,
+    "body_scroll_width": 390,
+    "command_bar_width": 390,
+    "command_status_width": 370,
+    "connection_status": {
+      "left": 10,
+      "right": 102.328125,
+      "width": 92.328125
+    },
+    "activity_status": {
+      "left": 110.328125,
+      "right": 380,
+      "width": 269.671875,
+      "scroll_width": 268
+    },
+    "activity_label": {
+      "left": 134.328125,
+      "right": 370,
+      "width": 235.671875,
+      "scroll_width": 377,
+      "overflow": "hidden",
+      "text_overflow": "ellipsis"
+    },
+    "horizontal_overflow": false
+  },
+  "visibility_contract": {
+    "unmatched_provider_call_named": true,
+    "unmatched_mcp_action_named": true,
+    "elapsed_time_updates_once_per_second": true,
+    "direct_model_identity_label": "Declared by MCP launcher",
+    "direct_identity_independently_verified": false
+  },
+  "claim_limits": [
+    "The rendered activity was a local static fixture, not a live provider or HID call.",
+    "This audit covers the narrow header at 390 by 844 CSS pixels; it is not a cross-browser or sustained-stream result.",
+    "The direct-client provider and model string remains caller-declared because MCP does not standardize independently verifiable model identity."
+  ]
+}

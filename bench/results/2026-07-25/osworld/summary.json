@@ -1,0 +1,228 @@
+{
+  "schema_version": 4,
+  "suite": "osworld-verified",
+  "suite_revision": "b7db4d8c85d9e95e0b1db44de5bec954cf37f0cf",
+  "suite_tasks_discovered": 369,
+  "route": {
+    "reasoner": ["codex-gpt-5-6-sol"],
+    "controller": ["codex-gpt-5-6-sol"],
+    "verifier": ["codex-gpt-5-6-sol"],
+    "provider_used": "codex-gpt-5-6-sol",
+    "model_used": "gpt-5.6-sol",
+    "definition": "Primary route for the original seven-task diagnostic."
+  },
+  "additional_routes_exercised": [
+    {
+      "reasoner": "claude-opus/opus",
+      "controller": "claude-opus/opus",
+      "verifier": "claude-opus/opus"
+    },
+    {
+      "reasoner": "claude-opus/opus",
+      "controller": "codex-gpt-5-6-sol/gpt-5.6-sol",
+      "verifier": "codex-gpt-5-6-sol/gpt-5.6-sol"
+    },
+    {
+      "reasoner": "claude-opus/opus",
+      "controller": [
+        "codex-gpt-5-6-sol/gpt-5.6-sol",
+        "claude-opus/opus"
+      ],
+      "verifier": [
+        "codex-gpt-5-6-sol/gpt-5.6-sol",
+        "claude-opus/opus"
+      ],
+      "definition": "R16-R20 multi-model route with Codex primary and Claude fallback for controller and verifier."
+    }
+  ],
+  "current_nine_task_diagnostic": {
+    "definition": "Latest scored run for each exercised task, requiring both harness_status=completed and official_score=1.0.",
+    "cases": 9,
+    "official_passes": 6,
+    "harness_completed_and_official_passed": 6,
+    "success_rate": 0.6666666666666666,
+    "wilson_95_interval": [0.3542, 0.8794],
+    "wall_clock_ms_total": 2583982,
+    "wall_clock_ms_median": 128563,
+    "wall_clock_ms_p95": 883967.4,
+    "model_active_ms_total": 2061315,
+    "model_completions": 180,
+    "provider_attempts": 191,
+    "provider_failures": 3,
+    "provider_schema_repairs": 8,
+    "provider_safety_downgrades": 1,
+    "approvals_required": 1,
+    "actions_attempted": 74,
+    "actions_completed": 59,
+    "completion_efficiency": 0.7972972972972973,
+    "reports": [
+      "../../2026-07-24/osworld/f9be0997-dnd-r3/report.json",
+      "../../2026-07-24/osworld/28cc3b7e-max-volume-r1/report.json",
+      "../../2026-07-24/osworld/a4d98375-auto-lock-r9/report.json",
+      "../../2026-07-24/osworld/e0df059f-rename-folder-r2/report.json",
+      "bedcedc4-dim-screen-r3/report.json",
+      "b6781586-utc-r2/report.json",
+      "5ea617a3-restore-trash-r2/report.json",
+      "48d05431-conda-r1/report.json",
+      "9f3bb592-subtitles-r20-interactive-approval/report.json"
+    ]
+  },
+  "passing_subset": {
+    "cases": 6,
+    "wall_clock_ms_total": 1269605,
+    "wall_clock_ms_median": 105286,
+    "wall_clock_ms_p95": 543975.25,
+    "model_active_ms_total": 1025773,
+    "model_completions": 110,
+    "provider_attempts": 113,
+    "provider_schema_repairs": 3,
+    "actions_attempted": 45,
+    "actions_completed": 39,
+    "completion_efficiency": 0.8666666666666667
+  },
+  "all_scored_attempts": {
+    "definition": "Every attempt that reached the official evaluator, including pre-fix failures and harness false negatives.",
+    "attempts": 33,
+    "official_goal_state_passes": 7,
+    "official_goal_state_rate": 0.21212121212121213,
+    "harness_completed_and_official_passed": 6,
+    "harness_and_official_success_rate": 0.18181818181818182,
+    "new_reports": [
+      {
+        "path": "bedcedc4-dim-screen-r1/report.json",
+        "harness_status": "failed",
+        "official_score": 0.0
+      },
+      {
+        "path": "bedcedc4-dim-screen-r3/report.json",
+        "harness_status": "blocked",
+        "official_score": 0.0
+      },
+      {
+        "path": "b6781586-utc-r2/report.json",
+        "harness_status": "completed",
+        "official_score": 1.0
+      },
+      {
+        "path": "5ea617a3-restore-trash-r2/report.json",
+        "harness_status": "completed",
+        "official_score": 1.0
+      },
+      {
+        "path": "48d05431-conda-r1/report.json",
+        "harness_status": "needs_approval",
+        "official_score": 0.0
+      },
+      {
+        "path": "9f3bb592-subtitles-r1/report.json",
+        "harness_status": "blocked",
+        "official_score": 0.0
+      },
+      {
+        "path": "9f3bb592-subtitles-r2/report.json",
+        "harness_status": "blocked",
+        "official_score": 0.0
+      },
+      {
+        "path": "9f3bb592-subtitles-r3/report.json",
+        "harness_status": "blocked",
+        "official_score": 0.0
+      },
+      {
+        "path": "9f3bb592-subtitles-r5-claude/report.json",
+        "harness_status": "blocked",
+        "official_score": 0.0
+      },
+      {
+        "path": "9f3bb592-subtitles-r6-claude120/report.json",
+        "harness_status": "blocked",
+        "official_score": 0.0
+      },
+      {
+        "path": "9f3bb592-subtitles-r7-claude-schema-fixed/report.json",
+        "harness_status": "needs_approval",
+        "official_score": 0.0
+      },
+      {
+        "path": "9f3bb592-subtitles-r8-claude-typing-policy-fixed/report.json",
+        "harness_status": "needs_approval",
+        "official_score": 0.0
+      },
+      {
+        "path": "9f3bb592-subtitles-r9-claude-command-query-fixed/report.json",
+        "harness_status": "aborted",
+        "official_score": 0.0
+      },
+      {
+        "path": "9f3bb592-subtitles-r10-mixed-unverified-verifier/report.json",
+        "harness_status": "blocked",
+        "official_score": 0.0
+      },
+      {
+        "path": "9f3bb592-subtitles-r11-mixed-stale-plan-preserved/report.json",
+        "harness_status": "aborted",
+        "official_score": 0.0
+      },
+      {
+        "path": "9f3bb592-subtitles-r12-mixed-pointer-wiggle-guarded/report.json",
+        "harness_status": "aborted",
+        "official_score": 0.0
+      },
+      {
+        "path": "9f3bb592-subtitles-r13-mixed-text-commit-separated/report.json",
+        "harness_status": "blocked",
+        "official_score": 0.0
+      },
+      {
+        "path": "9f3bb592-subtitles-r14-mixed-safe-draft-downgrade/report.json",
+        "harness_status": "blocked",
+        "official_score": 0.0
+      },
+      {
+        "path": "9f3bb592-subtitles-r15-mixed-stale-draft-retry/report.json",
+        "harness_status": "blocked",
+        "official_score": 0.0
+      },
+      {
+        "path": "9f3bb592-subtitles-r16-mixed-fallback-outage-aware/report.json",
+        "harness_status": "needs_approval",
+        "official_score": 0.0
+      },
+      {
+        "path": "9f3bb592-subtitles-r17-mixed-post-r16-fixes/report.json",
+        "harness_status": "blocked",
+        "official_score": 0.0
+      },
+      {
+        "path": "9f3bb592-subtitles-r18-mixed-global-shortcut-rebase/report.json",
+        "harness_status": "blocked",
+        "official_score": 0.0
+      },
+      {
+        "path": "9f3bb592-subtitles-r19-mixed-navigation-rebase/report.json",
+        "harness_status": "needs_approval",
+        "official_score": 0.0
+      },
+      {
+        "path": "9f3bb592-subtitles-r20-interactive-approval/report.json",
+        "harness_status": "blocked",
+        "official_score": 0.0
+      }
+    ],
+    "prior_attempt_index": "../../2026-07-24/osworld/summary.json"
+  },
+  "unscored_attempts": {
+    "count": 11,
+    "definition": "Attempts with no official evaluator result. They are excluded from score denominators but retained as engineering failures.",
+    "new_evidence": [
+      "bedcedc4-dim-screen-r2/interrupted-provider-lifecycle.json",
+      "b6781586-utc-r1/interrupted-provider-lifecycle.json",
+      "5ea617a3-restore-trash-r1/unsupported-setup.json",
+      "869de13e-organize-r1/failure.json",
+      "9f3bb592-subtitles-r4-claude/failure.json"
+    ],
+    "prior_attempt_index": "../../2026-07-24/osworld/summary.json"
+  },
+  "model_comparison": "model-comparison.json",
+  "scope_warning": "Nine scored tasks are a tracer diagnostic, not a representative 369-task OSWorld score."
+}

@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "suite": "osworld-verified",
+  "suite_revision": "b7db4d8c85d9e95e0b1db44de5bec954cf37f0cf",
+  "task_id": "a4d98375-215b-4a4d-aee9-3d4370fccc41",
+  "attempt": "r6",
+  "outcome": "infrastructure-failed",
+  "official_score": null,
+  "counted_as_task_result": false,
+  "elapsed_seconds": 21.769,
+  "model_calls": 0,
+  "hid_actions": 0,
+  "failure": "The in-guest screenshot endpoint returned a truncated PNG during startup.",
+  "resolution": "The in-guest transport now fully decodes and validates each image, then retries corrupt frames three times with bounded backoff. Guest readiness also requires a fully loaded image."
+}

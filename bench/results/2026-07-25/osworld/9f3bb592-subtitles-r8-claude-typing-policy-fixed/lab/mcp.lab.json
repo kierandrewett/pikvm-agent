@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "pikvm-lab": {
+      "command": "/home/kieran/dev/pikvm-agent/.venv/bin/python3",
+      "args": [
+        "-m",
+        "pikvm_agent.cli",
+        "mcp"
+      ],
+      "env": {
+        "PIKVM_AGENT_DAEMON": "http://127.0.0.1:49251"
+      }
+    }
+  }
+}

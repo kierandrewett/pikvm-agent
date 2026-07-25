@@ -48,10 +48,33 @@ async def test_external_cursor_report_updates_tracked_position(runtime) -> None:
     # cursor follows it and is trusted.
     sid = (await runtime.start_session("direct"))["session_id"]
     # norm 0 ~ centre; +32767 ~ right/bottom edge.
-    runtime.report_external_cursor(0, 0)
+    before = runtime._get(sid).control_epoch
+    report = runtime.report_external_cursor(0, 0)
     c = runtime._cursor_state()
     w = runtime.backend.dims["width"]
     assert abs(c["x"] - w // 2) <= 1 and c["trusted"] is True
+    assert report["invalidated_sessions"] == [sid]
+    assert runtime._get(sid).control_epoch == before + 1
     # a screenshot now carries that cursor
     obs = await runtime.get_session_summary(sid, capture=False)
     assert obs["cursor"]["x"] == c["x"]
+    assert obs["human_input_since_observation"] is True
+    assert obs["last_human_input_at"] is not None
+
+
+async def test_human_cursor_input_invalidates_a_planned_burst(runtime) -> None:
+    sid = (await runtime.start_session("direct"))["session_id"]
+    shot = await runtime.get_session_summary(sid, capture=True)
+
+    runtime.report_external_cursor(200, -100)
+    result = await runtime.run_burst(
+        sid,
+        [{"type": "key", "keys": ["KeyA"]}],
+        based_on_world_version=shot["world_version"],
+        based_on_control_epoch=shot["control_epoch"],
+        idempotency_key="human-took-over",
+    )
+
+    assert result["status"] == "control_changed"
+    assert result["control_epoch"] == shot["control_epoch"] + 1
+    assert not any(call[0] == "keypress" for call in runtime.backend.calls)

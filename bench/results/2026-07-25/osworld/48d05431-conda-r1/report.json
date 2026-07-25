@@ -1,0 +1,89 @@
+{
+  "schema_version": 2,
+  "suite": "osworld-verified",
+  "suite_revision": "b7db4d8c85d9e95e0b1db44de5bec954cf37f0cf",
+  "task_id": "48d05431-6cd5-4e76-82eb-12b60d823f7d",
+  "domain": "multi_apps",
+  "instruction": "When I ran \"conda install datasets\" in terminal, I got \"conda: command not found\". Could you help me solve it so that I can use conda command right away?",
+  "docker_image": "happysixd/osworld-docker:latest",
+  "docker_image_id": "sha256:0e6497a9295647cf05bf2b2af522fdd79bdeba2737595259cab310a3bcf6baa9",
+  "vm_image_sha256": "6bf667a852b3c307f61d9f09c42559351f45e0607e428b4997becf534cf4d313",
+  "control_plane": "agent-harness -> MCP stdio -> isolated daemon",
+  "target_adapter": "official in-guest server through PiKVM-shaped lab",
+  "policy_profile": "isolated_benchmark",
+  "harness_status": "needs_approval",
+  "official_score": 0.0,
+  "evaluator": "exact_match(vm_command_line, rule)",
+  "approvals_required": 1,
+  "cycles": 1,
+  "performance": {
+    "run_id": "e820cd28-79fe-4e3c-be3a-86b7e3d7c9f6",
+    "status": "needs_approval",
+    "wall_clock_ms": 61444,
+    "model_active_ms": 54593,
+    "model_lanes": [
+      {
+        "role": "controller",
+        "provider": "codex-gpt-5-6-sol",
+        "model": "gpt-5.6-sol",
+        "latency": {
+          "samples": 3,
+          "min_ms": 7122.0,
+          "median_ms": 7298.0,
+          "p95_ms": 8283.5,
+          "max_ms": 8393.0,
+          "mean_ms": 7604.333333333333
+        }
+      },
+      {
+        "role": "reasoner",
+        "provider": "codex-gpt-5-6-sol",
+        "model": "gpt-5.6-sol",
+        "latency": {
+          "samples": 1,
+          "min_ms": 11291.0,
+          "median_ms": 11291.0,
+          "p95_ms": 11291.0,
+          "max_ms": 11291.0,
+          "mean_ms": 11291.0
+        }
+      },
+      {
+        "role": "verifier",
+        "provider": "codex-gpt-5-6-sol",
+        "model": "gpt-5.6-sol",
+        "latency": {
+          "samples": 2,
+          "min_ms": 10130.0,
+          "median_ms": 10244.5,
+          "p95_ms": 10347.55,
+          "max_ms": 10359.0,
+          "mean_ms": 10244.5
+        }
+      }
+    ],
+    "model_failures": 0,
+    "actions_checkpointed": 3,
+    "actions_attempted": 3,
+    "actions_completed": 2,
+    "action_recoverable_failures": 0,
+    "repeated_actions_stopped": 0,
+    "non_idempotent_retries_stopped": 0,
+    "provider_attempts": 6,
+    "provider_failures": 0,
+    "provider_fallbacks": 0,
+    "provider_schema_repairs": 0,
+    "action_latency": {
+      "samples": 2,
+      "min_ms": 2393.759,
+      "median_ms": 2610.6175,
+      "p95_ms": 2805.7901499999994,
+      "max_ms": 2827.4759999999997,
+      "mean_ms": 2610.6175
+    },
+    "completion_efficiency": 0.6666666666666666
+  },
+  "run_state_path": "/home/kieran/dev/pikvm-agent/bench/results/2026-07-25/osworld/48d05431-conda-r1/harness.sqlite3",
+  "artifact_dir": "/home/kieran/dev/pikvm-agent/bench/results/2026-07-25/osworld/48d05431-conda-r1/artifacts",
+  "report_path": "/home/kieran/dev/pikvm-agent/bench/results/2026-07-25/osworld/48d05431-conda-r1/report.json"
+}

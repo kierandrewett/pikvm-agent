@@ -1,0 +1,91 @@
+{
+  "schema_version": 3,
+  "suite": "osworld-verified",
+  "suite_revision": "b7db4d8c85d9e95e0b1db44de5bec954cf37f0cf",
+  "task_id": "9f3bb592-209d-43bc-bb47-d77d9df56504",
+  "domain": "multi_apps",
+  "instruction": "I downloaded a video to practice listening, but I don't know how to remove the subtitles. Please help me remove the subtitles from the video and export it as \"subtitles.srt\" and store it in the same directory as the video.",
+  "docker_image": "happysixd/osworld-docker:latest",
+  "docker_image_id": "sha256:0e6497a9295647cf05bf2b2af522fdd79bdeba2737595259cab310a3bcf6baa9",
+  "vm_image_sha256": "6bf667a852b3c307f61d9f09c42559351f45e0607e428b4997becf534cf4d313",
+  "control_plane": "agent-harness -> MCP stdio -> isolated daemon",
+  "target_adapter": "official in-guest server through PiKVM-shaped lab",
+  "policy_profile": "isolated_benchmark",
+  "harness_status": "blocked",
+  "official_score": 0.0,
+  "evaluator": "exact_match(vm_command_line, rule)",
+  "approvals_required": 0,
+  "cycles": 7,
+  "model_run_budget_s": 900.0,
+  "model_run_timed_out": false,
+  "performance": {
+    "run_id": "623679cf-d32a-4834-a232-abc400001288",
+    "status": "blocked",
+    "wall_clock_ms": 411220,
+    "model_active_ms": 300156,
+    "model_lanes": [
+      {
+        "role": "controller",
+        "provider": "codex-gpt-5-6-sol",
+        "model": "gpt-5.6-sol",
+        "latency": {
+          "samples": 13,
+          "min_ms": 6233.0,
+          "median_ms": 9007.0,
+          "p95_ms": 12028.0,
+          "max_ms": 12271.0,
+          "mean_ms": 9100.0
+        }
+      },
+      {
+        "role": "reasoner",
+        "provider": "codex-gpt-5-6-sol",
+        "model": "gpt-5.6-sol",
+        "latency": {
+          "samples": 5,
+          "min_ms": 10706.0,
+          "median_ms": 12741.0,
+          "p95_ms": 13536.6,
+          "max_ms": 13545.0,
+          "mean_ms": 12382.6
+        }
+      },
+      {
+        "role": "verifier",
+        "provider": "codex-gpt-5-6-sol",
+        "model": "gpt-5.6-sol",
+        "latency": {
+          "samples": 9,
+          "min_ms": 9755.0,
+          "median_ms": 13212.0,
+          "p95_ms": 17253.199999999997,
+          "max_ms": 19402.0,
+          "mean_ms": 13327.0
+        }
+      }
+    ],
+    "model_failures": 1,
+    "actions_checkpointed": 11,
+    "actions_attempted": 11,
+    "actions_completed": 9,
+    "action_recoverable_failures": 1,
+    "repeated_actions_stopped": 2,
+    "non_idempotent_retries_stopped": 0,
+    "provider_attempts": 29,
+    "provider_failures": 1,
+    "provider_fallbacks": 0,
+    "provider_schema_repairs": 1,
+    "action_latency": {
+      "samples": 10,
+      "min_ms": 1784.1599999999999,
+      "median_ms": 3568.966,
+      "p95_ms": 4853.7312999999995,
+      "max_ms": 5159.833,
+      "mean_ms": 3522.7511
+    },
+    "completion_efficiency": 0.8181818181818182
+  },
+  "run_state_path": "/home/kieran/dev/pikvm-agent/bench/results/2026-07-25/osworld/9f3bb592-subtitles-r3/harness.sqlite3",
+  "artifact_dir": "/home/kieran/dev/pikvm-agent/bench/results/2026-07-25/osworld/9f3bb592-subtitles-r3/artifacts",
+  "report_path": "/home/kieran/dev/pikvm-agent/bench/results/2026-07-25/osworld/9f3bb592-subtitles-r3/report.json"
+}

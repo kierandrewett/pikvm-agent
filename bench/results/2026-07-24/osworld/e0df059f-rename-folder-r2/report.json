@@ -1,0 +1,89 @@
+{
+  "schema_version": 2,
+  "suite": "osworld-verified",
+  "suite_revision": "b7db4d8c85d9e95e0b1db44de5bec954cf37f0cf",
+  "task_id": "e0df059f-28a6-4169-924f-b9623e7184cc",
+  "domain": "os",
+  "instruction": "I have a directory named \"todo_list_Jan_1\". Can you help me change its name into \"todo_list_Jan_2\"?",
+  "docker_image": "happysixd/osworld-docker:latest",
+  "docker_image_id": "sha256:0e6497a9295647cf05bf2b2af522fdd79bdeba2737595259cab310a3bcf6baa9",
+  "vm_image_sha256": "6bf667a852b3c307f61d9f09c42559351f45e0607e428b4997becf534cf4d313",
+  "control_plane": "agent-harness -> MCP stdio -> isolated daemon",
+  "target_adapter": "official in-guest server through PiKVM-shaped lab",
+  "policy_profile": "isolated_benchmark",
+  "harness_status": "completed",
+  "official_score": 1.0,
+  "evaluator": "exact_match(vm_command_line, rule)",
+  "approvals_required": 0,
+  "cycles": 2,
+  "performance": {
+    "run_id": "b87b17c9-663a-4321-b71d-edb51ffd67ff",
+    "status": "completed",
+    "wall_clock_ms": 128563,
+    "model_active_ms": 98292,
+    "model_lanes": [
+      {
+        "role": "controller",
+        "provider": "codex-gpt-5-6-sol",
+        "model": "gpt-5.6-sol",
+        "latency": {
+          "samples": 5,
+          "min_ms": 5332.0,
+          "median_ms": 6571.0,
+          "p95_ms": 8792.4,
+          "max_ms": 8942.0,
+          "mean_ms": 7038.6
+        }
+      },
+      {
+        "role": "reasoner",
+        "provider": "codex-gpt-5-6-sol",
+        "model": "gpt-5.6-sol",
+        "latency": {
+          "samples": 2,
+          "min_ms": 6721.0,
+          "median_ms": 7095.0,
+          "p95_ms": 7431.599999999999,
+          "max_ms": 7469.0,
+          "mean_ms": 7095.0
+        }
+      },
+      {
+        "role": "verifier",
+        "provider": "codex-gpt-5-6-sol",
+        "model": "gpt-5.6-sol",
+        "latency": {
+          "samples": 5,
+          "min_ms": 8489.0,
+          "median_ms": 9192.0,
+          "p95_ms": 12026.8,
+          "max_ms": 12688.0,
+          "mean_ms": 9781.8
+        }
+      }
+    ],
+    "model_failures": 0,
+    "actions_checkpointed": 5,
+    "actions_attempted": 5,
+    "actions_completed": 5,
+    "action_recoverable_failures": 0,
+    "repeated_actions_stopped": 0,
+    "non_idempotent_retries_stopped": 0,
+    "provider_attempts": 12,
+    "provider_failures": 0,
+    "provider_fallbacks": 0,
+    "provider_schema_repairs": 0,
+    "action_latency": {
+      "samples": 5,
+      "min_ms": 3795.027,
+      "median_ms": 4670.956999999999,
+      "p95_ms": 7690.8949999999995,
+      "max_ms": 8375.999,
+      "mean_ms": 5286.5376
+    },
+    "completion_efficiency": 1.0
+  },
+  "run_state_path": "/home/kieran/dev/pikvm-agent/bench/results/2026-07-24/osworld/e0df059f-rename-folder-r2/harness.sqlite3",
+  "artifact_dir": "/home/kieran/dev/pikvm-agent/bench/results/2026-07-24/osworld/e0df059f-rename-folder-r2/artifacts",
+  "report_path": "/home/kieran/dev/pikvm-agent/bench/results/2026-07-24/osworld/e0df059f-rename-folder-r2/report.json"
+}

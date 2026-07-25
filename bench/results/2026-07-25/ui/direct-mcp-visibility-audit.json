@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-25",
+  "status": "pass",
+  "scope": "direct MCP visibility, operator control, UI, and local overhead",
+  "environment": {
+    "machine_target": "none",
+    "browser_target": "loopback-only synthetic harness fixture",
+    "frame_source": "existing static benchmark screenshot",
+    "production_pikvm_contacted": false,
+    "vnc_contacted": false
+  },
+  "behavior": {
+    "integration_tests": 10,
+    "direct_call_recorded_before_tool_body": true,
+    "exact_non_secret_arguments_visible": true,
+    "secret_marked_text_redacted": true,
+    "caller_provider_and_model_visible": true,
+    "operator_pause_blocks_future_hid": true,
+    "read_only_observation_allowed_while_paused": true,
+    "direct_model_self_approval_blocked": true,
+    "approval_requires_authenticated_id_bound_ui_request": true,
+    "operator_stop_aborts_and_latches_session": true,
+    "guarded_mode_fails_closed_before_tool_body": true,
+    "observe_mode_preserves_existing_tool_availability": true,
+    "completion_telemetry_failure_cannot_turn_completed_hid_into_tool_failure": true,
+    "completed_tool_result_keeps_direct_session_running": true,
+    "completion_telemetry_survives_coordinator_restart": true
+  },
+  "browser": {
+    "authenticated_console": true,
+    "direct_mcp_badge": true,
+    "live_frame_rendered": true,
+    "pause_resume_exercised": true,
+    "synthetic_teams_send_rejected": true,
+    "rejection_audit_retained": true,
+    "console_errors": 0,
+    "narrow_viewport": {
+      "requested_css_pixels": {
+        "width": 390,
+        "height": 844
+      },
+      "client_width": 375,
+      "scroll_width": 375,
+      "horizontal_overflow": false,
+      "live_screen_width": 360,
+      "transaction_width": 360,
+      "timeline_width": 360
+    }
+  },
+  "microbenchmark": {
+    "cases": 100,
+    "storage": "sqlite",
+    "transport": "in-process ASGI HTTP",
+    "tool_body": "deterministic no-op screenshot metadata",
+    "baseline": {
+      "median_ms": 0.014,
+      "p95_ms": 0.018,
+      "wall_ms": 1.551,
+      "calls_per_second": 64492.75
+    },
+    "guarded_visibility": {
+      "median_ms": 6.696,
+      "p95_ms": 7.538,
+      "wall_ms": 695.429,
+      "calls_per_second": 143.8
+    },
+    "incremental_overhead": {
+      "median_ms": 6.682,
+      "p95_ms": 7.521
+    },
+    "durable_events_after_warmup_and_measurement": 213,
+    "limitations": [
+      "This isolates harness persistence and in-process HTTP serialization.",
+      "It excludes socket, model, screenshot, OCR, HID, and remote-machine latency.",
+      "It is a local diagnostic, not a production latency service-level objective."
+    ]
+  }
+}

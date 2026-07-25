@@ -1,0 +1,139 @@
+{
+  "schema_version": 1,
+  "kind": "target_continuity_and_human_concurrency_audit",
+  "date": "2026-07-25",
+  "status": "passed",
+  "environment": {
+    "computer": "isolated FakeBackend",
+    "daemon": "loopback isolated non-production port",
+    "harness": "loopback isolated non-production port",
+    "production_target_contacted": false,
+    "external_vnc_target_contacted": false,
+    "model_invoked": false
+  },
+  "contracts": [
+    {
+      "name": "safe configured target identity",
+      "result": "passed",
+      "evidence": "Every opened session and frame exposed alias, hashed fingerprint, desktop layer, and configured-target attestation without returning the endpoint or explicit machine id."
+    },
+    {
+      "name": "approval target binding",
+      "result": "passed",
+      "evidence": "Direct-burst approval requests carried the same machine identity and the action digest included session id plus target fingerprint."
+    },
+    {
+      "name": "managed target continuity",
+      "result": "passed",
+      "evidence": "A changed target fingerprint blocked the managed harness before verification and could not be resumed in the same run."
+    },
+    {
+      "name": "direct MCP target continuity",
+      "result": "passed",
+      "evidence": "A changed target fingerprint latched the visible direct-MCP run blocked and refused its next mutating call."
+    },
+    {
+      "name": "manual input epoch revocation",
+      "result": "passed",
+      "evidence": "A reported human cursor move incremented every live session control epoch; a burst planned under the earlier epoch executed zero HID calls."
+    },
+    {
+      "name": "concurrent client exclusion",
+      "result": "passed",
+      "evidence": "A second machine client incremented the epoch and returned control_changed before any HID call."
+    },
+    {
+      "name": "responsive operator visibility",
+      "result": "passed",
+      "evidence": "A real browser showed the fingerprint, machine alias, VNC compatibility layer, live frame, frame/world/epoch, transaction, timeline, pause, and stop at desktop and 390x844."
+    },
+    {
+      "name": "live-stream graceful shutdown",
+      "result": "passed",
+      "evidence": "With an authenticated run-event stream held open, one SIGINT shut down the harness in 0.417 seconds. The server emitted no forced-timeout error or traceback, the stream client exited normally, and no second signal was needed."
+    }
+  ],
+  "ui_mobile": {
+    "requested_viewport_css_px": [
+      390,
+      844
+    ],
+    "document_client_width_css_px": 375,
+    "document_scroll_width_css_px": 375,
+    "workspace_client_width_css_px": 360,
+    "live_screen_client_width_css_px": 360,
+    "transaction_client_width_css_px": 360,
+    "timeline_client_width_css_px": 360,
+    "target_header_client_width_css_px": 252,
+    "target_header_scroll_width_css_px": 269,
+    "fingerprint_precedes_truncated_layer_text": true,
+    "console_errors": 0
+  },
+  "managed_mcp_open_latency_ms": {
+    "sample_size": 10,
+    "sequential": true,
+    "median": 44.682,
+    "p95_linear": 55.544,
+    "maximum": 57.404,
+    "samples": [
+      50.105,
+      53.27,
+      57.404,
+      47.296,
+      43.678,
+      40.47,
+      44.955,
+      36.866,
+      44.409,
+      36.592
+    ],
+    "includes": [
+      "authenticated harness API",
+      "SQLite run checkpoint",
+      "persistent MCP stdio call",
+      "isolated daemon HTTP",
+      "fake frame capture",
+      "inline image unpack and artifact write"
+    ],
+    "excludes": [
+      "real video transport",
+      "OCR",
+      "model inference",
+      "HID",
+      "remote machine latency"
+    ]
+  },
+  "active_sse_shutdown": {
+    "open_authenticated_stream": true,
+    "signals_sent": 1,
+    "signal": "SIGINT",
+    "server_exit_elapsed_s": 0.417,
+    "second_signal_required": false,
+    "forced_graceful_timeout": false,
+    "traceback": false,
+    "stream_client_exit_code": 0,
+    "isolated_ports_closed_afterward": true
+  },
+  "verification": {
+    "focused_tests": {
+      "passed": 63,
+      "elapsed_s": 1.87
+    },
+    "full_suite": {
+      "passed": 507,
+      "skipped": 1,
+      "elapsed_s": 42.46
+    },
+    "javascript_syntax": "passed",
+    "python_compilation": "passed_with_external_bytecode_cache",
+    "similarity_scan": {
+      "tool": "similarity-py",
+      "actionable_new_duplication": false
+    }
+  },
+  "limitations": [
+    "The fingerprint proves continuity with configured target selection; it is not hardware or guest attestation.",
+    "Foreground process, focused control, and nested guest identity still require observer or visual evidence.",
+    "The latency sample uses a fake computer and is a local integration diagnostic, not a service-level objective."
+  ]
+}

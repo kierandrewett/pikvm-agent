@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-07-25",
+  "environment": {
+    "backend": "isolated fake machine",
+    "frame_size": {
+      "width": 1280,
+      "height": 720
+    },
+    "production_pikvm_touched": false,
+    "remote_endpoint_persisted": false
+  },
+  "route": {
+    "provider": "codex-ui-audit",
+    "model": "gpt-5.6-sol"
+  },
+  "visual_evidence": {
+    "authenticated_gate": true,
+    "live_frame": true,
+    "plan": true,
+    "world_and_control_metadata": true,
+    "exact_action_arguments": true,
+    "idempotency_key": true,
+    "provider_attempts": true,
+    "before_hid_checkpoint": true,
+    "verifier_evidence": true,
+    "pause_and_stop_controls": true
+  },
+  "defects_found": [
+    {
+      "id": "continue-stop-cancellation-500",
+      "observed": "Stop aborted the run, but the concurrent Continue request surfaced HTTP 500.",
+      "root_cause": "The abort path cancelled the task serving Continue and asyncio.CancelledError escaped through Starlette middleware.",
+      "resolution": "Continue now returns the latest durable run snapshot after cancellation.",
+      "regression_test": "tests/test_harness_api.py::test_operator_abort_does_not_turn_cancelled_continue_into_http_500"
+    },
+    {
+      "id": "access-token-minimum-drift",
+      "observed": "The launcher required 32 characters while the API and browser accepted 16.",
+      "root_cause": "The minimum was duplicated in three layers.",
+      "resolution": "All layers now use the 32-character contract exposed by the harness configuration.",
+      "regression_tests": [
+        "tests/test_harness_api.py::test_harness_api_uses_the_same_32_character_token_floor_as_launcher",
+        "tests/test_harness_ui.py"
+      ]
+    }
+  ],
+  "post_fix_live_race": {
+    "run_id": "289e1c46-7c32-487b-acdc-cb48c2e4ff44",
+    "continue_http_status": 200,
+    "abort_http_status": 200,
+    "durable_final_status": "aborted",
+    "server_traceback": false
+  },
+  "automated_verification": {
+    "pytest_passed": 450,
+    "pytest_skipped": 1,
+    "javascript_syntax": "passed",
+    "git_diff_check": "passed"
+  },
+  "claim_limits": [
+    "The test used an isolated fake machine, not the Windows VNC accuracy observer.",
+    "The post-fix race was verified at the live HTTP boundary; the initial defect was discovered through the rendered UI.",
+    "The web stop path is not independent of the operator web process."
+  ]
+}

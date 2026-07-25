@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "suite": "osworld-verified",
+  "suite_revision": "b7db4d8c85d9e95e0b1db44de5bec954cf37f0cf",
+  "task_id": "a4d98375-215b-4a4d-aee9-3d4370fccc41",
+  "attempt": "r2",
+  "outcome": "infrastructure-failed",
+  "official_score": null,
+  "counted_as_task_result": false,
+  "elapsed_seconds": 23.033,
+  "model_calls": 0,
+  "hid_actions": 0,
+  "failure": "The transient lab adapter did not become ready.",
+  "resolution": "Quiet lab processes now preserve adapter and daemon stdout/stderr under the attempt directory instead of discarding them."
+}

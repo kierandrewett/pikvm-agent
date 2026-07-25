@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "suite": "osworld-verified",
+  "suite_revision": "b7db4d8c85d9e95e0b1db44de5bec954cf37f0cf",
+  "task_id": "b6781586-6346-41cd-935a-a6b1487918fc",
+  "run_id": "24fe7454-4b9a-49a1-b147-4653f31245dc",
+  "classification": "unscored-retry-loop-diagnostic",
+  "official_score": null,
+  "reason": "Provider timeout cleanup returned correctly, but the benchmark outer loop retried the unchanged model-only state. The disposable run was interrupted to add a no-action-progress circuit breaker; no evaluator result was invented.",
+  "elapsed_seconds": 430.852,
+  "actions_attempted": 10,
+  "actions_completed": 10,
+  "recoverable_action_failures": 0,
+  "provider_attempts_started": 26,
+  "provider_attempts_completed": 22,
+  "provider_attempts_failed": 2,
+  "fixes": [
+    "Timed-out process results are classified as timeout rather than provider-error.",
+    "Automated OSWorld runs stop after two cycles without durable action progress."
+  ],
+  "container_cleanup_confirmed": true,
+  "production_target_contacted": false
+}

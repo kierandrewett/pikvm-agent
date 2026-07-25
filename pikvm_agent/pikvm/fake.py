@@ -43,6 +43,7 @@ class FakeBackend:
         self._frame = render_frame("desktop", (width, height))
         self.calls: list[tuple[str, dict[str, Any]]] = []
         self._cursor = {"x": width // 2, "y": height // 2, "trusted": False}
+        self.other_client_count = 0
 
     # ---- test/dev controls ----------------------------------------------- #
 
@@ -91,10 +92,10 @@ class FakeBackend:
         self._cursor = {"x": x, "y": y, "trusted": True}
 
     def cursor(self) -> dict[str, Any]:
-        return {**self._cursor, "other_clients": 0}
+        return {**self._cursor, "other_clients": self.other_client_count}
 
     def other_clients(self) -> int:
-        return 0
+        return self.other_client_count
 
     def set_cursor_from_norm(self, nx: float, ny: float) -> None:
         w, h = self.dims["width"], self.dims["height"]

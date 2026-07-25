@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "suite": "osworld-verified",
+  "suite_revision": "b7db4d8c85d9e95e0b1db44de5bec954cf37f0cf",
+  "task_id": "a4d98375-215b-4a4d-aee9-3d4370fccc41",
+  "classification": "external_sigterm_partial_run",
+  "run_id": "36a15a16-ff8b-4552-9f84-c1f9caa9a868",
+  "harness_created_at": "2026-07-25T00:07:46.369919Z",
+  "last_checkpoint_at": "2026-07-25T00:11:04.692172Z",
+  "harness_elapsed_seconds": 198.322,
+  "checkpointed_action_index": 7,
+  "automatic_screen_lock_visibly_enabled": true,
+  "official_score": null,
+  "active_hid_at_termination": false,
+  "cleanup": {
+    "orphaned_container": "fd5ff9a369b3",
+    "container_stopped": true,
+    "lab_ports_closed": true
+  },
+  "note": "The runner received SIGTERM while the verifier provider was active after action 7. No official evaluator was run, so this is not a scored result."
+}

@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-07-25",
+  "provider": "tesseract",
+  "corpus": {
+    "cases": 1000,
+    "corpus_seed": 104729,
+    "evaluation_seed": 65537,
+    "category_count": 10,
+    "cases_per_category": 100,
+    "blind_ground_truth_release": "after every OCR call completed"
+  },
+  "accuracy": {
+    "exact_matches": 325,
+    "exact_rate": 0.325,
+    "normalized_exact_matches": 440,
+    "normalized_exact_rate": 0.44,
+    "mean_character_error_rate": 0.028299626384575272,
+    "provider_errors": 0
+  },
+  "performance": {
+    "jobs": 4,
+    "median_latency_ms": 164,
+    "p95_latency_ms": 226,
+    "evaluation_wall_ms": 42375,
+    "throughput_images_per_second": 23.59882005899705
+  },
+  "normalized_exact_rate_by_category": {
+    "code": 0.65,
+    "identifier": 0.61,
+    "mixed_case": 0.52,
+    "numeric": 0,
+    "path": 0.23,
+    "prose": 0.82,
+    "punctuation": 0,
+    "terminal": 0.58,
+    "ui_label": 0.85,
+    "url": 0.14
+  },
+  "confidence_safety": {
+    "threshold_0_90": {
+      "covered_cases": 224,
+      "coverage": 0.224,
+      "normalized_exact_rate": 0.8660714285714286,
+      "wrong_cases": 30
+    },
+    "threshold_0_95": {
+      "covered_cases": 28,
+      "coverage": 0.028,
+      "normalized_exact_rate": 1,
+      "wrong_cases": 0
+    }
+  },
+  "verification": {
+    "explicit_pytest_release_gate": {
+      "passed": 1,
+      "failed": 0,
+      "elapsed_seconds": 74.59
+    },
+    "full_report_sha256": "b2c52ef0ea4a57c8c76970285be8ed32a10ef654318bbe396a0278079602a1f4",
+    "full_report_bytes": 1188518,
+    "full_report_location": "disposable local /tmp output; summary retained here"
+  },
+  "isolation": {
+    "computer_target_contacted": false,
+    "production_pikvm_touched": false,
+    "vnc_contacted": false,
+    "hid_emitted": false
+  },
+  "verdict": "failing production OCR release gate"
+}

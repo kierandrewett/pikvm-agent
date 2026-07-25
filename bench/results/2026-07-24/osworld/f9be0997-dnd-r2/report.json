@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "suite": "osworld-verified",
+  "suite_revision": "b7db4d8c85d9e95e0b1db44de5bec954cf37f0cf",
+  "task_id": "f9be0997-4b7c-45c5-b05c-4612b44a6118",
+  "domain": "os",
+  "instruction": "I am currently working on a ubuntu system but I do not want the notifications to bother me. Can you help me to switch to 'Do not disturb mode'?",
+  "docker_image": "happysixd/osworld-docker:latest",
+  "docker_image_id": "sha256:0e6497a9295647cf05bf2b2af522fdd79bdeba2737595259cab310a3bcf6baa9",
+  "vm_image_sha256": "6bf667a852b3c307f61d9f09c42559351f45e0607e428b4997becf534cf4d313",
+  "control_plane": "agent-harness -> MCP stdio -> isolated daemon",
+  "target_adapter": "official in-guest server through PiKVM-shaped lab",
+  "harness_status": "needs_approval",
+  "official_score": 1.0,
+  "evaluator": "exact_match(vm_command_line, rule)",
+  "approvals_required": 1,
+  "cycles": 4,
+  "performance": {
+    "run_id": "9d87d0ee-4703-4e20-847f-5916902b3ea1",
+    "status": "needs_approval",
+    "wall_clock_ms": 79701,
+    "model_active_ms": 71910,
+    "model_lanes": [
+      {
+        "role": "controller",
+        "provider": "codex-gpt-5-6-sol",
+        "model": "gpt-5.6-sol",
+        "latency": {
+          "samples": 4,
+          "min_ms": 5660.0,
+          "median_ms": 6907.0,
+          "p95_ms": 8915.999999999998,
+          "max_ms": 9225.0,
+          "mean_ms": 7174.75
+        }
+      },
+      {
+        "role": "reasoner",
+        "provider": "codex-gpt-5-6-sol",
+        "model": "gpt-5.6-sol",
+        "latency": {
+          "samples": 4,
+          "min_ms": 6622.0,
+          "median_ms": 7041.5,
+          "p95_ms": 7295.55,
+          "max_ms": 7314.0,
+          "mean_ms": 7004.75
+        }
+      },
+      {
+        "role": "verifier",
+        "provider": "codex-gpt-5-6-sol",
+        "model": "gpt-5.6-sol",
+        "latency": {
+          "samples": 2,
+          "min_ms": 7535.0,
+          "median_ms": 7596.0,
+          "p95_ms": 7650.9,
+          "max_ms": 7657.0,
+          "mean_ms": 7596.0
+        }
+      }
+    ],
+    "model_failures": 0,
+    "actions_checkpointed": 4,
+    "actions_attempted": 4,
+    "actions_completed": 2,
+    "action_recoverable_failures": 0,
+    "repeated_actions_stopped": 0,
+    "action_latency": {
+      "samples": 2,
+      "min_ms": 2232.0570000000002,
+      "median_ms": 2452.956,
+      "p95_ms": 2651.7651,
+      "max_ms": 2673.855,
+      "mean_ms": 2452.956
+    },
+    "completion_efficiency": 0.5
+  },
+  "run_state_path": "/home/kieran/dev/pikvm-agent/bench/results/2026-07-24/osworld/f9be0997-dnd-r2/harness.sqlite3",
+  "artifact_dir": "/home/kieran/dev/pikvm-agent/bench/results/2026-07-24/osworld/f9be0997-dnd-r2/artifacts",
+  "report_path": "/home/kieran/dev/pikvm-agent/bench/results/2026-07-24/osworld/f9be0997-dnd-r2/report.json"
+}

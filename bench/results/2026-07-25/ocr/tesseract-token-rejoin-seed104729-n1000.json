@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-07-25",
+  "provider": "tesseract-psm6-upscale2-ensemble",
+  "change": "pixel-gap and token-syntax fragment rejoining",
+  "corpus": {
+    "cases": 1000,
+    "corpus_seed": 104729,
+    "evaluation_seed": 65537,
+    "blind_ground_truth_release": "after every OCR call completed"
+  },
+  "comparison": {
+    "baseline_normalized_exact_matches": 440,
+    "current_normalized_exact_matches": 541,
+    "absolute_match_gain": 101,
+    "baseline_matches_lost": 0,
+    "baseline_normalized_exact_rate": 0.44,
+    "current_normalized_exact_rate": 0.541,
+    "absolute_percentage_point_gain": 10.1,
+    "baseline_mean_character_error_rate": 0.028299626384575272,
+    "current_mean_character_error_rate": 0.022749098454991297
+  },
+  "accuracy": {
+    "exact_matches": 426,
+    "exact_rate": 0.426,
+    "normalized_exact_matches": 541,
+    "normalized_exact_rate": 0.541,
+    "mean_character_error_rate": 0.022749098454991297,
+    "provider_errors": 0
+  },
+  "normalized_exact_rate_by_category": {
+    "code": 0.65,
+    "identifier": 0.68,
+    "mixed_case": 0.52,
+    "numeric": 0.0,
+    "path": 0.64,
+    "prose": 0.82,
+    "punctuation": 0.0,
+    "terminal": 0.75,
+    "ui_label": 0.85,
+    "url": 0.5
+  },
+  "performance": {
+    "jobs": 4,
+    "median_latency_ms": 153,
+    "p95_latency_ms": 213.05,
+    "evaluation_wall_ms": 39646,
+    "throughput_images_per_second": 25.223225546082833
+  },
+  "confidence_safety": {
+    "threshold_0_90": {
+      "covered_cases": 223,
+      "coverage": 0.223,
+      "normalized_exact_rate": 0.905829596412556,
+      "wrong_cases": 21
+    },
+    "threshold_0_95": {
+      "covered_cases": 28,
+      "coverage": 0.028,
+      "normalized_exact_rate": 1.0,
+      "wrong_cases": 0
+    }
+  },
+  "release_gate": {
+    "result": "fail",
+    "minimum_normalized_exact_rate": 0.99,
+    "maximum_mean_character_error_rate": 0.001,
+    "minimum_normalized_exact_rate_per_category": 0.95,
+    "provider_errors_allowed": 0,
+    "failed_checks": [
+      "overall normalized exact rate",
+      "overall mean character error rate",
+      "prose category",
+      "ui_label category",
+      "code category",
+      "terminal category",
+      "path category",
+      "url category",
+      "identifier category",
+      "numeric category",
+      "punctuation category",
+      "mixed_case category"
+    ]
+  },
+  "remaining_release_failures": [
+    "numeric normalized exactness is 0/100",
+    "punctuation normalized exactness is 0/100",
+    "confidence below 0.95 is not safe authority for exact text"
+  ],
+  "isolation": {
+    "computer_target_contacted": false,
+    "production_pikvm_touched": false,
+    "vnc_contacted": false,
+    "hid_emitted": false
+  },
+  "verdict": "material improvement; still failing production OCR release gate"
+}

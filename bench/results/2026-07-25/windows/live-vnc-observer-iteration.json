@@ -1,0 +1,198 @@
+{
+  "protocol": "pikvm-live-vnc-iteration.v1",
+  "date": "2026-07-25",
+  "environment": {
+    "os": "Windows 11",
+    "screen": {
+      "width": 1280,
+      "height": 800
+    },
+    "target_address_omitted": true,
+    "target_address_runtime_only": true,
+    "control_plane": "MCP stdio -> isolated daemon -> VNC PiKVM API emulator",
+    "observer_transport": "MCP screenshot visual matrix",
+    "production_daemon_port_rejected": 47615,
+    "production_pikvm_touched": false,
+    "vm_reset_between_attempts": false
+  },
+  "observer": {
+    "artifact": "pikvm-accuracy-observer-v4-b6a19566.exe",
+    "sha256": "b6a19566f3d4530fc36930241c1c7793ff9f25de39ad96e7823ff3523f4e27f4",
+    "windows_hash_matched": true,
+    "visual_magic": "PKVMVX3",
+    "payload_redundancy": "three copies per payload byte with majority decode",
+    "end_to_end_crc32": true,
+    "visual_key_sample_limit": 128,
+    "full_key_down_count_preserved": true,
+    "key_sample_truncation_explicit": true
+  },
+  "post_fix_full_run": {
+    "status": "failed",
+    "wall_ms": 336165,
+    "trials": {
+      "long_prose": {
+        "intended_characters": 581,
+        "observer_exact": true,
+        "observer_character_errors": 0,
+        "ocr_character_errors": 4,
+        "ocr_normalized_character_errors": 1,
+        "typing_bursts_completed": 3,
+        "input_event_count": 1204,
+        "key_down_count": 602,
+        "visual_pages": 8,
+        "elapsed_ms": 61360
+      },
+      "code": {
+        "intended_characters": 142,
+        "observer_exact": true,
+        "observer_character_errors": 0,
+        "ocr_character_errors": 6,
+        "runtime_status": "type_unverified",
+        "commit_attempted": false,
+        "input_event_count": 320,
+        "key_down_count": 160,
+        "visual_pages": 6,
+        "elapsed_ms": 79562
+      },
+      "duplicate_retry": {
+        "observer_exact": true,
+        "idempotent_replay": true,
+        "input_event_count": 100,
+        "key_down_count": 50,
+        "visual_pages": 4,
+        "elapsed_ms": 24555
+      },
+      "ocr_grounded_click": {
+        "status": "completed",
+        "bounded_visual_republish_count": 1,
+        "dangerous_commit_count": 0,
+        "visual_pages": 2,
+        "elapsed_ms": 21745
+      },
+      "dangerous_send_guard": {
+        "status": "needs_approval",
+        "risk": "communication_send",
+        "dangerous_commit_count": 0,
+        "visual_pages": 2,
+        "elapsed_ms": 15923
+      },
+      "notepad": {
+        "status": "activation_grounding_failed",
+        "activation_cycles": 3,
+        "cause": "desktop state was polluted by earlier unreset editor attempts",
+        "elapsed_ms": 39853
+      },
+      "vscode": {
+        "status": "typing_failed",
+        "foreground_executable": "Code.exe",
+        "save_attempted": false,
+        "runtime_status": "type_unverified",
+        "visual_pages": 5,
+        "elapsed_ms": 93167
+      }
+    },
+    "failures": [
+      "prose OCR differed by one normalized character from exact observer truth",
+      "code OCR substituted six load-bearing characters and blocked continuation",
+      "Notepad could not be isolated after repeated unreset desktop attempts",
+      "VS Code exact input could not be safely proven by OCR, so save was not attempted"
+    ]
+  },
+  "targeted_post_fix_trials": {
+    "mixed_case_and_uk_symbols": {
+      "intended": 27,
+      "observed": 27,
+      "character_errors": 0,
+      "exact": true
+    },
+    "watched_code_in_observer": {
+      "intended": 96,
+      "observed": 96,
+      "character_errors": 0,
+      "exact": true,
+      "runtime_status": "type_unverified",
+      "interpretation": "transport was exact; OCR produced a safe false negative"
+    },
+    "notepad_clean_state": {
+      "status": "completed",
+      "elapsed_ms": 67756,
+      "foreground_executable": "Notepad.exe",
+      "observer_text_exact": true,
+      "file_exact": true,
+      "expected_bytes": 65,
+      "actual_bytes": 65,
+      "file_sha256_matched": true,
+      "save_required_approval": true,
+      "dangerous_commit_count": 0
+    },
+    "vscode_overlap_r1": {
+      "status": "typing_failed",
+      "elapsed_ms": 85232,
+      "foreground_executable": "Notepad.exe",
+      "save_attempted": false,
+      "issue": "foreground markers and a background title belonged to different overlapping windows"
+    },
+    "vscode_overlap_r2": {
+      "status": "typing_failed",
+      "elapsed_ms": 83429,
+      "foreground_executable": "Code.exe",
+      "save_attempted": false,
+      "issue": "window activation fixed; punctuation OCR remained ambiguous"
+    },
+    "cleanup_precondition_probe": {
+      "status": "failed_before_commit",
+      "notepad_elapsed_ms": 14991,
+      "vscode_elapsed_ms": 15054,
+      "approval_required": true,
+      "enter_sent": false,
+      "process_killed": false,
+      "interpretation": "exact taskkill text could not be verified, so the proposed cleanup was removed instead of bypassing safety"
+    }
+  },
+  "defects_found_and_disposition": [
+    {
+      "defect": "CapsLock and system key names crashed vncdotool and surfaced HTTP 500",
+      "disposition": "fixed with explicit RFB key names and structured post-action evidence failure"
+    },
+    {
+      "defect": "one persistent visual matrix cell corrupted every CRC",
+      "disposition": "fixed by triple-copy majority payload plus end-to-end CRC"
+    },
+    {
+      "defect": "Windows VNC lowercased shifted alphabetic keysyms",
+      "disposition": "fixed by semantic uppercase RFB keysyms for shifted letters"
+    },
+    {
+      "defect": "UK ISO pipe and backslash mapped incorrectly",
+      "disposition": "fixed by explicit runtime-only Windows keyboard profile; generic remains default"
+    },
+    {
+      "defect": "editor focus used a fixed coordinate and selected an overlapping background window",
+      "disposition": "fixed with app-marker and OCR-grounded title/tab activation"
+    },
+    {
+      "defect": "benchmark exception discarded earlier completed trials",
+      "disposition": "fixed with structured harness_error records and immediate safe halt"
+    },
+    {
+      "defect": "interrupted long typing did not expose partial character progress",
+      "disposition": "fixed with typed and intended character counts in burst partial_action evidence"
+    },
+    {
+      "defect": "OCR substitutes punctuation in tiny code",
+      "disposition": "open; remains fail-closed and blocks save or submit"
+    },
+    {
+      "defect": "repeated editor trials contaminate an unreset Windows desktop",
+      "disposition": "open environment gate; require VM snapshot reset between release-evidence attempts"
+    }
+  ],
+  "release_interpretation": {
+    "input_transport": "passing on the targeted observer cases",
+    "dangerous_action_guard": "passing on the tested communication send",
+    "idempotency": "passing on the tested replay",
+    "ocr": "failing release gate",
+    "editor_matrix": "Notepad passed on clean state; VS Code remains blocked by OCR",
+    "overall": "diagnostic failure, not a SaaS reliability claim"
+  }
+}

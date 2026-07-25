@@ -32,3 +32,13 @@ config.local.yaml
 .vscode/
 .idea/
 bench/screens/
+.benchmark-cache/
+
+# Benchmark reports are public; bulky replay/runtime artifacts stay local.
+bench/results/**/artifacts/
+bench/results/**/*.jpg
+bench/results/**/*.png
+bench/results/**/*.log
+bench/results/**/*.jsonl
+bench/results/**/*.txt
+bench/results/**/*.yaml

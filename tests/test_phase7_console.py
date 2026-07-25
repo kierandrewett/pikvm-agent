@@ -3,6 +3,8 @@ the memory-update export route returns a redacted Atlas proposal."""
 
 from __future__ import annotations
 
+import json
+
 from fastapi.testclient import TestClient
 
 from pikvm_agent.config import AppConfig
@@ -30,7 +32,12 @@ def test_status_endpoint(app_config: AppConfig) -> None:
         assert set(deps["omniparser"]) >= {"enabled", "required", "reachable"}
         assert deps["omniparser"]["enabled"] is False  # default test config
         assert "reachable" in deps["pikvm"]
+        assert "base_url" not in deps["pikvm"]
+        assert body["machine"]["fingerprint"].startswith("target:")
+        assert "pikvm.local" not in json.dumps(body["machine"])
         assert {"provider", "configured"} <= set(deps["operator"])
+        assert deps["operator"]["routing"]["reasoner_lane"] == "hard"
+        assert deps["operator"]["routing"]["controller_lane"] == "cheap"
         assert "provider" in deps["ocr"] and "available" in deps["ocr"]
         # FakeBackend is reachable + the fake operator is "configured" ⇒ ready.
         assert deps["pikvm"]["reachable"] is True
@@ -56,6 +63,27 @@ def test_console_data_endpoints(app_config: AppConfig) -> None:
         trace = c.get(f"/sessions/{sid}/trace").json()
         assert any(e["kind"] == "observe" for e in trace)
         assert c.get(f"/sessions/{sid}/approvals").json() == []
+
+
+def test_preview_frame_is_live_but_does_not_mutate_session_freshness(
+    app_config: AppConfig,
+) -> None:
+    app = create_app(app_config)
+    with TestClient(app) as c:
+        sid = c.post("/sessions", json={"task": "observe the desktop"}).json()[
+            "session_id"
+        ]
+
+        preview = c.get(f"/sessions/{sid}/preview-frame")
+
+        assert preview.status_code == 200
+        assert preview.headers["content-type"].startswith("image/")
+        assert preview.headers["x-pikvm-frame-mode"] == "preview"
+        assert c.get(f"/sessions/{sid}/frame").status_code == 404
+        assert not any(
+            event["kind"] == "observe"
+            for event in c.get(f"/sessions/{sid}/trace").json()
+        )
 
 
 def test_memory_update_export_route(app_config: AppConfig) -> None:

@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "suite": "osworld-verified",
+  "suite_revision": "b7db4d8c85d9e95e0b1db44de5bec954cf37f0cf",
+  "task_id": "5ea617a3-0e86-4ba6-aab2-dac9aa2e8d57",
+  "instruction": "I am currently using an Ubuntu system, and I have wrongly deleted a poster of party night. Could you help me recover it from the Trash?",
+  "status": "unsupported_setup",
+  "reason": "download setup records were not supported by the tracer",
+  "official_score": null,
+  "elapsed_seconds": 19.901,
+  "vm_started": true,
+  "model_calls": 0,
+  "hid_actions": 0,
+  "production_target_contacted": false,
+  "resolution": "download setup is now reproduced outside the model boundary and unknown setup types fail during preflight before VM startup"
+}

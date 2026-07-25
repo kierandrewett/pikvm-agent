@@ -1,0 +1,129 @@
+{
+  "schema_version": 1,
+  "kind": "windows_observer_environment_identity_probe",
+  "date": "2026-07-25",
+  "status": "passed",
+  "environment": {
+    "computer": "disposable Windows VNC VM",
+    "control_plane": "persistent MCP stdio -> isolated daemon -> VNC PiKVM API emulator",
+    "oracle_transport": "MCP screenshot visual matrix",
+    "production_daemon_port_rejected": 47615,
+    "production_target_contacted": false,
+    "endpoint_retained": false,
+    "model_invoked": false
+  },
+  "observer": {
+    "binary_sha256": "f36be9adeefd9f9fd5745dad22f04feaa0d8b3ac266edd70659450e1f3bdbf42",
+    "binary_size_bytes": 1086464,
+    "platform": "PE32+ x86-64 Windows GUI",
+    "guest_identity_source": "source-side domain-separated SHA-256 of Windows machine identity",
+    "raw_machine_identity_exported": false
+  },
+  "contracts": [
+    {
+      "name": "exact guest identity",
+      "result": "passed",
+      "evidence": "The observer returned a schema-valid opaque guest fingerprint; raw MachineGuid and computer name remained inside Windows."
+    },
+    {
+      "name": "Windows session identity",
+      "result": "passed",
+      "evidence": "The visual oracle returned guest session 1."
+    },
+    {
+      "name": "input desktop identity",
+      "result": "passed",
+      "evidence": "The visual oracle returned input desktop Default."
+    },
+    {
+      "name": "foreground process identity",
+      "result": "passed",
+      "evidence": "The snapshot returned observer.exe and a non-null foreground process id."
+    },
+    {
+      "name": "focused control identity",
+      "result": "passed",
+      "evidence": "The snapshot returned Windows control class Edit and control id 1001."
+    },
+    {
+      "name": "focus belongs to foreground",
+      "result": "passed",
+      "evidence": "GetGUIThreadInfo focus was confirmed inside the foreground window."
+    },
+    {
+      "name": "fail-closed release gate",
+      "result": "passed",
+      "evidence": "Missing or malformed guest, desktop, foreground-membership, and focused-control evidence produces a failing benchmark report."
+    }
+  ],
+  "live_probe": {
+    "screen_width": 1280,
+    "screen_height": 800,
+    "visual_pages": 2,
+    "elapsed_ms": 13625,
+    "foreground_executable": "observer.exe",
+    "foreground_process_id_observed": true,
+    "focused_control_class": "Edit",
+    "focused_control_id": 1001,
+    "focus_in_foreground": true,
+    "guest_fingerprint_observed": true,
+    "guest_session_id": 1,
+    "input_desktop": "Default",
+    "exact_empty_editor_state": true,
+    "dangerous_commits": 0
+  },
+  "wire_optimization": {
+    "same_contract_before_ms": 20698,
+    "same_contract_after_ms": 13625,
+    "saved_ms": 7073,
+    "latency_improvement_percent": 34.2,
+    "pages_before": 4,
+    "pages_after": 2,
+    "page_reduction_percent": 50.0,
+    "method": "compact visual-only JSON keys expanded into the same strict OracleSnapshot schema"
+  },
+  "failed_iterations_retained": [
+    {
+      "attempt": 1,
+      "result": "failed",
+      "cause": "observer-v4.exe still owned the registered snapshot hotkeys; the new fields were absent"
+    },
+    {
+      "attempt": 2,
+      "result": "failed",
+      "cause": "path-filtered PowerShell process cleanup did not stop observer-v4.exe"
+    },
+    {
+      "attempt": 3,
+      "result": "failed",
+      "cause": "wildcard PowerShell cleanup remained ineffective; the identity-only gate correctly failed"
+    },
+    {
+      "attempt": 4,
+      "result": "passed",
+      "cause": "explicit taskkill commands for known LAB-only observer image names transferred hotkey ownership to v5"
+    },
+    {
+      "attempt": 5,
+      "result": "passed",
+      "cause": "v6 retained the identity contract while compacting the visual wire format"
+    }
+  ],
+  "verification": {
+    "observer_cross_compile": "passed",
+    "focused_tests": {
+      "passed": 32,
+      "elapsed_s": 20.68
+    },
+    "full_suite": {
+      "passed": 517,
+      "skipped": 1,
+      "elapsed_s": 46.33
+    }
+  },
+  "limitations": [
+    "This exact helper is a disposable-lab oracle and is not installed on production customer machines.",
+    "The probe proves the Windows guest and desktop in which the observer runs; a nested remote desktop inside that guest needs its own observer or a separate visual identity contract.",
+    "The visual oracle is exact but 13.625 seconds is too slow for every production action; it is a benchmark checkpoint, not the hot control loop."
+  ]
+}

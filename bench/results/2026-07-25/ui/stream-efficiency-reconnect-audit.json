@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-07-25",
+  "scope": "production harness UI loaded in the in-app Chromium browser with deterministic local API and SSE fixtures",
+  "network_target_contacted": false,
+  "fixture": {
+    "durable_event_count_before_stream": 1200,
+    "visible_event_tail_before_stream": 2,
+    "forced_stream_disconnects": 1,
+    "expected_reconnects": 1,
+    "viewport": {
+      "width": 390,
+      "height": 844
+    }
+  },
+  "observed": {
+    "stream_connections": 2,
+    "connection_label": "Events live",
+    "durable_event_label": "1201 events \u00b7 latest 3",
+    "rendered_events": 3,
+    "efficiency": {
+      "wall_clock": "21s",
+      "model_active_and_calls": "420ms \u00b7 1",
+      "progress_actions": "2 / 2",
+      "recoveries_and_faults": "1 recover \u00b7 1 fault"
+    },
+    "layout": {
+      "window_inner_width": 390,
+      "document_width": 376,
+      "body_width": 368,
+      "horizontal_overflow": false
+    }
+  },
+  "result": "pass",
+  "notes": [
+    "The first SSE response emitted one event and then closed. The client reconnected with its next cursor and returned to a live state.",
+    "The run retained its durable event count while only the bounded visible tail was rendered.",
+    "The fixture intentionally used no live VNC or PiKVM endpoint and transmitted no production data."
+  ]
+}

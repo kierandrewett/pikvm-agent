@@ -1,0 +1,89 @@
+{
+  "schema_version": 2,
+  "suite": "osworld-verified",
+  "suite_revision": "b7db4d8c85d9e95e0b1db44de5bec954cf37f0cf",
+  "task_id": "b6781586-6346-41cd-935a-a6b1487918fc",
+  "domain": "os",
+  "instruction": "I want to set my current time zone to UTC+0. Can you help me?",
+  "docker_image": "happysixd/osworld-docker:latest",
+  "docker_image_id": "sha256:0e6497a9295647cf05bf2b2af522fdd79bdeba2737595259cab310a3bcf6baa9",
+  "vm_image_sha256": "6bf667a852b3c307f61d9f09c42559351f45e0607e428b4997becf534cf4d313",
+  "control_plane": "agent-harness -> MCP stdio -> isolated daemon",
+  "target_adapter": "official in-guest server through PiKVM-shaped lab",
+  "policy_profile": "isolated_benchmark",
+  "harness_status": "completed",
+  "official_score": 1.0,
+  "evaluator": "is_utc_0(vm_command_line)",
+  "approvals_required": 0,
+  "cycles": 11,
+  "performance": {
+    "run_id": "74efee30-4934-4f96-86ad-62bb2a92bebe",
+    "status": "completed",
+    "wall_clock_ms": 602091,
+    "model_active_ms": 491193,
+    "model_lanes": [
+      {
+        "role": "controller",
+        "provider": "codex-gpt-5-6-sol",
+        "model": "gpt-5.6-sol",
+        "latency": {
+          "samples": 23,
+          "min_ms": 5571.0,
+          "median_ms": 8697.0,
+          "p95_ms": 12841.499999999998,
+          "max_ms": 16098.0,
+          "mean_ms": 8956.260869565218
+        }
+      },
+      {
+        "role": "reasoner",
+        "provider": "codex-gpt-5-6-sol",
+        "model": "gpt-5.6-sol",
+        "latency": {
+          "samples": 9,
+          "min_ms": 6553.0,
+          "median_ms": 9991.0,
+          "p95_ms": 15224.4,
+          "max_ms": 16456.0,
+          "mean_ms": 10671.0
+        }
+      },
+      {
+        "role": "verifier",
+        "provider": "codex-gpt-5-6-sol",
+        "model": "gpt-5.6-sol",
+        "latency": {
+          "samples": 18,
+          "min_ms": 6844.0,
+          "median_ms": 10090.0,
+          "p95_ms": 15231.749999999998,
+          "max_ms": 15678.0,
+          "mean_ms": 10508.888888888889
+        }
+      }
+    ],
+    "model_failures": 0,
+    "actions_checkpointed": 23,
+    "actions_attempted": 23,
+    "actions_completed": 18,
+    "action_recoverable_failures": 5,
+    "repeated_actions_stopped": 0,
+    "non_idempotent_retries_stopped": 0,
+    "provider_attempts": 52,
+    "provider_failures": 0,
+    "provider_fallbacks": 0,
+    "provider_schema_repairs": 2,
+    "action_latency": {
+      "samples": 23,
+      "min_ms": 2793.0570000000002,
+      "median_ms": 3715.1200000000003,
+      "p95_ms": 4673.910400000001,
+      "max_ms": 5945.567999999999,
+      "mean_ms": 3817.29652173913
+    },
+    "completion_efficiency": 0.782608695652174
+  },
+  "run_state_path": "/home/kieran/dev/pikvm-agent/bench/results/2026-07-25/osworld/b6781586-utc-r2/harness.sqlite3",
+  "artifact_dir": "/home/kieran/dev/pikvm-agent/bench/results/2026-07-25/osworld/b6781586-utc-r2/artifacts",
+  "report_path": "/home/kieran/dev/pikvm-agent/bench/results/2026-07-25/osworld/b6781586-utc-r2/report.json"
+}

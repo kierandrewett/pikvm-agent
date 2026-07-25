@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-07-25",
+  "purpose": "Prove that the operator console distinguishes harness-managed control from direct MCP control without inventing an independent verifier.",
+  "environment": {
+    "backend": "isolated fake machine",
+    "browser": "real in-app Chromium",
+    "production_pikvm_touched": false,
+    "remote_machine_contacted": false,
+    "direct_hid_emitted": false,
+    "remote_endpoint_persisted": false
+  },
+  "managed_mode": {
+    "title": "Harness-managed control",
+    "visible_contract": "The harness reasoner plans, the controller acts, and an independent verifier evaluates each machine transition.",
+    "rendered": true
+  },
+  "direct_mode": {
+    "title": "Direct MCP control",
+    "visible_contract": "The external client chooses tool calls. The daemon enforces policy and freshness. No independent model verifier is running.",
+    "caller": "claude-code",
+    "provider": "anthropic-oauth",
+    "model": "opus-4.8",
+    "synthetic_audit_record_only": true,
+    "rendered": true
+  },
+  "responsive_check": {
+    "requested_viewport_css_px": {
+      "width": 390,
+      "height": 844
+    },
+    "reported_inner_width_css_px": 390,
+    "document_scroll_width_css_px": 375,
+    "body_scroll_width_css_px": 360,
+    "horizontal_overflow": false
+  },
+  "asset_delivery": {
+    "versioned_local_javascript": true,
+    "versioned_local_stylesheet": true,
+    "remote_assets": false
+  },
+  "focused_verification": {
+    "tests": [
+      "tests/test_harness_ui.py"
+    ],
+    "passed": 2,
+    "failed": 0,
+    "elapsed_seconds": 0.22
+  },
+  "complete_regression": {
+    "passed": 569,
+    "skipped": 1,
+    "deselected_known_failure": 1,
+    "failed": 0,
+    "elapsed_seconds": 58.01
+  },
+  "claim_limits": [
+    "The direct run was a synthetic local audit record and did not exercise HID.",
+    "This audit proves visible assurance labelling and responsive layout, not remote task accuracy.",
+    "Independent model verification is a managed-harness property and is explicitly not claimed for direct MCP control."
+  ]
+}

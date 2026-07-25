@@ -1,0 +1,71 @@
+{
+  "schema_version": 3,
+  "suite": "osworld-verified",
+  "suite_revision": "b7db4d8c85d9e95e0b1db44de5bec954cf37f0cf",
+  "task_id": "9f3bb592-209d-43bc-bb47-d77d9df56504",
+  "domain": "multi_apps",
+  "instruction": "I downloaded a video to practice listening, but I don't know how to remove the subtitles. Please help me remove the subtitles from the video and export it as \"subtitles.srt\" and store it in the same directory as the video.",
+  "docker_image": "happysixd/osworld-docker:latest",
+  "docker_image_id": "sha256:0e6497a9295647cf05bf2b2af522fdd79bdeba2737595259cab310a3bcf6baa9",
+  "vm_image_sha256": "6bf667a852b3c307f61d9f09c42559351f45e0607e428b4997becf534cf4d313",
+  "control_plane": "agent-harness -> MCP stdio -> isolated daemon",
+  "target_adapter": "official in-guest server through PiKVM-shaped lab",
+  "policy_profile": "isolated_benchmark",
+  "harness_status": "blocked",
+  "official_score": 0.0,
+  "evaluator": "exact_match(vm_command_line, rule)",
+  "approvals_required": 0,
+  "cycles": 3,
+  "model_run_budget_s": 900.0,
+  "model_run_timed_out": false,
+  "performance": {
+    "run_id": "447c58f4-4777-4de5-8f09-21c2470eba22",
+    "status": "blocked",
+    "wall_clock_ms": 56600,
+    "model_active_ms": 51901,
+    "model_lanes": [
+      {
+        "role": "controller",
+        "provider": "codex-gpt-5-6-sol",
+        "model": "gpt-5.6-sol",
+        "latency": {
+          "samples": 3,
+          "min_ms": 7569.0,
+          "median_ms": 8199.0,
+          "p95_ms": 9738.0,
+          "max_ms": 9909.0,
+          "mean_ms": 8559.0
+        }
+      },
+      {
+        "role": "reasoner",
+        "provider": "codex-gpt-5-6-sol",
+        "model": "gpt-5.6-sol",
+        "latency": {
+          "samples": 3,
+          "min_ms": 7488.0,
+          "median_ms": 9150.0,
+          "p95_ms": 9542.4,
+          "max_ms": 9586.0,
+          "mean_ms": 8741.333333333334
+        }
+      }
+    ],
+    "model_failures": 0,
+    "actions_checkpointed": 3,
+    "actions_attempted": 3,
+    "actions_completed": 0,
+    "action_recoverable_failures": 0,
+    "repeated_actions_stopped": 0,
+    "non_idempotent_retries_stopped": 0,
+    "provider_attempts": 6,
+    "provider_failures": 0,
+    "provider_fallbacks": 0,
+    "provider_schema_repairs": 0,
+    "action_latency": null,
+    "completion_efficiency": 0.0
+  },
+  "run_state_path": "/home/kieran/dev/pikvm-agent/bench/results/2026-07-25/osworld/9f3bb592-subtitles-r2/harness.sqlite3",
+  "artifact_dir": "/home/kieran/dev/pikvm-agent/bench/results/2026-07-25/osworld/9f3bb592-subtitles-r2/artifacts",
+  "report_path": "/home/kieran/dev/pikvm-agent/bench/results/2026-07-25/osworld/9f3bb592-subtitles-r2/report.json"
+}

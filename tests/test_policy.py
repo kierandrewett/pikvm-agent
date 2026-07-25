@@ -81,6 +81,13 @@ def test_plain_ls_is_safe() -> None:
     assert classify_command("ls") == "safe"
     assert classify_command("ls -la /home") == "safe"
     assert classify_command("git status") == "safe"
+    assert classify_command("ffprobe video.mp4") == "safe"
+    assert classify_command("command -v ffmpeg ffprobe") == "safe"
+
+
+def test_command_wrapper_does_not_hide_mutation() -> None:
+    assert classify_command("command rm -rf /tmp/example") == "dangerous"
+    assert classify_command("command some-unknown-tool --flag") == "medium"
 
 
 def test_riskiest_clause_wins() -> None:

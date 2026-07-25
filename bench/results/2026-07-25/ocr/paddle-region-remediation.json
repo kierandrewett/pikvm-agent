@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-07-25",
+  "defect_id": "OCR-PADDLE-REGION",
+  "status": "fixed_regression_proven",
+  "original_failure": {
+    "source_image_size": [120, 80],
+    "requested_region": {
+      "x": 20,
+      "y": 30,
+      "width": 30,
+      "height": 20
+    },
+    "inference_image_size_before_fix": [120, 80],
+    "expected_inference_image_size": [30, 20]
+  },
+  "implemented_contract": {
+    "inference_image_size_after_fix": [30, 20],
+    "requested_top_left_pixel_preserved": true,
+    "source_frame_replaced": false,
+    "temporary_crop_removed_after_success": true,
+    "temporary_crop_removed_after_failure": true,
+    "public_async_provider_forwards_region": true
+  },
+  "focused_verification": {
+    "passed": 3,
+    "failed": 0,
+    "elapsed_seconds": 0.10,
+    "tests": [
+      "test_paddleocr_crops_the_requested_region_before_inference",
+      "test_paddleocr_removes_region_crop_after_inference_failure",
+      "test_paddleocr_public_ocr_forwards_region_to_worker"
+    ]
+  },
+  "isolation": {
+    "real_paddle_model_loaded": false,
+    "computer_target_contacted": false,
+    "production_pikvm_touched": false,
+    "vnc_contacted": false,
+    "hid_emitted": false
+  },
+  "claim_limits": [
+    "This proves crop selection and lifecycle at the adapter boundary, not recognition accuracy.",
+    "The published 1000-case PaddleOCR score used full images and is unchanged.",
+    "A live model-backed field verification run is still required."
+  ]
+}

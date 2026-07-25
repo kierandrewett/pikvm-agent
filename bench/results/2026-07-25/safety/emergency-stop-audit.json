@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "kind": "explicit_target_emergency_stop_audit",
+  "date": "2026-07-25",
+  "status": "passed",
+  "environment": {
+    "computer": "isolated FakeBackend",
+    "daemon": "loopback isolated non-production port supplied at runtime",
+    "operator_web_process_running": false,
+    "model_invoked": false,
+    "production_target_contacted": false,
+    "external_vnc_target_contacted": false
+  },
+  "contracts": [
+    {
+      "name": "no implicit raw MCP target",
+      "result": "passed",
+      "evidence": "With PIKVM_AGENT_DAEMON absent, raw MCP startup exited 2 with a one-line refusal before the MCP server started."
+    },
+    {
+      "name": "no implicit emergency-stop target",
+      "result": "passed",
+      "evidence": "With PIKVM_AGENT_DAEMON absent, panic-stop exited 2 and the unit contract recorded zero HTTP requests."
+    },
+    {
+      "name": "safe daemon URL",
+      "result": "passed",
+      "evidence": "Non-HTTP transports, embedded credentials, query parameters, and fragments are rejected before client construction."
+    },
+    {
+      "name": "independent emergency stop",
+      "result": "passed",
+      "evidence": "With no operator web process, the CLI halted one active isolated session through the explicitly selected daemon."
+    },
+    {
+      "name": "quiescence is required for success",
+      "result": "passed",
+      "evidence": "The live response reported quiesced=true and in_flight_actions=0; a deterministic non-quiesced response exits 1 and never prints confirmation."
+    },
+    {
+      "name": "selected target is visible",
+      "result": "passed",
+      "evidence": "The confirmation named Isolated Windows test VM and safe fingerprint target:7637749890f9a6c9 without exposing its configured endpoint or machine id."
+    },
+    {
+      "name": "stopped state is sticky",
+      "result": "passed",
+      "evidence": "A read-only post-stop query returned status=failed, error=panic_stop, and control_epoch=1 for the halted session."
+    }
+  ],
+  "live_trial": {
+    "sessions_before": 1,
+    "sessions_halted": 1,
+    "quiesced": true,
+    "in_flight_actions": 0,
+    "cli_elapsed_s": 0.34,
+    "post_stop_status": "failed",
+    "post_stop_error": "panic_stop",
+    "post_stop_control_epoch": 1,
+    "safe_machine_alias": "Isolated Windows test VM",
+    "safe_machine_fingerprint": "target:7637749890f9a6c9",
+    "daemon_clean_shutdown": true
+  },
+  "verification": {
+    "focused_tests": {
+      "passed": 33,
+      "elapsed_s": 3.73
+    },
+    "full_suite": {
+      "passed": 513,
+      "skipped": 1,
+      "elapsed_s": 41.61
+    }
+  },
+  "limitations": [
+    "This trial proves the independent CLI-to-daemon brake against an isolated fake computer; hardware transport quiescence remains covered by runtime integration tests rather than this fake target.",
+    "The brake still requires the selected daemon process and its HTTP control path to be reachable; a hardware relay or PiKVM-native kill channel is a separate availability control."
+  ]
+}

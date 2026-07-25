@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "suite": "osworld-verified",
+  "suite_revision": "b7db4d8c85d9e95e0b1db44de5bec954cf37f0cf",
+  "task_id": "e0df059f-28a6-4169-924f-b9623e7184cc",
+  "attempt": "r1",
+  "outcome": "interrupted-stall",
+  "official_score": null,
+  "counted_as_task_result": false,
+  "elapsed_seconds": 200.451,
+  "run_id": "96d81321-0712-4989-87a6-52e09e1fddae",
+  "provider_attempts": 13,
+  "provider_failures": 0,
+  "provider_schema_repairs": 0,
+  "actions_checkpointed": 4,
+  "actions_completed": 4,
+  "repeated_actions_stopped": 2,
+  "failure": "After correctly opening the folder rename editor, the controller repeatedly proposed bursts of three identical pointer moves merely to preserve already-verified focus. It never entered the replacement name.",
+  "resolution": "The run was stopped through SIGTERM, the isolated container was cleaned up, and ControllerDecision now rejects duplicate consecutive pointer moves during structured-output validation so the provider receives one pre-HID repair attempt.",
+  "state_path": "harness.sqlite3",
+  "artifact_dir": "artifacts"
+}

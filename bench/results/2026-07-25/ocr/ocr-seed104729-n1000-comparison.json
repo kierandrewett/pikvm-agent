@@ -1,0 +1,141 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-25",
+  "status": "failing_release_gate",
+  "corpus": {
+    "cases": 1000,
+    "corpus_seed": 104729,
+    "evaluation_seed": 65537,
+    "categories": 10,
+    "cases_per_category": 100,
+    "paired_corpus_identity_verified": true,
+    "ground_truth_hidden_until_evaluation_complete": true,
+    "all_scored_text_visible_in_rendered_image": true
+  },
+  "environment": {
+    "cpu": "AMD Ryzen 7 5800X",
+    "physical_cores": 8,
+    "logical_cpus": 16,
+    "memory_gib": 62,
+    "tesseract_version": "5.5.2",
+    "paddleocr_version": "3.7.0",
+    "paddlepaddle_version": "3.3.1",
+    "paddle_device": "CPU",
+    "paddle_model": "PP-OCRv6 medium detection and recognition",
+    "model_source": "pre-existing local cache",
+    "production_pikvm_contacted": false,
+    "vnc_contacted": false,
+    "network_used": false
+  },
+  "tesseract_before": {
+    "provider": "raw-plus-enhanced confidence ensemble",
+    "workers": 4,
+    "exact_rate": 0.302,
+    "normalized_exact_rate": 0.373,
+    "mean_character_error_rate": 0.04042598080382845,
+    "median_latency_ms": 173.0,
+    "p95_latency_ms": 239.04999999999995,
+    "evaluation_wall_ms": 44600,
+    "throughput_images_per_second": 22.42152466367713
+  },
+  "tesseract_after": {
+    "provider": "raw-plus-enhanced ensemble with pixel-proven title-bar filtering",
+    "workers": 4,
+    "exact_matches": 325,
+    "normalized_exact_matches": 440,
+    "exact_rate": 0.325,
+    "normalized_exact_rate": 0.44,
+    "normalized_exact_wilson_95": [
+      0.4095213001510468,
+      0.4709379276793202
+    ],
+    "mean_character_error_rate": 0.028299626384575272,
+    "median_latency_ms": 147.0,
+    "p95_latency_ms": 206.04999999999995,
+    "evaluation_wall_ms": 37832,
+    "throughput_images_per_second": 26.432649608796787,
+    "paired_gains": 67,
+    "paired_regressions": 0,
+    "confidence_coverage": [
+      {
+        "threshold": 0.8,
+        "covered_cases": 628,
+        "coverage": 0.628,
+        "normalized_exact_rate": 0.589171974522293,
+        "wrong_cases": 258
+      },
+      {
+        "threshold": 0.9,
+        "covered_cases": 224,
+        "coverage": 0.224,
+        "normalized_exact_rate": 0.8660714285714286,
+        "wrong_cases": 30
+      },
+      {
+        "threshold": 0.95,
+        "covered_cases": 28,
+        "coverage": 0.028,
+        "normalized_exact_rate": 1.0,
+        "wrong_cases": 0
+      }
+    ]
+  },
+  "paddleocr": {
+    "provider": "PP-OCRv6 medium CPU",
+    "workers": 1,
+    "exact_matches": 652,
+    "normalized_exact_matches": 789,
+    "exact_rate": 0.652,
+    "normalized_exact_rate": 0.789,
+    "normalized_exact_wilson_95": [
+      0.7626290025094167,
+      0.8131590501076498
+    ],
+    "mean_character_error_rate": 0.010590240111261794,
+    "median_latency_ms": 874.0,
+    "p95_latency_ms": 2536.1499999999996,
+    "evaluation_wall_ms": 1078815,
+    "throughput_images_per_second": 0.9269429883715001
+  },
+  "paired_complementarity": {
+    "both_normalized_exact": 416,
+    "tesseract_only_normalized_exact": 24,
+    "paddle_only_normalized_exact": 373,
+    "neither_normalized_exact": 187,
+    "unattainable_oracle_union_rate": 0.813,
+    "unattainable_oracle_minimum_mean_character_error_rate": 0.006835650653387898
+  },
+  "paddle_by_category": {
+    "code": 0.94,
+    "identifier": 0.99,
+    "mixed_case": 0.81,
+    "numeric": 0.0,
+    "path": 0.91,
+    "prose": 0.94,
+    "punctuation": 0.51,
+    "terminal": 0.93,
+    "ui_label": 0.95,
+    "url": 0.91
+  },
+  "defects_found": [
+    {
+      "id": "OCR-CHROME-DOTS",
+      "symptom": "Three coloured window controls were repeatedly recognized as a short leading word.",
+      "fix": "Remove the OCR line only when source pixels prove three similarly sized coloured blobs in the title-bar region.",
+      "regression": "67 paired gains and zero paired regressions on the 1000-case corpus."
+    },
+    {
+      "id": "OCR-PADDLE-REGION",
+      "symptom": "PaddleOCR accepted a field region but sent the full screenshot to inference.",
+      "status": "failing regression test retained; implementation pending"
+    }
+  ],
+  "limitations": [
+    "This synthetic corpus is a diagnostic, not a production desktop distribution.",
+    "Numeric confusables remain zero percent normalized exact for both providers.",
+    "Punctuation reaches only 51 percent normalized exact with PaddleOCR.",
+    "Tesseract confidence is not a safe acceptance oracle: 30 of 224 cases at or above 0.90 confidence were wrong.",
+    "The paired oracle union uses ground truth and is not an implementable runtime selector.",
+    "Neither provider authorizes OCR-only verification of irreversible actions."
+  ]
+}

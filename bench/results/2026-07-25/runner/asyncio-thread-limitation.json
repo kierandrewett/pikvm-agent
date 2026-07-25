@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-07-25",
+  "purpose": "Isolate why aggregate tests using asyncio.to_thread stall in the restricted execution runner.",
+  "probe": {
+    "operation": "asyncio.run(asyncio.to_thread(lambda: 1))",
+    "timeout_seconds": 8,
+    "stdout_before_timeout": ["before"],
+    "stdout_after_call_observed": false,
+    "exit_code": 124
+  },
+  "affected_test_boundaries": [
+    "FrameStore fingerprint and artifact writes",
+    "PaddleOCR asynchronous worker dispatch",
+    "other aggregate tests that require Python worker threads"
+  ],
+  "unaffected_evidence": [
+    "Paddle region transformation and cleanup tests use a deterministic immediate worker",
+    "the real 1000-case Tesseract benchmark uses subprocesses and completed",
+    "the 188-test harness and public-suite selection completed"
+  ],
+  "classification": "runner capability limitation; not a product pass or product failure",
+  "isolation": {
+    "computer_target_contacted": false,
+    "production_pikvm_touched": false,
+    "vnc_contacted": false,
+    "hid_emitted": false
+  }
+}

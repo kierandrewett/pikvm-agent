@@ -1,0 +1,119 @@
+{
+  "schema_version": 1,
+  "suite": "osworld-verified",
+  "suite_revision": "b7db4d8c85d9e95e0b1db44de5bec954cf37f0cf",
+  "suite_tasks_discovered": 369,
+  "route": {
+    "reasoner": [
+      "codex-gpt-5-6-sol",
+      "claude-opus"
+    ],
+    "controller": [
+      "codex-gpt-5-6-sol",
+      "claude-opus"
+    ],
+    "verifier": [
+      "codex-gpt-5-6-sol",
+      "claude-opus"
+    ],
+    "provider_used_by_clean_runs": "codex-gpt-5-6-sol",
+    "model_used_by_clean_runs": "gpt-5.6-sol"
+  },
+  "current_clean_diagnostic": {
+    "definition": "Latest post-fix run for each exercised task, requiring both harness_status=completed and official_score=1.0.",
+    "cases": 4,
+    "official_passes": 4,
+    "harness_completed_and_official_passed": 4,
+    "success_rate": 1.0,
+    "wilson_95_interval": [
+      0.5101,
+      1.0
+    ],
+    "wall_clock_ms_total": 585505,
+    "wall_clock_ms_median": 87856.5,
+    "wall_clock_ms_p95": 333468.25,
+    "model_active_ms_total": 467899,
+    "model_completions": 53,
+    "provider_attempts": 54,
+    "provider_failures": 0,
+    "provider_schema_repairs": 1,
+    "approvals_required": 0,
+    "actions_attempted": 19,
+    "actions_completed": 18,
+    "completion_efficiency": 0.9473684210526315,
+    "reports": [
+      "f9be0997-dnd-r3/report.json",
+      "28cc3b7e-max-volume-r1/report.json",
+      "a4d98375-auto-lock-r9/report.json",
+      "e0df059f-rename-folder-r2/report.json"
+    ]
+  },
+  "all_scored_attempts": {
+    "definition": "Every attempt that reached the official evaluator, including pre-fix failures and a harness false negative.",
+    "attempts": 9,
+    "official_goal_state_passes": 5,
+    "official_goal_state_rate": 0.5555555555555556,
+    "harness_completed_and_official_passed": 4,
+    "harness_and_official_success_rate": 0.4444444444444444,
+    "reports": [
+      {
+        "path": "f9be0997-dnd-r2/report.json",
+        "harness_status": "needs_approval",
+        "official_score": 1.0
+      },
+      {
+        "path": "f9be0997-dnd-r3/report.json",
+        "harness_status": "completed",
+        "official_score": 1.0
+      },
+      {
+        "path": "28cc3b7e-max-volume-r1/report.json",
+        "harness_status": "completed",
+        "official_score": 1.0
+      },
+      {
+        "path": "a4d98375-auto-lock-r1/report.json",
+        "harness_status": "needs_approval",
+        "official_score": 0.0
+      },
+      {
+        "path": "a4d98375-auto-lock-r3/report.json",
+        "harness_status": "completed",
+        "official_score": 0.0
+      },
+      {
+        "path": "a4d98375-auto-lock-r5/report.json",
+        "harness_status": "needs_approval",
+        "official_score": 0.0
+      },
+      {
+        "path": "a4d98375-auto-lock-r7/report.json",
+        "harness_status": "needs_approval",
+        "official_score": 0.0
+      },
+      {
+        "path": "a4d98375-auto-lock-r9/report.json",
+        "harness_status": "completed",
+        "official_score": 1.0
+      },
+      {
+        "path": "e0df059f-rename-folder-r2/report.json",
+        "harness_status": "completed",
+        "official_score": 1.0
+      }
+    ]
+  },
+  "unscored_attempts": {
+    "count": 6,
+    "definition": "Attempts with no official evaluator result. They are excluded from score denominators but retained as engineering failures.",
+    "evidence": [
+      "f9be0997-dnd/attempt-1-infrastructure-failure.json",
+      "a4d98375-auto-lock-r2/startup-failure.json",
+      "a4d98375-auto-lock-r4/provider-timeout.json",
+      "a4d98375-auto-lock-r6/corrupt-frame-startup.json",
+      "a4d98375-auto-lock-r8/external-termination.json",
+      "e0df059f-rename-folder-r1/interrupted-stall.json"
+    ]
+  },
+  "scope_warning": "Four tasks are a tracer diagnostic, not a representative 369-task OSWorld score."
+}

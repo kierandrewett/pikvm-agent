@@ -1,0 +1,158 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-25",
+  "scope": "provider readiness, current OAuth CLI compatibility, failover visibility, and responsive provider status",
+  "isolation": {
+    "computer_target_contacted": false,
+    "pikvm_contacted": false,
+    "vnc_contacted": false,
+    "browser_fixture": "loopback-only synthetic harness API",
+    "provider_calls_had_mcp_access": false,
+    "provider_calls_had_workspace_write_access": false
+  },
+  "cli_compatibility": {
+    "codex": {
+      "version": "codex-cli 0.144.4",
+      "required_flags_present": [
+        "--image",
+        "--json",
+        "--sandbox",
+        "--ephemeral",
+        "--ignore-user-config",
+        "--output-schema"
+      ],
+      "authentication_owner": "Codex CLI",
+      "configured_model": "account-default",
+      "resolved_backend_model_exposed": false
+    },
+    "claude": {
+      "version": "2.1.220 (Claude Code)",
+      "required_flags_present": [
+        "--allowedTools",
+        "--disable-slash-commands",
+        "--json-schema",
+        "--no-session-persistence",
+        "--permission-mode",
+        "--safe-mode",
+        "--strict-mcp-config",
+        "--tools"
+      ],
+      "unsupported_adapter_flag_found": "--max-turns",
+      "unsupported_adapter_flag_removed": true,
+      "authentication_owner": "Claude Code CLI",
+      "configured_model": "opus",
+      "resolved_backend_model_exposed": false
+    }
+  },
+  "live_read_only_oauth_probes": [
+    {
+      "provider": "codex-account",
+      "model_string_returned": "account-default",
+      "input": "text",
+      "strict_schema_valid": true,
+      "latency_ms": 4685
+    },
+    {
+      "provider": "codex-account",
+      "model_string_returned": "account-default",
+      "input": "local synthetic OCR image",
+      "strict_schema_valid": true,
+      "expected_label": "Open settings  [0002-QEW44]",
+      "observed_label": "Open settings  [0002-QEW44]",
+      "exact": true,
+      "normalized_exact": true,
+      "latency_ms": 3839
+    },
+    {
+      "provider": "claude-account",
+      "model_string_returned": "opus",
+      "input": "text",
+      "strict_schema_valid": true,
+      "latency_ms": 12414
+    },
+    {
+      "provider": "claude-account",
+      "model_string_returned": "opus",
+      "input": "local synthetic OCR image",
+      "strict_schema_valid": true,
+      "expected_label": "Open settings  [0002-QEW44]",
+      "observed_label": "Open settings [0002-QEW44]",
+      "exact": false,
+      "normalized_exact": true,
+      "latency_ms": 20284
+    },
+    {
+      "provider": "codex-account",
+      "model_string_returned": "account-default",
+      "input": "text-only usage extraction probe",
+      "strict_schema_valid": true,
+      "latency_ms": 8333,
+      "usage": {
+        "input_tokens": 19177,
+        "cached_input_tokens": 0,
+        "output_tokens": 84,
+        "reasoning_output_tokens": 0
+      }
+    }
+  ],
+  "api_adapters": {
+    "openai_compatible": "mock-transport contract tested",
+    "anthropic_api": "mock-transport contract tested",
+    "gemini_api": "mock-transport contract tested",
+    "live_credentials_exercised": false
+  },
+  "public_benchmark_usage_probe": {
+    "suite": "screenspot-pro",
+    "cases": 1,
+    "correct": 1,
+    "schema_version": 4,
+    "latency_ms": 8603,
+    "usage_totals": {
+      "input_tokens": 22264,
+      "cached_input_tokens": 17152,
+      "output_tokens": 258,
+      "reasoning_output_tokens": 225
+    },
+    "claim": "instrumentation transport check only; not an accuracy or cost sample"
+  },
+  "routing_contract": {
+    "missing_prerequisite": "skipped without calling provider",
+    "runtime_failure": "coarse failure class only, then configurable cooldown",
+    "cooldown_expiry": "provider becomes eligible and can recover",
+    "arbitrary_cli_stderr_or_http_body_visible": false,
+    "role_route_positions_visible": true,
+    "schema_repair_visible": true,
+    "fallback_selection_visible": true
+  },
+  "responsive_browser_audit": {
+    "provider_summary": "2/4 eligible now",
+    "viewport_css_px": {
+      "width": 390,
+      "height": 844
+    },
+    "document_client_width": 375,
+    "document_scroll_width": 375,
+    "provider_popover": {
+      "left": 8,
+      "right": 367,
+      "width": 359
+    },
+    "provider_rows": 4,
+    "provider_row_width": 357,
+    "provider_row_scroll_width": 357,
+    "horizontal_overflow": false,
+    "console_errors": 0,
+    "visible_statuses": [
+      "Operational",
+      "Not ready",
+      "Cooling down",
+      "Prerequisites present - unproven"
+    ]
+  },
+  "limitations": [
+    "A present executable or credential environment variable proves only local prerequisites, not valid authentication.",
+    "CLI account aliases are reported as aliases when the CLI does not expose a resolved backend model.",
+    "OAuth timings are single compatibility probes, not stable latency estimates.",
+    "No live API-key credential was available for an API-provider probe."
+  ]
+}

@@ -1,0 +1,89 @@
+{
+  "schema_version": 2,
+  "suite": "osworld-verified",
+  "suite_revision": "b7db4d8c85d9e95e0b1db44de5bec954cf37f0cf",
+  "task_id": "5ea617a3-0e86-4ba6-aab2-dac9aa2e8d57",
+  "domain": "os",
+  "instruction": "I am currently using an Ubuntu system, and I have wrongly deleted a poster of party night. Could you help me recover it from the Trash?",
+  "docker_image": "happysixd/osworld-docker:latest",
+  "docker_image_id": "sha256:0e6497a9295647cf05bf2b2af522fdd79bdeba2737595259cab310a3bcf6baa9",
+  "vm_image_sha256": "6bf667a852b3c307f61d9f09c42559351f45e0607e428b4997becf534cf4d313",
+  "control_plane": "agent-harness -> MCP stdio -> isolated daemon",
+  "target_adapter": "official in-guest server through PiKVM-shaped lab",
+  "policy_profile": "isolated_benchmark",
+  "harness_status": "completed",
+  "official_score": 1.0,
+  "evaluator": "exact_match(vm_command_line, rule)",
+  "approvals_required": 0,
+  "cycles": 1,
+  "performance": {
+    "run_id": "b7c2e249-420d-46aa-91b5-aaa1a9d14bbb",
+    "status": "completed",
+    "wall_clock_ms": 82009,
+    "model_active_ms": 66681,
+    "model_lanes": [
+      {
+        "role": "controller",
+        "provider": "codex-gpt-5-6-sol",
+        "model": "gpt-5.6-sol",
+        "latency": {
+          "samples": 3,
+          "min_ms": 7527.0,
+          "median_ms": 7698.0,
+          "p95_ms": 8827.5,
+          "max_ms": 8953.0,
+          "mean_ms": 8059.333333333333
+        }
+      },
+      {
+        "role": "reasoner",
+        "provider": "codex-gpt-5-6-sol",
+        "model": "gpt-5.6-sol",
+        "latency": {
+          "samples": 1,
+          "min_ms": 8904.0,
+          "median_ms": 8904.0,
+          "p95_ms": 8904.0,
+          "max_ms": 8904.0,
+          "mean_ms": 8904.0
+        }
+      },
+      {
+        "role": "verifier",
+        "provider": "codex-gpt-5-6-sol",
+        "model": "gpt-5.6-sol",
+        "latency": {
+          "samples": 3,
+          "min_ms": 10721.0,
+          "median_ms": 11210.0,
+          "p95_ms": 11622.2,
+          "max_ms": 11668.0,
+          "mean_ms": 11199.666666666666
+        }
+      }
+    ],
+    "model_failures": 0,
+    "actions_checkpointed": 3,
+    "actions_attempted": 3,
+    "actions_completed": 3,
+    "action_recoverable_failures": 0,
+    "repeated_actions_stopped": 0,
+    "non_idempotent_retries_stopped": 0,
+    "provider_attempts": 7,
+    "provider_failures": 0,
+    "provider_fallbacks": 0,
+    "provider_schema_repairs": 0,
+    "action_latency": {
+      "samples": 3,
+      "min_ms": 4007.2039999999997,
+      "median_ms": 4403.793000000001,
+      "p95_ms": 4761.7446,
+      "max_ms": 4801.517,
+      "mean_ms": 4404.171333333333
+    },
+    "completion_efficiency": 1.0
+  },
+  "run_state_path": "/home/kieran/dev/pikvm-agent/bench/results/2026-07-25/osworld/5ea617a3-restore-trash-r2/harness.sqlite3",
+  "artifact_dir": "/home/kieran/dev/pikvm-agent/bench/results/2026-07-25/osworld/5ea617a3-restore-trash-r2/artifacts",
+  "report_path": "/home/kieran/dev/pikvm-agent/bench/results/2026-07-25/osworld/5ea617a3-restore-trash-r2/report.json"
+}

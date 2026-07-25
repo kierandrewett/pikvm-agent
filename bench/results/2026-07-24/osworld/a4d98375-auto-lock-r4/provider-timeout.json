@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "suite": "osworld-verified",
+  "suite_revision": "b7db4d8c85d9e95e0b1db44de5bec954cf37f0cf",
+  "task_id": "a4d98375-215b-4a4d-aee9-3d4370fccc41",
+  "classification": "provider_timeout_operator_abort",
+  "harness_terminal_state": "interrupted_outside_harness",
+  "run_id": "51aa5cd5-9d21-4fda-9d95-6a0a727d8130",
+  "elapsed_seconds": 389.347,
+  "checkpointed_action_index": 1,
+  "completed_actions": 1,
+  "active_hid_at_abort": false,
+  "stalled_role": "reasoner",
+  "configured_provider_timeout_seconds": 300,
+  "route": [
+    "codex-gpt-5-6-sol",
+    "claude-opus"
+  ],
+  "provider_attempt_visibility": "not available in this pre-fix run",
+  "corrective_actions": [
+    "lowered the benchmark provider timeout to 60 seconds",
+    "persisted quiet adapter and daemon child logs",
+    "added durable per-provider attempt, repair, failure, fallback, and completion events"
+  ],
+  "official_score": null,
+  "note": "The operator interrupted during provider fallback. The disposable VM and lab processes were cleaned up. This is not a scored task result."
+}
