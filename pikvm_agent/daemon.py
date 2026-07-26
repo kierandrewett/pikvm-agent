@@ -12,12 +12,18 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse
-from pydantic import BaseModel
+from fastapi.responses import (
+    FileResponse,
+    HTMLResponse,
+    JSONResponse,
+    PlainTextResponse,
+    Response,
+)
+from pydantic import BaseModel, Field
 
 from pikvm_agent.config import AppConfig
 from pikvm_agent.core.errors import PikvmAgentError, SessionNotFoundError
-from pikvm_agent.runtime import Runtime
+from pikvm_agent.runtime import Runtime, RuntimeCapabilities
 
 _WEBUI = Path(__file__).resolve().parent / "webui"
 
@@ -38,8 +44,13 @@ class BurstRequest(BaseModel):
     actions: list[dict[str, Any]] = []
     based_on_world_version: int | None = None
     based_on_control_epoch: int | None = None
-    max_runtime_ms: int = 4000
+    max_runtime_ms: int | None = None
     return_screenshot: bool = True
+    idempotency_key: str = Field(
+        min_length=1,
+        max_length=160,
+        pattern=r".*\S.*",
+    )
 
 
 class ContinueRequest(BaseModel):
@@ -49,10 +60,17 @@ class ContinueRequest(BaseModel):
     max_runtime_ms: int | None = None
 
 
-def create_app(config: AppConfig | None = None) -> FastAPI:
+def create_app(
+    config: AppConfig | None = None,
+    *,
+    capabilities: RuntimeCapabilities | None = None,
+) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        app.state.runtime = await Runtime.from_config(config)
+        app.state.runtime = await Runtime.from_config(
+            config,
+            capabilities=capabilities,
+        )
         try:
             yield
         finally:
@@ -117,6 +135,22 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
             return JSONResponse(status_code=404, content={"error": "no_frame"})
         return FileResponse(path, media_type="image/jpeg")
 
+    @app.get("/sessions/{session_id}/preview-frame")
+    async def preview_frame(session_id: str, request: Request) -> Response:
+        frame = await rt(request).preview_frame(session_id)
+        headers = {
+            "Cache-Control": "no-store",
+            "X-PiKVM-Frame-Mode": "preview",
+            "X-PiKVM-Captured-At": str(frame.captured_at or ""),
+            "X-PiKVM-Width": str(frame.width),
+            "X-PiKVM-Height": str(frame.height),
+        }
+        return Response(
+            content=frame.data,
+            media_type="image/jpeg",
+            headers=headers,
+        )
+
     @app.get("/sessions/{session_id}/approvals")
     async def session_approvals(session_id: str, request: Request) -> list[dict[str, Any]]:
         return await rt(request).pending_approvals(session_id)
@@ -135,7 +169,8 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
             session_id, body.actions,
             based_on_world_version=body.based_on_world_version,
             based_on_control_epoch=body.based_on_control_epoch,
-            max_runtime_ms=body.max_runtime_ms, return_screenshot=body.return_screenshot)
+            max_runtime_ms=body.max_runtime_ms, return_screenshot=body.return_screenshot,
+            idempotency_key=body.idempotency_key)
 
     @app.post("/sessions/{session_id}/playbook")
     async def run_playbook(session_id: str, body: dict[str, Any], request: Request) -> dict[str, Any]:
@@ -143,7 +178,8 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
             session_id, str(body.get("name", "")), body.get("args") or {},
             based_on_world_version=body.get("based_on_world_version"),
             based_on_control_epoch=body.get("based_on_control_epoch"),
-            max_runtime_ms=int(body.get("max_runtime_ms", 4000)))
+            max_runtime_ms=int(body.get("max_runtime_ms", 4000)),
+            idempotency_key=body.get("idempotency_key"))
 
     @app.post("/sessions/{session_id}/parse")
     async def parse_screen(session_id: str, request: Request) -> dict[str, Any]:
@@ -199,3 +235,8 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
 
 
 app = create_app()
+lab_app = create_app(
+    capabilities=RuntimeCapabilities(
+        isolated_benchmark_pointer_freshness=True,
+    )
+)

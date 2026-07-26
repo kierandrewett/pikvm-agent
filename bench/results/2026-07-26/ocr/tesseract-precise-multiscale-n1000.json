@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-07-26",
+  "provider": "Tesseract PSM 6 raw + prepared ensemble",
+  "corpus": {
+    "cases": 1000,
+    "corpus_seed": 104729,
+    "evaluation_seed": 65537,
+    "categories": 10,
+    "cases_per_category": 100,
+    "ground_truth_released": "after every OCR call completed"
+  },
+  "general_profile": {
+    "reads": [
+      "raw",
+      "2.0x prepared"
+    ],
+    "selected_normalized_exact": 569,
+    "selected_normalized_exact_rate": 0.569,
+    "exact_candidate_matches": 614,
+    "exact_candidate_rate": 0.614,
+    "mean_character_error_rate": 0.020775224812035992,
+    "median_latency_ms": 169.0,
+    "p95_latency_ms": 240.05,
+    "evaluation_wall_ms": 43735,
+    "throughput_images_per_second": 22.864982279638735,
+    "full_report_sha256": "ae5690c3156dfc0084579a7e712198e2766f77742e4e35230273ccc157dbb848"
+  },
+  "precise_known-intent_profile": {
+    "reads": [
+      "raw",
+      "2.0x prepared",
+      "1.5x prepared"
+    ],
+    "selected_normalized_exact": 569,
+    "selected_normalized_exact_rate": 0.569,
+    "exact_candidate_matches": 645,
+    "exact_candidate_rate": 0.645,
+    "additional_exact_candidates": 31,
+    "selected_text_regressions": 0,
+    "median_latency_ms": 225.0,
+    "p95_latency_ms": 321.05,
+    "evaluation_wall_ms": 58445,
+    "throughput_images_per_second": 17.110103516126273,
+    "full_report_sha256": "12d28404461e81a551c12e776f0a30f0f8b190a4a76a38e98c03cf5bfc3aa7f1",
+    "exact_candidate_rate_by_category": {
+      "code": 0.76,
+      "identifier": 0.8,
+      "mixed_case": 0.69,
+      "numeric": 0.0,
+      "path": 0.8,
+      "prose": 0.88,
+      "punctuation": 0.0,
+      "terminal": 0.85,
+      "ui_label": 0.95,
+      "url": 0.72
+    }
+  },
+  "runtime_policy": {
+    "general_screen_ocr_uses_precise_profile": false,
+    "known_intended_text_readback_uses_precise_profile": true,
+    "minimum_intended_characters": 8,
+    "nearest_guess_allowed": false,
+    "commit_authority": false,
+    "abstain_without_exact_candidate": true
+  },
+  "focused_validation": {
+    "passed": 59,
+    "deselected_benchmark_cases": 1,
+    "elapsed_seconds": 13.19
+  },
+  "limitations": [
+    "Selected general OCR remains 56.9% normalized exact and fails the production release gate.",
+    "Numeric and punctuation categories remain 0/100 exact-candidate matches.",
+    "The additional read improves only exact known-intent verification coverage and costs additional CPU and latency.",
+    "No OCR candidate or confidence score can authorize an irreversible action."
+  ],
+  "target_contacted": false
+}

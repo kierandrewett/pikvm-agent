@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "client": "opencode",
+  "safe": false,
+  "managed_count": 0,
+  "findings": [
+    {
+      "source_label": "config-1",
+      "server_name": "pikvm",
+      "classification": "raw"
+    }
+  ],
+  "failures": [
+    "missing_managed",
+    "competing_raw_or_direct"
+  ]
+}

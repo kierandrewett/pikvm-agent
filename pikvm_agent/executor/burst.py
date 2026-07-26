@@ -16,10 +16,14 @@ backend (WindMouse, humanized typing) as everything else.
 from __future__ import annotations
 
 import asyncio
+import os
+import re
 import time
 from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable
 
+from pikvm_agent.executor.typing import chunk_text
+from pikvm_agent.executor.verification import is_exact_text
 from pikvm_agent.vision.frame_diff import FP_MEANINGFUL, grid
 
 # --- key-name normalisation ------------------------------------------------ #
@@ -76,6 +80,7 @@ class BurstOutcome:
     reason: str = ""            # why it stopped early (control_changed / deadline / error / …)
     error: str = ""
     executed: list[str] = field(default_factory=list)  # action types that ran
+    partial_action: dict[str, Any] | None = None
 
     @property
     def remaining(self) -> int:
@@ -87,8 +92,218 @@ class BurstError(Exception):
 
 
 class TypingNotVerified(Exception):
-    """Typed text was read back and is CONFIRMED wrong (or the field wasn't focused). The
-    burst stops here so the next action (e.g. Enter) can't act on the wrong text."""
+    """Typed text was not verified or the field was not focused.
+
+    The burst stops before any following active action (for example Enter), so
+    ambiguous OCR cannot turn an uncertain draft into an irreversible submit.
+    """
+
+    def __init__(self, message: str, *, ambiguous: bool = False) -> None:
+        super().__init__(message)
+        self.ambiguous = ambiguous
+
+
+class BurstInterrupted(Exception):
+    """The active micro-action observed a stop/deadline gate and halted part-way."""
+
+    def __init__(self, partial_action: dict[str, Any] | None = None) -> None:
+        super().__init__("active micro-action interrupted")
+        self.partial_action = partial_action
+
+
+def _positive_int_env(name: str, default: int) -> int:
+    try:
+        value = int(os.environ.get(name, str(default)))
+    except ValueError:
+        return default
+    return value if value > 0 else default
+
+
+MAX_TYPE_TEXT_CHARS = _positive_int_env("PIKVM_AGENT_MAX_TYPE_TEXT_CHARS", 240)
+MAX_BURST_TYPE_TEXT_CHARS = _positive_int_env("PIKVM_AGENT_MAX_BURST_TYPE_TEXT_CHARS", 480)
+MAX_BURST_ACTIONS = _positive_int_env("PIKVM_AGENT_MAX_BURST_ACTIONS", 20)
+AUTO_RUNTIME_FLOOR_MS = 4_000
+AUTO_RUNTIME_CEILING_MS = 110_000
+DEFAULT_STABLE_TIMEOUT_MS = 1_500
+DEFAULT_CHANGE_TIMEOUT_MS = 8_000
+
+_DENSE_BASE64_TOKEN = re.compile(
+    r"(?<![A-Za-z0-9+/])[A-Za-z0-9+/]{64,}={0,2}(?![A-Za-z0-9+/=])"
+)
+_ENCODED_FILE_TRANSFER_COMMAND = re.compile(
+    r"(?:\b(?:printf|echo)\b.*(?:>>?|out-file|set-content)|"
+    r"(?:>>?|out-file|set-content).*\b(?:printf|echo)\b)",
+    re.IGNORECASE,
+)
+_ENCODED_SHELL_COMMAND = re.compile(
+    r"\b(?:powershell|pwsh)\b.*\s-(?:enc|encodedcommand)\b",
+    re.IGNORECASE,
+)
+_HEREDOC_SHELL_PAYLOAD = re.compile(
+    r"(?:^|[;&|]\s*)(?:python(?:3)?|bash|sh|zsh|cat|tee|ruby|node)\b"
+    r"[^\r\n]{0,80}<<-?\s*['\"]?[A-Za-z_][A-Za-z0-9_]*['\"]?",
+    re.IGNORECASE,
+)
+_NESTED_SHELL_LAUNCHER = re.compile(
+    r"^\s*(?:(?:bash|sh|zsh)\s+-[A-Za-z]*c\b|"
+    r"cmd(?:\.exe)?\s+/[ck]\b|"
+    r"(?:powershell|pwsh)(?:\.exe)?\b.*\s-(?:command|c)\b)",
+    re.IGNORECASE,
+)
+MAX_INSPECTABLE_NESTED_SHELL_CHARS = 120
+
+
+def _unsafe_payload_reason(text: str) -> str | None:
+    if _ENCODED_SHELL_COMMAND.search(text):
+        return "encoded shell command"
+    if _HEREDOC_SHELL_PAYLOAD.search(text):
+        return "heredoc shell payload"
+    if (
+        len(text) > MAX_INSPECTABLE_NESTED_SHELL_CHARS
+        and _NESTED_SHELL_LAUNCHER.search(text)
+    ):
+        return "complex nested shell payload"
+    if (
+        _DENSE_BASE64_TOKEN.search(text)
+        and _ENCODED_FILE_TRANSFER_COMMAND.search(text)
+    ):
+        return "encoded file-transfer payload"
+    return None
+
+
+def recommended_runtime_ms(actions: list[dict[str, Any]]) -> int:
+    """Return a bounded default deadline that covers the work in ``actions``.
+
+    A fixed four-second default cannot accommodate even a short verified phrase at
+    the backend's deliberately human cadence.  The estimate leaves 400ms per typed
+    character plus OCR/read-back overhead and declared waits.  It remains a deadline,
+    not a delay: control-change and panic gates are still polled between typing chunks.
+    """
+    typed_characters = 0
+    declared_wait_ms = 0
+    for raw in actions:
+        action = raw if isinstance(raw, dict) else dict(raw)
+        kind = action.get("type")
+        if kind == "type_text":
+            typed_characters += len(str(action.get("text", "")))
+        elif kind == "wait":
+            declared_wait_ms += max(0, int(action.get("ms", 0)))
+        elif kind == "wait_for_stable_screen":
+            declared_wait_ms += max(
+                0,
+                int(action.get("timeout_ms", DEFAULT_STABLE_TIMEOUT_MS)),
+            )
+        elif kind == "wait_for_change":
+            declared_wait_ms += max(
+                0,
+                int(action.get("timeout_ms", DEFAULT_CHANGE_TIMEOUT_MS)),
+            )
+
+    typing_ms = (
+        6_000 + (typed_characters * 400)
+        if typed_characters
+        else 0
+    )
+    estimate = AUTO_RUNTIME_FLOOR_MS + declared_wait_ms + typing_ms
+    return min(AUTO_RUNTIME_CEILING_MS, max(AUTO_RUNTIME_FLOOR_MS, estimate))
+
+
+def needs_post_action_settle(actions: list[dict[str, Any]]) -> bool:
+    """Whether the runtime should add a bounded settle before its evidence frame."""
+
+    if not any(
+        action.get("type")
+        in {"key", "type_text", "click", "double_click", "scroll"}
+        for action in actions
+    ):
+        return False
+    final = actions[-1]
+    if final.get("type") in {"wait_for_stable_screen", "wait_for_change"}:
+        return False
+    if final.get("type") == "wait" and int(final.get("ms", 0)) >= 300:
+        return False
+    return True
+
+
+def validate_actions(
+    actions: list[dict[str, Any]],
+    *,
+    max_type_text_chars: int = MAX_TYPE_TEXT_CHARS,
+    max_burst_type_text_chars: int = MAX_BURST_TYPE_TEXT_CHARS,
+    max_actions: int = MAX_BURST_ACTIONS,
+) -> None:
+    """Reject burst shapes that are too large to be safe for raw HID execution."""
+    if len(actions) > max_actions:
+        raise BurstError(
+            f"burst has {len(actions)} actions; max is {max_actions}. "
+            "Split it into smaller look-plan-act chunks."
+        )
+
+    def reject_unsafe_payload(text: str, action_label: str) -> None:
+        unsafe_payload = _unsafe_payload_reason(text)
+        if unsafe_payload is not None:
+            raise BurstError(
+                f"{action_label} contains an {unsafe_payload}; "
+                "stage larger content through an explicit transfer channel and "
+                "verify its bytes instead of HID-typing an encoding"
+            )
+
+    total_type_text_chars = 0
+    contiguous_text_parts: list[str] = []
+    contiguous_text_start = 0
+    for index, raw in enumerate(actions):
+        try:
+            action = raw if isinstance(raw, dict) else dict(raw)
+        except Exception as exc:  # noqa: BLE001
+            raise BurstError(f"action {index} is not a mapping") from exc
+
+        if "no_verify" in action:
+            raise BurstError(
+                f"action {index} uses forbidden no_verify; verification policy "
+                "cannot be disabled by a caller"
+            )
+
+        if action.get("type") != "type_text":
+            if len(contiguous_text_parts) > 1:
+                reject_unsafe_payload(
+                    "".join(contiguous_text_parts),
+                    (
+                        "contiguous type_text actions "
+                        f"{contiguous_text_start}-{index - 1}"
+                    ),
+                )
+            contiguous_text_parts = []
+            continue
+
+        text = str(action.get("text", ""))
+        if not contiguous_text_parts:
+            contiguous_text_start = index
+        contiguous_text_parts.append(text)
+        reject_unsafe_payload(text, f"type_text action {index}")
+        char_count = len(text)
+        if char_count > max_type_text_chars:
+            raise BurstError(
+                f"type_text action {index} is {char_count} chars; max is "
+                f"{max_type_text_chars}. Create a temporary file in the target editor, "
+                "diff it, and apply a small surgical change instead of HID-typing a "
+                "large blob."
+            )
+
+        total_type_text_chars += char_count
+        if total_type_text_chars > max_burst_type_text_chars:
+            raise BurstError(
+                f"burst contains {total_type_text_chars} typed chars; max is "
+                f"{max_burst_type_text_chars}. Split the work into smaller bursts, or "
+                "use the file-and-diff workflow for larger edits."
+            )
+    if len(contiguous_text_parts) > 1:
+        reject_unsafe_payload(
+            "".join(contiguous_text_parts),
+            (
+                "contiguous type_text actions "
+                f"{contiguous_text_start}-{len(actions) - 1}"
+            ),
+        )
 
 
 # --- the engine ------------------------------------------------------------ #
@@ -107,6 +322,7 @@ async def run_burst(
     """Execute ``actions`` as one local HID burst. Polls ``should_continue`` (control /
     panic / lease) and ``deadline_ms`` between every action and stops mid-burst if either
     trips — returning how far it got so the controller can re-plan from a fresh screen."""
+    validate_actions(actions)
     total = len(actions)
     executed: list[str] = []
 
@@ -117,18 +333,55 @@ async def run_burst(
             return ("interrupted", "deadline")
         return None
 
+    unverified_error = ""
+    passive_evidence_actions = {
+        "wait",
+        "wait_for_change",
+        "wait_for_stable_screen",
+    }
     for i, raw in enumerate(actions):
         stop = _stop()
         if stop is not None:
+            await _release_all_quietly(backend)
             return BurstOutcome(stop[0], i, total, reason=stop[1], executed=executed)
         a = raw if isinstance(raw, dict) else dict(raw)
         kind = a.get("type")
         try:
-            await _dispatch(a, kind, backend=backend, typer=typer, should_continue=should_continue)
+            await _dispatch(
+                a,
+                kind,
+                backend=backend,
+                typer=typer,
+                should_continue=lambda: _stop() is None,
+            )
         except BurstError:
             raise
+        except BurstInterrupted as exc:
+            await _release_all_quietly(backend)
+            return BurstOutcome(
+                "interrupted",
+                i,
+                total,
+                reason=(_stop() or ("interrupted", "control_changed"))[1],
+                executed=executed,
+                partial_action=exc.partial_action,
+            )
         except TypingNotVerified as exc:
-            # Confirmed wrong typed text — stop BEFORE the next action (don't Enter on it).
+            remaining_are_passive = all(
+                (item if isinstance(item, dict) else dict(item)).get("type")
+                in passive_evidence_actions
+                for item in actions[i + 1 :]
+            )
+            if exc.ambiguous and remaining_are_passive:
+                # The text physically landed but local OCR could not prove it.
+                # Complete only passive settling/evidence actions, then expose an
+                # explicit unverified state for diagnosis. It cannot authorize
+                # task completion or any key/click/second type action.
+                unverified_error = str(exc)
+                executed.append(str(kind))
+                continue
+            # Confirmed wrong text, lost focus, or any following active action:
+            # stop BEFORE the next action (especially Enter).
             return BurstOutcome("failed", i, total, reason="type_unverified",
                                 error=str(exc), executed=executed)
         except Exception as exc:  # noqa: BLE001 - a backend failure ends the burst, not the daemon
@@ -136,7 +389,25 @@ async def run_burst(
                                 error=f"{kind}: {exc}", executed=executed)
         executed.append(str(kind))
 
+    if unverified_error:
+        return BurstOutcome(
+            "unverified",
+            total,
+            total,
+            reason="type_unverified",
+            error=unverified_error,
+            executed=executed,
+        )
     return BurstOutcome("completed", total, total, executed=executed)
+
+
+async def _release_all_quietly(backend: Any) -> None:
+    release_all = getattr(backend, "release_all", None)
+    if callable(release_all):
+        try:
+            await release_all()
+        except Exception:
+            pass
 
 
 async def _dispatch(a: dict[str, Any], kind: str | None, *, backend: Any, typer: Any,
@@ -150,22 +421,46 @@ async def _dispatch(a: dict[str, Any], kind: str | None, *, backend: Any, typer:
         text = a.get("text", "")
         method = str(a.get("method", "")).lower()
         code, secret = bool(a.get("code")), bool(a.get("secret"))
+        precise = (
+            code
+            or str(a.get("context", "")).lower() in {"field", "terminal"}
+            or is_exact_text(str(text))
+        )
         fast = method in ("print", "hid_print", "pikvm_hid_print")
-        if fast and hasattr(backend, "print_text"):
-            # Explicit FAST path: server-side HID printer, no read-back. Use only when you
-            # don't care to confirm what landed (and it's plain, non-secret text).
-            await backend.print_text(text)
-        elif typer is not None and not a.get("no_verify") and not secret:
-            # DEFAULT: watched typer — humanized, reads the field back, self-corrects once.
-            # A CONFIRMED wrong result (not merely "couldn't read it") stops the burst so the
-            # next action can't run on bad text — exactly the Ctrl+F mistake-blindness risk.
-            res = await typer.type_text(text, code=code, secret=secret,
+        if typer is not None and not secret:
+            # A caller may request the printer transport, but it cannot disable
+            # watched delivery and read-back when the runtime has a typer. The
+            # typer itself selects guarded printer chunks for eligible prose.
+            res = await typer.type_text(text, code=precise, secret=secret,
                                         should_continue=should_continue)
             status = str(getattr(res, "status", "") or "")
-            if status.startswith("failed_"):
+            if status == "blocked_by_policy":
+                raise BurstInterrupted(
+                    {
+                        "type": "type_text",
+                        "typed_characters": int(
+                            getattr(res, "typed_characters", 0) or 0
+                        ),
+                        "intended_characters": int(
+                            getattr(res, "intended_characters", len(text))
+                            or len(text)
+                        ),
+                    }
+                )
+            unverified = status.startswith("unverified_")
+            if status.startswith("failed_") or unverified:
                 raise TypingNotVerified(
                     f"typed {text!r} but read-back disagrees ({status}): "
-                    f"{getattr(res, 'summary', '')}")
+                    f"{getattr(res, 'summary', '')}",
+                    ambiguous=unverified,
+                )
+        elif fast and hasattr(backend, "print_text"):
+            # Bootstrap/fake runtimes without a watched typer retain a bounded raw
+            # printer transport. Production runtimes inject a typer above.
+            for chunk in chunk_text(str(text)):
+                if should_continue is not None and not should_continue():
+                    raise BurstInterrupted
+                await backend.print_text(chunk)
         else:
             await backend.type_text(text, code=code, secret=secret)
     elif kind in ("click", "double_click"):
@@ -185,10 +480,14 @@ async def _dispatch(a: dict[str, Any], kind: str | None, *, backend: Any, typer:
         await asyncio.sleep(max(0, int(a.get("ms", 0))) / 1000.0)
     elif kind == "wait_for_stable_screen":
         await wait_for_stable_screen(backend, stable_ms=int(a.get("stable_ms", 300)),
-                                     timeout_ms=int(a.get("timeout_ms", 1500)),
+                                     timeout_ms=int(a.get(
+                                         "timeout_ms", DEFAULT_STABLE_TIMEOUT_MS
+                                     )),
                                      should_continue=should_continue)
     elif kind == "wait_for_change":
-        await wait_for_screen_change(backend, timeout_ms=int(a.get("timeout_ms", 8000)),
+        await wait_for_screen_change(backend, timeout_ms=int(a.get(
+                                         "timeout_ms", DEFAULT_CHANGE_TIMEOUT_MS
+                                     )),
                                      should_continue=should_continue)
     else:
         raise BurstError(f"unsupported burst action: {kind!r}")
@@ -197,7 +496,11 @@ async def _dispatch(a: dict[str, Any], kind: str | None, *, backend: Any, typer:
 _SCROLL = {"up": (0, 1), "down": (0, -1), "right": (1, 0), "left": (-1, 0)}
 
 
-async def wait_for_screen_change(backend: Any, *, timeout_ms: int = 8000, poll_ms: int = 150,
+async def wait_for_screen_change(
+    backend: Any,
+    *,
+    timeout_ms: int = DEFAULT_CHANGE_TIMEOUT_MS,
+    poll_ms: int = 150,
                                  should_continue: ShouldContinue | None = None) -> bool:
     """Block until the screen CHANGES from how it looks right now (an app launching, a remote
     desktop connecting, a page loading), or ``timeout_ms`` elapses — so a burst can say 'wait
@@ -226,7 +529,11 @@ async def wait_for_screen_change(backend: Any, *, timeout_ms: int = 8000, poll_m
         await asyncio.sleep(poll_ms / 1000.0)
 
 
-async def wait_for_stable_screen(backend: Any, *, stable_ms: int = 300, timeout_ms: int = 1500,
+async def wait_for_stable_screen(
+    backend: Any,
+    *,
+    stable_ms: int = 300,
+    timeout_ms: int = DEFAULT_STABLE_TIMEOUT_MS,
                                  poll_ms: int = 120, should_continue: ShouldContinue | None = None) -> bool:
     """Block until the screen stops changing for ``stable_ms`` (cheap grid frame-diff), or
     ``timeout_ms`` elapses. Lets a burst say 'wait for the editor to finish loading'

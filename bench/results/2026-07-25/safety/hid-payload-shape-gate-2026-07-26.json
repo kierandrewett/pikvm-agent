@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-07-26",
+  "scope": "Seeded target-free raw-HID payload-shape preflight",
+  "seed": 4204202,
+  "corpus_sha256": "095247618fd3a2d8fa3fc229fde0c01e4a8ee3a0514e91ea80c96ee4023a2dbd",
+  "counts": {
+    "passed": 1000,
+    "total": 1000,
+    "expected_reject": 800,
+    "expected_allow": 200,
+    "false_negative_count": 0,
+    "false_positive_count": 0,
+    "test_nodes": 2
+  },
+  "families": {
+    "base64_transfer": {
+      "cases": 160,
+      "correct": 160
+    },
+    "segmented_base64_transfer": {
+      "cases": 160,
+      "correct": 160
+    },
+    "encoded_powershell": {
+      "cases": 160,
+      "correct": 160
+    },
+    "heredoc": {
+      "cases": 160,
+      "correct": 160
+    },
+    "complex_nested_shell": {
+      "cases": 160,
+      "correct": 160
+    },
+    "ordinary_prose": {
+      "cases": 40,
+      "correct": 40
+    },
+    "short_nested_shell": {
+      "cases": 40,
+      "correct": 40
+    },
+    "plain_text_append": {
+      "cases": 40,
+      "correct": 40
+    },
+    "displayed_digest": {
+      "cases": 40,
+      "correct": 40
+    },
+    "ordinary_code": {
+      "cases": 40,
+      "correct": 40
+    }
+  },
+  "regression_tests": [
+    "tests/test_payload_shape_benchmark.py::test_payload_shape_corpus_is_seeded_unique_and_balanced",
+    "tests/test_payload_shape_benchmark.py::test_payload_shape_gate_catches_unsafe_without_safe_false_positives"
+  ],
+  "limitations": [
+    "This is a deterministic syntax gate, not semantic shell analysis.",
+    "It does not provide a replacement byte-transfer channel.",
+    "It does not prove helper-free file equality on a remote machine."
+  ],
+  "target_contacted": false
+}

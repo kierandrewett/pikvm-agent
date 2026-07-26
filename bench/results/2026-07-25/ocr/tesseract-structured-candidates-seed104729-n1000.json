@@ -1,0 +1,145 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-07-26",
+  "provider": "tesseract-psm6-upscale2-ensemble",
+  "change": "syntax-aware candidate selection plus expected-aware exact candidate retention",
+  "corpus": {
+    "cases": 1000,
+    "corpus_seed": 104729,
+    "evaluation_seed": 65537,
+    "blind_ground_truth_release": "after every OCR call completed"
+  },
+  "selected_accuracy": {
+    "exact_matches": 449,
+    "exact_rate": 0.449,
+    "normalized_exact_matches": 569,
+    "normalized_exact_rate": 0.569,
+    "mean_character_error_rate": 0.020775224812035992,
+    "provider_errors": 0
+  },
+  "expected_aware_exact_verification": {
+    "normalized_exact_matches": 614,
+    "normalized_exact_rate": 0.614,
+    "additional_exact_candidates": 45,
+    "candidate_rescues_by_category": {
+      "code": 5,
+      "mixed_case": 12,
+      "path": 9,
+      "prose": 3,
+      "terminal": 4,
+      "ui_label": 2,
+      "url": 10
+    },
+    "runtime_rule": "for precise intended text of at least 8 characters, accept only an independently produced candidate that exactly matches or contains the intended text",
+    "nearest_guess_selection_allowed": false,
+    "expected_text_passed_to_ocr": false
+  },
+  "paired_syntax_selector_comparison": {
+    "baseline_normalized_exact_matches": 553,
+    "current_normalized_exact_matches": 569,
+    "paired_gains": 16,
+    "paired_regressions": 0,
+    "changed_selections": 29,
+    "gains_by_category": {
+      "identifier": 6,
+      "path": 4,
+      "url": 6
+    }
+  },
+  "archived_checkpoint_comparison": {
+    "previous_normalized_exact_matches": 541,
+    "current_normalized_exact_matches": 569,
+    "absolute_match_gain": 28,
+    "previous_normalized_exact_rate": 0.541,
+    "current_normalized_exact_rate": 0.569,
+    "absolute_percentage_point_gain": 2.8
+  },
+  "normalized_exact_rate_by_category": {
+    "code": 0.66,
+    "identifier": 0.76,
+    "mixed_case": 0.52,
+    "numeric": 0.0,
+    "path": 0.68,
+    "prose": 0.83,
+    "punctuation": 0.0,
+    "terminal": 0.78,
+    "ui_label": 0.9,
+    "url": 0.56
+  },
+  "performance": {
+    "jobs": 4,
+    "median_latency_ms": 156,
+    "p95_latency_ms": 215,
+    "evaluation_wall_ms": 40203,
+    "throughput_images_per_second": 24.873765639380142
+  },
+  "confidence_safety": {
+    "discrimination_auc": 0.7108861151774392,
+    "brier_score": 0.2906053371301861,
+    "expected_calibration_error_10_bin": 0.24977618710744423,
+    "highest_coverage_zero_observed_error": {
+      "threshold": 0.9480178233333334,
+      "covered_cases": 36,
+      "coverage": 0.036,
+      "wilson_accuracy_lower_95": 0.9035813714055363
+    },
+    "highest_coverage_with_99_percent_wilson_lower": null,
+    "threshold_0_90": {
+      "covered_cases": 236,
+      "coverage": 0.236,
+      "normalized_exact_rate": 0.902542372881356,
+      "wrong_cases": 23
+    },
+    "threshold_0_95": {
+      "covered_cases": 28,
+      "coverage": 0.028,
+      "normalized_exact_rate": 1.0,
+      "wrong_cases": 0
+    }
+  },
+  "paddle_pairing": {
+    "both_normalized_exact": 539,
+    "tesseract_only_normalized_exact": 30,
+    "paddle_only_normalized_exact": 250,
+    "neither_normalized_exact": 181,
+    "unattainable_oracle_union_correct": 819,
+    "agreement": {
+      "covered": 551,
+      "coverage": 0.551,
+      "correct": 539,
+      "wrong": 12,
+      "accuracy": 0.9782214156079855,
+      "wilson_95": [
+        0.9623222177525297,
+        0.9874986574216675
+      ]
+    },
+    "safe_commit_authority": false,
+    "analysis_sha256": "275e4fc4f894cbdba82eb54b6cd4f1a402959f056f86d5b75931e973d6b1347b"
+  },
+  "release_gate": {
+    "result": "fail",
+    "minimum_normalized_exact_rate": 0.99,
+    "maximum_mean_character_error_rate": 0.001,
+    "minimum_normalized_exact_rate_per_category": 0.95,
+    "provider_errors_allowed": 0
+  },
+  "remaining_release_failures": [
+    "selected normalized exactness is 569/1000",
+    "expected-aware exact candidate coverage is 614/1000",
+    "numeric normalized exactness is 0/100",
+    "punctuation normalized exactness is 0/100",
+    "23 of 236 reads at or above 0.90 confidence are wrong"
+  ],
+  "raw_report_sha256": "6f5c0dc5796ea965415ffb8dd90add25a976957a76ce8c63b46e4d48ee88af6f",
+  "paired_baseline_report_sha256": "bd60e85f1766611caf0ea2895269f0b1d1bece496548b79ea154c405307ba02d",
+  "environment": {
+    "tesseract_version": "5.5.2",
+    "network_used": false,
+    "computer_target_contacted": false,
+    "production_pikvm_touched": false,
+    "vnc_contacted": false,
+    "hid_emitted": false
+  },
+  "verdict": "material improvement for structured and expected-aware verification; still failing the production OCR release gate"
+}

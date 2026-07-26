@@ -211,8 +211,16 @@ class OCRLine(BaseModel):
     raw: dict[str, Any] | None = None
 
 
+class OCRCandidate(BaseModel):
+    """An independent full-text OCR read retained for expected-aware checks."""
+
+    text: str
+    mean_confidence: float | None = None
+
+
 class OCRResult(BaseModel):
     lines: list[OCRLine] = Field(default_factory=list)
+    alternatives: list[OCRCandidate] = Field(default_factory=list)
 
     @property
     def text(self) -> str:
@@ -343,6 +351,9 @@ class OperatorRequest(BaseModel):
     recent_events: list[dict[str, Any]] = Field(default_factory=list)
     retrieved_playbooks: list[dict[str, Any]] = Field(default_factory=list)
     policy: dict[str, Any] = Field(default_factory=dict)
+    reasoning_plan: Any = None
+    model_role: str = "single"
+    model_lane: str = "default"
 
 
 # --------------------------------------------------------------------------- #

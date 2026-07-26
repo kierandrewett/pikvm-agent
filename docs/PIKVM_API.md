@@ -38,8 +38,17 @@ reproduce these exactly. Treat this as the contract.
   text, `Content-Type: text/plain`, params `limit=0` + optional `keymap=<name>`
   + (`delay=<seconds>` **or** `slow=1`). KVMD types the whole string using its
   configured keymap (layout-correct). **Strips `\r\n` → space** so it can never
-  submit; the caller must verify the field after (kvmd returns 200 even when it
-  drops/garbles chars under lag). Use for long *prose* only.
+  submit (kvmd returns 200 even when it drops/garbles chars under lag). The
+  watched runtime never gives it an entire draft: plain prose over 120
+  characters is submitted in word-boundary chunks of at most 16 characters.
+  Before every chunk after the first, a fresh pixel grid must show no
+  substantial change outside the established field. A change stops typing,
+  releases held input, and reports the exact committed prefix. Final OCR
+  remains mandatory; uncertain read-back can be followed only by passive
+  evidence waits, never Enter, another key, a click, or more text. Direct
+  callers cannot opt out with `method=print` or a `no_verify` field: the former
+  is only a transport hint when the watched runtime is present, and the latter
+  is rejected before HID.
 - **Newlines never auto-submit**: `\n` in typed text is collapsed to a space;
   Enter/submit is always a separate, explicit, reviewable key press.
 - **Caps-Lock compensation**: when the target Caps-Lock LED is ON, invert Shift
@@ -121,7 +130,7 @@ MAX_BOX_HEIGHT_FRAC   = 0.6   # a change taller than this frac of screen = repai
 CHUNK_TARGET          = 16    # word-boundary chunk target length
 MAX_TOTAL_CORRECTIONS = 1     # one clean retry; never a compounding loop
 MAX_BACKSPACES        = 400   # safety cap on a correction's clear
-FAST_PRINT_MIN        = 40    # above this, plain text takes the fast print path
+FAST_PRINT_MIN        = 120   # above this, plain prose uses guarded print chunks
 ```
 
 Clearing a field for a retype is **Home + forward-Delete×N**, never Ctrl+A
@@ -160,7 +169,7 @@ E3  Caps Lock / background AVD read caps before typing; fast print disabled when
 E4  shell prompt false miss   strip leading $/#/%/user@host/PS/drive: prompt before compare
 E5  truncated readback        prefix-only read is unverified, NOT a destructive retype
 E6  VS Code Quick Open region OCR over results dropdown is wrong-region, not typed-wrong
-E7  long Teams text slow/voice long plain prose uses the fast print path + style card
+E7  long Teams text slow/voice long prose uses ≤16-char guarded print chunks; no replay
 E8  Teams autoformat          prepend/reorder ⇒ prepend-autocorrect, confirm-then-retype
 E9  git pager trap            terminal.pager blocks shell typing; q recovery / no-pager
 E10 scroll no-op              scroll(direction,amount) must never become scroll(0,0)

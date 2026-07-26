@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-07-26",
+  "scope": "Target-free exact-byte read-only media builder",
+  "contracts": {
+    "passed": 10,
+    "total": 10
+  },
+  "verified": {
+    "source_files_extracted_exactly": 2,
+    "canonical_sha256_manifest": true,
+    "image_mode": "0600",
+    "unsafe_or_ambiguous_names_refused": 6,
+    "budget_failure_classes": 3,
+    "existing_image_preserved": true,
+    "cancelled_builder_terminated": true
+  },
+  "resource_envelope": {
+    "max_files": 32,
+    "max_file_bytes": 16777216,
+    "max_total_bytes": 67108864
+  },
+  "builder": {
+    "format": "ISO 9660 with Joliet and Rock Ridge",
+    "implementation": "genisoimage exact-argv subprocess",
+    "input_shape": "in-memory bytes and safe guest filenames",
+    "output_install": "same-filesystem no-overwrite hard link"
+  },
+  "regression_tests": [
+    "tests/test_msd_media.py"
+  ],
+  "limitations": [
+    "No PiKVM API request or virtual-media attach is implemented.",
+    "No target operating system was contacted.",
+    "The optional local genisoimage prerequisite must be packaged or installed."
+  ],
+  "target_contacted": false
+}

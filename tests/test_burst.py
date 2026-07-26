@@ -2,7 +2,15 @@
 
 from __future__ import annotations
 
-from pikvm_agent.executor.burst import BurstError, normalize_keys, run_burst
+from pikvm_agent.executor.burst import (
+    MAX_BURST_TYPE_TEXT_CHARS,
+    MAX_TYPE_TEXT_CHARS,
+    BurstError,
+    needs_post_action_settle,
+    normalize_keys,
+    recommended_runtime_ms,
+    run_burst,
+)
 from pikvm_agent.pikvm.fake import FakeBackend
 
 
@@ -15,6 +23,53 @@ def test_normalize_keys_friendly_and_passthrough() -> None:
     assert normalize_keys(["5"]) == ["Digit5"]
     # already-valid PiKVM codes pass straight through
     assert normalize_keys(["ControlLeft", "KeyA"]) == ["ControlLeft", "KeyA"]
+
+
+def test_post_action_settle_is_automatic_unless_controller_already_waited() -> None:
+    assert needs_post_action_settle([{"type": "click", "x": 100, "y": 200}])
+    assert needs_post_action_settle(
+        [{"type": "key", "keys": ["ENTER"]}, {"type": "wait", "ms": 100}]
+    )
+    assert not needs_post_action_settle(
+        [{"type": "click", "x": 100, "y": 200}, {"type": "wait", "ms": 500}]
+    )
+    assert not needs_post_action_settle(
+        [
+            {"type": "click", "x": 100, "y": 200},
+            {"type": "wait_for_stable_screen", "stable_ms": 300},
+        ]
+    )
+    assert not needs_post_action_settle([{"type": "wait", "ms": 500}])
+
+
+def test_auto_runtime_budget_covers_verified_humanized_typing() -> None:
+    actions = [
+        {"type": "key", "keys": ["CTRL", "A"]},
+        {"type": "type_text", "text": "dim screen when inactive"},
+    ]
+
+    budget = recommended_runtime_ms(actions)
+
+    # The old fixed 4s default truncated this exact OSWorld action after
+    # "dim screen when". Auto-budget enough time for human cadence plus OCR.
+    assert budget >= 15_000
+
+
+def test_auto_runtime_budget_counts_declared_waits_but_stays_bounded() -> None:
+    actions = [
+        {"type": "wait_for_change", "timeout_ms": 20_000},
+        {"type": "type_text", "text": "x" * MAX_TYPE_TEXT_CHARS, "code": True},
+    ]
+
+    budget = recommended_runtime_ms(actions)
+
+    assert budget >= 100_000
+    assert budget <= 110_000
+
+
+def test_auto_runtime_budget_counts_implicit_screen_wait_defaults() -> None:
+    assert recommended_runtime_ms([{"type": "wait_for_stable_screen"}]) >= 5_500
+    assert recommended_runtime_ms([{"type": "wait_for_change"}]) >= 12_000
 
 
 async def test_run_burst_executes_in_order() -> None:
@@ -59,6 +114,7 @@ async def test_burst_stops_mid_sequence_on_control_change() -> None:
     assert out.completed == 2 and out.remaining == 1
     pressed = [kw["keys"] for m, kw in be.calls if m == "keypress"]
     assert pressed == [["KeyA"], ["KeyB"]]  # the third never fired
+    assert any(m == "release_all" for m, _ in be.calls)
 
 
 async def test_burst_deadline_stops_before_next_action() -> None:
@@ -77,6 +133,193 @@ async def test_burst_unknown_action_raises() -> None:
         pass
 
 
+async def test_burst_rejects_oversized_type_text_before_hid() -> None:
+    be = FakeBackend()
+    too_long = "x" * (MAX_TYPE_TEXT_CHARS + 1)
+
+    try:
+        await run_burst([{"type": "type_text", "text": too_long, "method": "print"}], backend=be)
+        assert False, "expected BurstError"
+    except BurstError as exc:
+        assert "type_text action 0" in str(exc)
+
+    assert be.calls == []
+
+
+async def test_burst_rejects_total_type_text_over_limit_before_hid() -> None:
+    be = FakeBackend()
+    chunk = "x" * min(MAX_TYPE_TEXT_CHARS, max(1, MAX_BURST_TYPE_TEXT_CHARS // 4))
+    count = (MAX_BURST_TYPE_TEXT_CHARS // len(chunk)) + 1
+    actions = [{"type": "type_text", "text": chunk} for _ in range(count)]
+
+    try:
+        await run_burst(actions, backend=be)
+        assert False, "expected BurstError"
+    except BurstError as exc:
+        assert "typed chars" in str(exc)
+
+    assert be.calls == []
+
+
+async def test_burst_rejects_chunked_base64_file_transfer_before_hid() -> None:
+    be = FakeBackend()
+    encoded_chunk = (
+        "ZXhhY3QtcGF5bG9hZC10aGF0LW11c3Qtbm90LWJlLXR5cGVkLXRo"
+        "cm91Z2gtcmF3LUhJRC1hcy1hLXRyYW5zZmVyLWhhY2s="
+    )
+
+    try:
+        await run_burst(
+            [
+                {
+                    "type": "type_text",
+                    "text": f"printf '%s' '{encoded_chunk}' >> /tmp/payload.b64",
+                    "context": "terminal",
+                }
+            ],
+            backend=be,
+        )
+        assert False, "expected BurstError"
+    except BurstError as exc:
+        assert "encoded file-transfer payload" in str(exc)
+
+    assert be.calls == []
+
+
+async def test_burst_rejects_base64_transfer_split_across_type_actions() -> None:
+    be = FakeBackend()
+    encoded_chunk = (
+        "ZXhhY3QtcGF5bG9hZC10aGF0LW11c3Qtbm90LWJlLXR5cGVkLXRo"
+        "cm91Z2gtcmF3LUhJRC1hcy1hLXRyYW5zZmVyLWhhY2s="
+    )
+
+    try:
+        await run_burst(
+            [
+                {
+                    "type": "type_text",
+                    "text": "printf '%s' '",
+                    "context": "terminal",
+                },
+                {
+                    "type": "type_text",
+                    "text": encoded_chunk,
+                    "context": "terminal",
+                },
+                {
+                    "type": "type_text",
+                    "text": "' >> /tmp/payload.b64",
+                    "context": "terminal",
+                },
+            ],
+            backend=be,
+        )
+        assert False, "expected BurstError"
+    except BurstError as exc:
+        assert "encoded file-transfer payload" in str(exc)
+
+    assert be.calls == []
+
+
+async def test_burst_rejects_encoded_powershell_before_hid() -> None:
+    be = FakeBackend()
+    encoded_command = (
+        "VwByAGkAdABlAC0ATwB1AHQAcAB1AHQAIAAnAHQAaABpAHMAIABpAHMA"
+        "IABhAG4AIAB1AG4AaQBuAHMAcABlAGMAdABhAGIAbABlACAAcwBjAHIAaQBwAHQAJwA="
+    )
+
+    try:
+        await run_burst(
+            [
+                {
+                    "type": "type_text",
+                    "text": f"powershell -NoProfile -EncodedCommand {encoded_command}",
+                    "context": "terminal",
+                }
+            ],
+            backend=be,
+        )
+        assert False, "expected BurstError"
+    except BurstError as exc:
+        assert "encoded shell command" in str(exc)
+
+    assert be.calls == []
+
+
+async def test_burst_rejects_heredoc_opener_before_hid() -> None:
+    be = FakeBackend()
+
+    try:
+        await run_burst(
+            [
+                {
+                    "type": "type_text",
+                    "text": "python - <<'PY'",
+                    "context": "terminal",
+                }
+            ],
+            backend=be,
+        )
+        assert False, "expected BurstError"
+    except BurstError as exc:
+        assert "heredoc shell payload" in str(exc)
+
+    assert be.calls == []
+
+
+async def test_burst_rejects_dense_nested_shell_payload_before_hid() -> None:
+    be = FakeBackend()
+    command = (
+        "bash -lc \"python -c \\\"from pathlib import Path; "
+        "p=Path('/tmp/example'); "
+        "p.write_text(p.read_text().replace('old','new'))\\\" "
+        "&& grep -n \\\"new\\\" /tmp/example\""
+    )
+
+    try:
+        await run_burst(
+            [
+                {
+                    "type": "type_text",
+                    "text": command,
+                    "context": "terminal",
+                }
+            ],
+            backend=be,
+        )
+        assert False, "expected BurstError"
+    except BurstError as exc:
+        assert "complex nested shell payload" in str(exc)
+
+    assert be.calls == []
+
+
+async def test_burst_allows_prose_and_short_inspectable_terminal_text() -> None:
+    safe_inputs = [
+        {
+            "type": "type_text",
+            "text": "Base64 is an encoding, not a reliable file-transfer channel.",
+            "context": "editor",
+        },
+        {
+            "type": "type_text",
+            "text": "bash -lc \"pwd\"",
+            "context": "terminal",
+        },
+        {
+            "type": "type_text",
+            "text": "printf '%s' 'short status' >> /tmp/status.log",
+            "context": "terminal",
+        },
+    ]
+
+    for action in safe_inputs:
+        be = FakeBackend()
+        out = await run_burst([action], backend=be)
+        assert out.status == "completed"
+        assert any(method == "type_text" for method, _ in be.calls)
+
+
 async def test_burst_backend_failure_is_reported_not_raised() -> None:
     be = FakeBackend()
 
@@ -90,15 +333,28 @@ async def test_burst_backend_failure_is_reported_not_raised() -> None:
 
 class _StubTyper:
     """Stand-in watched typer that returns a chosen verification status."""
-    def __init__(self, status: str) -> None:
+    def __init__(
+        self,
+        status: str,
+        *,
+        typed_characters: int = 0,
+        intended_characters: int = 0,
+    ) -> None:
         self.status = status
+        self.typed_characters = typed_characters
+        self.intended_characters = intended_characters
         self.calls: list[str] = []
 
     async def type_text(self, text, *, code=False, secret=False, should_continue=None):
         self.calls.append(text)
         class _R:
             pass
-        r = _R(); r.status = self.status; r.ok = not self.status.startswith("failed_"); r.summary = "stub"
+        r = _R()
+        r.status = self.status
+        r.ok = not self.status.startswith("failed_")
+        r.summary = "stub"
+        r.typed_characters = self.typed_characters
+        r.intended_characters = self.intended_characters
         return r
 
 
@@ -124,10 +380,163 @@ async def test_burst_type_text_proceeds_when_verified() -> None:
     assert any(m == "keypress" for m, _ in be.calls)
 
 
-async def test_burst_print_method_skips_verify() -> None:
+async def test_burst_precise_text_stops_on_ambiguous_ocr_before_enter() -> None:
     be = FakeBackend()
-    typer = _StubTyper("failed_focus_lost")  # would fail IF consulted
-    out = await run_burst([{"type": "type_text", "text": "long", "method": "print"}],
-                          backend=be, typer=typer)
-    assert out.status == "completed" and typer.calls == []  # fast path didn't use the typer
-    assert any(m == "print_text" for m, _ in be.calls)
+    typer = _StubTyper("unverified_ambiguous")
+    out = await run_burst(
+        [
+            {"type": "type_text", "text": "rm build"},
+            {"type": "key", "keys": ["ENTER"]},
+        ],
+        backend=be,
+        typer=typer,
+    )
+
+    assert out.status == "failed"
+    assert out.reason == "type_unverified"
+    assert not any(m == "keypress" for m, _ in be.calls)
+
+
+async def test_burst_long_prose_stops_on_ambiguous_ocr_before_enter() -> None:
+    be = FakeBackend()
+    typer = _StubTyper("unverified_ambiguous")
+    out = await run_burst(
+        [
+            {
+                "type": "type_text",
+                "text": "A long prose draft that still needs exact readback.",
+            },
+            {"type": "key", "keys": ["ENTER"]},
+        ],
+        backend=be,
+        typer=typer,
+    )
+
+    assert out.status == "failed"
+    assert out.reason == "type_unverified"
+    assert not any(m == "keypress" for m, _ in be.calls)
+
+
+async def test_burst_ambiguous_text_allows_only_passive_evidence_waits() -> None:
+    be = FakeBackend()
+    typer = _StubTyper("unverified_ambiguous")
+
+    out = await run_burst(
+        [
+            {
+                "type": "type_text",
+                "text": "ls -l",
+                "context": "terminal",
+            },
+            {"type": "wait", "ms": 0},
+        ],
+        backend=be,
+        typer=typer,
+    )
+
+    assert out.status == "unverified"
+    assert out.completed == out.total == 2
+    assert out.reason == "type_unverified"
+    assert not any(method == "keypress" for method, _ in be.calls)
+
+
+async def test_field_text_is_verified_exactly_before_followup_action() -> None:
+    be = FakeBackend()
+    typer = _StubTyper("unverified_ambiguous")
+    out = await run_burst(
+        [
+            {
+                "type": "type_text",
+                "text": "Dim screen when inactive",
+                "context": "field",
+            },
+            {"type": "key", "keys": ["ENTER"]},
+        ],
+        backend=be,
+        typer=typer,
+    )
+
+    assert out.status == "failed"
+    assert out.reason == "type_unverified"
+    assert not any(m == "keypress" for m, _ in be.calls)
+
+
+async def test_burst_reports_partial_type_progress_when_deadline_interrupts() -> None:
+    be = FakeBackend()
+    typer = _StubTyper(
+        "blocked_by_policy",
+        typed_characters=16,
+        intended_characters=191,
+    )
+
+    out = await run_burst(
+        [
+            {"type": "type_text", "text": "x" * 191, "code": True},
+            {"type": "key", "keys": ["ENTER"]},
+        ],
+        backend=be,
+        typer=typer,
+    )
+
+    assert out.status == "interrupted"
+    assert out.completed == 0
+    assert out.partial_action == {
+        "type": "type_text",
+        "typed_characters": 16,
+        "intended_characters": 191,
+    }
+    assert not any(method == "keypress" for method, _ in be.calls)
+
+
+async def test_burst_print_method_cannot_bypass_watched_verification() -> None:
+    be = FakeBackend()
+    typer = _StubTyper("unverified_ambiguous")
+    out = await run_burst(
+        [
+            {"type": "type_text", "text": "long", "method": "print"},
+            {"type": "key", "keys": ["ENTER"]},
+        ],
+        backend=be,
+        typer=typer,
+    )
+
+    assert out.status == "failed"
+    assert out.reason == "type_unverified"
+    assert typer.calls == ["long"]
+    assert not any(method == "print_text" for method, _ in be.calls)
+    assert not any(method == "keypress" for method, _ in be.calls)
+
+
+async def test_burst_rejects_no_verify_escape_hatch_before_hid() -> None:
+    be = FakeBackend()
+
+    try:
+        await run_burst(
+            [{"type": "type_text", "text": "payload", "no_verify": True}],
+            backend=be,
+        )
+        assert False, "expected BurstError"
+    except BurstError as exc:
+        assert "no_verify" in str(exc)
+
+    assert be.calls == []
+
+
+async def test_burst_print_method_stops_between_bounded_chunks() -> None:
+    """Regression: a server-side print must not keep draining after panic-stop."""
+    be = FakeBackend()
+
+    def gate() -> bool:
+        return sum(method == "print_text" for method, _ in be.calls) < 1
+
+    out = await run_burst(
+        [{"type": "type_text", "text": "x" * 64, "method": "print"}],
+        backend=be,
+        should_continue=gate,
+    )
+
+    printed = [call["text"] for method, call in be.calls if method == "print_text"]
+    assert printed == ["x" * 16]
+    assert out.status == "interrupted"
+    assert out.reason == "control_changed"
+    assert any(method == "release_all" for method, _ in be.calls)

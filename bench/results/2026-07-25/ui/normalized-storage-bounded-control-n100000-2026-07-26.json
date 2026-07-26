@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "suite": "harness-normalized-storage",
+  "recorded_at": "2026-07-26",
+  "environment": {
+    "python": "3.12.13",
+    "os": "Linux 6.19.10-200.fc43.x86_64",
+    "logical_processors": 16,
+    "adapter": "in-memory normalized contract"
+  },
+  "parameters": {
+    "events_before_repetitions": 100000,
+    "append_repetitions": 100
+  },
+  "results": {
+    "events_after_repetitions": 100100,
+    "initial_history_import_ms": 214.978,
+    "append_checkpoint_latency": {
+      "median_ms": 0.086,
+      "p95_ms": 0.138,
+      "max_ms": 0.72
+    },
+    "event_free_inventory_latency": {
+      "median_ms": 0.014,
+      "p95_ms": 0.024,
+      "max_ms": 0.034
+    },
+    "latest_500_event_page_latency": {
+      "median_ms": 0.98,
+      "p95_ms": 1.285,
+      "max_ms": 58.511
+    },
+    "bounded_1000_event_control_load_latency": {
+      "median_ms": 3.372,
+      "p95_ms": 4.539,
+      "max_ms": 57.096
+    },
+    "bounded_control_event_count": {
+      "min": 1000,
+      "max": 1000
+    },
+    "legacy_full_checkpoint_bytes": 9588030,
+    "normalized_state_plus_summary_bytes": 758,
+    "latest_event_append_bytes": 97,
+    "checkpoint_write_reduction_ratio": 11214.07
+  },
+  "regression_caught_during_iteration": {
+    "initial_bounded_window_append_median_ms": 19.021,
+    "cause": "the first suffix detector scanned the entire 100000-event window",
+    "resolution": "derive the new suffix index from contiguous event sequence numbers",
+    "final_append_median_ms": 0.086
+  },
+  "limitations": [
+    "This isolates serialization and the normalized storage contract.",
+    "The production aiosqlite filesystem soak could not run because the restricted runner blocks its worker thread and denied escalation.",
+    "This is not a multi-hour browser-memory, model, frame-decode, OCR, HID, or network result."
+  ]
+}

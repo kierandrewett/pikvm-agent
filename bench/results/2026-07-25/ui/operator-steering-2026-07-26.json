@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "suite": "operator-steering",
+  "recorded_at": "2026-07-26",
+  "scope": {
+    "computer_target_contacted": false,
+    "external_provider_calls": 0,
+    "production_contacts": 0
+  },
+  "focused_selection": {
+    "passed": 12,
+    "failed": 0,
+    "skipped": 0,
+    "elapsed_seconds": 0.78,
+    "command": ".venv/bin/pytest -q -p no:cacheprovider tests/test_agent_harness.py::test_operator_steering_is_durable_and_forces_a_fresh_plan tests/test_agent_harness.py::test_operator_steering_cannot_discard_an_unsettled_action tests/test_agent_harness.py::test_start_runs_a_checkpointed_reason_act_verify_slice tests/test_agent_harness.py::test_ambiguous_transport_retry_reuses_checkpointed_action_and_key tests/test_harness_api.py::test_only_operator_can_durably_steer_a_managed_run tests/test_harness_api.py::test_managed_harness_cannot_steer_a_direct_mcp_run tests/test_harness_api.py::test_external_benchmark_console_is_observe_approve_stop_only tests/test_harness_api.py::test_operator_steering_can_resume_under_harness_ownership tests/test_harness_api.py::test_operator_steer_cancels_inflight_model_work_before_replanning tests/test_harness_ui.py::test_harness_ui_uses_one_static_entrypoint_and_no_remote_assets tests/test_harness_ui.py::test_harness_ui_has_a_release_bundle_budget_and_releases_frame_blobs tests/test_harness_ui.py::test_harness_ui_keeps_visibility_and_approvals_readable_at_reflow_widths"
+  },
+  "contracts": {
+    "operator_credential_required": true,
+    "coding_client_agent_credential_refused": true,
+    "instruction_persisted_in_run_and_timeline": true,
+    "inflight_model_wait_cancelled_before_replan": true,
+    "fresh_reasoner_plan_required": true,
+    "guidance_included_in_model_context": true,
+    "unsettled_hid_action_never_discarded": true,
+    "automatic_resume_remains_harness_owned": true,
+    "direct_mcp_cannot_be_steered_by_harness": true,
+    "external_benchmark_cannot_be_steered_by_harness": true,
+    "responsive_ui_control_and_reused_dialog_present": true,
+    "managed_tool_attempt_and_outcome_share_a_unique_call_id": true,
+    "managed_tool_outcome_retains_tool_status_and_latency": true
+  },
+  "ui_resource_envelope": {
+    "index_html_bytes": 17760,
+    "app_js_bytes": 81330,
+    "styles_css_bytes": 31932,
+    "total_bytes": 131022,
+    "total_limit_bytes": 131072
+  },
+  "interactive_browser": {
+    "executed": true,
+    "fixture": "The product HTML, CSS, and JavaScript were loaded into an isolated in-app Chromium document with a deterministic mocked authenticated harness API. The production CSP and external asset tags were removed only from the injected fixture so the checked local assets could execute without a listener.",
+    "computer_target_contacted": false,
+    "external_provider_calls": 0,
+    "checks": {
+      "guide_control_visible": true,
+      "steering_dialog_copy_visible": true,
+      "instruction_typed": true,
+      "exact_post_path": "/api/runs/run_1/steer",
+      "exact_post_body": {
+        "instruction": "Keep the existing totals row and add a variance column",
+        "auto_resume": true
+      },
+      "dialog_closed_after_success": true,
+      "old_plan_cleared": true,
+      "durable_guidance_visible": true,
+      "run_steered_timeline_event_visible": true,
+      "harness_ownership_toast_visible": true
+    },
+    "responsive_probe": {
+      "requested_viewport_width": 390,
+      "requested_viewport_height": 844,
+      "document_client_width": 375,
+      "document_scroll_width": 375,
+      "body_scroll_width": 360,
+      "transaction_width": 360,
+      "guide_visible": true
+    },
+    "console": "No application-origin error was observed. The Electron host emitted its expected injected-fixture warnings because the fixture intentionally omitted the production CSP."
+  },
+  "disposition": "The durable operator-steering, managed-tool correlation, and target-free in-app Chromium interaction contracts pass locally. No computer target or external provider was contacted."
+}

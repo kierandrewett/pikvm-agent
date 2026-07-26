@@ -1,0 +1,112 @@
+schema_version: 1
+suite_id: office-acceptance-v1
+tasks:
+  - task_id: word-shakespeare-essay
+    instruction_template: |
+      Using Microsoft Word or a compatible desktop word processor, write an
+      original analytical essay titled exactly "Shakespeare and Human Choice".
+      The essay must be 650 to 900 words, use the application's Title style for
+      the title, contain at least six substantive body/conclusion paragraphs,
+      and explain how human choice and consequence operate across Hamlet,
+      Macbeth, King Lear, and The Tempest. Use normal prose rather than a list
+      or table. Save the finished document as {artifact_path}. Reopen the saved
+      file and verify that the title and complete essay remain present before
+      reporting completion.
+    artifact:
+      format: docx
+      filename: shakespeare-essay.docx
+      max_bytes: 67108864
+      docx:
+        title: Shakespeare and Human Choice
+        title_style: Title
+        min_paragraphs: 7
+        min_word_count: 650
+        max_word_count: 900
+        required_phrases:
+          - Hamlet
+          - Macbeth
+          - King Lear
+          - The Tempest
+          - human choice
+
+  - task_id: excel-quarterly-earnings
+    instruction_template: |
+      Using Microsoft Excel or a compatible desktop spreadsheet, create a
+      workbook for the fictional company Northstar Systems from the supplied
+      figures below. Save it as {artifact_path}.
+
+      Put "Northstar Systems Quarterly Earnings" in A1 on a worksheet named
+      "Quarterly Earnings". Put the headers Quarter, Revenue ($m), Operating
+      Income ($m), and Diluted EPS ($) in A3:D3.
+
+      Enter these rows exactly:
+      Q1 | 124.8 | 18.7 | 0.42
+      Q2 | 132.1 | 20.4 | 0.46
+      Q3 | 129.6 | 19.8 | 0.44
+      Q4 | 141.5 | 23.1 | 0.52
+
+      Put "FY Total" in A8. Use spreadsheet formulas, not typed totals, for B8,
+      C8, and D8: each must sum its four quarterly cells. Reopen the saved
+      workbook and verify every source value and formula before reporting
+      completion.
+    artifact:
+      format: xlsx
+      filename: quarterly-earnings.xlsx
+      max_bytes: 67108864
+      xlsx:
+        sheets:
+          Quarterly Earnings:
+            cells:
+              A1:
+                value: Northstar Systems Quarterly Earnings
+              A3:
+                value: Quarter
+              B3:
+                value: Revenue ($m)
+              C3:
+                value: Operating Income ($m)
+              D3:
+                value: Diluted EPS ($)
+              A4:
+                value: Q1
+              B4:
+                value: 124.8
+              C4:
+                value: 18.7
+              D4:
+                value: 0.42
+              A5:
+                value: Q2
+              B5:
+                value: 132.1
+              C5:
+                value: 20.4
+              D5:
+                value: 0.46
+              A6:
+                value: Q3
+              B6:
+                value: 129.6
+              C6:
+                value: 19.8
+              D6:
+                value: 0.44
+              A7:
+                value: Q4
+              B7:
+                value: 141.5
+              C7:
+                value: 23.1
+              D7:
+                value: 0.52
+              A8:
+                value: FY Total
+              B8:
+                value: 528
+                formula: SUM(B4:B7)
+              C8:
+                value: 82
+                formula: SUM(C4:C7)
+              D8:
+                value: 1.84
+                formula: SUM(D4:D7)

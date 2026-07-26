@@ -226,6 +226,10 @@ After a PiKVM task:
 
 # Combined MCP config
 
+This original build plan predates the dedicated operator harness. The current
+copy-pasteable configuration starts the high-level managed facade; it does not
+give Claude Code or Codex raw HID tools.
+
 Claude Code `.mcp.json` should eventually include both servers:
 
 ```json
@@ -239,7 +243,11 @@ Claude Code `.mcp.json` should eventually include both servers:
       "command": "/home/kieran/dev/pikvm-agent/.venv/bin/python",
       "args": [
         "-m",
-        "pikvm_agent.mcp_server"
+        "pikvm_agent.cli",
+        "harness",
+        "managed-mcp",
+        "--config",
+        "/home/kieran/dev/pikvm-agent/config.harness.yaml"
       ]
     }
   }
@@ -259,7 +267,15 @@ default_tools_approval_mode = "prompt"
 
 [mcp_servers.pikvm]
 command = "/home/kieran/dev/pikvm-agent/.venv/bin/python"
-args = ["-m", "pikvm_agent.mcp_server"]
+args = [
+  "-m",
+  "pikvm_agent.cli",
+  "harness",
+  "managed-mcp",
+  "--config",
+  "/home/kieran/dev/pikvm-agent/config.harness.yaml",
+]
+env_vars = ["PIKVM_HARNESS_AGENT_TOKEN"]
 startup_timeout_sec = 15
 tool_timeout_sec = 900
 enabled = true

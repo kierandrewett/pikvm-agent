@@ -1,0 +1,111 @@
+{
+  "schema_version": 1,
+  "suite": "target-free-managed-smoke-lab",
+  "recorded_at": "2026-07-26T21:26:42Z",
+  "environment": "local-target-free-contract",
+  "contracts": {
+    "total": 24,
+    "passed": 24,
+    "failed": 0
+  },
+  "slices": {
+    "managed_smoke_lab": {
+      "tests": 2,
+      "exercised_modules": [
+        "AgentHarness",
+        "create_harness_app",
+        "ModelPool"
+      ],
+      "interface_test_store": "in-memory",
+      "runtime_store_constructed": "sqlite",
+      "sqlite_request_executed": false,
+      "deterministic_provider_calls": 3,
+      "deterministic_provider_successes": 3,
+      "external_provider_calls": 0,
+      "substituted_adapters": [
+        "deterministic-no-machine-computer",
+        "deterministic-structured-model"
+      ],
+      "visible_evidence": [
+        "originating-client",
+        "provider-and-model",
+        "model-lanes",
+        "exact-redacted-action",
+        "checkpoint-frame",
+        "labelled-before-after-verification",
+        "terminal-verdict"
+      ]
+    },
+    "isolated_client_task": {
+      "tests": 12,
+      "clients": [
+        "codex",
+        "claude"
+      ],
+      "task_transport": "stdin",
+      "task_in_argv": false,
+      "dangerous_bypass_flags": false,
+      "codex_local_sandbox": "read-only",
+      "claude_permission_mode": "dontAsk"
+    },
+    "wheel_acceptance": {
+      "tests": 10,
+      "smoke_lab_required_in_customer_wheel": true
+    }
+  },
+  "validation": {
+    "focused_acceptance": {
+      "selected_tests": 44,
+      "passed": 44,
+      "failed": 0,
+      "includes_public_claim_integrity_gate": true,
+      "includes_scorecard_drift_gate": true
+    },
+    "repository_suite": {
+      "completed": false,
+      "failures_observed_before_blockers": 0,
+      "passed_count_claimed": false,
+      "blocked_boundaries": [
+        "temporary SQLite runtime fixture worker thread",
+        "Starlette TestClient portal thread"
+      ]
+    },
+    "package_rebuild": {
+      "completed": false,
+      "network_used": false,
+      "sandbox_attempt": "blocked-before-build-backend-by-read-only-uv-cache",
+      "escalated_attempt": "broker-rejected-before-process-creation",
+      "prior_wheel_current_inspector": "rejected-as-stale",
+      "prior_wheel_missing_required_modules": [
+        "pikvm_agent/harness/managed_client_launcher.py",
+        "pikvm_agent/harness/smoke_lab.py"
+      ]
+    }
+  },
+  "live_attempt": {
+    "requested_listener": "loopback-only",
+    "broker_decision": "rejected-before-process-creation",
+    "listener_opened": false,
+    "outer_client_started": false,
+    "mcp_process_started": false,
+    "external_provider_called": false,
+    "task_started": false
+  },
+  "safety": {
+    "vnc_contact": false,
+    "pikvm_contact": false,
+    "daemon_contact": false,
+    "production_registration_modified": false,
+    "persisted_client_config_modified": false,
+    "task_text_published": false,
+    "credential_value_published": false
+  },
+  "limitations": [
+    "This proves the target-free app and launch contracts, not a live coding-client task.",
+    "The exercised app interface used the in-memory store because SQLite worker threads do not complete in this runner.",
+    "The CLI constructed the SQLite-backed app, but no SQLite-backed request was executed.",
+    "The app test called only the deterministic inner provider; no OAuth or API provider was called.",
+    "The host execution broker rejected the loopback listener before process creation.",
+    "No outer client, MCP process, computer target, or production registration was contacted."
+  ]
+}

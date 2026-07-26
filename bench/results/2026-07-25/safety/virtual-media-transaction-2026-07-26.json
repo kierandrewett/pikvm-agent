@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-07-26",
+  "scope": "Target-free approval-gated virtual-media transaction",
+  "contracts": {
+    "passed": 19,
+    "total": 19,
+    "transaction_coordinator": 11,
+    "daemon_adapter": 2,
+    "operator_api": 2,
+    "ui_projection_and_budget": 2,
+    "model_surface_exclusion": 2
+  },
+  "verified": {
+    "exact_browser_approval_required": true,
+    "agent_credential_cannot_approve": true,
+    "wrong_approval_id_causes_zero_mutations": true,
+    "operator_rejection_causes_zero_mutations": true,
+    "target_change_before_upload_is_clean_refusal": true,
+    "expired_pre_upload_lease_is_clean_refusal": true,
+    "ambiguous_mutation_latches_cleanup_required": true,
+    "ambiguous_mutation_is_not_retried": true,
+    "definite_failure_rolls_back_owned_image": true,
+    "detach_clear_remove_are_independently_verified": true,
+    "emergency_stop_releases_attached_media": true,
+    "expired_attached_lease_releases_without_model_action": true,
+    "vnc_without_msd_refused_before_staging": true,
+    "private_artifact_mode": "0600",
+    "private_directory_mode": "0700",
+    "public_checkpoint_excludes_host_media_path": true,
+    "remote_url_upload_route_used": false
+  },
+  "state_visibility": [
+    "prepared",
+    "awaiting_approval",
+    "uploading",
+    "selected",
+    "attached",
+    "detaching",
+    "rolling_back",
+    "released",
+    "rejected",
+    "cleanup_required",
+    "unsupported"
+  ],
+  "safety_boundary": {
+    "model_facing_transfer_tool": false,
+    "daemon_mutation_bridge_exposed": false,
+    "reason": "The daemon bridge remains fail-closed until mutations require a one-time capability bound to the exact browser-approved checkpoint."
+  },
+  "regression_tests": [
+    "tests/test_media_transaction.py",
+    "tests/test_daemon_media_transport.py",
+    "tests/test_harness_api.py::test_virtual_media_approval_uses_operator_credential_and_exact_intent",
+    "tests/test_harness_api.py::test_emergency_stop_halts_run_then_releases_attached_media",
+    "tests/test_harness_ui.py::test_harness_ui_uses_one_static_entrypoint_and_no_remote_assets",
+    "tests/test_harness_ui.py::test_harness_ui_has_a_release_bundle_budget_and_releases_frame_blobs",
+    "tests/test_harness_mcp_server.py::test_high_level_mcp_exposes_no_raw_hid_or_self_approval_tools",
+    "tests/test_phase1_shell.py::test_model_facing_raw_mcp_excludes_approval_tools_and_declares_risk"
+  ],
+  "limitations": [
+    "No PiKVM or VNC target was contacted.",
+    "No daemon virtual-media mutation route is exposed.",
+    "No guest operating system observed the media.",
+    "A one-time daemon capability and isolated Windows/Linux physical trials remain release gates."
+  ],
+  "target_contacted": false
+}

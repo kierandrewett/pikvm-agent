@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-07-26",
+  "package": {
+    "name": "pikvm-agent",
+    "version": "0.1.0",
+    "filename": "pikvm_agent-0.1.0-py3-none-any.whl",
+    "sha256": "7252debceaad7ff3ec499712e6439e1c590d27ca0effd2cec029d2524bbde96f"
+  },
+  "build": {
+    "status": "passed",
+    "backend": "hatchling 1.31.0 from pre-existing local cache",
+    "network_used": false
+  },
+  "wheel_acceptance": {
+    "status": "passed",
+    "tests_passed": 8,
+    "members": 132,
+    "record_entries_verified": 131,
+    "uncompressed_bytes": 1525429,
+    "console_script": "pikvm_agent.cli:app",
+    "client_isolation_audit_required": true,
+    "operator_assets": {
+      "pikvm_agent/harness_ui/app.js": 81299,
+      "pikvm_agent/harness_ui/index.html": 17760,
+      "pikvm_agent/harness_ui/styles.css": 31932
+    }
+  },
+  "isolated_venv": {
+    "wheel_install_without_dependencies": "passed",
+    "installed_version": "0.1.0",
+    "installed_package_path": "/tmp/pikvm-agent-clean-venv-audit-py312-2026-07-26.nT3Vr9/lib64/python3.12/site-packages/pikvm_agent",
+    "console_script_created": true,
+    "console_help_with_existing_dependency_layer": "passed",
+    "console_module_loaded_from_installed_wheel": true,
+    "full_offline_dependency_install": "blocked",
+    "blocker": "The existing offline cache lacks several locked compiled wheels, including cffi 2.0.0. Network download was not attempted."
+  },
+  "release_claim": "Built wheel and isolated package installation pass. A dependency-complete clean-venv installation is not yet proven.",
+  "production_target_contacted": false,
+  "vnc_target_contacted": false
+}

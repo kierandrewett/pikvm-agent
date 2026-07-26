@@ -66,6 +66,10 @@ def test_config_defaults() -> None:
     c = load_config()
     assert c.operator.provider == "fake"
     assert c.ocr.provider == "tesseract"
+    assert c.ocr.psm == 6
+    assert c.ocr.upscale == 2.0
+    assert c.ocr.ensemble is True
+    assert c.ocr.syntax_aware_selection is True
     assert c.daemon.host == "127.0.0.1" and c.daemon.port == 47615
     assert (c.watchers.fp_move, c.watchers.fp_settle, c.watchers.fp_meaningful) == (0.04, 0.015, 0.05)
     assert "sudo" in c.policy.require_human_for
@@ -76,5 +80,22 @@ def test_config_example_file_loads() -> None:
 
     example = Path(__file__).resolve().parents[1] / "config.example.yaml"
     c = load_config(example)
+    assert c.ocr.provider == "tesseract"
+    assert c.ocr.psm == 6
+    assert c.ocr.upscale == 2.0
+    assert c.ocr.ensemble is True
+    assert c.ocr.syntax_aware_selection is True
     assert set(c.operator.lanes) == {"cheap", "default", "hard"}
     assert c.operator.lanes["hard"].model.startswith("qwen/")
+    assert {
+        "communication_send",
+        "credential_entry",
+        "sensitive_data_transmit",
+        "account_or_permission_change",
+        "terminal_mutating",
+        "delete",
+        "financial_or_purchase",
+        "legal_or_consent",
+        "file_external_upload",
+        "unknown",
+    } <= set(c.policy.require_human_for)

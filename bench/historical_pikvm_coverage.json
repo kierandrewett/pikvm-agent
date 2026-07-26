@@ -1,0 +1,299 @@
+{
+  "schema_version": 1,
+  "generated_from": "historical_pikvm_incidents.json",
+  "scope": {
+    "severities": [
+      "critical",
+      "high"
+    ],
+    "incident_count": 46
+  },
+  "status_counts": {
+    "covered_local": 6,
+    "partial": 40,
+    "open": 0
+  },
+  "control_families": [
+    {
+      "id": "editor_transaction_semantics",
+      "status": "partial",
+      "incident_ids": [
+        "cc-8d396-wrapped-selection-errors",
+        "cc-8d396-merged-policy-line",
+        "cc-8d396-cascading-section-corruption",
+        "cc-e0a-wrapped-line-mangling",
+        "cc-e0a-comment-edit-regressed-file"
+      ],
+      "controls": [
+        "A helper-backed private transaction captures exact baseline bytes, requires one unique inline selection, bounds it to the complete logical line rather than a visual wrap, and prepares baseline/expected hashes plus a unified diff preview before input.",
+        "Post-edit observer bytes must match the expected document exactly. Changes outside the prepared logical unit require manual restore; an in-unit mismatch gets one bounded repair cycle and then exposes an exact whole-unit rollback payload.",
+        "Application adapters can require stable diagnostic identities. Missing diagnostics fail closed and any new diagnostic converts an otherwise exact text change into rollback-ready state."
+      ],
+      "regression_tests": [
+        "tests/test_editor_transaction.py::test_wrapped_visual_line_is_bounded_by_the_complete_logical_line",
+        "tests/test_editor_transaction.py::test_ambiguous_replacement_is_refused_before_any_editor_input",
+        "tests/test_editor_transaction.py::test_merged_adjacent_line_requires_manual_restore",
+        "tests/test_editor_transaction.py::test_one_bounded_repair_is_allowed_then_whole_unit_rollback_is_required",
+        "tests/test_editor_transaction.py::test_new_diagnostic_rejects_an_exact_text_change_and_restores_whole_unit"
+      ],
+      "remaining": "The exact evaluator and rollback payload are locally covered but not yet wired to model-visible managed editor tasks. Add private transaction orchestration, diagnostics capture, approval-gated rollback execution, and real Word, VS Code, and rich-text trials before calling these incidents closed."
+    },
+    {
+      "id": "undo_redo_commit_gate",
+      "status": "partial",
+      "incident_ids": [
+        "cc-17dade-undo-chain-destroyed-buffer"
+      ],
+      "controls": [
+        "Direct Ctrl+Z and Ctrl+Y actions are classified as local-file edits and require operator approval before HID."
+      ],
+      "regression_tests": [
+        "tests/test_direct_burst_policy.py::test_undo_and_redo_shortcuts_require_human_review"
+      ],
+      "remaining": "Approval prevents silent compounding but is not a transaction. Add baseline capture, a one-cycle repair budget, full document comparison, and known-good restore for managed editor workflows."
+    },
+    {
+      "id": "bulk_replace_commit_gate",
+      "status": "partial",
+      "incident_ids": [
+        "cc-17dade-replace-focus-corruption",
+        "cc-e0a-find-replace-garbled-line",
+        "cx-377d-replacement-wrong-word"
+      ],
+      "controls": [
+        "Visible Replace, Replace All, and Replace in files controls are classified as local-file edits and require operator approval.",
+        "One OCR-like corruption across the label cannot downgrade the gate."
+      ],
+      "regression_tests": [
+        "tests/test_direct_burst_policy.py::test_bulk_replacement_requires_human_review",
+        "tests/test_direct_burst_policy.py::test_ocr_corruption_cannot_bypass_bulk_replacement_gate"
+      ],
+      "remaining": "This protects grounded commit controls only and deliberately leaves Find and Replace navigation unblocked. Managed decisions still need application-aware search/replacement read-back, match-count and diff preview, selection bounds, and transactional rollback."
+    },
+    {
+      "id": "focus_and_destination_change",
+      "status": "partial",
+      "incident_ids": [
+        "cc-17dade-inspection-text-entered-editor",
+        "cc-17dade-command-entered-editor",
+        "cc-84e-command-corrupted-readme",
+        "cc-afd-browser-text-entered-file",
+        "cc-d818-meeting-stole-focus",
+        "cc-969-notifications-stole-focus",
+        "cc-737-company-portal-focus-theft",
+        "cx-377d-wrong-control-focus",
+        "cc-64db-teams-stole-terminal-input"
+      ],
+      "controls": [
+        "Watched normal and fast-print paths compare a fresh pixel grid before every later chunk and stop on clustered change outside the established field.",
+        "A control-epoch change stops the next micro-action and releases held input.",
+        "The lab observer exposes foreground process and focused-control identity."
+      ],
+      "regression_tests": [
+        "tests/test_typing.py::test_typing_stops_before_next_chunk_after_out_of_field_screen_change",
+        "tests/test_typing.py::test_fast_print_stops_after_out_of_field_screen_change",
+        "tests/test_direct_burst_runtime.py::test_machine_client_appearing_mid_burst_revokes_epoch_and_stops_next_action"
+      ],
+      "remaining": "The pixel guard is a conservative change detector, not application identity. Add helper-free foreground/control classification and randomized real notification, modal, Teams, browser, terminal, and editor focus-theft trials."
+    },
+    {
+      "id": "duplicate_and_extra_input",
+      "status": "partial",
+      "incident_ids": [
+        "cc-64db-repeated-character-typos",
+        "cc-64db-tripled-opening-quote",
+        "cc-8d396-editor-autopair-race",
+        "cx-18de-tail-repair-added-extra-text"
+      ],
+      "controls": [
+        "Exact verification distinguishes duplicate trailing input and load-bearing punctuation.",
+        "Fast prose is never cleared and replayed after an OCR mismatch.",
+        "An unverified result cannot cross an active follow-up action.",
+        "A direct caller cannot use method=print or no_verify to bypass an available watched verifier."
+      ],
+      "regression_tests": [
+        "tests/test_harness_scoring.py::test_duplicate_trailing_input_is_reported_explicitly",
+        "tests/test_typing.py::test_fast_print_mismatch_never_clears_and_replays_long_prose",
+        "tests/test_burst.py::test_burst_long_prose_stops_on_ambiguous_ocr_before_enter"
+      ],
+      "remaining": "Run injected duplicate-key and real rich-text autocorrect/auto-pair trials across Office and Teams; OCR exactness is still below the release gate."
+    },
+    {
+      "id": "long_or_corrupted_payload",
+      "status": "partial",
+      "incident_ids": [
+        "cc-agent-teams-draft-formatting",
+        "cc-737-escaping-and-dropped-character",
+        "cx-377d-large-heredoc-runaway",
+        "cx-46eb-oversized-command-runaway",
+        "oc-base64-over-limit-unverified"
+      ],
+      "controls": [
+        "Oversized text is rejected before HID in both the burst engine and MCP boundary.",
+        "Burst preflight refuses command-shaped dense Base64 transfers, encoded PowerShell, heredoc openers, and long nested shell payloads before HID; contiguous type actions are reassembled for classification.",
+        "A seeded 1,000-payload adversarial corpus refuses 800/800 unsafe shapes with zero false positives across 200 ordinary controls.",
+        "Controller text rejects embedded HID control characters.",
+        "Long prose uses bounded printer chunks and never auto-submits."
+      ],
+      "regression_tests": [
+        "tests/test_burst.py::test_burst_rejects_oversized_type_text_before_hid",
+        "tests/test_burst.py::test_burst_rejects_chunked_base64_file_transfer_before_hid",
+        "tests/test_burst.py::test_burst_rejects_base64_transfer_split_across_type_actions",
+        "tests/test_burst.py::test_burst_rejects_encoded_powershell_before_hid",
+        "tests/test_burst.py::test_burst_rejects_heredoc_opener_before_hid",
+        "tests/test_burst.py::test_burst_rejects_dense_nested_shell_payload_before_hid",
+        "tests/test_phase1_shell.py::test_mcp_burst_preflight_rejects_oversized_type_text",
+        "tests/test_phase1_shell.py::test_mcp_burst_preflight_rejects_encoded_transfer_hack",
+        "tests/test_payload_shape_benchmark.py::test_payload_shape_corpus_is_seeded_unique_and_balanced",
+        "tests/test_payload_shape_benchmark.py::test_payload_shape_gate_catches_unsafe_without_safe_false_positives",
+        "tests/test_agent_harness.py::test_controller_action_schema_rejects_control_characters_in_text"
+      ],
+      "remaining": "The content-shape gate is local and syntactic. Add an explicit verified transfer channel, helper-free end-to-end file hashes, and real rich-text compose validation."
+    },
+    {
+      "id": "human_concurrency",
+      "status": "partial",
+      "incident_ids": [
+        "cc-agent-user-agent-input-race"
+      ],
+      "controls": [
+        "Observed human pointer input revokes the planned control epoch.",
+        "A machine client appearing during a burst stops the next action."
+      ],
+      "regression_tests": [
+        "tests/test_cursor_tracking.py::test_human_cursor_input_invalidates_a_planned_burst",
+        "tests/test_phase3_hardening.py::test_control_epoch_change_refuses_execution"
+      ],
+      "remaining": "Prove keyboard, touch, RDP, and assistive-input detection on real guests, and prohibit clear/send recovery after any concurrent input signal."
+    },
+    {
+      "id": "typing_delivery_and_submit_race",
+      "status": "partial",
+      "incident_ids": [
+        "cc-d818-partial-planner-input",
+        "cc-969-long-command-died",
+        "cc-737-silent-base64-chunk-loss",
+        "cx-18de-terminal-submit-and-tail-loss",
+        "cx-377d-partial-prompt-focus-loss",
+        "oc-filename-enter-race"
+      ],
+      "controls": [
+        "Typing and submit are separate actions.",
+        "Interrupted typing reports exact attempted and committed-prefix lengths.",
+        "Every unverified result blocks Enter and all other active follow-ups."
+      ],
+      "regression_tests": [
+        "tests/test_burst.py::test_burst_reports_partial_type_progress_when_deadline_interrupts",
+        "tests/test_burst.py::test_field_text_is_verified_exactly_before_followup_action",
+        "tests/test_burst.py::test_burst_long_prose_stops_on_ambiguous_ocr_before_enter"
+      ],
+      "remaining": "The Windows seven-trial physical loop still fails overall. Add queue-depth and hardware-observed delivery acknowledgement, injected loss/latency trials, and repeated helper-free Office/terminal runs."
+    },
+    {
+      "id": "wrong_machine_or_desktop_layer",
+      "status": "partial",
+      "incident_ids": [
+        "cc-d818-wrong-local-vs-avd",
+        "cc-737-live-wrong-target-detected",
+        "cc-737-wrong-page-and-wrong-vscode",
+        "cx-mini-wrong-host-teams",
+        "cx-mini-used-stale-local-clone"
+      ],
+      "controls": [
+        "Managed and direct runs bind mutations to a machine identity and reject identity changes.",
+        "The Windows lab observer reports an opaque guest fingerprint, desktop, foreground process, and focus."
+      ],
+      "regression_tests": [
+        "tests/test_agent_harness.py::test_managed_harness_blocks_if_target_identity_changes",
+        "tests/test_direct_call_visibility.py::test_target_identity_change_blocks_future_direct_hid",
+        "tests/test_harness_report.py::test_report_gate_fails_closed_on_wrong_guest_or_focus"
+      ],
+      "remaining": "The helper cannot identify an uninstrumented nested AVD/RDP desktop or declared source-of-truth repository. Add visible nested-layer binding and reapproval on any layer/source change."
+    },
+    {
+      "id": "irreversible_action_and_panic",
+      "status": "covered_local",
+      "incident_ids": [
+        "cc-64db-destructive-anchor-typo",
+        "cc-737-destructive-actions-without-clear-approval",
+        "cx-46eb-panic-stop-did-not-stop-buffered-input"
+      ],
+      "controls": [
+        "Dangerous send, delete, publish, commit, cloud mutation, and broad terminal mutation require exact operator approval.",
+        "Models have no approval-resolution tool.",
+        "Panic stop waits for already-started HID to quiesce before returning success."
+      ],
+      "regression_tests": [
+        "tests/test_direct_burst_policy.py::test_observed_send_and_delete_targets_require_human",
+        "tests/test_agent_harness.py::test_approval_escapes_the_model_loop_and_only_exact_human_resume_executes",
+        "tests/test_phase3_hardening.py::test_panic_stop_waits_for_started_hid_before_reporting_success"
+      ],
+      "remaining": "Local contracts are covered; physical-device panic drills, signed short-lived capabilities, two-person approval, and hosted identity remain release work."
+    },
+    {
+      "id": "keyboard_layout_and_case",
+      "status": "covered_local",
+      "incident_ids": [
+        "cc-d818-caps-lock-command"
+      ],
+      "controls": [
+        "Caps state disables the server printer and case-only mismatch permits one bounded CapsLock correction.",
+        "Layout correction is bounded to one verified retry and never presses Enter."
+      ],
+      "regression_tests": [
+        "tests/test_typing.py::test_caps_lock_disables_fast_path",
+        "tests/test_typing.py::test_case_only_slip_toggles_caps_lock_and_retypes_once"
+      ],
+      "remaining": "Repeat against real US/UK/IME layouts and lock-state races; local coverage is not a universal keyboard claim."
+    },
+    {
+      "id": "operator_completion_claim",
+      "status": "covered_local",
+      "incident_ids": [
+        "cc-57a-autonomous-noop"
+      ],
+      "controls": [
+        "Independent evaluators, progress-bearing action metrics, and a bounded stagnation counter prevent model prose from declaring success."
+      ],
+      "regression_tests": [
+        "tests/test_harness_performance.py::test_run_performance_does_not_count_pointer_wiggles_as_progress",
+        "tests/test_public_desktop_suites.py::test_osworld_stagnation_counter_resets_only_after_action_progress"
+      ],
+      "remaining": "Current OSWorld accuracy and efficiency still fail the release gate; expand frozen-code benchmark coverage."
+    },
+    {
+      "id": "pager_or_modal_state",
+      "status": "covered_local",
+      "incident_ids": [
+        "cx-377d-pager-and-typo-created-file"
+      ],
+      "controls": [
+        "Pager state is classified before shell readline and blocks ordinary typing.",
+        "Recovery may press q but never a submit key."
+      ],
+      "regression_tests": [
+        "tests/test_policy.py::test_type_text_blocked_in_pager",
+        "tests/test_recovery.py::test_recover_terminal_pager_dispatches_to_pager_quit",
+        "tests/test_recovery.py::test_no_recovery_ever_presses_a_submit_key"
+      ],
+      "remaining": "Exercise more pager/modal variants and exact pre-commit repository-state inspection on real desktops."
+    },
+    {
+      "id": "wrong_grounded_click",
+      "status": "partial",
+      "incident_ids": [
+        "cx-377d-wrong-cloud-service"
+      ],
+      "controls": [
+        "Ungrounded coordinate clicks fail closed and text grounding uses the nearest bounded OCR row.",
+        "Changed click targets are refused before HID."
+      ],
+      "regression_tests": [
+        "tests/test_direct_burst_policy.py::test_ungrounded_coordinate_click_fails_closed",
+        "tests/test_direct_burst_runtime.py::test_click_grounding_refuses_text_from_adjacent_rows",
+        "tests/test_direct_burst_runtime.py::test_localized_freshness_refuses_changed_click_target"
+      ],
+      "remaining": "ScreenSpot-Pro is only 73/100 on the current sample. Add page-title/application identity confirmation and a full pinned grounding run before cloud-mutation claims."
+    }
+  ]
+}

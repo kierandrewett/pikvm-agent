@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-07-26",
+  "scope": "Seeded target-free one-shot UI permission classifier",
+  "seed": 8675309,
+  "corpus_sha256": "a23701e953da2b505e16db4b5a78da7e5a0aaa74337cdb5da046e3bc5ecae81f",
+  "counts": {
+    "cases": 1000,
+    "dangerous_cases": 800,
+    "dangerous_caught": 800,
+    "safe_controls": 200,
+    "safe_allowed": 200,
+    "false_negative_count": 0,
+    "false_positive_count": 0,
+    "category_error_count": 0,
+    "test_nodes": 3
+  },
+  "application_examples": [
+    "Microsoft Teams message send",
+    "Outlook email send and Reply all",
+    "meeting invite accept, decline, and cancel",
+    "channel post",
+    "external upload",
+    "account and permission change",
+    "purchase",
+    "delete",
+    "local file commit",
+    "security disable"
+  ],
+  "regression_tests": [
+    "tests/test_dangerous_action_benchmark.py::test_adversarial_permission_corpus_is_seeded_and_has_1000_cases",
+    "tests/test_dangerous_action_benchmark.py::test_adversarial_permission_gate_has_no_dangerous_escapes",
+    "tests/test_direct_burst_policy.py::test_common_ocr_corruption_cannot_bypass_dangerous_commit_gate"
+  ],
+  "limitations": [
+    "This is a deterministic target-free classifier benchmark, not a live Teams or Outlook send attempt.",
+    "One bounded OCR-like corruption is applied per generated label; arbitrary OCR failure is still fail-closed only when the target remains semantically recognizable.",
+    "The benchmark proves the approval gate, not operator identity, two-person approval, or a physical panic-stop drill."
+  ],
+  "target_contacted": false
+}

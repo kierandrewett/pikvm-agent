@@ -10,27 +10,107 @@ from __future__ import annotations
 
 import asyncio
 import io
+import re
 import shutil
 import tempfile
 from pathlib import Path
+from urllib.parse import urlsplit
 
-from PIL import Image
+from PIL import Image, ImageFilter, ImageOps
 
-from pikvm_agent.core.models import OCRLine, OCRResult, Region
+from pikvm_agent.core.models import OCRCandidate, OCRLine, OCRResult, Region
 
 
 def tesseract_available() -> bool:
     return shutil.which("tesseract") is not None
 
 
-def _parse_tsv(tsv: str) -> list[OCRLine]:
+def _looks_like_control_border(
+    word: dict[str, float | int | str],
+    *,
+    median_height: int,
+) -> bool:
+    """Identify vertical Windows control edges misread as text glyphs."""
+    return (
+        str(word["text"]) in {"|", "I", "l"}
+        and int(word["x1"]) - int(word["x0"]) <= max(3, median_height // 3)
+        and int(word["height"]) >= round(median_height * 1.35)
+    )
+
+
+_TOKEN_CONTEXT_MARKERS = frozenset("/\\_:#?=@")
+_SHA256_TEXT = re.compile(r"sha256:[0-9a-f]{32,128}")
+_RUN_IDENTIFIER = re.compile(r"run_[a-z0-9_]+")
+_UPPER_IDENTIFIER = re.compile(r"[A-Z][A-Z0-9_]+")
+
+
+def _join_segment_words(
+    words: list[dict[str, float | int | str]],
+) -> str:
+    """Rejoin OCR word fragments only when pixels and token syntax agree."""
+
+    if not words:
+        return ""
+    text = str(words[0]["text"])
+    token_markers = {
+        marker for marker in _TOKEN_CONTEXT_MARKERS if marker in text
+    }
+    previous = words[0]
+    for word in words[1:]:
+        previous_text = str(previous["text"])
+        current_text = str(word["text"])
+        gap = int(word["x0"]) - int(previous["x1"])
+        character_widths = [
+            max(
+                1.0,
+                (int(candidate["x1"]) - int(candidate["x0"]))
+                / max(1, len(str(candidate["text"]))),
+            )
+            for candidate in (previous, word)
+        ]
+        maximum_fragment_gap = max(
+            2,
+            round(min(character_widths) * 0.9),
+        )
+        visually_tight = gap <= maximum_fragment_gap
+        both_have_text_glyphs = (
+            any(character.isalnum() for character in previous_text)
+            and any(character.isalnum() for character in current_text)
+        )
+        concatenate = (
+            visually_tight
+            and bool(token_markers)
+            and both_have_text_glyphs
+            and not (
+                token_markers <= {"_"}
+                and current_text.isalpha()
+            )
+        )
+        text += ("" if concatenate else " ") + current_text
+        current_markers = {
+            marker
+            for marker in _TOKEN_CONTEXT_MARKERS
+            if marker in current_text
+        }
+        token_markers = (
+            token_markers | current_markers
+            if concatenate
+            else current_markers
+        )
+        previous = word
+    return text
+
+
+def _parse_tsv(tsv: str, *, coordinate_scale: float = 1.0) -> list[OCRLine]:
     rows = tsv.splitlines()
     if not rows:
         return []
     header = rows[0].split("\t")
     idx = {name: i for i, name in enumerate(header)}
-    # group words by (block, par, line)
-    groups: dict[tuple[int, int, int], dict] = {}
+    # Tesseract can place several unrelated controls on one logical line. Keep
+    # its line grouping, then split at large visual gaps so click grounding
+    # gets one compact box per label instead of a box spanning a whole toolbar.
+    groups: dict[tuple[int, int, int], list[dict[str, float | int | str]]] = {}
     for row in rows[1:]:
         cols = row.split("\t")
         if len(cols) < len(header):
@@ -43,37 +123,329 @@ def _parse_tsv(tsv: str) -> list[OCRLine]:
         if conf < 0 or not text:
             continue
         key = (int(cols[idx["block_num"]]), int(cols[idx["par_num"]]), int(cols[idx["line_num"]]))
-        left, top = int(cols[idx["left"]]), int(cols[idx["top"]])
-        width, height = int(cols[idx["width"]]), int(cols[idx["height"]])
-        g = groups.setdefault(key, {"words": [], "x0": left, "y0": top, "x1": left + width,
-                                    "y1": top + height, "confs": []})
-        g["words"].append(text)
-        g["x0"] = min(g["x0"], left)
-        g["y0"] = min(g["y0"], top)
-        g["x1"] = max(g["x1"], left + width)
-        g["y1"] = max(g["y1"], top + height)
-        g["confs"].append(conf)
-    lines: list[OCRLine] = []
-    for g in groups.values():
-        confs = g["confs"]
-        lines.append(
-            OCRLine(
-                text=" ".join(g["words"]),
-                confidence=(sum(confs) / len(confs) / 100.0) if confs else None,
-                bbox=[g["x0"], g["y0"], g["x1"], g["y1"]],
-            )
+        left = round(int(cols[idx["left"]]) / coordinate_scale)
+        top = round(int(cols[idx["top"]]) / coordinate_scale)
+        width = round(int(cols[idx["width"]]) / coordinate_scale)
+        height = round(int(cols[idx["height"]]) / coordinate_scale)
+        groups.setdefault(key, []).append(
+            {
+                "text": text,
+                "confidence": conf,
+                "x0": left,
+                "y0": top,
+                "x1": left + width,
+                "y1": top + height,
+                "height": height,
+            }
         )
+    lines: list[OCRLine] = []
+    for words in groups.values():
+        words.sort(key=lambda word: int(word["x0"]))
+        heights = sorted(max(1, int(word["height"])) for word in words)
+        median_height = heights[len(heights) // 2]
+        maximum_word_gap = max(12, round(median_height * 1.75))
+        segments: list[list[dict[str, float | int | str]]] = []
+        for word in words:
+            if _looks_like_control_border(word, median_height=median_height):
+                if segments and segments[-1]:
+                    segments.append([])
+                continue
+            if (
+                segments
+                and segments[-1]
+                and int(word["x0"]) - int(segments[-1][-1]["x1"])
+                > maximum_word_gap
+            ):
+                segments.append([])
+            if not segments:
+                segments.append([])
+            segments[-1].append(word)
+        for segment in segments:
+            if not segment:
+                continue
+            confidences = [float(word["confidence"]) for word in segment]
+            lines.append(
+                OCRLine(
+                    text=_join_segment_words(segment),
+                    confidence=sum(confidences) / len(confidences) / 100.0,
+                    bbox=[
+                        min(int(word["x0"]) for word in segment),
+                        min(int(word["y0"]) for word in segment),
+                        max(int(word["x1"]) for word in segment),
+                        max(int(word["y1"]) for word in segment),
+                    ],
+                )
+            )
     return lines
 
 
+def _normalized_candidate_text(lines: list[OCRLine]) -> str:
+    return " ".join(" ".join(line.text.split()) for line in lines).strip()
+
+
+def _candidate_text(lines: list[OCRLine]) -> str:
+    return "\n".join(line.text for line in lines)
+
+
+def _mean_candidate_confidence(lines: list[OCRLine]) -> float:
+    if not lines:
+        return -1.0
+    return sum(line.confidence for line in lines) / len(lines)
+
+
+def _machine_syntax_penalty(text: str) -> int:
+    """Flag impossible URL/UNC spacing before trusting OCR confidence."""
+
+    value = text.strip()
+    lowered = value.casefold()
+    if lowered.startswith("sha256:"):
+        return 1 if _SHA256_TEXT.fullmatch(value) is None else -1
+    if value.startswith("run_"):
+        return 1 if _RUN_IDENTIFIER.fullmatch(value) is None else -1
+    if value.startswith("IDEMPOTENCY_RETRY_"):
+        return 1 if _UPPER_IDENTIFIER.fullmatch(value) is None else -1
+    if lowered.startswith(("http:", "https:")):
+        parsed = urlsplit(value)
+        penalty = sum(
+            (
+                any(character.isspace() for character in value),
+                parsed.scheme not in {"http", "https"},
+                not parsed.netloc,
+                any(character.isspace() for character in parsed.netloc),
+            )
+        )
+        return penalty or -1
+    if value.startswith("\\"):
+        penalty = sum(
+            (
+                not value.startswith("\\\\"),
+                len(value) <= 2 or value[2].isspace(),
+            )
+        )
+        return penalty or -1
+    return 0
+
+
+def _saturated_column_runs(
+    image: Image.Image,
+    bbox: list[int],
+) -> list[int]:
+    """Return widths of coloured blobs inside a flat OCR bounding box."""
+
+    x0, y0, x1, y1 = bbox
+    crop = image.crop(
+        (
+            max(0, x0),
+            max(0, y0),
+            min(image.width, x1),
+            min(image.height, y1),
+        )
+    ).convert("RGB")
+    active: list[bool] = []
+    for x in range(crop.width):
+        saturated = 0
+        for y in range(crop.height):
+            red, green, blue = crop.getpixel((x, y))
+            if max(red, green, blue) - min(red, green, blue) >= 55:
+                saturated += 1
+        active.append(saturated >= 2)
+    runs: list[int] = []
+    current = 0
+    for value in active:
+        if value:
+            current += 1
+        elif current:
+            runs.append(current)
+            current = 0
+    if current:
+        runs.append(current)
+    return runs
+
+
+def _looks_like_window_control_dots(
+    line: OCRLine,
+    *,
+    following_line: OCRLine,
+    image: Image.Image,
+) -> bool:
+    """Detect three coloured title-bar controls misread as a short word."""
+
+    bbox = line.bbox
+    following_bbox = following_line.bbox
+    if (
+        not isinstance(bbox, list)
+        or len(bbox) != 4
+        or any(not isinstance(value, int) for value in bbox)
+        or not isinstance(following_bbox, list)
+        or len(following_bbox) != 4
+        or any(not isinstance(value, int) for value in following_bbox)
+        or len(line.text.strip()) > 6
+        or (line.confidence or 0.0) >= 0.8
+    ):
+        return False
+    x0, y0, x1, y1 = bbox
+    _, next_y0, _, _ = following_bbox
+    if (
+        y0 > max(16, round(image.height * 0.15))
+        or y1 - y0 > max(18, round(image.height * 0.18))
+        or next_y0 < y1 + 3
+        or x1 - x0 > max(80, round(image.width * 0.08))
+    ):
+        return False
+    runs = [width for width in _saturated_column_runs(image, bbox) if width >= 2]
+    if len(runs) != 3:
+        return False
+    return max(runs) <= min(runs) * 2
+
+
+def _remove_window_control_dot_artifacts(
+    lines: list[OCRLine],
+    *,
+    image: Image.Image,
+) -> list[OCRLine]:
+    """Remove visually proven title-bar dots without relying on OCR text."""
+
+    if len(lines) < 2:
+        return lines
+    ordered = sorted(
+        lines,
+        key=lambda line: (
+            line.bbox[1]
+            if isinstance(line.bbox, list)
+            and len(line.bbox) == 4
+            and isinstance(line.bbox[1], int)
+            else image.height
+        ),
+    )
+    first = ordered[0]
+    if _looks_like_window_control_dots(
+        first,
+        following_line=ordered[1],
+        image=image,
+    ):
+        return [line for line in lines if line is not first]
+    return lines
+
+
+def _choose_ocr_candidate(
+    raw_lines: list[OCRLine],
+    prepared_lines: list[OCRLine],
+    *,
+    syntax_aware: bool = True,
+) -> list[OCRLine]:
+    """Choose between independent raw and enhanced reads without ground truth."""
+
+    raw_text = _normalized_candidate_text(raw_lines)
+    prepared_text = _normalized_candidate_text(prepared_lines)
+    if raw_text == prepared_text:
+        return prepared_lines
+    if syntax_aware:
+        raw_syntax_penalty = _machine_syntax_penalty(raw_text)
+        prepared_syntax_penalty = _machine_syntax_penalty(prepared_text)
+        if raw_syntax_penalty != prepared_syntax_penalty:
+            return (
+                raw_lines
+                if raw_syntax_penalty < prepared_syntax_penalty
+                else prepared_lines
+            )
+    for shorter_lines, shorter, longer in (
+        (raw_lines, raw_text, prepared_text),
+        (prepared_lines, prepared_text, raw_text),
+    ):
+        if shorter and shorter in longer:
+            extra = longer.replace(shorter, "", 1).strip()
+            if len(extra) <= 4:
+                return shorter_lines
+    raw_score = _mean_candidate_confidence(raw_lines)
+    prepared_score = _mean_candidate_confidence(prepared_lines)
+    if len(raw_lines) < len(prepared_lines):
+        raw_score += 0.035
+    elif len(prepared_lines) < len(raw_lines):
+        prepared_score += 0.035
+    return raw_lines if raw_score >= prepared_score else prepared_lines
+
+
+async def _run_tesseract(
+    src: Path,
+    *,
+    lang: str,
+    psm: int,
+) -> bytes:
+    proc = await asyncio.create_subprocess_exec(
+        "tesseract",
+        str(src),
+        "stdout",
+        "-l",
+        lang,
+        "--psm",
+        str(psm),
+        "tsv",
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.DEVNULL,
+    )
+    out, _ = await proc.communicate()
+    return out
+
+
 class TesseractOcrProvider:
-    def __init__(self, lang: str = "eng", psm: int = 6) -> None:
+    def __init__(
+        self,
+        lang: str = "eng",
+        psm: int = 6,
+        upscale: float = 2.0,
+        ensemble: bool = True,
+        syntax_aware_selection: bool = True,
+        alternative_upscales: tuple[float, ...] = (),
+    ) -> None:
         self.lang = lang
         self.psm = psm
+        self.upscale = max(1.0, upscale)
+        self.ensemble = ensemble
+        self.syntax_aware_selection = syntax_aware_selection
+        self.alternative_upscales = tuple(
+            scale
+            for scale in dict.fromkeys(
+                max(1.0, value) for value in alternative_upscales
+            )
+            if scale != self.upscale
+        )
 
-    async def ocr(self, image_path: Path, region: Region | None = None) -> OCRResult:
+    async def ocr(
+        self,
+        image_path: Path,
+        region: Region | None = None,
+    ) -> OCRResult:
+        """Run the normal two-read profile used for general screen OCR."""
+
+        return await self._ocr(
+            image_path,
+            region=region,
+            alternative_upscales=self.alternative_upscales,
+        )
+
+    async def ocr_precise(
+        self,
+        image_path: Path,
+        region: Region | None = None,
+    ) -> OCRResult:
+        """Retain one extra independent scale for exact intended-text checks."""
+
+        return await self._ocr(
+            image_path,
+            region=region,
+            alternative_upscales=self.alternative_upscales or (1.5,),
+        )
+
+    async def _ocr(
+        self,
+        image_path: Path,
+        *,
+        region: Region | None,
+        alternative_upscales: tuple[float, ...],
+    ) -> OCRResult:
         src = Path(image_path)
         tmp: Path | None = None
+        prepared_images: list[tuple[Path, float]] = []
         if region is not None:
             img = Image.open(src).convert("RGB")
             x = max(0, int(region.x))
@@ -85,16 +457,132 @@ class TesseractOcrProvider:
             fd.close()
             tmp = Path(fd.name)
             src = tmp
-        try:
-            proc = await asyncio.create_subprocess_exec(
-                "tesseract", str(src), "stdout", "-l", self.lang, "--psm", str(self.psm), "tsv",
-                stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL,
+        source_image = Image.open(src).convert("RGB")
+
+        def prepare(scale: float) -> Path:
+            image = source_image.convert("L")
+            image = ImageOps.autocontrast(image)
+            image = image.resize(
+                (
+                    round(image.width * scale),
+                    round(image.height * scale),
+                ),
+                Image.Resampling.LANCZOS,
             )
-            out, _ = await proc.communicate()
+            image = image.filter(
+                ImageFilter.UnsharpMask(radius=1.0, percent=140, threshold=3)
+            )
+            fd = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+            image.save(fd, format="PNG")
+            fd.close()
+            return Path(fd.name)
+
+        scales = [self.upscale]
+        if self.ensemble:
+            scales.extend(alternative_upscales)
+        for scale in dict.fromkeys(scales):
+            if scale > 1.0:
+                prepared_images.append((prepare(scale), scale))
+        try:
+            alternatives: list[OCRCandidate] = []
+            if self.ensemble and prepared_images:
+                outputs = await asyncio.gather(
+                    _run_tesseract(
+                        src,
+                        lang=self.lang,
+                        psm=self.psm,
+                    ),
+                    *(
+                        _run_tesseract(
+                            prepared,
+                            lang=self.lang,
+                            psm=self.psm,
+                        )
+                        for prepared, _scale in prepared_images
+                    ),
+                )
+                raw_lines = _remove_window_control_dot_artifacts(
+                    _parse_tsv(outputs[0].decode("utf-8", "replace")),
+                    image=source_image,
+                )
+                prepared_candidates = [
+                    (
+                        scale,
+                        _remove_window_control_dot_artifacts(
+                            _parse_tsv(
+                                output.decode("utf-8", "replace"),
+                                coordinate_scale=scale,
+                            ),
+                            image=source_image,
+                        ),
+                    )
+                    for output, (_prepared, scale) in zip(
+                        outputs[1:],
+                        prepared_images,
+                        strict=True,
+                    )
+                ]
+                primary_lines = next(
+                    (
+                        candidate_lines
+                        for scale, candidate_lines in prepared_candidates
+                        if scale == self.upscale
+                    ),
+                    raw_lines,
+                )
+                lines = _choose_ocr_candidate(
+                    raw_lines,
+                    primary_lines,
+                    syntax_aware=self.syntax_aware_selection,
+                )
+                selected_text = _candidate_text(lines)
+                seen = {selected_text}
+                for candidate_lines in (
+                    raw_lines,
+                    *(item[1] for item in prepared_candidates),
+                ):
+                    candidate_text = _candidate_text(candidate_lines)
+                    if candidate_text and candidate_text not in seen:
+                        seen.add(candidate_text)
+                        alternatives.append(
+                            OCRCandidate(
+                                text=candidate_text,
+                                mean_confidence=_mean_candidate_confidence(
+                                    candidate_lines
+                                ),
+                            )
+                        )
+            else:
+                primary = next(
+                    (
+                        prepared
+                        for prepared, scale in prepared_images
+                        if scale == self.upscale
+                    ),
+                    None,
+                )
+                selected = primary or src
+                out = await _run_tesseract(
+                    selected,
+                    lang=self.lang,
+                    psm=self.psm,
+                )
+                lines = _parse_tsv(
+                    out.decode("utf-8", "replace"),
+                    coordinate_scale=(
+                        self.upscale if primary is not None else 1.0
+                    ),
+                )
+                lines = _remove_window_control_dot_artifacts(
+                    lines,
+                    image=source_image,
+                )
         finally:
             if tmp is not None:
                 tmp.unlink(missing_ok=True)
-        return OCRResult(lines=_parse_tsv(out.decode("utf-8", "replace")))
+            for prepared, _scale in prepared_images:
+                prepared.unlink(missing_ok=True)
+        return OCRResult(lines=lines, alternatives=alternatives)
 
 
 def _readable_font(size: int):

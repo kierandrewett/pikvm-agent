@@ -18,6 +18,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 import yaml
 from pydantic import BaseModel, Field
@@ -34,6 +35,40 @@ _CONFIG_HOME = Path(
 
 DEFAULT_CONFIG_PATH = _CONFIG_HOME / "config.yaml"
 """Where the active config lives (XDG). The repo only ships config.example.yaml."""
+
+
+def require_daemon_url(
+    explicit: str | None = None,
+    *,
+    env_name: str = "PIKVM_AGENT_DAEMON",
+) -> str:
+    """Resolve an explicitly selected agent daemon, never a default target.
+
+    The MCP facade and emergency brake are separate processes from the daemon.
+    Guessing a loopback port here can therefore control the wrong computer.  An
+    explicit argument or environment-owned selection is mandatory.
+    """
+
+    value = (explicit if explicit is not None else os.environ.get(env_name, "")).strip()
+    if not value:
+        raise ValueError(
+            f"{env_name} must point to the explicitly selected PiKVM agent "
+            "daemon; there is no implicit target"
+        )
+    parsed = urlsplit(value)
+    if (
+        parsed.scheme not in {"http", "https"}
+        or not parsed.hostname
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.query
+        or parsed.fragment
+    ):
+        raise ValueError(
+            f"{env_name} must be an HTTP(S) daemon URL without embedded "
+            "credentials, query parameters, or a fragment"
+        )
+    return value.rstrip("/")
 
 
 class DaemonConfig(BaseModel):
@@ -60,6 +95,12 @@ class DaemonConfig(BaseModel):
 class PikvmConfig(BaseModel):
     base_url: str = "https://pikvm.local"
     verify_tls: bool = False
+    # Human-readable target context shown beside every frame and approval. The
+    # stable machine id itself stays in an environment variable and is hashed
+    # before it leaves the daemon.
+    machine_alias: str = Field(default="Unlabelled target", max_length=200)
+    machine_id_env: str = Field(default="PIKVM_MACHINE_ID", max_length=160)
+    desktop_layer: str = Field(default="Physical console", max_length=200)
     username_env: str = "PIKVM_USER"
     password_env: str = "PIKVM_PASSWORD"
     # Optional explicit auth token cookie env (alternative to user/pass).
@@ -107,12 +148,26 @@ class OcrConfig(BaseModel):
     # Box-capable OCR for screen parsing (grounding needs per-word boxes):
     #   "tesseract"  = system tesseract CLI on the saved frame (default, zero
     #                  Python deps; falls back to live PiKVM OCR if absent).
-    #   "paddleocr"  = local PP-OCRv5 (needs the [vision] extra).
+    #   "paddleocr"  = local PaddleOCR (needs the [vision] extra).
+    #   "hybrid"     = fast Tesseract screen OCR plus concurrent PaddleOCR
+    #                  evidence for precise known-intent read-back.
     #   "pikvm"      = PiKVM's built-in tesseract over the live snapshot
     #                  (zero local cost, but text-only — no boxes).
     provider: str = "tesseract"
     lang: str = "en"
     device: str | None = None  # "cpu" | "gpu" | None
+    # These Tesseract defaults are the exact runtime profile used by the
+    # published 1,000-case structured-candidate benchmark. Keep them
+    # configurable so deployments can reproduce a different measured profile
+    # without changing source.
+    psm: int = Field(default=6, ge=0, le=13)
+    upscale: float = Field(default=2.0, ge=1.0, le=4.0)
+    ensemble: bool = True
+    syntax_aware_selection: bool = True
+    # The independent evidence engine must never hold the control loop
+    # indefinitely. A timeout degrades to primary OCR evidence; cancellation
+    # still propagates so operator Pause/Stop retains authority.
+    hybrid_secondary_timeout_s: float = Field(default=5.0, ge=0.1, le=60.0)
     disable_doc_orientation: bool = True
     disable_doc_unwarping: bool = True
     disable_textline_orientation: bool = True
@@ -120,6 +175,14 @@ class OcrConfig(BaseModel):
 
 class OperatorLane(BaseModel):
     model: str
+
+
+class OperatorRoutingConfig(BaseModel):
+    enabled: bool = True
+    reasoner_lane: str = "hard"
+    controller_lane: str = "cheap"
+    fallback_lane: str = "default"
+    refresh_every_steps: int = Field(default=6, ge=1, le=100)
 
 
 class OperatorConfig(BaseModel):
@@ -134,6 +197,7 @@ class OperatorConfig(BaseModel):
     # reject with a 400; "none" relies on the prompt + our Pydantic validation alone.
     # On a 400 the client auto-drops response_format and falls back regardless.
     structured_output: str = "json_object"
+    routing: OperatorRoutingConfig = Field(default_factory=OperatorRoutingConfig)
     lanes: dict[str, OperatorLane] = Field(
         default_factory=lambda: {
             "cheap": OperatorLane(model="qwen/qwen3-vl-8b-instruct"),
@@ -149,6 +213,9 @@ class OperatorConfig(BaseModel):
 
 class PolicyConfig(BaseModel):
     default_profile: str = "read_only_diagnostics"
+    # Full-frame freshness is always the default. This flag is inert unless the
+    # runtime was built through the separate lab-only capability boundary.
+    allow_local_pointer_freshness: bool = False
     require_human_for: list[str] = Field(
         default_factory=lambda: [
             "communication_send",
@@ -161,6 +228,7 @@ class PolicyConfig(BaseModel):
             "disk_or_partition",
             "financial_or_purchase",
             "legal_or_consent",
+            "unknown",
             "terminal_mutating",
             "sudo",
             "delete",

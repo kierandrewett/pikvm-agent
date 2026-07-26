@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-07-26",
+  "scope": "Target-free in-process live-frame transport contract",
+  "contracts": {
+    "passed": 6,
+    "total": 6
+  },
+  "resource_envelope": {
+    "max_frame_bytes": 4194304,
+    "max_cached_sessions": 8,
+    "max_cached_payload_bytes": 33554432,
+    "max_declared_dimension": 8192,
+    "minimum_upstream_interval_ms": 450
+  },
+  "behaviour": {
+    "response_reading": "streamed and aborted above the byte limit",
+    "concurrent_same_session_requests": "single upstream fetch",
+    "session_cache": "least-recently-used and bounded",
+    "lock_registry": "fixed eight-stripe pool",
+    "accepted_media_types": [
+      "image/jpeg",
+      "image/png",
+      "image/webp"
+    ]
+  },
+  "excluded": [
+    "browser image decode time",
+    "browser resident memory",
+    "daemon screenshot latency",
+    "VNC or PiKVM transport",
+    "network latency"
+  ],
+  "target_contacted": false
+}

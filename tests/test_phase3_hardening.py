@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import asyncio
 import os
 
 from langgraph.types import Command
 
 from pikvm_agent.config import AppConfig, PolicyConfig
 from pikvm_agent.core.models import OperatorDecision, OperatorRequest, RiskAssessment, TransactionResult
+from pikvm_agent.executor.burst import BurstOutcome
 from pikvm_agent.graph.checkpoints import build_checkpointer
 from pikvm_agent.graph.deps import GraphDeps
 from pikvm_agent.graph.graph import build_graph
@@ -170,11 +172,53 @@ async def test_panic_stop_halts_all_sessions(runtime: Runtime) -> None:
     sid = (await runtime.start_session("do a thing"))["session_id"]
     epoch0 = runtime._sessions[sid].control_epoch
     res = await runtime.panic_stop()
+    assert res["machine"]["fingerprint"].startswith("target:")
     assert res["ok"] and sid in res["stopped"]
     assert runtime._sessions[sid].status == "failed"
     assert runtime._sessions[sid].control_epoch == epoch0 + 1  # in-flight plans invalidated
     assert runtime._sessions[sid].stopped is True               # sticky terminal latch set
     assert any(c[0] == "release_all" for c in runtime.backend.calls)  # held HID released
+
+
+async def test_panic_stop_waits_for_started_hid_before_reporting_success(
+    runtime: Runtime, monkeypatch
+) -> None:
+    """Regression: stop once returned success while queued typing continued."""
+    sid = (await runtime.start_session("type something"))["session_id"]
+    shot = await runtime.get_session_summary(sid, capture=True)
+    started = asyncio.Event()
+    release = asyncio.Event()
+
+    async def blocking_burst(*args, **kwargs):
+        started.set()
+        await release.wait()
+        return BurstOutcome("interrupted", 0, 1, reason="control_changed")
+
+    monkeypatch.setattr("pikvm_agent.runtime._burst.run_burst", blocking_burst)
+    burst_task = asyncio.create_task(
+        runtime.run_burst(
+            sid,
+            [{"type": "type_text", "text": "safe text", "method": "print"}],
+            based_on_world_version=shot["world_version"],
+            based_on_control_epoch=shot["control_epoch"],
+            idempotency_key="panic-stop-in-flight",
+        )
+    )
+    await started.wait()
+
+    stop_task = asyncio.create_task(runtime.panic_stop())
+    await asyncio.sleep(0)
+    assert not stop_task.done()
+
+    release.set()
+    stop = await stop_task
+    await burst_task
+
+    assert stop["ok"] is True
+    assert stop["quiesced"] is True
+    assert stop["in_flight_actions"] == 0
+    assert runtime._sessions[sid].status == "failed"
+    assert runtime._sessions[sid].stopped is True
 
 
 async def test_panic_stop_halts_paused_session_and_blocks_resume(runtime: Runtime) -> None:
@@ -280,7 +324,9 @@ async def test_run_burst_refuses_stale_world(runtime: Runtime) -> None:
     shot = await runtime.get_session_summary(sid, capture=True)
     runtime.backend.set_screen("a popup appeared", bg=(200, 20, 20))  # screen changes
     res = await runtime.run_burst(sid, [{"type": "key", "keys": ["KeyA"]}],
-                                  based_on_world_version=shot["world_version"])
+                                  based_on_world_version=shot["world_version"],
+                                  based_on_control_epoch=shot["control_epoch"],
+                                  idempotency_key="stale-world-refusal")
     assert res["status"] == "stale_world"
     assert not any(m == "keypress" for m, _ in runtime.backend.calls)  # nothing executed
 
@@ -290,7 +336,8 @@ async def test_run_burst_refuses_changed_control_epoch(runtime: Runtime) -> None
     shot = await runtime.get_session_summary(sid, capture=True)
     res = await runtime.run_burst(sid, [{"type": "key", "keys": ["KeyA"]}],
                                   based_on_world_version=shot["world_version"],
-                                  based_on_control_epoch=shot["control_epoch"] + 1)
+                                  based_on_control_epoch=shot["control_epoch"] + 1,
+                                  idempotency_key="changed-control-refusal")
     assert res["status"] == "control_changed"
     assert not any(m == "keypress" for m, _ in runtime.backend.calls)
 
@@ -300,9 +347,10 @@ async def test_run_burst_executes_and_returns_screenshot(runtime: Runtime) -> No
     shot = await runtime.get_session_summary(sid, capture=True)
     res = await runtime.run_burst(
         sid,
-        [{"type": "key", "keys": ["CTRL", "P"]}, {"type": "click", "x": 50, "y": 60}],
+        [{"type": "key", "keys": ["CTRL", "P"]}, {"type": "click", "x": 50, "y": 82}],
         based_on_world_version=shot["world_version"],
         based_on_control_epoch=shot["control_epoch"],
+        idempotency_key="execute-and-return-screen",
     )
     assert res["status"] == "completed" and res["completed_actions"] == 2
     assert os.path.exists(res["screenshot_path"])

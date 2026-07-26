@@ -6,7 +6,16 @@
     },
     "pikvm": {
       "command": "/home/kieran/dev/pikvm-agent/.venv/bin/python",
-      "args": ["-m", "pikvm_agent.mcp_server"]
+      "args": [
+        "-m",
+        "pikvm_agent.cli",
+        "harness",
+      "managed-mcp",
+      "--config",
+      "/home/kieran/dev/pikvm-agent/config.harness.example.yaml",
+      "--caller-label",
+      "codex-cli"
+      ]
     }
   }
 }

@@ -1,0 +1,407 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta
+    http-equiv="Content-Security-Policy"
+    content="default-src 'self'; img-src 'self' blob: data:; style-src 'self'; script-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
+  >
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#11141a">
+  <title>PiKVM Operator Harness</title>
+  <link rel="stylesheet" href="./styles.css?v=20260726h">
+    <script src="./app.js?v=20260726h" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#live-screen">Skip to live machine</a>
+
+  <div id="app-shell" class="app-shell" aria-hidden="true">
+    <header class="command-bar">
+      <div class="product-lockup">
+        <svg class="product-mark" viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="3" y="4" width="18" height="13" rx="2"></rect>
+          <path d="M8 21h8M12 17v4M7 9h4M7 12h7"></path>
+        </svg>
+        <div>
+          <strong>Operator Harness</strong>
+          <span>PiKVM computer control</span>
+        </div>
+      </div>
+
+      <div class="command-status" aria-label="Harness status">
+        <button
+          id="provider-button"
+          class="status-control"
+          type="button"
+          aria-expanded="false"
+          aria-controls="provider-popover"
+        >
+          <span class="signal-dot neutral" aria-hidden="true"></span>
+          <span id="provider-summary">Providers</span>
+        </button>
+        <span id="connection-status" class="status-chip neutral" role="status">
+          <span class="signal-dot neutral" aria-hidden="true"></span>
+          Connecting
+        </span>
+        <span id="activity-status" class="status-chip warning" role="status" aria-live="polite" hidden>
+          <span class="signal-dot warning" aria-hidden="true"></span>
+          <span id="activity-label">Idle</span>
+        </span>
+      </div>
+
+      <div class="command-actions">
+        <button
+          id="new-task-button"
+          class="button secondary"
+          type="button"
+          aria-label="Create new task"
+        >
+          <svg viewBox="0 0 20 20" aria-hidden="true">
+            <path d="M10 4v12M4 10h12"></path>
+          </svg>
+          <span>New task</span>
+        </button>
+        <button
+          id="abort-button"
+          class="button danger compact"
+          type="button"
+          aria-label="Emergency stop"
+          title="Emergency stop (Ctrl+Shift+.)"
+          disabled
+        >
+          <svg viewBox="0 0 20 20" aria-hidden="true">
+            <rect x="5" y="5" width="10" height="10" rx="1"></rect>
+          </svg>
+          <span>Stop</span>
+        </button>
+        <button id="session-button" class="icon-button" type="button" aria-label="Session settings" title="Session settings">
+          <svg viewBox="0 0 20 20" aria-hidden="true">
+            <circle cx="10" cy="10" r="3"></circle>
+            <path d="M10 2.5v2M10 15.5v2M17.5 10h-2M4.5 10h-2M15.3 4.7l-1.4 1.4M6.1 13.9l-1.4 1.4M15.3 15.3l-1.4-1.4M6.1 6.1 4.7 4.7"></path>
+          </svg>
+        </button>
+      </div>
+
+      <section id="provider-popover" class="popover provider-popover" hidden>
+        <div class="popover-heading">
+          <div>
+            <strong>Model providers</strong>
+            <span>Readiness, declared model, blind conformance, route, and cooldown</span>
+          </div>
+          <button id="close-providers" class="icon-button" type="button" aria-label="Close provider status">
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 5 10 10M15 5 5 15"></path></svg>
+          </button>
+        </div>
+        <div id="provider-list" class="provider-list"></div>
+      </section>
+    </header>
+
+    <main class="workspace">
+      <aside class="run-rail" aria-labelledby="runs-heading">
+        <div class="region-heading">
+          <div>
+            <h1 id="runs-heading">Runs</h1>
+            <span id="run-count">0 recorded</span>
+          </div>
+          <button id="rail-new-task" class="icon-button" type="button" aria-label="Create new task">
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 4v12M4 10h12"></path></svg>
+          </button>
+        </div>
+        <nav id="run-list" class="run-list" aria-label="Task runs"></nav>
+        <div id="run-empty" class="rail-empty">
+          <span class="empty-glyph" aria-hidden="true">01</span>
+          <strong>No runs yet</strong>
+          <p>Create a task to open an isolated computer session.</p>
+        </div>
+      </aside>
+
+      <section class="machine-column" aria-label="Active computer task">
+        <section class="screen-region" aria-labelledby="screen-heading">
+          <div class="screen-toolbar">
+            <div>
+              <h2 id="screen-heading">Live machine</h2>
+              <span id="machine-target" class="target-continuity">Unverified target</span>
+              <span id="machine-session">No session selected</span>
+            </div>
+            <div class="screen-telemetry">
+              <span id="frame-freshness" class="freshness">No frame</span>
+              <button id="refresh-frame" class="icon-button" type="button" aria-label="Refresh latest frame" disabled>
+                <svg viewBox="0 0 20 20" aria-hidden="true">
+                  <path d="M16 6V2m0 0h-4M16 2l-3 3a6 6 0 1 0 2.2 6"></path>
+                </svg>
+              </button>
+              <button id="fit-frame" class="icon-button" type="button" aria-label="Toggle actual size" disabled>
+                <svg viewBox="0 0 20 20" aria-hidden="true">
+                  <path d="M7 3H3v4M13 3h4v4M7 17H3v-4M13 17h4v-4"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div id="live-screen" class="live-screen" tabindex="0">
+            <img id="machine-frame" alt="Current remote machine screen" hidden>
+            <div id="screen-empty" class="screen-empty">
+              <svg viewBox="0 0 64 64" aria-hidden="true">
+                <rect x="8" y="10" width="48" height="34" rx="3"></rect>
+                <path d="M22 54h20M32 44v10"></path>
+              </svg>
+              <strong>The machine appears here</strong>
+              <p>Choose a run or create a task. Frames are fetched with your authenticated session and are never placed in a URL.</p>
+            </div>
+            <div id="screen-busy" class="screen-busy" hidden>
+              <span class="activity-spinner" aria-hidden="true"></span>
+              <span>Waiting for machine frame</span>
+            </div>
+          </div>
+
+          <div class="machine-facts" aria-label="Machine freshness">
+            <span>Machine <code id="fact-machine">—</code></span>
+            <span>Target <code id="fact-target">—</code></span>
+            <span>Layer <code id="fact-layer">—</code></span>
+            <span>Frame <code id="fact-frame">—</code></span>
+            <span>World <code id="fact-world">—</code></span>
+            <span>Control epoch <code id="fact-epoch">—</code></span>
+            <span>Viewport <code id="fact-size">—</code></span>
+          </div>
+        </section>
+
+        <section class="transaction-region" aria-labelledby="transaction-heading">
+          <div class="region-heading transaction-heading">
+            <div>
+              <h2 id="transaction-heading">Current transaction</h2>
+              <span id="transaction-subtitle">Select a run to inspect its control loop</span>
+            </div>
+            <div class="transaction-actions">
+              <button id="steer-button" class="button secondary compact" type="button" hidden>
+                Guide
+              </button>
+              <button id="pause-button" class="button secondary compact" type="button" hidden>
+                <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6 4h3v12H6zM11 4h3v12h-3z"></path></svg>
+                <span id="pause-label">Pause</span>
+              </button>
+              <button id="continue-button" class="button primary compact" type="button" hidden>
+                <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m7 4 7 6-7 6z"></path></svg>
+                <span id="continue-label">Continue</span>
+              </button>
+              <button id="takeover-button" class="button secondary compact" type="button" hidden>
+                Take over
+              </button>
+            </div>
+          </div>
+          <div
+            id="control-assurance"
+            class="control-assurance neutral"
+            role="status"
+            aria-label="Control and assurance mode"
+          >
+            <svg viewBox="0 0 20 20" aria-hidden="true">
+              <path d="M10 2.5 16 5v4.5c0 3.8-2.4 6.5-6 8-3.6-1.5-6-4.2-6-8V5l6-2.5z"></path>
+              <path d="m7.2 10 1.7 1.7 3.9-4"></path>
+            </svg>
+            <div>
+              <strong id="control-assurance-title">No control mode selected</strong>
+              <span id="control-assurance-detail">Choose a run to see who chooses actions and what independently checks them.</span>
+            </div>
+          </div>
+          <div id="efficiency-strip" class="efficiency-strip" aria-label="Live run efficiency">
+            <span>
+              <small>Wall</small>
+              <strong id="metric-wall">—</strong>
+            </span>
+            <span>
+              <small>Model</small>
+              <strong id="metric-model">—</strong>
+            </span>
+            <span>
+              <small>Progress</small>
+              <strong id="metric-progress">—</strong>
+            </span>
+            <span>
+              <small>Recovery</small>
+              <strong id="metric-recovery">—</strong>
+            </span>
+            <span>
+              <small>Budget</small>
+              <strong id="metric-budget">—</strong>
+            </span>
+          </div>
+          <div id="transaction-content" class="transaction-content">
+            <div class="transaction-empty">
+              <strong>Nothing is hidden behind the transcript.</strong>
+              <p>Plan, provider, exact non-secret MCP call, freshness, and verifier evidence will appear here as one transaction.</p>
+            </div>
+          </div>
+        </section>
+      </section>
+
+      <aside class="timeline-region" aria-labelledby="timeline-heading">
+        <div class="region-heading">
+          <div>
+            <h2 id="timeline-heading">Activity</h2>
+            <span id="event-count">0 events</span>
+          </div>
+          <button
+            id="timeline-filter-button"
+            class="icon-button"
+            type="button"
+            aria-label="Filter activity"
+            aria-expanded="false"
+            aria-controls="timeline-filters"
+          >
+            <svg viewBox="0 0 20 20" aria-hidden="true">
+              <path d="M3 5h14M6 10h8M8.5 15h3"></path>
+            </svg>
+          </button>
+        </div>
+        <div id="timeline-filters" class="timeline-filters" hidden>
+          <label><input type="checkbox" value="model" checked> Models</label>
+          <label><input type="checkbox" value="computer" checked> MCP</label>
+          <label><input type="checkbox" value="action" checked> HID</label>
+          <label><input type="checkbox" value="approval" checked> Policy</label>
+          <label><input type="checkbox" value="verification" checked> Verify</label>
+          <label><input type="checkbox" value="run" checked> Run</label>
+        </div>
+        <ol id="event-timeline" class="event-timeline" aria-live="polite"></ol>
+        <div id="timeline-empty" class="timeline-empty">
+          <strong>No activity to show</strong>
+          <p>Events stream here at transaction boundaries, with raw data available on demand.</p>
+        </div>
+      </aside>
+    </main>
+
+    <section id="approval-shelf" class="approval-shelf" aria-labelledby="approval-heading" hidden>
+      <div class="approval-signal" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M12 3 2.5 20h19L12 3zM12 9v5M12 17.5v.5"></path></svg>
+      </div>
+      <div class="approval-copy">
+        <span class="eyebrow">Human authority boundary</span>
+        <h2 id="approval-heading">Approval required</h2>
+        <p id="approval-reason">A consequential action is waiting.</p>
+        <div class="approval-meta">
+          <code id="approval-id">—</code>
+          <span id="approval-risk">Risk not classified</span>
+          <span id="approval-freshness">No freshness stamp</span>
+        </div>
+        <details class="approval-details">
+          <summary>Inspect exact request</summary>
+          <pre id="approval-request"></pre>
+        </details>
+      </div>
+      <div class="approval-actions">
+        <label class="reason-field">
+          <span>Operator note (optional)</span>
+          <input id="approval-note" type="text" maxlength="500" placeholder="Why this is approved or rejected">
+        </label>
+        <div>
+          <button id="reject-button" class="button danger" type="button">Reject</button>
+          <button id="approve-button" class="button approval" type="button">Approve once</button>
+        </div>
+      </div>
+    </section>
+
+    <div id="toast-region" class="toast-region" role="status" aria-live="polite"></div>
+  </div>
+
+  <section id="auth-gate" class="auth-gate" aria-labelledby="auth-heading">
+    <div class="auth-panel">
+      <div class="auth-mark">
+        <svg viewBox="0 0 32 32" aria-hidden="true">
+          <rect x="4" y="5" width="24" height="18" rx="3"></rect>
+          <path d="M11 28h10M16 23v5M10 12h6M10 16h11"></path>
+        </svg>
+      </div>
+      <span class="eyebrow">Local operator session</span>
+      <h1 id="auth-heading">Connect to the harness</h1>
+      <p>The bearer token stays in this browser tab. It is sent only in request headers and is cleared when the tab closes.</p>
+      <form id="auth-form">
+        <label>
+          <span>Harness access token</span>
+          <input
+            id="token-input"
+            type="password"
+            minlength="32"
+            required
+            autocomplete="off"
+            spellcheck="false"
+            placeholder="Paste the token from the harness process"
+          >
+        </label>
+        <p id="auth-error" class="form-error" role="alert" hidden></p>
+        <button class="button primary wide" type="submit">Connect securely</button>
+      </form>
+      <small>No remote-machine address or provider credential is exposed to this UI.</small>
+    </div>
+  </section>
+
+  <dialog id="new-task-dialog" class="dialog">
+    <form id="new-task-form" method="dialog">
+      <div class="dialog-heading">
+        <div>
+          <span id="task-dialog-eyebrow" class="eyebrow">Task</span>
+          <h2 id="task-dialog-title">New task</h2>
+        </div>
+        <button class="icon-button dialog-close" type="button" aria-label="Close new task dialog">
+          <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 5 10 10M15 5 5 15"></path></svg>
+        </button>
+      </div>
+      <label>
+        <span id="task-input-label">Outcome</span>
+        <textarea id="task-input" required maxlength="20000" rows="5" placeholder="Describe the outcome."></textarea>
+      </label>
+      <label class="check-field">
+        <input id="auto-start-input" type="checkbox" checked>
+        <span>
+          <strong id="auto-start-title">Start now</strong>
+          <small id="auto-start-help">Model activity will be visible.</small>
+        </span>
+      </label>
+      <p id="task-error" class="form-error" role="alert" hidden></p>
+      <div class="dialog-actions">
+        <button class="button secondary dialog-close" type="button">Cancel</button>
+        <button id="create-task-submit" class="button primary" type="submit">Create task</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="abort-dialog" class="dialog danger-dialog">
+    <form id="abort-form" method="dialog">
+      <div class="dialog-heading">
+        <div>
+          <span class="eyebrow danger-text">Operator intervention</span>
+          <h2>Stop this run?</h2>
+        </div>
+        <button class="icon-button dialog-close" type="button" aria-label="Close stop dialog">
+          <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 5 10 10M15 5 5 15"></path></svg>
+        </button>
+      </div>
+      <p>The harness will abort the computer session, clear any pending action and retain the audit trail.</p>
+      <label>
+        <span>Reason</span>
+        <input id="abort-reason" type="text" maxlength="500" value="stopped by operator" required>
+      </label>
+      <p id="abort-error" class="form-error" role="alert" hidden></p>
+      <div class="dialog-actions">
+        <button class="button secondary dialog-close" type="button">Keep running</button>
+        <button id="abort-submit" class="button danger" type="submit">Stop run</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="session-dialog" class="dialog compact-dialog">
+    <div class="dialog-heading">
+      <div>
+        <span class="eyebrow">Browser session</span>
+        <h2>Session controls</h2>
+      </div>
+      <button class="icon-button dialog-close" type="button" aria-label="Close session settings">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 5 10 10M15 5 5 15"></path></svg>
+      </button>
+    </div>
+    <p>The token exists only in this tab's session storage. Disconnecting clears it immediately.</p>
+    <button id="disconnect-button" class="button danger wide" type="button">Disconnect and clear token</button>
+  </dialog>
+
+  <noscript>This operator console requires JavaScript for authenticated event streaming.</noscript>
+</body>
+</html>

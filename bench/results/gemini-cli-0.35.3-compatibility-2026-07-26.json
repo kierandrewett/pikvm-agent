@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-07-26",
+  "adapter": "gemini_cli",
+  "package": {
+    "name": "@google/gemini-cli",
+    "version": "0.35.3"
+  },
+  "installed_source_contract": {
+    "headless_prompt": true,
+    "json_output": true,
+    "plan_approval_mode": true,
+    "model_selection": true,
+    "supplemental_admin_policy": true,
+    "dedicated_profile_environment": "GEMINI_CLI_HOME",
+    "image_at_preprocessing": true,
+    "native_response_schema": false
+  },
+  "harness_isolation_contract": {
+    "dedicated_profile_required": true,
+    "normal_user_home_rejected": true,
+    "oauth_token_read_or_copied_by_harness": false,
+    "fresh_evidence_only_workspace": true,
+    "mcp_disabled": true,
+    "extensions_disabled": true,
+    "skills_disabled": true,
+    "hooks_disabled": true,
+    "ambient_context_disabled": true,
+    "all_model_tools_admin_denied": true,
+    "local_structured_validation_before_hid": true,
+    "provider_output_redacted_on_failure": true
+  },
+  "startup_probe": {
+    "argv": [
+      "gemini",
+      "--version"
+    ],
+    "environment": "restricted network-isolated test runner",
+    "timeout_seconds": 60,
+    "outcome": "timeout",
+    "elapsed_seconds": 60.01,
+    "max_rss_kib": 228904
+  },
+  "regression_evidence": {
+    "focused_provider_config_onboarding_support_package_ui": {
+      "passed": 79,
+      "deselected": 1,
+      "elapsed_seconds": 0.71
+    },
+    "broader_managed_harness": {
+      "passed": 162,
+      "deselected": 1,
+      "elapsed_seconds": 2.09
+    }
+  },
+  "live_model_exercised": false,
+  "live_latency_claim": false,
+  "computer_target_contacted": false,
+  "production_pikvm_contacted": false,
+  "status": "adapter-contract-passed-live-provider-unproven"
+}

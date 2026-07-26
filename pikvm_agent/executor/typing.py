@@ -11,7 +11,8 @@ mismatch) is self-corrected inline — at most once — without burning an agent
 It is a pure orchestrator: every side effect (keystrokes, capture, OCR, layout)
 is reached through the injected ``backend``/``ocr``, so it is unit-testable and
 imports no I/O of its own. It NEVER emits Enter — the only keys it may press for a
-correction are Home / Delete / Backspace / End. Committing is the caller's job.
+correction are Home / Delete / Backspace / End / CapsLock. Committing is the
+caller's job.
 
 The verdict/classification logic lives in :mod:`pikvm_agent.executor.verification`
 and is reused verbatim; this module owns only the *typing loop* + correction.
@@ -61,16 +62,28 @@ MAX_TOTAL_CORRECTIONS = 1  # one clean retry; never a compounding loop
 MAX_BACKSPACES = 400      # safety cap on a correction's clear
 FAST_PRINT_MIN = 120      # above this, plain text takes the (bursty) fast print path;
                           # shorter text stays on the fully-humanized per-key path
+MIN_MISMATCH_OCR_CONFIDENCE = 0.78
+MIN_EXPECTED_AWARE_EXACT_CHARS = 8
 
 # Pauses (seconds) — let a print / clear land and the video settle before reading.
 _PRINT_SETTLE_S = 0.45
 _CLEAR_SETTLE_S = 0.15
+_VIDEO_RETRY_SETTLE_S = 0.20
 
 NO_FOCUS_SUMMARY = (
     "Typed but the screen did not change — the field isn't focused. STOP: do not "
     "call type_text again yet. First screenshot/get_regions, click inside the "
     "target field (or otherwise focus it), verify the caret/focus, then call "
     "type_text once."
+)
+FOCUS_CHANGED_SUMMARY = (
+    "Typing stopped because substantial pixels changed outside the established "
+    "field between chunks. Treat this as focus theft or an unexpected window: "
+    "capture a fresh screen and re-establish the exact destination before typing."
+)
+INTERRUPTED_SUMMARY = (
+    "Typing interrupted: control changed (abort / panic / steer) mid-text; held "
+    "keys released. The field holds only what was typed before the stop."
 )
 
 
@@ -113,6 +126,8 @@ class WatchedTypingResult(BaseModel):
     corrected: bool
     used_fast_path: bool
     summary: str
+    typed_characters: int = 0
+    intended_characters: int = 0
 
 
 # --------------------------------------------------------------------------- #
@@ -193,28 +208,8 @@ def locate_changed_bbox(
     row-major uint8 arrays of length ``cols * rows`` (see ``frame_diff.grid``).
     """
     width, height = _dims_wh(dims)
-    a = np.asarray(before_grid)
-    b = np.asarray(after_grid)
-    if a.shape != b.shape or a.size != cols * rows:
-        return None
-
-    diff = np.abs(b.astype(np.int32) - a.astype(np.int32))
-    changed = (diff > CELL_DELTA).reshape(rows, cols)
-    if int(changed.sum()) < MIN_CHANGED_CELLS:
-        return None
-
-    # Prune isolated cells (cursor blink / stream noise): typed text forms runs —
-    # keep a changed cell only if a 4-neighbour also changed.
-    up = np.zeros_like(changed)
-    dn = np.zeros_like(changed)
-    lf = np.zeros_like(changed)
-    rt = np.zeros_like(changed)
-    up[1:, :] = changed[:-1, :]
-    dn[:-1, :] = changed[1:, :]
-    lf[:, 1:] = changed[:, :-1]
-    rt[:, :-1] = changed[:, 1:]
-    kept = changed & (up | dn | lf | rt)
-    if int(kept.sum()) < MIN_CHANGED_CELLS:
+    kept = _pruned_changed_cells(before_grid, after_grid, cols, rows)
+    if kept is None:
         return None
 
     ys, xs = np.nonzero(kept)
@@ -230,6 +225,68 @@ def locate_changed_bbox(
     if h > height * MAX_BOX_HEIGHT_FRAC:
         return None  # whole-screen repaint, not a field
     return Region(x=x, y=y, width=w, height=h)
+
+
+def _pruned_changed_cells(
+    before_grid: np.ndarray,
+    after_grid: np.ndarray,
+    cols: int = GRID_COLS,
+    rows: int = GRID_ROWS,
+) -> np.ndarray | None:
+    """Return clustered changed cells, excluding cursor/stream speckle."""
+
+    a = np.asarray(before_grid)
+    b = np.asarray(after_grid)
+    if a.shape != b.shape or a.size != cols * rows:
+        return None
+    diff = np.abs(b.astype(np.int32) - a.astype(np.int32))
+    changed = (diff > CELL_DELTA).reshape(rows, cols)
+    if int(changed.sum()) < MIN_CHANGED_CELLS:
+        return None
+    up = np.zeros_like(changed)
+    dn = np.zeros_like(changed)
+    lf = np.zeros_like(changed)
+    rt = np.zeros_like(changed)
+    up[1:, :] = changed[:-1, :]
+    dn[:-1, :] = changed[1:, :]
+    lf[:, 1:] = changed[:, :-1]
+    rt[:, :-1] = changed[:, 1:]
+    kept = changed & (up | dn | lf | rt)
+    if int(kept.sum()) < MIN_CHANGED_CELLS:
+        return None
+    return kept
+
+
+def _substantial_change_outside_region(
+    before_grid: np.ndarray,
+    after_grid: np.ndarray,
+    region: Region,
+    dims: Any,
+    cols: int = GRID_COLS,
+    rows: int = GRID_ROWS,
+) -> bool:
+    """Detect an unexpected window/change away from the established field."""
+
+    kept = _pruned_changed_cells(before_grid, after_grid, cols, rows)
+    if kept is None:
+        return False
+    width, height = _dims_wh(dims)
+    if width <= 0 or height <= 0:
+        # A protocol-compatible backend may expose only screenshot dimensions.
+        # Without a stable screen geometry we cannot map the protected region
+        # onto the grid, so leave this signal unknown instead of crashing.
+        return False
+    cw = width / cols
+    ch = height / rows
+    x0 = max(0, int(region.x / cw) - 1)
+    x1 = min(cols, int(np.ceil((region.x + region.width) / cw)) + 1)
+    y0 = max(0, int(region.y / ch) - 1)
+    y1 = min(rows, int(np.ceil((region.y + region.height) / ch)) + 1)
+    inside = np.zeros_like(kept)
+    inside[y0:y1, x0:x1] = True
+    outside = int((kept & ~inside).sum())
+    total = int(kept.sum())
+    return outside >= MIN_CHANGED_CELLS and outside * 2 >= total
 
 
 # --------------------------------------------------------------------------- #
@@ -264,7 +321,13 @@ class WatchedTyper:
             return None
         return await asyncio.to_thread(grid, frame.data)
 
-    async def _read_field(self, region: Region) -> str:
+    async def _read_field(
+        self,
+        region: Region,
+        *,
+        intended: str | None = None,
+        precise: bool = False,
+    ) -> str:
         """OCR the field. Capture the FULL frame and pass the region to the OCR
         provider so it reads the field crop on every backend: file OCR
         (tesseract) crops the saved frame by region, while live PiKVM OCR reads
@@ -281,13 +344,118 @@ class WatchedTyper:
             fd.write(frame.data)
             fd.close()
             tmp = Path(fd.name)
-            result = await self.ocr.ocr(tmp, region=region)
+            precise_ocr = getattr(self.ocr, "ocr_precise", None)
+            if precise and callable(precise_ocr):
+                result = await precise_ocr(tmp, region=region)
+            else:
+                result = await self.ocr.ocr(tmp, region=region)
+            if (
+                precise
+                and intended
+                and len(norm(intended, True)) >= MIN_EXPECTED_AWARE_EXACT_CHARS
+            ):
+                for candidate in (
+                    result.text,
+                    *(alternative.text for alternative in result.alternatives),
+                ):
+                    if compute_verdict(intended, candidate, True) in {
+                        "match",
+                        "contains",
+                    }:
+                        return candidate
+            confidences = [
+                float(line.confidence)
+                for line in result.lines
+                if line.confidence is not None
+            ]
+            if (
+                confidences
+                and sum(confidences) / len(confidences)
+                < MIN_MISMATCH_OCR_CONFIDENCE
+            ):
+                # Low-confidence OCR may still be useful to a human, but it is
+                # not strong enough evidence to clear/retype a field or stop a
+                # correct command as "failed".
+                return ""
             return result.text
         except Exception:
             return ""
         finally:
             if tmp is not None:
                 tmp.unlink(missing_ok=True)
+
+    async def _read_screen(self) -> OCRResult:
+        """OCR one exact full-frame capture for localization fallback."""
+        try:
+            frame = await self.backend.screenshot()
+        except Exception:
+            return OCRResult()
+        if not frame or not frame.data:
+            return OCRResult()
+        tmp: Path | None = None
+        try:
+            fd = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+            fd.write(frame.data)
+            fd.close()
+            tmp = Path(fd.name)
+            return await self.ocr.ocr(tmp)
+        except Exception:
+            return OCRResult()
+        finally:
+            if tmp is not None:
+                tmp.unlink(missing_ok=True)
+
+    def _locate_ocr_candidate(
+        self,
+        result: OCRResult,
+        intended: str,
+        dims: tuple[int, int],
+    ) -> Region | None:
+        """Ground an OCR line containing the just-typed text, case-insensitively."""
+        needle = intended.casefold()
+        width, height = dims
+        if not needle or width <= 0 or height <= 0:
+            return None
+        for line in result.lines:
+            if needle not in line.text.casefold():
+                continue
+            if (
+                line.confidence is not None
+                and float(line.confidence) < MIN_MISMATCH_OCR_CONFIDENCE
+            ):
+                continue
+            box = line.bbox
+            if (
+                not isinstance(box, list)
+                or len(box) != 4
+                or any(isinstance(value, list) for value in box)
+            ):
+                continue
+            x0, y0, x1, y1 = (int(value) for value in box)
+            pad = 8
+            x = max(0, x0 - pad)
+            y = max(0, y0 - pad)
+            return Region(
+                x=x,
+                y=y,
+                width=max(1, min(width, x1 + pad) - x),
+                height=max(1, min(height, y1 + pad) - y),
+            )
+        return None
+
+    @staticmethod
+    def _typed_candidate(read_back: str, intended: str, precise: bool) -> str:
+        """Extract the newest case-only occurrence from surrounding OCR text."""
+        if not precise or not intended:
+            return read_back
+        folded_read = read_back.casefold()
+        folded_intended = intended.casefold()
+        if len(folded_read) != len(read_back) or len(folded_intended) != len(intended):
+            return read_back
+        index = folded_read.rfind(folded_intended)
+        if index < 0:
+            return read_back
+        return read_back[index : index + len(intended)]
 
     # ---- corrective primitives ------------------------------------------- #
 
@@ -301,6 +469,11 @@ class WatchedTyper:
         await self.backend.press_key("Home")
         for _ in range(n):
             await self.backend.press_key("Delete")
+
+    async def _clear_recent_input(self, n_chars: int) -> None:
+        """Remove only the input this watcher just emitted, preserving prior text."""
+        for _ in range(min(MAX_BACKSPACES, max(0, n_chars))):
+            await self.backend.press_key("Backspace")
 
     # ---- public API ------------------------------------------------------ #
 
@@ -323,15 +496,23 @@ class WatchedTyper:
         precise = code or is_exact_text(text)
         total = len(text)
 
-        # FAST PATH: long, plain (non-exact, non-secret) prose goes server-side via
-        # the keymap printer in one call + a single verify. Caps-on disables it (the
-        # printer can't compensate per-letter); precise/short/secret keep the
-        # humanized self-correcting path below.
+        # FAST TRANSPORT: long, plain (non-exact, non-secret) prose uses the
+        # server-side keymap printer, but remains chunked and visually guarded.
+        # Caps-on disables it (the printer cannot compensate per letter);
+        # precise/short/secret text stays on the per-key transport.
         print_text = getattr(self.backend, "print_text", None)
         caps_on = self.backend.get_caps_lock()
         if should_continue is not None and not should_continue():
             await self._release_all_quietly()
-            return self._interrupted_result()
+            return self._halted_result(
+                status="blocked_by_policy",
+                field_text="",
+                corrected=False,
+                typed_characters=0,
+                intended_characters=len(text),
+                used_fast_path=False,
+                summary=INTERRUPTED_SUMMARY,
+            )
         if (
             callable(print_text)
             and not secret
@@ -339,57 +520,22 @@ class WatchedTyper:
             and total > FAST_PRINT_MIN
             and caps_on is not True
         ):
-            return await self._fast_print(text, region=region, precise=precise)
+            return await self._humanized(
+                text,
+                region=region,
+                code=code,
+                secret=secret,
+                precise=precise,
+                should_continue=should_continue,
+                fast_print=True,
+            )
 
         return await self._humanized(
             text, region=region, code=code, secret=secret, precise=precise,
             should_continue=should_continue,
         )
 
-    # ---- fast print path -------------------------------------------------- #
-
-    async def _fast_print(
-        self, text: str, *, region: Region | None, precise: bool
-    ) -> WatchedTypingResult:
-        dims = self._dims()
-        before = await self._grid()
-        await self.backend.print_text(text)
-        await asyncio.sleep(_PRINT_SETTLE_S)
-        after = await self._grid()
-
-        located: Region | None = region
-        changed = (
-            locate_changed_bbox(before, after, dims)
-            if before is not None and after is not None
-            else None
-        )
-        if region is None and changed is not None:
-            located = changed
-
-        # Nothing changed on screen ⇒ the field wasn't focused (don't blindly reprint).
-        if region is None and before is not None and after is not None and changed is None:
-            return self._no_focus_result(used_fast_path=True)
-
-        field_text = ""
-        verdict: Verdict = "unverified"
-        corrected = False
-        if located is not None:
-            field_text = await self._read_field(located)
-            verdict = compute_verdict(text, field_text, precise)
-            if verdict == "mismatch":
-                await self._clear_from_start(max(len(text), len(field_text)))
-                await asyncio.sleep(_CLEAR_SETTLE_S)
-                await self.backend.print_text(text)
-                await asyncio.sleep(_PRINT_SETTLE_S)
-                corrected = True
-                field_text = await self._read_field(located)
-                verdict = compute_verdict(text, field_text, precise)
-
-        return self._finalise(
-            text, field_text, verdict, corrected, used_fast_path=True, precise=precise
-        )
-
-    # ---- humanized per-chunk path ----------------------------------------- #
+    # ---- watched per-chunk path ------------------------------------------ #
 
     async def _humanized(
         self,
@@ -400,6 +546,7 @@ class WatchedTyper:
         secret: bool,
         precise: bool,
         should_continue: Callable[[], bool] | None = None,
+        fast_print: bool = False,
     ) -> WatchedTypingResult:
         dims = self._dims()
         chunks = chunk_text(text)
@@ -409,9 +556,23 @@ class WatchedTyper:
         cur_region: Region | None = region
         typed_so_far = ""
         corrections = 0
+        delivery_retries = 0
         last_read = ""
         verified_clean = False
         can_vision = not secret and total > 4
+
+        async def emit_text(value: str) -> None:
+            if fast_print:
+                printer = getattr(self.backend, "print_text", None)
+                if not callable(printer):
+                    raise RuntimeError("fast print became unavailable")
+                await printer(value)
+            else:
+                await self.backend.type_text(
+                    value,
+                    code=code,
+                    secret=secret,
+                )
 
         def cadence(i: int) -> bool:
             if not can_vision or cur_region is None:
@@ -424,6 +585,7 @@ class WatchedTyper:
 
         async def maybe_correct(read_back: str, intended_snapshot: str) -> None:
             nonlocal corrections, last_read, verified_clean
+            read_back = self._typed_candidate(read_back, intended_snapshot, precise)
             last_read = read_back
             if corrections >= MAX_TOTAL_CORRECTIONS:
                 return
@@ -431,11 +593,30 @@ class WatchedTyper:
             # was just taken away.
             if should_continue is not None and not should_continue():
                 return
+            read_verdict = compute_verdict(
+                intended_snapshot,
+                read_back,
+                precise,
+            )
             kind = classify_mismatch(intended_snapshot, read_back, precise)
             if kind is None:
-                # Only declare the WHOLE field clean when this read covered all of it.
-                if norm(intended_snapshot, precise) == norm(text, precise):
+                # A prefix-only OCR read has no confident mismatch kind, but it
+                # is not a clean verification. Only an actual match/containment
+                # can skip the final settled reread.
+                if (
+                    read_verdict in {"match", "contains"}
+                    and norm(intended_snapshot, precise) == norm(text, precise)
+                ):
                     verified_clean = True
+                return
+            if fast_print:
+                # A long prose mismatch is not permission to clear and replay
+                # an entire field. Stop with the observed evidence instead.
+                return
+            if precise and kind not in {"layout", "case"}:
+                # Exact code/commands are load-bearing, but noisy OCR is not
+                # permission to erase them. Only strong layout/case signatures
+                # may self-correct.
                 return
             if cur_region is None:
                 return  # nothing to crop against — leave it to the agent
@@ -444,7 +625,11 @@ class WatchedTyper:
                 cur = self.backend.get_layout()
                 nxt = "uk" if cur == "us" else "us"
                 self.backend.set_layout(nxt)
-            await self._clear_from_start(max(len(typed_so_far), len(read_back)))
+            elif kind == "case":
+                # RFB does not expose the guest LED state.  A pure case inversion
+                # is therefore stronger evidence than the adapter's cached state.
+                await self.backend.press_key("CapsLock")
+            await self._clear_recent_input(len(typed_so_far))
             await asyncio.sleep(_CLEAR_SETTLE_S)
             await self.backend.type_text(typed_so_far, code=code, secret=secret)
 
@@ -456,34 +641,171 @@ class WatchedTyper:
             # doesn't stick on the target.
             if should_continue is not None and not should_continue():
                 await self._release_all_quietly()
-                return self._interrupted_result(field_text=last_read, corrected=corrections > 0)
-            await self.backend.type_text(chunk, code=code, secret=secret)
+                return self._halted_result(
+                    status="blocked_by_policy",
+                    field_text=last_read,
+                    corrected=corrections > 0,
+                    typed_characters=len(typed_so_far),
+                    intended_characters=len(text),
+                    used_fast_path=fast_print,
+                    summary=INTERRUPTED_SUMMARY,
+                )
+            if (
+                i > 0
+                and can_vision
+                and cur_region is not None
+                and grid_prev is not None
+            ):
+                preflight_grid = await self._grid()
+                if (
+                    preflight_grid is not None
+                    and _substantial_change_outside_region(
+                        grid_prev,
+                        preflight_grid,
+                        cur_region,
+                        dims,
+                    )
+                ):
+                    await self._release_all_quietly()
+                    return self._halted_result(
+                        status="failed_focus_lost",
+                        field_text=last_read,
+                        corrected=corrections > 0,
+                        typed_characters=len(typed_so_far),
+                        intended_characters=len(text),
+                        used_fast_path=fast_print,
+                        summary=FOCUS_CHANGED_SUMMARY,
+                    )
+                if preflight_grid is not None:
+                    grid_prev = preflight_grid
+            await emit_text(chunk)
             typed_so_far += chunk
             grid_now = await self._grid()
+            chunk_change = (
+                locate_changed_bbox(grid_prev, grid_now, dims)
+                if grid_prev is not None and grid_now is not None
+                else None
+            )
+
+            # A transport can acknowledge a chunk whose final key events never
+            # reached the guest. Once the field is already grounded, no
+            # meaningful pixel change is stronger evidence than OCR alone that
+            # this exact chunk did not land. Retry that chunk once, never the
+            # whole field, and never emit a commit key.
+            if (
+                (located or explicit_region)
+                and i > 0
+                and chunk_change is None
+                and len(chunk.strip()) >= 2
+                and precise
+                and not secret
+            ):
+                await asyncio.sleep(_VIDEO_RETRY_SETTLE_S)
+                settled_grid = await self._grid()
+                settled_change = (
+                    locate_changed_bbox(grid_prev, settled_grid, dims)
+                    if grid_prev is not None and settled_grid is not None
+                    else None
+                )
+                delivery_read = (
+                    self._typed_candidate(
+                        await self._read_field(
+                            cur_region,
+                            intended=typed_so_far,
+                            precise=precise,
+                        ),
+                        typed_so_far,
+                        precise,
+                    )
+                    if settled_change is None and cur_region is not None
+                    else ""
+                )
+                previous_text = typed_so_far[: -len(chunk)]
+                if (
+                    settled_change is None
+                    and compute_verdict(
+                        previous_text,
+                        delivery_read,
+                        precise,
+                    )
+                    == "match"
+                    and compute_verdict(
+                        typed_so_far,
+                        delivery_read,
+                        precise,
+                    )
+                    == "unverified"
+                    and (
+                        should_continue is None
+                        or should_continue()
+                    )
+                ):
+                    await emit_text(chunk)
+                    delivery_retries += 1
+                    grid_now = await self._grid()
+                    chunk_change = (
+                        locate_changed_bbox(grid_prev, grid_now, dims)
+                        if grid_prev is not None and grid_now is not None
+                        else None
+                    )
+                elif settled_grid is not None:
+                    grid_now = settled_grid
+                    chunk_change = settled_change
 
             # Auto-locate the field from the changed pixels (skipped if the caller
             # gave an explicit region); grow the box each chunk so it spans the line.
             if not explicit_region and len(typed_so_far) >= LOCATE_MIN_CHARS:
-                loc = (
-                    locate_changed_bbox(grid_prev, grid_now, dims)
-                    if grid_prev is not None and grid_now is not None
-                    else None
-                )
+                loc = chunk_change
                 if loc is not None:
                     cur_region = union_region(cur_region, loc) if located else loc
                     located = True
-                elif (
-                    not located
-                    and not secret
-                    and len(typed_so_far) >= ABORT_MIN_CHARS
-                ):
-                    # Typed a real word but nothing visibly changed ⇒ wrong target.
-                    return self._no_focus_result(used_fast_path=False)
+                elif not located and not secret and len(typed_so_far) >= ABORT_MIN_CHARS:
+                    # VNC video may trail HID by a frame.  Take exactly one
+                    # delayed sample before concluding the field was not focused.
+                    await asyncio.sleep(_VIDEO_RETRY_SETTLE_S)
+                    grid_retry = await self._grid()
+                    retry_loc = (
+                        locate_changed_bbox(grid_prev, grid_retry, dims)
+                        if grid_prev is not None and grid_retry is not None
+                        else None
+                    )
+                    if retry_loc is not None:
+                        cur_region = retry_loc
+                        located = True
+                        grid_now = grid_retry
+                    else:
+                        # Some VNC encoders quantize small dark-theme glyph
+                        # changes below the grid threshold. Accept only grounded
+                        # OCR evidence that the just-typed text is on screen.
+                        screen_read = await self._read_screen()
+                        ocr_loc = self._locate_ocr_candidate(
+                            screen_read,
+                            typed_so_far,
+                            dims,
+                        )
+                        if ocr_loc is not None:
+                            cur_region = ocr_loc
+                            located = True
+                        else:
+                            # No pixel or OCR evidence ⇒ wrong target.
+                            return self._halted_result(
+                                status="failed_focus_lost",
+                                field_text="",
+                                corrected=False,
+                                used_fast_path=fast_print,
+                                typed_characters=len(typed_so_far),
+                                intended_characters=len(text),
+                                summary=NO_FOCUS_SUMMARY,
+                            )
             if grid_now is not None:
                 grid_prev = grid_now
 
             if cadence(i) and cur_region is not None:
-                rb = await self._read_field(cur_region)
+                rb = await self._read_field(
+                    cur_region,
+                    intended=typed_so_far,
+                    precise=precise,
+                )
                 await maybe_correct(rb, typed_so_far)
                 if corrections > 0:
                     grid_prev = await self._grid()  # field changed under us
@@ -491,17 +813,67 @@ class WatchedTyper:
         # Final correctness check if we never got a clean read mid-stream.
         if not verified_clean and cur_region is not None and can_vision:
             corrections_before = corrections
-            rb = await self._read_field(cur_region)
+            rb = await self._read_field(
+                cur_region,
+                intended=text,
+                precise=precise,
+            )
             await maybe_correct(rb, text)
             if corrections > corrections_before:
                 # The final read triggered a clear+retype — re-read so the verdict
                 # reflects the corrected field, not the pre-correction mismatch.
-                last_read = await self._read_field(cur_region)
+                last_read = await self._read_field(
+                    cur_region,
+                    intended=text,
+                    precise=precise,
+                )
+            elif (
+                precise
+                and compute_verdict(text, last_read, precise) == "unverified"
+            ):
+                # VNC/X11 can acknowledge all HID events before the final glyphs
+                # are painted. A prefix-only read is therefore not yet proof of
+                # truncation. Take at most two delayed reads (R19 needed the
+                # second capture), grow the auto-located crop if late pixels
+                # appear, and accept only exact/containing evidence. This never
+                # emits more HID, and Enter remains the caller's separate action.
+                for _ in range(2):
+                    await asyncio.sleep(_PRINT_SETTLE_S)
+                    if not explicit_region:
+                        settled_grid = await self._grid()
+                        late_region = (
+                            locate_changed_bbox(grid_prev, settled_grid, dims)
+                            if grid_prev is not None
+                            and settled_grid is not None
+                            else None
+                        )
+                        if late_region is not None:
+                            cur_region = union_region(cur_region, late_region)
+                    settled_read = self._typed_candidate(
+                        await self._read_field(
+                            cur_region,
+                            intended=text,
+                            precise=precise,
+                        ),
+                        text,
+                        precise,
+                    )
+                    if compute_verdict(text, settled_read, precise) in {
+                        "match",
+                        "contains",
+                    }:
+                        last_read = settled_read
+                        break
 
         verdict = compute_verdict(text, last_read, precise)
-        corrected = corrections > 0
+        corrected = corrections > 0 or delivery_retries > 0
         return self._finalise(
-            text, last_read, verdict, corrected, used_fast_path=False, precise=precise
+            text,
+            last_read,
+            verdict,
+            corrected,
+            used_fast_path=fast_print,
+            precise=precise,
         )
 
     # ---- result assembly -------------------------------------------------- #
@@ -514,31 +886,27 @@ class WatchedTyper:
             with contextlib.suppress(Exception):
                 await rel()
 
-    def _interrupted_result(self, *, field_text: str = "",
-                            corrected: bool = False) -> WatchedTypingResult:
-        """Typing was cut short because control changed (abort / panic / steer). Report
-        it as blocked — not a typing failure of the field — so the caller knows the text
-        is partial by design, not because the keystrokes missed."""
+    @staticmethod
+    def _halted_result(
+        *,
+        status: VerificationStatus,
+        field_text: str,
+        corrected: bool,
+        used_fast_path: bool,
+        summary: str,
+        typed_characters: int,
+        intended_characters: int,
+    ) -> WatchedTypingResult:
         return WatchedTypingResult(
             verdict="mismatch",
             ok=False,
-            status="blocked_by_policy",
+            status=status,
             field_text=field_text,
             corrected=corrected,
-            used_fast_path=False,
-            summary="Typing interrupted: control changed (abort / panic / steer) mid-text; "
-                    "held keys released. The field holds only what was typed before the stop.",
-        )
-
-    def _no_focus_result(self, *, used_fast_path: bool) -> WatchedTypingResult:
-        return WatchedTypingResult(
-            verdict="mismatch",
-            ok=False,
-            status="failed_focus_lost",
-            field_text="",
-            corrected=False,
             used_fast_path=used_fast_path,
-            summary=NO_FOCUS_SUMMARY,
+            summary=summary,
+            typed_characters=typed_characters,
+            intended_characters=intended_characters,
         )
 
     def _finalise(
@@ -559,8 +927,12 @@ class WatchedTyper:
         head = "Typed (fast)" if used_fast_path else "Typed"
         if verdict == "mismatch":
             summary = f"{head}, but read-back still doesn't match — check the field."
-        elif corrected:
+        elif corrected and vr.safe_to_continue:
             summary = f"{head} and self-corrected (verified the field)."
+        elif corrected:
+            summary = (
+                f"{head} and self-corrected, but read-back is still ambiguous."
+            )
         elif verdict == "unverified":
             summary = (
                 f"{head}; read-back only verified part of the field."
@@ -578,4 +950,6 @@ class WatchedTyper:
             corrected=corrected,
             used_fast_path=used_fast_path,
             summary=summary,
+            typed_characters=len(intended),
+            intended_characters=len(intended),
         )

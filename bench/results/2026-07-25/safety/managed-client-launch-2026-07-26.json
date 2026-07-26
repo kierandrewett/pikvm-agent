@@ -1,0 +1,112 @@
+{
+  "schema_version": 1,
+  "suite": "managed-client-launch",
+  "recorded_at": "2026-07-26",
+  "scope": {
+    "clients": [
+      "codex",
+      "claude",
+      "gemini",
+      "opencode"
+    ],
+    "computer_target": "synthetic acceptance adapter only",
+    "provider_execution": "deterministic synthetic adapter",
+    "external_provider_calls": 0,
+    "vnc_connections": 0,
+    "pikvm_connections": 0,
+    "production_contacts": 0
+  },
+  "focused_selection": {
+    "passed": 65,
+    "skipped": 5,
+    "failed": 0,
+    "elapsed_seconds": 6.96,
+    "command": ".venv/bin/pytest -q tests/test_managed_client_acceptance.py tests/test_client_launch_acceptance.py tests/test_harness_mcp_server.py tests/test_harness_client_setup.py tests/test_harness_package_acceptance.py tests/test_harness_api.py::test_agent_created_run_preserves_managed_client_identity tests/test_harness_ui.py::test_harness_ui_uses_one_static_entrypoint_and_no_remote_assets tests/test_harness_ui.py::test_harness_ui_has_a_release_bundle_budget_and_releases_frame_blobs"
+  },
+  "broader_regression": {
+    "completed_groups": [
+      {
+        "scope": "agent harness and run store",
+        "passed": 59,
+        "elapsed_seconds": 0.64
+      },
+      {
+        "scope": "authenticated harness API",
+        "passed": 29,
+        "elapsed_seconds": 1.07
+      },
+      {
+        "scope": "static operator UI excluding known runner-hung ASGI render",
+        "passed": 4,
+        "elapsed_seconds": 0.32
+      },
+      {
+        "scope": "direct visibility, burst policy, and emergency stop",
+        "passed": 97,
+        "elapsed_seconds": 1.06
+      },
+      {
+        "scope": "media transaction, model routing, provider conformance, and harness config",
+        "passed": 43,
+        "elapsed_seconds": 0.5
+      },
+      {
+        "scope": "providers, onboarding, lab assets, and Office acceptance",
+        "passed": 74,
+        "elapsed_seconds": 1.22
+      }
+    ],
+    "not_counted": [
+      {
+        "scope": "direct burst runtime aggregate",
+        "reason": "Known restricted-runner thread hang; no partial dots were reported as a pass."
+      }
+    ]
+  },
+  "stdio_acceptance": {
+    "defined_cases": 12,
+    "executed_cases": 7,
+    "skipped_cases": 5,
+    "skip_reason": "Five task and restart cases require a loopback HTTP harness, but this restricted runner forbids loopback sockets.",
+    "client_inventory_cases": 4,
+    "live_call_restart_cases": 4,
+    "transport_isolation_cases": 3,
+    "product_runner_cases": 1,
+    "required_behavior": [
+      "Launch the exact generated client command in a clean environment.",
+      "Read the exact generated environment forwarding contract and pass only the scoped agent secret to the MCP child.",
+      "List only task, status, continue, pause, and abort.",
+      "Submit one high-level task through the authenticated agent API.",
+      "Expose the run and exact client label in the operator API and UI.",
+      "Persist planning, provider, action, verification, and completion events.",
+      "Return a tool error while the harness is offline without killing the MCP child.",
+      "Reconnect after harness restart and recover the same completed SQLite run."
+    ]
+  },
+  "locally_proven_contracts": {
+    "generated_configs_default_to_managed_control": true,
+    "raw_hid_tools_exposed": false,
+    "approval_tools_exposed": false,
+    "model_receives_machine_target": false,
+    "model_receives_operator_token": false,
+    "validated_client_label_reaches_api": true,
+    "validated_client_label_reaches_durable_run": true,
+    "high_level_call_crosses_authenticated_api_into_store": true,
+    "offline_request_is_safely_classified": true,
+    "next_request_recovers_without_restarting_mcp_client": true,
+    "http_failure_bodies_are_not_exposed": true,
+    "operator_ui_renders_managed_client_source": true,
+    "ui_bundle_within_release_budget": true,
+    "product_self_test_cli_available": true,
+    "failure_inclusive_report": true,
+    "private_mode_0600_no_overwrite_report": true,
+    "synthetic_target_free_execution": true,
+    "nonzero_exit_when_any_client_fails": true,
+    "wheel_requires_self_test_runner": true,
+    "worker_free_posix_stdio_in_built_wheel": true,
+    "generated_stdio_inventory_executed_for_all_clients": true,
+    "safe_outage_crossed_real_stdio_and_process_survived": true,
+    "private_raw_mcp_child_stdio_executed": true
+  },
+  "disposition": "The exact generated stdio launch and inventory pass for Codex, Claude, Gemini, and OpenCode. A real stdio tool call returned a safe harness-outage error and the same MCP process remained responsive; the private raw MCP child also initialized over the worker-free transport. Five authenticated task, visibility, SQLite, and restart cases remain unexecuted because this restricted runner forbids the required loopback HTTP harness."
+}

@@ -10,7 +10,10 @@ Use existing libraries aggressively, but **do not let them own the runtime**.
 - The PiKVM MCP server is our server.
 - Only our daemon talks to PiKVM.
 - Only our daemon executes keyboard/mouse.
-- Only our daemon declares actions safe or verified.
+- Only our daemon declares HID transactions safe or verified. The owned
+  harness may declare the higher-level task complete from daemon results and
+  independent before/after evidence; it cannot override a daemon refusal or
+  failed/unverified transaction.
 
 ## Use libraries as bounded adapters
 
@@ -29,7 +32,7 @@ Use existing libraries aggressively, but **do not let them own the runtime**.
 - Let OmniParser produce executable actions.
 - Let PaddleOCR decide whether typing succeeded.
 - Let LangGraph nodes contain PiKVM-specific logic directly.
-- Expose raw HID tools as normal MCP tools.
+- Expose raw HID tools on the default/public managed MCP surface.
 - Build a generic screenshot/click/type MCP server.
 
 ## Architecture
@@ -132,3 +135,15 @@ else follows `docs/PLAN.md` as written.
 - The existing TypeScript MCP server in `~/dev/pikvm-desktop-agentic` is left in
   place (the Electron app depends on it); this Python runtime is the additive,
   transactional successor.
+- **Managed MCP remains the default five-tool public surface.** Raw PiKVM tools
+  exist only in the internal child and the explicit `harness direct-mcp`
+  compatibility process. Direct mode requires the visible preflight/completion
+  boundary, cannot approve its own held action, and is never emitted unless the
+  operator selects `--control-mode direct`.
+- **Target-local pointer freshness is disposable-lab-only.** It requires both
+  the explicit flag, the `isolated_benchmark` policy profile, and the
+  construction-time capability present only on `pikvm_agent.daemon:lab_app`;
+  ordinary daemon config cannot grant it. All other runtimes refuse any
+  world-version change before HID. A stale managed action is discarded after
+  refresh and requires a fresh controller decision even when the refused
+  action looked globally safe or non-committing.

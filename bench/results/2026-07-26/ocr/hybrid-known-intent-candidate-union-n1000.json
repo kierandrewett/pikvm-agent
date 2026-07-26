@@ -1,0 +1,206 @@
+{
+  "schema_version": 1,
+  "cases": 1000,
+  "first_provider": "tesseract",
+  "second_provider": "paddleocr",
+  "both_correct": 539,
+  "first_only_correct": 30,
+  "second_only_correct": 250,
+  "neither_correct": 181,
+  "oracle_union_correct": 819,
+  "agreement": {
+    "covered": 551,
+    "coverage": 0.551,
+    "correct": 539,
+    "wrong": 12,
+    "accuracy": 0.9782214156079855,
+    "wilson_95": [
+      0.9623222177525297,
+      0.9874986574216675
+    ]
+  },
+  "agreement_by_category": {
+    "code": {
+      "covered": 62,
+      "correct": 62,
+      "wrong": 0,
+      "accuracy": 1.0,
+      "wilson_95": [
+        0.9416559278986275,
+        1.0
+      ]
+    },
+    "identifier": {
+      "covered": 76,
+      "correct": 76,
+      "wrong": 0,
+      "accuracy": 1.0,
+      "wilson_95": [
+        0.9518864149348628,
+        1.0
+      ]
+    },
+    "mixed_case": {
+      "covered": 55,
+      "correct": 47,
+      "wrong": 8,
+      "accuracy": 0.8545454545454545,
+      "wilson_95": [
+        0.7383908706854773,
+        0.9244071085224069
+      ]
+    },
+    "numeric": {
+      "covered": 1,
+      "correct": 0,
+      "wrong": 1,
+      "accuracy": 0.0,
+      "wilson_95": [
+        0.0,
+        0.7934506856227626
+      ]
+    },
+    "path": {
+      "covered": 67,
+      "correct": 65,
+      "wrong": 2,
+      "accuracy": 0.9701492537313433,
+      "wilson_95": [
+        0.8975344443664799,
+        0.9917753051611019
+      ]
+    },
+    "prose": {
+      "covered": 81,
+      "correct": 80,
+      "wrong": 1,
+      "accuracy": 0.9876543209876543,
+      "wilson_95": [
+        0.9333311840195164,
+        0.9978173499414612
+      ]
+    },
+    "terminal": {
+      "covered": 74,
+      "correct": 74,
+      "wrong": 0,
+      "accuracy": 1.0,
+      "wilson_95": [
+        0.9506502206036139,
+        1.0
+      ]
+    },
+    "ui_label": {
+      "covered": 85,
+      "correct": 85,
+      "wrong": 0,
+      "accuracy": 1.0,
+      "wilson_95": [
+        0.9567605161859485,
+        1.0
+      ]
+    },
+    "url": {
+      "covered": 50,
+      "correct": 50,
+      "wrong": 0,
+      "accuracy": 1.0,
+      "wilson_95": [
+        0.9286524008666414,
+        1.0
+      ]
+    }
+  },
+  "known_intent_candidate_union": {
+    "cases": 1000,
+    "matches": 827,
+    "rate": 0.827,
+    "by_category": {
+      "code": {
+        "cases": 100,
+        "matches": 98,
+        "rate": 0.98
+      },
+      "identifier": {
+        "cases": 100,
+        "matches": 99,
+        "rate": 0.99
+      },
+      "mixed_case": {
+        "cases": 100,
+        "matches": 88,
+        "rate": 0.88
+      },
+      "numeric": {
+        "cases": 100,
+        "matches": 0,
+        "rate": 0.0
+      },
+      "path": {
+        "cases": 100,
+        "matches": 97,
+        "rate": 0.97
+      },
+      "prose": {
+        "cases": 100,
+        "matches": 98,
+        "rate": 0.98
+      },
+      "punctuation": {
+        "cases": 100,
+        "matches": 51,
+        "rate": 0.51
+      },
+      "terminal": {
+        "cases": 100,
+        "matches": 99,
+        "rate": 0.99
+      },
+      "ui_label": {
+        "cases": 100,
+        "matches": 100,
+        "rate": 1.0
+      },
+      "url": {
+        "cases": 100,
+        "matches": 97,
+        "rate": 0.97
+      }
+    },
+    "by_tier": {
+      "routine": {
+        "cases": 800,
+        "matches": 776,
+        "rate": 0.97
+      },
+      "stress": {
+        "cases": 200,
+        "matches": 51,
+        "rate": 0.255
+      }
+    },
+    "known_intent_only": true,
+    "nearest_guess_allowed": false,
+    "commit_authority": false
+  },
+  "safe_commit_authority": false,
+  "recorded_at": "2026-07-26T18:56:29.456924+00:00",
+  "source_reports": [
+    {
+      "provider": "tesseract",
+      "name": "report.json",
+      "sha256": "12d28404461e81a551c12e776f0a30f0f8b190a4a76a38e98c03cf5bfc3aa7f1"
+    },
+    {
+      "provider": "paddleocr",
+      "name": "report.json",
+      "sha256": "7aedd4763ad495a3df78ca4aacc0bd00e49a212802fd6831e54ee92d7031d5bb"
+    }
+  ],
+  "evaluation_scope": {
+    "candidate_union_reconstructed_from_paired_completed_runs": true,
+    "hybrid_provider_executed": false,
+    "computer_target_contacted": false,
+    "nearest_guess_allowed": false
+  }
+}

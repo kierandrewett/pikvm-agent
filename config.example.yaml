@@ -9,6 +9,11 @@ daemon:
 pikvm:
   base_url: "https://pikvm.local"
   verify_tls: false
+  # Visible in every frame, action result, and approval. Set PIKVM_MACHINE_ID
+  # to your own stable opaque id; only its hash leaves the daemon.
+  machine_alias: "Lab workstation"
+  machine_id_env: "PIKVM_MACHINE_ID"
+  desktop_layer: "Physical console"
   username_env: "PIKVM_USER"
   password_env: "PIKVM_PASSWORD"
   token_env: "PIKVM_TOKEN" # alternative: an auth_token cookie value
@@ -29,11 +34,19 @@ omniparser:
   cwd: "/home/kieran/dev/OmniParser/omnitool/omniparserserver"
 
 ocr:
-  # "pikvm" = built-in tesseract over /api/streamer/snapshot?ocr=1 (default,
-  # zero local deps). "paddleocr" = local PP-OCRv5 (needs the [vision] extra).
-  provider: "pikvm"
+  # "tesseract" = local box-capable OCR using the published structured
+  # ensemble profile (default). "pikvm" = built-in text-only OCR over the live
+  # snapshot. "paddleocr" = local PaddleOCR (needs the [vision] extra).
+  # "hybrid" keeps fast Tesseract for ordinary screens and adds independent
+  # PaddleOCR evidence only for precise known-intent read-back.
+  provider: "tesseract"
   lang: "en"
   device: "cpu" # or gpu (paddleocr only)
+  psm: 6
+  upscale: 2.0
+  ensemble: true
+  syntax_aware_selection: true
+  hybrid_secondary_timeout_s: 5.0
   disable_doc_orientation: true
   disable_doc_unwarping: true
   disable_textline_orientation: true
@@ -44,6 +57,12 @@ operator:
   provider: "fake"
   base_url: "https://openrouter.ai/api/v1"
   api_key_env: "OPENROUTER_API_KEY"
+  routing:
+    enabled: true
+    reasoner_lane: "hard"
+    controller_lane: "cheap"
+    fallback_lane: "default"
+    refresh_every_steps: 6
   lanes:
     cheap:
       model: "qwen/qwen3-vl-8b-instruct"
@@ -57,16 +76,20 @@ policy:
   require_human_for:
     - communication_send
     - credential_entry
+    - sensitive_data_transmit
+    - account_or_permission_change
     - terminal_mutating
     - sudo
     - delete
     - local_file_edit
+    - file_external_upload
     - software_installation
     - system_setting_change
     - power_or_firmware
     - disk_or_partition
     - financial_or_purchase
     - legal_or_consent
+    - unknown
 
 watchers:
   interval_ms: 350

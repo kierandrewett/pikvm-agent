@@ -1,0 +1,107 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-07-26",
+  "status": "failing_release_gate",
+  "provider": "Tesseract PSM 6 raw plus 2x prepared ensemble",
+  "corpus": {
+    "cases": 1000,
+    "corpus_seed": 104729,
+    "evaluation_seed": 65537,
+    "categories": 10,
+    "cases_per_category": 100,
+    "ground_truth_released": "after every OCR call completed"
+  },
+  "diagnosis": {
+    "reproduction": {
+      "cases": 100,
+      "selection": "first 10 cases in each category from the frozen corpus",
+      "psm6_run_a": {
+        "selected_normalized_exact_rate": 0.54,
+        "exact_candidate_rate": 0.57,
+        "mean_character_error_rate": 0.02123142179301594
+      },
+      "psm6_run_b": {
+        "selected_normalized_exact_rate": 0.54,
+        "exact_candidate_rate": 0.57,
+        "mean_character_error_rate": 0.02123142179301594
+      },
+      "psm7": {
+        "selected_normalized_exact_rate": 0.37,
+        "exact_candidate_rate": 0.41,
+        "mean_character_error_rate": 0.12732658716765904
+      },
+      "psm13": {
+        "selected_normalized_exact_rate": 0.01,
+        "exact_candidate_rate": 0.02,
+        "mean_character_error_rate": 0.39058653167976565
+      }
+    },
+    "confusable_stress": {
+      "cases": 200,
+      "categories": [
+        "numeric",
+        "punctuation"
+      ],
+      "selected_normalized_exact_matches": 0,
+      "exact_candidate_matches_across_raw_2x_and_1_5x": 0,
+      "fully_clean_png_cases": 5,
+      "fully_clean_png_exact_matches": 0,
+      "fully_clean_png_mean_character_error_rate": 0.05004633920296571,
+      "conclusion": "The fixed 0O1Il token and dense ASCII quote, backtick, and operator string are adversarial ambiguity tests, not routine desktop text."
+    }
+  },
+  "full_rerun": {
+    "exact_matches": 449,
+    "normalized_exact_matches": 569,
+    "exact_candidate_matches": 614,
+    "exact_rate": 0.449,
+    "normalized_exact_rate": 0.569,
+    "exact_candidate_rate": 0.614,
+    "mean_character_error_rate": 0.020775224812035992,
+    "median_latency_ms": 188.0,
+    "p95_latency_ms": 258.0,
+    "evaluation_wall_ms": 48454,
+    "throughput_images_per_second": 20.638131010855655,
+    "full_report_sha256": "c53c00c7dc31618ae5799c97570fb6d9578706a06a9e788cfeebe5604b21aaf4"
+  },
+  "tiers": {
+    "routine": {
+      "cases": 800,
+      "normalized_exact_matches": 569,
+      "normalized_exact_rate": 0.71125,
+      "mean_character_error_rate": 0.008846580801856827
+    },
+    "stress": {
+      "cases": 200,
+      "normalized_exact_matches": 0,
+      "normalized_exact_rate": 0.0,
+      "mean_character_error_rate": 0.06848980085275266
+    }
+  },
+  "release_gate": {
+    "unchanged": true,
+    "failure_count": 12,
+    "failures": [
+      "normalized exact rate 56.900% is below 99.0%",
+      "mean character error rate 2.078% exceeds 0.1%",
+      "prose normalized exact rate 83.000% is below 95.0%",
+      "ui_label normalized exact rate 90.000% is below 95.0%",
+      "code normalized exact rate 66.000% is below 95.0%",
+      "terminal normalized exact rate 78.000% is below 95.0%",
+      "path normalized exact rate 68.000% is below 95.0%",
+      "url normalized exact rate 56.000% is below 95.0%",
+      "identifier normalized exact rate 76.000% is below 95.0%",
+      "numeric normalized exact rate 0.000% is below 95.0%",
+      "punctuation normalized exact rate 0.000% is below 95.0%",
+      "mixed_case normalized exact rate 52.000% is below 95.0%"
+    ]
+  },
+  "runtime_policy": {
+    "ocr_only_commit_authority": false,
+    "confidence_authorizes_irreversible_action": false,
+    "stress_tier_exempt_from_exactness_gate": false,
+    "abstain_on_ambiguous_load_bearing_text": true
+  },
+  "target_contacted": false,
+  "network_used": false
+}
