@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { messagesForRun } from "@/lib/run-messages";
+import {
+  messagesForRun,
+  userFacingCompletionSummary,
+} from "@/lib/run-messages";
 import type { RunSnapshot } from "@/types";
 
 const run = (overrides: Partial<RunSnapshot> = {}): RunSnapshot => ({
@@ -59,6 +62,24 @@ const run = (overrides: Partial<RunSnapshot> = {}): RunSnapshot => ({
 });
 
 describe("messagesForRun", () => {
+  it("removes verifier mechanics and bounds legacy completion walls", () => {
+    const summary = userFacingCompletionSummary(
+      "The before/after comparison image shows two pixel-equivalent frames: " +
+        "no input occurred (same frame_id 1, control_epoch 0). " +
+        "The frame itself visibly contains every element the plan's success " +
+        "criteria require: the Oracle Cloud console is open to Resource " +
+        "Explorer in UK South (London), with the packer-image-build " +
+        "compartment selected. ".repeat(40),
+    );
+
+    expect(summary).not.toContain("before/after comparison");
+    expect(summary).not.toContain("success criteria");
+    expect(summary).not.toContain("frame_id");
+    expect(summary).toContain("The Oracle Cloud console");
+    expect(summary).toContain("Full verification detail is available");
+    expect(summary.length).toBeLessThan(850);
+  });
+
   it("turns harness events into structured assistant-ui tool parts", () => {
     const messages = messagesForRun(run());
     const assistant = messages.at(-1);
@@ -413,7 +434,7 @@ describe("messagesForRun", () => {
     expect(tools).toHaveLength(1);
   });
 
-  it("keeps the plan summary in chat without flooding it with execution steps", () => {
+  it("keeps internal planning prose out of the user-facing transcript", () => {
     const messages = messagesForRun(
       run({
         plan: {
@@ -426,7 +447,7 @@ describe("messagesForRun", () => {
     );
     const serialized = JSON.stringify(messages.at(-1)?.content);
 
-    expect(serialized).toContain("Use the smallest verifiable sequence.");
+    expect(serialized).not.toContain("Use the smallest verifiable sequence.");
     expect(serialized).not.toContain("Open Calculator");
     expect(serialized).not.toContain("Enter the expression");
     expect(serialized).not.toContain("Model provider");
@@ -445,9 +466,7 @@ describe("messagesForRun", () => {
     ).at(-1);
     const serialized = JSON.stringify(assistant?.content);
 
-    expect(serialized).toContain(
-      "The outer client chose this action sequence",
-    );
+    expect(serialized).not.toContain("outer client chose");
     expect(serialized).toContain(
       "Direct gate paused. Resume it from the Computer view",
     );
@@ -455,7 +474,7 @@ describe("messagesForRun", () => {
     expect(serialized).not.toContain("give a correction");
   });
 
-  it("names the live model lane without inventing hidden reasoning", () => {
+  it("keeps orchestration timers and provider labels out of transcript prose", () => {
     const assistant = messagesForRun(
       run({
         active_activity: {
@@ -468,9 +487,10 @@ describe("messagesForRun", () => {
       }),
     ).at(-1);
 
-    expect(JSON.stringify(assistant?.content)).toContain(
-      "Checking the screen · gpt-5 · codex-account · 5s",
-    );
+    const serialized = JSON.stringify(assistant?.content);
+    expect(serialized).not.toContain("Checking the screen");
+    expect(serialized).not.toContain("codex-account");
+    expect(serialized).not.toContain("5s");
   });
 
   it("surfaces the actual reason a run paused", () => {

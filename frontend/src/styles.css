@@ -214,6 +214,15 @@ body,
     @apply relative flex h-[calc(100dvh-3.5rem)] min-h-0 flex-col overflow-hidden;
   }
 
+  .aui-md {
+    max-width: 68ch;
+    text-wrap: pretty;
+  }
+
+  .aui-run-activity {
+    @apply mt-2 flex min-h-8 w-fit max-w-full items-center gap-2 rounded-md bg-muted/45 px-2.5 py-1.5 text-sm text-muted-foreground;
+  }
+
   .workspace-error {
     @apply absolute top-3 left-1/2 z-20 w-[min(42rem,calc(100%-2rem))] -translate-x-1/2 shadow-lg;
   }
@@ -244,6 +253,10 @@ body,
     .computer-action-step,
     .computer-action-marker {
       transition: none;
+    }
+
+    .aui-run-activity svg {
+      animation: none;
     }
   }
 }

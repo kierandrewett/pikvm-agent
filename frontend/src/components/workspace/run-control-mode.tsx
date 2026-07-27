@@ -64,7 +64,7 @@ export function RunControlModeBadge({ origin }: { origin?: RunOrigin }) {
       title="The visible harness plans, acts, verifies, and owns approval boundaries."
     >
       <ShieldCheckIcon data-icon="inline-start" aria-hidden="true" />
-      Managed harness
+        Managed
     </Badge>
   );
 }

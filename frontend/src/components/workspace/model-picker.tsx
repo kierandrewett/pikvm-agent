@@ -47,7 +47,7 @@ export function ModelPicker({
   });
   const models = primaries.map(({ model }) => model);
   const oneModel = new Set(models).size === 1;
-  const summary = oneModel ? `${models[0]} · all roles` : models.join(" / ");
+  const summary = oneModel ? models[0] : models.join(" / ");
   const routeDescription = primaries
     .map(({ label, model, provider }) =>
       `${label}: ${model}${provider && model !== provider ? ` (${provider})` : ""}`,

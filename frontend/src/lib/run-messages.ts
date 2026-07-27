@@ -14,19 +14,6 @@ const safeString = (value: unknown) => (typeof value === "string" ? value : "");
 const safeNumber = (value: unknown) =>
   typeof value === "number" && Number.isFinite(value) ? value : undefined;
 
-const elapsedLabel = (startedAt: string) => {
-  const started = Date.parse(startedAt);
-  if (!Number.isFinite(started)) return "";
-  const elapsedSeconds = Math.max(
-    0,
-    Math.floor((Date.now() - started) / 1_000),
-  );
-  if (elapsedSeconds < 60) return `${elapsedSeconds}s`;
-  const minutes = Math.floor(elapsedSeconds / 60);
-  const seconds = elapsedSeconds % 60;
-  return `${minutes}m ${String(seconds).padStart(2, "0")}s`;
-};
-
 const eventIdentity = (event: HarnessEvent) =>
   safeString(event.data.call_id) ||
   String(safeNumber(event.data.index) ?? event.sequence);
@@ -230,25 +217,48 @@ const outcomeReason = (outcome: HarnessEvent) => {
   );
 };
 
-const planMarkdown = (run: RunSnapshot) => {
-  if (run.origin === "direct_mcp") {
-    return (
-      "The outer client chose this action sequence. The harness records and " +
-      "gates each call without claiming to own its plan."
-    );
+const COMPLETION_SUMMARY_LIMIT = 720;
+
+export const userFacingCompletionSummary = (value: unknown) => {
+  let summary = safeString(value).trim();
+  if (!summary) return "";
+
+  summary = summary
+    .replace(/^The before\/after comparison image[^.]*\.\s*/i, "")
+    .replace(
+      /^The frame itself visibly contains[^:]{0,240}:\s*/i,
+      "",
+    )
+    .trim();
+  if (summary) {
+    summary = `${summary[0]!.toUpperCase()}${summary.slice(1)}`;
   }
-  if (run.plan) {
-    return run.plan.summary;
-  }
-  if (run.status === "planning") {
-    return "Planning the work and defining visible completion evidence.";
-  }
-  return "Working through the requested task.";
+  if (summary.length <= COMPLETION_SUMMARY_LIMIT) return summary;
+
+  const candidate = summary.slice(0, COMPLETION_SUMMARY_LIMIT + 1);
+  const sentenceEnd = Math.max(
+    candidate.lastIndexOf(". "),
+    candidate.lastIndexOf("! "),
+    candidate.lastIndexOf("? "),
+  );
+  const wordEnd = candidate.lastIndexOf(" ");
+  const cutAt =
+    sentenceEnd >= COMPLETION_SUMMARY_LIMIT * 0.55
+      ? sentenceEnd + 1
+      : wordEnd > 0
+        ? wordEnd
+        : COMPLETION_SUMMARY_LIMIT;
+  return (
+    `${summary.slice(0, cutAt).trim()}…\n\n` +
+    "_Full verification detail is available in Diagnostics._"
+  );
 };
 
 const completionMarkdown = (run: RunSnapshot) => {
   if (run.status === "completed") {
-    const summary = safeString(run.last_verification?.summary);
+    const summary = userFacingCompletionSummary(
+      run.last_verification?.summary,
+    );
     return summary || "Completed and checkpointed.";
   }
   if (["failed", "blocked", "rejected", "aborted"].includes(run.status)) {
@@ -267,23 +277,6 @@ const completionMarkdown = (run: RunSnapshot) => {
   }
   if (run.status === "needs_approval") {
     return "";
-  }
-  const activity = run.active_activity;
-  if (activity?.kind === "model") {
-    const verb =
-      activity.role === "reasoner"
-        ? "Planning"
-        : activity.role === "controller"
-          ? "Choosing the next input"
-          : activity.role === "verifier"
-            ? "Checking the screen"
-            : "Model working";
-    const identity = [activity.model, activity.provider]
-      .filter(Boolean)
-      .join(" · ");
-    return [verb, identity, elapsedLabel(activity.started_at)]
-      .filter(Boolean)
-      .join(" · ");
   }
   return "";
 };
@@ -445,7 +438,6 @@ export function messagesForRun(run: RunSnapshot | null): ThreadMessageLike[] {
   if (!run) return [];
   const completion = completionMarkdown(run);
   const content: ThreadMessageLike["content"] = [
-    { type: "text", text: planMarkdown(run) },
     ...toolParts(run),
     ...(completion ? [{ type: "text" as const, text: completion }] : []),
   ];

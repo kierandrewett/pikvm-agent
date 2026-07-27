@@ -172,7 +172,9 @@ export function WorkspaceShell() {
               <p className="truncate text-sm font-medium">
                 {workspace.selectedRun?.task || "New task"}
               </p>
-              <RunProvenance caller={workspace.selectedRun?.caller} />
+              {workspace.selectedRun?.origin === "direct_mcp" ? (
+                <RunProvenance caller={workspace.selectedRun.caller} />
+              ) : null}
               {workspace.connected ? (
                 <LiveUpdateBadge
                   status={
@@ -236,6 +238,8 @@ export function WorkspaceShell() {
               <div className="min-h-0 flex-1">
                 <Thread
                   readOnly={!managedControl}
+                  activity={workspace.selectedRun?.active_activity}
+                  working={workspace.isRunning}
                   components={{
                     ComposerToolbar,
                     ToolFallback: ComputerToolCall,

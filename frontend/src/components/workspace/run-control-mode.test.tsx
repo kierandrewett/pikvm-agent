@@ -17,13 +17,13 @@ describe("RunControlModeBadge", () => {
   it("labels a new or managed task as harness-owned", () => {
     const { rerender } = render(<RunControlModeBadge />);
 
-    expect(screen.getByText("Managed harness")).toHaveAttribute(
+    expect(screen.getByText("Managed")).toHaveAttribute(
       "title",
       expect.stringContaining("plans, acts, verifies"),
     );
 
     rerender(<RunControlModeBadge origin="managed" />);
-    expect(screen.getByText("Managed harness")).toBeInTheDocument();
+    expect(screen.getByText("Managed")).toBeInTheDocument();
   });
 
   it("does not present a direct client trace as managed", () => {
@@ -33,7 +33,7 @@ describe("RunControlModeBadge", () => {
       "title",
       expect.stringContaining("outer coding client"),
     );
-    expect(screen.queryByText("Managed harness")).toBeNull();
+    expect(screen.queryByText("Managed")).toBeNull();
   });
 });
 
