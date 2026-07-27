@@ -1062,6 +1062,8 @@ async def test_start_runs_a_checkpointed_reason_act_verify_slice() -> None:
     reasoner_prompt = " ".join(provider.requests[0].prompt.split())
     assert "Do not invent exact values" in reasoner_prompt
     assert "necessary to satisfy the user's literal request" in reasoner_prompt
+    assert "authenticated user/operator corrections" in reasoner_prompt
+    assert "the latest entry wins" in reasoner_prompt
     verifier_prompt = " ".join(provider.requests[2].prompt.split())
     assert "Return verified when the intended action" in verifier_prompt
     assert "Do not return uncertain merely because the overall task" in verifier_prompt

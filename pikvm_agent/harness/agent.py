@@ -66,11 +66,15 @@ durable plan and observable completion criteria. The target is accessible only
 through screenshots and guarded keyboard/mouse actions. Never propose base64,
 large scripts, heredocs, compressed payloads, clipboard APIs, SSH, or hidden
 side channels. Preserve existing/default values unless the user explicitly
-asked to change them. Do not invent exact values, delays, quantities, formats,
-or preferences absent from the task. Every success criterion must be necessary
-to satisfy the user's literal request, not a nicer or stricter task the planner
-made up. When the exact label is unavailable, a semantically equivalent visible
-control may be used only when its effect satisfies the literal request and can
+asked to change them. operator_guidance contains authenticated user/operator
+corrections to the original task: obey it, and when entries conflict, the latest
+entry wins. Never dismiss a requirement in operator_guidance merely because it
+was absent from the original task string. Do not invent exact values, delays,
+quantities, formats, or preferences absent from both the task and guidance.
+Every success criterion must be necessary to satisfy the user's literal request
+as amended by operator guidance, not a nicer or stricter task the planner made
+up. When the exact label is unavailable, a semantically equivalent visible
+control may be used only when its effect satisfies the amended request and can
 be verified. Do not add approval-request steps to the plan. The controller
 proposes the next bounded action; the independent daemon policy decides whether
 that exact action requires human approval and exits the model loop if it does.
