@@ -194,10 +194,15 @@ def test_live_office_artifact_path_is_fresh_and_scoped_to_the_lab_workspace() ->
 
 
 async def test_live_office_run_stays_paused_until_artifact_visibility_exists() -> None:
-    requests: list[dict[str, object]] = []
+    requests: list[tuple[str, dict[str, object] | None]] = []
 
     def respond(request: httpx.Request) -> httpx.Response:
-        requests.append(json.loads(request.content))
+        requests.append(
+            (
+                request.url.path,
+                json.loads(request.content) if request.content else None,
+            )
+        )
         return httpx.Response(200, json={"run_id": "office-paused"})
 
     async with httpx.AsyncClient(
@@ -206,13 +211,18 @@ async def test_live_office_run_stays_paused_until_artifact_visibility_exists() -
     ) as client:
         api = HttpManagedHarnessApi(client)
         result = await api.create("Create the workbook.")
+        await api.start(result["run_id"])
 
     assert result == {"run_id": "office-paused"}
     assert requests == [
-        {
-            "task": "Create the workbook.",
-            "auto_start": False,
-        }
+        (
+            "/api/runs",
+            {
+                "task": "Create the workbook.",
+                "auto_start": False,
+            },
+        ),
+        ("/api/runs/office-paused/start", None),
     ]
 
 
@@ -487,6 +497,7 @@ async def test_live_runner_continues_bounded_slices_but_never_approves() -> None
     class Api:
         def __init__(self) -> None:
             self.continues = 0
+            self.order: list[str] = []
             self.states = [
                 RunSnapshot(
                     run_id="office-live",
@@ -525,7 +536,13 @@ async def test_live_runner_continues_bounded_slices_but_never_approves() -> None
 
         async def create(self, task: str):
             assert task == "Create the workbook."
+            self.order.append("create")
             return {"run_id": "office-live"}
+
+        async def start(self, run_id: str):
+            assert run_id == "office-live"
+            self.order.append("start")
+            return {"run_id": run_id}
 
         async def get(self, run_id: str):
             assert run_id == "office-live"
@@ -547,6 +564,7 @@ async def test_live_runner_continues_bounded_slices_but_never_approves() -> None
 
     async def on_created(run_id: str) -> None:
         created.append(run_id)
+        api.order.append("artifact-visible")
 
     outcome = await drive_managed_office_run(
         api,
@@ -563,6 +581,7 @@ async def test_live_runner_continues_bounded_slices_but_never_approves() -> None
     assert outcome.continuation_cycles == 1
     assert outcome.stop_reason == "completed"
     assert api.continues == 1
+    assert api.order == ["create", "artifact-visible", "start"]
     assert created == ["office-live"]
     assert statuses.count(
         "Approval is waiting in the operator UI; the runner cannot approve it."
@@ -633,6 +652,9 @@ async def test_live_runner_stops_at_its_own_continuation_limit() -> None:
         async def create(self, _task: str):
             return {"run_id": "office-loop"}
 
+        async def start(self, run_id: str):
+            return {"run_id": run_id}
+
         async def get(self, _run_id: str):
             return paused
 
@@ -681,6 +703,9 @@ async def test_live_runner_aborts_the_managed_run_when_its_deadline_expires() ->
 
         async def create(self, _task: str):
             return {"run_id": "office-timeout"}
+
+        async def start(self, run_id: str):
+            return {"run_id": run_id}
 
         async def get(self, _run_id: str):
             return running

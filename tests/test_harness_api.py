@@ -1192,6 +1192,47 @@ class BlockingHarness(StubHarness):
         raise AssertionError("unreachable")
 
 
+@pytest.mark.asyncio
+async def test_start_schedules_visible_run_without_waiting_for_model(
+    tmp_path: Path,
+) -> None:
+    frame = tmp_path / "frame.jpg"
+    frame.write_bytes(b"frame")
+    store = InMemoryRunStore()
+    harness = BlockingHarness(store, frame)
+    app = create_harness_app(
+        harness=harness,  # type: ignore[arg-type]
+        store=store,
+        models=StubModels(),
+        access_token=TEST_ACCESS_TOKEN,
+        agent_token=TEST_AGENT_TOKEN,
+        allowed_origins={"http://harness"},
+    )
+    transport = httpx.ASGITransport(app=app)
+
+    async with httpx.AsyncClient(
+        transport=transport,
+        base_url="http://harness",
+        headers={"authorization": f"Bearer {TEST_AGENT_TOKEN}"},
+    ) as client:
+        created = await client.post(
+            "/api/runs",
+            json={"task": "Create the document", "auto_start": False},
+        )
+        started = await client.post("/api/runs/run_1/start")
+        await asyncio.wait_for(harness.started.wait(), timeout=1)
+        stopped = await client.post(
+            "/api/runs/run_1/abort",
+            json={"reason": "test cleanup"},
+        )
+
+    assert created.status_code == 200
+    assert started.status_code == 200
+    assert started.json()["status"] == "running"
+    assert stopped.status_code == 200
+    assert harness.cancelled.is_set()
+
+
 class MultiSliceHarness(StubHarness):
     """A task that needs three internal action slices but no human input."""
 

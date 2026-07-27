@@ -924,6 +924,29 @@ def create_harness_app(
             return _visible_run(await direct_calls.resume(run_id))
         return _visible_run(await guarded_continue(run_id))
 
+    @app.post("/api/runs/{run_id}/start")
+    async def start_run(run_id: str) -> dict[str, Any]:
+        """Start a visible managed run without holding the HTTP request open."""
+
+        if external_driver:
+            raise HTTPException(
+                409,
+                "the benchmark runner owns model progression",
+            )
+        run = await store.get_state(run_id)
+        if run.origin != "managed":
+            raise HTTPException(
+                409,
+                "only managed runs can be started by the harness",
+            )
+        if run.status is not RunStatus.RUNNING or run.pending_approval:
+            raise HTTPException(
+                409,
+                "run is not at a startable checkpoint",
+            )
+        schedule(guarded_continue(run_id))
+        return _visible_run(run)
+
     @app.post("/api/runs/{run_id}/pause")
     async def pause_run(run_id: str, body: PauseBody) -> dict[str, Any]:
         if external_driver:

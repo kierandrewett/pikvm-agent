@@ -39,6 +39,8 @@ Clock = Callable[[], float]
 class ManagedHarnessApi(Protocol):
     async def create(self, task: str) -> dict[str, Any]: ...
 
+    async def start(self, run_id: str) -> dict[str, Any]: ...
+
     async def get(self, run_id: str) -> dict[str, Any]: ...
 
     async def continue_run(self, run_id: str) -> dict[str, Any]: ...
@@ -85,6 +87,9 @@ class HttpManagedHarnessApi:
 
     async def get(self, run_id: str) -> dict[str, Any]:
         return await self._request("GET", f"/api/runs/{run_id}")
+
+    async def start(self, run_id: str) -> dict[str, Any]:
+        return await self._request("POST", f"/api/runs/{run_id}/start")
 
     async def continue_run(self, run_id: str) -> dict[str, Any]:
         return await self._request(
@@ -203,6 +208,17 @@ async def drive_managed_office_run(
             except Exception:
                 pass
             raise
+    try:
+        await api.start(run_id)
+    except Exception:
+        try:
+            await api.abort(
+                run_id,
+                "Office acceptance runner stopped: model start unavailable",
+            )
+        except Exception:
+            pass
+        raise
     deadline = monotonic() + max_run_time_s
     cycles = 0
     last_status = ""
