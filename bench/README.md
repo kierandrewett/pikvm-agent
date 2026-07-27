@@ -132,8 +132,11 @@ contract, while the configured-account view shows the reasoning, acting, and
 checking routes, primary/fallback position, readiness, authentication owner,
 coarse success/latency, and conformance state. It never renders raw
 readiness/provider errors or credential source paths and contains no browser
-secret-entry form. Twenty-six frontend and 83 provider/API/config/UI contracts
-pass; no provider or computer was contacted. See
+secret-entry form. The composer now shows the effective model for all three
+roles before send, and an active run exposes its durable route as locked rather
+than silently adopting later settings changes. Thirty-six frontend and 161
+provider/agent/API/store/fixture/static-UI contracts pass at the exact published
+commit; no provider or computer was contacted. See
 [`model-connections-and-routing.json`](results/2026-07-27/ui/model-connections-and-routing.json).
 
 ### Provider conformance boundary
@@ -253,6 +256,20 @@ receipt tests, 58 harness/API/fixture/provider tests, the production build, and
 the TypeScript similarity scan pass. This was target-free component evidence,
 not a browser visual or live-machine pass. See
 [`computer-action-receipt.json`](results/2026-07-27/ui/computer-action-receipt.json).
+
+The tailored computer-use pass makes the receipt action-specific instead of
+generic. Pointer input includes a normalized target map against the current
+screen dimensions; typing retains the exact payload and counts; keys use
+individual keycaps; and scrolling names its direction and step count. The
+expanded receipt carries the intended effect, expected visual evidence,
+source/input/observed transition, attempt, transport latency, and idempotency
+key. Running, held, committed, verified, unverified, safely refused, failed,
+and cancelled states all have text and icon treatment, not colour alone. Raw
+transport errors stay in diagnostics. This exact commit passed 36/36 frontend
+tests, including 12 focused action-presentation tests, and 161/161
+provider/agent/API/store/fixture/static-UI tests in a detached worktree. The
+1,217,335-byte bundle remains below the enforced 1.25 MB cap. See
+[`computer-use-chat-controls.json`](results/2026-07-27/ui/computer-use-chat-controls.json).
 
 The previous customer wheel was built offline with Hatchling 1.31.0 from the
 pre-existing cache. Its SHA-256 is
@@ -883,7 +900,7 @@ instrumentation check only, not an accuracy, average-token, or cost claim.
 ## Current headline
 
 <!-- pikvm-scorecard:start -->
-_Generated from checked JSON evidence as of 2026-07-27. Manifest `sha256:24a3d521c6ad`; run `pikvm-agent harness scorecard --check` to detect drift._
+_Generated from checked JSON evidence as of 2026-07-27. Manifest `sha256:d5d69c5b1671`; run `pikvm-agent harness scorecard --check` to detect drift._
 
 | Suite | Route | Cases | Result | Median / p95 | Wall | Status | Evidence |
 | --- | --- | ---: | ---: | ---: | ---: | --- | --- |
@@ -901,6 +918,7 @@ _Generated from checked JSON evidence as of 2026-07-27. Manifest `sha256:24a3d52
 | Live computer activity in chat | Authenticated fetch SSE → assistant-ui | 19 frontend + 53 harness/API contracts | 19/19 + 53/53; action 394 → verification 396 | 75ms snapshot coalescing; 305,613-byte gzip JavaScript | Target-free runtime | Authenticated live stream passing; browser visual audit pending | [JSON](results/2026-07-27/ui/computer-action-live-stream.json) · `sha256:5d61d446891f` |
 | Computer-action transaction receipt | assistant-ui tool disclosure → four-phase receipt | 22 frontend + 58 harness/API contracts | 22/22 + 58/58; 4-phase receipt / 8 focused tests | 306,345-byte gzip JavaScript | Target-free contract | Component/build passing; browser visual audit pending | [JSON](results/2026-07-27/ui/computer-action-receipt.json) · `sha256:739f8fde11de` |
 | Model connections and role routing | Authenticated provider catalog → chat Models sheet | 26 frontend + 83 provider/API contracts | 26/26 + 83/83; 10 adapters / 2 configured / 3 roles | 309,038-byte gzip JavaScript | Target-free contract | Catalog/routing UI passing; live providers and browser visual audit pending | [JSON](results/2026-07-27/ui/model-connections-and-routing.json) · `sha256:28d26d4baf28` |
+| Computer-use chat controls | assistant-ui → per-role route + action receipt | 36 frontend + 161 provider/agent/API/UI contracts | 36/36 + 161/161; 3 model roles / 8 action states | 311,249-byte gzip JS; 18,064-byte gzip CSS | Detached commit contract | Passing isolated contract; browser visual audit pending | [JSON](results/2026-07-27/ui/computer-use-chat-controls.json) · `sha256:d8196a168420` |
 | Live-frame resource envelope | Target-free streamed preview adapter | 6 contracts | 6/6; 4,194,304-byte frame; 8 sessions / 33,554,432 bytes cached | 450ms minimum upstream interval | — | Passing transport resource contract; browser decode pending | [JSON](results/2026-07-25/ui/live-frame-resource-envelope-2026-07-26.json) · `sha256:345d2a92bda7` |
 | Normalized storage + bounded control | In-memory production contract | 100,000 events + 100 appends | 11,214.070× write-size reduction; 1,000 control events loaded | 0.086ms / 0.138ms append; 3.372ms / 4.539ms control | 214.978ms import | Serialization diagnostic; real SQLite pending | [JSON](results/2026-07-25/ui/normalized-storage-bounded-control-n100000-2026-07-26.json) · `sha256:9af680551989` |
 | Gemini CLI provider adapter | Gemini CLI 0.35.3 / `account-default` | 79 provider/config/UI cases | Adapter contracts passed; startup probe timeout; 228,904 KiB peak RSS | 60.01s startup probe | 60.01s | Adapter contract; live provider unproven | [JSON](results/gemini-cli-0.35.3-compatibility-2026-07-26.json) · `sha256:4beb22389eaa` |

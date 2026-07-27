@@ -1,0 +1,116 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-07-27T05:27:03Z",
+  "source_commit": "c25c337",
+  "route": "assistant-ui chat to per-role model route and computer-action receipt",
+  "machine_contacted": false,
+  "model_api_contacted": false,
+  "validation_isolation": "detached worktree at source_commit",
+  "contracts": {
+    "frontend": {
+      "passed": 36,
+      "total": 36
+    },
+    "focused_computer_action_component": {
+      "passed": 12,
+      "total": 12
+    },
+    "provider_agent_api_store_fixture_and_static_ui": {
+      "passed": 161,
+      "total": 161
+    },
+    "production_build": "passed",
+    "typescript_similarity": "no duplicate functions or types"
+  },
+  "per_task_model_route": {
+    "roles": [
+      "reasoning",
+      "acting",
+      "checking"
+    ],
+    "independent_primaries": true,
+    "configured_fallbacks_preserved": true,
+    "effective_models_visible_at_send_time": true,
+    "active_run_route_snapshotted": true,
+    "active_run_route_locked_in_ui": true,
+    "legacy_all_role_provider_pin_preserved": true
+  },
+  "computer_action_disclosure": {
+    "collapsed_summary": [
+      "input-specific action",
+      "MCP tool",
+      "duration",
+      "plain-language state"
+    ],
+    "expanded_receipt": [
+      "intended effect",
+      "expected visual evidence",
+      "source freshness",
+      "bounded input",
+      "delivery state",
+      "post-input screen",
+      "independent verification",
+      "attempt",
+      "transport latency",
+      "idempotency key"
+    ],
+    "input_presentations": {
+      "typed_text": [
+        "exact body",
+        "character count",
+        "line count",
+        "bounded scroll region"
+      ],
+      "keyboard": [
+        "individual keycaps",
+        "keypress alias handling"
+      ],
+      "pointer": [
+        "button",
+        "x coordinate",
+        "y coordinate",
+        "normalized screen map",
+        "screen dimensions"
+      ],
+      "scroll": [
+        "direction",
+        "step count"
+      ]
+    },
+    "covered_states": [
+      "running",
+      "approval needed",
+      "committed",
+      "verified",
+      "unverified",
+      "refused safely",
+      "failed",
+      "cancelled"
+    ],
+    "raw_transport_error_rendered": false,
+    "raw_non_secret_mcp_arguments_disclosed": true,
+    "approval_is_inline_and_allow_once": true,
+    "status_never_relies_on_colour_alone": true,
+    "reduced_motion_supported": true
+  },
+  "resource_envelope": {
+    "total_raw_bytes": 1217335,
+    "largest_asset_bytes": 1030977,
+    "javascript_raw_bytes": 1030977,
+    "javascript_gzip_bytes": 311249,
+    "css_raw_bytes": 109225,
+    "css_gzip_bytes": 18064,
+    "enforced_limits": {
+      "total_raw_bytes": 1250000,
+      "largest_asset_bytes": 1100000,
+      "javascript_gzip_bytes": 327680,
+      "css_gzip_bytes": 24576
+    }
+  },
+  "browser_audit": {
+    "post_change_visual_review": false,
+    "blocker": "in-app browser URL policy blocked the local app inspection",
+    "alternate_browser_used": false
+  },
+  "status": "Isolated component, interaction, routing, production-build, resource, and regression contracts pass; post-change browser visual and reflow audit remains pending"
+}

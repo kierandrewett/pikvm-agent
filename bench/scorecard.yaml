@@ -219,6 +219,24 @@ rows:
     wall: "Target-free contract"
     status: "Catalog/routing UI passing; live providers and browser visual audit pending"
 
+  - suite: "Computer-use chat controls"
+    route: "assistant-ui → per-role route + action receipt"
+    source: "results/2026-07-27/ui/computer-use-chat-controls.json"
+    fields:
+      frontend_passed: {path: "contracts.frontend.passed", format: "integer"}
+      frontend_total: {path: "contracts.frontend.total", format: "integer"}
+      regression_passed: {path: "contracts.provider_agent_api_store_fixture_and_static_ui.passed", format: "integer"}
+      regression_total: {path: "contracts.provider_agent_api_store_fixture_and_static_ui.total", format: "integer"}
+      roles: {path: "per_task_model_route.roles", format: "count"}
+      states: {path: "computer_action_disclosure.covered_states", format: "count"}
+      gzip_js: {path: "resource_envelope.javascript_gzip_bytes", format: "integer"}
+      gzip_css: {path: "resource_envelope.css_gzip_bytes", format: "integer"}
+    cases: "{frontend_total} frontend + {regression_total} provider/agent/API/UI contracts"
+    result: "{frontend_passed}/{frontend_total} + {regression_passed}/{regression_total}; {roles} model roles / {states} action states"
+    latency: "{gzip_js}-byte gzip JS; {gzip_css}-byte gzip CSS"
+    wall: "Detached commit contract"
+    status: "Passing isolated contract; browser visual audit pending"
+
   - suite: "Live-frame resource envelope"
     route: "Target-free streamed preview adapter"
     source: "results/2026-07-25/ui/live-frame-resource-envelope-2026-07-26.json"

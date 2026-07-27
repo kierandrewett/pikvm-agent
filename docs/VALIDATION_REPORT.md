@@ -231,6 +231,22 @@ frontend tests, including eight focused receipt tests, 58
 harness/API/fixture/provider tests, the production build, and the TypeScript
 similarity scan pass. No computer or model API was contacted for this pass.
 
+The next computer-use UI pass was validated from a detached worktree at commit
+`c25c337`. The composer exposes independent reasoning, acting, and checking
+primaries before send, preserves configured fallbacks, and locks the durable
+route while a run is active. Computer calls now show an action-specific summary
+and expand into intended effect, expected visual evidence, exact input, a
+source/input/observed transition, attempt, transport latency, and idempotency
+key. Coordinate input includes a normalized target map against screen
+dimensions; typed text, key chords, and step-based scrolling each retain their
+own presentation. Raw transport errors do not enter the receipt. All 36
+frontend tests, including 12 focused computer-action cases, and all 161 focused
+provider/agent/API/store/fixture/static-UI tests passed. The production bundle
+was 1,217,335 raw bytes, with 311,249-byte gzip JavaScript and 18,064-byte gzip
+CSS. The in-app browser URL policy still blocked the post-change visual/reflow
+inspection, so this is isolated component/build evidence rather than a
+browser-layout result.
+
 Operator steering now has a durable managed-run boundary: only the browser
 operator credential can record guidance; an in-flight provider wait is
 cancelled before replanning; the next reasoner sees that guidance; and pending
