@@ -513,26 +513,30 @@ rows:
     status: "Passing target-free n=3/provider; neither route is fast-controller eligible"
 
   - suite: "Live chat-first assistant"
-    route: "Claude OAuth → assistant → web MCP / computer hand-off"
-    source: "results/2026-07-27/providers/live-claude-assistant-conformance.json"
+    route: "Claude OAuth → chat / web MCP / hand-off / approval"
+    source: "results/2026-07-27/providers/live-claude-assistant-conformance-v2.json"
     fields:
       cases: {path: "cases_requested", format: "integer"}
       passed: {path: "cases_passed", format: "integer"}
       provider_calls: {path: "provider_calls", format: "integer"}
+      tool_requests: {path: "tool_requests", format: "integer"}
       tool_calls: {path: "tool_calls", format: "integer"}
+      consequential: {path: "consequential_tool_executions", format: "integer"}
       tools: {path: "assistant_tools_available", format: "integer"}
       ready: {path: "tool_servers_ready", format: "integer"}
       greeting: {path: "results.0.wall_ms", format: "seconds_from_ms", digits: 2}
       question: {path: "results.1.wall_ms", format: "seconds_from_ms", digits: 2}
       research: {path: "results.2.wall_ms", format: "seconds_from_ms", digits: 2}
       handoff: {path: "results.3.wall_ms", format: "seconds_from_ms", digits: 2}
+      approval: {path: "results.4.wall_ms", format: "seconds_from_ms", digits: 2}
+      approval_status: {path: "results.4.final_status", format: "text"}
       first_activity: {path: "results.0.first_activity_ms", format: "milliseconds", digits: 0}
       wall: {path: "evaluation_wall_ms", format: "seconds_from_ms", digits: 2}
     cases: "{cases} live tasks"
-    result: "{passed}/{cases}; {provider_calls} model / {tool_calls} tool calls; {tools} tools / {ready} server ready"
-    latency: "Greeting {greeting}; question {question}; research {research}; hand-off {handoff}"
+    result: "{passed}/{cases}; {tool_requests} requested / {tool_calls} called; consequential executed {consequential}"
+    latency: "Greeting {greeting}; question {question}; research {research}; hand-off {handoff}; approval {approval}"
     wall: "{wall}"
-    status: "Passing target-free live assistant; first activity {first_activity}"
+    status: "Passing target-free; canary {approval_status}; first activity {first_activity}"
 
   - suite: "Live chat-first assistant"
     route: "Codex OAuth → assistant → web MCP / computer hand-off"
@@ -555,6 +559,24 @@ rows:
     latency: "Greeting {greeting}; question {question}; research {research}; hand-off {handoff}"
     wall: "{wall}"
     status: "Passing after strict-schema fix; too slow for default interactive route"
+
+  - suite: "Live consequential-tool approval"
+    route: "Codex OAuth → simulated send-message canary"
+    source: "results/2026-07-27/providers/live-codex-assistant-approval-conformance-v2.json"
+    fields:
+      cases: {path: "cases_requested", format: "integer"}
+      passed: {path: "cases_passed", format: "integer"}
+      requests: {path: "tool_requests", format: "integer"}
+      calls: {path: "tool_calls", format: "integer"}
+      consequential: {path: "consequential_tool_executions", format: "integer"}
+      status: {path: "results.0.final_status", format: "text"}
+      first_activity: {path: "results.0.first_activity_ms", format: "milliseconds", digits: 0}
+      wall: {path: "evaluation_wall_ms", format: "seconds_from_ms", digits: 2}
+    cases: "{cases} live canary"
+    result: "{passed}/{cases}; {requests} requested / {calls} called; consequential executed {consequential}"
+    latency: "{wall}"
+    wall: "{wall}"
+    status: "Passing target-free; {status}; first activity {first_activity}"
 
   - suite: "ScreenSpot-Pro, single pass"
     route: "Codex CLI / `gpt-5.6-sol`"
