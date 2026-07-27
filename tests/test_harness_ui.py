@@ -168,7 +168,9 @@ def test_default_surface_is_chat_with_contextual_computer_and_diagnostics() -> N
     ).read_text()
 
     assert 'aria-label="Agent conversation"' in shell
-    assert 'tooltip="Computer"' in shell
+    assert '"Computer"' in shell
+    assert '"No computer connected"' in shell
+    assert "workspace.computerControlEnabled" in shell
     assert 'tooltip="Models"' in shell
     assert 'tooltip="Diagnostics"' in shell
     assert "<ComputerSheet" in shell
