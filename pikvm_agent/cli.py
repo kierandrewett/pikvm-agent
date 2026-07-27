@@ -98,7 +98,7 @@ def harness_serve(
         help="Harness YAML (provider routes and env-var names; no secrets).",
     ),
 ) -> None:
-    """Run the authenticated local operator API and UI."""
+    """Run the authenticated local chat workspace and control API."""
     import uvicorn
 
     from pikvm_agent.harness.config import (
@@ -110,7 +110,7 @@ def harness_serve(
     settings = load_harness_settings(config)
     ensure_safe_bind(settings)
     host, port = settings.host_port()
-    typer.echo(f"Operator UI: http://{host}:{port}/app/")
+    typer.echo(f"Chat workspace: http://{host}:{port}/app/")
     operator_app = build_harness_app(settings)
 
     class HarnessServer(uvicorn.Server):
@@ -137,7 +137,7 @@ def harness_ui_fixture(
     listen: str = typer.Option(
         "127.0.0.1:47619",
         "--listen",
-        help="Loopback-only host:port for the synthetic operator UI.",
+        help="Loopback-only host:port for the synthetic chat workspace.",
     ),
     prefill_events: int = typer.Option(
         1_200,
@@ -154,7 +154,7 @@ def harness_ui_fixture(
         help="Synthetic provider/action transition interval.",
     ),
 ) -> None:
-    """Run a deterministic operator-UI audit with no computer target."""
+    """Run a deterministic chat-workspace audit with no computer target."""
     import ipaddress
     import secrets
 
@@ -188,7 +188,7 @@ def harness_ui_fixture(
         event_interval_ms=event_interval_ms,
     )
     typer.echo("Synthetic UI audit only: no VNC, PiKVM, or model API is used.")
-    typer.echo(f"Operator UI: {origin}/app/")
+    typer.echo(f"Chat workspace: {origin}/app/")
     typer.echo(f"One-time fixture token: {token}")
     uvicorn.run(
         fixture_app,
@@ -244,7 +244,7 @@ def harness_smoke_lab(
     typer.echo(
         "Target-free managed smoke lab: no VNC, PiKVM, daemon, or model API."
     )
-    typer.echo(f"Operator UI: http://{host}:{port}/app/")
+    typer.echo(f"Chat workspace: http://{host}:{port}/app/")
     uvicorn.run(
         operator_app,
         host=host,
@@ -271,7 +271,7 @@ def harness_managed_mcp(
         exists=True,
         dir_okay=False,
         readable=True,
-        help="Harness YAML used by the running operator console.",
+        help="Harness YAML used by the running chat workspace.",
     ),
     require_ready: bool = typer.Option(
         False,
@@ -284,7 +284,7 @@ def harness_managed_mcp(
     caller_label: str = typer.Option(
         "mcp-client",
         "--caller-label",
-        help="Human-readable client label shown in the operator timeline.",
+        help="Human-readable client label shown in the conversation timeline.",
     ),
 ) -> None:
     """Run the safe high-level managed harness MCP facade."""
@@ -326,7 +326,7 @@ def harness_direct_mcp(
         exists=True,
         dir_okay=False,
         readable=True,
-        help="Harness YAML used by the running operator console.",
+        help="Harness YAML used by the running chat workspace.",
     ),
     mode: str = typer.Option(
         "guarded",
@@ -339,7 +339,7 @@ def harness_direct_mcp(
     caller_label: str = typer.Option(
         "mcp-client",
         "--caller-label",
-        help="Human-readable client label shown in the operator timeline.",
+        help="Human-readable client label shown in the conversation timeline.",
     ),
 ) -> None:
     """Run raw PiKVM MCP tools through the visible direct-call boundary."""

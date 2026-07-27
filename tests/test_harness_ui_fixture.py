@@ -4,12 +4,15 @@ from typer.testing import CliRunner
 
 from pikvm_agent.cli import app
 from pikvm_agent.harness.ui_fixture import (
+    FixtureHarness,
     FixtureLiveFrames,
     FixtureModels,
     advance_fixture_run,
+    build_approval_fixture_run,
     build_fixture_app,
     build_fixture_run,
 )
+from pikvm_agent.harness.agent_store import InMemoryRunStore
 
 
 def test_ui_fixture_is_a_large_visible_run_without_a_machine_target() -> None:
@@ -42,6 +45,32 @@ def test_ui_fixture_alternates_visible_model_and_exact_tool_activity() -> None:
     assert run.event_cursor > 64
 
 
+async def test_ui_fixture_exposes_and_resolves_a_synthetic_send_approval() -> None:
+    store = InMemoryRunStore()
+    harness = FixtureHarness(store)
+    run = build_approval_fixture_run()
+    await store.save(run)
+
+    assert run.status.value == "needs_approval"
+    assert run.pending_approval is not None
+    assert run.pending_approval["risk"] == "external_side_effect"
+    attempted = next(
+        event for event in reversed(run.events)
+        if event.kind == "action.attempted"
+    )
+    assert attempted.data["arguments"]["actions"][1]["keys"] == ["ENTER"]
+
+    completed = await harness.resolve_approval(
+        run.run_id,
+        "fixture-send-approval",
+        {"type": "approve", "reason": "browser fixture test"},
+    )
+
+    assert completed.status.value == "completed"
+    assert completed.pending_approval is None
+    assert completed.events[-1].kind == "run.completed"
+
+
 async def test_ui_fixture_frame_is_explicitly_synthetic_and_changes() -> None:
     frames = FixtureLiveFrames()
 
@@ -54,9 +83,33 @@ async def test_ui_fixture_frame_is_explicitly_synthetic_and_changes() -> None:
     assert (first.width, first.height) == (1280, 720)
 
 
+async def test_ui_fixture_accepts_a_chat_task_and_selected_model() -> None:
+    store = InMemoryRunStore()
+    harness = FixtureHarness(store)
+
+    created = await harness.create(
+        "Draft a quarterly earnings spreadsheet",
+        caller={"interface": "managed_mcp", "label": "browser"},
+        model_provider="claude-account",
+    )
+    completed = await harness.continue_run(created.run_id)
+
+    assert created.task == "Draft a quarterly earnings spreadsheet"
+    assert created.model_provider == "claude-account"
+    assert created.caller["label"] == "browser"
+    selected = next(
+        event
+        for event in reversed(created.events)
+        if event.kind == "model.provider_started"
+    )
+    assert selected.data["provider"] == "claude-account"
+    assert completed.status.value == "completed"
+    assert completed.events[-1].kind == "run.completed"
+
+
 def test_ui_fixture_app_exposes_no_machine_marker_and_provider_matrix() -> None:
     app = build_fixture_app(
-        access_token="fixture-operator-token-0123456789abcdef",
+        access_token="fixture-workspace-token-0123456789abcdef",
         origin="http://127.0.0.1:47619",
         prefill_events=64,
         event_interval_ms=250,
@@ -64,6 +117,7 @@ def test_ui_fixture_app_exposes_no_machine_marker_and_provider_matrix() -> None:
     providers = FixtureModels().health()
 
     assert app.state.synthetic_fixture is True
+    assert app.state.synthetic_approval_run.status.value == "needs_approval"
     assert set(providers) == {"claude-account", "fast-controller"}
     assert providers["claude-account"]["credential"] == "CLI-owned OAuth"
     assert providers["claude-account"]["auth_mode"] == "saved_cli_login"

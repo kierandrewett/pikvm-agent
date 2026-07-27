@@ -109,6 +109,14 @@ def test_public_provider_policy_covers_the_canonical_catalog() -> None:
 
 
 def test_operator_ui_explains_support_contract_without_overclaiming() -> None:
+    model_picker = (
+        Path(__file__).parents[1]
+        / "frontend"
+        / "src"
+        / "components"
+        / "workspace"
+        / "model-picker.tsx"
+    ).read_text()
     javascript = (
         Path(__file__).parents[1]
         / "pikvm_agent"
@@ -116,6 +124,7 @@ def test_operator_ui_explains_support_contract_without_overclaiming() -> None:
         / "app.js"
     ).read_text()
 
-    assert "health.support_tier" in javascript
-    assert "health.credential_owner" in javascript
+    assert "health.support_tier" in model_picker
+    assert "health.credential_owner" in model_picker
+    assert "Tier ≠ live-tested" in model_picker
     assert "Tier ≠ live-tested" in javascript

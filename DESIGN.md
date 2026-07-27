@@ -22,19 +22,19 @@ colors:
   stop-soft: "#3b1820"
 typography:
   title:
-    fontFamily: "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
+    fontFamily: "Geist Variable, ui-sans-serif, system-ui, sans-serif"
     fontSize: "15px"
     fontWeight: 650
     lineHeight: 1.35
     letterSpacing: "-0.006em"
   body:
-    fontFamily: "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
+    fontFamily: "Geist Variable, ui-sans-serif, system-ui, sans-serif"
     fontSize: "14px"
     fontWeight: 400
     lineHeight: 1.55
     letterSpacing: "normal"
   label:
-    fontFamily: "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
+    fontFamily: "Geist Variable, ui-sans-serif, system-ui, sans-serif"
     fontSize: "12px"
     fontWeight: 600
     lineHeight: 1.35
@@ -77,20 +77,18 @@ app into an “AI control centre.”
 
 ## Application Structure
 
-At desktop widths the app uses three functional regions:
+At desktop widths the app uses two persistent regions:
 
 - **Conversation rail, 228–256px.** New chat, recent tasks, settings.
 - **Conversation, flexible.** User requests, assistant activity, approvals, and
   the task composer.
-- **Computer companion, 360–520px.** Live machine, connection identity, pause,
-  stop, and take-over.
 
-Diagnostics open as a drawer over the computer companion. They are never a
-permanent third stream of text.
+The live computer and diagnostics open as contextual sheets. Neither is a
+permanent stream competing with the conversation.
 
-Below 900px, the computer companion becomes a selectable Chat / Computer view.
-Below 620px, the conversation rail becomes a drawer. The composer remains fixed
-to the bottom of the active view.
+Below 900px, the conversation rail becomes a drawer. The composer remains fixed
+to the bottom of the conversation, and contextual sheets use the available
+viewport.
 
 ## Color
 
@@ -107,10 +105,10 @@ Saturated color should occupy less than ten percent of the resting screen.
 
 ## Typography
 
-Use one system sans family throughout. Titles are compact rather than
-display-sized. Continuous assistant prose is limited to roughly 72 characters
-per line. Monospace is reserved for tool names, arguments, identifiers,
-freshness values, and hashes.
+Use the locally packaged Geist variable family throughout with system fallbacks.
+Titles are compact rather than display-sized. Continuous assistant prose is
+limited to roughly 72 characters per line. Monospace is reserved for tool names,
+arguments, identifiers, freshness values, and hashes.
 
 ## Components
 
@@ -130,9 +128,12 @@ updates the same assistant turn instead of creating a wall of status messages.
 
 Each action is an inline disclosure:
 
-- human-readable intent and current state in the summary;
-- model/provider and MCP tool name as secondary metadata;
-- exact non-secret arguments, freshness, result, and verification inside;
+- input-specific summary such as click coordinates, typed-text preview, key
+  chord, scroll direction, or multi-step sequence;
+- visible running, completed, refused, failed, or approval-needed state;
+- MCP tool name, input count, character count, freshness, result, and
+  verification evidence inside;
+- exact non-secret arguments behind a second disclosure;
 - red/amber state only when intervention is actually needed.
 
 ### Composer
@@ -141,25 +142,24 @@ The composer is the primary control. It contains:
 
 - multiline task input;
 - selected model;
-- selected managed MCP computer connection;
-- optional start-paused toggle;
+- visible managed MCP connection state;
 - send button.
 
 Enter sends and Shift+Enter inserts a newline. Provider and connection choices
 remain visible before submission.
 
-### Computer companion
+### Computer sheet
 
-The current frame uses the available area while preserving aspect ratio. The
-toolbar shows the machine alias, fingerprint, connection state, refresh,
-pause/take-over, and stop. Frame/world/epoch details live in a disclosure below
-the image.
+The current frame uses the available sheet area while preserving aspect ratio.
+The toolbar shows the machine alias, connection layer, run state, frame number,
+pause, and continue. It stays closed during routine conversation.
 
 ### Approval boundary
 
-Approval appears inline between the assistant turn and composer. It states the
-effect, risk, exact request, target freshness, and operator note before showing
-Reject and Approve once. Model output can never activate either control.
+Approval opens its containing computer-action disclosure automatically. It
+states the effect, risk, exact request, target freshness, and operator note
+before showing Deny and Allow once. Consequential actions require a second
+confirmation. Model output can never activate either control.
 
 ### Diagnostics drawer
 
@@ -179,7 +179,7 @@ never a blocking page spinner.
 - Keep the conversation as the primary reading order.
 - Keep model and managed MCP connection visible at send time.
 - Keep pause and stop reachable without opening diagnostics.
-- Keep tool calls exact but collapsed by default.
+- Keep completed tool calls collapsed by default; open approvals automatically.
 - Never show credentials, VNC addresses, or raw provider error bodies.
 - Never turn every event into a card.
 - Never use decorative gradients, glass effects, wide shadows, or oversized

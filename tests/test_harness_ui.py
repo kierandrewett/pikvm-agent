@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-import re
+import gzip
+import json
 from pathlib import Path
 from typing import Any
 
@@ -12,6 +13,9 @@ from pikvm_agent.harness.agent_store import InMemoryRunStore
 from pikvm_agent.harness.api import create_harness_app
 
 TEST_ACCESS_TOKEN = "test-harness-token-0123456789abcdef"
+PROJECT_ROOT = Path(__file__).parents[1]
+UI_DIR = PROJECT_ROOT / "pikvm_agent" / "harness_ui"
+FRONTEND_DIR = PROJECT_ROOT / "frontend"
 
 
 class NoopHarness:
@@ -39,7 +43,7 @@ class NoopModels:
 
 
 @pytest.mark.asyncio
-async def test_harness_serves_a_visible_authenticated_operator_console() -> None:
+async def test_harness_serves_the_compiled_authenticated_chat_workspace() -> None:
     app = create_harness_app(
         harness=NoopHarness(),  # type: ignore[arg-type]
         store=InMemoryRunStore(),
@@ -58,203 +62,147 @@ async def test_harness_serves_a_visible_authenticated_operator_console() -> None
         page = await client.get("/app/")
         script = await client.get("/app/app.js")
         styles = await client.get("/app/styles.css")
+        font = await client.get(
+            "/app/assets/geist-latin-wght-normal.woff2"
+        )
 
     assert root.status_code in {302, 307}
     assert root.headers["location"] == "/app/"
     assert page.status_code == 200
     assert script.status_code == 200
     assert styles.status_code == 200
+    assert font.status_code == 200
+    assert font.headers["content-type"].startswith("font/woff2")
 
-    html = page.text
-    javascript = script.text
-    assert 'id="live-screen"' in html
-    assert 'id="machine-target"' in html
-    assert 'id="fact-machine"' in html
-    assert 'id="fact-target"' in html
-    assert 'id="fact-layer"' in html
-    assert 'id="control-assurance"' in html
-    assert 'id="control-assurance-title"' in html
-    assert 'id="control-assurance-detail"' in html
-    assert 'id="activity-status"' in html
-    assert 'id="activity-label"' in html
-    assert 'id="efficiency-strip"' in html
-    assert 'id="metric-wall"' in html
-    assert 'id="metric-model"' in html
-    assert 'id="metric-progress"' in html
-    assert 'id="metric-recovery"' in html
-    assert 'id="metric-budget"' in html
-    assert 'id="event-timeline"' in html
-    assert 'id="approval-shelf"' in html
-    assert 'id="pause-button"' in html
-    assert 'id="steer-button"' in html
-    assert 'aria-label="Emergency stop"' in html
-    assert 'aria-label="Create new task"' in html
-    assert "sessionStorage" in javascript
-    assert "Authorization" in javascript
-    assert "X-PiKVM-Approval-Intent" in javascript
-    assert "X-PiKVM-Frame-Mode" in javascript
-    assert "/pause" in javascript
-    assert "/steer" in javascript
-    assert "Guide this run" in javascript
-    assert "ReadableStream" in javascript
-    assert "visibilitychange" in javascript
-    assert "health.ready" in javascript
-    assert "health.cooldown_until" in javascript
-    assert "health.routes" in javascript
-    assert "health.interface" in javascript
-    assert "health.pixel_input" in javascript
-    assert "health.structured_output" in javascript
-    assert "health.billing_mode" in javascript
-    assert "health.support_tier" in javascript
-    assert "health.credential_owner" in javascript
-    assert "Tier ≠ live-tested" in javascript
-    assert "health.configured_model" in javascript
-    assert "health.conformance_status" in javascript
-    assert "conformance_exact" in javascript
-    assert "providerConformanceLabel" in javascript
-    assert "Blind conformance" in javascript
-    assert "Provider skipped" in javascript
-    assert "machine.fingerprint" in javascript
-    assert "machine.desktop_layer" in javascript
-    assert "Schema repair" in javascript
-    assert "Unsafe commit separated" in javascript
-    assert "Pointer no-op rejected" in javascript
-    assert "Prerequisites present · unproven" in javascript
-    assert "OpenAI Responses API" in javascript
-    assert "Azure OpenAI Responses API" in javascript
-    assert "Gemini CLI" in javascript
-    assert "Vertex AI Gemini API" in javascript
-    assert "providerAuthLabel" in javascript
-    assert "CLI bearer token" in javascript
-    assert "Bearer token environment" in javascript
-    assert "eligible now" in javascript
-    assert "Harness-managed control" in javascript
-    assert "Direct MCP control" in javascript
-    assert "function runSource(run)" in javascript
-    assert "Requested by ${source}" in javascript
-    assert "Plan · ${source}" in javascript
-    assert "Declared by MCP launcher" in javascript
-    assert "No independent model verifier is running." in javascript
-    assert "Read-only media transfer" in javascript
-    assert "Cleanup required" in javascript
-    assert "Exact guest-file receipts" in javascript
-    assert "call in flight" in javascript
-    assert "run.active_activity" in javascript
-    assert "activity.arguments" in javascript
-    assert "MCP tool" in javascript
-    assert "renderActivityAge" in javascript
-    assert "stream.ready" in javascript
-    assert "stream.heartbeat" in javascript
-    assert "reconnectDelay" in javascript
-    assert "MAX_VISIBLE_EVENTS" in javascript
-    assert "PERFORMANCE_REFRESH_MS" in javascript
-    assert "/performance" in javascript
-    assert "renderEfficiency" in javascript
-    assert "renderBudgetMetric" in javascript
-    assert "providerAuthLabel" in javascript
-    assert "Model budget exhausted" in javascript
-    assert "Model cost settlement failed" in javascript
-    assert "Harness continued automatically" in javascript
-    assert "Automatic continuation stopped" in javascript
-    assert "performance.autonomous_resumes" in javascript
-    assert "external_benchmark" in javascript
-    assert "Live benchmark connected" in javascript
-    assert "localStorage" not in javascript
-    assert "EventSource" not in javascript
-    assert "?token=" not in javascript
+    assert '<div id="root"></div>' in page.text
+    assert 'src="/app/app.js"' in page.text
+    assert 'href="/app/styles.css"' in page.text
+    assert "Content-Security-Policy" in page.text
+    assert "sessionStorage" in script.text
+    assert "Authorization" in script.text
+    assert "X-PiKVM-Approval-Intent" in script.text
+    assert "model_provider" in script.text
+    assert "/steer" in script.text
+    assert "localStorage" not in script.text
+    assert "?token=" not in script.text
 
 
-def test_harness_ui_uses_one_static_entrypoint_and_no_remote_assets() -> None:
-    ui_dir = Path(__file__).parents[1] / "pikvm_agent" / "harness_ui"
-    html = (ui_dir / "index.html").read_text()
-    javascript = (ui_dir / "app.js").read_text()
+def test_workspace_uses_production_chat_and_component_libraries() -> None:
+    package = json.loads((FRONTEND_DIR / "package.json").read_text())
+    shell = (
+        FRONTEND_DIR
+        / "src"
+        / "components"
+        / "workspace"
+        / "workspace-shell.tsx"
+    ).read_text()
+    thread = (
+        FRONTEND_DIR
+        / "src"
+        / "components"
+        / "assistant-ui"
+        / "thread.tsx"
+    ).read_text()
 
-    assert '<script src="./app.js?v=20260726h" defer></script>' in html
-    assert '<link rel="stylesheet" href="./styles.css?v=20260726h">' in html
-    assert 'id="efficiency-strip"' in html
-    assert 'id="metric-wall"' in html
-    assert 'id="metric-model"' in html
-    assert 'id="metric-progress"' in html
-    assert 'id="metric-recovery"' in html
-    assert 'id="metric-budget"' in html
-    assert 'minlength="32"' in html
-    assert "token.length < 16" not in javascript
-    assert "stream.ready" in javascript
-    assert "stream.heartbeat" in javascript
-    assert "reconnectDelay" in javascript
-    assert "MAX_VISIBLE_EVENTS" in javascript
-    assert "PERFORMANCE_REFRESH_MS" in javascript
-    assert "/performance" in javascript
-    assert "renderEfficiency" in javascript
-    assert "Harness continued automatically" in javascript
-    assert "Automatic continuation stopped" in javascript
-    assert "performance.autonomous_resumes" in javascript
-    assert "/verification-image" in javascript
-    assert "verificationObjectUrl" in javascript
-    assert "Before → after evidence" in javascript
-    assert "Labelled verifier view" in javascript
-    assert "Saved artifact acceptance" in javascript
-    assert "Host-verified file" in javascript
-    assert "artifact_acceptance" in javascript
-    assert "artifact.passed" in javascript
-    assert "Tool outcome" in javascript
-    assert "Completed in" in javascript
-    assert "action.failed" in javascript
-    assert 'id="steer-button"' in html
-    assert "/steer" in javascript
-    assert "Guide this run" in javascript
-    assert "operator_guidance" in javascript
-    assert "run.steered" in javascript
+    assert package["dependencies"]["@assistant-ui/react"].startswith("^0.14")
+    assert package["dependencies"]["@base-ui/react"]
+    assert "useExternalStoreRuntime" in shell
+    assert "ToolFallback: ComputerToolCall" in shell
+    assert "ToolGroup: ComputerToolGroup" in shell
+    assert "<ThreadList />" in shell
+    assert "onRespondToToolApproval" in shell
+    assert "AssistantRuntimeProvider" in shell
+    assert "ThreadPrimitive.Messages" in thread
+    assert "ComposerPrimitive.Input" in thread
+    assert "ToolFallback" in thread
+    assert "message-bubble" not in shell
+    assert "innerHTML" not in shell
+
+    computer_tool = (
+        FRONTEND_DIR
+        / "src"
+        / "components"
+        / "workspace"
+        / "computer-tool-call.tsx"
+    ).read_text()
+    assert "Exact MCP arguments" in computer_tool
+    assert "Review before this input reaches the computer" in computer_tool
+    assert "based_on_world_version" in computer_tool
+    assert "ToolFallbackApproval" in computer_tool
+
+
+def test_default_surface_is_chat_with_contextual_computer_and_diagnostics() -> None:
+    shell = (
+        FRONTEND_DIR
+        / "src"
+        / "components"
+        / "workspace"
+        / "workspace-shell.tsx"
+    ).read_text()
+
+    assert 'aria-label="Agent conversation"' in shell
+    assert 'tooltip="Computer"' in shell
+    assert 'tooltip="Diagnostics"' in shell
+    assert "<ComputerSheet" in shell
+    assert "<DiagnosticsSheet" in shell
+    assert "open={computerOpen}" in shell
+    assert "open={diagnosticsOpen}" in shell
+    assert "workspace-rail" in shell
+    assert "md:hidden" in shell
+
+
+def test_compiled_workspace_has_no_remote_assets_and_a_bounded_bundle() -> None:
+    html = (UI_DIR / "index.html").read_text()
+    javascript = (UI_DIR / "app.js").read_bytes()
+    styles = (UI_DIR / "styles.css").read_bytes()
+    assets = [path for path in UI_DIR.rglob("*") if path.is_file()]
+
     assert "https://" not in html
     assert "http://" not in html
-    assert "Content-Security-Policy" in html
+    assert html.count("<script") == 1
+    assert all(path.stat().st_size <= 1_100_000 for path in assets)
+    assert sum(path.stat().st_size for path in assets) <= 1_250_000
+    assert len(gzip.compress(javascript)) <= 320 * 1024
+    assert len(gzip.compress(styles)) <= 24 * 1024
 
 
-def test_harness_ui_has_a_release_bundle_budget_and_releases_frame_blobs() -> None:
-    ui_dir = Path(__file__).parents[1] / "pikvm_agent" / "harness_ui"
-    assets = [
-        ui_dir / "index.html",
-        ui_dir / "app.js",
-        ui_dir / "styles.css",
-    ]
-    sizes = {path.name: path.stat().st_size for path in assets}
-    javascript = (ui_dir / "app.js").read_text()
-
-    assert sum(sizes.values()) <= 128 * 1024
-    assert sizes["app.js"] <= 80 * 1024
-    assert sizes["styles.css"] <= 36 * 1024
-    assert "URL.revokeObjectURL(state.frameObjectUrl)" in javascript
-    assert "URL.revokeObjectURL(state.verificationObjectUrl)" in javascript
-    assert "MAX_VISIBLE_EVENTS = 500" in javascript
-
-
-def test_harness_ui_references_only_declared_css_custom_properties() -> None:
-    styles = (
-        Path(__file__).parents[1]
-        / "pikvm_agent"
-        / "harness_ui"
-        / "styles.css"
+def test_computer_frame_blob_lifecycle_is_explicit() -> None:
+    computer_sheet = (
+        FRONTEND_DIR
+        / "src"
+        / "components"
+        / "workspace"
+        / "computer-sheet.tsx"
     ).read_text()
-    declared = set(re.findall(r"(--[a-z0-9-]+)\s*:", styles))
-    referenced = set(re.findall(r"var\((--[a-z0-9-]+)", styles))
 
-    assert referenced <= declared
+    assert "URL.createObjectURL(blob)" in computer_sheet
+    assert computer_sheet.count("URL.revokeObjectURL") >= 3
+    assert "controller.abort()" in computer_sheet
+    assert "window.clearInterval(timer)" in computer_sheet
 
 
-def test_harness_ui_keeps_visibility_and_approvals_readable_at_reflow_widths() -> None:
-    ui_dir = Path(__file__).parents[1] / "pikvm_agent" / "harness_ui"
-    html = (ui_dir / "index.html").read_text()
-    styles = (ui_dir / "styles.css").read_text()
+def test_tool_events_are_mapped_to_structured_parts_not_raw_console_rows() -> None:
+    mapper = (
+        FRONTEND_DIR / "src" / "lib" / "run-messages.ts"
+    ).read_text()
 
-    assert "<span>New task</span>" in html
-    assert "<span>Stop</span>" in html
-    assert ".command-actions .button span" in styles
-    narrow_rules = styles.split("@media (max-width: 480px)", 1)[1]
-    assert "#provider-button" not in narrow_rules.split(
-        "@media (prefers-reduced-motion", 1
-    )[0]
-    assert "flex-wrap: wrap" in styles
-    assert ".approval-copy p" in styles
-    assert "white-space: normal" in styles
-    assert "max-height: calc(100dvh - 24px)" in styles
-    assert "overscroll-behavior: contain" in styles
+    assert 'type: "tool-call"' in mapper
+    assert "toolCallId" in mapper
+    assert "toolName" in mapper
+    assert "argsText" in mapper
+    assert "result" in mapper
+    assert "approval" in mapper
+    assert "action.attempted" in mapper
+
+
+def test_hidden_diagnostics_do_not_build_an_unbounded_event_console() -> None:
+    diagnostics = (
+        FRONTEND_DIR
+        / "src"
+        / "components"
+        / "workspace"
+        / "diagnostics-sheet.tsx"
+    ).read_text()
+
+    assert "open && run ? run.events.slice(-250).reverse() : []" in diagnostics
+    assert "visibleEvents.map" in diagnostics

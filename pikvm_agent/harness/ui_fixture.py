@@ -1,4 +1,4 @@
-"""Deterministic no-machine fixture for operator-console browser audits."""
+"""Deterministic no-machine fixture for chat-workspace browser audits."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
+from uuid import uuid4
 
 from fastapi import FastAPI
 
@@ -23,7 +24,7 @@ from pikvm_agent.harness.agent_store import InMemoryRunStore
 from pikvm_agent.harness.api import create_harness_app
 from pikvm_agent.harness.provider_support import provider_support
 
-FIXTURE_RUN_ID = "operator-ui-audit"
+FIXTURE_RUN_ID = "chat-ui-audit"
 
 
 @dataclass(frozen=True)
@@ -52,7 +53,7 @@ class FixtureLiveFrames:
   <rect x="72" y="64" width="1136" height="592" rx="12" fill="#161a23"
         stroke="#2b3447"/>
   <text x="120" y="145" fill="#e8edf5" font-family="system-ui"
-        font-size="34">Synthetic operator-console audit</text>
+        font-size="34">Synthetic chat-workspace audit</text>
   <text x="120" y="205" fill="#9aa6bd" font-family="monospace"
         font-size="22">No VNC or PiKVM target is connected</text>
   <rect x="120" y="270" width="720" height="58" rx="6" fill="#1c2230"/>
@@ -130,16 +131,56 @@ class FixtureModels:
 
 
 class FixtureHarness:
-    """External-driver placeholder; the synthetic producer owns progression."""
+    """Interactive no-machine harness for exercising the complete chat flow."""
 
-    async def create(self, task: str) -> RunSnapshot:
-        raise RuntimeError("the UI audit fixture is externally driven")
+    def __init__(self, store: InMemoryRunStore) -> None:
+        self.store = store
+
+    async def create(
+        self,
+        task: str,
+        *,
+        caller: dict[str, Any] | None = None,
+        model_provider: str | None = None,
+    ) -> RunSnapshot:
+        run = build_fixture_run(
+            64,
+            task=task,
+            run_id=f"fixture-{uuid4()}",
+            model_provider=model_provider,
+        )
+        run.caller = dict(caller or {})
+        run.record("fixture.task_received", model_provider=model_provider)
+        await self.store.save(run)
+        return run
 
     async def continue_run(self, run_id: str) -> RunSnapshot:
-        raise RuntimeError("the UI audit fixture is externally driven")
+        run = await self.store.get(run_id)
+        run.status = RunStatus.COMPLETED
+        run.pending_action = None
+        run.active_activity = None
+        run.record(
+            "verification.completed",
+            summary="Synthetic chat flow completed without a machine target.",
+        )
+        run.record("run.completed", synthetic=True)
+        await self.store.save(run)
+        return run
 
     async def pause(self, run_id: str, reason: str) -> RunSnapshot:
-        raise RuntimeError("the UI audit fixture is externally driven")
+        run = await self.store.get(run_id)
+        run.status = RunStatus.PAUSED
+        run.record("run.paused", reason=reason)
+        await self.store.save(run)
+        return run
+
+    async def steer(self, run_id: str, instruction: str) -> RunSnapshot:
+        run = await self.store.get(run_id)
+        run.operator_guidance.append(instruction)
+        run.status = RunStatus.PAUSED
+        run.record("run.steered", instruction=instruction)
+        await self.store.save(run)
+        return run
 
     async def resolve_approval(
         self,
@@ -147,23 +188,118 @@ class FixtureHarness:
         approval_id: str,
         decision: dict[str, Any],
     ) -> RunSnapshot:
-        raise RuntimeError("the UI audit fixture has no real approval target")
+        run = await self.store.get(run_id)
+        pending = run.pending_approval or {}
+        if pending.get("approval_id") != approval_id:
+            raise ValueError("approval_id does not match the synthetic request")
+        decision_type = str(decision.get("type") or "")
+        run.pending_approval = None
+        run.active_activity = None
+        run.record(
+            "approval.resolved",
+            approval_id=approval_id,
+            decision=decision_type,
+            synthetic=True,
+        )
+        if decision_type == "approve":
+            run.record(
+                "action.completed",
+                call_id="fixture-send-call",
+                frame_id=2,
+                world_version=2,
+                synthetic=True,
+            )
+            run.status = RunStatus.COMPLETED
+            run.record(
+                "run.completed",
+                summary="Synthetic approval flow completed; no input was sent.",
+            )
+        else:
+            run.status = RunStatus.REJECTED
+            run.record(
+                "action.refused_by_operator",
+                call_id="fixture-send-call",
+                synthetic=True,
+            )
+        await self.store.save(run)
+        return run
 
     async def abort(self, run_id: str, reason: str) -> RunSnapshot:
-        raise RuntimeError("the UI audit fixture has no computer session")
+        run = await self.store.get(run_id)
+        run.status = RunStatus.ABORTED
+        run.record("run.aborted", reason=reason)
+        await self.store.save(run)
+        return run
 
 
-def build_fixture_run(prefill_events: int = 1_200) -> RunSnapshot:
+def _fixture_model_name(provider_name: str) -> str:
+    return (
+        "opus"
+        if provider_name == "claude-account"
+        else "fast-controller-fixture"
+    )
+
+
+def _fixture_observation() -> ComputerObservation:
+    return ComputerObservation(
+        session_id="synthetic-session",
+        status="running",
+        machine={
+            "alias": "Synthetic audit target",
+            "fingerprint": "fixture-7d29a4",
+            "desktop_layer": "No-machine browser fixture",
+        },
+        frame_id=1,
+        world_version=1,
+        control_epoch=1,
+        width=1280,
+        height=720,
+    )
+
+
+def _new_fixture_run(
+    *,
+    run_id: str,
+    task: str,
+    model_provider: str | None,
+    plan: PlanDecision,
+    pending_action: PendingAction | None,
+    last_controller: ControllerDecision | None,
+    next_action_index: int,
+) -> RunSnapshot:
+    return RunSnapshot(
+        run_id=run_id,
+        task=task,
+        status=RunStatus.RUNNING,
+        model_provider=model_provider,
+        session_id="synthetic-session",
+        plan=plan,
+        observation=_fixture_observation(),
+        pending_action=pending_action,
+        last_controller=last_controller,
+        next_action_index=next_action_index,
+    )
+
+
+def build_fixture_run(
+    prefill_events: int = 1_200,
+    *,
+    task: str | None = None,
+    run_id: str = FIXTURE_RUN_ID,
+    model_provider: str | None = None,
+) -> RunSnapshot:
     if prefill_events < 32:
         raise ValueError("prefill_events must be at least 32")
-    run = RunSnapshot(
-        run_id=FIXTURE_RUN_ID,
-        task=(
+    provider_name = model_provider or "fast-controller"
+    model_name = _fixture_model_name(provider_name)
+    run = _new_fixture_run(
+        run_id=run_id,
+        task=task
+        or (
             "Audit a long provider name, exact MCP arguments, sustained frame "
             "updates, a 1,200-event timeline, and 200% browser reflow"
         ),
-        status=RunStatus.RUNNING,
-        session_id="synthetic-session",
+        model_provider=model_provider,
         plan=PlanDecision(
             summary="Prove that live oversight remains legible under load.",
             steps=[
@@ -177,20 +313,6 @@ def build_fixture_run(prefill_events: int = 1_200) -> RunSnapshot:
                 "Frame blobs are replaced without unbounded retention.",
             ],
             constraints=["No VNC, PiKVM, email, chat, or external API access."],
-        ),
-        observation=ComputerObservation(
-            session_id="synthetic-session",
-            status="running",
-            machine={
-                "alias": "Synthetic audit target",
-                "fingerprint": "fixture-7d29a4",
-                "desktop_layer": "No-machine browser fixture",
-            },
-            frame_id=1,
-            world_version=1,
-            control_epoch=1,
-            width=1280,
-            height=720,
         ),
         pending_action=PendingAction(
             index=127,
@@ -223,7 +345,7 @@ def build_fixture_run(prefill_events: int = 1_200) -> RunSnapshot:
                 "model.provider_started",
                 {
                     "role": "controller",
-                    "provider": "fast-controller",
+                    "provider": provider_name,
                     "attempt": 1,
                     "route_index": 0,
                 },
@@ -232,8 +354,8 @@ def build_fixture_run(prefill_events: int = 1_200) -> RunSnapshot:
                 "model.provider_completed",
                 {
                     "role": "controller",
-                    "provider": "fast-controller",
-                    "model": "fast-controller-fixture",
+                    "provider": provider_name,
+                    "model": model_name,
                     "attempt": 1,
                     "latency_ms": 740,
                 },
@@ -242,8 +364,8 @@ def build_fixture_run(prefill_events: int = 1_200) -> RunSnapshot:
                 "model.completed",
                 {
                     "role": "controller",
-                    "provider": "fast-controller",
-                    "model": "fast-controller-fixture",
+                    "provider": provider_name,
+                    "model": model_name,
                     "latency_ms": 740,
                     "intent": "Inspect the next bounded target",
                 },
@@ -292,29 +414,137 @@ def build_fixture_run(prefill_events: int = 1_200) -> RunSnapshot:
     run.record(
         "model.provider_started",
         role="controller",
-        provider="fast-controller",
+        provider=provider_name,
         attempt=1,
         route_index=0,
     )
     return run
 
 
+def build_approval_fixture_run() -> RunSnapshot:
+    """Build a visible approval case without connecting to a real computer."""
+
+    run = _new_fixture_run(
+        task="Review a Teams message before the final send input",
+        run_id="approval-ui-audit",
+        model_provider="claude-account",
+        plan=PlanDecision(
+            summary="Prepare the message, but stop before the irreversible input.",
+            steps=[
+                "Type the exact message into the compose box.",
+                "Hold the Enter key behind a visible approval.",
+                "Continue only if the operator allows this one action.",
+            ],
+            success_criteria=[
+                "The proposed text and send input are visible before approval.",
+                "No external message is sent by this synthetic fixture.",
+            ],
+            constraints=[
+                "Fixture only: do not connect to Teams, VNC, PiKVM, or any API."
+            ],
+        ),
+        pending_action=None,
+        last_controller=None,
+        next_action_index=1,
+    )
+    run.record(
+        "model.provider_started",
+        role="controller",
+        provider="claude-account",
+        model="opus",
+        attempt=1,
+        route_index=0,
+    )
+    run.record(
+        "model.provider_completed",
+        role="controller",
+        provider="claude-account",
+        model="opus",
+        attempt=1,
+        latency_ms=12_120,
+    )
+    run.record(
+        "model.completed",
+        role="controller",
+        provider="claude-account",
+        model="opus",
+        intent="Type the message, then request approval before Enter",
+    )
+    arguments = {
+        "actions": [
+            {
+                "type": "type_text",
+                "text": "Quarterly figures are attached for your review.",
+            },
+            {"type": "key", "keys": ["ENTER"]},
+        ],
+        "based_on_world_version": 1,
+        "based_on_control_epoch": 1,
+        "idempotency_key": "fixture:approval:teams-send",
+    }
+    run.pending_action = PendingAction(
+        index=1,
+        intent="Prepare an external message and stop before sending",
+        actions=list(arguments["actions"]),
+        expected_evidence=[
+            "The exact message remains visible and Enter is not pressed."
+        ],
+        based_on_world_version=1,
+        based_on_control_epoch=1,
+        idempotency_key="fixture:approval:teams-send",
+        attempts=1,
+    )
+    run.record(
+        "action.checkpointed",
+        index=run.next_action_index,
+        intent="Prepare an external message and stop before sending",
+        actions=arguments["actions"],
+    )
+    run.record(
+        "action.attempted",
+        index=run.next_action_index,
+        attempt=1,
+        call_id="fixture-send-call",
+        tool="pikvm_run_burst",
+        arguments=arguments,
+    )
+    run.pending_approval = {
+        "kind": "direct_burst",
+        "approval_id": "fixture-send-approval",
+        "session_id": "synthetic-session",
+        "risk": "external_side_effect",
+        "reason": "Pressing Enter may send the Teams message immediately.",
+        "allowed_decisions": ["approve", "reject"],
+    }
+    run.status = RunStatus.NEEDS_APPROVAL
+    run.record(
+        "approval.required",
+        approval_id="fixture-send-approval",
+        risk="external_side_effect",
+        request=run.pending_approval,
+        synthetic=True,
+    )
+    return run
+
+
 def advance_fixture_run(run: RunSnapshot, tick: int) -> None:
+    provider_name = run.model_provider or "fast-controller"
+    model_name = _fixture_model_name(provider_name)
     activity = run.active_activity
     if activity is not None and activity.kind == "model":
         run.record(
             "model.provider_completed",
             role=activity.role,
             provider=activity.provider,
-            model="fast-controller-fixture",
+            model=model_name,
             attempt=activity.attempt,
             latency_ms=720 + tick % 120,
         )
         run.record(
             "model.completed",
             role="controller",
-            provider="fast-controller",
-            model="fast-controller-fixture",
+            provider=provider_name,
+            model=model_name,
             latency_ms=720 + tick % 120,
             intent="Inspect one bounded synthetic target",
         )
@@ -361,7 +591,7 @@ def advance_fixture_run(run: RunSnapshot, tick: int) -> None:
     run.record(
         "model.provider_started",
         role="controller",
-        provider="fast-controller",
+        provider=provider_name,
         attempt=1,
         route_index=0,
     )
@@ -378,10 +608,12 @@ def build_fixture_app(
         raise ValueError("event_interval_ms must be between 50 and 60000")
     store = InMemoryRunStore()
     run = build_fixture_run(prefill_events)
+    approval_run = build_approval_fixture_run()
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         await store.save(run)
+        await store.save(approval_run)
 
         async def produce() -> None:
             tick = 0
@@ -399,16 +631,17 @@ def build_fixture_app(
             await asyncio.gather(producer, return_exceptions=True)
 
     app = create_harness_app(
-        harness=FixtureHarness(),  # type: ignore[arg-type]
+        harness=FixtureHarness(store),  # type: ignore[arg-type]
         store=store,
         models=FixtureModels(),
         access_token=access_token,
         allowed_origins={origin},
         live_frames=FixtureLiveFrames(),
-        external_driver=True,
+        external_driver=False,
         lifespan=lifespan,
     )
     app.state.synthetic_fixture = True
     app.state.synthetic_store = store
     app.state.synthetic_run = run
+    app.state.synthetic_approval_run = approval_run
     return app
