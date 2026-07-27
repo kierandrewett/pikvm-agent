@@ -4,6 +4,7 @@
   "recorded_at": "2026-07-27T07:49:30Z",
   "environment": "local-target-free-ui-fixture",
   "source_commit": "d7d56935f6101a981cb12a8d9cd1db979b177417",
+  "refinement_commit": "cf1027efc5505c3f6a763c08c77681988ad0c48f",
   "interface": {
     "chat_framework": "@assistant-ui/react 0.14",
     "component_framework": "@base-ui/react",
@@ -46,6 +47,16 @@
       "deny_visible": true,
       "input_committed_before_approval": false
     },
+    "post_refinement": {
+      "passed": true,
+      "rendered_inner_viewport": "645x1070",
+      "document_scroll_width": 645,
+      "horizontal_overflow_pixels": 0,
+      "transaction_phases_visible": true,
+      "approval_boundary_visible": true,
+      "frontend_tests": "42/42",
+      "production_build": "passed"
+    },
     "screenshots_persisted": false
   },
   "contracts": {
@@ -68,11 +79,11 @@
     }
   },
   "resource_envelope": {
-    "total_ui_bytes": 1229279,
-    "javascript_bytes": 1041548,
-    "javascript_gzip_9_bytes": 312532,
-    "css_bytes": 110598,
-    "css_gzip_9_bytes": 18233,
+    "total_ui_bytes": 1227430,
+    "javascript_bytes": 1041143,
+    "javascript_gzip_9_bytes": 312433,
+    "css_bytes": 109154,
+    "css_gzip_9_bytes": 18109,
     "remote_assets": 0
   },
   "safety": {
