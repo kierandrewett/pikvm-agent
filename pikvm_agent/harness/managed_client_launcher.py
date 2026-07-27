@@ -77,6 +77,26 @@ _CODEX_ENV = (
     "TEMP",
     "TMP",
 )
+_CLAUDE_ENV = (
+    "PATH",
+    "HOME",
+    "USERPROFILE",
+    "APPDATA",
+    "LOCALAPPDATA",
+    "CLAUDE_CONFIG_DIR",
+    "HTTP_PROXY",
+    "HTTPS_PROXY",
+    "ALL_PROXY",
+    "NO_PROXY",
+    "SSL_CERT_FILE",
+    "SSL_CERT_DIR",
+    "NODE_EXTRA_CA_CERTS",
+    "SYSTEMROOT",
+    "COMSPEC",
+    "PATHEXT",
+    "TEMP",
+    "TMP",
+)
 _GEMINI_ENV = (
     "PATH",
     "HTTP_PROXY",
@@ -90,6 +110,12 @@ _GEMINI_ENV = (
     "PATHEXT",
     "TEMP",
     "TMP",
+)
+_CLAUDE_ALLOWED_MANAGED_TOOLS = (
+    "mcp__pikvm__computer_start_task",
+    "mcp__pikvm__computer_status",
+    "mcp__pikvm__computer_continue",
+    "mcp__pikvm__computer_pause",
 )
 
 
@@ -318,6 +344,49 @@ def _opencode_child_environment(
         yield child
 
 
+def _claude_child_environment(
+    plan: ManagedClientLaunch,
+    *,
+    environ: Mapping[str, str] | None,
+) -> dict[str, str]:
+    """Keep provider-owned login state without forwarding ambient secrets."""
+
+    source = os.environ if environ is None else environ
+    for name in plan.forwarded_env:
+        if not source.get(name):
+            raise ClientIsolationError(
+                "Claude managed MCP environment is incomplete"
+            )
+    child = {
+        name: source[name]
+        for name in _CLAUDE_ENV
+        if source.get(name)
+    }
+    child["NO_COLOR"] = "1"
+    child.update(
+        {
+            name: source[name]
+            for name in plan.forwarded_env
+        }
+    )
+    return child
+
+
+@contextmanager
+def _claude_child_runtime(
+    plan: ManagedClientLaunch,
+    *,
+    environ: Mapping[str, str] | None,
+) -> Iterator[tuple[dict[str, str], Path]]:
+    """Run Claude from an empty workspace with only its owned login state."""
+
+    child = _claude_child_environment(plan, environ=environ)
+    with tempfile.TemporaryDirectory(prefix="pikvm-claude-client-") as root_value:
+        workspace = Path(root_value) / "workspace"
+        workspace.mkdir()
+        yield child, workspace
+
+
 def _gemini_admin_policy(server_name: str) -> str:
     return (
         '[[rule]]\n'
@@ -520,8 +589,8 @@ def _managed_client_runtime(
         with _opencode_child_environment(plan, environ=environ) as child:
             yield child, plan.project_dir
         return
-    child = os.environ.copy() if environ is None else dict(environ)
-    yield child, plan.project_dir
+    with _claude_child_runtime(plan, environ=environ) as runtime:
+        yield runtime
 
 
 def build_managed_client_launch(
@@ -651,6 +720,10 @@ def build_managed_client_launch(
             "--mcp-config",
             rendered.strip(),
             "--strict-mcp-config",
+            "--setting-sources",
+            "",
+            "--disable-slash-commands",
+            "--no-chrome",
         ),
         project_dir=project,
         rendered_config=rendered,
@@ -949,6 +1022,10 @@ def build_managed_client_task_argv(
         )
     return (
         *plan.argv,
+        "--tools",
+        "",
+        "--allowedTools",
+        ",".join(_CLAUDE_ALLOWED_MANAGED_TOOLS),
         "--print",
         "--output-format",
         "stream-json",

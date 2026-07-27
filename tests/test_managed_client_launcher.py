@@ -103,6 +103,8 @@ def test_claude_launch_uses_strict_secret_free_mcp_config(
     assert plan.argv[0] == "/opt/claude"
     assert "--mcp-config" in plan.argv
     assert "--strict-mcp-config" in plan.argv
+    assert ("--setting-sources", "") == plan.argv[-4:-2]
+    assert plan.argv[-2:] == ("--disable-slash-commands", "--no-chrome")
     rendered = json.loads(plan.rendered_config)
     assert list(rendered["mcpServers"]) == ["pikvm"]
     assert rendered["mcpServers"]["pikvm"]["args"][3] == "managed-mcp"
@@ -964,6 +966,79 @@ def test_managed_client_task_reports_only_safe_execution_metadata(
     assert summary["task_bytes"] == 34
     assert len(str(summary["task_sha256"])) == 64
     assert "private managed task" not in json.dumps(summary)
+
+
+def test_claude_task_keeps_cli_oauth_without_forwarding_ambient_secrets(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    plan = build_managed_client_launch(
+        settings(monkeypatch),
+        client="claude",
+        client_executable="/opt/claude",
+        mcp_executable="/opt/pikvm/python",
+        harness_config=tmp_path / "harness.yaml",
+        project_dir=tmp_path,
+    )
+    captured: dict[str, object] = {}
+
+    def fake_run(argv: list[str], **kwargs: object) -> subprocess.CompletedProcess:
+        captured["argv"] = argv
+        captured.update(kwargs)
+        return subprocess.CompletedProcess(argv, 0)
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    result = run_managed_client_task(
+        plan,
+        task="Complete the private managed task.",
+        timeout_s=30,
+        environ={
+            "HOME": "/home/operator",
+            "PATH": "/usr/bin",
+            "CLAUDE_CONFIG_DIR": "/home/operator/.claude",
+            "TEST_AGENT_TOKEN": "runtime-token",
+            "ANTHROPIC_API_KEY": "unrelated-api-secret",
+            "UNRELATED_SECRET": "must-not-be-forwarded",
+        },
+    )
+
+    child_env = captured["env"]
+    assert isinstance(child_env, dict)
+    assert child_env["HOME"] == "/home/operator"
+    assert child_env["CLAUDE_CONFIG_DIR"] == "/home/operator/.claude"
+    assert child_env["TEST_AGENT_TOKEN"] == "runtime-token"
+    assert "ANTHROPIC_API_KEY" not in child_env
+    assert "UNRELATED_SECRET" not in child_env
+    assert captured["cwd"] != tmp_path.resolve()
+    assert result.exit_code == 0
+
+
+def test_claude_task_allows_only_non_destructive_managed_controls(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    plan = build_managed_client_launch(
+        settings(monkeypatch),
+        client="claude",
+        client_executable="/opt/claude",
+        mcp_executable="/opt/pikvm/python",
+        harness_config=tmp_path / "harness.yaml",
+        project_dir=tmp_path,
+    )
+
+    argv = build_managed_client_task_argv(plan)
+    allowed_index = argv.index("--allowedTools")
+    allowed = argv[allowed_index + 1].split(",")
+
+    assert allowed == [
+        "mcp__pikvm__computer_start_task",
+        "mcp__pikvm__computer_status",
+        "mcp__pikvm__computer_continue",
+        "mcp__pikvm__computer_pause",
+    ]
+    assert "mcp__pikvm__computer_abort" not in allowed
+    tools_index = argv.index("--tools")
+    assert argv[tools_index + 1] == ""
 
 
 def test_opencode_task_reuses_ephemeral_default_deny_environment(
