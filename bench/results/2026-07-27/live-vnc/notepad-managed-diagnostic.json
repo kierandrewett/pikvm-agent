@@ -1,0 +1,120 @@
+{
+  "schema_version": 1,
+  "kind": "managed_live_windows_diagnostic",
+  "created_at": "2026-07-27T03:33:03.025442Z",
+  "run_id": "6c07a98a-572d-4380-a3aa-0d1b247e4cd9",
+  "task_class": "open_visible_application_without_enter",
+  "target": {
+    "class": "disposable_windows_vnc_vm",
+    "runtime_endpoint_persisted": false,
+    "production_target_touched": false,
+    "helper_installed": false
+  },
+  "route": {
+    "provider": "claude-account",
+    "adapter": "claude_cli",
+    "model_reported": "opus",
+    "auth_mode": "saved_cli_login"
+  },
+  "result": {
+    "status": "paused",
+    "verdict": "uncertain",
+    "release_pass": false,
+    "wall_time_ms": 558817,
+    "event_count": 79,
+    "task_completed_with_attributable_evidence": false,
+    "summary": "Notepad became visible, but the verifier could not attribute the windows to the managed click trajectory because a parallel disposable-lab client changed the same remote desktop."
+  },
+  "model_activity": {
+    "calls": 12,
+    "total_latency_ms": 483697,
+    "mean_latency_ms": 40308.083,
+    "minimum_latency_ms": 17240,
+    "maximum_latency_ms": 85367,
+    "by_role": {
+      "reasoner": {
+        "calls": 4,
+        "latencies_ms": [
+          28702,
+          25203,
+          42058,
+          54008
+        ]
+      },
+      "controller": {
+        "calls": 5,
+        "latencies_ms": [
+          17240,
+          21211,
+          19973,
+          53892,
+          46432
+        ]
+      },
+      "verifier": {
+        "calls": 3,
+        "latencies_ms": [
+          39214,
+          50397,
+          85367
+        ]
+      }
+    }
+  },
+  "computer_activity": {
+    "attempted_bursts": 3,
+    "completed_bursts": 2,
+    "refused_stale_world_bursts": 1,
+    "completed_burst_latencies_ms": [
+      4827,
+      3527
+    ],
+    "stale_world_refusal_latency_ms": 2425,
+    "enter_key_presses": 0,
+    "dangerous_actions": 0
+  },
+  "verification": {
+    "verified": 0,
+    "failed": 1,
+    "uncertain": 2,
+    "false_success_claims": 0
+  },
+  "observed_failures": [
+    {
+      "class": "visual_action_miss",
+      "detail": "A grounded click dismissed Windows Search without an attributable Notepad launch."
+    },
+    {
+      "class": "stale_world",
+      "detail": "A later click was refused before HID, the screen was refreshed, and the controller was resumed automatically."
+    },
+    {
+      "class": "unattributed_remote_change",
+      "detail": "Two populated Notepad windows appeared without an action in this run's trajectory."
+    },
+    {
+      "class": "cross_adapter_concurrency_visibility",
+      "detail": "A second disposable-lab adapter was connected to the same VNC endpoint, but the mock adapter reported no other client."
+    }
+  ],
+  "fixes_exercised": [
+    "same-row OCR target selection",
+    "dark-panel world-version invalidation",
+    "stale-world refusal and automatic replan",
+    "fresh verification-image retrieval",
+    "computer-action status rendering"
+  ],
+  "validation": {
+    "backend_focused_tests_passed": 187,
+    "frontend_tests_passed": 9,
+    "frontend_build_passed": true,
+    "browser_fixture": {
+      "viewport": "1440x980",
+      "prefilled_events": 1200,
+      "event_interval_ms": 500,
+      "active_tool_group_remained_expanded": true,
+      "dangerous_approval_rendered_inline": true
+    }
+  },
+  "claim_boundary": "This is one diagnostic run on a non-reset desktop. It is not an OSWorld, Windows Agent Arena, Office, or general desktop reliability score."
+}
