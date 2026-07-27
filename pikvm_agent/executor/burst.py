@@ -593,6 +593,16 @@ def _typing_receipt(
             ),
         }
     )
+    receipt["proof_state"] = _typing_proof_state(
+        status=status,
+        verdict=verdict,
+        intended=intended,
+        observed=observed,
+        issued_characters=issued_characters,
+        exact_readback_sha256_match=bool(
+            receipt["exact_readback_sha256_match"]
+        ),
+    )
     if status == "failed_focus_lost":
         receipt["focus_evidence"] = "focus_lost"
     elif status.startswith("verified_") or verdict in {"match", "contains"}:
@@ -604,6 +614,38 @@ def _typing_receipt(
     return receipt
 
 
+def _typing_proof_state(
+    *,
+    status: str,
+    verdict: str,
+    intended: str,
+    observed: str,
+    issued_characters: int,
+    exact_readback_sha256_match: bool,
+) -> str:
+    """Describe target evidence without treating sender completion as an ACK."""
+
+    if (
+        status == "verified_exact"
+        and verdict == "match"
+        and issued_characters == len(intended)
+        and exact_readback_sha256_match
+    ):
+        return "exact_readback"
+    if (
+        status == "verified_safe_normalized"
+        and verdict in {"match", "contains"}
+    ):
+        return "normalized_readback"
+    if observed:
+        if len(observed) < len(intended) and intended.startswith(observed):
+            return "partial_readback"
+        if verdict == "mismatch" or status.startswith("failed_"):
+            return "mismatched_readback"
+        return "ambiguous_readback"
+    return "issued_only"
+
+
 def _unwatched_typing_receipt(
     text: str,
     *,
@@ -611,16 +653,17 @@ def _unwatched_typing_receipt(
     typed_characters: int | None = None,
 ) -> dict[str, Any]:
     intended_characters = len(text)
-    return {
+    issued_characters = (
+        intended_characters
+        if typed_characters is None
+        else min(intended_characters, max(0, typed_characters))
+    )
+    receipt: dict[str, Any] = {
         "type": "type_text",
         "status": "delivered_unverified",
         "verdict": "unverified",
         "observed_text_redacted": secret,
-        "issued_characters": (
-            intended_characters
-            if typed_characters is None
-            else max(0, typed_characters)
-        ),
+        "issued_characters": issued_characters,
         "requested_characters": intended_characters,
         "correction_count": 0,
         "delivery_retries": 0,
@@ -628,7 +671,21 @@ def _unwatched_typing_receipt(
         "focus_evidence": (
             "read_back_not_retained" if secret else "read_back_unavailable"
         ),
+        "proof_state": "not_retained" if secret else "issued_only",
     }
+    if not secret:
+        receipt.update(
+            {
+                "requested_sha256": hashlib.sha256(
+                    text.encode("utf-8")
+                ).hexdigest(),
+                "issued_prefix_sha256": hashlib.sha256(
+                    text[:issued_characters].encode("utf-8")
+                ).hexdigest(),
+                "exact_readback_sha256_match": False,
+            }
+        )
+    return receipt
 
 
 async def _dispatch(

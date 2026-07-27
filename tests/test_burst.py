@@ -120,6 +120,14 @@ async def test_run_burst_executes_in_order() -> None:
     # Ctrl+P mapped to PiKVM codes
     kp = next(kw for m, kw in be.calls if m == "keypress")
     assert kw_keys(kp) == ["ControlLeft", "KeyP"]
+    receipt = out.action_receipts[0]
+    assert receipt["index"] == 2
+    assert receipt["proof_state"] == "issued_only"
+    assert receipt["requested_sha256"] == hashlib.sha256(
+        b"readme.md"
+    ).hexdigest()
+    assert receipt["issued_prefix_sha256"] == receipt["requested_sha256"]
+    assert receipt["exact_readback_sha256_match"] is False
 
 
 def kw_keys(kw):
@@ -534,6 +542,7 @@ async def test_burst_type_text_proceeds_when_verified() -> None:
             "summary": "stub",
             "edit_distance": 0,
             "focus_evidence": "read_back_verified",
+            "proof_state": "exact_readback",
             "requested_sha256": hashlib.sha256(b"hi").hexdigest(),
             "issued_prefix_sha256": hashlib.sha256(b"hi").hexdigest(),
             "readback_sha256": hashlib.sha256(b"hi").hexdigest(),
@@ -576,6 +585,7 @@ async def test_burst_retains_watched_readback_when_typing_fails() -> None:
             "summary": "stub",
             "edit_distance": 7,
             "focus_evidence": "focus_lost",
+            "proof_state": "mismatched_readback",
             "requested_sha256": hashlib.sha256(b"intended").hexdigest(),
             "issued_prefix_sha256": hashlib.sha256(b"inten").hexdigest(),
             "readback_sha256": hashlib.sha256(b"wrong").hexdigest(),
@@ -607,6 +617,7 @@ async def test_burst_secret_receipt_never_retains_secret_text() -> None:
             "delivery_retries": 0,
             "used_fast_path": False,
             "focus_evidence": "read_back_not_retained",
+            "proof_state": "not_retained",
         }
     ]
     assert "super-secret" not in repr(out.action_receipts)
