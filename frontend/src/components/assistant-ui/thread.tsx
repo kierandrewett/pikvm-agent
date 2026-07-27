@@ -378,7 +378,9 @@ const MessageError: FC = () => {
   );
 };
 
-const DefaultToolGroup: FC<PropsWithChildren<{ group: ThreadGroupPart }>> = ({
+export const DefaultToolGroup: FC<
+  PropsWithChildren<{ group: ThreadGroupPart }>
+> = ({
   group,
   children,
 }) => {

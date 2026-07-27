@@ -1,13 +1,17 @@
-import type {
-  ToolCallMessagePartComponent,
-  ToolCallMessagePartProps,
+import {
+  useAuiState,
+  type ToolCallMessagePartComponent,
+  type ToolCallMessagePartProps,
 } from "@assistant-ui/react";
 import {
   lazy,
   Suspense,
   type PropsWithChildren,
 } from "react";
-import type { ThreadGroupPart } from "@/components/assistant-ui/thread";
+import {
+  DefaultToolGroup,
+  type ThreadGroupPart,
+} from "@/components/assistant-ui/thread";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const LazyComputerToolCall = lazy(async () => {
@@ -52,5 +56,30 @@ export function DeferredComputerToolGroup({
     <Suspense fallback={<ComputerActivitySkeleton />}>
       <LazyComputerToolGroup group={group}>{children}</LazyComputerToolGroup>
     </Suspense>
+  );
+}
+
+export function DeferredWorkspaceToolGroup({
+  group,
+  children,
+}: PropsWithChildren<{ group: ThreadGroupPart }>) {
+  const content = useAuiState((state) => state.message.content);
+  const computerOnly =
+    group.indices.length > 0 &&
+    group.indices.every((index) => {
+      const part = content[index];
+      return (
+        part?.type === "tool-call" &&
+        part.toolName.startsWith("pikvm_")
+      );
+    });
+
+  if (!computerOnly) {
+    return <DefaultToolGroup group={group}>{children}</DefaultToolGroup>;
+  }
+  return (
+    <DeferredComputerToolGroup group={group}>
+      {children}
+    </DeferredComputerToolGroup>
   );
 }

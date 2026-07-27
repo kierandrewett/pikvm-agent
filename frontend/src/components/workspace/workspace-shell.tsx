@@ -41,6 +41,7 @@ import { AuthDialog } from "@/components/workspace/auth-dialog";
 import { ComputerToolEnvironmentProvider } from "@/components/workspace/computer-tool-environment";
 import {
   DeferredComputerToolCall as ComputerToolCall,
+  DeferredWorkspaceToolGroup as WorkspaceToolGroup,
 } from "@/components/workspace/deferred-computer-tools";
 import { LiveUpdateBadge } from "@/components/workspace/live-update-badge";
 import { ModelPicker } from "@/components/workspace/model-picker";
@@ -387,6 +388,7 @@ export function WorkspaceShell() {
                   components={{
                     ComposerToolbar,
                     ToolFallback: WorkspaceToolCall,
+                    ToolGroup: WorkspaceToolGroup,
                   }}
                 />
               </div>

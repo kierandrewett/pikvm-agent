@@ -11,6 +11,10 @@ import {
 } from "@assistant-ui/react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { Thread } from "@/components/assistant-ui/thread";
+import {
+  DeferredComputerToolCall,
+  DeferredWorkspaceToolGroup,
+} from "@/components/workspace/deferred-computer-tools";
 import { WorkspaceRuntimeBoundary } from "@/components/workspace/workspace-shell";
 
 afterEach(cleanup);
@@ -109,6 +113,41 @@ const runningToolMessages: ThreadMessageLike[] = [
       },
     ],
     status: { type: "running" },
+  },
+];
+
+const computerToolMessages: ThreadMessageLike[] = [
+  {
+    id: "user-computer-tools",
+    role: "user",
+    content: "Inspect two controls.",
+  },
+  {
+    id: "assistant-computer-tools",
+    role: "assistant",
+    content: [
+      {
+        type: "tool-call",
+        toolCallId: "computer-1",
+        toolName: "pikvm_run_burst",
+        args: {
+          actions: [{ type: "click", x: 320, y: 240 }],
+        },
+        argsText: '{"actions":[{"type":"click","x":320,"y":240}]}',
+        result: { status: "completed" },
+      },
+      {
+        type: "tool-call",
+        toolCallId: "computer-2",
+        toolName: "pikvm_run_burst",
+        args: {
+          actions: [{ type: "click", x: 640, y: 480 }],
+        },
+        argsText: '{"actions":[{"type":"click","x":640,"y":480}]}',
+        result: { status: "completed" },
+      },
+    ],
+    status: { type: "complete", reason: "stop" },
   },
 ];
 
@@ -262,9 +301,11 @@ function RunningHandoffThread() {
 function ToolThread({
   messages,
   isRunning = false,
+  computerAware = false,
 }: {
   messages: ThreadMessageLike[];
   isRunning?: boolean;
+  computerAware?: boolean;
 }) {
   const runtime = useExternalStoreRuntime({
     messages,
@@ -275,7 +316,16 @@ function ToolThread({
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
-      <Thread />
+      <Thread
+        components={
+          computerAware
+            ? {
+                ToolFallback: DeferredComputerToolCall,
+                ToolGroup: DeferredWorkspaceToolGroup,
+              }
+            : undefined
+        }
+      />
     </AssistantRuntimeProvider>
   );
 }
@@ -411,6 +461,31 @@ describe("Thread progress", () => {
     expect(trigger).toHaveTextContent("web.search_text → web.extract_content");
     expect(trigger).toHaveTextContent("Done");
     expect(trigger).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("uses the computer activity group only for PiKVM action tools", async () => {
+    const view = render(
+      <ToolThread messages={computerToolMessages} computerAware />,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: /2 computer actions/i }),
+      ).toHaveTextContent("Computer activity");
+    });
+
+    view.rerender(<ToolThread messages={toolMessages} computerAware />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", {
+          name: "web.search_text then web.extract_content, 2 tool calls, completed",
+        }),
+      ).toBeVisible();
+    });
+    expect(
+      screen.queryByRole("button", { name: /computer actions/i }),
+    ).toBeNull();
   });
 
   it("shows the active tool and running state in the collapsed summary", () => {
