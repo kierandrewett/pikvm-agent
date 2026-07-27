@@ -68,6 +68,7 @@ MIN_MISMATCH_OCR_CONFIDENCE = 0.78
 MIN_EXPECTED_AWARE_EXACT_CHARS = 8
 MAX_AUTODETECTED_FIELD_HEIGHT = 80
 MAX_AUTODETECTED_FIELD_HEIGHT_FRAC = 0.15
+MAX_PROSE_EDGE_CONTEXT_CHARS = 96
 
 # Pauses (seconds) — let a print / clear land and the video settle before reading.
 _PRINT_SETTLE_S = 0.45
@@ -523,6 +524,11 @@ class WatchedTyper:
                 ]
 
         max_distance = max(1, math.ceil(len(folded_intended) * 0.08))
+        max_window_length = (
+            len(visible_intended)
+            + max_distance
+            + (MAX_PROSE_EDGE_CONTEXT_CHARS * 2)
+        )
         best = ""
         best_distance = max_distance + 1
 
@@ -556,12 +562,9 @@ class WatchedTyper:
                 window = ""
                 for line in visible_lines[start : start + 12]:
                     window = f"{window} {line}".strip()
-                    if len(window) > len(visible_intended) + max_distance:
+                    if len(window) > max_window_length:
                         break
-                    if (
-                        abs(len(window) - len(visible_intended))
-                        > max_distance
-                    ):
+                    if len(window) < len(visible_intended) - max_distance:
                         continue
                     consider(window)
 
@@ -580,7 +583,7 @@ class WatchedTyper:
                         *(
                             boundary
                             for boundary in boundaries
-                            if boundary <= max_distance
+                            if boundary <= MAX_PROSE_EDGE_CONTEXT_CHARS
                         ),
                     ]
                     right_edges = [
@@ -588,7 +591,7 @@ class WatchedTyper:
                             boundary - 1
                             for boundary in boundaries
                             if len(window) - (boundary - 1)
-                            <= max_distance
+                            <= MAX_PROSE_EDGE_CONTEXT_CHARS
                         ),
                         len(window),
                     ]

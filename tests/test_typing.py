@@ -431,7 +431,9 @@ async def test_fast_editor_continuation_matches_inside_existing_ocr_line() -> No
                     OCRLine(text="Microsoft Word"),
                     OCRLine(
                         text=(
-                            "That lie is a convenience the court has agreed to, "
+                            "The earlier sentence was taken against his own "
+                            "argument. That lie is a convenience the court has "
+                            "agrecd to, "
                             "and it is chosen again each day it is"
                         ),
                         confidence=0.96,
@@ -439,7 +441,7 @@ async def test_fast_editor_continuation_matches_inside_existing_ocr_line() -> No
                     OCRLine(
                         text=(
                             "not corrected. Hamlet's hesitation is therefore "
-                            "not a flaw of temperament but a moral"
+                            "not a flaw of temperarnent but a moral"
                         ),
                         confidence=0.95,
                     ),
