@@ -116,8 +116,70 @@ describe("messagesForRun", () => {
     const serialized = JSON.stringify(messages);
 
     expect(serialized).toContain("Use the smallest verifiable sequence.");
-    expect(serialized).toContain("Model provider");
+    expect(serialized).not.toContain("Model provider");
     expect(serialized).not.toContain("chain-of-thought");
     expect(serialized).not.toContain("success_criteria");
+  });
+
+  it("names the live model lane without inventing hidden reasoning", () => {
+    const assistant = messagesForRun(
+      run({
+        active_activity: {
+          kind: "model",
+          started_at: new Date(Date.now() - 5_000).toISOString(),
+          role: "verifier",
+          provider: "codex-account",
+          model: "gpt-5",
+        },
+      }),
+    ).at(-1);
+
+    expect(JSON.stringify(assistant?.content)).toContain(
+      "Checking the screen · gpt-5 · codex-account · 5s",
+    );
+  });
+
+  it("surfaces the actual reason a run paused", () => {
+    const assistant = messagesForRun(
+      run({
+        status: "paused",
+        error: "all providers unavailable for reasoner: codex-account=timeout",
+      }),
+    ).at(-1);
+
+    expect(JSON.stringify(assistant?.content)).toContain(
+      "Paused: all providers unavailable for reasoner: codex-account=timeout.",
+    );
+  });
+
+  it("shows a stale-world refusal as safe recovery, not a running input", () => {
+    const snapshot = run({
+      events: [
+        run().events[0]!,
+        {
+          sequence: 2,
+          at: "2026-07-27T12:00:01Z",
+          kind: "action.stale_world_refreshed",
+          data: {
+            call_id: "call-1",
+            status: "stale_world",
+            refused_world_version: 9,
+            fresh_world_version: 10,
+          },
+        },
+      ],
+    });
+    const assistant = messagesForRun(snapshot).at(-1);
+    const tool = Array.isArray(assistant?.content)
+      ? assistant.content.find((part) => part.type === "tool-call")
+      : undefined;
+
+    expect(tool).toMatchObject({
+      result: {
+        status: "refused",
+        reason: "stale world; screen refreshed",
+        world_version: 10,
+      },
+    });
   });
 });

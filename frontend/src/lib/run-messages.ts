@@ -15,9 +15,42 @@ const safeString = (value: unknown) =>
 const safeNumber = (value: unknown) =>
   typeof value === "number" && Number.isFinite(value) ? value : undefined;
 
+const elapsedLabel = (startedAt: string) => {
+  const started = Date.parse(startedAt);
+  if (!Number.isFinite(started)) return "";
+  const elapsedSeconds = Math.max(0, Math.floor((Date.now() - started) / 1_000));
+  if (elapsedSeconds < 60) return `${elapsedSeconds}s`;
+  const minutes = Math.floor(elapsedSeconds / 60);
+  const seconds = elapsedSeconds % 60;
+  return `${minutes}m ${String(seconds).padStart(2, "0")}s`;
+};
+
 const eventIdentity = (event: HarnessEvent) =>
   safeString(event.data.call_id) ||
   String(safeNumber(event.data.index) ?? event.sequence);
+
+const SAFE_REFUSAL_OUTCOMES = new Set([
+  "action.refused_by_operator",
+  "action.refused_stale",
+  "action.stale_world_refreshed",
+  "action.ungrounded_refreshed",
+]);
+
+const FAILED_OUTCOMES = new Set([
+  "action.failed",
+  "action.recoverable_failure",
+  "action.transport_uncertain",
+  "action.ungrounded_refresh_failed",
+  "action.ungrounded_repeated",
+  "target.identity_changed",
+]);
+
+const ACTION_OUTCOMES = new Set([
+  "action.completed",
+  "action.completed_unverified",
+  ...SAFE_REFUSAL_OUTCOMES,
+  ...FAILED_OUTCOMES,
+]);
 
 const latestOutcome = (
   attempt: HarnessEvent,
@@ -28,10 +61,26 @@ const latestOutcome = (
     .reverse()
     .find(
       (event) =>
-        ["action.completed", "action.failed", "action.refused_by_operator"].includes(
-          event.kind,
-        ) && eventIdentity(event) === identity,
+        ACTION_OUTCOMES.has(event.kind) &&
+        eventIdentity(event) === identity,
     );
+};
+
+const outcomeReason = (outcome: HarnessEvent) => {
+  if (outcome.kind === "action.stale_world_refreshed") {
+    const refused = safeString(outcome.data.status)
+      .replaceAll("_", " ")
+      .trim();
+    return `${refused || "stale input"}; screen refreshed`;
+  }
+  if (outcome.kind === "action.ungrounded_refreshed") {
+    return "click target was not independently grounded; screen refreshed";
+  }
+  return (
+    safeString(outcome.data.error) ||
+    safeString(outcome.data.reason) ||
+    safeString(outcome.data.status).replaceAll("_", " ").trim()
+  );
 };
 
 const planMarkdown = (run: RunSnapshot) => {
@@ -49,9 +98,6 @@ const planMarkdown = (run: RunSnapshot) => {
   } else {
     lines.push("Working through the requested task.");
   }
-  if (run.model_provider) {
-    lines.push("", `Model provider: \`${run.model_provider}\``);
-  }
   return lines.join("\n");
 };
 
@@ -64,15 +110,29 @@ const completionMarkdown = (run: RunSnapshot) => {
     return `Stopped: ${run.error || run.status.replaceAll("_", " ")}.`;
   }
   if (run.status === "paused") {
-    return "Paused at a durable checkpoint. You can continue or give a correction.";
+    return run.error
+      ? `Paused: ${run.error}. Retry, choose another model, or give a correction.`
+      : "Paused at a durable checkpoint. You can continue or give a correction.";
   }
   if (run.status === "needs_approval") {
     return "This action needs your approval before the computer can continue.";
   }
   const activity = run.active_activity;
   if (activity?.kind === "model") {
-    const identity = [activity.model, activity.provider].filter(Boolean).join(" · ");
-    return identity ? `Working with ${identity}.` : "The model is working.";
+    const verb =
+      activity.role === "reasoner"
+        ? "Planning"
+        : activity.role === "controller"
+          ? "Choosing the next input"
+          : activity.role === "verifier"
+            ? "Checking the screen"
+            : "Model working";
+    const identity = [activity.model, activity.provider]
+      .filter(Boolean)
+      .join(" · ");
+    return [verb, identity, elapsedLabel(activity.started_at)]
+      .filter(Boolean)
+      .join(" · ");
   }
   return "";
 };
@@ -116,19 +176,28 @@ const toolParts = (run: RunSnapshot) => {
     const approvalDescription = [approvalRisk, approvalReason]
       .filter(Boolean)
       .join(": ");
-    const failed = outcome?.kind === "action.failed";
+    const failed = outcome ? FAILED_OUTCOMES.has(outcome.kind) : false;
     const result =
       outcome == null
         ? undefined
         : failed
-          ? { status: "failed", error: outcome.data.error }
+          ? {
+              status: "failed",
+              error: outcomeReason(outcome) || "The computer input failed.",
+            }
           : {
               status:
-                outcome.kind === "action.refused_by_operator"
+                SAFE_REFUSAL_OUTCOMES.has(outcome.kind)
                   ? "refused"
-                  : "completed",
-              frame_id: outcome.data.frame_id,
-              world_version: outcome.data.world_version,
+                  : outcome.kind === "action.completed_unverified"
+                    ? "unverified"
+                    : "completed",
+              reason: outcomeReason(outcome) || undefined,
+              frame_id:
+                outcome.data.frame_id ?? outcome.data.fresh_frame_id,
+              world_version:
+                outcome.data.world_version ??
+                outcome.data.fresh_world_version,
             };
     const args =
       attempt.data.arguments &&
