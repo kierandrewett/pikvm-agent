@@ -29,6 +29,7 @@ from pikvm_agent.harness.office_acceptance import (
     write_office_result,
 )
 from pikvm_agent.harness.performance import RunPerformanceReport
+from pikvm_agent.harness.protocol import OracleSnapshot
 
 StatusSink = Callable[[str], None]
 CreatedSink = Callable[[str], Awaitable[None]]
@@ -120,6 +121,14 @@ class HttpManagedHarnessApi:
             f"/api/runs/{run_id}/abort",
             payload={"reason": reason},
         )
+
+
+class ObserverVisualError(RuntimeError):
+    """The installed lab observer did not expose a valid visual snapshot."""
+
+
+class KeyboardLayoutError(ObserverVisualError):
+    """The configured HID layout did not reproduce an exact visible sentinel."""
 
 
 async def _publish_artifact_acceptance(
@@ -347,44 +356,12 @@ async def _capture_visual_artifact(
 ) -> bytes:
     """Read helper-reported file bytes through visible, guarded MCP calls."""
 
-    env = dict(lab.env)
-    env["PIKVM_AGENT_DAEMON"] = lab.daemon_url
-    env["PIKVM_HARNESS_OBSERVER_URL"] = lab.harness_url
-    env["PIKVM_HARNESS_OBSERVER_TOKEN"] = observer_token
-    env["PIKVM_HARNESS_OBSERVER_MODE"] = "guarded"
-    env["PIKVM_MCP_CALLER_LABEL"] = "office-artifact-verifier"
-    env["PIKVM_MCP_PROVIDER"] = "host-verifier"
-    env["PIKVM_MCP_MODEL"] = "none"
-    params = StdioServerParameters(
-        command=os.path.abspath(sys.executable),
-        args=["-m", "pikvm_agent.cli", "mcp"],
-        env=env,
-        cwd=str(Path(__file__).resolve().parents[2]),
+    snapshot = await _read_visual_observer(
+        lab,
+        observer_token=observer_token,
+        include_file=True,
+        key="office-artifact-proof",
     )
-    with open(os.devnull, "w") as mcp_errors:
-        transport = stdio_client(params, errlog=mcp_errors)
-        async with transport as (read_stream, write_stream):
-            async with ClientSession(read_stream, write_stream) as session:
-                await session.initialize()
-                driver = McpDriver(session)
-                await driver.open()
-                try:
-                    _score, snapshot = await VisualTrialOracle().seal(
-                        driver,
-                        object(),
-                        intended="",
-                        include_file=True,
-                        key="office-artifact-proof",
-                    )
-                finally:
-                    if driver.session_id:
-                        await driver.call(
-                            "pikvm_abort",
-                            {
-                                "session_id": driver.session_id,
-                                "reason": "Office artifact proof captured",
-                            },
-                        )
     if snapshot.file is None:
         raise RuntimeError("observer snapshot contained no file evidence")
     if snapshot.file.error:
@@ -397,6 +374,184 @@ async def _capture_visual_artifact(
         return snapshot.file.content()
     except ValueError as exc:
         raise RuntimeError("observer returned invalid artifact bytes") from exc
+
+
+def _observer_mcp_params(
+    lab: RunningLab,
+    *,
+    observer_token: str,
+    caller_label: str,
+) -> StdioServerParameters:
+    env = dict(lab.env)
+    env["PIKVM_AGENT_DAEMON"] = lab.daemon_url
+    env["PIKVM_HARNESS_OBSERVER_URL"] = lab.harness_url
+    env["PIKVM_HARNESS_OBSERVER_TOKEN"] = observer_token
+    env["PIKVM_HARNESS_OBSERVER_MODE"] = "guarded"
+    env["PIKVM_MCP_CALLER_LABEL"] = caller_label
+    env["PIKVM_MCP_PROVIDER"] = "host-verifier"
+    env["PIKVM_MCP_MODEL"] = "none"
+    return StdioServerParameters(
+        command=os.path.abspath(sys.executable),
+        args=["-m", "pikvm_agent.cli", "mcp"],
+        env=env,
+        cwd=str(Path(__file__).resolve().parents[2]),
+    )
+
+
+async def _read_visual_observer(
+    lab: RunningLab,
+    *,
+    observer_token: str,
+    include_file: bool,
+    key: str,
+) -> OracleSnapshot:
+    """Return one exact helper snapshot or a stable visual-boundary error."""
+
+    params = _observer_mcp_params(
+        lab,
+        observer_token=observer_token,
+        caller_label="office-artifact-verifier",
+    )
+    try:
+        with open(os.devnull, "w") as mcp_errors:
+            transport = stdio_client(params, errlog=mcp_errors)
+            async with transport as (read_stream, write_stream):
+                async with ClientSession(read_stream, write_stream) as session:
+                    await session.initialize()
+                    driver = McpDriver(session)
+                    await driver.open()
+                    try:
+                        _score, snapshot = await VisualTrialOracle().seal(
+                            driver,
+                            object(),
+                            intended="",
+                            include_file=include_file,
+                            key=key,
+                        )
+                        return snapshot
+                    finally:
+                        if driver.session_id:
+                            await driver.call(
+                                "pikvm_abort",
+                                {
+                                    "session_id": driver.session_id,
+                                    "reason": "Office observer proof captured",
+                                },
+                            )
+    except Exception as exc:
+        raise ObserverVisualError(
+            "observer visual matrix unavailable"
+        ) from exc
+
+
+async def _probe_visual_observer(
+    lab: RunningLab,
+    *,
+    observer_token: str,
+    expected_path: str,
+) -> None:
+    """Prove the helper identity and configured file path before model spend."""
+
+    snapshot = await _read_visual_observer(
+        lab,
+        observer_token=observer_token,
+        include_file=True,
+        key="office-observer-preflight",
+    )
+    if not snapshot.guest_fingerprint or not snapshot.input_desktop:
+        raise ObserverVisualError(
+            "observer visual preflight lacked guest identity"
+        )
+    if snapshot.file is None:
+        raise ObserverVisualError(
+            "observer visual preflight lacked file-path evidence"
+        )
+    if _normalise_windows_path(snapshot.file.path) != _normalise_windows_path(
+        expected_path
+    ):
+        raise ObserverVisualError(
+            "observer visual preflight reported a different artifact path"
+        )
+
+
+async def _probe_keyboard_layout(
+    lab: RunningLab,
+    *,
+    observer_token: str,
+) -> None:
+    """Type a punctuation sentinel and recover it from target-owned pixels."""
+
+    sentinel = r"AaZz09\/@#:'|~"
+    params = _observer_mcp_params(
+        lab,
+        observer_token=observer_token,
+        caller_label="office-keyboard-preflight",
+    )
+    try:
+        with open(os.devnull, "w") as mcp_errors:
+            transport = stdio_client(params, errlog=mcp_errors)
+            async with transport as (read_stream, write_stream):
+                async with ClientSession(read_stream, write_stream) as session:
+                    await session.initialize()
+                    driver = McpDriver(session)
+                    await driver.open()
+                    oracle = VisualTrialOracle()
+                    try:
+                        trial = await oracle.reset(
+                            driver,
+                            key="office-keyboard-preflight-reset",
+                        )
+                        typed = await driver.burst(
+                            [
+                                {
+                                    "type": "type_text",
+                                    "text": sentinel,
+                                    "code": True,
+                                    "context": "editor",
+                                }
+                            ],
+                            key="office-keyboard-preflight-type",
+                        )
+                        if typed.get("status") != "completed":
+                            raise KeyboardLayoutError(
+                                "keyboard-layout preflight input did not complete"
+                            )
+                        score, snapshot = await oracle.seal(
+                            driver,
+                            trial,
+                            intended=sentinel,
+                            key="office-keyboard-preflight-proof",
+                        )
+                        if (
+                            score.get("exact_match") is not True
+                            or snapshot.text != sentinel
+                        ):
+                            raise KeyboardLayoutError(
+                                "configured keyboard layout changed visible "
+                                "punctuation"
+                            )
+                    finally:
+                        try:
+                            await driver.reset_observer(
+                                "office-keyboard-preflight-cleanup"
+                            )
+                        finally:
+                            if driver.session_id:
+                                await driver.call(
+                                    "pikvm_abort",
+                                    {
+                                        "session_id": driver.session_id,
+                                        "reason": (
+                                            "Office keyboard preflight completed"
+                                        ),
+                                    },
+                                )
+    except KeyboardLayoutError:
+        raise
+    except Exception as exc:
+        raise KeyboardLayoutError(
+            "keyboard-layout preflight could not recover exact target text"
+        ) from exc
 
 
 def _write_private_artifact(path: Path, content: bytes) -> None:
@@ -414,6 +569,8 @@ def _write_private_artifact(path: Path, content: bytes) -> None:
 
 
 def _capture_error_class(exc: Exception) -> str:
+    if isinstance(exc, ObserverVisualError):
+        return "visual-oracle-error"
     name = type(exc).__name__.casefold()
     if "visualoracle" in name:
         return "visual-oracle-error"
@@ -487,6 +644,20 @@ async def run_live_office_case(
         settings = load_harness_settings(lab.assets.harness_config)
         if status_sink is not None:
             status_sink(f"Operator UI: {lab.harness_url}/app/")
+            status_sink(
+                "Proving installed observer identity before provider calls."
+            )
+        await _probe_visual_observer(
+            lab,
+            observer_token=settings.observer_token(),
+            expected_path=artifact_path,
+        )
+        await _probe_keyboard_layout(
+            lab,
+            observer_token=settings.observer_token(),
+        )
+        if status_sink is not None:
+            status_sink("Observer and keyboard-layout preflights passed.")
         async with httpx.AsyncClient(
             base_url=lab.harness_url,
             headers={

@@ -26,9 +26,11 @@ from pikvm_agent.harness.office_runner import (
     HttpManagedHarnessApi,
     _artifact_acceptance_result,
     _fresh_artifact_path,
+    _probe_visual_observer,
     drive_managed_office_run,
     run_live_office_case,
 )
+from pikvm_agent.harness.protocol import ObservedFile, OracleSnapshot
 
 
 def _archive(members: dict[str, str]) -> bytes:
@@ -277,6 +279,242 @@ async def test_skip_provision_reuses_installed_observer_with_fresh_path(
         "C:/PiKVM-Harness/workspace/quarterly-earnings-"
     )
     assert str(captured["file_path"]).endswith(".xlsx")
+
+
+async def test_live_office_case_refuses_model_run_when_observer_preflight_fails(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    class FakeSettings:
+        def agent_token(self) -> str:
+            return "a" * 32
+
+        def observer_token(self) -> str:
+            return "o" * 32
+
+    class FakeLab:
+        env: dict[str, str] = {}
+        harness_url = "http://127.0.0.1:47642"
+        assets = type("Assets", (), {"harness_config": tmp_path / "fake.yaml"})()
+
+        def __init__(self, **_kwargs: object) -> None:
+            pass
+
+        def __enter__(self) -> FakeLab:
+            return self
+
+        def __exit__(self, *_args: object) -> None:
+            pass
+
+    model_run_started = False
+
+    async def unavailable_observer(*_args: object, **_kwargs: object) -> None:
+        raise RuntimeError("observer visual preflight failed")
+
+    async def record_model_run(*_args: object, **_kwargs: object) -> object:
+        nonlocal model_run_started
+        model_run_started = True
+        raise AssertionError("managed model run must not start")
+
+    monkeypatch.setattr(bootstrap_windows, "deploy", lambda **_kwargs: None)
+    monkeypatch.setattr(office_runner, "RunningLab", FakeLab)
+    monkeypatch.setattr(office_runner, "allocate_lab_ports", object)
+    monkeypatch.setattr(
+        office_runner,
+        "load_harness_settings",
+        lambda _path: FakeSettings(),
+    )
+    monkeypatch.setattr(
+        office_runner,
+        "_probe_visual_observer",
+        unavailable_observer,
+        raising=False,
+    )
+    monkeypatch.setattr(
+        office_runner,
+        "drive_managed_office_run",
+        record_model_run,
+    )
+    repo = Path(__file__).parents[1]
+
+    with pytest.raises(RuntimeError, match="observer visual preflight failed"):
+        await run_live_office_case(
+            endpoint="disposable.invalid:5900",
+            harness_config=repo / "config.harness.example.yaml",
+            suite_path=repo / "bench" / "office-acceptance-v1.yaml",
+            task_id="excel-quarterly-earnings",
+            output_dir=tmp_path / "office-preflight",
+            artifact_url=None,
+            skip_provision=True,
+            keymap="en-us",
+            password=None,
+            username=None,
+            max_continuation_cycles=1,
+            max_run_time_s=1,
+        )
+
+    assert model_run_started is False
+
+
+async def test_live_office_case_refuses_model_run_when_keyboard_preflight_fails(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    class FakeSettings:
+        def agent_token(self) -> str:
+            return "a" * 32
+
+        def observer_token(self) -> str:
+            return "o" * 32
+
+    class FakeLab:
+        env: dict[str, str] = {}
+        harness_url = "http://127.0.0.1:47642"
+        assets = type("Assets", (), {"harness_config": tmp_path / "fake.yaml"})()
+
+        def __init__(self, **_kwargs: object) -> None:
+            pass
+
+        def __enter__(self) -> FakeLab:
+            return self
+
+        def __exit__(self, *_args: object) -> None:
+            pass
+
+    model_run_started = False
+
+    async def available_observer(*_args: object, **_kwargs: object) -> None:
+        return None
+
+    async def wrong_layout(*_args: object, **_kwargs: object) -> None:
+        raise office_runner.KeyboardLayoutError(
+            "configured keyboard layout changed visible punctuation"
+        )
+
+    async def record_model_run(*_args: object, **_kwargs: object) -> object:
+        nonlocal model_run_started
+        model_run_started = True
+        raise AssertionError("managed model run must not start")
+
+    monkeypatch.setattr(bootstrap_windows, "deploy", lambda **_kwargs: None)
+    monkeypatch.setattr(office_runner, "RunningLab", FakeLab)
+    monkeypatch.setattr(office_runner, "allocate_lab_ports", object)
+    monkeypatch.setattr(
+        office_runner,
+        "load_harness_settings",
+        lambda _path: FakeSettings(),
+    )
+    monkeypatch.setattr(
+        office_runner,
+        "_probe_visual_observer",
+        available_observer,
+    )
+    monkeypatch.setattr(
+        office_runner,
+        "_probe_keyboard_layout",
+        wrong_layout,
+    )
+    monkeypatch.setattr(
+        office_runner,
+        "drive_managed_office_run",
+        record_model_run,
+    )
+    repo = Path(__file__).parents[1]
+
+    with pytest.raises(
+        office_runner.KeyboardLayoutError,
+        match="changed visible punctuation",
+    ):
+        await run_live_office_case(
+            endpoint="disposable.invalid:5900",
+            harness_config=repo / "config.harness.example.yaml",
+            suite_path=repo / "bench" / "office-acceptance-v1.yaml",
+            task_id="excel-quarterly-earnings",
+            output_dir=tmp_path / "office-keyboard-preflight",
+            artifact_url=None,
+            skip_provision=True,
+            keymap="en-gb",
+            password=None,
+            username=None,
+            max_continuation_cycles=1,
+            max_run_time_s=1,
+        )
+
+    assert model_run_started is False
+
+
+async def test_observer_preflight_requires_the_exact_runtime_artifact_path(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    expected = (
+        "C:/PiKVM-Harness/workspace/"
+        "shakespeare-essay-0123456789abcdef.docx"
+    )
+
+    async def wrong_path(*_args: object, **_kwargs: object) -> OracleSnapshot:
+        return OracleSnapshot(
+            protocol="pikvm-observer.v1",
+            sequence=1,
+            text="",
+            guest_fingerprint="guest:0123456789abcdef",
+            input_desktop="WinSta0\\Default",
+            file=ObservedFile(
+                path="C:/PiKVM-Harness/workspace/actual.txt",
+                content_base64="",
+                error="open failed",
+            ),
+        )
+
+    monkeypatch.setattr(
+        office_runner,
+        "_read_visual_observer",
+        wrong_path,
+    )
+
+    with pytest.raises(
+        office_runner.ObserverVisualError,
+        match="different artifact path",
+    ):
+        await _probe_visual_observer(
+            object(),  # type: ignore[arg-type]
+            observer_token="o" * 32,
+            expected_path=expected,
+        )
+
+
+async def test_observer_preflight_accepts_missing_file_at_the_exact_path(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    expected = (
+        "C:/PiKVM-Harness/workspace/"
+        "shakespeare-essay-0123456789abcdef.docx"
+    )
+
+    async def exact_path(*_args: object, **_kwargs: object) -> OracleSnapshot:
+        return OracleSnapshot(
+            protocol="pikvm-observer.v1",
+            sequence=1,
+            text="",
+            guest_fingerprint="guest:0123456789abcdef",
+            input_desktop="WinSta0\\Default",
+            file=ObservedFile(
+                path=expected.replace("/", "\\"),
+                content_base64="",
+                error="open failed",
+            ),
+        )
+
+    monkeypatch.setattr(
+        office_runner,
+        "_read_visual_observer",
+        exact_path,
+    )
+
+    await _probe_visual_observer(
+        object(),  # type: ignore[arg-type]
+        observer_token="o" * 32,
+        expected_path=expected,
+    )
 
 
 @pytest.mark.parametrize(
