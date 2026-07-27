@@ -2470,3 +2470,50 @@ async def test_harness_api_recursively_redacts_secret_action_text(
         assert "••••••••" in response.text
     assert listed.status_code == 200
     assert "raw-secret-value" not in listed.text
+
+
+@pytest.mark.asyncio
+async def test_managed_background_continue_returns_before_model_loop_finishes(
+    tmp_path: Path,
+) -> None:
+    started = asyncio.Event()
+    release = asyncio.Event()
+    frame = tmp_path / "frame.jpg"
+    frame.write_bytes(b"\xff\xd8fake-jpeg\xff\xd9")
+    store = InMemoryRunStore()
+
+    class BlockingHarness(StubHarness):
+        async def continue_run(self, run_id: str) -> RunSnapshot:
+            started.set()
+            await release.wait()
+            return await super().continue_run(run_id)
+
+    harness = BlockingHarness(store, frame)
+    run = await harness.create("Continue the Office task.")
+    run.status = RunStatus.PAUSED
+    await store.save(run)
+    app = create_harness_app(
+        harness=harness,
+        store=store,
+        models=StubModels(),
+        access_token=TEST_ACCESS_TOKEN,
+        allowed_origins={"http://harness"},
+    )
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app),
+        base_url="http://harness",
+        headers={"authorization": f"Bearer {TEST_ACCESS_TOKEN}"},
+    ) as client:
+        response = await asyncio.wait_for(
+            client.post(
+                f"/api/runs/{run.run_id}/continue",
+                params={"background": "true"},
+            ),
+            timeout=0.1,
+        )
+        await asyncio.wait_for(started.wait(), timeout=0.1)
+        release.set()
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "paused"

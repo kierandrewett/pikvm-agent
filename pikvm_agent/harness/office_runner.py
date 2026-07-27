@@ -94,7 +94,7 @@ class HttpManagedHarnessApi:
     async def continue_run(self, run_id: str) -> dict[str, Any]:
         return await self._request(
             "POST",
-            f"/api/runs/{run_id}/continue",
+            f"/api/runs/{run_id}/continue?background=true",
         )
 
     async def performance(self, run_id: str) -> dict[str, Any]:
@@ -223,6 +223,7 @@ async def drive_managed_office_run(
     cycles = 0
     last_status = ""
     approval_id = ""
+    continuation_cursor: int | None = None
     while True:
         payload = await api.get(run_id)
         run = _run_snapshot(payload)
@@ -245,6 +246,8 @@ async def drive_managed_office_run(
                 cycles=cycles,
                 reason="blocked",
             )
+        if run.status is not RunStatus.PAUSED:
+            continuation_cursor = None
         if monotonic() >= deadline:
             return await _abort_outcome(
                 api,
@@ -269,6 +272,12 @@ async def drive_managed_office_run(
             continue
         approval_id = ""
         if run.status is RunStatus.PAUSED:
+            if (
+                continuation_cursor is not None
+                and run.event_cursor <= continuation_cursor
+            ):
+                await sleep(0.25)
+                continue
             if cycles >= max_continuation_cycles:
                 return await _abort_outcome(
                     api,
@@ -277,6 +286,7 @@ async def drive_managed_office_run(
                     reason="continuation-cycle-limit",
                 )
             await api.continue_run(run_id)
+            continuation_cursor = run.event_cursor
             cycles += 1
             continue
         await sleep(0.25)

@@ -589,6 +589,90 @@ async def test_live_runner_continues_bounded_slices_but_never_approves() -> None
     ) == 1
 
 
+@pytest.mark.asyncio
+async def test_office_http_client_requests_background_continuation() -> None:
+    requests: list[httpx.Request] = []
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(200, json={"run_id": "office-live"})
+
+    async with httpx.AsyncClient(
+        transport=httpx.MockTransport(handler),
+        base_url="http://harness",
+    ) as client:
+        await HttpManagedHarnessApi(client).continue_run("office-live")
+
+    assert len(requests) == 1
+    assert requests[0].url.path == "/api/runs/office-live/continue"
+    assert requests[0].url.params.get("background") == "true"
+
+
+@pytest.mark.asyncio
+async def test_office_runner_does_not_duplicate_background_continuation() -> None:
+    class Api:
+        def __init__(self) -> None:
+            self.continues = 0
+            self.states = [
+                RunSnapshot(
+                    run_id="office-live",
+                    task="task",
+                    status=RunStatus.PAUSED,
+                    event_cursor=7,
+                ),
+                RunSnapshot(
+                    run_id="office-live",
+                    task="task",
+                    status=RunStatus.PAUSED,
+                    event_cursor=7,
+                ),
+                RunSnapshot(
+                    run_id="office-live",
+                    task="task",
+                    status=RunStatus.PAUSED,
+                    event_cursor=7,
+                ),
+                RunSnapshot(
+                    run_id="office-live",
+                    task="task",
+                    status=RunStatus.COMPLETED,
+                    event_cursor=8,
+                ),
+            ]
+
+        async def create(self, _task: str):
+            return {"run_id": "office-live"}
+
+        async def start(self, _run_id: str):
+            return {"run_id": "office-live"}
+
+        async def get(self, _run_id: str):
+            return self.states.pop(0).model_dump(mode="json")
+
+        async def continue_run(self, _run_id: str):
+            self.continues += 1
+            return {"run_id": "office-live"}
+
+        async def abort(self, _run_id: str, _reason: str):
+            raise AssertionError("completed run must not be aborted")
+
+        async def performance(self, _run_id: str):
+            raise AssertionError("not used")
+
+    api = Api()
+    outcome = await drive_managed_office_run(
+        api,
+        instruction="Continue the task.",
+        max_continuation_cycles=5,
+        max_run_time_s=60,
+        sleep=lambda _seconds: _no_sleep(),
+        monotonic=lambda: 0,
+    )
+
+    assert outcome.run.status is RunStatus.COMPLETED
+    assert api.continues == 1
+
+
 async def _no_sleep() -> None:
     return None
 
@@ -639,12 +723,6 @@ async def test_live_runner_aborts_when_artifact_visibility_cannot_start() -> Non
 
 
 async def test_live_runner_stops_at_its_own_continuation_limit() -> None:
-    paused = RunSnapshot(
-        run_id="office-loop",
-        task="task",
-        status=RunStatus.PAUSED,
-    ).model_dump(mode="json")
-
     class Api:
         def __init__(self) -> None:
             self.continues = 0
@@ -657,11 +735,16 @@ async def test_live_runner_stops_at_its_own_continuation_limit() -> None:
             return {"run_id": run_id}
 
         async def get(self, _run_id: str):
-            return paused
+            return RunSnapshot(
+                run_id="office-loop",
+                task="task",
+                status=RunStatus.PAUSED,
+                event_cursor=self.continues,
+            ).model_dump(mode="json")
 
         async def continue_run(self, _run_id: str):
             self.continues += 1
-            return paused
+            return {"run_id": "office-loop"}
 
         async def abort(self, _run_id: str, _reason: str):
             self.aborts += 1

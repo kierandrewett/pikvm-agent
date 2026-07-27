@@ -1011,7 +1011,10 @@ def create_harness_app(
         return _visible_run(run)
 
     @app.post("/api/runs/{run_id}/continue")
-    async def continue_run(run_id: str) -> dict[str, Any]:
+    async def continue_run(
+        run_id: str,
+        background: bool = False,
+    ) -> dict[str, Any]:
         if external_driver:
             raise HTTPException(
                 409,
@@ -1024,6 +1027,19 @@ def create_harness_app(
                     503, "direct-call visibility is not configured"
                 )
             return _visible_run(await direct_calls.resume(run_id))
+        if background:
+            if run.origin != "managed":
+                raise HTTPException(
+                    409,
+                    "only managed runs support background continuation",
+                )
+            if run.status is not RunStatus.PAUSED or run.pending_approval:
+                raise HTTPException(
+                    409,
+                    "run is not at a continuable checkpoint",
+                )
+            schedule(guarded_continue(run_id))
+            return _visible_run(run)
         return _visible_run(await guarded_continue(run_id))
 
     @app.post("/api/runs/{run_id}/start")
