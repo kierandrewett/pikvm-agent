@@ -258,8 +258,83 @@ def test_harness_init_writes_secret_free_config_without_overwriting(tmp_path) ->
     assert list(config["providers"]) == ["codex-account", "openai-api"]
     assert "OPENAI_API_KEY" in first.stdout
     assert "PIKVM_HARNESS_TOKEN" in first.stdout
+    assert "Required to start chat" in first.stdout
+    assert "Required only for computer control" in first.stdout
     assert second.exit_code == 1
     assert "already exists" in second.stderr
+
+
+def test_harness_check_accepts_chat_without_a_computer_target(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    destination = tmp_path / "harness.yaml"
+    settings = build_initial_harness_settings(
+        oauth_clis="codex",
+        executable_lookup=lambda _name: "/usr/bin/codex",
+        web_search=False,
+    )
+    destination.write_text(render_initial_harness_config(settings))
+    monkeypatch.setenv(
+        "PIKVM_HARNESS_TOKEN",
+        "test-harness-token-0123456789abcdef",
+    )
+    monkeypatch.delenv("PIKVM_AGENT_DAEMON", raising=False)
+    monkeypatch.delenv("PIKVM_HARNESS_AGENT_TOKEN", raising=False)
+    monkeypatch.delenv("PIKVM_HARNESS_OBSERVER_TOKEN", raising=False)
+    monkeypatch.setattr(
+        "pikvm_agent.harness.config.shutil.which",
+        lambda value: "/usr/bin/codex" if value == "codex" else None,
+    )
+
+    result = CliRunner().invoke(
+        app,
+        ["harness", "check", "--config", str(destination)],
+    )
+
+    assert result.exit_code == 0
+    body = yaml.safe_load(result.stdout)
+    assert body["ok"] is True
+    assert body["computer"] == {
+        "configured": False,
+        "ready": False,
+    }
+
+
+def test_harness_check_can_require_a_selected_computer(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    destination = tmp_path / "harness.yaml"
+    settings = build_initial_harness_settings(
+        oauth_clis="codex",
+        executable_lookup=lambda _name: "/usr/bin/codex",
+        web_search=False,
+    )
+    destination.write_text(render_initial_harness_config(settings))
+    monkeypatch.setenv(
+        "PIKVM_HARNESS_TOKEN",
+        "test-harness-token-0123456789abcdef",
+    )
+    monkeypatch.delenv("PIKVM_AGENT_DAEMON", raising=False)
+    monkeypatch.setattr(
+        "pikvm_agent.harness.config.shutil.which",
+        lambda value: "/usr/bin/codex" if value == "codex" else None,
+    )
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "harness",
+            "check",
+            "--config",
+            str(destination),
+            "--require-computer",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "--require-computer" in result.stderr
 
 
 def test_harness_init_exposes_azure_api_key_onboarding(tmp_path) -> None:

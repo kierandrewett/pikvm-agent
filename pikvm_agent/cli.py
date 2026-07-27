@@ -1000,9 +1000,11 @@ def harness_init(
     )
     typer.echo(f"Wrote secret-free harness config: {destination}")
     typer.echo(
-        "Required runtime environment: PIKVM_AGENT_DAEMON, "
-        "PIKVM_HARNESS_TOKEN, PIKVM_HARNESS_AGENT_TOKEN, "
-        "PIKVM_HARNESS_OBSERVER_TOKEN"
+        "Required to start chat: PIKVM_HARNESS_TOKEN"
+    )
+    typer.echo(
+        "Required only for computer control: PIKVM_AGENT_DAEMON, "
+        "PIKVM_HARNESS_AGENT_TOKEN, PIKVM_HARNESS_OBSERVER_TOKEN"
     )
     if credential_envs:
         typer.echo(
@@ -1024,8 +1026,16 @@ def harness_check(
         dir_okay=False,
         readable=True,
     ),
+    require_computer: bool = typer.Option(
+        False,
+        "--require-computer",
+        help=(
+            "Also require an explicitly selected computer daemon and the "
+            "managed/direct client credentials."
+        ),
+    ),
 ) -> None:
-    """Validate routes, secrets, target selection, and bind safety without starting."""
+    """Validate chat readiness and optionally require computer control."""
     import json
 
     from pikvm_agent.harness.config import (
@@ -1035,20 +1045,38 @@ def harness_check(
         load_harness_settings,
     )
 
-    settings = load_harness_settings(config)
-    ensure_safe_bind(settings)
-    # Resolve required env-owned values, but never print their contents.
-    settings.daemon_url()
-    settings.access_token()
-    settings.agent_token()
-    settings.observer_token()
-    provider_statuses = check_provider_prerequisites(settings)
-    ensure_provider_prerequisites(settings)
+    try:
+        settings = load_harness_settings(config)
+        ensure_safe_bind(settings)
+        # Resolve required env-owned values, but never print their contents.
+        settings.access_token()
+        daemon_url = settings.optional_daemon_url()
+        if daemon_url is not None:
+            settings.agent_token()
+            settings.observer_token()
+        elif settings.agent_token_env in os.environ:
+            # The server accepts an optional managed-client token in
+            # target-free mode, but a supplied token must still be valid.
+            settings.agent_token()
+        if require_computer and daemon_url is None:
+            raise ValueError(
+                f"{settings.daemon_url_env} is required by "
+                "--require-computer"
+            )
+        provider_statuses = check_provider_prerequisites(settings)
+        ensure_provider_prerequisites(settings)
+    except ValueError as exc:
+        typer.echo(f"Harness check failed: {exc}", err=True)
+        raise typer.Exit(2)
     typer.echo(
         json.dumps(
             {
                 "ok": True,
                 "listen": settings.listen,
+                "computer": {
+                    "configured": daemon_url is not None,
+                    "ready": daemon_url is not None,
+                },
                 "providers": provider_statuses,
                 "routes": settings.routes.model_dump(),
                 "state_path": str(settings.state_path),
