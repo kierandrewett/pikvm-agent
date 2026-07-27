@@ -1111,7 +1111,7 @@ messaging integration.
 ## Current headline
 
 <!-- pikvm-scorecard:start -->
-_Generated from checked JSON evidence as of 2026-07-27. Manifest `sha256:8e8640a3b8bd`; run `pikvm-agent harness scorecard --check` to detect drift._
+_Generated from checked JSON evidence as of 2026-07-27. Manifest `sha256:704fb899ed21`; run `pikvm-agent harness scorecard --check` to detect drift._
 
 | Suite | Route | Cases | Result | Median / p95 | Wall | Status | Evidence |
 | --- | --- | ---: | ---: | ---: | ---: | --- | --- |
@@ -1148,6 +1148,7 @@ _Generated from checked JSON evidence as of 2026-07-27. Manifest `sha256:8e8640a
 | Provider conformance attempt | Codex CLI + Claude Code | 2 providers / 2 calls | 0/2 exact; 2 failures; Codex adapter fixed afterward | 0.145s / 90.113s | 90.258s | Failing diagnostic; approved rerun blocked before launch | [JSON](results/2026-07-26/providers/provider-conformance-attempt-2026-07-26.json) · `sha256:abff0e7407a7` |
 | Live provider conformance | Codex account-default + Claude Opus | 2 providers / 6 calls | 6/6 exact; 0 failures | Claude 15.69s / 16.46s; Codex 105.74s / 114.88s | 318.70s | Passing target-free n=3/provider; neither route is fast-controller eligible | [JSON](results/2026-07-27/providers/live-codex-claude-provider-conformance.json) · `sha256:ff1537c29a09` |
 | Live chat-first assistant | Claude OAuth → chat / web MCP / hand-off / approval | 5 live tasks | 5/5; 2 requested / 1 called; consequential executed 0 | Greeting 9.30s; question 5.44s; research 15.91s; hand-off 5.19s; approval 6.97s | 42.80s | Passing target-free; canary needs_approval; first activity 2ms | [JSON](results/2026-07-27/providers/live-claude-assistant-conformance-v2.json) · `sha256:f95b16a8c174` |
+| Live Claude chat workspace | Electron/CDP → Claude OAuth → visible web MCP | 3/3; 5 live provider calls; 2 visible web tools | First progress 136ms; max 1 progress / 0 branches; 0 computer events | Research 35.23s | Isolated Electron/CDP | Passing live OAuth chat UI; API-provider browser matrix pending | [JSON](results/2026-07-27/ui/live-claude-chat-workspace-cdp.json) · `sha256:abe5b1b5dce1` |
 | Live chat-only server | Claude OAuth → operator API with no computer adapter | 1 live server task | 1/1; exact reply yes; 1 model / 0 computer events | 7.69s process start + task | 7.69s | Passing chat-only server; target configured no; session created no | [JSON](results/2026-07-27/providers/live-claude-target-free-server-v1.json) · `sha256:7471b6ef215d` |
 | Live API assistant canary | Anthropic Messages API / `claude-sonnet-5` | 1 live canary | 0/1; 1 model / 0 requested / 0 tool calls; consequential 0 | 596ms | 596ms | Failing credential compatibility: authentication-failed; computer contacted no | [JSON](results/2026-07-27/providers/live-anthropic-api-assistant-approval-conformance-v2.json) · `sha256:5b93b49696a0` |
 | Live chat-first assistant | Codex OAuth → assistant → web MCP / computer hand-off | 4 live tasks | 4/4; 5 model / 1 tool calls; 3 tools / 1 server ready | Greeting 110.84s; question 97.57s; research 230.87s; hand-off 110.18s | 549.45s | Passing after strict-schema fix; too slow for default interactive route | [JSON](results/2026-07-27/providers/live-codex-assistant-conformance.json) · `sha256:3c6a8af4e33c` |

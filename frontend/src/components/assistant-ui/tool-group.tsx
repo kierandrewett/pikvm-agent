@@ -95,19 +95,33 @@ function ToolGroupRoot({
 function ToolGroupTrigger({
   count,
   active = false,
+  toolNames = [],
   className,
   ...props
 }: React.ComponentProps<typeof CollapsibleTrigger> & {
   count: number;
   active?: boolean;
+  toolNames?: readonly string[];
 }) {
-  const label = `${count} tool ${count === 1 ? "call" : "calls"}`;
+  const countLabel = `${count} tool ${count === 1 ? "call" : "calls"}`;
+  const visibleNames = toolNames.slice(0, 3);
+  const omittedCount = Math.max(0, toolNames.length - visibleNames.length);
+  const summary = [
+    visibleNames.join(" → "),
+    omittedCount ? `+${omittedCount} more` : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const accessibleLabel = toolNames.length
+    ? `${toolNames.join(" then ")}, ${countLabel}`
+    : countLabel;
 
   return (
     <CollapsibleTrigger
       data-slot="tool-group-trigger"
+      aria-label={accessibleLabel}
       className={cn(
-        "aui-tool-group-trigger group/trigger flex origin-left items-center gap-2 text-sm transition-[color,scale] active:scale-[0.98]",
+        "aui-tool-group-trigger group/trigger flex min-w-0 origin-left items-center gap-2 text-sm transition-[color,scale] active:scale-[0.98]",
         "group-data-[variant=ghost]/tool-group-root:text-muted-foreground group-data-[variant=ghost]/tool-group-root:hover:text-foreground group-data-[variant=ghost]/tool-group-root:py-1.5",
         "group-data-[variant=outline]/tool-group-root:w-full group-data-[variant=outline]/tool-group-root:px-4",
         "group-data-[variant=muted]/tool-group-root:w-full group-data-[variant=muted]/tool-group-root:px-4",
@@ -124,20 +138,30 @@ function ToolGroupTrigger({
       <span
         data-slot="tool-group-trigger-label"
         className={cn(
-          "aui-tool-group-trigger-label-wrapper relative inline-block text-start leading-none font-medium",
+          "aui-tool-group-trigger-label-wrapper relative flex min-w-0 items-baseline gap-2 text-start leading-none font-medium",
           "group-data-[variant=ghost]/tool-group-root:font-normal",
           "group-data-[variant=outline]/tool-group-root:grow",
           "group-data-[variant=muted]/tool-group-root:grow",
         )}
       >
-        <span className="text-xs">{label}</span>
+        <span
+          className="truncate font-mono text-[11px] text-foreground/80"
+          title={summary || undefined}
+        >
+          {summary || countLabel}
+        </span>
+        {summary ? (
+          <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">
+            {countLabel}
+          </span>
+        ) : null}
         {active && (
           <span
             aria-hidden
             data-slot="tool-group-trigger-shimmer"
-            className="aui-tool-group-trigger-shimmer shimmer pointer-events-none absolute inset-0 text-xs motion-reduce:animate-none"
+            className="aui-tool-group-trigger-shimmer shimmer pointer-events-none absolute inset-0 truncate font-mono text-[11px] motion-reduce:animate-none"
           >
-            {label}
+            {summary || countLabel}
           </span>
         )}
       </span>

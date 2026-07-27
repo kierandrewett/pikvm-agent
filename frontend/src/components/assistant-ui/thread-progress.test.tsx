@@ -58,6 +58,39 @@ const handoffMessages: ThreadMessageLike[] = [
   },
 ];
 
+const toolMessages: ThreadMessageLike[] = [
+  {
+    id: "user-tools",
+    role: "user",
+    content: "Find the current Python release.",
+  },
+  {
+    id: "assistant-tools",
+    role: "assistant",
+    content: [
+      {
+        type: "tool-call",
+        toolCallId: "search-1",
+        toolName: "web.search_text",
+        args: { query: "site:python.org latest Python release" },
+        argsText:
+          '{"query":"site:python.org latest Python release"}',
+        result: { status: "completed" },
+      },
+      {
+        type: "tool-call",
+        toolCallId: "extract-1",
+        toolName: "web.extract_content",
+        args: { url: "https://www.python.org/downloads/" },
+        argsText:
+          '{"url":"https://www.python.org/downloads/"}',
+        result: { status: "completed" },
+      },
+    ],
+    status: { type: "complete", reason: "stop" },
+  },
+];
+
 function RunningThread() {
   const runtime = useExternalStoreRuntime({
     messages,
@@ -98,6 +131,21 @@ function RunningHandoffThread() {
           role: "reasoner",
         }}
       />
+    </AssistantRuntimeProvider>
+  );
+}
+
+function CompletedToolThread() {
+  const runtime = useExternalStoreRuntime({
+    messages: toolMessages,
+    convertMessage: (message) => message,
+    isRunning: false,
+    onNew: async () => undefined,
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Thread />
     </AssistantRuntimeProvider>
   );
 }
@@ -213,5 +261,16 @@ describe("Thread progress", () => {
     expect(
       document.querySelector("[data-slot='aui-branch-picker-root']"),
     ).toBeNull();
+  });
+
+  it("names compacted tool calls without opening the group", () => {
+    render(<CompletedToolThread />);
+
+    const trigger = screen.getByRole("button", {
+      name: "web.search_text then web.extract_content, 2 tool calls",
+    });
+    expect(trigger).toHaveTextContent(
+      "web.search_text → web.extract_content",
+    );
   });
 });

@@ -291,6 +291,27 @@ const MessageError: FC = () => {
   );
 };
 
+const DefaultToolGroup: FC<
+  PropsWithChildren<{ group: ThreadGroupPart }>
+> = ({ group, children }) => {
+  const content = useAuiState((state) => state.message.content);
+  const toolNames = group.indices.flatMap((index) => {
+    const part = content[index];
+    return part?.type === "tool-call" ? [part.toolName] : [];
+  });
+
+  return (
+    <ToolGroupRoot variant="ghost">
+      <ToolGroupTrigger
+        count={group.indices.length}
+        active={group.status.type === "running"}
+        toolNames={toolNames}
+      />
+      <ToolGroupContent>{children}</ToolGroupContent>
+    </ToolGroupRoot>
+  );
+};
+
 const AssistantMessage: FC = () => {
   const {
     ToolFallback: ToolFallbackComponent = ToolFallback,
@@ -330,13 +351,9 @@ const AssistantMessage: FC = () => {
                   return <ToolGroup group={part}>{children}</ToolGroup>;
                 }
                 return (
-                  <ToolGroupRoot variant="ghost">
-                    <ToolGroupTrigger
-                      count={part.indices.length}
-                      active={part.status.type === "running"}
-                    />
-                    <ToolGroupContent>{children}</ToolGroupContent>
-                  </ToolGroupRoot>
+                  <DefaultToolGroup group={part}>
+                    {children}
+                  </DefaultToolGroup>
                 );
               case "group-reasoning": {
                 if (ReasoningGroup) {

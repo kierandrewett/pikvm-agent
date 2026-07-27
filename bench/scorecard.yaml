@@ -559,6 +559,25 @@ rows:
     wall: "{wall}"
     status: "Passing target-free; canary {approval_status}; first activity {first_activity}"
 
+  - suite: "Live Claude chat workspace"
+    route: "Electron/CDP → Claude OAuth → visible web MCP"
+    source: "results/2026-07-27/ui/live-claude-chat-workspace-cdp.json"
+    fields:
+      cases: {path: "cases_requested", format: "integer"}
+      passed: {path: "cases_passed", format: "integer"}
+      provider_calls: {path: "provider_calls", format: "integer"}
+      tools: {path: "cases.1.tool_calls", format: "count"}
+      first_progress: {path: "cases.2.first_visible_progress_ms", format: "milliseconds", digits: 0}
+      max_progress: {path: "cases.2.maximum_simultaneous_progress_indicators", format: "integer"}
+      branches: {path: "cases.2.maximum_branch_counters", format: "integer"}
+      research: {path: "cases.1.run_wall_ms", format: "seconds_from_ms", digits: 2}
+      computer_events: {path: "safety.computer_events", format: "integer"}
+    cases: "{passed}/{cases}; {provider_calls} live provider calls; {tools} visible web tools"
+    result: "First progress {first_progress}; max {max_progress} progress / {branches} branches; {computer_events} computer events"
+    latency: "Research {research}"
+    wall: "Isolated Electron/CDP"
+    status: "Passing live OAuth chat UI; API-provider browser matrix pending"
+
   - suite: "Live chat-only server"
     route: "Claude OAuth → operator API with no computer adapter"
     source: "results/2026-07-27/providers/live-claude-target-free-server-v1.json"

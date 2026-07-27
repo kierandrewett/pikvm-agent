@@ -1,0 +1,124 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-07-27T19:07:51Z",
+  "source_commit_before_change": "a9e38a69a6699667df4ab31bf3afec152fd8d8e0",
+  "route": "isolated Electron chat workspace -> Claude CLI OAuth -> visible MCP research",
+  "cases_requested": 3,
+  "cases_passed": 3,
+  "provider_calls": 5,
+  "provider": {
+    "alias": "claude-account",
+    "model": "opus",
+    "adapter": "claude_cli",
+    "credential_owner": "provider_cli",
+    "credential": "owned-by-cli",
+    "ready": true,
+    "failures": 0
+  },
+  "cases": [
+    {
+      "name": "exact greeting",
+      "status": "completed",
+      "run_wall_ms": 4622,
+      "provider_calls": 1,
+      "exact_response": true,
+      "response": "Hello from the isolated harness.",
+      "session_created": false,
+      "computer_events": 0
+    },
+    {
+      "name": "official-source web research",
+      "status": "completed",
+      "run_wall_ms": 35227,
+      "provider_calls": 3,
+      "tool_calls": [
+        "web.search_text",
+        "web.extract_content"
+      ],
+      "citation_hosts": [
+        "www.python.org"
+      ],
+      "answer": "Python 3.14.6",
+      "session_created": false,
+      "computer_events": 0
+    },
+    {
+      "name": "ordinary knowledge response with full UI sampling",
+      "status": "completed",
+      "run_wall_ms": 6698,
+      "cdp_observed_wall_ms": 7012,
+      "first_visible_progress_ms": 136,
+      "provider_calls": 1,
+      "maximum_simultaneous_progress_indicators": 1,
+      "maximum_assistant_message_roots": 1,
+      "maximum_branch_counters": 0,
+      "progress_labels": [
+        "Thinking opus"
+      ],
+      "session_created": false,
+      "computer_events": 0
+    }
+  ],
+  "tool_visibility": {
+    "completed_group_default_open": false,
+    "collapsed_label": "web.search_text -> web.extract_content",
+    "collapsed_count": "2 tool calls",
+    "accessible_label": "web.search_text then web.extract_content, 2 tool calls",
+    "exact_tool_names_visible_without_expansion": true,
+    "arguments_and_results_available_on_expansion": true
+  },
+  "browser_audit": {
+    "surface": "isolated Electron over CDP",
+    "browser_profile": "temporary",
+    "main_desktop_profile_used": false,
+    "screenshots_captured": 0,
+    "composer_empty_after_each_case": true,
+    "branch_counters_after_reload": 0,
+    "narrow_viewport": {
+      "width": 390,
+      "height": 844,
+      "horizontal_overflow_pixels": 0,
+      "tool_trigger_width": 322,
+      "tool_label_truncated": false,
+      "branch_counters": 0
+    }
+  },
+  "contracts": {
+    "frontend_full_suite": {
+      "passed": 106,
+      "total": 106
+    },
+    "focused_tool_visibility": {
+      "passed": 5,
+      "total": 5
+    },
+    "production_build": "passed",
+    "typescript_typecheck": "passed",
+    "diff_check": "passed",
+    "typescript_similarity": "no new source duplication concern"
+  },
+  "resource_envelope": {
+    "javascript_raw_bytes": 814042,
+    "javascript_gzip_9_bytes": 241584,
+    "css_raw_bytes": 109019,
+    "css_gzip_9_bytes": 18061
+  },
+  "safety": {
+    "computer_control": "disabled",
+    "vnc_contact": false,
+    "pikvm_contact": false,
+    "production_daemon_contact": false,
+    "computer_session_created": false,
+    "computer_events": 0,
+    "hid_submitted": false,
+    "approval_submitted": false,
+    "external_model_called": true,
+    "read_only_web_tools_called": true
+  },
+  "limitations": [
+    "This proves the first-party chat workspace with one live OAuth provider, not the API-provider matrix.",
+    "The server intentionally had no computer adapter, so this does not prove Windows, Office, OCR, or HID behavior.",
+    "The first research run was inspected after its initial tool phase; exact completed tool names and the full durable event trace were verified, while the separate ordinary-response case measured progress visibility from submission.",
+    "No screenshot was captured or retained."
+  ]
+}
