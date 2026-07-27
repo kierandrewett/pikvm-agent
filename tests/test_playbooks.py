@@ -37,9 +37,13 @@ async def test_run_playbook_requires_approval_for_bare_enter_then_executes(
     sid = (await runtime.start_session("direct"))["session_id"]
     shot = await runtime.get_session_summary(sid, capture=True)
     res = await runtime.run_playbook(
-        sid, "vscode.quick_open_file", {"path": "readme.md"},
+        sid,
+        "vscode.quick_open_file",
+        {"path": "readme.md"},
         based_on_world_version=shot["world_version"],
-        based_on_control_epoch=shot["control_epoch"])
+        based_on_control_epoch=shot["control_epoch"],
+        idempotency_key="test-playbook-quick-open-readme",
+    )
     assert res["status"] == "needs_approval"
     assert not [
         call for call in runtime.backend.calls if call[0] == "keypress"
