@@ -215,12 +215,27 @@ def harness_smoke_lab(
         "--root",
         help="Private state and frame directory for this smoke-lab run.",
     ),
+    live_providers: bool = typer.Option(
+        False,
+        "--live-providers",
+        help=(
+            "Use the configured OAuth/API model routes against the synthetic "
+            "computer instead of the deterministic offline provider."
+        ),
+    ),
+    allow_provider_calls: bool = typer.Option(
+        False,
+        "--allow-provider-calls",
+        help="Explicitly authorize billable or quota-consuming provider calls.",
+    ),
 ) -> None:
     """Run a target-free full-stack managed-client acceptance lab."""
     import uvicorn
 
     from pikvm_agent.harness.config import (
+        build_model_pool,
         ensure_safe_bind,
+        ensure_provider_prerequisites,
         load_harness_settings,
     )
     from pikvm_agent.harness.lab import PRODUCTION_DAEMON_PORT
@@ -228,6 +243,11 @@ def harness_smoke_lab(
 
     settings = load_harness_settings(config)
     ensure_safe_bind(settings)
+    if live_providers and not allow_provider_calls:
+        typer.echo(
+            "Live provider calls require --allow-provider-calls.",
+        )
+        raise typer.Exit(2)
     host, port = settings.host_port()
     if port == PRODUCTION_DAEMON_PORT:
         typer.echo(
@@ -235,15 +255,26 @@ def harness_smoke_lab(
             err=True,
         )
         raise typer.Exit(2)
+    models = None
+    if live_providers:
+        ensure_provider_prerequisites(settings)
+        models = build_model_pool(settings)
     operator_app = build_managed_smoke_app(
         root=root,
         access_token=settings.access_token(),
         agent_token=settings.agent_token(),
         allowed_origin=f"http://{host}:{port}",
+        models=models,
     )
-    typer.echo(
-        "Target-free managed smoke lab: no VNC, PiKVM, daemon, or model API."
-    )
+    if live_providers:
+        typer.echo(
+            "Target-free managed smoke lab: synthetic computer with configured "
+            "live model routes; no VNC, PiKVM, daemon, or HID."
+        )
+    else:
+        typer.echo(
+            "Target-free managed smoke lab: no VNC, PiKVM, daemon, or model API."
+        )
     typer.echo(f"Chat workspace: http://{host}:{port}/app/")
     uvicorn.run(
         operator_app,

@@ -211,8 +211,14 @@ def build_managed_smoke_app(
     agent_token: str,
     allowed_origin: str,
     store: RunStore | None = None,
+    models: ModelPool | None = None,
 ) -> FastAPI:
-    """Build the real managed operator app over deterministic local adapters."""
+    """Build the real managed operator app over a synthetic computer.
+
+    The offline default uses the deterministic smoke provider. Callers may
+    inject the production model pool for an explicitly authorized live-model
+    acceptance run without introducing a VNC, PiKVM, daemon, or HID target.
+    """
 
     root = root.expanduser().resolve()
     frame_dir = root / "frames"
@@ -222,26 +228,27 @@ def build_managed_smoke_app(
     _write_smoke_frame(before, completed=False)
     _write_smoke_frame(after, completed=True)
 
-    provider = ManagedSmokeProvider()
-    models = ModelPool(
-        providers={provider.name: provider},
-        routes={
-            role: RoleRoute(providers=[provider.name])
-            for role in ("reasoner", "controller", "verifier")
-        },
-        provider_metadata={
-            provider.name: {
-                "kind": "deterministic_smoke",
-                "configured_model": "deterministic-smoke-v1",
-                "billing_mode": "synthetic",
-                "interface": "Managed smoke provider",
-                "pixel_input": "Labelled local PNG checkpoints",
-                "structured_output": "Native validated schema",
-                "credential": "none",
-                "auth_mode": "none",
-            }
-        },
-    )
+    if models is None:
+        provider = ManagedSmokeProvider()
+        models = ModelPool(
+            providers={provider.name: provider},
+            routes={
+                role: RoleRoute(providers=[provider.name])
+                for role in ("reasoner", "controller", "verifier")
+            },
+            provider_metadata={
+                provider.name: {
+                    "kind": "deterministic_smoke",
+                    "configured_model": "deterministic-smoke-v1",
+                    "billing_mode": "synthetic",
+                    "interface": "Managed smoke provider",
+                    "pixel_input": "Labelled local PNG checkpoints",
+                    "structured_output": "Native validated schema",
+                    "credential": "none",
+                    "auth_mode": "none",
+                }
+            },
+        )
     run_store = store or SqliteRunStore(root / "state.sqlite3")
     harness = AgentHarness(
         computer=ManagedSmokeComputer(before=before, after=after),

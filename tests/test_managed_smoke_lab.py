@@ -4,6 +4,7 @@ from pathlib import Path
 
 import httpx
 import pytest
+from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
 from pikvm_agent.cli import app
@@ -154,3 +155,110 @@ def test_smoke_lab_cli_starts_only_the_loopback_managed_surface(
         getattr(launched["target"], "state").harness_store,
         SqliteRunStore,
     )
+
+
+def test_smoke_lab_refuses_live_providers_without_explicit_call_consent(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    config = tmp_path / "smoke.yaml"
+    config.write_text(
+        "\n".join(
+            [
+                'listen: "127.0.0.1:47777"',
+                'state_path: "state.sqlite3"',
+                'artifact_dir: "artifacts"',
+                "providers:",
+                "  account:",
+                '    kind: "codex_cli"',
+                '    model: "account-default"',
+                "routes:",
+                '  reasoner: ["account"]',
+                '  controller: ["account"]',
+                '  verifier: ["account"]',
+            ]
+        )
+    )
+    monkeypatch.setenv("PIKVM_HARNESS_TOKEN", OPERATOR_TOKEN)
+    monkeypatch.setenv("PIKVM_HARNESS_AGENT_TOKEN", AGENT_TOKEN)
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "harness",
+            "smoke-lab",
+            "--config",
+            str(config),
+            "--root",
+            str(tmp_path / "runtime"),
+            "--live-providers",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert (
+        "Live provider calls require --allow-provider-calls"
+        in result.stdout
+    )
+
+
+def test_smoke_lab_uses_configured_routes_when_live_calls_are_authorized(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    config = tmp_path / "smoke.yaml"
+    config.write_text(
+        "\n".join(
+            [
+                'listen: "127.0.0.1:47777"',
+                'state_path: "state.sqlite3"',
+                'artifact_dir: "artifacts"',
+                "providers:",
+                "  account:",
+                '    kind: "codex_cli"',
+                '    model: "account-default"',
+                "routes:",
+                '  reasoner: ["account"]',
+                '  controller: ["account"]',
+                '  verifier: ["account"]',
+            ]
+        )
+    )
+    monkeypatch.setenv("PIKVM_HARNESS_TOKEN", OPERATOR_TOKEN)
+    monkeypatch.setenv("PIKVM_HARNESS_AGENT_TOKEN", AGENT_TOKEN)
+    launched: dict[str, object] = {}
+
+    def record_run(target: object, **kwargs: object) -> None:
+        launched.update({"target": target, "kwargs": kwargs})
+
+    monkeypatch.setattr("uvicorn.run", record_run)
+    result = CliRunner().invoke(
+        app,
+        [
+            "harness",
+            "smoke-lab",
+            "--config",
+            str(config),
+            "--root",
+            str(tmp_path / "runtime"),
+            "--live-providers",
+            "--allow-provider-calls",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert (
+        "synthetic computer with configured live model routes"
+        in result.stdout
+    )
+    with TestClient(launched["target"]) as client:
+        response = client.get(
+            "/api/providers",
+            headers={
+                "authorization": f"Bearer {OPERATOR_TOKEN}",
+                "origin": "http://127.0.0.1:47777",
+            },
+        )
+    assert response.status_code == 200
+    assert set(response.json()) == {"account"}
+    assert response.json()["account"]["kind"] == "codex_cli"
