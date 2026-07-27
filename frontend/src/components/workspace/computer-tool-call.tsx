@@ -707,9 +707,11 @@ export function ComputerInputSequence({
                   </span>
                 ) : null}
               </div>
-              <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
-                {actionLabel(action)}
-              </p>
+              {actionName(action).includes("type") ? null : (
+                <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+                  {actionLabel(action)}
+                </p>
+              )}
               <ActionExactInput
                 action={action}
                 environment={environment}
@@ -1288,7 +1290,7 @@ const ComputerToolCallImpl: ToolCallMessagePartComponent<
           <span className="block truncate text-sm font-semibold">
             {summary.title}
           </span>
-          <span className="mt-1 flex min-w-0 items-center gap-1.5 text-[11px] text-muted-foreground">
+          <span className="mt-1 flex min-w-0 items-center gap-1.5 text-[11px] text-muted-foreground group-data-open/computer-tool:hidden">
             <span className="truncate">{summary.detail}</span>
             <span aria-hidden="true">·</span>
             <code className="shrink-0 font-mono">
@@ -1340,8 +1342,6 @@ const ComputerToolCallImpl: ToolCallMessagePartComponent<
 
       <CollapsibleContent className="data-closed:animate-collapsible-up data-open:animate-collapsible-down overflow-hidden motion-reduce:animate-none">
         <div className="mt-1 border-t border-border/60 pt-2 pb-1 sm:ml-10">
-          {needsApproval ? <ActionIntent receipt={receipt} /> : null}
-
           <VerificationEvidenceFigure
             revision={receipt.evidenceRevision}
             environment={environment}
@@ -1393,7 +1393,7 @@ const ComputerToolCallImpl: ToolCallMessagePartComponent<
                 Details
               </CollapsibleTrigger>
               <CollapsibleContent className="data-closed:animate-collapsible-up data-open:animate-collapsible-down overflow-hidden motion-reduce:animate-none">
-                {needsApproval ? null : <ActionIntent receipt={receipt} />}
+                <ActionIntent receipt={receipt} />
                 <ComputerActionReceipt
                   args={callArgs}
                   result={result}
