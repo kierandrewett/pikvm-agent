@@ -1,31 +1,26 @@
 ---
-name: PiKVM Operator Harness
-description: A calm, evidence-first control surface for supervised computer use.
+name: PiKVM Agent
+description: A chat-first desktop workspace for supervised computer use.
 colors:
-  command-blue: "#3b82f6"
-  command-blue-deep: "#1e40af"
-  command-blue-soft: "#172554"
-  night-canvas: "#11141a"
-  machine-well: "#0b0d12"
-  operator-surface: "#161a23"
-  raised-surface: "#1c2230"
-  active-surface: "#242c3d"
-  boundary: "#2b3447"
-  text-primary: "#e8edf5"
-  text-muted: "#9aa6bd"
-  evidence-green: "#7ee29a"
-  evidence-green-soft: "#14361f"
-  caution-amber: "#f0c869"
-  caution-amber-soft: "#3a2c0e"
-  stop-red: "#f08aa0"
-  stop-red-soft: "#3a1620"
+  accent: "#5f75ee"
+  accent-strong: "#7185f4"
+  accent-soft: "#22294d"
+  canvas: "#111216"
+  sidebar: "#15161b"
+  conversation: "#191a20"
+  well: "#0c0d10"
+  raised: "#22232a"
+  active: "#292b34"
+  boundary: "#30323b"
+  text-primary: "#f1f2f5"
+  text-muted: "#a8abb5"
+  evidence: "#78d69b"
+  evidence-soft: "#173423"
+  caution: "#e7bd67"
+  caution-soft: "#392d13"
+  stop: "#ef8d9d"
+  stop-soft: "#3b1820"
 typography:
-  headline:
-    fontFamily: "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
-    fontSize: "20px"
-    fontWeight: 650
-    lineHeight: 1.2
-    letterSpacing: "-0.012em"
   title:
     fontFamily: "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
     fontSize: "15px"
@@ -36,14 +31,14 @@ typography:
     fontFamily: "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
     fontSize: "14px"
     fontWeight: 400
-    lineHeight: 1.5
+    lineHeight: 1.55
     letterSpacing: "normal"
   label:
     fontFamily: "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
     fontSize: "12px"
     fontWeight: 600
     lineHeight: 1.35
-    letterSpacing: "0.02em"
+    letterSpacing: "normal"
   telemetry:
     fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace"
     fontSize: "12px"
@@ -51,247 +46,142 @@ typography:
     lineHeight: 1.5
     letterSpacing: "normal"
 rounded:
-  control: "6px"
-  panel: "8px"
+  control: "7px"
+  panel: "10px"
+  composer: "14px"
   status: "999px"
 spacing:
-  hairline: "1px"
   xs: "4px"
   sm: "8px"
   md: "12px"
   lg: "16px"
   xl: "24px"
-components:
-  button-primary:
-    backgroundColor: "{colors.command-blue-deep}"
-    textColor: "{colors.text-primary}"
-    typography: "{typography.label}"
-    rounded: "{rounded.control}"
-    padding: "9px 14px"
-  button-secondary:
-    backgroundColor: "{colors.raised-surface}"
-    textColor: "{colors.text-primary}"
-    typography: "{typography.label}"
-    rounded: "{rounded.control}"
-    padding: "9px 14px"
-  button-danger:
-    backgroundColor: "{colors.stop-red-soft}"
-    textColor: "{colors.stop-red}"
-    typography: "{typography.label}"
-    rounded: "{rounded.control}"
-    padding: "9px 14px"
-  input:
-    backgroundColor: "{colors.machine-well}"
-    textColor: "{colors.text-primary}"
-    typography: "{typography.body}"
-    rounded: "{rounded.control}"
-    padding: "10px 12px"
-  status-chip:
-    backgroundColor: "{colors.raised-surface}"
-    textColor: "{colors.text-muted}"
-    typography: "{typography.label}"
-    rounded: "{rounded.status}"
-    padding: "4px 8px"
-  transaction:
-    backgroundColor: "{colors.operator-surface}"
-    textColor: "{colors.text-primary}"
-    rounded: "{rounded.panel}"
-    padding: "12px"
 ---
 
-# Design System: PiKVM Operator Harness
+# Design System: PiKVM Agent
 
-## Overview
+## Creative North Star
 
-**Creative North Star: "The Night Operations Desk"**
+**“A coding agent with a computer beside it.”**
 
-The harness is a dim, orderly operations desk built for the person supervising
-a live machine. The machine frame is the largest object, the current
-transaction is the clearest object, and every supporting surface earns its
-place by answering one question: what is happening, why, and who has authority
-to continue it?
+The workspace should feel immediately familiar to someone who has used Codex,
+Claude, or a modern editor assistant. Conversation is the centre of gravity.
+The remote computer is a persistent companion, not a dashboard hero. Tool calls
+read as part of the assistant's work, and operational data stays folded until a
+user asks for it.
 
-Density is deliberate but never noisy. Stable structure, short factual labels,
-and flat tonal layers let an operator scan the whole workflow without reading a
-terminal transcript. The interface rejects decorative AI theatre, generic SaaS
-cards, and opaque model choreography. It should remain calm when the workflow is
-not.
+The interface is dark because the user may leave it open beside a bright remote
+desktop for long sessions. Restrained neutral surfaces reduce glare; one violet
+accent distinguishes user commands from machine evidence without turning the
+app into an “AI control centre.”
 
-**Key Characteristics:**
+## Application Structure
 
-- Live machine state dominates the composition.
-- Plan, model, MCP, policy, HID action, and verification form one traceable
-  transaction.
-- Human approval is persistent, explicit, and visually separate from model
-  output.
-- Structural borders and tonal surfaces replace ornamental depth.
-- The full control surface remains usable at narrow widths and 200% zoom.
+At desktop widths the app uses three functional regions:
 
-## Colors
+- **Conversation rail, 228–256px.** New chat, recent tasks, settings.
+- **Conversation, flexible.** User requests, assistant activity, approvals, and
+  the task composer.
+- **Computer companion, 360–520px.** Live machine, connection identity, pause,
+  stop, and take-over.
 
-The palette is a restrained night shift: blue means operator command, green
-means supported evidence, amber means unresolved consequence, and red is
-reserved for stopping or rejecting work.
+Diagnostics open as a drawer over the computer companion. They are never a
+permanent third stream of text.
 
-### Primary
+Below 900px, the computer companion becomes a selectable Chat / Computer view.
+Below 620px, the conversation rail becomes a drawer. The composer remains fixed
+to the bottom of the active view.
 
-- **Command Blue:** The sole interactive accent for selected navigation,
-  focused controls, and the main affirmative control. Deep and soft variants
-  carry pressed and contextual states.
+## Color
 
-### Secondary
+The palette is restrained:
 
-- **Evidence Green:** Marks verification that is backed by an observation. It
-  never means merely "the request was sent."
-- **Caution Amber:** Marks an approval boundary, uncertain result, or stale
-  observation requiring attention.
-- **Stop Red:** Marks reject, abort, failure, and emergency intervention. It is
-  never used decoratively.
+- **Accent** selects the current chat, model, or primary submission.
+- **Evidence green** means an observed transition or independent verification,
+  not merely a completed request.
+- **Caution amber** means unresolved consequence or required approval.
+- **Stop red** is reserved for rejection, abort, and failure.
+- Neutral surfaces carry the rest of the interface.
 
-### Neutral
-
-- **Night Canvas:** The application background around the working surface.
-- **Machine Well:** The deepest plane behind the remote screen and form fields.
-- **Operator Surface:** The default timeline and transaction plane.
-- **Raised Surface:** The active row, disclosure, and secondary-control plane.
-- **Boundary:** A single-pixel structural divider between functional regions.
-- **Primary Text:** High-contrast operational copy and values.
-- **Muted Text:** Secondary metadata that remains WCAG AA legible.
-
-### Named Rules
-
-**The Semantic Signal Rule.** Blue commands, green proves, amber pauses, and red
-stops. Never reuse those colors to decorate unrelated content.
-
-**The Ten Percent Rule.** Saturated color occupies no more than ten percent of
-the screen at rest. The machine and evidence, not the chrome, command attention.
+Saturated color should occupy less than ten percent of the resting screen.
 
 ## Typography
 
-**Display Font:** Inter (with system UI fallback)
-**Body Font:** Inter (with system UI fallback)
-**Label/Mono Font:** System monospace stack
-
-**Character:** Compact humanist sans-serif copy keeps the interface calm and
-legible; monospace is confined to identifiers, timestamps, freshness values,
-and exact machine evidence.
-
-### Hierarchy
-
-- **Headline** (650, 20px, 1.2): Product title and empty-state orientation only.
-- **Title** (650, 15px, 1.35): Region and active-transaction headings.
-- **Body** (400, 14px, 1.5): Task text, explanations, and approval reasons,
-  constrained to roughly 70 characters per line where prose is continuous.
-- **Label** (600, 12px, 0.02em): Controls, status labels, event roles, and terse
-  metadata.
-- **Telemetry** (450, 12px, 1.5): Tool names, IDs, arguments, timestamps, and
-  freshness stamps.
-
-### Named Rules
-
-**The Evidence Mono Rule.** Monospace identifies machine facts; it never becomes
-the overall visual theme or turns the product into a faux terminal.
-
-## Elevation
-
-The system uses no shadows. Depth is structural: progressively lighter tonal
-surfaces, one-pixel boundaries, and state color establish hierarchy without
-floating cards. Native dialogs may use the browser's backdrop, but their panel
-remains flat and bounded.
-
-### Named Rules
-
-**The Flat Operations Rule.** A surface may become lighter when active, but it
-never floats for decoration. If a panel can be removed without losing
-structure, remove the panel.
+Use one system sans family throughout. Titles are compact rather than
+display-sized. Continuous assistant prose is limited to roughly 72 characters
+per line. Monospace is reserved for tool names, arguments, identifiers,
+freshness values, and hashes.
 
 ## Components
 
-Components are compact, factual, and immediately responsive. Every interactive
-state has a visible focus treatment and every disabled state explains itself in
-nearby text.
+### Conversation rail
 
-### Buttons
+Rows are flat and quiet. The selected conversation uses a tonal fill and a
+two-pixel inset accent. Status appears as short text, not a separate metric
+card.
 
-- **Shape:** Gently compact corners (6px) without pill-shaped action controls.
-- **Primary:** Deep Command Blue with Primary Text and 9px by 14px padding.
-- **Hover / Focus:** Lighten one tonal step over 160ms; focus uses a two-pixel
-  Command Blue outline with a two-pixel offset.
-- **Secondary / Ghost:** Raised Surface with a Boundary stroke; ghost buttons
-  appear only in dense toolbars.
-- **Danger:** Stop Red Soft with Stop Red copy; abort always requires an
-  explicit confirmation step.
+### Conversation
 
-### Chips
+User messages are compact, right-aligned bubbles with restrained accent tint.
+Assistant turns are unboxed prose with a subtle role icon. Long-running work
+updates the same assistant turn instead of creating a wall of status messages.
 
-- **Style:** Fully rounded status indicators with 4px by 8px padding. Each chip
-  combines a text label with a dot or icon; color alone never carries state.
-- **State:** Running and verified use Evidence Green, approval and stale state
-  use Caution Amber, failures use Stop Red, and inactive metadata stays neutral.
+### Tool activity
 
-### Cards / Containers
+Each action is an inline disclosure:
 
-- **Corner Style:** Quietly rounded functional groups (8px).
-- **Background:** Operator Surface at rest and Raised Surface only for the
-  active transaction or disclosure.
-- **Shadow Strategy:** No shadows; follow the Flat Operations Rule.
-- **Border:** One-pixel Boundary only where it separates functions.
-- **Internal Padding:** 12px compact, 16px standard, 24px only for empty states.
+- human-readable intent and current state in the summary;
+- model/provider and MCP tool name as secondary metadata;
+- exact non-secret arguments, freshness, result, and verification inside;
+- red/amber state only when intervention is actually needed.
 
-### Inputs / Fields
+### Composer
 
-- **Style:** Machine Well fill, one-pixel Boundary stroke, and 6px corners.
-- **Focus:** Command Blue border and a two-pixel external focus outline.
-- **Error / Disabled:** Stop Red border for invalid data; disabled fields retain
-  legible text and expose the blocking reason.
+The composer is the primary control. It contains:
 
-### Navigation
+- multiline task input;
+- selected model;
+- selected managed MCP computer connection;
+- optional start-paused toggle;
+- send button.
 
-The run rail is a compact chronological list, not a card gallery. The active run
-uses Raised Surface, a slim Command Blue inset marker, and a textual state. On
-narrow screens it becomes a selectable drawer above the live machine rather
-than reducing the screen to a thumbnail.
+Enter sends and Shift+Enter inserts a newline. Provider and connection choices
+remain visible before submission.
 
-### Transaction Timeline
+### Computer companion
 
-Plan, model, MCP, policy, HID, and verification events use stable role icons and
-plain-language summaries. Raw JSON lives inside keyboard-accessible
-disclosures. The active transaction remains expanded; completed groups collapse
-without disappearing.
+The current frame uses the available area while preserving aspect ratio. The
+toolbar shows the machine alias, fingerprint, connection state, refresh,
+pause/take-over, and stop. Frame/world/epoch details live in a disclosure below
+the image.
 
-### Approval Shelf
+### Approval boundary
 
-Approval is a persistent amber shelf spanning the working area, never a fleeting
-toast and never content inside the model transcript. It states the intended
-effect, exact non-secret action, risk, freshness stamp, and approval ID before
-showing Reject and Approve controls.
+Approval appears inline between the assistant turn and composer. It states the
+effect, risk, exact request, target freshness, and operator note before showing
+Reject and Approve once. Model output can never activate either control.
 
-## Do's and Don'ts
+### Diagnostics drawer
 
-### Do:
+Provider readiness, latency, budget, event timeline, raw JSON, and support
+information live here. The drawer is useful for developers and support without
+teaching normal users to operate the product through telemetry.
 
-- **Do** make the live machine the largest region and preserve its aspect ratio.
-- **Do** connect intent, exact tool arguments, freshness, outcome, and verifier
-  evidence in one transaction.
-- **Do** keep pause, reject, take-over, and abort reachable by keyboard and
-  pointer.
-- **Do** use Primary Text and Muted Text at WCAG 2.2 AA contrast.
-- **Do** reduce to one working column below 720px instead of shrinking critical
-  controls.
-- **Do** make state changes immediate and restrained, with no animation longer
-  than 160ms.
+## Interaction and Motion
 
-### Don't:
+All controls have default, hover, focus, active, disabled, loading, and error
+states. Transitions are 120–180ms ease-out and communicate state only. Reduced
+motion removes transforms and animated progress. Loading uses local skeletons,
+never a blocking page spinner.
 
-- **Don't** recreate opaque Claude Code or Codex loops where the user sees prose
-  but not the live screen and exact action transaction.
-- **Don't** build terminal-log walls that expose volume instead of meaning.
-- **Don't** use generic card-heavy SaaS dashboards that bury the active machine
-  and approval.
-- **Don't** add decorative "AI control centre" visuals, glowing glass panels,
-  gradients, bloom, or gratuitous animation.
-- **Don't** make pause, reject, take-over, or panic stop hard to reach.
-- **Don't** turn every event into a bordered card; use shared rails, rows, and
-  disclosures.
-- **Don't** put access tokens in URLs, event-stream query strings, rendered
-  markup, or persisted local storage.
+## Rules
+
+- Keep the conversation as the primary reading order.
+- Keep model and managed MCP connection visible at send time.
+- Keep pause and stop reachable without opening diagnostics.
+- Keep tool calls exact but collapsed by default.
+- Never show credentials, VNC addresses, or raw provider error bodies.
+- Never turn every event into a card.
+- Never use decorative gradients, glass effects, wide shadows, or oversized
+  rounded panels.
+- Never let a diagnostic metric compete with the user's task.
