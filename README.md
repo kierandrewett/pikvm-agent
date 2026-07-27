@@ -571,6 +571,10 @@ reports and never presents an infrastructure-blocked run as a score. Its
 headline table is generated from [`bench/scorecard.yaml`](bench/scorecard.yaml);
 the test suite and `harness scorecard --check` both fail if a report, digest,
 denominator, or rendered value drifts.
+The first authenticated Codex `client-task` now appears there as a
+failure-inclusive two-attempt result: the pre-fix approval cancellation and
+the fixed 13.7-second target-free managed completion are both retained. It
+does not claim a live Windows or Office pass.
 The full discussed scope—including incomplete and externally blocked items—is
 tracked in [`docs/REQUIREMENT_STATUS.md`](docs/REQUIREMENT_STATUS.md).
 Live OSWorld attempts can add `--operator-console` to serve the authenticated

@@ -1,0 +1,120 @@
+{
+  "schema_version": 1,
+  "suite": "live-codex-managed-task",
+  "recorded_at": "2026-07-27T07:31:53Z",
+  "environment": "local-target-free-loopback",
+  "source_commit": "0244cbd79780a9324515ce9475c999e60f51e57c",
+  "outer_client": {
+    "name": "Codex CLI",
+    "version": "0.144.4",
+    "authentication": "client-owned-oauth-linked-read-only",
+    "task_transport": "stdin",
+    "sandbox": "read-only",
+    "global_approval_bypass": false
+  },
+  "attempts": {
+    "before_fix": {
+      "terminal_result": "mcp-tool-call-cancelled-before-harness-request",
+      "elapsed_ms": 45246,
+      "harness_runs_created": 0,
+      "ambient_mcp_initialization_observed": true,
+      "managed_mcp_count": 1,
+      "outer_model_usage": {
+        "input_tokens": 71511,
+        "cached_input_tokens": 56064,
+        "output_tokens": 1083,
+        "reasoning_output_tokens": 926
+      }
+    },
+    "after_fix": {
+      "terminal_result": "completed",
+      "elapsed_ms": 13700,
+      "run_id": "b1cfba17-3c09-4b8a-a034-a9e6a591670f",
+      "harness_runs_created": 1,
+      "ambient_mcp_initialization_observed": false,
+      "managed_mcp_count": 1,
+      "unrelated_mcp_count": 0,
+      "managed_tool_calls": [
+        "computer_start_task",
+        "computer_status"
+      ],
+      "outer_model_usage": {
+        "input_tokens": 89082,
+        "cached_input_tokens": 62720,
+        "output_tokens": 278,
+        "reasoning_output_tokens": 23
+      },
+      "managed_run": {
+        "origin": "managed",
+        "caller_interface": "managed_mcp",
+        "caller_label": "codex-cli",
+        "status": "completed",
+        "events": 22,
+        "model_calls": 3,
+        "model_roles": [
+          "reasoner",
+          "controller",
+          "verifier"
+        ],
+        "model": "deterministic-smoke-v1",
+        "action_checkpoints": 1,
+        "verification_revisions": 1,
+        "verdict": "complete"
+      }
+    }
+  },
+  "fix": {
+    "codex_home": "temporary-isolated-home",
+    "oauth_handling": "symlink-client-owned-auth-json-without-copying",
+    "persisted_client_config_modified": false,
+    "user_rules_loaded": false,
+    "unrelated_mcp_preserved": false,
+    "managed_server_required": true,
+    "managed_tool_allowlist": [
+      "computer_start_task",
+      "computer_status",
+      "computer_continue",
+      "computer_pause",
+      "computer_abort"
+    ],
+    "default_tool_approval": "prompt",
+    "preapproved_non_destructive_tools": [
+      "computer_start_task",
+      "computer_status",
+      "computer_continue",
+      "computer_pause"
+    ],
+    "destructive_abort_preapproved": false
+  },
+  "validation": {
+    "focused_client_tests": {
+      "passed": 77,
+      "failed": 0
+    },
+    "similarity_scan": {
+      "language": "python",
+      "changed_module_duplicate_functions": 0
+    },
+    "sqlite_evidence": {
+      "status": "completed",
+      "events": 22,
+      "verification_revision": 1
+    }
+  },
+  "safety": {
+    "vnc_contact": false,
+    "pikvm_contact": false,
+    "production_daemon_contact": false,
+    "production_registration_modified": false,
+    "persisted_client_config_modified": false,
+    "computer_target_contact": false,
+    "external_outer_model_called": true,
+    "deterministic_inner_model_called": true
+  },
+  "limitations": [
+    "This is one authenticated Codex CLI task against a target-free deterministic smoke computer, not a real Windows or Office task.",
+    "Claude Code, Gemini CLI, and OpenCode live client-task paths remain unexecuted.",
+    "The inner reasoner, controller, and verifier were deterministic smoke providers, so this does not measure live computer-use model accuracy.",
+    "The before-fix and after-fix token totals are single diagnostic attempts and are not representative cost benchmarks."
+  ]
+}

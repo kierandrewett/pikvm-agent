@@ -947,10 +947,24 @@ the case passed in 8.603 seconds and the report retained 22,264 input, 17,152
 cached-input, 258 output, and 225 reasoning-output tokens. This is an
 instrumentation check only, not an accuracy, average-token, or cost claim.
 
+On 2026-07-27, the product `harness client-task` path completed its first
+authenticated outer-client run. The failure-inclusive pair matters: the
+original Codex CLI 0.144.4 attempt spent 45.246 seconds, initialized ambient
+MCP servers, and then cancelled `computer_start_task` before the harness
+created a run. After isolating Codex's client-owned OAuth state and explicitly
+preapproving only the non-destructive managed controls, the same product path
+exposed one managed MCP and no unrelated MCPs. Codex called
+`computer_start_task` and `computer_status`; the harness completed in 13.700
+seconds with 22 durable events, three deterministic inner model calls, one
+action checkpoint, and one visual-verification revision. Destructive abort
+remained prompt-gated. This was target-free: no VNC, PiKVM, production daemon,
+or computer target was contacted, and it is not evidence of Windows or Office
+accuracy.
+
 ## Current headline
 
 <!-- pikvm-scorecard:start -->
-_Generated from checked JSON evidence as of 2026-07-27. Manifest `sha256:aa5e217b9f30`; run `pikvm-agent harness scorecard --check` to detect drift._
+_Generated from checked JSON evidence as of 2026-07-27. Manifest `sha256:85394debb8cf`; run `pikvm-agent harness scorecard --check` to detect drift._
 
 | Suite | Route | Cases | Result | Median / p95 | Wall | Status | Evidence |
 | --- | --- | ---: | ---: | ---: | ---: | --- | --- |
@@ -963,6 +977,7 @@ _Generated from checked JSON evidence as of 2026-07-27. Manifest `sha256:aa5e217
 | Managed client launch | Codex + Claude + Gemini + OpenCode | 4 clients; 12 stdio cases | 65 local contracts passed; 7/12 stdio executed; 5 skipped | Not measured | 6.96s local selection | Generated stdio proven locally; authenticated task/restart pending | [JSON](results/2026-07-25/safety/managed-client-launch-2026-07-26.json) · `sha256:b464af4a60c8` |
 | Isolated managed client launch | Codex + Claude + OpenCode; Gemini policy contract | 4 installed clients / 54 contracts | 3 native dry-runs; 1 settings-only audit; raw Codex baseline shadowed without persistence | Not measured | Dry-run | Three native isolation dry-runs plus Gemini settings audit; enforcement and tasks pending | [JSON](results/2026-07-26/safety/isolated-managed-client-launch.json) · `sha256:82c085f02a53` |
 | Managed smoke lab contract | Target-free app + stdin client task | 24 contracts | 24/24; 44 focused gates | Not measured | Target-free contract | Passing contract; live task rejected-before-process-creation | [JSON](results/2026-07-26/harness/managed-smoke-lab-contract.json) · `sha256:c7bb759ff96b` |
+| Live Codex managed task | Codex OAuth → isolated managed MCP → harness loop | 2 failure-inclusive attempts | 2 managed calls; 22 events / 3 inner model calls; completed | 13.70s fixed run | 13.70s | Passing target-free authenticated Codex task; live computer pending | [JSON](results/2026-07-27/harness/live-codex-managed-task.json) · `sha256:5efd19fa4ac7` |
 | Operator steering | Authenticated UI → managed replan | 12 tests / 13 contracts | Operator-only durable replan; 131,022-byte UI | — | 0.78s | Passing local contract and browser interaction | [JSON](results/2026-07-25/ui/operator-steering-2026-07-26.json) · `sha256:a4325a2ad4df` |
 | Computer-action chat workspace | Target-free synthetic fixture | 14 frontend + 14 harness UI/fixture contracts | 14/14 + 14/14; production build passed | 303,420-byte gzip JavaScript | Target-free contract | Component/build passing; post-change browser visual audit pending | [JSON](results/2026-07-27/ui/computer-action-chat-workspace.json) · `sha256:6578fe3fc553` |
 | Live computer activity in chat | Authenticated fetch SSE → assistant-ui | 19 frontend + 53 harness/API contracts | 19/19 + 53/53; action 394 → verification 396 | 75ms snapshot coalescing; 305,613-byte gzip JavaScript | Target-free runtime | Authenticated live stream passing; browser visual audit pending | [JSON](results/2026-07-27/ui/computer-action-live-stream.json) · `sha256:5d61d446891f` |

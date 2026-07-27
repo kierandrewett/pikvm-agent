@@ -136,6 +136,22 @@ rows:
     wall: "Target-free contract"
     status: "Passing contract; live task {broker}"
 
+  - suite: "Live Codex managed task"
+    route: "Codex OAuth → isolated managed MCP → harness loop"
+    source: "results/2026-07-27/harness/live-codex-managed-task.json"
+    fields:
+      attempts: {path: "attempts", format: "count"}
+      managed_calls: {path: "attempts.after_fix.managed_tool_calls", format: "count"}
+      events: {path: "attempts.after_fix.managed_run.events", format: "integer"}
+      model_calls: {path: "attempts.after_fix.managed_run.model_calls", format: "integer"}
+      elapsed: {path: "attempts.after_fix.elapsed_ms", format: "seconds_from_ms", digits: 2}
+      status: {path: "attempts.after_fix.terminal_result", format: "text"}
+    cases: "{attempts} failure-inclusive attempts"
+    result: "{managed_calls} managed calls; {events} events / {model_calls} inner model calls; {status}"
+    latency: "{elapsed} fixed run"
+    wall: "{elapsed}"
+    status: "Passing target-free authenticated Codex task; live computer pending"
+
   - suite: "Operator steering"
     route: "Authenticated UI → managed replan"
     source: "results/2026-07-25/ui/operator-steering-2026-07-26.json"
