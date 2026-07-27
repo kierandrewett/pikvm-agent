@@ -229,8 +229,10 @@ durable checkpoint; Guide records operator-only guidance, cancels an in-flight
 provider wait, forces a fresh reasoner plan, and can resume under harness
 ownership. It refuses to discard an unsettled HID action or take control from
 a direct MCP client. Stop interrupts the loop and aborts the computer session.
-The token stays in browser `sessionStorage` and is sent only in authorization
-headers. Provider status shows route order, adapter/auth owner, configured
+The token is sent only in authorization headers. The browser keeps it in
+`sessionStorage` when that API is available; blocked storage degrades to the
+current in-memory workspace instead of breaking connection or disconnect.
+Provider status shows route order, adapter/auth owner, configured
 model alias, API/CLI interface, pixel and structured-output capabilities,
 latency, skips, coarse failures, cooldown, and the latest blind-conformance
 exact/schema/latency result. Direct-client model metadata is
@@ -254,7 +256,11 @@ Non-computer tool groups keep the conversation compact while naming the first
 calls in order and retaining the full count; a typical two-step research turn
 shows `web.search_text → web.extract_content` without opening the disclosure.
 The collapsed row also distinguishes Running, Review, Refused, Failed, and
-Done, and an approval request opens automatically. A live isolated Claude
+Done, and an approval request opens automatically. Every first-party
+capability request is bound to the provider, model, and latency that selected
+it. A chat-to-computer transition is therefore a visible
+`computer.start_task` call with the exact handed-off task rather than an
+implicit mode switch. A live isolated Claude
 OAuth browser pass completed exact chat, ordinary knowledge, and two official-source
 research cases 4/4. The research run sampled from submission showed progress
 within 112 ms, its first named tool within 9.760 seconds, one assistant reply,

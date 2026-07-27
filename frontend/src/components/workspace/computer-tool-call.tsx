@@ -50,6 +50,7 @@ import {
   useComputerToolEnvironment,
 } from "@/components/workspace/computer-tool-environment";
 import { harnessBlob } from "@/lib/harness-api";
+import type { ModelReceipt } from "@/lib/model-receipt";
 import { cn } from "@/lib/utils";
 
 type JsonRecord = Record<string, unknown>;
@@ -79,12 +80,6 @@ type ReceiptContext = {
   verifier?: ModelReceipt;
   caller?: CallerReceipt;
   inputReceipts: InputReceipt[];
-};
-
-type ModelReceipt = {
-  provider: string;
-  model: string;
-  latencyMs?: number;
 };
 
 type CallerReceipt = {

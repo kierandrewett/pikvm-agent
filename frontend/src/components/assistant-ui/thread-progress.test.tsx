@@ -373,6 +373,17 @@ describe("Thread progress", () => {
     expect(screen.getByRole("status")).toHaveTextContent("Planning the task");
   });
 
+  it("virtualizes old assistant messages without virtualizing the current one", () => {
+    render(<RunningHandoffThread />);
+
+    const assistantMessages = document.querySelectorAll(
+      "[data-slot='aui_assistant-message-root']",
+    );
+    expect(assistantMessages).toHaveLength(2);
+    expect(assistantMessages[0]).toHaveClass("[content-visibility:auto]");
+    expect(assistantMessages[1]).not.toHaveClass("[content-visibility:auto]");
+  });
+
   it("rebinds the assistant runtime when a new task receives its run id", () => {
     const view = render(<SwitchingThread selected={false} />);
 
@@ -422,6 +433,11 @@ describe("Thread progress", () => {
     expect(trigger).toHaveTextContent("Review");
     expect(trigger).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByText("Allow once")).toBeVisible();
+    const currentMessage = document.querySelector(
+      "[data-slot='aui_assistant-message-root']",
+    );
+    expect(currentMessage).not.toBeNull();
+    expect(currentMessage).not.toHaveClass("[content-visibility:auto]");
   });
 
   it("collapses the tool group after an approval-required turn resolves", async () => {

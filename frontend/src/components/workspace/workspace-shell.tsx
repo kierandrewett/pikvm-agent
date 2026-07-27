@@ -209,8 +209,8 @@ export function WorkspaceShell() {
         setTasksOpen(false);
       },
       onSwitchToThread: async (threadId) => {
-        await workspace.selectRun(threadId);
         setTasksOpen(false);
+        await workspace.selectRun(threadId);
       },
     }),
     [

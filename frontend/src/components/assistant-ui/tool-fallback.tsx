@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import type { ModelReceipt } from "@/lib/model-receipt";
 
 const ANIMATION_DURATION = 200;
 
@@ -104,15 +105,9 @@ const formatToolDuration = (ms: number) => {
   return `${Math.floor(seconds / 60)}m ${Math.floor(seconds % 60)}s`;
 };
 
-type ToolSelectionReceipt = {
-  provider: string;
-  model: string;
-  latencyMs?: number;
-};
-
 const toolSelectionReceipt = (
   args: unknown,
-): ToolSelectionReceipt | undefined => {
+): ModelReceipt | undefined => {
   if (!args || typeof args !== "object" || Array.isArray(args)) {
     return undefined;
   }
@@ -145,7 +140,7 @@ const toolSelectionReceipt = (
 function ToolFallbackAttribution({
   selectedBy,
 }: {
-  selectedBy?: ToolSelectionReceipt;
+  selectedBy?: ModelReceipt;
 }) {
   if (!selectedBy) return null;
   const identity = selectedBy.model || selectedBy.provider;
