@@ -567,7 +567,7 @@ class ClaudeCodeProvider:
                 json.dumps(schema, sort_keys=True, separators=(",", ":")),
                 "--no-session-persistence",
                 "--permission-mode",
-                "plan",
+                "dontAsk",
                 "--safe-mode",
                 "--disable-slash-commands",
                 "--strict-mcp-config",

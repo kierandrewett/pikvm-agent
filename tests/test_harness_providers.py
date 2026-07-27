@@ -1099,7 +1099,8 @@ async def test_claude_code_provider_uses_oauth_with_safe_read_only_image_access(
 
     argv = runner.calls[0]["argv"]
     assert argv[:3] == ["claude", "-p", "--output-format"]
-    assert argv[argv.index("--permission-mode") + 1] == "plan"
+    assert argv[argv.index("--permission-mode") + 1] == "dontAsk"
+    assert "plan" not in argv
     assert argv[argv.index("--tools") + 1] == "Read"
     assert argv[argv.index("--allowedTools") + 1] == "Read"
     assert "--safe-mode" in argv
