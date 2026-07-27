@@ -4,6 +4,7 @@ from types import ModuleType, SimpleNamespace
 
 import pytest
 
+from pikvm_agent.harness import bootstrap_windows
 from pikvm_agent.harness.bootstrap_windows import (
     build_bootstrap_command,
     build_bootstrap_commands,
@@ -177,6 +178,39 @@ def test_deployment_refuses_a_leased_target_before_vnc_connect(
             )
     finally:
         lease.release()
+
+
+def test_bootstrap_cli_can_restart_the_installed_observer_hidden(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+    monkeypatch.setattr(
+        bootstrap_windows,
+        "deploy",
+        lambda **kwargs: captured.update(kwargs),
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "bootstrap_windows.py",
+            "--vnc",
+            "disposable.invalid:5900",
+            "--file",
+            (
+                "C:/PiKVM-Harness/workspace/"
+                "shakespeare-essay-0123456789abcdef.docx"
+            ),
+            "--reuse-installed",
+            "--hidden",
+        ],
+    )
+
+    bootstrap_windows.main()
+
+    assert captured["endpoint"] == "disposable.invalid:5900"
+    assert captured["reuse_installed"] is True
+    assert captured["visible"] is False
 
 
 @pytest.mark.parametrize(

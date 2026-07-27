@@ -234,6 +234,16 @@ def main() -> None:
     parser.add_argument("--password")
     parser.add_argument("--username")
     parser.add_argument(
+        "--reuse-installed",
+        action="store_true",
+        help="Require and restart the already-installed observer binary.",
+    )
+    parser.add_argument(
+        "--hidden",
+        action="store_true",
+        help="Start the observer separately and return from PowerShell.",
+    )
+    parser.add_argument(
         "--powershell-ready",
         action="store_true",
         help="PowerShell is already focused; skip the Start-menu launch.",
@@ -251,6 +261,8 @@ def main() -> None:
         username=args.username,
         powershell_ready=args.powershell_ready,
         character_delay_s=args.character_delay_ms / 1000.0,
+        reuse_installed=args.reuse_installed,
+        visible=not args.hidden,
     )
 
 
