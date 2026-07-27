@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createRunPayload,
   loadProviderCatalog,
+  reconcileIntervalMs,
 } from "@/hooks/use-harness-workspace";
 
 afterEach(() => vi.unstubAllGlobals());
@@ -84,5 +85,18 @@ describe("createRunPayload", () => {
         verifier: "strong-reasoner",
       },
     });
+  });
+});
+
+describe("reconcileIntervalMs", () => {
+  it("does not hammer the local API while a new workspace is idle", () => {
+    expect(reconcileIntervalMs("idle")).toBe(15_000);
+    expect(reconcileIntervalMs("live")).toBe(15_000);
+    expect(reconcileIntervalMs("connecting")).toBe(15_000);
+  });
+
+  it("reconciles aggressively only while live updates are degraded", () => {
+    expect(reconcileIntervalMs("retrying")).toBe(1_500);
+    expect(reconcileIntervalMs("offline")).toBe(1_500);
   });
 });

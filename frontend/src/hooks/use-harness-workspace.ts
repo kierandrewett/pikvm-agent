@@ -41,6 +41,11 @@ const LIVE_RECONCILE_MS = 15_000;
 const DEGRADED_RECONCILE_MS = 1_500;
 const MODEL_ROLES: ModelRole[] = ["reasoner", "controller", "verifier"];
 
+export const reconcileIntervalMs = (status: LiveUpdateStatus) =>
+  status === "retrying" || status === "offline"
+    ? DEGRADED_RECONCILE_MS
+    : LIVE_RECONCILE_MS;
+
 export const loadProviderCatalog = async (accessToken: string) => {
   try {
     return await harnessJson<ProviderCatalogEntry[]>(
@@ -216,8 +221,7 @@ export function useHarnessWorkspace() {
 
   useEffect(() => {
     if (!connected || !token) return;
-    const interval =
-      liveUpdateStatus === "live" ? LIVE_RECONCILE_MS : DEGRADED_RECONCILE_MS;
+    const interval = reconcileIntervalMs(liveUpdateStatus);
     const timer = window.setInterval(() => {
       void refresh().catch((cause) => {
         if (cause instanceof Error && mounted.current) setError(cause.message);
