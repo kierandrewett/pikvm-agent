@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 from typing import Any
 
@@ -1097,6 +1098,55 @@ async def test_start_runs_a_checkpointed_reason_act_verify_slice() -> None:
     assert completed.data["tool"] == "pikvm_run_burst"
     assert completed.data["status"] == "completed"
     assert completed.data["latency_ms"] >= 0
+
+
+@pytest.mark.asyncio
+async def test_observational_follow_up_uses_one_read_only_model_call() -> None:
+    provider = ScriptedProvider()
+    computer = FakeComputer()
+    harness = build_harness(provider, computer)
+
+    result = await harness.start("What about now?")
+
+    assert result.status is RunStatus.COMPLETED
+    assert [request.role for request in provider.requests] == ["verifier"]
+    assert computer.bursts == []
+    assert result.plan is not None
+    assert result.plan.constraints == ["Do not send keyboard or pointer input."]
+    assert any(
+        event.kind == "plan.observation_only"
+        for event in result.events
+    )
+
+
+@pytest.mark.asyncio
+async def test_model_phase_is_durable_while_provider_is_still_running() -> None:
+    entered = asyncio.Event()
+    release = asyncio.Event()
+
+    class BlockingProvider(ScriptedProvider):
+        async def complete(self, request: ModelRequest) -> ModelResponse:
+            if request.role == "reasoner":
+                entered.set()
+                await release.wait()
+            return await super().complete(request)
+
+    provider = BlockingProvider()
+    computer = FakeComputer()
+    harness = build_harness(provider, computer)
+    created = await harness.create("Type hello world in the open editor.")
+
+    continuation = asyncio.create_task(harness.continue_run(created.run_id))
+    await asyncio.wait_for(entered.wait(), timeout=0.5)
+    summary = await harness.store.get_summary(created.run_id)
+
+    assert summary.active_activity is not None
+    assert summary.active_activity.kind == "model"
+    assert summary.active_activity.role == "reasoner"
+    assert summary.active_activity.provider == provider.name
+
+    release.set()
+    await asyncio.wait_for(continuation, timeout=1)
 
 
 @pytest.mark.asyncio

@@ -7,12 +7,12 @@ export const activityPresentation = (activity: ActiveActivity) => {
   const role = activity?.kind === "model" ? activity.role : "";
   const label =
     role === "reasoner"
-      ? "Thinking"
+      ? "Planning the task"
       : role === "controller"
-        ? "Using the computer"
+        ? "Choosing the next action"
         : role === "verifier"
           ? "Checking the result"
-          : "Working";
+          : "Starting";
   const model =
     activity?.kind === "model" && activity.model?.trim()
       ? activity.model.trim()

@@ -148,6 +148,26 @@ say "the verifier", "the comparison image", "success criteria", or "the pixels"
 in summary. Detailed writing explicitly requested by the user belongs in the
 target artifact; summary should still describe the result concisely."""
 
+_OBSERVATION_ONLY_REQUESTS = frozenset(
+    {
+        "and now",
+        "describe the screen",
+        "did it work",
+        "did that work",
+        "how about now",
+        "is it done",
+        "is that done",
+        "what about now",
+        "what can you see",
+        "what can you see rn",
+        "what changed",
+        "what do you see",
+        "what do you see rn",
+        "what is on screen",
+        "whats on screen",
+    }
+)
+
 
 class AgentHarness:
     """Deep module owning planning, action checkpoints, retries and approvals."""
@@ -458,6 +478,40 @@ class AgentHarness:
                     return run
                 continue
 
+            if run.plan is None and self._is_observation_only_request(run):
+                run.plan = PlanDecision(
+                    summary="Answer from the current screen without input.",
+                    steps=[
+                        "Inspect the current visible screen evidence.",
+                        "Report only what the pixels establish.",
+                    ],
+                    success_criteria=[
+                        (
+                            "The response answers the latest observational "
+                            "request using current visible screen evidence."
+                        )
+                    ],
+                    constraints=["Do not send keyboard or pointer input."],
+                )
+                run.record(
+                    "plan.observation_only",
+                    source="literal_read_only_fast_path",
+                )
+                await self.store.save(run)
+                await self._verify(
+                    run,
+                    action=None,
+                    before=None,
+                )
+                if run.status is RunStatus.RUNNING:
+                    run.status = RunStatus.PAUSED
+                    run.record(
+                        "run.paused",
+                        reason="screen evidence did not fully answer the request",
+                    )
+                    await self.store.save(run)
+                return run
+
             if run.plan is None:
                 if not await self._plan(
                     run,
@@ -656,6 +710,17 @@ class AgentHarness:
         run.record("run.paused", reason="per-call action budget reached")
         await self.store.save(run)
         return run
+
+    @staticmethod
+    def _is_observation_only_request(run: RunSnapshot) -> bool:
+        request = (
+            run.operator_guidance[-1]
+            if run.operator_guidance
+            else run.task
+        )
+        normalized = re.sub(r"[^a-z0-9']+", " ", request.casefold()).strip()
+        normalized = normalized.replace("'", "")
+        return normalized in _OBSERVATION_ONLY_REQUESTS
 
     async def _plan(
         self,

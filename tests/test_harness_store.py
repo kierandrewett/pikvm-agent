@@ -145,6 +145,25 @@ def test_current_model_activity_closes_only_for_the_matching_provider_call() -> 
     assert run.active_activity is None
 
 
+def test_model_activity_is_visible_before_provider_startup() -> None:
+    run = RunSnapshot(
+        run_id="model-starting",
+        task="Show progress while the provider starts",
+        status=RunStatus.PLANNING,
+    )
+
+    run.record(
+        "model.started",
+        role="reasoner",
+        candidates=["claude-account", "codex-account"],
+    )
+
+    assert run.active_activity is not None
+    assert run.active_activity.kind == "model"
+    assert run.active_activity.role == "reasoner"
+    assert run.active_activity.provider is None
+
+
 @pytest.mark.parametrize(
     "terminal_kind",
     [

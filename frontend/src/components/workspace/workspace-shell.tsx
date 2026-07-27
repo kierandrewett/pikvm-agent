@@ -1,5 +1,6 @@
 import {
   lazy,
+  type ReactNode,
   Suspense,
   useEffect,
   useMemo,
@@ -7,7 +8,9 @@ import {
 } from "react";
 import {
   AssistantRuntimeProvider,
+  type ExternalStoreAdapter,
   type ExternalStoreThreadListAdapter,
+  type ThreadMessageLike,
   useExternalStoreRuntime,
 } from "@assistant-ui/react";
 import {
@@ -72,6 +75,37 @@ const useDeferredMount = (open: boolean) => {
   }, [open]);
   return mounted || open;
 };
+
+function RuntimeInstance({
+  adapter,
+  children,
+}: {
+  adapter: ExternalStoreAdapter<ThreadMessageLike>;
+  children: ReactNode;
+}) {
+  const runtime = useExternalStoreRuntime(adapter);
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+
+export function WorkspaceRuntimeBoundary({
+  runtimeKey,
+  adapter,
+  children,
+}: {
+  runtimeKey: string;
+  adapter: ExternalStoreAdapter<ThreadMessageLike>;
+  children: ReactNode;
+}) {
+  return (
+    <RuntimeInstance key={runtimeKey} adapter={adapter}>
+      {children}
+    </RuntimeInstance>
+  );
+}
 
 function SheetLoading({
   open,
@@ -176,7 +210,7 @@ export function WorkspaceShell() {
       workspace.selectedId,
     ],
   );
-  const runtime = useExternalStoreRuntime({
+  const runtimeAdapter: ExternalStoreAdapter<ThreadMessageLike> = {
     messages,
     convertMessage: (message) => message,
     isRunning: workspace.isRunning,
@@ -189,7 +223,7 @@ export function WorkspaceShell() {
     onRespondToToolApproval: workspace.respondToApproval,
     adapters: { threadList },
     unstable_capabilities: { copy: true },
-  });
+  };
 
   const ComposerToolbar = () => (
     <div className="flex min-w-0 items-center gap-1">
@@ -208,7 +242,10 @@ export function WorkspaceShell() {
   );
 
   return (
-    <AssistantRuntimeProvider runtime={runtime}>
+    <WorkspaceRuntimeBoundary
+      runtimeKey={workspace.selectedId ?? "new-task"}
+      adapter={runtimeAdapter}
+    >
       <div className="workspace-shell">
         <aside className="workspace-rail">
           <div className="flex h-14 items-center gap-2 px-3">
@@ -402,6 +439,6 @@ export function WorkspaceShell() {
         error={workspace.error}
         onConnect={workspace.connect}
       />
-    </AssistantRuntimeProvider>
+    </WorkspaceRuntimeBoundary>
   );
 }

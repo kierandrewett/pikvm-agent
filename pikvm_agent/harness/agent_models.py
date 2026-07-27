@@ -557,7 +557,13 @@ class RunSnapshot(BaseModel):
         )
         self.events.append(event)
         self.event_cursor = next_sequence
-        if kind == "model.provider_started":
+        if kind == "model.started":
+            self.active_activity = CurrentActivity(
+                kind="model",
+                started_at=event.at,
+                role=str(data.get("role") or "") or None,
+            )
+        elif kind == "model.provider_started":
             self.active_activity = CurrentActivity(
                 kind="model",
                 started_at=event.at,
