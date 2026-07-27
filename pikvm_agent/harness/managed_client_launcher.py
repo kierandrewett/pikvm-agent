@@ -36,7 +36,7 @@ from pikvm_agent.harness.config import HarnessSettings
 
 StableLaunchClient = Literal["codex", "claude", "gemini", "opencode"]
 IsolationMode = Literal[
-    "effective-inventory-override",
+    "isolated-auth-link",
     "strict-explicit-config",
     "system-policy-allowlist",
     "pure-inline-config",
@@ -55,6 +55,22 @@ _HELP_ENV = (
 )
 _OPENCODE_ENV = (
     "PATH",
+    "SYSTEMROOT",
+    "COMSPEC",
+    "PATHEXT",
+    "TEMP",
+    "TMP",
+)
+_CODEX_ENV = (
+    "PATH",
+    "HOME",
+    "HTTP_PROXY",
+    "HTTPS_PROXY",
+    "ALL_PROXY",
+    "NO_PROXY",
+    "SSL_CERT_FILE",
+    "SSL_CERT_DIR",
+    "NODE_EXTRA_CA_CERTS",
     "SYSTEMROOT",
     "COMSPEC",
     "PATHEXT",
@@ -155,13 +171,85 @@ def _codex_overrides(
     forwarded_env: tuple[str, ...],
 ) -> tuple[str, ...]:
     prefix = _codex_config_prefix(server_name)
+    supervised_tools = (
+        "computer_start_task",
+        "computer_status",
+        "computer_continue",
+        "computer_pause",
+        "computer_abort",
+    )
+    preapproved_tools = supervised_tools[:-1]
     values = (
         f"{prefix}.command={json.dumps(command)}",
         f"{prefix}.args={json.dumps(list(args))}",
         f"{prefix}.env_vars={json.dumps(list(forwarded_env))}",
         f"{prefix}.enabled=true",
+        f"{prefix}.required=true",
+        f"{prefix}.tool_timeout_sec=300",
+        f"{prefix}.enabled_tools={json.dumps(list(supervised_tools))}",
+        f'{prefix}.default_tools_approval_mode="prompt"',
+        *(
+            f'{prefix}.tools.{tool}.approval_mode="approve"'
+            for tool in preapproved_tools
+        ),
     )
     return tuple(token for value in values for token in ("-c", value))
+
+
+@contextmanager
+def _codex_child_environment(
+    plan: ManagedClientLaunch,
+    *,
+    environ: Mapping[str, str] | None,
+) -> Iterator[dict[str, str]]:
+    """Create clean Codex state while retaining only client-owned OAuth.
+
+    A normal Codex home can contain unrelated MCP servers, plugins, rules,
+    histories, and writable runtime state. The managed task links only the
+    CLI-owned ``auth.json`` into a new private home, applies the one inline
+    managed server, and forwards only a bounded runtime allow-list plus the
+    scoped harness agent credential.
+    """
+
+    source = os.environ if environ is None else environ
+    for name in plan.forwarded_env:
+        if not source.get(name):
+            raise ClientIsolationError(
+                "Codex managed MCP environment is incomplete"
+            )
+    source_home_value = source.get("CODEX_HOME")
+    if source_home_value:
+        source_home = Path(source_home_value).expanduser()
+    else:
+        ordinary_home = source.get("HOME") or source.get("USERPROFILE")
+        source_home = (
+            Path(ordinary_home).expanduser() / ".codex"
+            if ordinary_home
+            else None
+        )
+    with tempfile.TemporaryDirectory(prefix="pikvm-codex-client-") as root_value:
+        isolated_home = Path(root_value) / "codex-home"
+        isolated_home.mkdir()
+        if source_home is not None:
+            source_auth = source_home / "auth.json"
+            if source_auth.is_file():
+                (isolated_home / "auth.json").symlink_to(
+                    source_auth.resolve()
+                )
+        child = {
+            name: source[name]
+            for name in _CODEX_ENV
+            if source.get(name)
+        }
+        child["CODEX_HOME"] = str(isolated_home)
+        child["NO_COLOR"] = "1"
+        child.update(
+            {
+                name: source[name]
+                for name in plan.forwarded_env
+            }
+        )
+        yield child
 
 
 @contextmanager
@@ -420,6 +508,10 @@ def _managed_client_runtime(
     *,
     environ: Mapping[str, str] | None,
 ) -> Iterator[tuple[dict[str, str], Path]]:
+    if plan.client == "codex":
+        with _codex_child_environment(plan, environ=environ) as child:
+            yield child, plan.project_dir
+        return
     if plan.client == "gemini":
         with _gemini_child_runtime(plan, environ=environ) as runtime:
             yield runtime
@@ -480,13 +572,13 @@ def build_managed_client_launch(
         return ManagedClientLaunch(
             client="codex",
             server_name=server_name,
-            isolation_mode="effective-inventory-override",
+            isolation_mode="isolated-auth-link",
             argv=argv,
             project_dir=project,
             rendered_config=rendered,
             inventory_config_overrides=overrides,
             forwarded_env=launch.forwarded_env,
-            preserve_unrelated_mcp=True,
+            preserve_unrelated_mcp=False,
         )
 
     if normalized == "opencode":
@@ -576,12 +668,13 @@ def audit_managed_client_launch(
     """Prove the exact planned PiKVM surface before a client can start."""
 
     if plan.client == "codex":
-        document = read_codex_effective_inventory(
-            executable=plan.argv[0],
-            project_dir=plan.project_dir,
-            environ=environ,
-            config_overrides=plan.inventory_config_overrides,
-        )
+        with _codex_child_environment(plan, environ=environ) as child:
+            document = read_codex_effective_inventory(
+                executable=plan.argv[0],
+                project_dir=plan.project_dir,
+                environ=child,
+                config_overrides=plan.inventory_config_overrides,
+            )
     elif plan.client == "claude":
         source_environment = os.environ if environ is None else environ
         child_environment = {
@@ -831,6 +924,8 @@ def build_managed_client_task_argv(
             "exec",
             "--json",
             "--ephemeral",
+            "--ignore-user-config",
+            "--ignore-rules",
             "--sandbox",
             "read-only",
             "-",

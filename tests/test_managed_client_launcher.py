@@ -44,7 +44,7 @@ def settings(monkeypatch: pytest.MonkeyPatch) -> HarnessSettings:
     )
 
 
-def test_codex_launch_overrides_only_pikvm_and_preflights_effective_inventory(
+def test_codex_launch_isolates_oauth_and_preapproves_only_supervised_controls(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -58,7 +58,7 @@ def test_codex_launch_overrides_only_pikvm_and_preflights_effective_inventory(
     )
 
     assert plan.client == "codex"
-    assert plan.isolation_mode == "effective-inventory-override"
+    assert plan.isolation_mode == "isolated-auth-link"
     assert plan.argv[0] == "/opt/codex"
     assert plan.argv[-2:] == ("-C", str(tmp_path.resolve()))
     assert plan.inventory_config_overrides
@@ -68,7 +68,21 @@ def test_codex_launch_overrides_only_pikvm_and_preflights_effective_inventory(
     assert "direct-mcp" not in combined
     assert "TEST_AGENT_TOKEN" in combined
     assert "runtime-only-agent-token" not in combined
-    assert plan.preserve_unrelated_mcp is True
+    assert "mcp_servers.pikvm.required=true" in combined
+    assert "mcp_servers.pikvm.enabled_tools" in combined
+    assert 'mcp_servers.pikvm.default_tools_approval_mode="prompt"' in combined
+    for tool in (
+        "computer_start_task",
+        "computer_status",
+        "computer_continue",
+        "computer_pause",
+    ):
+        assert (
+            f"mcp_servers.pikvm.tools.{tool}.approval_mode=\"approve\""
+            in combined
+        )
+    assert "mcp_servers.pikvm.tools.computer_abort.approval_mode" not in combined
+    assert plan.preserve_unrelated_mcp is False
     assert plan.modifies_persisted_config is False
 
 
@@ -335,6 +349,89 @@ def test_codex_preflight_audits_the_exact_inline_override(
     assert captured["executable"] == "/opt/codex"
     assert captured["project_dir"] == tmp_path.resolve()
     assert captured["config_overrides"] == plan.inventory_config_overrides
+
+
+def test_codex_preflight_links_client_owned_oauth_into_clean_runtime(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    source_home = tmp_path / "codex-home"
+    source_home.mkdir()
+    source_auth = source_home / "auth.json"
+    source_auth.write_text('{"auth":"client-owned"}\n', encoding="utf-8")
+    plan = build_managed_client_launch(
+        settings(monkeypatch),
+        client="codex",
+        client_executable="/opt/codex",
+        mcp_executable="/opt/pikvm/python",
+        harness_config=tmp_path / "harness.yaml",
+        project_dir=tmp_path,
+    )
+    observed: dict[str, object] = {}
+
+    def fake_inventory(**kwargs) -> ClientConfigDocument:
+        child = kwargs["environ"]
+        assert isinstance(child, dict)
+        isolated_home = Path(child["CODEX_HOME"])
+        isolated_auth = isolated_home / "auth.json"
+        observed.update(
+            {
+                "home_is_isolated": isolated_home != source_home,
+                "auth_is_symlink": isolated_auth.is_symlink(),
+                "auth_target": isolated_auth.resolve(),
+                "agent_token": child["TEST_AGENT_TOKEN"],
+                "unrelated_secret_present": "UNRELATED_SECRET" in child,
+            }
+        )
+        return ClientConfigDocument(
+            source_label="native-inventory",
+            rendered=json.dumps(
+                [
+                    {
+                        "name": "pikvm",
+                        "enabled": True,
+                        "transport": {
+                            "command": "/opt/pikvm/python",
+                            "args": [
+                                "-m",
+                                "pikvm_agent.cli",
+                                "harness",
+                                "managed-mcp",
+                            ],
+                        },
+                    }
+                ]
+            ),
+        )
+
+    monkeypatch.setattr(
+        "pikvm_agent.harness.managed_client_launcher."
+        "read_codex_effective_inventory",
+        fake_inventory,
+    )
+
+    report = audit_managed_client_launch(
+        plan,
+        environ={
+            "CODEX_HOME": str(source_home),
+            "HOME": "/home/operator",
+            "PATH": "/usr/bin",
+            "TEST_AGENT_TOKEN": "runtime-token",
+            "UNRELATED_SECRET": "must-not-be-forwarded",
+        },
+    )
+
+    assert report.safe is True
+    assert observed == {
+        "home_is_isolated": True,
+        "auth_is_symlink": True,
+        "auth_target": source_auth.resolve(),
+        "agent_token": "runtime-token",
+        "unrelated_secret_present": False,
+    }
+    assert source_auth.read_text(encoding="utf-8") == (
+        '{"auth":"client-owned"}\n'
+    )
 
 
 def test_codex_preflight_refuses_a_competing_production_shape(
@@ -743,6 +840,8 @@ routes:
                 "exec",
                 "--json",
                 "--ephemeral",
+                "--ignore-user-config",
+                "--ignore-rules",
                 "--sandbox",
                 "read-only",
                 "-",
@@ -808,6 +907,10 @@ def test_managed_client_task_reports_only_safe_execution_metadata(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
+    source_home = tmp_path / "codex-home"
+    source_home.mkdir()
+    source_auth = source_home / "auth.json"
+    source_auth.write_text('{"auth":"client-owned"}\n', encoding="utf-8")
     plan = build_managed_client_launch(
         settings(monkeypatch),
         client="codex",
@@ -821,6 +924,14 @@ def test_managed_client_task_reports_only_safe_execution_metadata(
     def fake_run(argv: list[str], **kwargs: object) -> subprocess.CompletedProcess:
         captured["argv"] = argv
         captured.update(kwargs)
+        child = kwargs["env"]
+        assert isinstance(child, dict)
+        isolated_home = Path(child["CODEX_HOME"])
+        isolated_auth = isolated_home / "auth.json"
+        captured["codex_home_is_isolated"] = isolated_home != source_home
+        captured["auth_is_symlink"] = isolated_auth.is_symlink()
+        captured["auth_target"] = isolated_auth.resolve()
+        captured["unrelated_secret_present"] = "UNRELATED_SECRET" in child
         return subprocess.CompletedProcess(argv, 0)
 
     monkeypatch.setattr(subprocess, "run", fake_run)
@@ -828,7 +939,13 @@ def test_managed_client_task_reports_only_safe_execution_metadata(
         plan,
         task="Complete the private managed task.",
         timeout_s=30,
-        environ={"TEST_AGENT_TOKEN": "runtime-token"},
+        environ={
+            "CODEX_HOME": str(source_home),
+            "HOME": "/home/operator",
+            "PATH": "/usr/bin",
+            "TEST_AGENT_TOKEN": "runtime-token",
+            "UNRELATED_SECRET": "must-not-be-forwarded",
+        },
     )
     summary = result.summary()
 
@@ -838,6 +955,10 @@ def test_managed_client_task_reports_only_safe_execution_metadata(
     )
     assert captured["cwd"] == tmp_path.resolve()
     assert captured["timeout"] == 30
+    assert captured["codex_home_is_isolated"] is True
+    assert captured["auth_is_symlink"] is True
+    assert captured["auth_target"] == source_auth.resolve()
+    assert captured["unrelated_secret_present"] is False
     assert summary["client"] == "codex"
     assert summary["exit_code"] == 0
     assert summary["task_bytes"] == 34
