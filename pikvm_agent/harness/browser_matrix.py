@@ -18,7 +18,10 @@ from urllib.parse import urlparse
 
 import uvicorn
 
-from pikvm_agent.harness.ui_fixture import build_fixture_app
+from pikvm_agent.harness.ui_fixture import (
+    GENERIC_TOOL_TASK,
+    build_fixture_app,
+)
 
 
 SUPPORTED_BROWSERS = ("chromium", "firefox", "webkit")
@@ -590,6 +593,111 @@ def _audit_engine(
         stage = "wait for model connections to close"
         _wait_for_hidden(models_sheet, timeout_ms=timeout_ms)
 
+        stage = "select generic tool task"
+        _select_desktop_task(page, GENERIC_TOOL_TASK)
+        generic_group = page.get_by_role(
+            "button",
+            name="web.search_text, 1 tool call, completed",
+        )
+        stage = "expand generic tool group"
+        _pointer_click(page, generic_group)
+        generic_call = page.get_by_role(
+            "button",
+            name="Used tool: web.search_text",
+        )
+        stage = "expand generic tool call"
+        _pointer_click(page, generic_call)
+        generic_root = generic_call.locator(
+            'xpath=ancestor::*[@data-slot="tool-fallback-root"]'
+        )
+        receipt = page.locator('[data-slot="tool-fallback-receipt"]')
+        receipt.get_by_text("5 results returned", exact=True).wait_for()
+        receipt.get_by_text(
+            "python.org latest stable Python release download",
+            exact=True,
+        ).wait_for()
+        details = receipt.get_by_role("button", name="Details")
+        receipt_before_details = receipt.inner_text()
+        if "Synthetic Python result" in receipt_before_details:
+            raise BrowserAuditFailure(
+                "generic tool receipt exposes raw output before Details"
+            )
+        stage = "open exact generic tool evidence"
+        _pointer_click(page, details)
+        receipt.get_by_text("Exact arguments", exact=True).wait_for()
+        receipt.get_by_text("Raw result", exact=True).wait_for()
+        generic_tool = receipt.evaluate(
+            """(element) => {
+              const details = element.querySelector('button[aria-expanded]');
+              const blocks = Array.from(element.querySelectorAll('pre'));
+              const raw = blocks.map((block) => block.textContent || '').join('');
+              return {
+                concise_summary_visible:
+                  element.innerText.includes('5 results returned'),
+                exact_query_visible:
+                  element.innerText.includes(
+                    'python.org latest stable Python release download'
+                  ),
+                raw_hidden_until_requested: true,
+                details_open: details?.getAttribute('aria-expanded') === 'true',
+                exact_arguments_visible:
+                  element.innerText.includes('Exact arguments'),
+                raw_result_visible: element.innerText.includes('Raw result'),
+                raw_result_retained: raw.includes('Synthetic Python result 1'),
+                raw_blocks: blocks.length,
+                raw_max_height: blocks.length
+                  ? getComputedStyle(blocks[blocks.length - 1]).maxHeight
+                  : '',
+                horizontal_overflow_pixels: Math.max(
+                  0,
+                  element.scrollWidth - element.clientWidth
+                ),
+              };
+            }"""
+        )
+        generic_tool["model_attribution_visible"] = (
+            "opus" in generic_root.inner_text()
+            and "claude-account" in generic_root.inner_text()
+        )
+        if not all(
+            value
+            for key, value in generic_tool.items()
+            if key
+            not in {
+                "raw_blocks",
+                "raw_max_height",
+                "horizontal_overflow_pixels",
+            }
+        ):
+            missing = ", ".join(
+                name
+                for name, visible in generic_tool.items()
+                if name
+                not in {
+                    "raw_blocks",
+                    "raw_max_height",
+                    "horizontal_overflow_pixels",
+                }
+                and not visible
+            )
+            raise BrowserAuditFailure(
+                f"generic tool receipt is incomplete: {missing}"
+            )
+        if generic_tool["raw_blocks"] != 2:
+            raise BrowserAuditFailure(
+                "generic tool receipt does not retain exactly two raw blocks"
+            )
+        if generic_tool["raw_max_height"] != "224px":
+            raise BrowserAuditFailure(
+                "generic tool raw result is not height-bounded"
+            )
+        if generic_tool["horizontal_overflow_pixels"] != 0:
+            raise BrowserAuditFailure(
+                "generic tool receipt has horizontal overflow"
+            )
+
+        stage = "restore timeline task"
+        _select_desktop_task(page, TIMELINE_TASK)
         stage = "measure responsive timeline"
         page.set_viewport_size({"width": 390, "height": 844})
         page.wait_for_timeout(100)
@@ -762,6 +870,7 @@ def _audit_engine(
             "responsive": responsive,
             "connection": connection,
             "models": models,
+            "generic_tool": generic_tool,
             "approval": approval,
             "direct": direct,
             "progress": progress,

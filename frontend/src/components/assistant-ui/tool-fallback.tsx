@@ -319,6 +319,197 @@ function ToolFallbackResult({
   );
 }
 
+const resultRecord = (value: unknown): Record<string, unknown> | undefined =>
+  typeof value === "object" && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : undefined;
+
+const parseJsonValue = (value: string): unknown => {
+  const candidate = value.trim();
+  if (
+    !candidate ||
+    (!candidate.startsWith("{") && !candidate.startsWith("["))
+  ) {
+    return undefined;
+  }
+  try {
+    return JSON.parse(candidate);
+  } catch {
+    return undefined;
+  }
+};
+
+const exactResultText = (result: unknown) =>
+  typeof result === "string" ? result : JSON.stringify(result, null, 2);
+
+const resultSummary = (toolName: string, result: unknown) => {
+  if (result === undefined) return "Waiting for result";
+  if (result === null || result === "") return "No result returned";
+
+  const parsed =
+    typeof result === "string" ? parseJsonValue(result) ?? result : result;
+  const value = resultRecord(parsed);
+  const status = typeof value?.status === "string" ? value.status : "";
+  if (status === "completed") return "Completed";
+  if (status === "started") return "Started";
+  if (status === "refused") return "Refused";
+  if (status === "failed") return "Failed";
+  if (status === "unverified") return "Completed without verification";
+
+  const structured = resultRecord(value?.structured_content);
+  const structuredResults = structured?.result;
+  if (Array.isArray(structuredResults)) {
+    return `${structuredResults.length} ${
+      structuredResults.length === 1 ? "result" : "results"
+    } returned`;
+  }
+
+  if (
+    toolName.endsWith("search_text") &&
+    Array.isArray(value?.content)
+  ) {
+    return `${value.content.length} ${
+      value.content.length === 1 ? "result" : "results"
+    } returned`;
+  }
+  if (Array.isArray(parsed)) {
+    return `${parsed.length} ${
+      parsed.length === 1 ? "item" : "items"
+    } returned`;
+  }
+  return "Response received";
+};
+
+const argumentLabel = (key: string) => {
+  const words = key.replaceAll("_", " ").replaceAll("-", " ").trim();
+  return words ? `${words[0].toUpperCase()}${words.slice(1)}` : key;
+};
+
+const argumentValue = (value: unknown) => {
+  if (typeof value === "string") {
+    return value.length <= 160 ? value : `${value.slice(0, 157)}…`;
+  }
+  if (
+    typeof value === "number" ||
+    typeof value === "boolean" ||
+    value === null
+  ) {
+    return String(value);
+  }
+  if (Array.isArray(value)) {
+    return `${value.length} ${value.length === 1 ? "item" : "items"}`;
+  }
+  const fields = Object.keys(resultRecord(value) ?? {}).length;
+  return `${fields} ${fields === 1 ? "field" : "fields"}`;
+};
+
+const argumentSummary = (argsText?: string) => {
+  if (!argsText) return [];
+  const value = resultRecord(parseJsonValue(argsText));
+  if (!value) return [];
+  return Object.entries(value)
+    .filter(([key]) => key !== "__receipt")
+    .map(([key, entry]) => ({
+      key,
+      label: argumentLabel(key),
+      value: argumentValue(entry),
+    }));
+};
+
+function ToolFallbackReceipt({
+  toolName,
+  argsText,
+  result,
+  className,
+  ...props
+}: React.ComponentProps<"div"> & {
+  toolName: string;
+  argsText?: string;
+  result?: unknown;
+}) {
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const argumentsSummary = argumentSummary(argsText);
+  const shownArguments = argumentsSummary.slice(0, 3);
+  const omittedArguments = Math.max(
+    0,
+    argumentsSummary.length - shownArguments.length,
+  );
+  const rawResult = exactResultText(result);
+
+  return (
+    <div
+      data-slot="tool-fallback-receipt"
+      className={cn(
+        "aui-tool-fallback-receipt flex min-w-0 flex-col gap-2",
+        className,
+      )}
+      {...props}
+    >
+      <p className="text-sm font-medium text-foreground/90">
+        {resultSummary(toolName, result)}
+      </p>
+      {shownArguments.length > 0 ? (
+        <dl className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-xs">
+          {shownArguments.map((argument) => (
+            <div
+              key={argument.key}
+              className="contents"
+            >
+              <dt className="text-muted-foreground">{argument.label}</dt>
+              <dd
+                className="truncate text-foreground/85"
+                title={argument.value}
+              >
+                {argument.value}
+              </dd>
+            </div>
+          ))}
+          {omittedArguments > 0 ? (
+            <div className="col-span-2 text-muted-foreground">
+              +{omittedArguments} more
+            </div>
+          ) : null}
+        </dl>
+      ) : null}
+      {argsText || rawResult !== undefined ? (
+        <Collapsible open={detailsOpen} onOpenChange={setDetailsOpen}>
+          <CollapsibleTrigger className="group/details flex w-fit items-center gap-1 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground">
+            Details
+            <ChevronDownIcon
+              className="size-3 -rotate-90 transition-transform duration-150 group-data-open/details:rotate-0 motion-reduce:transition-none"
+              aria-hidden="true"
+            />
+          </CollapsibleTrigger>
+          <CollapsibleContent className="overflow-hidden">
+            <div className="flex min-w-0 flex-col gap-3 pb-1 pt-1">
+              {argsText ? (
+                <div>
+                  <p className="mb-1 text-xs font-medium text-muted-foreground">
+                    Exact arguments
+                  </p>
+                  <pre className="max-h-48 overflow-auto rounded-md bg-muted/50 p-2.5 text-xs whitespace-pre-wrap break-words text-foreground/90">
+                    {argsText}
+                  </pre>
+                </div>
+              ) : null}
+              {rawResult !== undefined ? (
+                <div>
+                  <p className="mb-1 text-xs font-medium text-muted-foreground">
+                    Raw result
+                  </p>
+                  <pre className="max-h-56 overflow-auto rounded-md bg-muted/50 p-2.5 text-xs whitespace-pre-wrap break-words text-foreground/90">
+                    {rawResult}
+                  </pre>
+                </div>
+              ) : null}
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
+      ) : null}
+    </div>
+  );
+}
+
 function ToolFallbackError({
   status,
   className,
@@ -601,10 +792,15 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
       <ToolFallbackContent>
         <ToolFallbackError status={status} />
         <ToolFallbackAttribution selectedBy={selectedBy} />
-        <ToolFallbackArgs
-          argsText={argsText}
-          className={cn(isCancelled && "opacity-60")}
-        />
+        {isCancelled ? (
+          <ToolFallbackArgs argsText={argsText} className="opacity-60" />
+        ) : (
+          <ToolFallbackReceipt
+            toolName={toolName}
+            argsText={argsText}
+            result={result}
+          />
+        )}
         {isRequiresAction && (
           <ToolFallbackApproval
             addResult={addResult}
@@ -614,7 +810,6 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
             respondToApproval={respondToApproval}
           />
         )}
-        {!isCancelled && <ToolFallbackResult result={result} />}
       </ToolFallbackContent>
     </ToolFallbackRoot>
   );
@@ -651,4 +846,5 @@ export {
   ToolFallbackError,
   ToolFallbackApproval,
   ToolFallbackAttribution,
+  ToolFallbackReceipt,
 };

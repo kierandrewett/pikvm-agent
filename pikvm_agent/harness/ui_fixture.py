@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import json
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
@@ -37,6 +38,7 @@ from pikvm_agent.harness.provider_connections import (
 )
 
 FIXTURE_RUN_ID = "chat-ui-audit"
+GENERIC_TOOL_TASK = "Audit a concise generic tool receipt"
 
 
 def _write_fixture_evidence(path: Path) -> None:
@@ -868,6 +870,83 @@ def build_assistant_handoff_fixture_run() -> RunSnapshot:
     return run
 
 
+def build_generic_tool_fixture_run() -> RunSnapshot:
+    """Build a completed generic tool call with production-shaped MCP output."""
+
+    run = RunSnapshot(
+        run_id="generic-tool-ui-audit",
+        task=GENERIC_TOOL_TASK,
+        mode="assistant",
+        status=RunStatus.COMPLETED,
+        origin="managed",
+        conversation=[],
+    )
+    run.record("run.created", mode="assistant", synthetic=True)
+    run.conversation.append(
+        ConversationMessage(
+            message_id="fixture-tool-user",
+            role="user",
+            content=GENERIC_TOOL_TASK,
+            event_cursor=run.event_cursor,
+        )
+    )
+    arguments = {
+        "query": "python.org latest stable Python release download",
+        "max_results": 5,
+    }
+    selected_by = {
+        "provider": "claude-account",
+        "model": "opus",
+        "latency_ms": 5_300,
+    }
+    run.record(
+        "tool.started",
+        call_id="fixture-web-search",
+        tool="web.search_text",
+        arguments=arguments,
+        selected_by=selected_by,
+        synthetic=True,
+    )
+    results = [
+        {
+            "title": f"Synthetic Python result {index}",
+            "href": f"https://www.python.org/synthetic/{index}",
+        }
+        for index in range(1, 6)
+    ]
+    run.record(
+        "tool.completed",
+        call_id="fixture-web-search",
+        tool="web.search_text",
+        content=json.dumps(
+            {
+                "content": [
+                    {
+                        "type": "text",
+                        "text": json.dumps(results[0]),
+                    }
+                ],
+                "structured_content": {"result": results},
+            },
+            separators=(",", ":"),
+        ),
+        synthetic=True,
+    )
+    run.conversation.append(
+        ConversationMessage(
+            message_id="fixture-tool-assistant",
+            role="assistant",
+            content=(
+                "The synthetic search returned five results without contacting "
+                "an external service."
+            ),
+            event_cursor=run.event_cursor,
+        )
+    )
+    run.record("run.completed", synthetic=True)
+    return run
+
+
 def advance_fixture_run(
     run: RunSnapshot,
     tick: int,
@@ -981,6 +1060,7 @@ def build_fixture_app(
     run = build_fixture_run(prefill_events)
     approval_run = build_approval_fixture_run()
     handoff_run = build_assistant_handoff_fixture_run()
+    generic_tool_run = build_generic_tool_fixture_run()
     evidence_dir = TemporaryDirectory(prefix="pikvm-ui-fixture-")
     evidence_path = Path(evidence_dir.name) / "before-after.png"
     direct_evidence_path = Path(evidence_dir.name) / "direct-before.png"
@@ -1013,6 +1093,7 @@ def build_fixture_app(
         await store.save(run)
         await store.save(approval_run)
         await store.save(handoff_run)
+        await store.save(generic_tool_run)
         await store.save(direct_run)
 
         async def produce() -> None:
@@ -1050,5 +1131,6 @@ def build_fixture_app(
     app.state.synthetic_run = run
     app.state.synthetic_approval_run = approval_run
     app.state.synthetic_handoff_run = handoff_run
+    app.state.synthetic_generic_tool_run = generic_tool_run
     app.state.synthetic_direct_run = direct_run
     return app

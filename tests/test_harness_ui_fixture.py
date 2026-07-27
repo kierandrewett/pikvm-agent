@@ -16,6 +16,7 @@ from pikvm_agent.harness.ui_fixture import (
     build_direct_fixture_run,
     build_fixture_app,
     build_fixture_run,
+    build_generic_tool_fixture_run,
 )
 from pikvm_agent.harness.agent_store import InMemoryRunStore
 
@@ -134,6 +135,31 @@ def test_ui_fixture_includes_attributed_chat_to_computer_handoff() -> None:
     assert run.status.value == "paused"
 
 
+def test_ui_fixture_includes_a_production_shaped_generic_tool_receipt() -> None:
+    run = build_generic_tool_fixture_run()
+
+    started = next(
+        event for event in run.events if event.kind == "tool.started"
+    )
+    completed = next(
+        event for event in run.events if event.kind == "tool.completed"
+    )
+
+    assert started.data["tool"] == "web.search_text"
+    assert started.data["arguments"] == {
+        "query": "python.org latest stable Python release download",
+        "max_results": 5,
+    }
+    assert started.data["selected_by"] == {
+        "provider": "claude-account",
+        "model": "opus",
+        "latency_ms": 5_300,
+    }
+    assert '"structured_content":{"result":[' in completed.data["content"]
+    assert run.conversation[-1].event_cursor == completed.sequence
+    assert run.status.value == "completed"
+
+
 async def test_ui_fixture_exposes_and_resolves_a_synthetic_send_approval() -> None:
     store = InMemoryRunStore()
     harness = FixtureHarness(store)
@@ -207,6 +233,7 @@ def test_ui_fixture_app_exposes_no_machine_marker_and_provider_matrix() -> None:
 
     assert app.state.synthetic_fixture is True
     assert app.state.synthetic_approval_run.status.value == "needs_approval"
+    assert app.state.synthetic_generic_tool_run.status.value == "completed"
     assert app.state.synthetic_direct_run.origin == "direct_mcp"
     assert app.state.synthetic_run.verification_images[0].revision == 1
     assert any(
