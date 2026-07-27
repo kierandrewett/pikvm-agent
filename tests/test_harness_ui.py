@@ -125,7 +125,8 @@ def test_workspace_uses_production_chat_and_component_libraries() -> None:
         / "workspace"
         / "computer-tool-call.tsx"
     ).read_text()
-    assert "Raw request" in computer_tool
+    assert "Raw" in computer_tool
+    assert "Details" in computer_tool
     assert "Raw MCP request" not in computer_tool
     assert "Computer action receipt" in computer_tool
     assert "Screen change" in computer_tool
@@ -133,7 +134,8 @@ def test_workspace_uses_production_chat_and_component_libraries() -> None:
     assert "Exact typed payload" in computer_tool
     assert "Held before a consequential input" in computer_tool
     assert "Pointer target" in computer_tool
-    assert "Current input stays open while the screen changes" in computer_tool
+    assert "Input live" in computer_tool
+    assert "Children.toArray(children).slice(-1)" in computer_tool
     assert ".computer-action-step:not(:last-child)" in computer_tool
     assert "based_on_world_version" in computer_tool
     assert "ToolFallbackApproval" in computer_tool

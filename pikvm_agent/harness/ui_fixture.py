@@ -28,6 +28,11 @@ from pikvm_agent.harness.agent_models import (
 from pikvm_agent.harness.agent_store import InMemoryRunStore
 from pikvm_agent.harness.api import create_harness_app
 from pikvm_agent.harness.provider_support import provider_support
+from pikvm_agent.harness.provider_connections import (
+    ProviderConnectionConflict,
+    ProviderConnectionRequest,
+    ProviderConnectionResult,
+)
 
 FIXTURE_RUN_ID = "chat-ui-audit"
 
@@ -100,8 +105,8 @@ class FixtureLiveFrames:
 
 
 class FixtureModels:
-    def health(self) -> dict[str, dict[str, object]]:
-        return {
+    def __init__(self) -> None:
+        self._providers: dict[str, dict[str, object]] = {
             "claude-account": {
                 "kind": "claude_cli",
                 "credential": "CLI-owned OAuth",
@@ -155,6 +160,66 @@ class FixtureModels:
                 "conformance_p95_latency_ms": 820,
             },
         }
+
+    def health(self) -> dict[str, dict[str, object]]:
+        return {
+            name: dict(health)
+            for name, health in self._providers.items()
+        }
+
+    def add(self, name: str, health: dict[str, object]) -> None:
+        if name in self._providers:
+            raise ProviderConnectionConflict(
+                f"provider alias already configured: {name}"
+            )
+        self._providers[name] = dict(health)
+
+
+class FixtureProviderConnections:
+    """Secret-free connection simulator for target-free browser QA."""
+
+    def __init__(self, models: FixtureModels) -> None:
+        self._models = models
+
+    async def connect(
+        self,
+        request: ProviderConnectionRequest,
+    ) -> ProviderConnectionResult:
+        cli_owned = request.kind in {
+            "codex_cli",
+            "claude_cli",
+            "gemini_cli",
+        }
+        auth_mode = "saved_cli_login" if cli_owned else "api_key_env"
+        support = provider_support(request.kind)
+        ready = cli_owned
+        self._models.add(
+            request.alias,
+            {
+                "kind": request.kind,
+                "configured_model": request.model,
+                "auth_mode": auth_mode,
+                **support.readiness_metadata(auth_mode),
+                "ready": ready,
+                "readiness_error": (
+                    None if ready else "credential-env-missing"
+                ),
+                "routes": [],
+                "calls": 0,
+                "successes": 0,
+                "failures": 0,
+            },
+        )
+        return ProviderConnectionResult(
+            provider=request.alias,
+            configured_model=request.model,
+            kind=request.kind,
+            ready=ready,
+            credential_owner=support.auth_owner(auth_mode),
+            readiness_error=(
+                None if ready else "credential-env-missing"
+            ),
+        )
 
 
 class FixtureHarness:
@@ -483,6 +548,16 @@ def build_fixture_run(
                 },
             ),
             (
+                "verification.evidence_captured",
+                {
+                    "revision": cycle + 1,
+                    "action_index": index,
+                    "before_frame_id": cycle + 1,
+                    "after_frame_id": cycle + 2,
+                    "synthetic": True,
+                },
+            ),
+            (
                 "model.completed",
                 {
                     "role": "verifier",
@@ -615,7 +690,11 @@ def build_approval_fixture_run() -> RunSnapshot:
     return run
 
 
-def advance_fixture_run(run: RunSnapshot, tick: int) -> None:
+def advance_fixture_run(
+    run: RunSnapshot,
+    tick: int,
+    evidence_path: Path,
+) -> None:
     provider_name = (
         run.model_route.controller[0]
         if run.model_route is not None and run.model_route.controller
@@ -671,6 +750,24 @@ def advance_fixture_run(run: RunSnapshot, tick: int) -> None:
         frame_id=tick + 2,
         world_version=tick + 2,
     )
+    run.latest_verification_image_path = str(evidence_path)
+    run.latest_verification_image_revision += 1
+    evidence = VerificationImageArtifact(
+        revision=run.latest_verification_image_revision,
+        action_index=run.next_action_index,
+        before_frame_id=max(1, tick + 1),
+        after_frame_id=tick + 2,
+        path=str(evidence_path),
+    )
+    run.verification_images = [*run.verification_images[-63:], evidence]
+    run.record(
+        "verification.evidence_captured",
+        revision=evidence.revision,
+        action_index=evidence.action_index,
+        before_frame_id=evidence.before_frame_id,
+        after_frame_id=evidence.after_frame_id,
+        synthetic=True,
+    )
     run.record(
         "model.completed",
         role="verifier",
@@ -708,32 +805,26 @@ def build_fixture_app(
     evidence_dir = TemporaryDirectory(prefix="pikvm-ui-fixture-")
     evidence_path = Path(evidence_dir.name) / "before-after.png"
     _write_fixture_evidence(evidence_path)
-    last_action = next(
+    evidence_events = [
         event
-        for event in reversed(run.events)
-        if event.kind == "action.completed"
-    )
-    after_frame_id = int(last_action.data.get("frame_id") or 1)
-    action_index = int(last_action.data.get("index") or 0)
+        for event in run.events
+        if event.kind == "verification.evidence_captured"
+    ][-64:]
+    latest_evidence = evidence_events[-1]
     run.latest_verification_image_path = str(evidence_path)
-    run.latest_verification_image_revision = 1
+    run.latest_verification_image_revision = int(
+        latest_evidence.data["revision"]
+    )
     run.verification_images = [
         VerificationImageArtifact(
-            revision=1,
-            action_index=action_index,
-            before_frame_id=max(1, after_frame_id - 1),
-            after_frame_id=after_frame_id,
+            revision=int(event.data["revision"]),
+            action_index=int(event.data["action_index"]),
+            before_frame_id=int(event.data["before_frame_id"]),
+            after_frame_id=int(event.data["after_frame_id"]),
             path=str(evidence_path),
         )
+        for event in evidence_events
     ]
-    run.record(
-        "verification.evidence_captured",
-        revision=1,
-        action_index=action_index,
-        before_frame_id=max(1, after_frame_id - 1),
-        after_frame_id=after_frame_id,
-        synthetic=True,
-    )
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -745,7 +836,7 @@ def build_fixture_app(
             while True:
                 await asyncio.sleep(event_interval_ms / 1_000)
                 tick += 1
-                advance_fixture_run(run, tick)
+                advance_fixture_run(run, tick, evidence_path)
                 await store.save(run)
 
         producer = asyncio.create_task(produce())
@@ -756,15 +847,17 @@ def build_fixture_app(
             await asyncio.gather(producer, return_exceptions=True)
             evidence_dir.cleanup()
 
+    models = FixtureModels()
     app = create_harness_app(
         harness=FixtureHarness(store),  # type: ignore[arg-type]
         store=store,
-        models=FixtureModels(),
+        models=models,
         access_token=access_token,
         allowed_origins={origin},
         live_frames=FixtureLiveFrames(),
         external_driver=False,
         lifespan=lifespan,
+        provider_connections=FixtureProviderConnections(models),
     )
     app.state.synthetic_fixture = True
     app.state.synthetic_store = store

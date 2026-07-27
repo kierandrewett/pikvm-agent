@@ -111,7 +111,10 @@ def harness_serve(
     ensure_safe_bind(settings)
     host, port = settings.host_port()
     typer.echo(f"Chat workspace: http://{host}:{port}/app/")
-    operator_app = build_harness_app(settings)
+    operator_app = build_harness_app(
+        settings,
+        settings_path=config,
+    )
 
     class HarnessServer(uvicorn.Server):
         def handle_exit(self, sig: int, frame: Any) -> None:

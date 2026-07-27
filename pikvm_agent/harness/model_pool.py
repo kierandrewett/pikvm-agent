@@ -299,6 +299,32 @@ class ModelPool:
         route = self.routes.get(role)
         return list(route.providers) if route else []
 
+    def adopt_unrouted_provider(
+        self,
+        source: "ModelPool",
+        name: str,
+    ) -> None:
+        """Add one validated provider without changing any default route.
+
+        The connection flow is additive: existing provider objects and active
+        route lists are never replaced. A newly connected provider can be
+        selected explicitly for a future task, then promoted into automatic
+        routes through reviewed configuration.
+        """
+
+        if name in self.providers or name in self._health:
+            raise ValueError(f"provider already configured: {name}")
+        try:
+            provider = source.providers.pop(name)
+            health = source._health.pop(name)
+        except KeyError as exc:
+            raise ValueError(f"provider is unavailable in source pool: {name}") from exc
+        health.routes = []
+        self.providers[name] = provider
+        self._health[name] = health
+        if name in source._failure_cooldowns:
+            self._failure_cooldowns[name] = source._failure_cooldowns[name]
+
     def health(self) -> dict[str, dict[str, object]]:
         now = self._monotonic()
         for name, deadline in list(self._cooldown_deadlines.items()):

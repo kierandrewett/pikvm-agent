@@ -236,25 +236,6 @@ body,
     content: counter(computer-action, decimal-leading-zero);
   }
 
-  .computer-action-list .computer-action-step:not(:last-child)::after {
-    position: absolute;
-    top: 2.25rem;
-    bottom: -0.35rem;
-    left: 1.48rem;
-    width: 1px;
-    background: color-mix(in oklab, var(--color-border) 78%, transparent);
-    content: "";
-  }
-
-  .computer-action-list
-    .computer-action-step[data-computer-state="complete"]::after {
-    background: color-mix(
-      in oklab,
-      var(--color-evidence) 42%,
-      var(--color-border)
-    );
-  }
-
   @media (prefers-reduced-motion: reduce) {
     .computer-action-step,
     .computer-action-marker {

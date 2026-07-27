@@ -7,6 +7,7 @@ import json
 import secrets
 from collections.abc import AsyncIterator, Callable
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
+from io import BytesIO
 from pathlib import Path
 from typing import Any, Literal, Protocol
 
@@ -18,6 +19,7 @@ from fastapi.responses import (
     StreamingResponse,
 )
 from fastapi.staticfiles import StaticFiles
+from PIL import Image, ImageDraw, UnidentifiedImageError
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from pikvm_agent.harness.agent import AgentHarness
@@ -39,6 +41,12 @@ from pikvm_agent.harness.direct_calls import (
     DirectCallFinish,
 )
 from pikvm_agent.harness.performance import summarize_run_performance
+from pikvm_agent.harness.provider_connections import (
+    ProviderConnectionConflict,
+    ProviderConnectionPolicyConflict,
+    ProviderConnectionRequest,
+    ProviderConnectionResult,
+)
 from pikvm_agent.harness.provider_support import public_provider_catalog
 from pikvm_agent.harness.redaction import redact_secrets
 
@@ -79,6 +87,13 @@ def _autonomous_resume_reason(run: RunSnapshot) -> str | None:
 
 class HealthSource(Protocol):
     def health(self) -> dict[str, dict[str, object]]: ...
+
+
+class ProviderConnectionSource(Protocol):
+    async def connect(
+        self,
+        request: ProviderConnectionRequest,
+    ) -> ProviderConnectionResult: ...
 
 
 class LiveFrameSource(Protocol):
@@ -375,6 +390,7 @@ def create_harness_app(
     live_frames: LiveFrameSource | None = None,
     direct_calls: DirectCallCoordinator | None = None,
     media_transactions: MediaTransactionSource | None = None,
+    provider_connections: ProviderConnectionSource | None = None,
     run_locks: dict[str, asyncio.Lock] | None = None,
     max_autonomous_resumes: int = 64,
     external_driver: bool = False,
@@ -650,6 +666,27 @@ def create_harness_app(
     @app.get("/api/providers")
     async def providers() -> dict[str, dict[str, object]]:
         return models.health()
+
+    @app.post(
+        "/api/providers",
+        status_code=201,
+        response_model=ProviderConnectionResult,
+    )
+    async def connect_provider(
+        body: ProviderConnectionRequest,
+    ) -> ProviderConnectionResult:
+        if provider_connections is None:
+            raise HTTPException(
+                503,
+                "provider connections are not enabled for this harness",
+            )
+        try:
+            return await provider_connections.connect(body)
+        except (
+            ProviderConnectionConflict,
+            ProviderConnectionPolicyConflict,
+        ) as exc:
+            raise HTTPException(409, str(exc)) from exc
 
     @app.get("/api/provider-catalog")
     async def provider_catalog() -> list[dict[str, object]]:
@@ -970,6 +1007,38 @@ def create_harness_app(
             action_index=evidence.action_index,
             before_frame_id=evidence.before_frame_id,
             after_frame_id=evidence.after_frame_id,
+        )
+
+    @app.get(
+        "/api/runs/{run_id}/verification-images/{revision}/click-target"
+    )
+    async def get_verification_click_target(
+        run_id: str,
+        revision: int,
+        x: int = Query(ge=0, le=65_535),
+        y: int = Query(ge=0, le=65_535),
+        screen_width: int = Query(ge=1, le=65_535),
+        screen_height: int = Query(ge=1, le=65_535),
+    ) -> Response:
+        run = await store.get_state(run_id)
+        evidence = next(
+            (
+                item
+                for item in run.verification_images
+                if item.revision == revision
+            ),
+            None,
+        )
+        if evidence is None:
+            raise HTTPException(404, "verification image revision is unavailable")
+        return _verification_click_target_response(
+            evidence.path,
+            x=x,
+            y=y,
+            screen_width=screen_width,
+            screen_height=screen_height,
+            revision=evidence.revision,
+            action_index=evidence.action_index,
         )
 
     @app.post("/api/runs/{run_id}/artifact-acceptance")
@@ -1330,6 +1399,105 @@ def _verification_image_response(
         content=path.read_bytes(),
         media_type=_image_mime(path),
         headers=headers,
+    )
+
+
+def _verification_click_target_response(
+    image_path: str,
+    *,
+    x: int,
+    y: int,
+    screen_width: int,
+    screen_height: int,
+    revision: int,
+    action_index: int,
+) -> Response:
+    """Return a small marked crop from the pre-action half of the evidence."""
+
+    path = Path(image_path)
+    if not path.is_file():
+        raise HTTPException(
+            404, "verification image artifact is unavailable"
+        )
+    try:
+        with Image.open(path) as source:
+            source.load()
+            panel_width = source.width // 2
+            label_height = min(32, max(0, source.height - 1))
+            panel_height = source.height - label_height
+            if panel_width < 2 or panel_height < 2:
+                raise HTTPException(422, "verification image is not a composite")
+
+            target_x = round(
+                min(screen_width, x) / screen_width * (panel_width - 1)
+            )
+            target_y = round(
+                min(screen_height, y) / screen_height * (panel_height - 1)
+            )
+            crop_width = min(
+                panel_width,
+                max(160, round(panel_width * 0.25)),
+            )
+            crop_height = min(
+                panel_height,
+                max(90, round(crop_width * 9 / 16)),
+            )
+            if crop_height == panel_height:
+                crop_width = min(
+                    crop_width,
+                    max(2, round(crop_height * 16 / 9)),
+                )
+            left = min(
+                panel_width - crop_width,
+                max(0, target_x - crop_width // 2),
+            )
+            top = min(
+                panel_height - crop_height,
+                max(0, target_y - crop_height // 2),
+            )
+            cropped = source.convert("RGB").crop(
+                (
+                    left,
+                    label_height + top,
+                    left + crop_width,
+                    label_height + top + crop_height,
+                )
+            )
+            preview = cropped.resize((240, 135), Image.Resampling.LANCZOS)
+            marker_x = round((target_x - left) / crop_width * preview.width)
+            marker_y = round((target_y - top) / crop_height * preview.height)
+            draw = ImageDraw.Draw(preview)
+            for radius, color, width in (
+                (10, "#050608", 5),
+                (8, "#8ff0b5", 3),
+                (2, "#f5fff8", 2),
+            ):
+                draw.ellipse(
+                    (
+                        marker_x - radius,
+                        marker_y - radius,
+                        marker_x + radius,
+                        marker_y + radius,
+                    ),
+                    outline=color,
+                    width=width,
+                )
+            payload = BytesIO()
+            preview.save(payload, format="PNG", optimize=True)
+    except (OSError, UnidentifiedImageError) as exc:
+        raise HTTPException(
+            404, "verification image artifact is unreadable"
+        ) from exc
+
+    return Response(
+        content=payload.getvalue(),
+        media_type="image/png",
+        headers={
+            "Cache-Control": "no-store",
+            "X-PiKVM-Evidence-Mode": "click-target",
+            "X-PiKVM-Evidence-Revision": str(revision),
+            "X-PiKVM-Action-Index": str(action_index),
+        },
     )
 
 

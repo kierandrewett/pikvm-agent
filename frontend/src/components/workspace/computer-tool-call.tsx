@@ -807,22 +807,15 @@ const modelAuditSummary = (receipt: ReceiptContext) => {
   return [route, latency].filter(Boolean).join(" · ");
 };
 
-function VerificationEvidenceFigure({
-  revision,
-  environment,
-  beforeFrame,
-  afterFrame,
-}: {
-  revision?: number;
-  environment: ComputerToolEnvironment;
-  beforeFrame?: number;
-  afterFrame?: number;
-}) {
+function useHarnessImage(
+  environment: ComputerToolEnvironment,
+  path: string,
+) {
   const [imageUrl, setImageUrl] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (revision == null || !environment.token || !environment.runId) {
+    if (!path || !environment.token) {
       setImageUrl((previous) => {
         if (previous) URL.revokeObjectURL(previous);
         return "";
@@ -837,11 +830,7 @@ function VerificationEvidenceFigure({
     let active = true;
     let currentUrl = "";
     const controller = new AbortController();
-    void harnessBlob(
-      environment.token,
-      `/api/runs/${encodeURIComponent(environment.runId)}/verification-images/${revision}`,
-      controller.signal,
-    )
+    void harnessBlob(environment.token, path, controller.signal)
       .then((blob) => {
         if (!active) return;
         currentUrl = URL.createObjectURL(blob);
@@ -861,9 +850,94 @@ function VerificationEvidenceFigure({
       controller.abort();
       if (currentUrl) URL.revokeObjectURL(currentUrl);
     };
-  }, [environment.runId, environment.token, revision]);
+  }, [environment.token, path]);
 
-  if (revision == null || !environment.token || !environment.runId) return null;
+  return { imageUrl, error };
+}
+
+function ClickTargetPreview({
+  action,
+  revision,
+  environment,
+}: {
+  action: JsonRecord;
+  revision?: number;
+  environment: ComputerToolEnvironment;
+}) {
+  const x = number(action.x);
+  const y = number(action.y);
+  const kind = actionName(action);
+  const width = environment.screenWidth;
+  const height = environment.screenHeight;
+  const path =
+    revision != null &&
+    kind.includes("click") &&
+    environment.runId &&
+    x != null &&
+    y != null &&
+    width &&
+    height
+      ? `/api/runs/${encodeURIComponent(environment.runId)}/verification-images/${revision}/click-target?${new URLSearchParams(
+          {
+            x: String(x),
+            y: String(y),
+            screen_width: String(width),
+            screen_height: String(height),
+          },
+        )}`
+      : "";
+  const { imageUrl, error } = useHarnessImage(environment, path);
+
+  if (!path) return null;
+  const label = `Pre-action preview around click at ${x}, ${y}`;
+  if (error) {
+    return (
+      <span
+        className="flex h-8 w-12 shrink-0 items-center justify-center rounded border border-border bg-muted text-muted-foreground sm:h-10 sm:w-[4.5rem]"
+        aria-label={`${label}; preview unavailable`}
+        title="Click preview unavailable"
+      >
+        <CrosshairIcon className="size-3.5" aria-hidden="true" />
+      </span>
+    );
+  }
+  return (
+    <span
+      className="block h-8 w-12 shrink-0 overflow-hidden rounded border border-border bg-muted sm:h-10 sm:w-[4.5rem]"
+      aria-label={label}
+      title={`Clicked at ${x}, ${y}`}
+    >
+      {imageUrl ? (
+        <img
+          src={imageUrl}
+          alt=""
+          className="size-full object-cover"
+        />
+      ) : (
+        <Skeleton className="size-full rounded-none" />
+      )}
+    </span>
+  );
+}
+
+function VerificationEvidenceFigure({
+  revision,
+  environment,
+  beforeFrame,
+  afterFrame,
+}: {
+  revision?: number;
+  environment: ComputerToolEnvironment;
+  beforeFrame?: number;
+  afterFrame?: number;
+}) {
+  const path =
+    revision != null && environment.runId
+      ? `/api/runs/${encodeURIComponent(environment.runId)}/verification-images/${revision}`
+      : "";
+  const { imageUrl, error } = useHarnessImage(environment, path);
+
+  if (!path || !environment.token) return null;
   const frameLabel = [
     beforeFrame != null ? `frame ${beforeFrame}` : "before",
     afterFrame != null ? `frame ${afterFrame}` : "after",
@@ -871,10 +945,10 @@ function VerificationEvidenceFigure({
 
   return (
     <figure
-      className="mt-3 max-w-lg overflow-hidden rounded-lg border border-border bg-background"
+      className="mt-2 max-w-sm overflow-hidden rounded-md border border-border bg-background"
       aria-label="Before and after screen evidence"
     >
-      <figcaption className="flex min-w-0 items-center justify-between gap-3 border-b border-border px-3 py-2">
+      <figcaption className="flex min-w-0 items-center justify-between gap-3 border-b border-border px-2.5 py-1.5">
         <span className="flex min-w-0 items-center gap-2 text-xs font-semibold">
           <EyeIcon
             className="size-3.5 shrink-0 text-evidence-foreground"
@@ -890,7 +964,7 @@ function VerificationEvidenceFigure({
         <img
           src={imageUrl}
           alt={`Before and after screen evidence, ${frameLabel}`}
-          className="block max-h-64 w-full bg-black object-contain"
+          className="block max-h-36 w-full bg-black object-contain"
         />
       ) : error ? (
         <p className="px-3 py-4 text-xs text-muted-foreground">
@@ -1067,7 +1141,9 @@ const ComputerToolCallImpl: ToolCallMessagePartComponent<
   );
   const state = statusMeta(status, result);
   const StateIcon = state.Icon;
-  const PrimaryIcon = actionIcon(actionName(summary.actions[0] ?? {}));
+  const primaryAction = summary.actions[0] ?? {};
+  const primaryKind = actionName(primaryAction);
+  const PrimaryIcon = actionIcon(primaryKind);
   const approvalContext = approval?.options?.find(
     (option) => option.kind === "allow-once" || option.kind === "allow-always",
   )?.description;
@@ -1081,10 +1157,31 @@ const ComputerToolCallImpl: ToolCallMessagePartComponent<
     number(callArgs.based_on_frame_id) ?? receipt.evidenceBeforeFrame;
   const afterFrame =
     number(resultValue.frame_id) ?? receipt.evidenceAfterFrame;
-  const showPrimaryInput =
-    needsApproval ||
-    summary.actions.length > 1 ||
-    summary.actions.some((action) => actionName(action).includes("type"));
+  const hasVisualClickTarget =
+    primaryKind.includes("click") &&
+    receipt.evidenceRevision != null &&
+    Boolean(
+      environment.token &&
+        environment.runId &&
+        environment.screenWidth &&
+        environment.screenHeight,
+    ) &&
+    number(primaryAction.x) != null &&
+    number(primaryAction.y) != null;
+  const visibleTitle =
+    hasVisualClickTarget && !text(primaryAction.target_text)
+      ? primaryKind.includes("double")
+        ? "Double-click target"
+        : "Click target"
+      : summary.title;
+  const showPrimaryInput = needsApproval || failed || needsReview;
+  const hasInputDisclosure =
+    !showPrimaryInput &&
+    (summary.actions.length > 1 ||
+      summary.actions.some((action) => {
+        const kind = actionName(action);
+        return kind.includes("type") || isKeyboardAction(kind);
+      }));
 
   useEffect(() => {
     const inputJustFinished = wasRunning.current && !running;
@@ -1115,11 +1212,11 @@ const ComputerToolCallImpl: ToolCallMessagePartComponent<
         "computer-action-step group/computer-tool relative",
       )}
     >
-      <CollapsibleTrigger className="group/trigger grid min-h-12 w-full grid-cols-[2rem_minmax(0,1fr)_auto] items-start gap-x-2.5 py-2 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50 sm:grid-cols-[2rem_minmax(0,1fr)_auto_auto]">
-        <span className="relative row-span-2 flex w-8 shrink-0 items-start justify-center">
+      <CollapsibleTrigger className="group/trigger grid min-h-12 w-full grid-cols-[1.75rem_minmax(0,1fr)_auto_auto] items-center gap-x-2 py-1 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
+        <span className="relative flex w-7 shrink-0 items-center justify-center">
           <span
             className={cn(
-              "computer-action-marker relative z-10 flex size-6 items-center justify-center bg-background text-muted-foreground",
+              "computer-action-marker relative z-10 flex size-5 items-center justify-center bg-background text-muted-foreground",
               needsApproval || needsReview
                 ? "text-caution-foreground"
                 : failed
@@ -1132,45 +1229,30 @@ const ComputerToolCallImpl: ToolCallMessagePartComponent<
             )}
           >
             <PrimaryIcon className="size-3.5" aria-hidden="true" />
-            <span className="computer-action-index absolute -right-1.5 -bottom-1 bg-background px-0.5 font-mono text-[8px] leading-3 tabular-nums text-muted-foreground" />
+            <span className="computer-action-index absolute -right-1.5 -bottom-1 bg-background px-0.5 font-mono text-[7px] leading-3 tabular-nums text-muted-foreground" />
           </span>
         </span>
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-semibold">
-            {summary.title}
+        <span className="flex min-w-0 items-center gap-2">
+          <ClickTargetPreview
+            action={summary.actions[0] ?? {}}
+            revision={receipt.evidenceRevision}
+            environment={environment}
+          />
+          <span className="min-w-0 truncate text-sm font-medium">
+            {visibleTitle}
           </span>
-          <span className="mt-1 flex min-w-0 items-center gap-1.5 text-[11px] text-muted-foreground group-data-open/computer-tool:hidden">
-            <span className="truncate">{summary.detail}</span>
-            <span aria-hidden="true">·</span>
-            <code className="shrink-0 font-mono">
-              {toolName.replace(/^pikvm_/, "")}
-            </code>
-            {durationLabel(visibleDuration) ? (
-              <>
-                <span aria-hidden="true">·</span>
-                <span className="shrink-0 tabular-nums">
-                  {durationLabel(visibleDuration)}
-                </span>
-              </>
-            ) : null}
-            {receipt.controller?.model ? (
-              <>
-                <span aria-hidden="true">·</span>
-                <span
-                  className="hidden min-w-0 truncate sm:inline"
-                  title={[receipt.controller.model, receipt.controller.provider]
-                    .filter(Boolean)
-                    .join(" · ")}
-                >
-                  {receipt.controller.model}
-                </span>
-              </>
-            ) : null}
-          </span>
+          <code className="hidden shrink-0 font-mono text-[10px] text-muted-foreground sm:inline">
+            {toolName.replace(/^pikvm_/, "")}
+          </code>
+          {durationLabel(visibleDuration) ? (
+            <span className="hidden shrink-0 font-mono text-[10px] tabular-nums text-muted-foreground sm:inline">
+              {durationLabel(visibleDuration)}
+            </span>
+          ) : null}
         </span>
         <span
           className={cn(
-            "col-start-2 row-start-2 mt-1 flex items-center gap-1.5 text-xs font-medium sm:col-start-3 sm:row-start-1 sm:mt-0.5",
+            "flex shrink-0 items-center gap-1.5 text-xs font-medium",
             statusTextClass(state.variant),
           )}
         >
@@ -1184,13 +1266,13 @@ const ComputerToolCallImpl: ToolCallMessagePartComponent<
           {state.label}
         </span>
         <ChevronDownIcon
-          className="col-start-3 row-start-1 mt-1 size-4 shrink-0 -rotate-90 text-muted-foreground transition-transform duration-150 group-data-open/trigger:rotate-0 group-data-panel-open/trigger:rotate-0 motion-reduce:transition-none sm:col-start-4"
+          className="size-3.5 shrink-0 -rotate-90 text-muted-foreground transition-transform duration-150 group-data-open/trigger:rotate-0 group-data-panel-open/trigger:rotate-0 motion-reduce:transition-none"
           aria-hidden="true"
         />
       </CollapsibleTrigger>
 
       <CollapsibleContent className="data-closed:animate-collapsible-up data-open:animate-collapsible-down overflow-hidden motion-reduce:animate-none">
-        <div className="mt-1 border-t border-border/60 pt-2 pb-1 sm:ml-10">
+        <div className="border-t border-border/50 pt-1.5 pb-1 sm:ml-9">
           <VerificationEvidenceFigure
             revision={receipt.evidenceRevision}
             environment={environment}
@@ -1209,7 +1291,7 @@ const ComputerToolCallImpl: ToolCallMessagePartComponent<
           ) : null}
 
           {failed ? (
-            <p className="mt-3 text-xs text-destructive">
+            <p className="mt-2 text-xs text-destructive">
               This input failed. Diagnostic detail is retained below.
             </p>
           ) : null}
@@ -1235,13 +1317,28 @@ const ComputerToolCallImpl: ToolCallMessagePartComponent<
             </Alert>
           ) : null}
 
-          <div className="mt-2 flex items-start gap-1">
-            <Collapsible className="group/details min-w-0 flex-1">
-              <CollapsibleTrigger className="flex min-h-9 w-full items-center gap-1.5 text-xs text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50">
-                <ChevronDownIcon className="size-3.5 -rotate-90 transition-transform duration-150 group-data-open/details:rotate-0 group-data-panel-open/details:rotate-0 motion-reduce:transition-none" />
-                Audit
+          <div className="mt-1 flex flex-wrap items-start gap-x-1">
+            {hasInputDisclosure ? (
+              <Collapsible className="group/input contents">
+                <CollapsibleTrigger className="flex min-h-8 items-center gap-1.5 px-1.5 text-xs text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50">
+                  <ChevronDownIcon className="size-3 -rotate-90 transition-transform duration-150 group-data-open/input:rotate-0 group-data-panel-open/input:rotate-0 motion-reduce:transition-none" />
+                  Input
+                </CollapsibleTrigger>
+                <CollapsibleContent className="data-closed:animate-collapsible-up data-open:animate-collapsible-down basis-full overflow-hidden motion-reduce:animate-none">
+                  <ComputerInputSequence
+                    actions={summary.actions}
+                    environment={environment}
+                    inputReceipts={receipt.inputReceipts}
+                  />
+                </CollapsibleContent>
+              </Collapsible>
+            ) : null}
+            <Collapsible className="group/details contents">
+              <CollapsibleTrigger className="flex min-h-8 items-center gap-1.5 px-1.5 text-xs text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50">
+                <ChevronDownIcon className="size-3 -rotate-90 transition-transform duration-150 group-data-open/details:rotate-0 group-data-panel-open/details:rotate-0 motion-reduce:transition-none" />
+                Details
               </CollapsibleTrigger>
-              <CollapsibleContent className="data-closed:animate-collapsible-up data-open:animate-collapsible-down overflow-hidden motion-reduce:animate-none">
+              <CollapsibleContent className="data-closed:animate-collapsible-up data-open:animate-collapsible-down basis-full overflow-hidden motion-reduce:animate-none">
                 <ComputerActionReceipt
                   args={callArgs}
                   result={result}
@@ -1252,20 +1349,17 @@ const ComputerToolCallImpl: ToolCallMessagePartComponent<
                   showVisualEvidence={false}
                   showInputSummary={!showPrimaryInput}
                 />
-                <Collapsible className="group/raw">
-                  <CollapsibleTrigger className="flex min-h-9 w-full items-center gap-1.5 text-[11px] text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50">
-                    <ChevronDownIcon className="size-3 -rotate-90 transition-transform duration-150 group-data-open/raw:rotate-0 group-data-panel-open/raw:rotate-0 motion-reduce:transition-none" />
-                    <span>Raw request</span>
-                    <code className="font-mono">
-                      {toolName.replace(/^pikvm_/, "")}
-                    </code>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent className="data-closed:animate-collapsible-up data-open:animate-collapsible-down overflow-hidden motion-reduce:animate-none">
-                    <pre className="max-h-72 overflow-auto rounded-md bg-background/70 p-3 font-mono text-[11px] leading-relaxed text-foreground/80 whitespace-pre-wrap">
-                      {argsText || JSON.stringify(args, null, 2)}
-                    </pre>
-                  </CollapsibleContent>
-                </Collapsible>
+              </CollapsibleContent>
+            </Collapsible>
+            <Collapsible className="group/raw contents">
+              <CollapsibleTrigger className="flex min-h-8 items-center gap-1.5 px-1.5 text-xs text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50">
+                <ChevronDownIcon className="size-3 -rotate-90 transition-transform duration-150 group-data-open/raw:rotate-0 group-data-panel-open/raw:rotate-0 motion-reduce:transition-none" />
+                Raw
+              </CollapsibleTrigger>
+              <CollapsibleContent className="data-closed:animate-collapsible-up data-open:animate-collapsible-down basis-full overflow-hidden motion-reduce:animate-none">
+                <pre className="max-h-72 overflow-auto rounded-md bg-background/70 p-3 font-mono text-[11px] leading-relaxed text-foreground/80 whitespace-pre-wrap">
+                  {argsText || JSON.stringify(args, null, 2)}
+                </pre>
               </CollapsibleContent>
             </Collapsible>
             {environment.onOpenComputer ? (
@@ -1273,7 +1367,7 @@ const ComputerToolCallImpl: ToolCallMessagePartComponent<
                 type="button"
                 size="sm"
                 variant="ghost"
-                className="h-9 shrink-0 px-2 text-xs text-muted-foreground"
+                className="h-8 shrink-0 px-1.5 text-xs text-muted-foreground"
                 onClick={environment.onOpenComputer}
               >
                 <MonitorIcon data-icon="inline-start" />
@@ -1326,7 +1420,7 @@ export function ComputerToolGroup({
               ? "input sequence running"
               : "inspect exact inputs and screen evidence"
         }`}
-        className="group/trigger flex min-h-12 w-full items-center gap-2 border-y border-border/60 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+        className="group/trigger flex min-h-10 w-full items-center gap-2 border-y border-border/60 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
       >
         <span
           className={cn(
@@ -1346,21 +1440,12 @@ export function ComputerToolGroup({
             <MousePointer2Icon className="size-3.5" />
           )}
         </span>
-        <span className="flex min-w-0 flex-1 flex-col">
-          <span className="flex min-w-0 items-baseline gap-2">
-            <span className="truncate text-sm font-semibold">
-              Computer activity
-            </span>
-            <span className="shrink-0 font-mono text-[10px] tabular-nums text-muted-foreground">
-              {count} {count === 1 ? "action" : "actions"}
-            </span>
+        <span className="flex min-w-0 flex-1 items-baseline gap-2">
+          <span className="truncate text-sm font-medium">
+            Computer activity
           </span>
-          <span className="truncate text-[11px] text-muted-foreground">
-            {needsAttention
-              ? "A consequential input is waiting for you"
-              : active
-                ? "Current input stays open while the screen changes"
-                : "Exact inputs, target read-back, and visual proof"}
+          <span className="shrink-0 font-mono text-[10px] tabular-nums text-muted-foreground">
+            {count} {count === 1 ? "action" : "actions"}
           </span>
         </span>
         {needsAttention ? (

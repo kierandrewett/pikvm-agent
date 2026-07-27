@@ -7,6 +7,8 @@ import type { ThreadGroupPart } from "@/components/assistant-ui/thread";
 import {
   ComputerActionReceipt,
   ComputerInputSequence,
+  ComputerToolEnvironmentProvider,
+  ComputerToolCall,
   ComputerToolGroup,
 } from "./computer-tool-call";
 
@@ -65,8 +67,8 @@ describe("ComputerToolGroup", () => {
     expect(screen.getByText("2 actions")).not.toBeNull();
     expect(screen.getByText("Input live")).not.toBeNull();
     expect(
-      screen.getByText("Current input stays open while the screen changes"),
-    ).not.toBeNull();
+      screen.queryByText("Current input stays open while the screen changes"),
+    ).toBeNull();
   });
 
   it("lets a completed input group stay compact until inspected", async () => {
@@ -103,6 +105,158 @@ describe("ComputerToolGroup", () => {
       screen.queryByText("Consequential input awaiting approval"),
     ).not.toBeNull();
     expect(screen.queryByText("Earlier safe input")).toBeNull();
+  });
+});
+
+describe("ComputerToolCall", () => {
+  const baseProps = {
+    type: "tool-call" as const,
+    toolCallId: "call-1",
+    toolName: "pikvm_run_burst",
+    args: {
+      actions: [{ type: "click", x: 638, y: 410, button: "left" }],
+      __receipt: {
+        latency_ms: 12,
+        intent: "Open the selected control.",
+        controller: { provider: "controller", model: "fast-model" },
+      },
+    },
+    argsText:
+      '{"actions":[{"type":"click","x":638,"y":410,"button":"left"}]}',
+    result: {
+      status: "completed",
+      verification: { verdict: "verified" },
+    },
+    status: { type: "complete" as const },
+    addResult: vi.fn(),
+    resume: vi.fn(),
+    respondToApproval: vi.fn(),
+  };
+
+  it("renders a routine completed action as one compact inspectable row", async () => {
+    const user = userEvent.setup();
+    render(<ComputerToolCall {...baseProps} />);
+
+    const trigger = screen.getByRole("button", {
+      name: /Click at 638 × 410.*Verified/i,
+    });
+    expect(trigger.textContent).toContain("run_burst");
+    expect(trigger.textContent).toContain("<1s");
+    expect(screen.queryByRole("button", { name: "Details" })).toBeNull();
+    expect(
+      screen.queryByLabelText("Exact computer input sequence"),
+    ).toBeNull();
+
+    await user.click(trigger);
+
+    expect(screen.getByRole("button", { name: "Details" })).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Raw" })).not.toBeNull();
+    expect(
+      screen.queryByLabelText("Exact computer input sequence"),
+    ).toBeNull();
+  });
+
+  it("keeps audit and raw MCP arguments behind separate disclosures", async () => {
+    const user = userEvent.setup();
+    render(<ComputerToolCall {...baseProps} />);
+
+    await user.click(
+      screen.getByRole("button", {
+        name: /Click at 638 × 410.*Verified/i,
+      }),
+    );
+    await user.click(screen.getByRole("button", { name: "Details" }));
+
+    expect(screen.getByLabelText("Action audit summary")).not.toBeNull();
+    expect(screen.queryByText(baseProps.argsText)).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "Raw" }));
+
+    expect(screen.getByText(baseProps.argsText)).not.toBeNull();
+  });
+
+  it("shows a marked pre-action crop beside a completed click", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(new Blob(["target"], { type: "image/png" }), {
+        status: 200,
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal("URL", {
+      createObjectURL: vi.fn(() => "blob:click-target"),
+      revokeObjectURL: vi.fn(),
+    });
+
+    render(
+      <ComputerToolEnvironmentProvider
+        value={{
+          token: "local-workspace-token",
+          runId: "run-1",
+          screenWidth: 1280,
+          screenHeight: 720,
+        }}
+      >
+        <ComputerToolCall
+          {...baseProps}
+          args={{
+            ...baseProps.args,
+            __receipt: {
+              ...baseProps.args.__receipt,
+              evidence_revision: 9,
+            },
+          }}
+        />
+      </ComputerToolEnvironmentProvider>,
+    );
+
+    await waitFor(() =>
+      expect(
+        screen.getByLabelText(
+          "Pre-action preview around click at 638, 410",
+        ),
+      ).not.toBeNull(),
+    );
+    expect(screen.getByText("Click target")).not.toBeNull();
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/runs/run-1/verification-images/9/click-target?x=638&y=410&screen_width=1280&screen_height=720",
+      expect.objectContaining({
+        headers: { Authorization: "Bearer local-workspace-token" },
+        cache: "no-store",
+      }),
+    );
+  });
+
+  it("keeps exact typing visible when a consequential action needs approval", () => {
+    render(
+      <ComputerToolCall
+        {...baseProps}
+        args={{
+          actions: [{ type: "type_text", text: "Send the irreversible text" }],
+        }}
+        argsText='{"actions":[{"type":"type_text"}]}'
+        result={undefined}
+        status={{ type: "requires-action", reason: "interrupt" }}
+        approval={{
+          id: "approval-1",
+          approved: undefined,
+          options: [
+            {
+              id: "allow-once",
+              kind: "allow-once",
+              label: "Allow once",
+              description: "This sends an external message.",
+            },
+          ],
+        }}
+      />,
+    );
+
+    expect(screen.getByLabelText("Exact text input").textContent).toBe(
+      "Send the irreversible text",
+    );
+    expect(
+      screen.getByText("Held before a consequential input"),
+    ).not.toBeNull();
   });
 });
 

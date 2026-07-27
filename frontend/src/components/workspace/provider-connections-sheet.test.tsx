@@ -285,4 +285,61 @@ describe("ProviderConnectionsSheet", () => {
     ).toBe(true);
     expect(screen.getByText(/fallback 1: opus/)).not.toBeNull();
   });
+
+  it("adds a provider through a secret-reference-only form", async () => {
+    const user = userEvent.setup();
+    const onConnectProvider = vi.fn().mockResolvedValue({
+      provider: "openai-work",
+      configured_model: "gpt-5-mini",
+      kind: "openai_responses",
+      ready: true,
+      credential_owner: "harness_environment",
+      configured_not_routed: true,
+      secret_received: false,
+    });
+
+    render(
+      <ProviderConnectionsSheet
+        open
+        onOpenChange={() => undefined}
+        providers={providers}
+        catalog={[catalog[1]!, catalog[0]!]}
+        preferences={{}}
+        locked={false}
+        onPreferenceChange={() => undefined}
+        onResetPreferences={() => undefined}
+        onConnectProvider={onConnectProvider}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Add model" }));
+    expect(
+      await screen.findByText(
+        /Credential values never enter this form\./,
+      ),
+    ).not.toBeNull();
+    expect(screen.queryByLabelText(/API key value/i)).toBeNull();
+
+    expect(
+      screen.getByRole("combobox", { name: "Provider adapter" }).textContent,
+    ).toContain("OpenAI Responses API");
+    await user.type(screen.getByLabelText("Provider name"), "openai-work");
+    await user.type(screen.getByLabelText("Model ID"), "gpt-5-mini");
+    expect(
+      (screen.getByLabelText(
+        "Credential environment variable",
+      ) as HTMLInputElement).value,
+    ).toBe("OPENAI_API_KEY");
+
+    await user.click(
+      screen.getByRole("button", { name: "Add model" }),
+    );
+
+    expect(onConnectProvider).toHaveBeenCalledWith({
+      alias: "openai-work",
+      kind: "openai_responses",
+      model: "gpt-5-mini",
+      credential_env: "OPENAI_API_KEY",
+    });
+  });
 });

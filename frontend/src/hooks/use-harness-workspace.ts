@@ -16,6 +16,8 @@ import type {
   ModelPreferences,
   ModelRole,
   ProviderCatalogEntry,
+  ProviderConnectionInput,
+  ProviderConnectionResult,
   ProviderMap,
   RunSnapshot,
   RunStatus,
@@ -90,6 +92,7 @@ export function useHarnessWorkspace() {
   >([]);
   const [modelPreferences, setModelPreferences] =
     useState<ModelPreferences>({});
+  const [connectingProvider, setConnectingProvider] = useState(false);
   const [error, setError] = useState("");
   const [liveUpdateStatus, setLiveUpdateStatus] =
     useState<LiveUpdateStatus>("idle");
@@ -485,6 +488,29 @@ export function useHarnessWorkspace() {
     if (!routeLocked) setModelPreferences({});
   }, [routeLocked]);
 
+  const connectProvider = useCallback(
+    async (
+      input: ProviderConnectionInput,
+    ): Promise<ProviderConnectionResult> => {
+      setConnectingProvider(true);
+      try {
+        const result = await harnessJson<ProviderConnectionResult>(
+          token,
+          "/api/providers",
+          {
+            method: "POST",
+            body: JSON.stringify(input),
+          },
+        );
+        await refresh(token, selectedId);
+        return result;
+      } finally {
+        if (mounted.current) setConnectingProvider(false);
+      }
+    },
+    [refresh, selectedId, token],
+  );
+
   return useMemo(
     () => ({
       token,
@@ -495,6 +521,7 @@ export function useHarnessWorkspace() {
       selectedRun,
       providers,
       providerCatalog,
+      connectingProvider,
       modelPreferences,
       routeLocked,
       error,
@@ -507,6 +534,7 @@ export function useHarnessWorkspace() {
       newThread,
       setModelPreference,
       resetModelPreferences,
+      connectProvider,
       onNew,
       onCancel,
       continueRun,
@@ -522,6 +550,7 @@ export function useHarnessWorkspace() {
       selectedRun,
       providers,
       providerCatalog,
+      connectingProvider,
       modelPreferences,
       routeLocked,
       error,
@@ -534,6 +563,7 @@ export function useHarnessWorkspace() {
       newThread,
       setModelPreference,
       resetModelPreferences,
+      connectProvider,
       onNew,
       onCancel,
       continueRun,

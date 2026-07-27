@@ -5,10 +5,12 @@ import {
   GaugeIcon,
   LockKeyholeIcon,
   NetworkIcon,
+  PlusIcon,
   RotateCcwIcon,
   ShieldCheckIcon,
   TriangleAlertIcon,
 } from "lucide-react";
+import { lazy, Suspense, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -42,10 +44,18 @@ import type {
   ModelPreferences,
   ModelRole,
   ProviderCatalogEntry,
+  ProviderConnectionInput,
+  ProviderConnectionResult,
   ProviderHealth,
   ProviderMap,
   RunModelRoute,
 } from "@/types";
+
+const ProviderConnectionDialog = lazy(() =>
+  import("@/components/workspace/provider-connection-dialog").then(
+    (module) => ({ default: module.ProviderConnectionDialog }),
+  ),
+);
 
 type ProviderConnectionsSheetProps = {
   open: boolean;
@@ -58,6 +68,10 @@ type ProviderConnectionsSheetProps = {
   locked: boolean;
   onPreferenceChange: (role: ModelRole, provider: string) => void;
   onResetPreferences: () => void;
+  connectingProvider?: boolean;
+  onConnectProvider?: (
+    input: ProviderConnectionInput,
+  ) => Promise<ProviderConnectionResult>;
 };
 
 const ROUTE_ROLES = MODEL_ROLES;
@@ -507,7 +521,10 @@ export function ProviderConnectionsSheet({
   locked,
   onPreferenceChange,
   onResetPreferences,
+  connectingProvider = false,
+  onConnectProvider,
 }: ProviderConnectionsSheetProps) {
+  const [connectionOpen, setConnectionOpen] = useState(false);
   const entries = Object.entries(providers);
   const readyCount = entries.filter(
     ([, health]) => health.ready !== false,
@@ -533,6 +550,17 @@ export function ProviderConnectionsSheet({
               <ShieldCheckIcon data-icon="inline-start" aria-hidden="true" />
               Harness-owned policy
             </Badge>
+            {onConnectProvider ? (
+              <Button
+                type="button"
+                size="xs"
+                variant="outline"
+                onClick={() => setConnectionOpen(true)}
+              >
+                <PlusIcon data-icon="inline-start" aria-hidden="true" />
+                Add model
+              </Button>
+            ) : null}
           </div>
         </SheetHeader>
         <ScrollArea className="min-h-0 flex-1 px-4 pb-4">
@@ -577,6 +605,17 @@ export function ProviderConnectionsSheet({
             </p>
           </div>
         </ScrollArea>
+        {onConnectProvider && connectionOpen ? (
+          <Suspense fallback={null}>
+            <ProviderConnectionDialog
+              open
+              onOpenChange={setConnectionOpen}
+              catalog={catalog}
+              connecting={connectingProvider}
+              onConnect={onConnectProvider}
+            />
+          </Suspense>
+        ) : null}
       </SheetContent>
     </Sheet>
   );

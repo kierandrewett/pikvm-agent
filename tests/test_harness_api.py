@@ -1,11 +1,13 @@
 from __future__ import annotations
 
-from pathlib import Path
 import asyncio
+from io import BytesIO
+from pathlib import Path
 from typing import Any
 
 import httpx
 import pytest
+from PIL import Image
 
 from pikvm_agent.harness.agent_models import (
     ComputerObservation,
@@ -943,6 +945,72 @@ async def test_verification_images_are_addressed_by_durable_revision(
     ]
     assert str(first) not in detail.text
     assert str(second) not in detail.text
+
+
+@pytest.mark.asyncio
+async def test_click_target_preview_crops_only_the_pre_action_panel(
+    tmp_path: Path,
+) -> None:
+    frame = tmp_path / "frame.jpg"
+    frame.write_bytes(b"frame")
+    composite = tmp_path / "before-after.png"
+    image = Image.new("RGB", (640, 212), "#000000")
+    for x in range(320):
+        for y in range(32, 212):
+            image.putpixel((x, y), (170, 30, 30))
+            image.putpixel((x + 320, y), (30, 30, 170))
+    image.save(composite, format="PNG")
+    store = InMemoryRunStore()
+    run = RunSnapshot.model_validate(
+        {
+            "run_id": "click_target",
+            "task": "Inspect a click target",
+            "status": "paused",
+            "verification_images": [
+                {
+                    "revision": 1,
+                    "action_index": 3,
+                    "before_frame_id": 7,
+                    "after_frame_id": 8,
+                    "path": str(composite),
+                }
+            ],
+        }
+    )
+    await store.save(run)
+    app = create_harness_app(
+        harness=StubHarness(store, frame),  # type: ignore[arg-type]
+        store=store,
+        models=StubModels(),
+        access_token=TEST_ACCESS_TOKEN,
+        allowed_origins={"http://harness"},
+    )
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app),
+        base_url="http://harness",
+        headers={"authorization": f"Bearer {TEST_ACCESS_TOKEN}"},
+    ) as client:
+        response = await client.get(
+            "/api/runs/click_target/verification-images/1/click-target",
+            params={
+                "x": 80,
+                "y": 45,
+                "screen_width": 160,
+                "screen_height": 90,
+            },
+        )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/png"
+    assert response.headers["x-pikvm-evidence-mode"] == "click-target"
+    preview = Image.open(BytesIO(response.content)).convert("RGB")
+    assert preview.size == (240, 135)
+    assert preview.getpixel((12, 12))[0] > preview.getpixel((12, 12))[2]
+    assert not any(
+        blue > red + 40
+        for red, _, blue in list(preview.get_flattened_data())[::250]
+    )
 
 
 def test_sse_event_exposes_retry_ready_and_heartbeat_contract() -> None:

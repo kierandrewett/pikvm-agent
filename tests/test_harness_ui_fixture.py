@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from typer.testing import CliRunner
 
 from pikvm_agent.cli import app
@@ -31,8 +33,11 @@ def test_ui_fixture_is_a_large_visible_run_without_a_machine_target() -> None:
     assert run.model_budget.max_cost_microusd == 2_000_000
 
 
-def test_ui_fixture_alternates_visible_model_and_exact_tool_activity() -> None:
+def test_ui_fixture_alternates_visible_model_and_exact_tool_activity(
+    tmp_path: Path,
+) -> None:
     run = build_fixture_run(64)
+    evidence_path = tmp_path / "before-after.png"
     verifier = next(
         event
         for event in reversed(run.events)
@@ -41,12 +46,12 @@ def test_ui_fixture_alternates_visible_model_and_exact_tool_activity() -> None:
     )
     assert verifier.data["model"] == "opus"
 
-    advance_fixture_run(run, 1)
+    advance_fixture_run(run, 1, evidence_path)
     assert run.active_activity is not None
     assert run.active_activity.kind == "tool"
     assert run.active_activity.arguments["actions"][0]["type"] == "click"
 
-    advance_fixture_run(run, 2)
+    advance_fixture_run(run, 2, evidence_path)
     assert run.active_activity is not None
     assert run.active_activity.kind == "model"
     assert run.event_cursor > 64

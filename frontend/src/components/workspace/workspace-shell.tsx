@@ -259,6 +259,8 @@ export function WorkspaceShell() {
         locked={workspace.routeLocked}
         onPreferenceChange={workspace.setModelPreference}
         onResetPreferences={workspace.resetModelPreferences}
+        connectingProvider={workspace.connectingProvider}
+        onConnectProvider={workspace.connectProvider}
       />
       <DiagnosticsSheet
         open={diagnosticsOpen}

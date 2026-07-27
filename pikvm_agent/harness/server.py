@@ -25,9 +25,14 @@ from pikvm_agent.harness.mcp_computer import (
     PersistentMcpToolClient,
 )
 from pikvm_agent.harness.live_frames import DaemonLiveFrameSource
+from pikvm_agent.harness.provider_connections import ProviderConnectionManager
 
 
-def build_harness_app(settings: HarnessSettings) -> FastAPI:
+def build_harness_app(
+    settings: HarnessSettings,
+    *,
+    settings_path: Path | None = None,
+) -> FastAPI:
     """Wire adapters once; the :class:`AgentHarness` owns the workflow."""
 
     ensure_safe_bind(settings)
@@ -60,6 +65,15 @@ def build_harness_app(settings: HarnessSettings) -> FastAPI:
         budget_policy=build_model_budget_policy(settings),
     )
     direct_calls = DirectCallCoordinator(store=store, computer=computer)
+    provider_connections = (
+        ProviderConnectionManager(
+            settings=settings,
+            settings_path=settings_path,
+            models=models,
+        )
+        if settings_path is not None
+        else None
+    )
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> Any:
@@ -84,6 +98,7 @@ def build_harness_app(settings: HarnessSettings) -> FastAPI:
         allowed_origins=settings.resolved_origins(),
         live_frames=live_frames,
         direct_calls=direct_calls,
+        provider_connections=provider_connections,
         max_autonomous_resumes=settings.max_autonomous_resumes,
         lifespan=lifespan,
     )
@@ -91,4 +106,5 @@ def build_harness_app(settings: HarnessSettings) -> FastAPI:
     app.state.harness_store = store
     app.state.model_pool = models
     app.state.direct_calls = direct_calls
+    app.state.provider_connections = provider_connections
     return app

@@ -153,3 +153,32 @@ export type ProviderCatalogEntry = {
   structured_output: string;
   auth: ProviderCatalogAuth[];
 };
+
+export type ConnectableProviderKind =
+  | "codex_cli"
+  | "claude_cli"
+  | "gemini_cli"
+  | "openai_responses"
+  | "anthropic_api"
+  | "gemini_api"
+  | "openai_compatible";
+
+export type ProviderConnectionInput = {
+  alias: string;
+  kind: ConnectableProviderKind;
+  model: string;
+  base_url?: string;
+  credential_env?: string;
+  profile_home_env?: string;
+};
+
+export type ProviderConnectionResult = {
+  provider: string;
+  configured_model: string;
+  kind: string;
+  ready: boolean;
+  credential_owner: string;
+  readiness_error?: string | null;
+  configured_not_routed: boolean;
+  secret_received: false;
+};
