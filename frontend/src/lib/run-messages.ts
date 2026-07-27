@@ -272,7 +272,7 @@ const outcomeReason = (outcome: HarnessEvent) => {
   );
 };
 
-const COMPLETION_SUMMARY_LIMIT = 720;
+const COMPLETION_SUMMARY_LIMIT = 420;
 
 export const userFacingCompletionSummary = (value: unknown) => {
   let summary = safeString(value).trim();
@@ -305,7 +305,7 @@ export const userFacingCompletionSummary = (value: unknown) => {
         : COMPLETION_SUMMARY_LIMIT;
   return (
     `${summary.slice(0, cutAt).trim()}…\n\n` +
-    "_Full verification detail is available in Diagnostics._"
+    "_Details are available in Diagnostics._"
   );
 };
 

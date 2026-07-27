@@ -76,8 +76,8 @@ describe("messagesForRun", () => {
     expect(summary).not.toContain("success criteria");
     expect(summary).not.toContain("frame_id");
     expect(summary).toContain("The Oracle Cloud console");
-    expect(summary).toContain("Full verification detail is available");
-    expect(summary.length).toBeLessThan(850);
+    expect(summary).toContain("Details are available in Diagnostics");
+    expect(summary.length).toBeLessThan(520);
   });
 
   it("turns harness events into structured assistant-ui tool parts", () => {

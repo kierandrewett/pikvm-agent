@@ -26,13 +26,13 @@ describe("RunActivity", () => {
     );
 
     const status = screen.getByRole("status");
-    expect(status).toHaveTextContent("Choosing next action");
-    expect(status).toHaveTextContent("opus");
+    expect(status).toHaveTextContent("Using the computer");
+    expect(status).not.toHaveTextContent("opus");
     expect(status).not.toHaveTextContent("claude-account");
     expect(status).not.toHaveTextContent(/\d+s/);
     expect(status).toHaveAttribute(
       "title",
-      "Choosing next action — opus via claude-account",
+      "Using the computer — opus via claude-account",
     );
   });
 

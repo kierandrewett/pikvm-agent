@@ -7,9 +7,9 @@ export const activityPresentation = (activity: ActiveActivity) => {
   const role = activity?.kind === "model" ? activity.role : "";
   const label =
     role === "reasoner"
-      ? "Planning"
+      ? "Thinking"
       : role === "controller"
-        ? "Choosing next action"
+        ? "Using the computer"
         : role === "verifier"
           ? "Checking the result"
           : "Working";
@@ -53,11 +53,6 @@ export function RunActivity({
       <span className="font-medium text-foreground/80">
         {presentation.label}
       </span>
-      {presentation.model ? (
-        <span className="truncate text-muted-foreground">
-          {presentation.model}
-        </span>
-      ) : null}
     </div>
   );
 }
