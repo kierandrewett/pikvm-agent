@@ -246,7 +246,7 @@ def code_to_vnc_key(code: str) -> str:
         return code[-1]
     if re.fullmatch(r"F(?:[1-9]|1[0-2])", code):
         return code.lower()
-    return code
+    raise ValueError(f"unsupported VNC key code: {code!r}")
 
 
 def shifted_code_to_character(code: str, keymap: str = "en-us") -> str | None:

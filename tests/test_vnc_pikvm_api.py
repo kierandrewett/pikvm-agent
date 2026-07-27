@@ -5,6 +5,7 @@ from __future__ import annotations
 import io
 
 import httpx
+import pytest
 from PIL import Image
 
 from pikvm_agent.harness.vnc_pikvm_api import (
@@ -178,6 +179,11 @@ def test_lock_and_system_keys_use_vncdotool_names() -> None:
     assert code_to_vnc_key("Pause") == "pause"
     assert code_to_vnc_key("PrintScreen") == "sysrq"
     assert code_to_vnc_key("NumpadEnter") == "kpenter"
+
+
+def test_unknown_multicharacter_key_never_reaches_vncdotool() -> None:
+    with pytest.raises(ValueError, match="unsupported VNC key code"):
+        code_to_vnc_key("ctrl+End")
 
 
 async def test_transport_uses_semantic_uppercase_for_shifted_letters() -> None:

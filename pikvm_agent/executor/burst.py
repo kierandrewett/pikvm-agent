@@ -51,6 +51,19 @@ _NAMED = {
     "MINUS": "Minus", "EQUAL": "Equal", "PLUS": "Equal", "PERIOD": "Period", "DOT": "Period",
     "COMMA": "Comma", "SLASH": "Slash", "BACKSLASH": "Backslash", "SEMICOLON": "Semicolon",
 }
+_VALID_KEY_CODE = re.compile(
+    r"(?:"
+    r"(?:Control|Shift|Alt|Meta)(?:Left|Right)|"
+    r"Key[A-Z]|Digit[0-9]|"
+    r"F(?:[1-9]|1[0-9]|2[0-4])|"
+    r"Numpad(?:[0-9]|Add|Subtract|Multiply|Divide|Decimal|Enter)|"
+    r"Enter|Tab|Escape|Space|Backspace|Delete|Home|End|"
+    r"PageUp|PageDown|ArrowUp|ArrowDown|ArrowLeft|ArrowRight|"
+    r"Insert|CapsLock|NumLock|ScrollLock|Pause|PrintScreen|"
+    r"Backquote|Minus|Equal|BracketLeft|BracketRight|Backslash|"
+    r"IntlBackslash|Semicolon|Quote|Comma|Period|Slash"
+    r")"
+)
 
 
 def normalize_key(token: str) -> str | None:
@@ -68,11 +81,34 @@ def normalize_key(token: str) -> str | None:
         return "Digit" + t
     if up[0] == "F" and up[1:].isdigit() and 1 <= int(up[1:]) <= 24:
         return up  # F1..F24
-    return t  # assume it's already a valid PiKVM code (KeyA, ControlLeft, …)
+    if _VALID_KEY_CODE.fullmatch(t):
+        return t
+    raise BurstError(
+        f"unsupported key token {t!r}; use separate friendly names or "
+        "PiKVM KeyboardEvent.code values"
+    )
 
 
 def normalize_keys(keys: list[str]) -> list[str]:
-    return [k for k in (normalize_key(x) for x in keys) if k]
+    normalized: list[str] = []
+    for raw in keys:
+        token = str(raw or "").strip()
+        if not token:
+            continue
+        # Models commonly spell a chord as ["ctrl+End"]. Canonicalise that
+        # familiar notation before transport; a literal plus key remains
+        # available as "PLUS" or "Equal" with Shift.
+        parts = token.split("+") if "+" in token else [token]
+        if any(not part.strip() for part in parts):
+            raise BurstError(
+                f"malformed composite key token {token!r}; "
+                "list each key separately"
+            )
+        for part in parts:
+            key = normalize_key(part)
+            if key:
+                normalized.append(key)
+    return normalized
 
 
 # --- outcome --------------------------------------------------------------- #
@@ -281,6 +317,17 @@ def validate_actions(
                 f"action {index} uses forbidden no_verify; verification policy "
                 "cannot be disabled by a caller"
             )
+
+        if action.get("type") == "key":
+            keys = action.get("keys") or (
+                [action["key"]] if action.get("key") else []
+            )
+            if not isinstance(keys, list):
+                raise BurstError(f"key action {index} needs a list of keys")
+            if not normalize_keys(keys):
+                raise BurstError(
+                    f"key action {index} needs 'keys' (or 'key')"
+                )
 
         if action.get("type") != "type_text":
             if len(contiguous_text_parts) > 1:

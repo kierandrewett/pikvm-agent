@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from pikvm_agent.executor.burst import (
     MAX_BURST_TYPE_TEXT_CHARS,
     MAX_TYPE_TEXT_CHARS,
@@ -21,8 +23,34 @@ def test_normalize_keys_friendly_and_passthrough() -> None:
     assert normalize_keys(["ENTER"]) == ["Enter"]
     assert normalize_keys(["F11"]) == ["F11"]
     assert normalize_keys(["5"]) == ["Digit5"]
+    assert normalize_keys(["ctrl+End"]) == ["ControlLeft", "End"]
+    assert normalize_keys(["Ctrl + Shift + S"]) == [
+        "ControlLeft",
+        "ShiftLeft",
+        "KeyS",
+    ]
     # already-valid PiKVM codes pass straight through
     assert normalize_keys(["ControlLeft", "KeyA"]) == ["ControlLeft", "KeyA"]
+
+
+def test_normalize_keys_rejects_unknown_multicharacter_tokens() -> None:
+    with pytest.raises(BurstError, match="unsupported key token"):
+        normalize_keys(["ctrl+DefinitelyNotAKey"])
+
+
+async def test_invalid_key_token_rejects_whole_burst_before_hid() -> None:
+    be = FakeBackend()
+
+    with pytest.raises(BurstError, match="unsupported key token"):
+        await run_burst(
+            [
+                {"type": "key", "keys": ["KeyA"]},
+                {"type": "key", "keys": ["ctrl+DefinitelyNotAKey"]},
+            ],
+            backend=be,
+        )
+
+    assert not any(method == "keypress" for method, _ in be.calls)
 
 
 def test_post_action_settle_is_automatic_unless_controller_already_waited() -> None:
