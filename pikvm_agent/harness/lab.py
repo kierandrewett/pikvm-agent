@@ -492,11 +492,27 @@ def build_lab_harness_settings(
                     "kind": "claude_cli",
                     "model": "opus",
                 },
+                "claude-fast": {
+                    "kind": "claude_cli",
+                    "model": "haiku",
+                },
             },
             "routes": {
-                "reasoner": ["claude-account", "codex-account"],
-                "controller": ["claude-account", "codex-account"],
-                "verifier": ["claude-account", "codex-account"],
+                "reasoner": [
+                    "claude-account",
+                    "claude-fast",
+                    "codex-account",
+                ],
+                "controller": [
+                    "claude-account",
+                    "claude-fast",
+                    "codex-account",
+                ],
+                "verifier": [
+                    "claude-fast",
+                    "claude-account",
+                    "codex-account",
+                ],
             },
         }
     else:

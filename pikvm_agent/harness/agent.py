@@ -169,6 +169,25 @@ _OBSERVATION_ONLY_REQUESTS = frozenset(
     }
 )
 
+_EXPLICIT_OBSERVATION_PREFIXES = (
+    "observation only",
+    "read only",
+)
+_OBSERVATION_TARGET_PATTERN = re.compile(
+    r"\b(?:describe|report|show|tell me|what)\b"
+    r".{0,120}\b(?:desktop|screen|visible|window|vm)\b"
+)
+_FOLLOW_UP_INPUT_PATTERN = re.compile(
+    r"\b(?:after(?: that| [a-z ]{1,80},)|afterwards?|also|and|"
+    r"but(?: also)?|finally|next|then)\s+"
+    r"(?:please\s+)?(?:click|double click|drag|move|open|press|save|scroll|"
+    r"send|submit|type)\b"
+)
+_SENTENCE_INPUT_PATTERN = re.compile(
+    r"(?:^|[.!?;:]\s*)(?:please\s+)?"
+    r"(?:click|double click|drag|move|open|press|save|scroll|send|submit|type)\b"
+)
+
 
 class AgentHarness:
     """Deep module owning planning, action checkpoints, retries and approvals."""
@@ -797,7 +816,24 @@ class AgentHarness:
         )
         normalized = re.sub(r"[^a-z0-9']+", " ", request.casefold()).strip()
         normalized = normalized.replace("'", "")
-        return normalized in _OBSERVATION_ONLY_REQUESTS
+        if normalized in _OBSERVATION_ONLY_REQUESTS:
+            return True
+        explicit_mode = normalized.startswith(_EXPLICIT_OBSERVATION_PREFIXES)
+        observation_target = bool(
+            _OBSERVATION_TARGET_PATTERN.search(normalized)
+        )
+        follow_up_input = bool(
+            _FOLLOW_UP_INPUT_PATTERN.search(request.casefold())
+        )
+        sentence_input = bool(
+            _SENTENCE_INPUT_PATTERN.search(request.casefold())
+        )
+        return (
+            explicit_mode
+            and observation_target
+            and not follow_up_input
+            and not sentence_input
+        )
 
     async def _plan(
         self,

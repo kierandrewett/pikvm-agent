@@ -1120,6 +1120,154 @@ async def test_observational_follow_up_uses_one_read_only_model_call() -> None:
 
 
 @pytest.mark.asyncio
+async def test_explicit_read_only_screen_description_skips_planning_and_input() -> None:
+    provider = ScriptedProvider()
+    computer = FakeComputer()
+    harness = build_harness(provider, computer)
+
+    result = await harness.start(
+        "Read-only check: describe what is currently visible on the connected "
+        "disposable Windows VM. Do not click, type, scroll, press keys, or "
+        "perform any computer input."
+    )
+
+    assert result.status is RunStatus.COMPLETED
+    assert [request.role for request in provider.requests] == ["verifier"]
+    assert computer.bursts == []
+    assert result.plan is not None
+    assert result.plan.constraints == ["Do not send keyboard or pointer input."]
+    assert any(
+        event.kind == "plan.observation_only"
+        for event in result.events
+    )
+
+
+def test_read_only_prefix_does_not_hide_a_later_action_request() -> None:
+    run = RunSnapshot(
+        run_id="mixed-read-only-and-action",
+        task="Read-only check: describe the screen, then click Save.",
+        status=RunStatus.RUNNING,
+    )
+
+    assert AgentHarness._is_observation_only_request(run) is False
+
+
+@pytest.mark.asyncio
+async def test_read_only_prefix_does_not_hide_a_later_save_request() -> None:
+    provider = ScriptedProvider()
+    computer = FakeComputer()
+    harness = build_harness(provider, computer)
+
+    result = await harness.start(
+        "Read-only check: describe the current screen. Save the document."
+    )
+
+    assert result.status is RunStatus.COMPLETED
+    assert [request.role for request in provider.requests] == [
+        "reasoner",
+        "controller",
+        "verifier",
+    ]
+    assert len(computer.bursts) == 1
+    assert not any(
+        event.kind == "plan.observation_only"
+        for event in result.events
+    )
+
+
+@pytest.mark.asyncio
+async def test_read_only_prefix_does_not_hide_an_afterward_click() -> None:
+    provider = ScriptedProvider()
+    computer = FakeComputer()
+    harness = build_harness(provider, computer)
+
+    result = await harness.start(
+        "Read-only check: describe the screen; after describing it, click Save."
+    )
+
+    assert result.status is RunStatus.COMPLETED
+    assert [request.role for request in provider.requests] == [
+        "reasoner",
+        "controller",
+        "verifier",
+    ]
+    assert len(computer.bursts) == 1
+    assert not any(
+        event.kind == "plan.observation_only"
+        for event in result.events
+    )
+
+
+@pytest.mark.asyncio
+async def test_read_only_prefix_does_not_hide_a_contradictory_input_request() -> None:
+    provider = ScriptedProvider()
+    computer = FakeComputer()
+    harness = build_harness(provider, computer)
+
+    result = await harness.start(
+        "Read-only check: describe the screen, but also press Escape."
+    )
+
+    assert result.status is RunStatus.COMPLETED
+    assert [request.role for request in provider.requests] == [
+        "reasoner",
+        "controller",
+        "verifier",
+    ]
+    assert len(computer.bursts) == 1
+    assert not any(
+        event.kind == "plan.observation_only"
+        for event in result.events
+    )
+
+
+@pytest.mark.asyncio
+async def test_read_only_prefix_does_not_hide_an_input_before_description() -> None:
+    provider = ScriptedProvider()
+    computer = FakeComputer()
+    harness = build_harness(provider, computer)
+
+    result = await harness.start(
+        "Read-only check: click the window and describe the screen."
+    )
+
+    assert result.status is RunStatus.COMPLETED
+    assert [request.role for request in provider.requests] == [
+        "reasoner",
+        "controller",
+        "verifier",
+    ]
+    assert len(computer.bursts) == 1
+    assert not any(
+        event.kind == "plan.observation_only"
+        for event in result.events
+    )
+
+
+@pytest.mark.asyncio
+async def test_read_only_prefix_does_not_hide_a_selection_request() -> None:
+    provider = ScriptedProvider()
+    computer = FakeComputer()
+    harness = build_harness(provider, computer)
+
+    result = await harness.start(
+        "Read-only check: describe the screen and select the first row."
+    )
+
+    assert result.status is RunStatus.COMPLETED
+    assert [request.role for request in provider.requests] == [
+        "reasoner",
+        "controller",
+        "verifier",
+    ]
+    assert len(computer.bursts) == 1
+    assert not any(
+        event.kind == "plan.observation_only"
+        for event in result.events
+    )
+
+
+@pytest.mark.asyncio
 async def test_model_phase_is_durable_while_provider_is_still_running() -> None:
     entered = asyncio.Event()
     release = asyncio.Event()

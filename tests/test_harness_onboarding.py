@@ -121,16 +121,25 @@ def test_oauth_cli_selection_accepts_combinations_and_preserves_both_alias() -> 
     )
 
     assert list(combined.providers) == ["codex-account", "gemini-account"]
-    assert list(legacy.providers) == ["codex-account", "claude-account"]
+    assert list(legacy.providers) == [
+        "codex-account",
+        "claude-account",
+        "claude-fast",
+    ]
+    assert legacy.providers["claude-fast"].kind == "claude_cli"
+    assert legacy.providers["claude-fast"].model == "haiku"
     assert legacy.routes.reasoner == [
         "claude-account",
+        "claude-fast",
         "codex-account",
     ]
     assert legacy.routes.controller == [
         "claude-account",
+        "claude-fast",
         "codex-account",
     ]
     assert legacy.routes.verifier == [
+        "claude-fast",
         "claude-account",
         "codex-account",
     ]

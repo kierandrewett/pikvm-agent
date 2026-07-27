@@ -45,10 +45,24 @@ def test_lab_assets_point_only_at_isolated_adapter_and_daemon(tmp_path) -> None:
     assert harness["managed_mcp_name"] == "PiKVM lab"
     assert harness["computer_name"] == "Disposable lab computer"
     assert harness["routes"] == {
-        "reasoner": ["claude-account", "codex-account"],
-        "controller": ["claude-account", "codex-account"],
-        "verifier": ["claude-account", "codex-account"],
+        "reasoner": [
+            "claude-account",
+            "claude-fast",
+            "codex-account",
+        ],
+        "controller": [
+            "claude-account",
+            "claude-fast",
+            "codex-account",
+        ],
+        "verifier": [
+            "claude-fast",
+            "claude-account",
+            "codex-account",
+        ],
     }
+    assert harness["providers"]["claude-fast"]["kind"] == "claude_cli"
+    assert harness["providers"]["claude-fast"]["model"] == "haiku"
     assert harness["model_budget"]["max_provider_attempts_per_run"] == 500
     assert "vnc" not in assets.harness_config.read_text().lower()
 

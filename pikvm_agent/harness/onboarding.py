@@ -95,6 +95,10 @@ def build_initial_harness_settings(
             "kind": "claude_cli",
             "model": "opus",
         }
+        providers["claude-fast"] = {
+            "kind": "claude_cli",
+            "model": "haiku",
+        }
     if include_gemini:
         providers["gemini-account"] = {
             "kind": "gemini_cli",
@@ -242,6 +246,7 @@ def build_initial_harness_settings(
     reasoner = _ordered_present(
         (
             "claude-account",
+            "claude-fast",
             "anthropic-api",
             "openai-api",
             "azure-openai",
@@ -262,6 +267,7 @@ def build_initial_harness_settings(
             "azure-openai",
             "gemini-account",
             "claude-account",
+            "claude-fast",
             "codex-account",
             "anthropic-api",
         ),
@@ -275,6 +281,7 @@ def build_initial_harness_settings(
             "azure-openai",
             "anthropic-api",
             "gemini-account",
+            "claude-fast",
             "claude-account",
             "codex-account",
             "model-gateway",
