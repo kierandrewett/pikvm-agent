@@ -70,6 +70,8 @@ MIN_EXPECTED_AWARE_EXACT_CHARS = 8
 MAX_AUTODETECTED_FIELD_HEIGHT = 80
 MAX_AUTODETECTED_FIELD_HEIGHT_FRAC = 0.15
 MAX_PROSE_EDGE_CONTEXT_CHARS = 96
+AUTODETECTED_READBACK_MARGIN_X_FRAC = 0.075
+AUTODETECTED_READBACK_MARGIN_Y_FRAC = 0.025
 
 # Pauses (seconds) — let a print / clear land and the video settle before reading.
 _PRINT_SETTLE_S = 0.45
@@ -169,6 +171,33 @@ def regions_overlap(a: Region, b: Region) -> bool:
         and b.x < a.x + a.width
         and a.y < b.y + b.height
         and b.y < a.y + a.height
+    )
+
+
+def readback_region(
+    region: Region,
+    dims: tuple[int, int],
+    *,
+    explicit: bool,
+) -> Region:
+    """Add OCR context without weakening the narrower focus-theft guard."""
+
+    if explicit:
+        return region
+    width, height = dims
+    if width <= 0 or height <= 0:
+        return region
+    margin_x = max(16, round(width * AUTODETECTED_READBACK_MARGIN_X_FRAC))
+    margin_y = max(8, round(height * AUTODETECTED_READBACK_MARGIN_Y_FRAC))
+    x = max(0, int(region.x) - margin_x)
+    y = max(0, int(region.y) - margin_y)
+    x2 = min(width, math.ceil(region.x + region.width) + margin_x)
+    y2 = min(height, math.ceil(region.y + region.height) + margin_y)
+    return Region(
+        x=x,
+        y=y,
+        width=max(1, x2 - x),
+        height=max(1, y2 - y),
     )
 
 
@@ -823,6 +852,14 @@ class WatchedTyper:
                 return False  # short: first + final only
             return i % 3 == 0  # longer: periodic
 
+        def current_readback_region() -> Region:
+            assert cur_region is not None
+            return readback_region(
+                cur_region,
+                dims,
+                explicit=explicit_region,
+            )
+
         async def maybe_correct(read_back: str, intended_snapshot: str) -> None:
             nonlocal corrections, last_read, verified_clean
             read_back = self._typed_candidate(read_back, intended_snapshot, precise)
@@ -999,7 +1036,7 @@ class WatchedTyper:
                 delivery_read = (
                     self._typed_candidate(
                         await self._read_field(
-                            cur_region,
+                            current_readback_region(),
                             intended=typed_so_far,
                             precise=precise,
                         ),
@@ -1122,7 +1159,7 @@ class WatchedTyper:
 
             if cadence(i) and cur_region is not None:
                 rb = await self._read_field(
-                    cur_region,
+                    current_readback_region(),
                     intended=typed_so_far,
                     precise=precise,
                 )
@@ -1134,7 +1171,7 @@ class WatchedTyper:
         if not verified_clean and cur_region is not None and can_vision:
             corrections_before = corrections
             rb = await self._read_field(
-                cur_region,
+                current_readback_region(),
                 intended=text,
                 precise=precise,
             )
@@ -1143,7 +1180,7 @@ class WatchedTyper:
                 # The final read triggered a clear+retype — re-read so the verdict
                 # reflects the corrected field, not the pre-correction mismatch.
                 last_read = await self._read_field(
-                    cur_region,
+                    current_readback_region(),
                     intended=text,
                     precise=precise,
                 )
@@ -1171,7 +1208,7 @@ class WatchedTyper:
                             cur_region = union_region(cur_region, late_region)
                     settled_read = self._typed_candidate(
                         await self._read_field(
-                            cur_region,
+                            current_readback_region(),
                             intended=text,
                             precise=precise,
                         ),

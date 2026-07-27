@@ -28,6 +28,7 @@ from pikvm_agent.executor.typing import (
     _substantial_change_outside_region,
     chunk_text,
     locate_changed_bbox,
+    readback_region,
 )
 from pikvm_agent.pikvm.fake import FakeBackend
 
@@ -241,6 +242,21 @@ def test_locate_small_block_returns_region() -> None:
     assert region.width > 0 and region.height > 0
     # within the screen
     assert 0 <= region.x and region.x + region.width <= 1280
+
+
+def test_autodetected_readback_region_adds_context_without_changing_explicit() -> None:
+    located = Region(x=200, y=200, width=220, height=20)
+
+    assert readback_region(
+        located,
+        (1280, 720),
+        explicit=False,
+    ) == Region(x=104, y=182, width=412, height=56)
+    assert readback_region(
+        located,
+        (1280, 720),
+        explicit=True,
+    ) == located
 
 
 def test_locate_full_repaint_returns_none() -> None:
@@ -752,7 +768,7 @@ async def test_autolocate_refines_dynamic_results_panel_to_typed_field() -> None
                         )
                     ]
                 )
-            if region.height <= 50:
+            if region.height <= 72:
                 return OCRResult(
                     lines=[OCRLine(text=intended, confidence=0.96)]
                 )
@@ -771,7 +787,7 @@ async def test_autolocate_refines_dynamic_results_panel_to_typed_field() -> None
     assert result.field_text == intended
     assert None in ocr.regions
     assert any(
-        region is not None and region.height <= 50
+        region is not None and region.height <= 72
         for region in ocr.regions
     )
     _assert_no_enter(backend)
