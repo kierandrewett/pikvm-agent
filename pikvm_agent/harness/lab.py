@@ -512,6 +512,8 @@ def build_lab_harness_settings(
             "artifact_dir": str(root / "harness" / "artifacts"),
         }
     )
+    raw.setdefault("managed_mcp_name", "PiKVM lab")
+    raw.setdefault("computer_name", "Disposable lab computer")
     return HarnessSettings.model_validate(raw)
 
 

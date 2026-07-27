@@ -14,6 +14,7 @@ describe("ComputerConnectionButton", () => {
     render(
       <ComputerConnectionButton
         enabled
+        mcpServerName="Managed PiKVM MCP"
         machineName="Windows acceptance VM"
         onOpen={onOpen}
       />,
@@ -28,6 +29,7 @@ describe("ComputerConnectionButton", () => {
       "title",
       expect.stringContaining("Target reachability is checked"),
     );
+    expect(screen.getByText("configured")).not.toHaveClass("hidden");
 
     await userEvent.click(button);
     expect(onOpen).toHaveBeenCalledOnce();
@@ -37,6 +39,7 @@ describe("ComputerConnectionButton", () => {
     render(
       <ComputerConnectionButton
         enabled
+        mcpServerName="Managed PiKVM MCP"
         machineName="Unlabelled target"
         onOpen={vi.fn()}
       />,
@@ -52,6 +55,7 @@ describe("ComputerConnectionButton", () => {
     render(
       <ComputerConnectionButton
         enabled={false}
+        mcpServerName="Managed PiKVM MCP"
         onOpen={vi.fn()}
       />,
     );

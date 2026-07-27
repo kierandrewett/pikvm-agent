@@ -29,6 +29,12 @@ export type HarnessHealth = {
   computer_control?: "enabled" | "disabled";
 };
 
+export type ComputerConnection = {
+  enabled: boolean;
+  mcpServerName: string;
+  machineName: string;
+};
+
 export type ModelRole = "reasoner" | "controller" | "verifier";
 
 export type ModelPreferences = Partial<Record<ModelRole, string>>;

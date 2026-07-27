@@ -111,6 +111,43 @@ class StubHarness:
         return run
 
 
+@pytest.mark.asyncio
+async def test_computer_connection_identity_is_authenticated_and_run_independent(
+    tmp_path: Path,
+) -> None:
+    frame = tmp_path / "frame.jpg"
+    frame.write_bytes(b"frame")
+    store = InMemoryRunStore()
+    app = create_harness_app(
+        harness=StubHarness(store, frame),  # type: ignore[arg-type]
+        store=store,
+        models=StubModels(),
+        access_token=TEST_ACCESS_TOKEN,
+        allowed_origins={"http://harness"},
+        computer_control_enabled=True,
+        managed_mcp_name="PiKVM lab",
+        computer_name="Windows acceptance VM",
+    )
+    transport = httpx.ASGITransport(app=app)
+
+    async with httpx.AsyncClient(
+        transport=transport,
+        base_url="http://harness",
+    ) as client:
+        unauthenticated = await client.get("/api/computer-connection")
+        authenticated = await client.get(
+            "/api/computer-connection",
+            headers={"authorization": f"Bearer {TEST_ACCESS_TOKEN}"},
+        )
+
+    assert unauthenticated.status_code == 401
+    assert authenticated.json() == {
+        "enabled": True,
+        "mcp_server_name": "PiKVM lab",
+        "machine_name": "Windows acceptance VM",
+    }
+
+
 class StubAssistant:
     def __init__(self, store: InMemoryRunStore) -> None:
         self.store = store

@@ -1042,6 +1042,8 @@ def build_fixture_app(
         external_driver=False,
         lifespan=lifespan,
         provider_connections=FixtureProviderConnections(models),
+        managed_mcp_name="Managed PiKVM MCP",
+        computer_name="Synthetic audit target",
     )
     app.state.synthetic_fixture = True
     app.state.synthetic_store = store

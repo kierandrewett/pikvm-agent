@@ -25,13 +25,18 @@ describe("ComputerSheet", () => {
         token="workspace-token"
         run={null}
         connectionEnabled
+        connectionMcpName="PiKVM lab"
+        connectionMachineName="Windows acceptance VM"
         onPause={vi.fn()}
         onContinue={vi.fn()}
       />,
     );
 
     expect(
-      screen.getByText("Managed PiKVM MCP is configured"),
+      screen.getByText("PiKVM lab is configured"),
+    ).toBeVisible();
+    expect(
+      screen.getByText("Windows acceptance VM · no active session"),
     ).toBeVisible();
     expect(
       screen.getByText(/live screen appears here when a task starts/i),

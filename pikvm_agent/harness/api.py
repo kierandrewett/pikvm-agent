@@ -404,6 +404,8 @@ def create_harness_app(
     max_autonomous_resumes: int = 64,
     external_driver: bool = False,
     computer_control_enabled: bool = True,
+    managed_mcp_name: str = "Managed PiKVM MCP",
+    computer_name: str = "Managed computer",
     ui_dir: Path | None = None,
     lifespan: Callable[[FastAPI], AbstractAsyncContextManager[None]] | None = None,
 ) -> FastAPI:
@@ -700,6 +702,14 @@ def create_harness_app(
     @app.get("/api/providers")
     async def providers() -> dict[str, dict[str, object]]:
         return models.health()
+
+    @app.get("/api/computer-connection")
+    async def computer_connection() -> dict[str, str | bool]:
+        return {
+            "enabled": computer_control_enabled,
+            "mcp_server_name": managed_mcp_name,
+            "machine_name": computer_name,
+        }
 
     @app.get("/api/tools")
     async def assistant_tool_catalog() -> list[dict[str, Any]]:

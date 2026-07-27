@@ -21,6 +21,7 @@ import {
 import type {
   AssistantTool,
   AssistantToolServerMap,
+  ComputerConnection,
   HarnessHealth,
   LiveUpdateStatus,
   ModelPreferences,
@@ -97,6 +98,32 @@ export const loadHarnessHealth = async (accessToken: string) => {
   return health.computer_control !== "disabled";
 };
 
+export const loadComputerConnection = async (
+  accessToken: string,
+): Promise<ComputerConnection | null> => {
+  try {
+    const connection = await harnessJson<{
+      enabled: boolean;
+      mcp_server_name: string;
+      machine_name: string;
+    }>(accessToken, "/api/computer-connection");
+    return {
+      enabled: connection.enabled,
+      mcpServerName: connection.mcp_server_name,
+      machineName: connection.machine_name,
+    };
+  } catch (cause) {
+    if (cause instanceof HarnessApiError && cause.status === 404) return null;
+    throw cause;
+  }
+};
+
+const defaultComputerConnection = (enabled: boolean): ComputerConnection => ({
+  enabled,
+  mcpServerName: "Managed PiKVM MCP",
+  machineName: enabled ? "Managed computer" : "No computer",
+});
+
 export const createRunPayload = (
   task: string,
   preferences: ModelPreferences,
@@ -151,7 +178,8 @@ export function useHarnessWorkspace() {
   const [providers, setProviders] = useState<ProviderMap>({});
   const [tools, setTools] = useState<AssistantTool[]>([]);
   const [toolServers, setToolServers] = useState<AssistantToolServerMap>({});
-  const [computerControlEnabled, setComputerControlEnabled] = useState(true);
+  const [computerConnection, setComputerConnection] =
+    useState<ComputerConnection>(() => defaultComputerConnection(true));
   const [providerCatalog, setProviderCatalog] = useState<
     ProviderCatalogEntry[]
   >([]);
@@ -258,6 +286,7 @@ export function useHarnessWorkspace() {
           nextTools,
           nextToolServers,
           nextComputerControlEnabled,
+          nextComputerConnection,
         ] = await Promise.all([
           harnessJson<RunSummary[]>(accessToken, "/api/runs"),
           harnessJson<ProviderMap>(accessToken, "/api/providers"),
@@ -265,6 +294,7 @@ export function useHarnessWorkspace() {
           loadAssistantTools(accessToken),
           loadAssistantToolServers(accessToken),
           loadHarnessHealth(accessToken),
+          loadComputerConnection(accessToken),
         ]);
         if (!mounted.current) return;
         setToken(accessToken);
@@ -274,7 +304,10 @@ export function useHarnessWorkspace() {
         setProviderCatalog(nextCatalog);
         setTools(nextTools);
         setToolServers(nextToolServers);
-        setComputerControlEnabled(nextComputerControlEnabled);
+        setComputerConnection(
+          nextComputerConnection ??
+            defaultComputerConnection(nextComputerControlEnabled),
+        );
         setConnected(true);
         const firstId = nextRuns[0]?.run_id ?? null;
         setSelectedId(firstId);
@@ -568,7 +601,7 @@ export function useHarnessWorkspace() {
     setProviderCatalog([]);
     setTools([]);
     setToolServers({});
-    setComputerControlEnabled(true);
+    setComputerConnection(defaultComputerConnection(true));
     setModelPreferences({});
     setSelectedId(null);
     setSelectedRun(null);
@@ -638,7 +671,8 @@ export function useHarnessWorkspace() {
       providers,
       tools,
       toolServers,
-      computerControlEnabled,
+      computerControlEnabled: computerConnection.enabled,
+      computerConnection,
       providerCatalog,
       connectingProvider,
       modelPreferences,
@@ -670,7 +704,7 @@ export function useHarnessWorkspace() {
       providers,
       tools,
       toolServers,
-      computerControlEnabled,
+      computerConnection,
       providerCatalog,
       connectingProvider,
       modelPreferences,

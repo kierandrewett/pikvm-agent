@@ -2753,17 +2753,29 @@ def smoke_test(
         cfg = load_config()
         element_provider = build_element_provider(cfg)
         # File OCR (boxes). The live PiKVM OCR can't read an arbitrary file.
+        using_paddle = False
         if paddleocr_available():
             from pikvm_agent.vision.paddleocr_client import PaddleOCRProvider
 
             ocr = PaddleOCRProvider(lang=cfg.ocr.lang, device=cfg.ocr.device)
+            using_paddle = True
         elif tesseract_available():
             ocr = TesseractOcrProvider()
         else:
             typer.echo("No file OCR engine available (install tesseract or the [vision] extra).", err=True)
             raise typer.Exit(code=1)
 
-        ocr_result = await ocr.ocr(screenshot)
+        try:
+            ocr_result = await ocr.ocr(screenshot)
+        except RuntimeError:
+            if not using_paddle or not tesseract_available():
+                raise
+            typer.echo(
+                "PaddleOCR failed at runtime; using Tesseract for this smoke test.",
+                err=True,
+            )
+            ocr = TesseractOcrProvider()
+            ocr_result = await ocr.ocr(screenshot)
         elements = await element_provider.parse_elements(screenshot, 1, 1)
         merged = await CompositeScreenParser(element_provider, ocr).parse(screenshot, 1, 1)
 

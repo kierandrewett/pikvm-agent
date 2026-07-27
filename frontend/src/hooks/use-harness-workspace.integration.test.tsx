@@ -62,6 +62,15 @@ describe("useHarnessWorkspace authentication boundary", () => {
             }),
           );
         }
+        if (url === "/api/computer-connection") {
+          return Promise.resolve(
+            jsonResponse({
+              enabled: false,
+              mcp_server_name: "Managed PiKVM MCP",
+              machine_name: "No computer",
+            }),
+          );
+        }
         if (url === "/api/runs/legacy-run") {
           return Promise.resolve(
             jsonResponse(
@@ -83,6 +92,11 @@ describe("useHarnessWorkspace authentication boundary", () => {
     );
     expect(result.current.connected).toBe(true);
     expect(result.current.computerControlEnabled).toBe(false);
+    expect(result.current.computerConnection).toEqual({
+      enabled: false,
+      mcpServerName: "Managed PiKVM MCP",
+      machineName: "No computer",
+    });
     expect(sessionStorage.getItem("pikvm-harness-token")).toBe(
       "desktop-managed",
     );
@@ -140,6 +154,15 @@ describe("useHarnessWorkspace authentication boundary", () => {
         if (url === "/api/health") {
           return Promise.resolve(
             jsonResponse({ status: "ok", computer_control: "enabled" }),
+          );
+        }
+        if (url === "/api/computer-connection") {
+          return Promise.resolve(
+            jsonResponse({
+              enabled: true,
+              mcp_server_name: "PiKVM lab",
+              machine_name: "Windows acceptance VM",
+            }),
           );
         }
         if (url === "/api/runs/live-run/stream?after=1") {
@@ -210,6 +233,11 @@ describe("useHarnessWorkspace authentication boundary", () => {
       phase: "validating",
       provider: "fast-controller",
       model: "flash",
+    });
+    expect(result.current.computerConnection).toEqual({
+      enabled: true,
+      mcpServerName: "PiKVM lab",
+      machineName: "Windows acceptance VM",
     });
     expect(detailReads).toBe(1);
   });

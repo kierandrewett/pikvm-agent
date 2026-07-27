@@ -285,6 +285,16 @@ class HarnessSettings(BaseModel):
     access_token_env: str = "PIKVM_HARNESS_TOKEN"
     agent_token_env: str = "PIKVM_HARNESS_AGENT_TOKEN"
     observer_token_env: str = "PIKVM_HARNESS_OBSERVER_TOKEN"
+    managed_mcp_name: str = Field(
+        default="Managed PiKVM MCP",
+        min_length=1,
+        max_length=100,
+    )
+    computer_name: str = Field(
+        default="Managed computer",
+        min_length=1,
+        max_length=200,
+    )
     state_path: Path = Path(".pikvm-harness/state.sqlite3")
     artifact_dir: Path = Path(".pikvm-harness/artifacts")
     provider_conformance_path: Path = Path(

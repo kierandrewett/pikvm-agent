@@ -42,6 +42,8 @@ def test_lab_assets_point_only_at_isolated_adapter_and_daemon(tmp_path) -> None:
     assert harness["daemon_url_env"] == "PIKVM_LAB_DAEMON_URL"
     assert harness["state_path"].startswith(str(tmp_path))
     assert harness["artifact_dir"].startswith(str(tmp_path))
+    assert harness["managed_mcp_name"] == "PiKVM lab"
+    assert harness["computer_name"] == "Disposable lab computer"
     assert harness["routes"] == {
         "reasoner": ["claude-account", "codex-account"],
         "controller": ["claude-account", "codex-account"],

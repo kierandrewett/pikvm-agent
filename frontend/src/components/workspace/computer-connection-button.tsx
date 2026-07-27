@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 
 type ComputerConnectionButtonProps = {
   enabled: boolean;
+  mcpServerName: string;
   machineName?: string;
   onOpen: () => void;
 };
@@ -22,13 +23,14 @@ const displayMachineName = (machineName?: string) => {
 
 export function ComputerConnectionButton({
   enabled,
+  mcpServerName,
   machineName,
   onOpen,
 }: ComputerConnectionButtonProps) {
   const label = enabled ? displayMachineName(machineName) : "Chat only";
   const state = enabled ? "configured" : "no computer";
   const description = enabled
-    ? `${label}. Managed PiKVM MCP is configured. Target reachability is checked when computer work begins.`
+    ? `${label}. ${mcpServerName} is configured. Target reachability is checked when computer work begins.`
     : "No managed computer is configured. Chat and research tools remain available.";
 
   return (
@@ -51,7 +53,7 @@ export function ComputerConnectionButton({
         <MonitorOffIcon data-icon="inline-start" />
       )}
       <span className="min-w-0 truncate">{label}</span>
-      <span className="hidden shrink-0 text-[11px] font-normal text-muted-foreground min-[720px]:inline">
+      <span className="shrink-0 text-[10px] font-normal text-muted-foreground sm:text-[11px]">
         {state}
       </span>
     </Button>

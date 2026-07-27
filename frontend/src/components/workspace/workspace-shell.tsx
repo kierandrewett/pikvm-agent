@@ -255,7 +255,8 @@ export function WorkspaceShell() {
       ) : null}
       <ComputerConnectionButton
         enabled={workspace.computerControlEnabled}
-        machineName={computerEnvironment.machineName}
+        mcpServerName={workspace.computerConnection.mcpServerName}
+        machineName={workspace.computerConnection.machineName}
         onOpen={() => setComputerOpen(true)}
       />
       {workspace.tools.length > 0 || toolServerEntries.length > 0 ? (
@@ -276,7 +277,6 @@ export function WorkspaceShell() {
             : ""}
         </Badge>
       ) : null}
-      <RunControlModeBadge origin={workspace.selectedRun?.origin} />
     </div>
   );
 
@@ -315,7 +315,10 @@ export function WorkspaceShell() {
                 {workspace.selectedRun?.task || "New chat"}
               </p>
               {workspace.selectedRun?.origin === "direct_mcp" ? (
-                <RunProvenance caller={workspace.selectedRun.caller} />
+                <>
+                  <RunControlModeBadge origin={workspace.selectedRun.origin} />
+                  <RunProvenance caller={workspace.selectedRun.caller} />
+                </>
               ) : null}
               {workspace.connected ? (
                 <LiveUpdateBadge
@@ -433,6 +436,8 @@ export function WorkspaceShell() {
             token={workspace.token}
             run={workspace.selectedRun}
             connectionEnabled={workspace.computerControlEnabled}
+            connectionMcpName={workspace.computerConnection.mcpServerName}
+            connectionMachineName={workspace.computerConnection.machineName}
             onPause={workspace.onCancel}
             onContinue={workspace.continueRun}
           />

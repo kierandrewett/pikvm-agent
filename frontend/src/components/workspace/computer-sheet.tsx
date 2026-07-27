@@ -23,6 +23,8 @@ type ComputerSheetProps = {
   token: string;
   run: RunSnapshot | null;
   connectionEnabled: boolean;
+  connectionMcpName?: string;
+  connectionMachineName?: string;
   onPause: () => Promise<void>;
   onContinue: () => Promise<void>;
 };
@@ -33,6 +35,8 @@ export function ComputerSheet({
   token,
   run,
   connectionEnabled,
+  connectionMcpName = "Managed PiKVM MCP",
+  connectionMachineName = "Managed computer",
   onPause,
   onContinue,
 }: ComputerSheetProps) {
@@ -82,7 +86,7 @@ export function ComputerSheet({
 
   const machine = run?.observation?.machine ?? {};
   const alias =
-    typeof machine.alias === "string" ? machine.alias : "Managed computer";
+    typeof machine.alias === "string" ? machine.alias : connectionMachineName;
   const layer =
     typeof machine.desktop_layer === "string"
       ? machine.desktop_layer
@@ -93,7 +97,7 @@ export function ComputerSheet({
   );
   const hasComputerSession = Boolean(run?.session_id);
   const emptyTitle = connectionEnabled
-    ? "Managed PiKVM MCP is configured"
+    ? `${connectionMcpName} is configured`
     : "No managed computer configured";
   const emptyDescription = connectionEnabled
     ? "A live screen appears here when a task starts using the computer."
@@ -111,7 +115,7 @@ export function ComputerSheet({
             {hasComputerSession
               ? `${alias} · ${layer}`
               : connectionEnabled
-                ? "Managed PiKVM MCP · no active session"
+                ? `${connectionMachineName} · no active session`
                 : "Chat-only workspace"}
           </SheetDescription>
           {hasComputerSession && run ? (
