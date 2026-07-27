@@ -92,10 +92,21 @@ class HttpManagedHarnessApi:
         return await self._request("POST", f"/api/runs/{run_id}/start")
 
     async def continue_run(self, run_id: str) -> dict[str, Any]:
-        return await self._request(
+        response = await self.client.request(
             "POST",
             f"/api/runs/{run_id}/continue?background=true",
         )
+        if response.status_code == 409:
+            # A steer or background slice can move PAUSED -> RUNNING between
+            # the preceding GET and this POST. That is a state-refresh signal,
+            # not a fatal control-plane failure.
+            return {
+                "run_id": run_id,
+                "accepted": False,
+                "reason": "state_changed",
+            }
+        response.raise_for_status()
+        return response.json()
 
     async def performance(self, run_id: str) -> dict[str, Any]:
         return await self._request(
@@ -291,7 +302,10 @@ async def drive_managed_office_run(
                     cycles=cycles,
                     reason="continuation-cycle-limit",
                 )
-            await api.continue_run(run_id)
+            continuation = await api.continue_run(run_id)
+            if continuation.get("accepted") is False:
+                await sleep(0.25)
+                continue
             continuation_cursor = run.event_cursor
             cycles += 1
             continue

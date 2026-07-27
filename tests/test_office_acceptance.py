@@ -637,6 +637,81 @@ async def test_office_http_client_requests_background_continuation() -> None:
     assert requests[0].url.params.get("background") == "true"
 
 
+@pytest.mark.asyncio
+async def test_office_http_client_treats_continue_conflict_as_state_change() -> None:
+    async def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            409,
+            json={"detail": "run is already advancing"},
+        )
+
+    async with httpx.AsyncClient(
+        transport=httpx.MockTransport(handler),
+        base_url="http://harness",
+    ) as client:
+        result = await HttpManagedHarnessApi(client).continue_run("office-live")
+
+    assert result == {
+        "run_id": "office-live",
+        "accepted": False,
+        "reason": "state_changed",
+    }
+
+
+@pytest.mark.asyncio
+async def test_office_runner_refreshes_after_continue_conflict() -> None:
+    class Api:
+        def __init__(self) -> None:
+            self.gets = 0
+            self.continues = 0
+
+        async def create(self, _task: str):
+            return {"run_id": "office-live"}
+
+        async def start(self, _run_id: str):
+            return {"run_id": "office-live"}
+
+        async def get(self, _run_id: str):
+            self.gets += 1
+            status = (
+                RunStatus.PAUSED if self.gets == 1 else RunStatus.COMPLETED
+            )
+            return RunSnapshot(
+                run_id="office-live",
+                task="task",
+                status=status,
+                event_cursor=self.gets,
+            ).model_dump(mode="json")
+
+        async def continue_run(self, _run_id: str):
+            self.continues += 1
+            return {
+                "run_id": "office-live",
+                "accepted": False,
+                "reason": "state_changed",
+            }
+
+        async def abort(self, _run_id: str, _reason: str):
+            raise AssertionError("completed run must not be aborted")
+
+        async def performance(self, _run_id: str):
+            raise AssertionError("not used")
+
+    api = Api()
+    outcome = await drive_managed_office_run(
+        api,
+        instruction="Continue the task.",
+        max_continuation_cycles=5,
+        max_run_time_s=60,
+        sleep=lambda _seconds: _no_sleep(),
+        monotonic=lambda: 0,
+    )
+
+    assert outcome.run.status is RunStatus.COMPLETED
+    assert outcome.continuation_cycles == 0
+    assert api.continues == 1
+
+
 def test_office_runner_accepts_sanitized_verification_receipts() -> None:
     payload = RunSnapshot(
         run_id="office-live",
