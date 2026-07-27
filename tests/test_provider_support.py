@@ -12,6 +12,7 @@ from pikvm_agent.harness.provider_support import (
     PROVIDER_SUPPORT,
     ProviderSupport,
     provider_support,
+    public_provider_catalog,
 )
 
 
@@ -61,6 +62,37 @@ def test_provider_support_contracts_define_auth_ownership_without_secrets() -> N
     assert "api_key_env" in serialized
     assert "API_KEY" not in serialized
     assert "token" not in serialized.lower()
+
+
+def test_public_provider_catalog_is_complete_ordered_and_secret_free() -> None:
+    catalog = public_provider_catalog()
+
+    assert {entry["kind"] for entry in catalog} == set(PROVIDER_SUPPORT)
+    assert [entry["support_tier"] for entry in catalog] == [
+        "stable",
+        "stable",
+        "stable",
+        "stable",
+        "stable",
+        "beta",
+        "beta",
+        "beta",
+        "bridge",
+        "bridge",
+    ]
+    openai = next(
+        entry for entry in catalog if entry["kind"] == "openai_responses"
+    )
+    assert openai["auth"] == [
+        {
+            "mode": "api_key_env",
+            "credential_owner": "harness_environment",
+        }
+    ]
+    serialized = repr(catalog)
+    assert "OPENAI_API_KEY" not in serialized
+    assert "endpoint" not in serialized.lower()
+    assert "credential_source" not in serialized
 
 
 def test_provider_readiness_metadata_comes_from_the_support_contract(
@@ -123,8 +155,21 @@ def test_operator_ui_explains_support_contract_without_overclaiming() -> None:
         / "harness_ui"
         / "app.js"
     ).read_text()
+    connections = (
+        Path(__file__).parents[1]
+        / "frontend"
+        / "src"
+        / "components"
+        / "workspace"
+        / "provider-connections-sheet.tsx"
+    ).read_text()
 
     assert "health.support_tier" in model_picker
     assert "health.credential_owner" in model_picker
     assert "Tier ≠ live-tested" in model_picker
+    assert "secret values never enter this UI" in connections
+    assert "Readiness is a local prerequisite" in connections
+    assert "Conformance not run" in connections
+    assert "health.readiness_error" not in connections
+    assert "health.last_error" not in connections
     assert "Tier ≠ live-tested" in javascript

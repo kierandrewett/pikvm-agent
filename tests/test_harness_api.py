@@ -980,6 +980,9 @@ async def test_harness_api_exposes_runs_events_frame_controls_and_provider_healt
         unauthenticated = await httpx.AsyncClient(
             transport=transport, base_url="http://harness"
         ).get("/api/runs")
+        unauthenticated_catalog = await httpx.AsyncClient(
+            transport=transport, base_url="http://harness"
+        ).get("/api/provider-catalog")
         created = (
             await client.post(
                 "/api/runs", json={"task": "Open a file", "auto_start": False}
@@ -997,6 +1000,7 @@ async def test_harness_api_exposes_runs_events_frame_controls_and_provider_healt
             )
         ).json()
         providers = (await client.get("/api/providers")).json()
+        provider_catalog = (await client.get("/api/provider-catalog")).json()
         approval_without_intent = await client.post(
             "/api/runs/run_1/approvals/a_1",
             json={"type": "approve"},
@@ -1023,6 +1027,23 @@ async def test_harness_api_exposes_runs_events_frame_controls_and_provider_healt
 
     assert created["run_id"] == "run_1"
     assert unauthenticated.status_code == 401
+    assert unauthenticated_catalog.status_code == 401
+    assert len(provider_catalog) == 10
+    assert {
+        entry["kind"] for entry in provider_catalog
+    } == {
+        "subprocess_json",
+        "codex_cli",
+        "claude_cli",
+        "gemini_cli",
+        "openai_compatible",
+        "openai_responses",
+        "azure_openai_responses",
+        "anthropic_api",
+        "gemini_api",
+        "vertex_gemini",
+    }
+    assert "credential_source" not in repr(provider_catalog)
     assert listed[0]["task"] == "Open a file"
     assert events["events"][0]["kind"] == "computer.opened"
     assert events["cursor"] == 1

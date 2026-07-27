@@ -38,7 +38,7 @@ export function ModelPicker({
           : "support unclassified",
         health.credential_owner === "provider_cli"
           ? "provider-owned login"
-          : health.credential_owner === "server_environment"
+          : health.credential_owner === "harness_environment"
             ? "server credential"
             : "",
       ]

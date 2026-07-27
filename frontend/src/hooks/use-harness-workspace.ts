@@ -1,16 +1,11 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   AppendMessage,
   RespondToToolApprovalOptions,
 } from "@assistant-ui/react";
 import {
   clearStoredToken,
+  HarnessApiError,
   harnessEventStream,
   harnessJson,
   readStoredToken,
@@ -18,6 +13,7 @@ import {
 } from "@/lib/harness-api";
 import type {
   LiveUpdateStatus,
+  ProviderCatalogEntry,
   ProviderMap,
   RunSnapshot,
   RunStatus,
@@ -40,10 +36,24 @@ const STREAM_RETRY_MAX_MS = 5_000;
 const LIVE_RECONCILE_MS = 15_000;
 const DEGRADED_RECONCILE_MS = 1_500;
 
+export const loadProviderCatalog = async (accessToken: string) => {
+  try {
+    return await harnessJson<ProviderCatalogEntry[]>(
+      accessToken,
+      "/api/provider-catalog",
+    );
+  } catch (cause) {
+    if (cause instanceof HarnessApiError && cause.status === 404) return [];
+    throw cause;
+  }
+};
+
 const messageText = (message: AppendMessage) => {
   const text = message.content
     .filter(
-      (part): part is Extract<(typeof message.content)[number], { type: "text" }> =>
+      (
+        part,
+      ): part is Extract<(typeof message.content)[number], { type: "text" }> =>
         part.type === "text",
     )
     .map((part) => part.text)
@@ -61,6 +71,9 @@ export function useHarnessWorkspace() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedRun, setSelectedRun] = useState<RunSnapshot | null>(null);
   const [providers, setProviders] = useState<ProviderMap>({});
+  const [providerCatalog, setProviderCatalog] = useState<
+    ProviderCatalogEntry[]
+  >([]);
   const [selectedProvider, setSelectedProvider] = useState("");
   const [error, setError] = useState("");
   const [liveUpdateStatus, setLiveUpdateStatus] =
@@ -110,14 +123,18 @@ export function useHarnessWorkspace() {
   const refresh = useCallback(
     async (accessToken = token, runId = selectedId) => {
       if (!accessToken) return;
-      const [nextRuns, nextProviders, nextRun] = await Promise.all([
-        harnessJson<RunSummary[]>(accessToken, "/api/runs"),
-        harnessJson<ProviderMap>(accessToken, "/api/providers"),
-        runId ? loadRun(accessToken, runId) : Promise.resolve(null),
-      ]);
+      const [nextRuns, nextProviders, nextCatalog, nextRun] = await Promise.all(
+        [
+          harnessJson<RunSummary[]>(accessToken, "/api/runs"),
+          harnessJson<ProviderMap>(accessToken, "/api/providers"),
+          loadProviderCatalog(accessToken),
+          runId ? loadRun(accessToken, runId) : Promise.resolve(null),
+        ],
+      );
       if (!mounted.current) return;
       setRuns(nextRuns);
       setProviders(nextProviders);
+      setProviderCatalog(nextCatalog);
       if (!runId) setSelectedRun(null);
       if (
         selectedProvider &&
@@ -141,15 +158,17 @@ export function useHarnessWorkspace() {
       setLoading(true);
       setError("");
       try {
-        const [nextRuns, nextProviders] = await Promise.all([
+        const [nextRuns, nextProviders, nextCatalog] = await Promise.all([
           harnessJson<RunSummary[]>(accessToken, "/api/runs"),
           harnessJson<ProviderMap>(accessToken, "/api/providers"),
+          loadProviderCatalog(accessToken),
         ]);
         if (!mounted.current) return;
         setToken(accessToken);
         storeToken(accessToken);
         setRuns(nextRuns);
         setProviders(nextProviders);
+        setProviderCatalog(nextCatalog);
         setConnected(true);
         const firstId = nextRuns[0]?.run_id ?? null;
         setSelectedId(firstId);
@@ -174,9 +193,7 @@ export function useHarnessWorkspace() {
   useEffect(() => {
     if (!connected || !token) return;
     const interval =
-      liveUpdateStatus === "live"
-        ? LIVE_RECONCILE_MS
-        : DEGRADED_RECONCILE_MS;
+      liveUpdateStatus === "live" ? LIVE_RECONCILE_MS : DEGRADED_RECONCILE_MS;
     const timer = window.setInterval(() => {
       void refresh().catch((cause) => {
         if (cause instanceof Error && mounted.current) setError(cause.message);
@@ -298,13 +315,7 @@ export function useHarnessWorkspace() {
       delayController.abort();
       if (refreshTimer != null) window.clearTimeout(refreshTimer);
     };
-  }, [
-    connected,
-    loadRun,
-    selectedId,
-    streamRunId,
-    token,
-  ]);
+  }, [connected, loadRun, selectedId, streamRunId, token]);
 
   const selectRun = useCallback(
     async (runId: string) => {
@@ -314,7 +325,9 @@ export function useHarnessWorkspace() {
       try {
         await loadRun(token, runId);
       } catch (cause) {
-        setError(cause instanceof Error ? cause.message : "Could not open task.");
+        setError(
+          cause instanceof Error ? cause.message : "Could not open task.",
+        );
       }
     },
     [loadRun, token],
@@ -418,6 +431,7 @@ export function useHarnessWorkspace() {
     setConnected(false);
     setRuns([]);
     setProviders({});
+    setProviderCatalog([]);
     setSelectedId(null);
     setSelectedRun(null);
     setError("");
@@ -427,9 +441,9 @@ export function useHarnessWorkspace() {
 
   const isRunning = Boolean(
     selectedRun &&
-      ["planning", "running", "executing", "verifying"].includes(
-        selectedRun.status,
-      ),
+    ["planning", "running", "executing", "verifying"].includes(
+      selectedRun.status,
+    ),
   );
 
   return useMemo(
@@ -441,6 +455,7 @@ export function useHarnessWorkspace() {
       selectedId,
       selectedRun,
       providers,
+      providerCatalog,
       selectedProvider,
       error,
       liveUpdateStatus,
@@ -465,6 +480,7 @@ export function useHarnessWorkspace() {
       selectedId,
       selectedRun,
       providers,
+      providerCatalog,
       selectedProvider,
       error,
       liveUpdateStatus,

@@ -187,3 +187,31 @@ def provider_support(kind: str) -> ProviderSupport:
         return PROVIDER_SUPPORT[kind]
     except KeyError as exc:
         raise ValueError(f"unknown provider kind {kind!r}") from exc
+
+
+def public_provider_catalog() -> list[dict[str, object]]:
+    """Return the canonical, secret-free provider catalog for operator UIs."""
+
+    tier_order = {"stable": 0, "beta": 1, "bridge": 2}
+    supports = sorted(
+        PROVIDER_SUPPORT.values(),
+        key=lambda support: (tier_order[support.support_tier], support.kind),
+    )
+    return [
+        {
+            "kind": support.kind,
+            "support_tier": support.support_tier,
+            "implementation_contract": support.implementation_contract,
+            "interface": support.interface,
+            "pixel_input": support.pixel_input,
+            "structured_output": support.structured_output,
+            "auth": [
+                {
+                    "mode": contract.mode,
+                    "credential_owner": contract.credential_owner,
+                }
+                for contract in support.auth
+            ],
+        }
+        for support in supports
+    ]

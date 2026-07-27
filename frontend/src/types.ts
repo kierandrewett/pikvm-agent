@@ -20,11 +20,7 @@ export type HarnessEvent = {
 };
 
 export type LiveUpdateStatus =
-  | "idle"
-  | "connecting"
-  | "live"
-  | "retrying"
-  | "offline";
+  "idle" | "connecting" | "live" | "retrying" | "offline";
 
 export type RunSummary = {
   run_id: string;
@@ -89,15 +85,50 @@ export type RunSnapshot = RunSummary & {
 export type ProviderHealth = {
   kind?: string;
   configured_model?: string;
+  billing_mode?: string;
+  interface?: string;
+  pixel_input?: string;
+  structured_output?: string;
   ready?: boolean;
   support_tier?: string;
+  implementation_contract?: string;
   auth_mode?: string;
   credential_owner?: string;
+  readiness_error?: string | null;
+  routes?: Array<{
+    role?: string;
+    position?: number;
+  }>;
   calls?: number;
   successes?: number;
   failures?: number;
+  skipped?: number;
+  consecutive_failures?: number;
   last_latency_ms?: number | null;
   last_model?: string | null;
+  last_success_at?: string | null;
+  cooldown_until?: string | null;
+  conformance_status?: string;
+  conformance_created_at?: string;
+  conformance_calls_attempted?: number;
+  conformance_schema_valid?: number;
+  conformance_exact?: number;
+  conformance_median_latency_ms?: number;
 };
 
 export type ProviderMap = Record<string, ProviderHealth>;
+
+export type ProviderCatalogAuth = {
+  mode: string;
+  credential_owner: string;
+};
+
+export type ProviderCatalogEntry = {
+  kind: string;
+  support_tier: string;
+  implementation_contract: string;
+  interface: string;
+  pixel_input: string;
+  structured_output: string;
+  auth: ProviderCatalogAuth[];
+};

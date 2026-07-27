@@ -726,6 +726,8 @@ def test_provider_prerequisites_allow_unavailable_fallbacks_when_each_role_is_co
     )
     assert health["optional-api"]["interface"] == "Gemini generateContent"
     assert health["optional-api"]["pixel_input"] == "Inline image data"
+    assert health["optional-api"]["support_tier"] == "stable"
+    assert health["optional-api"]["credential_owner"] == "harness_environment"
     assert health["optional-api"]["routes"] == [
         {"role": "reasoner", "position": 1},
         {"role": "controller", "position": 2},
@@ -734,6 +736,7 @@ def test_provider_prerequisites_allow_unavailable_fallbacks_when_each_role_is_co
     assert health["ready"]["ready"] is True
     assert health["ready"]["interface"] == "Codex exec"
     assert health["ready"]["credential"] == "owned-by-cli"
+    assert health["ready"]["credential_owner"] == "provider_cli"
 
 
 def test_sensitive_provider_headers_are_rejected() -> None:

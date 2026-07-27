@@ -6,6 +6,7 @@ import {
 } from "@assistant-ui/react";
 import {
   ActivityIcon,
+  BotIcon,
   LogOutIcon,
   MenuIcon,
   MonitorIcon,
@@ -34,12 +35,14 @@ import {
 import { DiagnosticsSheet } from "@/components/workspace/diagnostics-sheet";
 import { LiveUpdateBadge } from "@/components/workspace/live-update-badge";
 import { ModelPicker } from "@/components/workspace/model-picker";
+import { ProviderConnectionsSheet } from "@/components/workspace/provider-connections-sheet";
 import { useHarnessWorkspace } from "@/hooks/use-harness-workspace";
 import { messagesForRun } from "@/lib/run-messages";
 
 export function WorkspaceShell() {
   const workspace = useHarnessWorkspace();
   const [computerOpen, setComputerOpen] = useState(false);
+  const [modelsOpen, setModelsOpen] = useState(false);
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
   const [tasksOpen, setTasksOpen] = useState(false);
 
@@ -54,8 +57,7 @@ export function WorkspaceShell() {
         machine && typeof machine.alias === "string"
           ? machine.alias
           : "Managed computer",
-      currentFrameId:
-        workspace.selectedRun?.observation?.frame_id ?? undefined,
+      currentFrameId: workspace.selectedRun?.observation?.frame_id ?? undefined,
       onOpenComputer: () => setComputerOpen(true),
     };
   }, [
@@ -151,14 +153,20 @@ export function WorkspaceShell() {
               {workspace.connected ? (
                 <LiveUpdateBadge
                   status={
-                    workspace.selectedRun
-                      ? workspace.liveUpdateStatus
-                      : "idle"
+                    workspace.selectedRun ? workspace.liveUpdateStatus : "idle"
                   }
                 />
               ) : null}
             </div>
             <div className="flex shrink-0 items-center gap-1">
+              <TooltipIconButton
+                tooltip="Models"
+                aria-label="Open model connections"
+                onClick={() => setModelsOpen(true)}
+                disabled={!workspace.connected}
+              >
+                <BotIcon />
+              </TooltipIconButton>
               <TooltipIconButton
                 tooltip="Computer"
                 aria-label="Open computer view"
@@ -226,6 +234,12 @@ export function WorkspaceShell() {
         run={workspace.selectedRun}
         onPause={workspace.onCancel}
         onContinue={workspace.continueRun}
+      />
+      <ProviderConnectionsSheet
+        open={modelsOpen}
+        onOpenChange={setModelsOpen}
+        providers={workspace.providers}
+        catalog={workspace.providerCatalog}
       />
       <DiagnosticsSheet
         open={diagnosticsOpen}

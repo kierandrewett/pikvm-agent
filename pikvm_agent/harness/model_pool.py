@@ -56,9 +56,12 @@ class ProviderHealth:
     interface: str = "Unknown interface"
     pixel_input: str = "Unknown pixel input"
     structured_output: str = "Unknown output contract"
+    support_tier: str = "unclassified"
+    implementation_contract: str = "unknown"
     ready: bool = True
     credential: str = "unknown"
     auth_mode: str = "unknown"
+    credential_owner: str = "unknown"
     credential_source: str | None = None
     readiness_error: str | None = None
     routes: list[dict[str, object]] = field(default_factory=list)
@@ -225,12 +228,23 @@ class ModelPool:
                     metadata.get(name, {}).get("structured_output")
                     or "Unknown output contract"
                 ),
+                support_tier=str(
+                    metadata.get(name, {}).get("support_tier")
+                    or "unclassified"
+                ),
+                implementation_contract=str(
+                    metadata.get(name, {}).get("implementation_contract")
+                    or "unknown"
+                ),
                 ready=bool(metadata.get(name, {}).get("ready", True)),
                 credential=str(
                     metadata.get(name, {}).get("credential") or "unknown"
                 ),
                 auth_mode=str(
                     metadata.get(name, {}).get("auth_mode") or "unknown"
+                ),
+                credential_owner=str(
+                    metadata.get(name, {}).get("credential_owner") or "unknown"
                 ),
                 credential_source=(
                     str(metadata[name]["credential_source"])

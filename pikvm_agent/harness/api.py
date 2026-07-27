@@ -37,6 +37,7 @@ from pikvm_agent.harness.direct_calls import (
     DirectCallFinish,
 )
 from pikvm_agent.harness.performance import summarize_run_performance
+from pikvm_agent.harness.provider_support import public_provider_catalog
 from pikvm_agent.harness.redaction import redact_secrets
 
 RUN_EVENT_TAIL_LIMIT = 500
@@ -540,6 +541,10 @@ def create_harness_app(
     @app.get("/api/providers")
     async def providers() -> dict[str, dict[str, object]]:
         return models.health()
+
+    @app.get("/api/provider-catalog")
+    async def provider_catalog() -> list[dict[str, object]]:
+        return public_provider_catalog()
 
     @app.get("/api/direct/health")
     async def direct_health() -> dict[str, str]:

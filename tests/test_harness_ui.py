@@ -148,8 +148,10 @@ def test_default_surface_is_chat_with_contextual_computer_and_diagnostics() -> N
 
     assert 'aria-label="Agent conversation"' in shell
     assert 'tooltip="Computer"' in shell
+    assert 'tooltip="Models"' in shell
     assert 'tooltip="Diagnostics"' in shell
     assert "<ComputerSheet" in shell
+    assert "<ProviderConnectionsSheet" in shell
     assert "<DiagnosticsSheet" in shell
     assert "open={computerOpen}" in shell
     assert "open={diagnosticsOpen}" in shell
