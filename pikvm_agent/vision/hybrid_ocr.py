@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
+from typing import Literal
 
 from pikvm_agent.core.models import OCRCandidate, OCRResult, Region
 from pikvm_agent.core.ports import OCRProvider
@@ -26,6 +27,7 @@ def _append_candidate(
     *,
     text: str,
     mean_confidence: float | None,
+    evidence_kind: Literal["generic", "spacing"] = "generic",
 ) -> None:
     if not text or text in seen:
         return
@@ -34,6 +36,7 @@ def _append_candidate(
         OCRCandidate(
             text=text,
             mean_confidence=mean_confidence,
+            evidence_kind=evidence_kind,
         )
     )
 
@@ -52,6 +55,7 @@ def _merge_precise_evidence(
             seen,
             text=candidate.text,
             mean_confidence=candidate.mean_confidence,
+            evidence_kind=candidate.evidence_kind,
         )
     _append_candidate(
         candidates,
@@ -65,10 +69,12 @@ def _merge_precise_evidence(
             seen,
             text=candidate.text,
             mean_confidence=candidate.mean_confidence,
+            evidence_kind=candidate.evidence_kind,
         )
     return OCRResult(
         lines=primary.lines,
         alternatives=candidates,
+        spacing_evidence=primary.spacing_evidence,
     )
 
 

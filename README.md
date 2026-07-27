@@ -596,6 +596,12 @@ pikvm-agent harness ocr-benchmark \
   --cases 1000 --seed 104729 --evaluation-seed 65537 \
   --jobs 4 --out /tmp/pikvm-ocr-blind
 
+# A separate release gate targets OCR's tendency to collapse repeated spaces.
+# It can run as one job or as resumable deterministic shards.
+pikvm-agent harness ocr-spacing-benchmark \
+  --cases 1000 --seed 104729 --evaluation-seed 65537 \
+  --jobs 4 --out /tmp/pikvm-ocr-spacing
+
 pikvm-agent harness run-metrics \
   --state .pikvm-harness/state.sqlite3 \
   --run-id <run-id>

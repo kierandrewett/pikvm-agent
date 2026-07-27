@@ -664,6 +664,48 @@ rows:
     wall: "{wall}"
     status: "Failing gate; crop adapter fixed afterward"
 
+  - suite: "Blind spacing OCR"
+    route: "Tesseract precise, canonical text trusted"
+    source: "results/2026-07-27/ocr/tesseract-spacing-integrity-seed104729-n1000/report.json"
+    fields:
+      cases: {path: "cases", format: "integer"}
+      controls: {path: "controls", format: "integer"}
+      corruptions: {path: "corruptions", format: "integer"}
+      control_rate: {path: "control_verified_rate", format: "percent", digits: 1}
+      detection_rate: {path: "corruption_detection_rate", format: "percent", digits: 1}
+      false_verified: {path: "false_verified_corruptions", format: "integer"}
+      false_alarms: {path: "false_spacing_alarms", format: "integer"}
+      median: {path: "median_latency_ms", format: "milliseconds", digits: 0}
+      p95: {path: "p95_latency_ms", format: "milliseconds", digits: 0}
+      wall: {path: "evaluation_wall_ms", format: "seconds_from_ms", digits: 2}
+    cases: "{cases}: {controls} clean / {corruptions} doubled"
+    result: "{detection_rate} detected; {false_verified} false verified; {false_alarms} false alarms; {control_rate} clean verified"
+    latency: "{median} / {p95}"
+    wall: "{wall}"
+    status: "Unsafe baseline; canonical OCR collapsed visible spaces"
+
+  - suite: "Blind spacing OCR"
+    route: "Tesseract multi-scale spacing evidence, fail closed"
+    source: "results/2026-07-27/ocr/tesseract-spacing-integrity-seed104729-n1000-v2-merged/report.json"
+    fields:
+      cases: {path: "cases", format: "integer"}
+      shards: {path: "source_shards", format: "integer"}
+      controls: {path: "controls", format: "integer"}
+      corruptions: {path: "corruptions", format: "integer"}
+      control_rate: {path: "control_verified_rate", format: "percent", digits: 1}
+      detection_rate: {path: "corruption_detection_rate", format: "percent", digits: 1}
+      false_verified: {path: "false_verified_corruptions", format: "integer"}
+      false_alarms: {path: "false_spacing_alarms", format: "integer"}
+      blocked: {path: "conservatively_blocked", format: "integer"}
+      median: {path: "median_latency_ms", format: "milliseconds", digits: 0}
+      p95: {path: "p95_latency_ms", format: "milliseconds", digits: 0}
+      wall: {path: "evaluation_wall_ms", format: "seconds_from_ms", digits: 2}
+    cases: "{cases} across {shards} validated shards"
+    result: "{detection_rate} detected; {false_verified} false verified; {false_alarms} false alarms; {blocked} abstained; {control_rate} clean verified"
+    latency: "{median} / {p95}"
+    wall: "{wall}"
+    status: "Safe but failing usability gate; exact spacing remains uncertain"
+
   - suite: "Blind OCR known-intent candidate union"
     route: "Tesseract precise + PaddleOCR evidence"
     source: "results/2026-07-26/ocr/hybrid-known-intent-candidate-union-n1000.json"

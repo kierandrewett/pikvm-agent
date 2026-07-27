@@ -223,6 +223,14 @@ class OCRCandidate(BaseModel):
 class OCRResult(BaseModel):
     lines: list[OCRLine] = Field(default_factory=list)
     alternatives: list[OCRCandidate] = Field(default_factory=list)
+    # Exact whitespace is not represented by ordinary OCR text. Precise
+    # providers must opt in only after their independent geometry reads agree
+    # that every visible gap is safely calibrated.
+    spacing_evidence: Literal[
+        "not_evaluated",
+        "verified",
+        "uncertain",
+    ] = "not_evaluated"
 
     @property
     def text(self) -> str:

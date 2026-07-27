@@ -68,7 +68,6 @@ MAX_BACKSPACES = 400      # safety cap on a correction's clear
 FAST_PRINT_MIN = 120      # above this, plain text takes the (bursty) fast print path;
                           # shorter text stays on the fully-humanized per-key path
 MIN_MISMATCH_OCR_CONFIDENCE = 0.78
-MIN_EXPECTED_AWARE_EXACT_CHARS = 8
 MAX_AUTODETECTED_FIELD_HEIGHT = 80
 MAX_AUTODETECTED_FIELD_HEIGHT_FRAC = 0.15
 MAX_PROSE_EDGE_CONTEXT_CHARS = 96
@@ -411,7 +410,6 @@ class WatchedTyper:
             if (
                 precise
                 and intended
-                and len(norm(intended, True)) >= MIN_EXPECTED_AWARE_EXACT_CHARS
             ):
                 spacing_candidates = [
                     alternative.text
@@ -426,6 +424,15 @@ class WatchedTyper:
                 # would make the checksum circular. Exact completion uses the
                 # provider's canonical complete-field text. A spacing candidate
                 # may only veto it by exposing a visible whitespace mismatch.
+                if (
+                    any(character in intended for character in (" ", "\t", "\n"))
+                    and result.spacing_evidence != "verified"
+                ):
+                    # Ordinary OCR collapses whitespace. Exact completion needs
+                    # independently repeated, calibrated word-gap evidence;
+                    # otherwise a doubled space can look identical to the
+                    # requested single-space text.
+                    return ""
             confidences = [
                 float(line.confidence)
                 for line in result.lines

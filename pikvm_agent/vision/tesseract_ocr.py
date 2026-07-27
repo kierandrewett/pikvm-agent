@@ -12,8 +12,11 @@ import asyncio
 import io
 import re
 import shutil
+import statistics
 import tempfile
+from collections import Counter
 from pathlib import Path
+from typing import Literal
 from urllib.parse import urlsplit
 
 from PIL import Image, ImageFilter, ImageOps, ImageStat
@@ -118,7 +121,7 @@ def _segment_joiners(
 
 def _spacing_aware_segment(
     words: list[dict[str, float | int | str]],
-) -> tuple[str, bool]:
+) -> tuple[str, bool, bool]:
     """Reconstruct anomalous repeated spaces from grounded word geometry.
 
     OCR TSV discards inter-word whitespace. A line-local baseline avoids
@@ -128,21 +131,44 @@ def _spacing_aware_segment(
     """
 
     if not words:
-        return "", False
+        return "", False, False
     joiners = _segment_joiners(words)
-    gaps = [
-        int(word["x0"]) - int(previous["x1"])
-        for previous, word, joiner in zip(
-            words[:-1],
-            words[1:],
-            joiners,
-            strict=True,
+    gap_entries = [
+        (
+            index,
+            max(1, int(word["x0"]) - int(previous["x1"])),
+        )
+        for index, (previous, word, joiner) in enumerate(
+            zip(
+                words[:-1],
+                words[1:],
+                joiners,
+                strict=True,
+            )
         )
         if joiner
     ]
+    gaps = [
+        gap
+        for _index, gap in gap_entries
+    ]
+    character_widths = [
+        max(
+            1.0,
+            (int(word["x1"]) - int(word["x0"]))
+            / max(1, len(str(word["text"]))),
+        )
+        for word in words
+        if any(character.isalnum() for character in str(word["text"]))
+    ]
+    median_character_width = (
+        statistics.median(character_widths)
+        if character_widths
+        else 0.0
+    )
     baseline = 0.0
     if len(gaps) >= 3:
-        ordered = sorted(max(1, gap) for gap in gaps)
+        ordered = sorted(gaps)
         baseline_count = max(2, (len(ordered) + 1) // 2)
         baseline_values = ordered[:baseline_count]
         baseline = sum(baseline_values) / len(baseline_values)
@@ -150,24 +176,63 @@ def _spacing_aware_segment(
     median_height = heights[len(heights) // 2]
     text = str(words[0]["text"])
     anomaly = False
-    for previous, word, joiner in zip(
-        words[:-1],
-        words[1:],
-        joiners,
-        strict=True,
+    safely_calibrated = bool(
+        baseline
+        and gaps
+        and max(gaps) < baseline * 1.30
+    )
+    for index, (previous, word, joiner) in enumerate(
+        zip(
+            words[:-1],
+            words[1:],
+            joiners,
+            strict=True,
+        )
     ):
         separator = joiner
-        if joiner and baseline:
+        if joiner:
             gap = max(1, int(word["x0"]) - int(previous["x1"]))
-            if (
-                gap >= baseline * 1.55
-                and gap - baseline >= max(2.0, median_height * 0.16)
-            ):
-                spaces = min(4, max(2, round(gap / baseline)))
+            other_gaps = [
+                candidate_gap
+                for candidate_index, candidate_gap in gap_entries
+                if candidate_index != index
+            ]
+            second_widest = max(other_gaps, default=0)
+            strong_line_anomaly = bool(
+                baseline
+                and (
+                    (
+                        gap >= baseline * 1.55
+                        and gap - baseline
+                        >= max(2.0, median_height * 0.16)
+                    )
+                    or (
+                        gap >= baseline * 1.35
+                        and gap - baseline >= 2.0
+                        and gap - second_widest >= 2
+                    )
+                )
+            )
+            short_line_anomaly = bool(
+                not baseline
+                and median_character_width
+                and gap >= median_character_width * 1.61
+            )
+            if strong_line_anomaly or short_line_anomaly:
+                spacing_baseline = (
+                    baseline
+                    if baseline
+                    else median_character_width
+                )
+                spaces = min(
+                    4,
+                    max(2, round(gap / max(1.0, spacing_baseline))),
+                )
                 separator = " " * spaces
                 anomaly = True
+                safely_calibrated = False
         text += separator + str(word["text"])
-    return text, anomaly
+    return text, anomaly, safely_calibrated
 
 
 def _parse_tsv(
@@ -246,7 +311,11 @@ def _parse_tsv(
             if not segment:
                 continue
             confidences = [float(word["confidence"]) for word in segment]
-            spacing_text, spacing_anomaly = _spacing_aware_segment(segment)
+            (
+                spacing_text,
+                spacing_anomaly,
+                spacing_safe,
+            ) = _spacing_aware_segment(segment)
             lines.append(
                 OCRLine(
                     text=_join_segment_words(segment),
@@ -260,6 +329,7 @@ def _parse_tsv(
                     raw={
                         "spacing_text": spacing_text,
                         "spacing_anomaly": spacing_anomaly,
+                        "spacing_safe": spacing_safe,
                     },
                 )
             )
@@ -277,6 +347,36 @@ def _spacing_candidate_text(lines: list[OCRLine]) -> str:
         values.append(value)
         anomaly = anomaly or raw.get("spacing_anomaly") is True
     return "\n".join(values) if anomaly else ""
+
+
+def _spacing_lines_verified(lines: list[OCRLine]) -> bool:
+    """Whether every parsed line has a safely calibrated whitespace baseline."""
+
+    if not lines:
+        return False
+    return all(
+        isinstance(line.raw, dict)
+        and line.raw.get("spacing_safe") is True
+        for line in lines
+    )
+
+
+def _consensus_spacing_candidate(
+    candidates: list[list[OCRLine]],
+    *,
+    minimum_reads: int,
+) -> str:
+    """Return an independently repeated spacing anomaly, never a one-read guess."""
+
+    values = [
+        value
+        for lines in candidates
+        if (value := _spacing_candidate_text(lines))
+    ]
+    if not values:
+        return ""
+    value, count = Counter(values).most_common(1)[0]
+    return value if count >= minimum_reads else ""
 
 
 def _normalized_candidate_text(lines: list[OCRLine]) -> str:
@@ -651,6 +751,11 @@ class TesseractOcrProvider:
                 prepared_images.append((prepare(scale), scale))
         try:
             alternatives: list[OCRCandidate] = []
+            spacing_evidence: Literal[
+                "not_evaluated",
+                "verified",
+                "uncertain",
+            ] = "not_evaluated"
             if self.ensemble and prepared_images:
                 tsv_calls = [
                     _run_tesseract(
@@ -709,7 +814,14 @@ class TesseractOcrProvider:
                 selected_text = _candidate_text(lines)
                 seen = {selected_text}
                 if preserve_spacing:
-                    spacing_text = _spacing_candidate_text(lines)
+                    all_line_reads = [
+                        raw_lines,
+                        *(item[1] for item in prepared_candidates),
+                    ]
+                    spacing_text = _consensus_spacing_candidate(
+                        all_line_reads,
+                        minimum_reads=2,
+                    )
                     if spacing_text and spacing_text not in seen:
                         seen.add(spacing_text)
                         alternatives.append(
@@ -718,6 +830,15 @@ class TesseractOcrProvider:
                                 evidence_kind="spacing",
                             )
                         )
+                    spacing_evidence = (
+                        "verified"
+                        if all(
+                            _candidate_text(candidate_lines) == selected_text
+                            and _spacing_lines_verified(candidate_lines)
+                            for candidate_lines in all_line_reads
+                        )
+                        else "uncertain"
+                    )
                 for candidate_lines in (
                     raw_lines,
                     *(item[1] for item in prepared_candidates),
@@ -768,12 +889,21 @@ class TesseractOcrProvider:
                                 evidence_kind="spacing",
                             )
                         )
+                    spacing_evidence = (
+                        "verified"
+                        if _spacing_lines_verified(lines)
+                        else "uncertain"
+                    )
         finally:
             if tmp is not None:
                 tmp.unlink(missing_ok=True)
             for prepared, _scale in prepared_images:
                 prepared.unlink(missing_ok=True)
-        return OCRResult(lines=lines, alternatives=alternatives)
+        return OCRResult(
+            lines=lines,
+            alternatives=alternatives,
+            spacing_evidence=spacing_evidence,
+        )
 
 
 def _readable_font(size: int):

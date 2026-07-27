@@ -1105,7 +1105,7 @@ messaging integration.
 ## Current headline
 
 <!-- pikvm-scorecard:start -->
-_Generated from checked JSON evidence as of 2026-07-27. Manifest `sha256:c34e25806132`; run `pikvm-agent harness scorecard --check` to detect drift._
+_Generated from checked JSON evidence as of 2026-07-27. Manifest `sha256:13c868e813a5`; run `pikvm-agent harness scorecard --check` to detect drift._
 
 | Suite | Route | Cases | Result | Median / p95 | Wall | Status | Evidence |
 | --- | --- | ---: | ---: | ---: | ---: | --- | --- |
@@ -1148,6 +1148,8 @@ _Generated from checked JSON evidence as of 2026-07-27. Manifest `sha256:c34e258
 | ScreenSpot-Pro, single pass | Codex CLI / `gpt-5.6-sol` | 100 | 73/100, 73.0% | 7.63s / 13.29s | 218.53s | Current seeded sample | [JSON](results/2026-07-25/screenspot-pro/codex-gpt-5.6-sol-seed104729-n100.json) · `sha256:dc21a201b455` |
 | Blind OCR | Local Tesseract structured ensemble | 1,000 | 56.9% selected; 61.4% expected-aware exact; 2.08% CER | 156ms / 215ms | 40.20s | Failing release gate | [JSON](results/2026-07-25/ocr/tesseract-structured-candidates-seed104729-n1000.json) · `sha256:68da9a6bdb5e` |
 | Blind OCR | PaddleOCR v6 medium CPU | 1,000 | 78.9% normalized exact; 1.06% CER | 874ms / 2.54s | 1,078.82s | Failing gate; crop adapter fixed afterward | [JSON](results/2026-07-25/ocr/ocr-seed104729-n1000-comparison.json) · `sha256:dbbce9299995` |
+| Blind spacing OCR | Tesseract precise, canonical text trusted | 1,000: 500 clean / 500 doubled | 32.8% detected; 181 false verified; 1 false alarms; 92.8% clean verified | 354ms / 673ms | 101.12s | Unsafe baseline; canonical OCR collapsed visible spaces | [JSON](results/2026-07-27/ocr/tesseract-spacing-integrity-seed104729-n1000/report.json) · `sha256:21432a0f4872` |
+| Blind spacing OCR | Tesseract multi-scale spacing evidence, fail closed | 1,000 across 10 validated shards | 59.0% detected; 0 false verified; 3 false alarms; 555 abstained; 29.4% clean verified | 352ms / 595ms | 98.20s | Safe but failing usability gate; exact spacing remains uncertain | [JSON](results/2026-07-27/ocr/tesseract-spacing-integrity-seed104729-n1000-v2-merged/report.json) · `sha256:415bc3937d3b` |
 | Blind OCR known-intent candidate union | Tesseract precise + PaddleOCR evidence | 1,000 paired cases | 827/1,000, 82.7%; routine 776/800, 97.0%; stress 51/200, 25.5% | Not measured | Retrospective paired analysis | Failing gate; runtime hybrid pass not run | [JSON](results/2026-07-26/ocr/hybrid-known-intent-candidate-union-n1000.json) · `sha256:5b37f898a147` |
 | Hybrid OCR worker lifecycle | Tesseract precise + killable Paddle worker | 5 lifecycle cases + 19 contracts | 19/19; hard timeout before yes, after no | 5,025ms / 5,062ms | 5.07s | Process lifecycle fixed; diagnostic only, n=5 | [JSON](results/2026-07-26/ocr/hybrid-worker-shutdown-smoke-2026-07-27.json) · `sha256:766f4b73b6db` |
 | OSWorld-Verified tracer | Codex, Claude, and mixed role routes | 9 current; 33 scored + 11 unscored attempts | 6/9 current; 6/33 all scored attempts | 128.56s / 883.97s | 2,583.98s current set | Diagnostic; three current failures | [JSON](results/2026-07-25/osworld/summary.json) · `sha256:061062fbbdbe` |
@@ -1991,6 +1993,45 @@ calibration error is 0.250 and its Brier score is 0.291. It may prioritize
 rechecks; it cannot authorize exact or irreversible work. Numeric confusables
 and punctuation remain at 0% normalized exact. The current calibration is
 retained in the structured-candidate report linked above.
+
+### Visible spacing integrity
+
+Ordinary OCR strings discard the number of spaces between recognized words.
+That makes a normal exact-string comparison actively unsafe: the recognizer can
+return the requested single-space text when the screen contains two spaces.
+A separate deterministic blind corpus now measures that failure directly. It
+contains 1,000 opaque single-line fields: 500 clean controls and 500 fields
+with one injected doubled space, balanced across short/long and
+proportional/monospace text with varied themes, sizes, scale, blur, noise, and
+compression. Ground truth is withheld until every provider call in a shard has
+finished.
+
+The first run trusted canonical Tesseract text. It verified 464/500 controls
+but detected only 164/500 corruptions and **falsely verified 181/500 visible
+doubled spaces**. Short fields were the critical case: detection was 0%, with
+180 false verifications across the 250 short corruptions.
+
+The repaired precise path records whether whitespace geometry was independently
+calibrated. A canonical string containing spaces can authorize completion only
+when multiple image scales agree on both the glyph sequence and safe word-gap
+geometry. A repeated spacing anomaly can veto it; an uncalibrated or
+disagreeing read abstains. The full rerun was executed as ten deterministic
+100-case shards because this host terminated longer OCR processes. The merger
+required every shard index exactly once, rejected duplicate case IDs, and
+reconstructed the exact 1,000-case denominator.
+
+The repaired run produced **zero false verifications**, detected 295/500
+corruptions, raised three conservative false alarms, and abstained on 555
+cases. It automatically verified only 147/500 clean controls. This passes the
+fail-closed safety objective but fails the 99% detection/usability release
+gate. It is not presented as solved OCR. For exact files, the independent
+oracle remains observer/app-readable bytes or a native file hash; an OCR
+read-back SHA-256 is only a digest of screen evidence.
+
+Evidence:
+[`unsafe baseline`](results/2026-07-27/ocr/tesseract-spacing-integrity-seed104729-n1000/report.json)
+and
+[`fail-closed rerun`](results/2026-07-27/ocr/tesseract-spacing-integrity-seed104729-n1000-v2-merged/report.json).
 
 PaddleOCR PP-OCRv6 medium was then run on the exact same 1,000 rendered cases,
 not a separately generated small sample. It reached 78.9% normalized exact and

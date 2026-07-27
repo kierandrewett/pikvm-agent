@@ -60,7 +60,10 @@ class ScriptedOCR:
         i = min(self.calls, len(self.reads) - 1)
         self.calls += 1
         text = self.reads[i]
-        return OCRResult(lines=[OCRLine(text=text)] if text else [])
+        return OCRResult(
+            lines=[OCRLine(text=text)] if text else [],
+            spacing_evidence="verified",
+        )
 
 
 class LowConfidenceOCR:
@@ -124,7 +127,10 @@ class PreciseProfileOCR:
         region: Region | None = None,
     ) -> OCRResult:
         self.precise_calls += 1
-        return OCRResult(lines=[OCRLine(text=self.intended)])
+        return OCRResult(
+            lines=[OCRLine(text=self.intended)],
+            spacing_evidence="verified",
+        )
 
 
 class SpacingCandidateOCR:
@@ -931,7 +937,8 @@ async def test_dropped_final_chunk_is_retried_once_after_no_pixel_change() -> No
             return OCRResult(
                 lines=[OCRLine(text=self.backend.visible)]
                 if self.backend.visible
-                else []
+                else [],
+                spacing_evidence="verified",
             )
 
     backend = DroppedTailBackend()
@@ -996,6 +1003,30 @@ async def test_precise_field_read_uses_the_provider_precision_profile() -> None:
     assert observed == intended
     assert ocr.precise_calls == 1
     assert ocr.regular_calls == 0
+
+
+async def test_uncalibrated_precise_ocr_cannot_verify_visible_spaces() -> None:
+    intended = "exactly one space"
+
+    class UncalibratedOCR:
+        async def ocr_precise(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path, region
+            return OCRResult(lines=[OCRLine(text=intended, confidence=0.99)])
+
+    observed = await WatchedTyper(
+        FakeBackend(),
+        UncalibratedOCR(),
+    )._read_field(
+        Region(x=10, y=10, width=500, height=50),
+        intended=intended,
+        precise=True,
+    )
+
+    assert observed == ""
 
 
 async def test_precise_field_read_prioritizes_visible_spacing_mismatch() -> None:

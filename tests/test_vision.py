@@ -580,8 +580,13 @@ async def test_hybrid_precise_read_retains_unique_secondary_evidence(
         precise=OCRResult(
             lines=[OCRLine(text="primary selected", confidence=0.91)],
             alternatives=[
-                OCRCandidate(text="primary alternate", mean_confidence=0.8)
+                OCRCandidate(text="primary alternate", mean_confidence=0.8),
+                OCRCandidate(
+                    text="primary  selected",
+                    evidence_kind="spacing",
+                ),
             ],
+            spacing_evidence="verified",
         ),
     )
     secondary = _ScriptedOcrProvider(
@@ -603,9 +608,12 @@ async def test_hybrid_precise_read_retains_unique_secondary_evidence(
     assert result.text == "primary selected"
     assert [candidate.text for candidate in result.alternatives] == [
         "primary alternate",
+        "primary  selected",
         "secondary exact",
         "secondary alternate",
     ]
+    assert result.alternatives[1].evidence_kind == "spacing"
+    assert result.spacing_evidence == "verified"
     assert primary.calls == [("precise", image_path, region)]
     assert secondary.calls == [("ocr", image_path, region)]
     assert provider.diagnostics() == {

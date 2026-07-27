@@ -1559,6 +1559,73 @@ def harness_analyze_transcript(
     typer.echo(json.dumps(body, indent=2))
 
 
+def _build_ocr_benchmark_provider(
+    provider: str,
+    jobs: int,
+) -> tuple[Any, int, bool]:
+    """Build one benchmark-owned OCR provider without exposing credentials."""
+
+    precise = False
+    if provider == "tesseract":
+        from pikvm_agent.vision.tesseract_ocr import (
+            TesseractOcrProvider,
+            tesseract_available,
+        )
+
+        if not tesseract_available():
+            typer.echo(
+                "OCR benchmark requires the system tesseract binary",
+                err=True,
+            )
+            raise typer.Exit(1)
+        return TesseractOcrProvider(), jobs, precise
+    if provider not in {"paddleocr", "hybrid"}:
+        typer.echo(
+            "--provider must be tesseract, paddleocr, or hybrid",
+            err=True,
+        )
+        raise typer.Exit(2)
+
+    from pikvm_agent.vision.paddleocr_client import (
+        PaddleOCRProvider,
+        paddleocr_available,
+    )
+
+    if not paddleocr_available():
+        typer.echo(
+            "PaddleOCR benchmark requires the optional vision dependencies",
+            err=True,
+        )
+        raise typer.Exit(1)
+    if provider == "paddleocr":
+        if jobs != 1:
+            typer.echo(
+                "PaddleOCR uses one worker because one model instance is shared."
+            )
+        return PaddleOCRProvider(), 1, precise
+
+    from pikvm_agent.vision.hybrid_ocr import HybridOcrProvider
+    from pikvm_agent.vision.tesseract_ocr import (
+        TesseractOcrProvider,
+        tesseract_available,
+    )
+
+    if not tesseract_available():
+        typer.echo(
+            "Hybrid OCR benchmark requires the system tesseract binary",
+            err=True,
+        )
+        raise typer.Exit(1)
+    return (
+        HybridOcrProvider(
+            TesseractOcrProvider(),
+            PaddleOCRProvider(),
+        ),
+        jobs,
+        True,
+    )
+
+
 @harness_app.command("ocr-benchmark")
 def harness_ocr_benchmark(
     output: Path = typer.Option(
@@ -1586,63 +1653,7 @@ def harness_ocr_benchmark(
     from pikvm_agent.harness.ocr_blind_benchmark import (
         run_closing_blind_ocr_benchmark,
     )
-    precise = False
-    if provider == "tesseract":
-        from pikvm_agent.vision.tesseract_ocr import (
-            TesseractOcrProvider,
-            tesseract_available,
-        )
-
-        if not tesseract_available():
-            typer.echo(
-                "OCR benchmark requires the system tesseract binary",
-                err=True,
-            )
-            raise typer.Exit(1)
-        ocr_provider = TesseractOcrProvider()
-    elif provider in {"paddleocr", "hybrid"}:
-        from pikvm_agent.vision.paddleocr_client import (
-            PaddleOCRProvider,
-            paddleocr_available,
-        )
-
-        if not paddleocr_available():
-            typer.echo(
-                "PaddleOCR benchmark requires the optional vision dependencies",
-                err=True,
-            )
-            raise typer.Exit(1)
-        if provider == "hybrid":
-            from pikvm_agent.vision.hybrid_ocr import HybridOcrProvider
-            from pikvm_agent.vision.tesseract_ocr import (
-                TesseractOcrProvider,
-                tesseract_available,
-            )
-
-            if not tesseract_available():
-                typer.echo(
-                    "Hybrid OCR benchmark requires the system tesseract binary",
-                    err=True,
-                )
-                raise typer.Exit(1)
-            ocr_provider = HybridOcrProvider(
-                TesseractOcrProvider(),
-                PaddleOCRProvider(),
-            )
-            precise = True
-        else:
-            ocr_provider = PaddleOCRProvider()
-        if provider == "paddleocr" and jobs != 1:
-            typer.echo(
-                "PaddleOCR uses one worker because one model instance is shared."
-            )
-            jobs = 1
-    else:
-        typer.echo(
-            "--provider must be tesseract, paddleocr, or hybrid",
-            err=True,
-        )
-        raise typer.Exit(2)
+    ocr_provider, jobs, precise = _build_ocr_benchmark_provider(provider, jobs)
     last_printed = 0
 
     def progress(done: int, total: int) -> None:
@@ -1675,6 +1686,153 @@ def harness_ocr_benchmark(
                 "evaluation_wall_ms": report.evaluation_wall_ms,
                 "throughput_images_per_second": report.throughput_images_per_second,
                 "provider_diagnostics": report.provider_diagnostics,
+                "report": str((output / "report.json").resolve()),
+            },
+            indent=2,
+        )
+    )
+
+
+@harness_app.command("ocr-spacing-benchmark")
+def harness_ocr_spacing_benchmark(
+    output: Path = typer.Option(
+        ...,
+        "--out",
+        help="Output directory for opaque images, private truth, failures, and report.",
+    ),
+    cases: int = typer.Option(
+        1_000,
+        min=8,
+        help="Balanced blind examples; must be divisible by eight.",
+    ),
+    seed: int = typer.Option(104_729, help="Deterministic corpus seed."),
+    evaluation_seed: int = typer.Option(
+        65_537,
+        help="Independent seed used to shuffle the blind evaluation order.",
+    ),
+    jobs: int = typer.Option(4, min=1, max=32, help="Concurrent OCR processes."),
+    shard_index: int = typer.Option(
+        0,
+        "--shard-index",
+        min=0,
+        help="Zero-based shard to execute.",
+    ),
+    shard_count: int = typer.Option(
+        1,
+        "--shard-count",
+        min=1,
+        help="Deterministic strided shard count.",
+    ),
+    provider: str = typer.Option(
+        "tesseract",
+        "--provider",
+        help="OCR provider: tesseract, paddleocr, or precise hybrid.",
+    ),
+) -> None:
+    """Blind-test silent single-space versus doubled-space verification."""
+    import asyncio
+    import json
+
+    from pikvm_agent.harness.ocr_spacing_benchmark import (
+        run_closing_blind_spacing_benchmark,
+    )
+
+    ocr_provider, jobs, _ = _build_ocr_benchmark_provider(provider, jobs)
+    last_printed = 0
+
+    def progress(done: int, total: int) -> None:
+        nonlocal last_printed
+        if done == total or done - last_printed >= max(10, total // 20):
+            typer.echo(f"OCR spacing blind test: {done}/{total}")
+            last_printed = done
+
+    try:
+        report = asyncio.run(
+            run_closing_blind_spacing_benchmark(
+                ocr_provider,
+                provider_name=provider,
+                output_dir=output,
+                count=cases,
+                corpus_seed=seed,
+                evaluation_seed=evaluation_seed,
+                jobs=jobs,
+                shard_index=shard_index,
+                shard_count=shard_count,
+                progress=progress,
+            )
+        )
+    except ValueError as exc:
+        typer.echo(f"OCR spacing benchmark refused: {exc}", err=True)
+        raise typer.Exit(2)
+    typer.echo(
+        json.dumps(
+            {
+                "cases": report.cases,
+                "corpus_cases": report.corpus_cases,
+                "shard_index": report.shard_index,
+                "shard_count": report.shard_count,
+                "controls": report.controls,
+                "corruptions": report.corruptions,
+                "control_verified_rate": report.control_verified_rate,
+                "corruption_detection_rate": report.corruption_detection_rate,
+                "false_verified_corruptions": (
+                    report.false_verified_corruptions
+                ),
+                "false_spacing_alarms": report.false_spacing_alarms,
+                "screen_exact_candidate_rate": (
+                    report.screen_exact_candidate_rate
+                ),
+                "p95_latency_ms": report.p95_latency_ms,
+                "evaluation_wall_ms": report.evaluation_wall_ms,
+                "release_gate_passed": report.release_gate_passed,
+                "release_gate_failures": report.release_gate_failures,
+                "report": str((output / "report.json").resolve()),
+            },
+            indent=2,
+        )
+    )
+
+
+@harness_app.command("ocr-spacing-merge")
+def harness_ocr_spacing_merge(
+    reports: list[Path] = typer.Argument(
+        ...,
+        exists=True,
+        dir_okay=False,
+        readable=True,
+        help="Complete set of spacing benchmark shard report.json files.",
+    ),
+    output: Path = typer.Option(
+        ...,
+        "--out",
+        help="Fresh output directory for the merged report.",
+    ),
+) -> None:
+    """Validate and merge a complete blind OCR spacing shard set."""
+    import json
+
+    from pikvm_agent.harness.ocr_spacing_benchmark import (
+        merge_spacing_shard_reports,
+    )
+
+    try:
+        report = merge_spacing_shard_reports(reports, output_dir=output)
+    except ValueError as exc:
+        typer.echo(f"OCR spacing merge refused: {exc}", err=True)
+        raise typer.Exit(2)
+    typer.echo(
+        json.dumps(
+            {
+                "cases": report.cases,
+                "source_shards": report.source_shards,
+                "control_verified_rate": report.control_verified_rate,
+                "corruption_detection_rate": report.corruption_detection_rate,
+                "false_verified_corruptions": (
+                    report.false_verified_corruptions
+                ),
+                "false_spacing_alarms": report.false_spacing_alarms,
+                "release_gate_passed": report.release_gate_passed,
+                "release_gate_failures": report.release_gate_failures,
                 "report": str((output / "report.json").resolve()),
             },
             indent=2,
