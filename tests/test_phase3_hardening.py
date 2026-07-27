@@ -380,6 +380,8 @@ async def test_runtime_returns_secret_safe_input_receipt(runtime: Runtime) -> No
             "observed_text_redacted": True,
             "issued_characters": 12,
             "requested_characters": 12,
+            "delivery_characters": 12,
+            "delivery_transformed": False,
             "correction_count": 0,
             "delivery_retries": 0,
             "used_fast_path": False,

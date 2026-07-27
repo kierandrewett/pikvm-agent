@@ -20,6 +20,7 @@ import httpx
 from PIL import Image
 
 from pikvm_agent.harness.vnc_pikvm_api import code_to_vnc_key
+from pikvm_agent.pikvm.text import flatten_line_breaks
 
 
 _PYAUTOGUI_KEYS = {
@@ -167,7 +168,7 @@ class InGuestComputerTransport:
     async def print_text(self, text: str) -> None:
         # Newlines are flattened exactly as in the real PiKVM print endpoint:
         # typing prose cannot accidentally submit a terminal command or message.
-        body = " ".join(text.splitlines())
+        body = flatten_line_breaks(text)
         if body:
             await self._run(f"pyautogui.write({body!r}, interval=0.02)")
 

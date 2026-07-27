@@ -32,6 +32,7 @@ from pikvm_agent.harness.vnc_target_lease import (
 )
 from pikvm_agent.pikvm.hid import NORM_MAX, NORM_MIN
 from pikvm_agent.pikvm import keyboard_state as ks
+from pikvm_agent.pikvm.text import flatten_line_breaks
 
 
 @runtime_checkable
@@ -167,7 +168,7 @@ def create_vnc_pikvm_app(
         body = (await request.body()).decode("utf-8")
         # Match PiKVM's print endpoint contract: the endpoint types characters
         # but never treats newlines as a submit gesture.
-        await vnc.print_text(" ".join(body.splitlines()))
+        await vnc.print_text(flatten_line_breaks(body))
         return JSONResponse({"ok": True, "result": {}})
 
     @app.websocket("/api/ws")

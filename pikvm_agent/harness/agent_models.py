@@ -342,6 +342,7 @@ class TypeTextAction(StrictModelDecision):
     code: bool = False
     secret: bool = False
     context: Literal["", "editor", "field", "terminal"] = ""
+    verification: Literal["auto", "exact"] | None = None
 
     @field_validator("text")
     @classmethod

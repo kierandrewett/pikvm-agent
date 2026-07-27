@@ -137,6 +137,29 @@ async def test_tesseract_ocr_reads_text_with_boxes(tmp_path) -> None:
     assert res.lines[0].confidence and res.lines[0].confidence > 0.5
 
 
+@requires_tesseract
+async def test_tesseract_precise_ocr_detects_an_anomalous_double_space(
+    tmp_path,
+) -> None:
+    intended = (
+        "this sentence has exactly one doubled space near the middle"
+    )
+    observed = intended.replace("one doubled", "one  doubled")
+    image_path = tmp_path / "spacing.png"
+    image_path.write_bytes(
+        render_text_image(observed, size=(1200, 140), font_size=36)
+    )
+
+    result = await TesseractOcrProvider().ocr_precise(image_path)
+
+    assert result.text == intended
+    assert any(
+        candidate.evidence_kind == "spacing"
+        and candidate.text == observed
+        for candidate in result.alternatives
+    )
+
+
 async def test_tesseract_retains_a_secondary_scale_for_exact_intended_text(
     tmp_path,
     monkeypatch,
@@ -281,6 +304,41 @@ async def test_tesseract_precise_profile_can_read_a_small_ui_label_at_four_x(
 
     assert result.text == "Title"
     assert (400, 200) in observed_sizes
+
+
+async def test_tesseract_precise_profile_retains_spacing_evidence(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    image_path = tmp_path / "screen.png"
+    Image.new("RGB", (100, 50), "white").save(image_path)
+
+    async def fake_tesseract(_src, *, lang, psm):
+        del lang, psm
+        return (
+            "level\tpage_num\tblock_num\tpar_num\tline_num\tword_num"
+            "\tleft\ttop\twidth\theight\tconf\ttext\n"
+            "5\t1\t1\t1\t1\t1\t1\t1\t40\t20\t95\texactly\n"
+            "5\t1\t1\t1\t1\t2\t50\t1\t20\t20\t95\tone\n"
+            "5\t1\t1\t1\t1\t3\t100\t1\t30\t20\t95\tspace\n"
+            "5\t1\t1\t1\t1\t4\t140\t1\t25\t20\t95\tnow\n"
+        ).encode()
+
+    monkeypatch.setattr(
+        "pikvm_agent.vision.tesseract_ocr._run_tesseract",
+        fake_tesseract,
+    )
+
+    result = await TesseractOcrProvider(upscale=2.0).ocr_precise(image_path)
+
+    assert result.text == "exactly one space now"
+    spacing_candidates = [
+        candidate.text
+        for candidate in result.alternatives
+        if candidate.evidence_kind == "spacing"
+    ]
+    assert len(spacing_candidates) == 1
+    assert "one  " in spacing_candidates[0]
 
 
 def test_paddleocr_crops_the_requested_region_before_inference(

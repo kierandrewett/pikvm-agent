@@ -219,8 +219,9 @@ async def pikvm_run_burst(session_id: str, actions: list[dict],
             next Enter can't run on a typo). USE THIS for search terms, commands, paths, anything a
             typo would ruin. The server rejects oversized text, command-shaped Base64 transfers,
             encoded shell commands, heredoc openers, and long nested shell payloads before HID.
-            Set "verification":"exact" when prose or whitespace must receive an independent exact
-            OCR readback and matching SHA-256 before the action can complete.
+            Editor prose defaults to "verification":"exact": an independent exact OCR readback
+            and matching SHA-256 are required before the action can complete. Set "auto" only
+            when normalized whitespace is explicitly acceptable.
             "method":"print" is only a transport hint: when watched typing is available it cannot
             bypass chunk guards or read-back.
       {"type":"click","x":840,"y":300,"button":"left"}   — raw coordinate click (WindMouse)
@@ -334,15 +335,16 @@ async def pikvm_type_text(
     idempotency_key: IdempotencyKey,
     method: str = "",
     secret: bool = False,
-    exact: bool = False,
+    exact: bool = True,
 ) -> dict:
     """Type text now via PiKVM HID. DEFAULT humanized typing READS THE FIELD BACK and
     self-corrects (use for search terms, commands, paths). Server text caps still apply.
     method="print" requests the printer transport but cannot disable watched verification.
     Never submits — send a separate Enter. Set secret=true for credentials so the
     operator timeline records that input occurred without exposing its value. Set
-    exact=true when prose or whitespace must match an independent OCR readback
-    byte-for-byte before this action can complete."""
+    exact=true (the default) requires an independent OCR readback to match the
+    delivery SHA-256 before this action can complete. Use exact=false only when
+    normalized whitespace is explicitly acceptable."""
     return await pikvm_run_burst(
         session_id,
         [

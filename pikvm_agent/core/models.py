@@ -96,6 +96,7 @@ VerificationStatus = Literal[
     "verified_safe_normalized",
     "verified_with_warnings",
     "unverified_ambiguous",
+    "unverified_whitespace",
     "unverified_wrong_region",
     "unverified_truncated",
     "failed_symbol_mismatch",
@@ -216,6 +217,7 @@ class OCRCandidate(BaseModel):
 
     text: str
     mean_confidence: float | None = None
+    evidence_kind: Literal["generic", "spacing"] = "generic"
 
 
 class OCRResult(BaseModel):

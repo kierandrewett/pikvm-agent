@@ -82,7 +82,10 @@ class GuardedTransactionExecutor:
             elif kind == "type_text":
                 verification = await self._type_and_verify(a["text"], state, should_continue)
                 if not verification.verified and verification.status not in (
-                    "unverified_truncated", "unverified_ambiguous", "unverified_wrong_region"
+                    "unverified_truncated",
+                    "unverified_ambiguous",
+                    "unverified_whitespace",
+                    "unverified_wrong_region",
                 ):
                     executed.append(a)
                     return TransactionResult(

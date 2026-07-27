@@ -98,6 +98,20 @@ def test_exact_prose_match() -> None:
     assert verify_text("Hello there", "Hello there").verified is True
 
 
+def test_extra_visible_space_is_not_accepted_as_normalized_prose() -> None:
+    result = verify_text("exactly one space", "exactly one  space")
+
+    assert result.status == "unverified_whitespace"
+    assert result.safe_to_continue is False
+
+
+def test_visual_line_wrap_is_still_one_space() -> None:
+    result = verify_text("wrapped prose remains exact", "wrapped prose\nremains exact")
+
+    assert result.status == "verified_safe_normalized"
+    assert result.safe_to_continue is True
+
+
 # --------------------------------------------------------------------------- #
 # Confusable tolerance (non-precise): oel9 vs oe19 must NOT be a failure.
 # --------------------------------------------------------------------------- #

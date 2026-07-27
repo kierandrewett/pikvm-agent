@@ -44,11 +44,13 @@ from pikvm_agent.executor.verification import (
     Verdict,
     classify_mismatch,
     compute_verdict,
+    has_whitespace_only_difference,
     is_exact_text,
     levenshtein,
     norm,
     verify_text,
 )
+from pikvm_agent.pikvm.text import flatten_line_breaks
 from pikvm_agent.vision.frame_diff import GRID_COLS, GRID_ROWS, grid
 
 # --------------------------------------------------------------------------- #
@@ -411,9 +413,27 @@ class WatchedTyper:
                 and intended
                 and len(norm(intended, True)) >= MIN_EXPECTED_AWARE_EXACT_CHARS
             ):
+                spacing_candidates = [
+                    alternative.text
+                    for alternative in result.alternatives
+                    if alternative.evidence_kind == "spacing"
+                ]
+                for candidate in spacing_candidates:
+                    if compute_verdict(intended, candidate, True) in {
+                        "match",
+                        "contains",
+                    }:
+                        return candidate
+                for candidate in spacing_candidates:
+                    if has_whitespace_only_difference(intended, candidate):
+                        return candidate
                 for candidate in (
                     result.text,
-                    *(alternative.text for alternative in result.alternatives),
+                    *(
+                        alternative.text
+                        for alternative in result.alternatives
+                        if alternative.evidence_kind != "spacing"
+                    ),
                 ):
                     if compute_verdict(intended, candidate, True) in {
                         "match",
@@ -760,8 +780,9 @@ class WatchedTyper:
         typer drops any held keys and stops MID-text instead of running the whole string
         to completion. This makes a long ``type_text`` interruptible, not just the gaps
         between transactions."""
-        precise = code or (is_exact_text(text) and not prose)
-        total = len(text)
+        delivery_text = flatten_line_breaks(text)
+        precise = code or (is_exact_text(delivery_text) and not prose)
+        total = len(delivery_text)
 
         # FAST TRANSPORT: long, plain (non-exact, non-secret) prose uses the
         # server-side keymap printer, but remains chunked and visually guarded.
@@ -776,7 +797,7 @@ class WatchedTyper:
                 field_text="",
                 corrected=False,
                 typed_characters=0,
-                intended_characters=len(text),
+                intended_characters=len(delivery_text),
                 used_fast_path=False,
                 summary=INTERRUPTED_SUMMARY,
             )
@@ -788,7 +809,7 @@ class WatchedTyper:
             and caps_on is not True
         ):
             return await self._humanized(
-                text,
+                delivery_text,
                 region=region,
                 code=code,
                 secret=secret,
@@ -798,7 +819,11 @@ class WatchedTyper:
             )
 
         return await self._humanized(
-            text, region=region, code=code, secret=secret, precise=precise,
+            delivery_text,
+            region=region,
+            code=code,
+            secret=secret,
+            precise=precise,
             should_continue=should_continue,
         )
 

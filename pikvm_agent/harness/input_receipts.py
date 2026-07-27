@@ -5,6 +5,8 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from pikvm_agent.pikvm.text import flatten_line_breaks
+
 
 def public_input_receipts(
     raw: dict[str, Any],
@@ -29,6 +31,7 @@ def public_input_receipts(
             "verified_safe_normalized",
             "verified_with_warnings",
             "unverified_ambiguous",
+            "unverified_whitespace",
             "unverified_wrong_region",
             "unverified_truncated",
             "failed_symbol_mismatch",
@@ -61,6 +64,7 @@ def public_input_receipts(
     }
     integer_limits = {
         "requested_characters": 480,
+        "delivery_characters": 480,
         "issued_characters": 480,
         "observed_characters": 960,
         "correction_count": 20,
@@ -110,13 +114,17 @@ def public_input_receipts(
         used_fast_path = candidate.get("used_fast_path")
         if isinstance(used_fast_path, bool):
             receipt["used_fast_path"] = used_fast_path
+        delivery_transformed = candidate.get("delivery_transformed")
+        if isinstance(delivery_transformed, bool):
+            receipt["delivery_transformed"] = delivery_transformed
         for key, legacy_key in (
             ("requested_sha256", "intended_sha256"),
+            ("delivery_sha256", ""),
             ("issued_prefix_sha256", "acknowledged_prefix_sha256"),
             ("readback_sha256", "observed_sha256"),
         ):
             value = candidate.get(key)
-            if value is None:
+            if value is None and legacy_key:
                 value = candidate.get(legacy_key)
             if isinstance(value, str) and re.fullmatch(r"[0-9a-f]{64}", value):
                 receipt[key] = value
@@ -129,6 +137,7 @@ def public_input_receipts(
         if redacted:
             for key in (
                 "requested_sha256",
+                "delivery_sha256",
                 "issued_prefix_sha256",
                 "readback_sha256",
                 "exact_readback_sha256_match",
@@ -157,7 +166,9 @@ def public_input_receipts(
                     if isinstance(observed_text, str)
                     else ""
                 ),
-                intended_text=str(action.get("text") or ""),
+                intended_text=flatten_line_breaks(
+                    str(action.get("text") or "")
+                ),
             )
         output.append(receipt)
     return output
@@ -177,10 +188,19 @@ def _proof_state(
         and receipt.get("focus_evidence") == "read_back_verified"
         and receipt.get("exact_readback_sha256_match") is True
         and receipt.get("issued_characters")
-        == receipt.get("requested_characters")
-        and receipt.get("requested_sha256")
+        == receipt.get(
+            "delivery_characters",
+            receipt.get("requested_characters"),
+        )
+        and receipt.get(
+            "delivery_sha256",
+            receipt.get("requested_sha256"),
+        )
         == receipt.get("issued_prefix_sha256")
-        and receipt.get("requested_sha256")
+        and receipt.get(
+            "delivery_sha256",
+            receipt.get("requested_sha256"),
+        )
         == receipt.get("readback_sha256")
     ):
         return "exact_readback"

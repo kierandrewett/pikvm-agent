@@ -23,6 +23,7 @@ from pikvm_agent.core.models import CapturedFrame, Region
 from pikvm_agent.pikvm import keyboard_state as ks
 from pikvm_agent.pikvm import timing
 from pikvm_agent.pikvm.hid import HidChannel, clamp_norm, to_norm
+from pikvm_agent.pikvm.text import flatten_line_breaks
 from pikvm_agent.pikvm.windmouse import WindMouseOptions, wind_mouse_path
 from pikvm_agent.pikvm.screenshot import crop, downscale, jpeg_size, to_captured_frame
 
@@ -228,7 +229,7 @@ class PiKVMBackend:
         return resp.text.strip()
 
     async def print_text(self, text: str) -> None:
-        body = " ".join(text.splitlines())  # never auto-submit
+        body = flatten_line_breaks(text)  # never auto-submit
         if not body:
             return
         # Send as word-boundary bursts with human pauses between, rather than one long
@@ -295,7 +296,7 @@ class PiKVMBackend:
     async def type_text(self, text: str, *, code: bool = False, secret: bool = False) -> None:
         """Type per-key with layout + Caps-Lock compensation. Newlines -> spaces
         (never submits). For long plain prose prefer :meth:`print_text`."""
-        body = " ".join(text.splitlines())
+        body = flatten_line_breaks(text)
         strokes: list[dict[str, object]] = []
         for ch in body:
             info = ks.key_for(ch, self.layout)

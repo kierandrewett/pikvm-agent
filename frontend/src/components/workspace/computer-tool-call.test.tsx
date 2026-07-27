@@ -388,7 +388,7 @@ describe("ComputerInputSequence", () => {
     expect(readBack.textContent).toContain("11 read back");
     expect(readBack.textContent).toContain("0 edits");
     expect(readBack.textContent).toContain("1 correction");
-    expect(readBack.textContent).toContain("Read-back SHA-256");
+    expect(readBack.textContent).toContain("OCR read-back SHA-256");
     expect(readBack.textContent).toContain("b94d27b9934d");
   });
 
@@ -427,7 +427,7 @@ describe("ComputerInputSequence", () => {
   it("does not present a normalized OCR match as exact", () => {
     render(
       <ComputerInputSequence
-        actions={[{ type: "type_text", text: "one space" }]}
+        actions={[{ type: "type_text", text: "One space" }]}
         inputReceipts={[
           {
             index: 0,
@@ -435,11 +435,11 @@ describe("ComputerInputSequence", () => {
             status: "verified_safe_normalized",
             verdict: "match",
             proof_state: "normalized_readback",
-            observed_text: "one  space",
+            observed_text: "one space",
             observed_text_redacted: false,
             issued_characters: 9,
             requested_characters: 9,
-            observed_characters: 10,
+            observed_characters: 9,
             correction_count: 0,
             delivery_retries: 0,
             used_fast_path: false,
@@ -457,9 +457,49 @@ describe("ComputerInputSequence", () => {
     const readBack = screen.getByLabelText("Typing read-back for action 1");
     expect(readBack.textContent).toContain("Normalized only");
     expect(readBack.textContent).toContain(
-      "Requested aaaaaaaaaaaa ≠ read-back bbbbbbbbbbbb",
+      "Delivery aaaaaaaaaaaa ≠ OCR bbbbbbbbbbbb",
     );
     expect(readBack.textContent).not.toContain("Exact read-back");
+  });
+
+  it("makes an observed double space a blocking mismatch", () => {
+    render(
+      <ComputerInputSequence
+        actions={[{ type: "type_text", text: "one space" }]}
+        inputReceipts={[
+          {
+            index: 0,
+            type: "type_text",
+            status: "unverified_whitespace",
+            verdict: "unverified",
+            proof_state: "ambiguous_readback",
+            observed_text: "one  space",
+            observed_text_redacted: false,
+            issued_characters: 9,
+            requested_characters: 9,
+            delivery_characters: 9,
+            delivery_transformed: false,
+            observed_characters: 10,
+            correction_count: 0,
+            delivery_retries: 0,
+            used_fast_path: false,
+            edit_distance: 1,
+            focus_evidence: "read_back_unverified",
+            delivery_sha256: "a".repeat(64),
+            issued_prefix_sha256: "a".repeat(64),
+            readback_sha256: "b".repeat(64),
+            exact_readback_sha256_match: false,
+          },
+        ]}
+      />,
+    );
+
+    const readBack = screen.getByLabelText("Typing read-back for action 1");
+    expect(readBack.textContent).toContain("Whitespace differs");
+    expect(readBack.textContent).toContain("one  space");
+    expect(readBack.textContent).toContain(
+      "Delivery aaaaaaaaaaaa ≠ OCR bbbbbbbbbbbb",
+    );
   });
 
   it("shows sender completion and a partial read-back as different facts", () => {

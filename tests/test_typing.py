@@ -127,6 +127,34 @@ class PreciseProfileOCR:
         return OCRResult(lines=[OCRLine(text=self.intended)])
 
 
+class SpacingCandidateOCR:
+    def __init__(self, normalized: str, spacing: str) -> None:
+        self.normalized = normalized
+        self.spacing = spacing
+
+    async def ocr_precise(
+        self,
+        image_path: Path,
+        region: Region | None = None,
+    ) -> OCRResult:
+        return OCRResult(
+            lines=[OCRLine(text=self.normalized, confidence=0.98)],
+            alternatives=[
+                OCRCandidate(
+                    text=self.spacing,
+                    evidence_kind="spacing",
+                )
+            ],
+        )
+
+    async def ocr(
+        self,
+        image_path: Path,
+        region: Region | None = None,
+    ) -> OCRResult:
+        return OCRResult(lines=[OCRLine(text=self.normalized)])
+
+
 class CropMissFullScreenOCR:
     """Model the Word failure where the inferred crop misses wrapped prose."""
 
@@ -968,6 +996,23 @@ async def test_precise_field_read_uses_the_provider_precision_profile() -> None:
     assert observed == intended
     assert ocr.precise_calls == 1
     assert ocr.regular_calls == 0
+
+
+async def test_precise_field_read_prioritizes_visible_spacing_mismatch() -> None:
+    intended = "exactly one space"
+    observed_with_extra_space = "exactly one  space"
+    typer = WatchedTyper(
+        FakeBackend(),
+        SpacingCandidateOCR(intended, observed_with_extra_space),
+    )
+
+    observed = await typer._read_field(
+        Region(x=10, y=10, width=500, height=50),
+        intended=intended,
+        precise=True,
+    )
+
+    assert observed == observed_with_extra_space
 
 
 async def test_precise_ocr_noise_stops_without_destructive_retype() -> None:

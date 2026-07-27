@@ -99,6 +99,14 @@ async def test_http_snapshot_print_and_ocr_match_pikvm_contract() -> None:
         assert printed.status_code == 200
         assert ("print_text", "long prose without clipboard") in vnc.calls
 
+        boundary = await client.post(
+            "/api/hid/print?limit=0&slow=1",
+            content="hello  same-line \n next",
+            headers={"content-type": "text/plain"},
+        )
+        assert boundary.status_code == 200
+        assert ("print_text", "hello  same-line next") in vnc.calls
+
         ocr = await client.get(
             "/api/streamer/snapshot",
             params={

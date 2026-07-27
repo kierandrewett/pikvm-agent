@@ -101,6 +101,8 @@ export type InputReceipt = {
   observed_text: string;
   observed_text_redacted: boolean;
   requested_characters?: number;
+  delivery_characters?: number;
+  delivery_transformed?: boolean;
   issued_characters?: number;
   observed_characters?: number;
   correction_count?: number;
@@ -110,6 +112,7 @@ export type InputReceipt = {
   edit_distance?: number;
   focus_evidence: string;
   requested_sha256?: string;
+  delivery_sha256?: string;
   issued_prefix_sha256?: string;
   readback_sha256?: string;
   exact_readback_sha256_match?: boolean;
@@ -128,6 +131,8 @@ const inputReceipt = (value: unknown): InputReceipt => {
     requested_characters: number(
       item.requested_characters ?? item.intended_characters,
     ),
+    delivery_characters: number(item.delivery_characters),
+    delivery_transformed: item.delivery_transformed === true,
     issued_characters: number(item.issued_characters ?? item.typed_characters),
     observed_characters: number(item.observed_characters),
     correction_count: number(item.correction_count),
@@ -137,6 +142,7 @@ const inputReceipt = (value: unknown): InputReceipt => {
     edit_distance: number(item.edit_distance),
     focus_evidence: text(item.focus_evidence),
     requested_sha256: text(item.requested_sha256 || item.intended_sha256),
+    delivery_sha256: text(item.delivery_sha256),
     issued_prefix_sha256: text(
       item.issued_prefix_sha256 || item.acknowledged_prefix_sha256,
     ),
@@ -506,6 +512,13 @@ const readbackMeta = (receipt: InputReceipt) => {
       variant: "outline" as ReceiptBadgeVariant,
     };
   }
+  if (receipt.status === "unverified_whitespace") {
+    return {
+      label: "Whitespace differs",
+      Icon: XIcon,
+      variant: "destructive" as ReceiptBadgeVariant,
+    };
+  }
   if (
     receipt.proof_state === "exact_readback" ||
     (!receipt.proof_state &&
@@ -578,18 +591,31 @@ function TypingReadback({
   if (!receipt) return null;
   const meta = readbackMeta(receipt);
   const MetaIcon = meta.Icon;
+  const deliveryFingerprint =
+    receipt.delivery_sha256 || receipt.requested_sha256;
   const fingerprint =
-    receipt.exact_readback_sha256_match && receipt.requested_sha256
-      ? `Read-back SHA-256 ${receipt.requested_sha256.slice(0, 12)}`
-      : receipt.requested_sha256 && receipt.readback_sha256
-        ? `Requested ${receipt.requested_sha256.slice(0, 12)} ≠ read-back ${receipt.readback_sha256.slice(0, 12)}`
+    receipt.exact_readback_sha256_match &&
+    deliveryFingerprint
+      ? `OCR read-back SHA-256 ${deliveryFingerprint.slice(0, 12)}`
+      : deliveryFingerprint && receipt.readback_sha256
+        ? `Delivery ${deliveryFingerprint.slice(
+            0,
+            12,
+          )} ≠ OCR ${receipt.readback_sha256.slice(0, 12)}`
         : receipt.issued_prefix_sha256
           ? `Issued SHA-256 ${receipt.issued_prefix_sha256.slice(0, 12)} · no exact read-back`
           : "";
   const metrics = [
     receipt.issued_characters != null &&
-    receipt.requested_characters != null
-      ? `${receipt.issued_characters} / ${receipt.requested_characters} issued`
+    (receipt.delivery_characters ?? receipt.requested_characters) != null
+      ? `${receipt.issued_characters} / ${
+          receipt.delivery_characters ?? receipt.requested_characters
+        } issued`
+      : "",
+    receipt.delivery_transformed &&
+    receipt.requested_characters != null &&
+    receipt.delivery_characters != null
+      ? `${receipt.requested_characters} requested → ${receipt.delivery_characters} safe delivery`
       : "",
     receipt.observed_characters != null
       ? `${receipt.observed_characters} read back`

@@ -51,11 +51,26 @@ def _join_segment_words(
 
     if not words:
         return ""
+    joiners = _segment_joiners(words)
+    return str(words[0]["text"]) + "".join(
+        joiner + str(word["text"])
+        for joiner, word in zip(joiners, words[1:], strict=True)
+    )
+
+
+def _segment_joiners(
+    words: list[dict[str, float | int | str]],
+) -> list[str]:
+    """Return the syntax-aware separator before every word after the first."""
+
+    if len(words) < 2:
+        return []
     text = str(words[0]["text"])
     token_markers = {
         marker for marker in _TOKEN_CONTEXT_MARKERS if marker in text
     }
     previous = words[0]
+    joiners: list[str] = []
     for word in words[1:]:
         previous_text = str(previous["text"])
         current_text = str(word["text"])
@@ -86,7 +101,7 @@ def _join_segment_words(
                 and current_text.isalpha()
             )
         )
-        text += ("" if concatenate else " ") + current_text
+        joiners.append("" if concatenate else " ")
         current_markers = {
             marker
             for marker in _TOKEN_CONTEXT_MARKERS
@@ -98,7 +113,61 @@ def _join_segment_words(
             else current_markers
         )
         previous = word
-    return text
+    return joiners
+
+
+def _spacing_aware_segment(
+    words: list[dict[str, float | int | str]],
+) -> tuple[str, bool]:
+    """Reconstruct anomalous repeated spaces from grounded word geometry.
+
+    OCR TSV discards inter-word whitespace. A line-local baseline avoids
+    pretending that proportional-font gaps have a universal pixel width: only
+    a materially wider gap than the other spaces on the same line is promoted
+    to two or more spaces. Short uncalibrated lines stay conservative.
+    """
+
+    if not words:
+        return "", False
+    joiners = _segment_joiners(words)
+    gaps = [
+        int(word["x0"]) - int(previous["x1"])
+        for previous, word, joiner in zip(
+            words[:-1],
+            words[1:],
+            joiners,
+            strict=True,
+        )
+        if joiner
+    ]
+    baseline = 0.0
+    if len(gaps) >= 3:
+        ordered = sorted(max(1, gap) for gap in gaps)
+        baseline_count = max(2, (len(ordered) + 1) // 2)
+        baseline_values = ordered[:baseline_count]
+        baseline = sum(baseline_values) / len(baseline_values)
+    heights = sorted(max(1, int(word["height"])) for word in words)
+    median_height = heights[len(heights) // 2]
+    text = str(words[0]["text"])
+    anomaly = False
+    for previous, word, joiner in zip(
+        words[:-1],
+        words[1:],
+        joiners,
+        strict=True,
+    ):
+        separator = joiner
+        if joiner and baseline:
+            gap = max(1, int(word["x0"]) - int(previous["x1"]))
+            if (
+                gap >= baseline * 1.55
+                and gap - baseline >= max(2.0, median_height * 0.16)
+            ):
+                spaces = min(4, max(2, round(gap / baseline)))
+                separator = " " * spaces
+                anomaly = True
+        text += separator + str(word["text"])
+    return text, anomaly
 
 
 def _parse_tsv(
@@ -177,6 +246,7 @@ def _parse_tsv(
             if not segment:
                 continue
             confidences = [float(word["confidence"]) for word in segment]
+            spacing_text, spacing_anomaly = _spacing_aware_segment(segment)
             lines.append(
                 OCRLine(
                     text=_join_segment_words(segment),
@@ -187,9 +257,26 @@ def _parse_tsv(
                         max(int(word["x1"]) for word in segment),
                         max(int(word["y1"]) for word in segment),
                     ],
+                    raw={
+                        "spacing_text": spacing_text,
+                        "spacing_anomaly": spacing_anomaly,
+                    },
                 )
             )
     return lines
+
+
+def _spacing_candidate_text(lines: list[OCRLine]) -> str:
+    values: list[str] = []
+    anomaly = False
+    for line in lines:
+        raw = line.raw if isinstance(line.raw, dict) else {}
+        value = raw.get("spacing_text")
+        if not isinstance(value, str) or not value:
+            value = line.text
+        values.append(value)
+        anomaly = anomaly or raw.get("spacing_anomaly") is True
+    return "\n".join(values) if anomaly else ""
 
 
 def _normalized_candidate_text(lines: list[OCRLine]) -> str:
@@ -466,6 +553,7 @@ class TesseractOcrProvider:
             region=region,
             primary_upscale=self.upscale,
             alternative_upscales=self.alternative_upscales,
+            preserve_spacing=False,
         )
 
     async def ocr_precise(
@@ -492,6 +580,7 @@ class TesseractOcrProvider:
             region=region,
             primary_upscale=primary_upscale,
             alternative_upscales=alternative_upscales,
+            preserve_spacing=True,
         )
 
     async def _ocr(
@@ -501,6 +590,7 @@ class TesseractOcrProvider:
         region: Region | None,
         primary_upscale: float,
         alternative_upscales: tuple[float, ...],
+        preserve_spacing: bool,
     ) -> OCRResult:
         src = Path(image_path)
         tmp: Path | None = None
@@ -562,7 +652,7 @@ class TesseractOcrProvider:
         try:
             alternatives: list[OCRCandidate] = []
             if self.ensemble and prepared_images:
-                outputs = await asyncio.gather(
+                tsv_calls = [
                     _run_tesseract(
                         src,
                         lang=self.lang,
@@ -576,7 +666,8 @@ class TesseractOcrProvider:
                         )
                         for prepared, _scale in prepared_images
                     ),
-                )
+                ]
+                outputs = list(await asyncio.gather(*tsv_calls))
                 raw_lines = _remove_window_control_dot_artifacts(
                     _parse_tsv(
                         outputs[0].decode("utf-8", "replace"),
@@ -617,6 +708,16 @@ class TesseractOcrProvider:
                 )
                 selected_text = _candidate_text(lines)
                 seen = {selected_text}
+                if preserve_spacing:
+                    spacing_text = _spacing_candidate_text(lines)
+                    if spacing_text and spacing_text not in seen:
+                        seen.add(spacing_text)
+                        alternatives.append(
+                            OCRCandidate(
+                                text=spacing_text,
+                                evidence_kind="spacing",
+                            )
+                        )
                 for candidate_lines in (
                     raw_lines,
                     *(item[1] for item in prepared_candidates),
@@ -658,6 +759,15 @@ class TesseractOcrProvider:
                     lines,
                     image=analysis_image,
                 )
+                if preserve_spacing:
+                    spacing_text = _spacing_candidate_text(lines)
+                    if spacing_text and spacing_text != _candidate_text(lines):
+                        alternatives.append(
+                            OCRCandidate(
+                                text=spacing_text,
+                                evidence_kind="spacing",
+                            )
+                        )
         finally:
             if tmp is not None:
                 tmp.unlink(missing_ok=True)

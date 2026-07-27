@@ -30,6 +30,7 @@ from pikvm_agent.executor.verification import (
     levenshtein,
     norm,
 )
+from pikvm_agent.pikvm.text import flatten_line_breaks
 from pikvm_agent.vision.frame_diff import FP_MEANINGFUL, grid
 
 # --- key-name normalisation ------------------------------------------------ #
@@ -342,7 +343,7 @@ def validate_actions(
             contiguous_text_parts = []
             continue
 
-        verification = str(action.get("verification", "auto")).lower()
+        verification = str(action.get("verification") or "auto").lower()
         if verification not in {"auto", "exact"}:
             raise BurstError(
                 f"type_text action {index} has unsupported verification "
@@ -541,7 +542,8 @@ def _typing_receipt(
     *,
     precise: bool,
 ) -> dict[str, Any]:
-    intended = str(action.get("text", ""))
+    requested = str(action.get("text", ""))
+    delivery = flatten_line_breaks(requested)
     observed = str(getattr(result, "field_text", "") or "")
     status = str(getattr(result, "status", "") or "unverified")
     verdict = str(getattr(result, "verdict", "") or "unverified")
@@ -554,12 +556,11 @@ def _typing_receipt(
         # This is how much input the sender issued. RFB/HID completion is not an
         # acknowledgement from the guest application.
         "issued_characters": int(
-            getattr(result, "typed_characters", len(intended)) or 0
+            getattr(result, "typed_characters", len(delivery)) or 0
         ),
-        "requested_characters": int(
-            getattr(result, "intended_characters", len(intended))
-            or len(intended)
-        ),
+        "requested_characters": len(requested),
+        "delivery_characters": len(delivery),
+        "delivery_transformed": delivery != requested,
         "observed_characters": len(observed),
         "correction_count": int(
             getattr(result, "correction_count", 0) or 0
@@ -572,7 +573,7 @@ def _typing_receipt(
     summary = str(getattr(result, "summary", "") or "")
     if summary:
         receipt["summary"] = summary
-    intended_norm = norm(intended, precise)
+    intended_norm = norm(delivery, precise)
     observed_norm = norm(observed, precise)
     receipt["edit_distance"] = levenshtein(
         intended_norm,
@@ -580,29 +581,31 @@ def _typing_receipt(
         max(len(intended_norm), len(observed_norm)),
     )
     issued_characters = min(
-        len(intended),
+        len(delivery),
         max(0, int(receipt["issued_characters"])),
     )
-    requested_sha256 = hashlib.sha256(intended.encode("utf-8")).hexdigest()
+    requested_sha256 = hashlib.sha256(requested.encode("utf-8")).hexdigest()
+    delivery_sha256 = hashlib.sha256(delivery.encode("utf-8")).hexdigest()
     issued_prefix_sha256 = hashlib.sha256(
-        intended[:issued_characters].encode("utf-8")
+        delivery[:issued_characters].encode("utf-8")
     ).hexdigest()
     readback_sha256 = hashlib.sha256(observed.encode("utf-8")).hexdigest()
     receipt.update(
         {
             "requested_sha256": requested_sha256,
+            "delivery_sha256": delivery_sha256,
             "issued_prefix_sha256": issued_prefix_sha256,
             "readback_sha256": readback_sha256,
             "exact_readback_sha256_match": (
-                issued_characters == len(intended)
-                and requested_sha256 == readback_sha256
+                issued_characters == len(delivery)
+                and delivery_sha256 == readback_sha256
             ),
         }
     )
     receipt["proof_state"] = _typing_proof_state(
         status=status,
         verdict=verdict,
-        intended=intended,
+        intended=delivery,
         observed=observed,
         issued_characters=issued_characters,
         exact_readback_sha256_match=bool(
@@ -658,11 +661,13 @@ def _unwatched_typing_receipt(
     secret: bool,
     typed_characters: int | None = None,
 ) -> dict[str, Any]:
-    intended_characters = len(text)
+    delivery = flatten_line_breaks(text)
+    requested_characters = len(text)
+    delivery_characters = len(delivery)
     issued_characters = (
-        intended_characters
+        delivery_characters
         if typed_characters is None
-        else min(intended_characters, max(0, typed_characters))
+        else min(delivery_characters, max(0, typed_characters))
     )
     receipt: dict[str, Any] = {
         "type": "type_text",
@@ -670,7 +675,9 @@ def _unwatched_typing_receipt(
         "verdict": "unverified",
         "observed_text_redacted": secret,
         "issued_characters": issued_characters,
-        "requested_characters": intended_characters,
+        "requested_characters": requested_characters,
+        "delivery_characters": delivery_characters,
+        "delivery_transformed": delivery != text,
         "correction_count": 0,
         "delivery_retries": 0,
         "used_fast_path": False,
@@ -685,8 +692,11 @@ def _unwatched_typing_receipt(
                 "requested_sha256": hashlib.sha256(
                     text.encode("utf-8")
                 ).hexdigest(),
+                "delivery_sha256": hashlib.sha256(
+                    delivery.encode("utf-8")
+                ).hexdigest(),
                 "issued_prefix_sha256": hashlib.sha256(
-                    text[:issued_characters].encode("utf-8")
+                    delivery[:issued_characters].encode("utf-8")
                 ).hexdigest(),
                 "exact_readback_sha256_match": False,
             }
@@ -711,13 +721,15 @@ async def _dispatch(
         text = a.get("text", "")
         method = str(a.get("method", "")).lower()
         code, secret = bool(a.get("code")), bool(a.get("secret"))
-        exact_verification = (
-            str(a.get("verification", "auto")).lower() == "exact"
-        )
         editor_prose = (
             not code
             and str(a.get("context", "")).lower() == "editor"
             and is_editor_prose(str(text))
+        )
+        requested_verification = str(a.get("verification") or "").lower()
+        exact_verification = (
+            requested_verification == "exact"
+            or (not requested_verification and editor_prose)
         )
         precise = (
             exact_verification
@@ -765,8 +777,9 @@ async def _dispatch(
         elif fast and hasattr(backend, "print_text"):
             # Bootstrap/fake runtimes without a watched typer retain a bounded raw
             # printer transport. Production runtimes inject a typer above.
+            delivery_text = flatten_line_breaks(str(text))
             typed_characters = 0
-            for chunk in chunk_text(str(text)):
+            for chunk in chunk_text(delivery_text):
                 if should_continue is not None and not should_continue():
                     receipt = _unwatched_typing_receipt(
                         str(text),

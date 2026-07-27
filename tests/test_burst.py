@@ -462,7 +462,7 @@ class _StubTyper:
         return r
 
 
-async def test_editor_prose_punctuation_uses_lenient_watched_mode() -> None:
+async def test_editor_prose_can_explicitly_use_lenient_watched_mode() -> None:
     text = (
         "Shakespeare treats choice as a human burden; his characters inherit "
         "pressure and prophecy, but they remain responsible for what follows."
@@ -471,13 +471,44 @@ async def test_editor_prose_punctuation_uses_lenient_watched_mode() -> None:
     typer = _StubTyper("verified_safe_normalized")
 
     outcome = await run_burst(
-        [{"type": "type_text", "text": text, "context": "editor"}],
+        [
+            {
+                "type": "type_text",
+                "text": text,
+                "context": "editor",
+                "verification": "auto",
+            }
+        ],
         backend=be,
         typer=typer,
     )
 
     assert outcome.status == "completed"
     assert typer.modes == [{"code": False, "prose": True, "secret": False}]
+
+
+async def test_editor_prose_defaults_to_exact_readback() -> None:
+    text = (
+        "Shakespeare treats choice as a human burden; his characters inherit "
+        "pressure and prophecy, but they remain responsible for what follows."
+    )
+    be = FakeBackend()
+    typer = _StubTyper(
+        "verified_exact",
+        field_text=text,
+        typed_characters=len(text),
+        intended_characters=len(text),
+    )
+
+    outcome = await run_burst(
+        [{"type": "type_text", "text": text, "context": "editor"}],
+        backend=be,
+        typer=typer,
+    )
+
+    assert outcome.status == "completed"
+    assert typer.modes == [{"code": True, "prose": True, "secret": False}]
+    assert outcome.action_receipts[0]["proof_state"] == "exact_readback"
 
 
 async def test_editor_prose_can_require_exact_ocr_checksum_proof() -> None:
@@ -513,6 +544,45 @@ async def test_editor_prose_can_require_exact_ocr_checksum_proof() -> None:
         is True
     )
     assert outcome.action_receipts[0]["proof_state"] == "exact_readback"
+
+
+async def test_exact_receipt_hashes_the_canonical_delivery_payload() -> None:
+    requested = "exactly one \n space"
+    delivered = "exactly one space"
+    be = FakeBackend()
+    typer = _StubTyper(
+        "verified_exact",
+        field_text=delivered,
+        typed_characters=len(delivered),
+        intended_characters=len(delivered),
+    )
+
+    outcome = await run_burst(
+        [
+            {
+                "type": "type_text",
+                "text": requested,
+                "context": "editor",
+                "verification": "exact",
+            }
+        ],
+        backend=be,
+        typer=typer,
+    )
+
+    receipt = outcome.action_receipts[0]
+    assert receipt["requested_sha256"] == hashlib.sha256(
+        requested.encode()
+    ).hexdigest()
+    assert receipt["delivery_sha256"] == hashlib.sha256(
+        delivered.encode()
+    ).hexdigest()
+    assert receipt["issued_prefix_sha256"] == receipt["delivery_sha256"]
+    assert receipt["readback_sha256"] == receipt["delivery_sha256"]
+    assert receipt["delivery_transformed"] is True
+    assert receipt["delivery_characters"] == len(delivered)
+    assert receipt["exact_readback_sha256_match"] is True
+    assert receipt["proof_state"] == "exact_readback"
 
 
 async def test_burst_rejects_unknown_text_verification_mode_before_hid() -> None:
@@ -586,9 +656,11 @@ async def test_burst_type_text_proceeds_when_verified() -> None:
             "verdict": "match",
             "observed_text": "hi",
             "observed_text_redacted": False,
-            "issued_characters": 2,
-            "requested_characters": 2,
-            "observed_characters": 2,
+                "issued_characters": 2,
+                "requested_characters": 2,
+                "delivery_characters": 2,
+                "delivery_transformed": False,
+                "observed_characters": 2,
             "correction_count": 1,
             "delivery_retries": 1,
             "used_fast_path": False,
@@ -596,8 +668,9 @@ async def test_burst_type_text_proceeds_when_verified() -> None:
             "edit_distance": 0,
             "focus_evidence": "read_back_verified",
             "proof_state": "exact_readback",
-            "requested_sha256": hashlib.sha256(b"hi").hexdigest(),
-            "issued_prefix_sha256": hashlib.sha256(b"hi").hexdigest(),
+                "requested_sha256": hashlib.sha256(b"hi").hexdigest(),
+                "delivery_sha256": hashlib.sha256(b"hi").hexdigest(),
+                "issued_prefix_sha256": hashlib.sha256(b"hi").hexdigest(),
             "readback_sha256": hashlib.sha256(b"hi").hexdigest(),
             "exact_readback_sha256_match": True,
         }
@@ -629,9 +702,11 @@ async def test_burst_retains_watched_readback_when_typing_fails() -> None:
             "verdict": "mismatch",
             "observed_text": "wrong",
             "observed_text_redacted": False,
-            "issued_characters": 5,
-            "requested_characters": 8,
-            "observed_characters": 5,
+                "issued_characters": 5,
+                "requested_characters": 8,
+                "delivery_characters": 8,
+                "delivery_transformed": False,
+                "observed_characters": 5,
             "correction_count": 0,
             "delivery_retries": 0,
             "used_fast_path": False,
@@ -639,8 +714,9 @@ async def test_burst_retains_watched_readback_when_typing_fails() -> None:
             "edit_distance": 7,
             "focus_evidence": "focus_lost",
             "proof_state": "mismatched_readback",
-            "requested_sha256": hashlib.sha256(b"intended").hexdigest(),
-            "issued_prefix_sha256": hashlib.sha256(b"inten").hexdigest(),
+                "requested_sha256": hashlib.sha256(b"intended").hexdigest(),
+                "delivery_sha256": hashlib.sha256(b"intended").hexdigest(),
+                "issued_prefix_sha256": hashlib.sha256(b"inten").hexdigest(),
             "readback_sha256": hashlib.sha256(b"wrong").hexdigest(),
             "exact_readback_sha256_match": False,
         }
@@ -664,9 +740,11 @@ async def test_burst_secret_receipt_never_retains_secret_text() -> None:
             "status": "delivered_unverified",
             "verdict": "unverified",
             "observed_text_redacted": True,
-            "issued_characters": 12,
-            "requested_characters": 12,
-            "correction_count": 0,
+                "issued_characters": 12,
+                "requested_characters": 12,
+                "delivery_characters": 12,
+                "delivery_transformed": False,
+                "correction_count": 0,
             "delivery_retries": 0,
             "used_fast_path": False,
             "focus_evidence": "read_back_not_retained",

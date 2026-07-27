@@ -80,6 +80,43 @@ def test_exact_ocr_readback_is_the_only_exact_target_text_proof() -> None:
     assert receipt["exact_readback_sha256_match"] is True
 
 
+def test_public_receipt_keeps_requested_and_delivery_hashes_distinct() -> None:
+    requested = "one \n space"
+    delivered = "one space"
+    raw = {
+        "action_receipts": [
+            {
+                "index": 0,
+                "type": "type_text",
+                "status": "verified_exact",
+                "verdict": "match",
+                "focus_evidence": "read_back_verified",
+                "requested_characters": len(requested),
+                "delivery_characters": len(delivered),
+                "issued_characters": len(delivered),
+                "delivery_transformed": True,
+                "requested_sha256": _sha256(requested),
+                "delivery_sha256": _sha256(delivered),
+                "issued_prefix_sha256": _sha256(delivered),
+                "observed_text": delivered,
+                "observed_text_redacted": False,
+                "readback_sha256": _sha256(delivered),
+                "exact_readback_sha256_match": True,
+            }
+        ]
+    }
+
+    receipt = public_input_receipts(
+        raw,
+        [{"type": "type_text", "text": requested}],
+    )[0]
+
+    assert receipt["requested_sha256"] == _sha256(requested)
+    assert receipt["delivery_sha256"] == _sha256(delivered)
+    assert receipt["delivery_transformed"] is True
+    assert receipt["proof_state"] == "exact_readback"
+
+
 def test_exact_status_cannot_hide_an_incomplete_sender_prefix() -> None:
     intended = "one space"
     raw = {

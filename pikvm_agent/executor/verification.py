@@ -22,6 +22,7 @@ from pikvm_agent.core.models import (
     VerificationResult,
     VerificationStatus,
 )
+from pikvm_agent.pikvm.text import flatten_line_breaks
 
 Verdict = Literal["match", "contains", "mismatch", "unverified"]
 MismatchKind = Literal["layout", "case", "prepend-autocorrect", "prefix-tail"]
@@ -114,6 +115,26 @@ def norm(s: str, precise: bool = False) -> str:
     """Quote-fold, collapse whitespace, strip; lowercase unless `precise`."""
     compact = _WHITESPACE.sub(" ", fold_quotes(s)).strip()
     return compact if precise else compact.lower()
+
+
+def has_whitespace_only_difference(intended: str, observed: str) -> bool:
+    """Whether OCR found the same glyph sequence with different spacing.
+
+    Visual line wrapping is canonicalized to one non-submitting space first,
+    while repeated spaces inside a displayed line stay load-bearing.
+    """
+
+    left = flatten_line_breaks(fold_quotes(intended)).strip()
+    right = flatten_line_breaks(
+        fold_quotes(strip_prompt(observed))
+    ).strip()
+    if left == right:
+        return False
+    return (
+        re.sub(r"\s+", "", left).casefold()
+        == re.sub(r"\s+", "", right).casefold()
+        and re.findall(r"\s+", left) != re.findall(r"\s+", right)
+    )
 
 
 def fold_confusables(s: str) -> str:
@@ -270,6 +291,8 @@ def compute_verdict(intended: str, read_back: str, precise: bool = False) -> Ver
         return "unverified"
     ni = norm(intended, precise)
     nr = norm(strip_prompt(read_back), precise)
+    if has_whitespace_only_difference(intended, read_back):
+        return "unverified"
     if ni == nr:
         return "match"
     if precise and looks_like_trailing_caret(ni, nr):
@@ -392,7 +415,10 @@ def verify_text(
         status = "verified_with_warnings"
         detail = "read-back contains the intended text plus extra"
     elif verdict == "unverified":
-        if is_prefix_read(ni, nr):
+        if has_whitespace_only_difference(intended, observed):
+            status = "unverified_whitespace"
+            detail = "visible spacing differs from the delivery payload"
+        elif is_prefix_read(ni, nr):
             status = "unverified_truncated"
             detail = "read-back is a prefix of the intended text (viewport truncation)"
         elif read_caught_extra(ni, nr):
