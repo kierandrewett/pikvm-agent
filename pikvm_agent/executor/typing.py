@@ -465,30 +465,40 @@ class WatchedTyper:
             return read_back
         return read_back[index : index + len(intended)]
 
-    @classmethod
+    @staticmethod
     def _full_screen_exact_candidate(
-        cls,
         result: OCRResult,
         intended: str,
     ) -> str:
-        """Return only an exact case-insensitive occurrence from screen OCR.
+        """Return only an exact visible-text occurrence from screen OCR.
 
         A word processor can wrap one print burst across several lines while
         the grid-diff crop still covers only the first changed line. Full-screen
-        OCR is a safe fallback only when it contains the complete punctuation-
-        preserving payload; noisy similarity never becomes positive evidence.
+        OCR is a safe fallback only when it contains the complete word- and
+        punctuation-preserving payload. Line wrapping may change whitespace;
+        noisy character similarity never becomes positive evidence.
         """
 
+        visible_intended = " ".join(intended.split())
+        folded_intended = visible_intended.casefold()
+        if (
+            not folded_intended
+            or len(folded_intended) != len(visible_intended)
+        ):
+            return ""
         for read_back in (
             result.text,
             *(candidate.text for candidate in result.alternatives),
         ):
-            exact = cls._typed_candidate(read_back, intended, True)
-            if (
-                len(exact) == len(intended)
-                and exact.casefold() == intended.casefold()
-            ):
-                return exact
+            visible_read_back = " ".join(read_back.split())
+            folded_read_back = visible_read_back.casefold()
+            if len(folded_read_back) != len(visible_read_back):
+                continue
+            index = folded_read_back.rfind(folded_intended)
+            if index >= 0:
+                return visible_read_back[
+                    index : index + len(visible_intended)
+                ]
         return ""
 
     # ---- corrective primitives ------------------------------------------- #

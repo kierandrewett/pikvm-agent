@@ -143,10 +143,23 @@ class CropMissFullScreenOCR:
             self.crop_calls += 1
             return OCRResult()
         self.screen_calls += 1
+        words = self.intended.split()
+        one_third = len(words) // 3
         return OCRResult(
             lines=[
                 OCRLine(text="Microsoft Word"),
-                OCRLine(text=self.intended, confidence=0.96),
+                OCRLine(
+                    text=" ".join(words[:one_third]),
+                    confidence=0.96,
+                ),
+                OCRLine(
+                    text=" ".join(words[one_third : one_third * 2]),
+                    confidence=0.95,
+                ),
+                OCRLine(
+                    text=" ".join(words[one_third * 2 :]),
+                    confidence=0.96,
+                ),
                 OCRLine(text="Page 1 of 1"),
             ]
         )
