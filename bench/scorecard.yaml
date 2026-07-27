@@ -492,9 +492,12 @@ rows:
       connection: {path: "browsers.chromium.connection.configured_state_visible", format: "text"}
       progress: {path: "browsers.chromium.progress.count", format: "integer"}
       branches: {path: "browsers.chromium.progress.branch_controls", format: "integer"}
+      generic_summary: {path: "browsers.chromium.generic_tool.concise_summary_visible", format: "text"}
+      generic_raw: {path: "browsers.chromium.generic_tool.raw_result_retained", format: "text"}
+      generic_overflow: {path: "browsers.chromium.generic_tool.horizontal_overflow_pixels", format: "integer"}
       clean: {path: "source_worktree_clean", format: "text"}
     cases: "{passed}/{requested} engines; {actions} actions / {previews} previews per engine; clean source: {clean}"
-    result: "{desktop_overflow}px desktop / {responsive_overflow}px responsive overflow; connection visible: {connection}; {progress} progress / {branches} branches; {external} external requests"
+    result: "{desktop_overflow}px desktop / {responsive_overflow}px responsive overflow; generic summary/raw: {generic_summary}/{generic_raw} with {generic_overflow}px overflow; connection visible: {connection}; {progress} progress / {branches} branches; {external} external requests"
     latency: "Chromium {chromium}; Firefox {firefox}; WebKit {webkit}"
     wall: "Target-free official Playwright 1.61 image"
     status: "Passing synthetic browser matrix; live computer and sustained decode pending"

@@ -1198,8 +1198,11 @@ identity. Evidence:
   approval controls reachable, and showed truthful guarded-direct ownership.
   Document, conversation, and action overflow were zero at 1440×900 and
   390×844. Page errors, console errors, external requests, approval submissions,
-  and computer inputs were all zero. Chromium, Firefox, and WebKit completed in
-  3.631s, 7.833s, and 5.336s. WebKit used Playwright's official Noble image
+  and computer inputs were all zero. A production-shaped `web.search_text`
+  result also stayed to one concise result/query row with its selecting
+  provider/model visible; exact arguments and the unmodified raw result were
+  retained behind `Details` with zero horizontal overflow in every engine.
+  Chromium, Firefox, and WebKit completed in 3.796s, 8.067s, and 6.857s. WebKit used Playwright's official Noble image
   because the Fedora host lacks its Ubuntu-linked ABI. The audit found and
   fixed a real visibility defect: direct mode's badge had lived in the composer
   toolbar even though direct runs hide the composer. This is target-free browser
