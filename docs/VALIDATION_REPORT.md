@@ -1169,6 +1169,20 @@ identity. Evidence:
   loop tests, 17 direct-call tests, 12 API tests, 6 MCP driver tests, and 5
   fixture/safety tests passed. The 100,000-event benchmark, module compilation,
   CLI help, and diff checks also passed.
+- Action-bound typing read-back checkpoint: at integrated commit `f3f6635`,
+  42/42 frontend tests and 153/153 focused typing, harness, API, fixture, and
+  security-boundary tests passed. A detached broader run completed 1,037
+  passes, one environment-dependent skip, and one explicit deselection in
+  81.97 seconds. The deselected assertion requires the shipped `.mcp.json` to
+  name the current checkout path, while the isolated verification checkout was
+  intentionally under `/tmp`. The production build passed at 1,224,925 raw
+  bytes, with 313,393-byte gzip JavaScript and 17,936-byte gzip CSS. The
+  assistant-ui action transcript now binds the exact requested text to watched
+  screen read-back, focus evidence, edit distance, corrections, retries, and
+  guarded transport state; secret-marked text retains neither payload nor
+  observed read-back. This is target-free evidence. The in-app browser URL
+  policy blocked post-change visual/reflow inspection, and no alternate browser
+  was used.
 - Python regression suite: 569 passed, 1 opt-in benchmark skipped, and the one
   known-failing Paddle field-crop regression explicitly deselected in 58.01
   seconds.

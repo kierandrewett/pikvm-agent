@@ -1,0 +1,99 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-07-27T07:04:52Z",
+  "source_commit": "f3f6635",
+  "feature_commits": [
+    "3826b3e",
+    "ef43e11",
+    "f116226",
+    "f3f6635"
+  ],
+  "machine_contacted": false,
+  "model_api_contacted": false,
+  "route": "watched typer to daemon receipt to assistant-ui computer action transcript",
+  "contracts": {
+    "frontend": {
+      "passed": 42,
+      "total": 42
+    },
+    "focused_typing_and_harness_python": {
+      "passed": 153,
+      "total": 153
+    },
+    "broader_detached_python": {
+      "passed": 1037,
+      "skipped": 1,
+      "deselected": 1,
+      "failed": 0,
+      "warnings": 4,
+      "wall_seconds": 81.97,
+      "deselection_reason": "The shipped .mcp.json intentionally names the real repository path, so its source-location assertion cannot pass from a detached temporary worktree."
+    },
+    "production_build": "passed",
+    "typescript_similarity": "no duplicate functions or types",
+    "python_similarity": "no new duplicated receipt path identified; existing broad structural and test-fixture matches remain"
+  },
+  "computer_use_transcript": {
+    "assistant_ui_chat_preserved": true,
+    "tool_call_collapsed_summary": true,
+    "tool_call_expandable_transaction": true,
+    "action_sequence_indexed": true,
+    "exact_typed_payload_visible": true,
+    "screen_readback_visible": true,
+    "intent_and_observation_share_one_transcript": true,
+    "visible_readback_states": [
+      "Read-back matches",
+      "Focus lost",
+      "Read-back differs",
+      "Delivery only",
+      "Read-back uncertain",
+      "Text not retained"
+    ],
+    "visible_metrics": [
+      "typed and intended characters",
+      "edit distance",
+      "corrections",
+      "delivery retries",
+      "guarded fast transport"
+    ],
+    "flattened_receipt_layout": true,
+    "card_wall_avoided": true
+  },
+  "security_boundary": {
+    "receipts_bound_to_type_text_action_index": true,
+    "duplicate_indices_dropped": true,
+    "unknown_fields_dropped": true,
+    "receipt_count_bounded": 20,
+    "observed_text_characters_bounded": 960,
+    "secret_input_forces_unverified_delivery": true,
+    "secret_input_observed_text_retained": false,
+    "approval_acknowledged_before_resumed_model_work": true
+  },
+  "target_free_visual_fixture": {
+    "production_shaped_typing_event": true,
+    "exact_payload": "Quarterly review draft",
+    "matching_screen_readback": true,
+    "machine_connected": false,
+    "provider_called": false
+  },
+  "resource_envelope": {
+    "total_raw_bytes": 1224925,
+    "largest_asset_bytes": 1040090,
+    "javascript_raw_bytes": 1040090,
+    "javascript_gzip_bytes": 313393,
+    "css_raw_bytes": 107702,
+    "css_gzip_bytes": 17936,
+    "enforced_limits": {
+      "total_raw_bytes": 1250000,
+      "largest_asset_bytes": 1100000,
+      "javascript_gzip_bytes": 327680,
+      "css_gzip_bytes": 24576
+    }
+  },
+  "browser_audit": {
+    "post_change_visual_review": false,
+    "blocker": "The in-app browser URL policy blocked navigation from the existing data URL page to the target-free localhost fixture.",
+    "alternate_browser_used": false
+  },
+  "status": "The exact-input/read-back transcript, secret boundary, approval acknowledgement, target-free fixture, detached component and Python contracts, build, and resource gates pass. Browser visual and reflow inspection remains pending."
+}
