@@ -206,6 +206,41 @@ async def test_tesseract_general_profile_keeps_the_two_read_latency_budget(
     assert sorted(observed_sizes) == [(100, 50), (200, 100)]
 
 
+async def test_tesseract_precise_profile_can_read_a_small_ui_label_at_four_x(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    image_path = tmp_path / "screen.png"
+    Image.new("RGB", (100, 50), "white").save(image_path)
+    observed_sizes: list[tuple[int, int]] = []
+
+    async def fake_tesseract(src, *, lang, psm):
+        del lang, psm
+        size = Image.open(src).size
+        observed_sizes.append(size)
+        text, confidence = {
+            (100, 50): ("Styles", 62),
+            (150, 75): ("Styles", 63),
+            (200, 100): ("Styles", 64),
+            (400, 200): ("Title", 91),
+        }[size]
+        return (
+            "level\tpage_num\tblock_num\tpar_num\tline_num\tword_num"
+            "\tleft\ttop\twidth\theight\tconf\ttext\n"
+            f"5\t1\t1\t1\t1\t1\t40\t20\t40\t20\t{confidence}\t{text}\n"
+        ).encode()
+
+    monkeypatch.setattr(
+        "pikvm_agent.vision.tesseract_ocr._run_tesseract",
+        fake_tesseract,
+    )
+
+    result = await TesseractOcrProvider(upscale=2.0).ocr_precise(image_path)
+
+    assert result.text == "Title"
+    assert (400, 200) in observed_sizes
+
+
 def test_paddleocr_crops_the_requested_region_before_inference(
     tmp_path,
     monkeypatch,

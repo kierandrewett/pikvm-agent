@@ -490,6 +490,47 @@ async def test_dangerous_click_pauses_for_approval_then_executes_once(
     assert len([call for call in _hid_calls(runtime) if call[0] == "click"]) == 1
 
 
+async def test_small_ui_click_retries_precise_ocr_before_failing_closed(
+    runtime: Runtime,
+) -> None:
+    class SmallLabelOCR:
+        def __init__(self) -> None:
+            self.precise_calls = 0
+
+        async def ocr(self, image_path, region=None):
+            del image_path, region
+            return OCRResult(
+                lines=[OCRLine(text="Styles", bbox=[140, 73, 158, 80])]
+            )
+
+        async def ocr_precise(self, image_path, region=None):
+            del image_path
+            self.precise_calls += 1
+            assert region is not None
+            assert region.width <= 120
+            assert region.height <= 70
+            return OCRResult(
+                lines=[OCRLine(text="Title", bbox=[30, 30, 70, 60])]
+            )
+
+    ocr = SmallLabelOCR()
+    runtime._screen_parser.ocr = ocr
+    sid = (await runtime.start_session("direct"))["session_id"]
+    shot = await runtime.get_session_summary(sid, capture=True)
+
+    result = await runtime.run_burst(
+        sid,
+        [{"type": "click", "x": 50, "y": 60}],
+        based_on_world_version=shot["world_version"],
+        based_on_control_epoch=shot["control_epoch"],
+        idempotency_key="click-small-title-label",
+    )
+
+    assert result["status"] == "completed"
+    assert ocr.precise_calls == 1
+    assert len([call for call in _hid_calls(runtime) if call[0] == "click"]) == 1
+
+
 async def test_rejecting_direct_burst_never_executes_hid(runtime: Runtime) -> None:
     sid = (await runtime.start_session("direct"))["session_id"]
     shot = await runtime.get_session_summary(sid, capture=True)

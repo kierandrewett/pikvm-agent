@@ -1165,6 +1165,28 @@ class Runtime:
                     click_y=y,
                     region=region,
                 )
+                precise_ocr = getattr(ocr, "ocr_precise", None)
+                if not target_text and callable(precise_ocr):
+                    precise_left = max(0, x - 60)
+                    precise_top = max(0, y - 35)
+                    precise_right = min(frame.width, x + 60)
+                    precise_bottom = min(frame.height, y + 35)
+                    precise_region = Region(
+                        x=precise_left,
+                        y=precise_top,
+                        width=max(1, precise_right - precise_left),
+                        height=max(1, precise_bottom - precise_top),
+                    )
+                    observed = await precise_ocr(
+                        Path(frame.image_path),
+                        region=precise_region,
+                    )
+                    target_text = nearest_ocr_target_text(
+                        observed,
+                        click_x=x,
+                        click_y=y,
+                        region=precise_region,
+                    )
                 if target_text:
                     action["observed_target_text"] = target_text
             except Exception as exc:  # noqa: BLE001 - missing OCR must not break navigation

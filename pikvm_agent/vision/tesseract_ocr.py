@@ -420,6 +420,7 @@ class TesseractOcrProvider:
         return await self._ocr(
             image_path,
             region=region,
+            primary_upscale=self.upscale,
             alternative_upscales=self.alternative_upscales,
         )
 
@@ -430,10 +431,23 @@ class TesseractOcrProvider:
     ) -> OCRResult:
         """Retain one extra independent scale for exact intended-text checks."""
 
+        primary_upscale = max(self.upscale, 4.0)
+        alternative_upscales = tuple(
+            scale
+            for scale in dict.fromkeys(
+                (
+                    self.upscale,
+                    *self.alternative_upscales,
+                    1.5,
+                )
+            )
+            if scale != primary_upscale
+        )
         return await self._ocr(
             image_path,
             region=region,
-            alternative_upscales=self.alternative_upscales or (1.5,),
+            primary_upscale=primary_upscale,
+            alternative_upscales=alternative_upscales,
         )
 
     async def _ocr(
@@ -441,6 +455,7 @@ class TesseractOcrProvider:
         image_path: Path,
         *,
         region: Region | None,
+        primary_upscale: float,
         alternative_upscales: tuple[float, ...],
     ) -> OCRResult:
         src = Path(image_path)
@@ -477,7 +492,7 @@ class TesseractOcrProvider:
             fd.close()
             return Path(fd.name)
 
-        scales = [self.upscale]
+        scales = [primary_upscale]
         if self.ensemble:
             scales.extend(alternative_upscales)
         for scale in dict.fromkeys(scales):
@@ -526,7 +541,7 @@ class TesseractOcrProvider:
                     (
                         candidate_lines
                         for scale, candidate_lines in prepared_candidates
-                        if scale == self.upscale
+                        if scale == primary_upscale
                     ),
                     raw_lines,
                 )
@@ -557,7 +572,7 @@ class TesseractOcrProvider:
                     (
                         prepared
                         for prepared, scale in prepared_images
-                        if scale == self.upscale
+                        if scale == primary_upscale
                     ),
                     None,
                 )
@@ -570,7 +585,7 @@ class TesseractOcrProvider:
                 lines = _parse_tsv(
                     out.decode("utf-8", "replace"),
                     coordinate_scale=(
-                        self.upscale if primary is not None else 1.0
+                        primary_upscale if primary is not None else 1.0
                     ),
                 )
                 lines = _remove_window_control_dot_artifacts(
