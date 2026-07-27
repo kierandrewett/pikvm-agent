@@ -1,6 +1,6 @@
 # Validation report
 
-Date: 2026-07-25
+Date: 2026-07-27
 
 This report records the evidence gathered while building the VNC-backed
 accuracy lab and provider-neutral operator harness. It intentionally omits the
@@ -1190,6 +1190,36 @@ identity. Evidence:
   observed read-back. This is target-free evidence. The in-app browser URL
   policy blocked post-change visual/reflow inspection, and no alternate browser
   was used.
+- Cross-browser chat-workspace checkpoint: at clean source commit `a68441e`,
+  Playwright 1.61 ran the authenticated 1,200-event fixture in Chromium 149,
+  Firefox 151, and WebKit 26.5. All three engines expanded 12/12 computer
+  actions, loaded 20 action-bound previews, retained exact MCP/model identity,
+  exposed provider-owned OAuth and environment-owned API routes, kept the held
+  approval controls reachable, and showed truthful guarded-direct ownership.
+  Document, conversation, and action overflow were zero at 1440×900 and
+  390×844. Page errors, console errors, external requests, approval submissions,
+  and computer inputs were all zero. Chromium, Firefox, and WebKit completed in
+  8.219s, 13.136s, and 17.328s. WebKit used Playwright's official Noble image
+  because the Fedora host lacks its Ubuntu-linked ABI. The audit found and
+  fixed a real visibility defect: direct mode's badge had lived in the composer
+  toolbar even though direct runs hide the composer. This is target-free browser
+  evidence, not live computer, browser-decode, resident-memory, or multi-hour
+  evidence. The machine-readable report is
+  [`../bench/results/2026-07-27/ui/cross-browser-chat-workspace-audit.json`](../bench/results/2026-07-27/ui/cross-browser-chat-workspace-audit.json).
+- At-most-once input-integrity checkpoint: a deterministic backend accepted
+  only the leading space of a word-boundary chunk while stale OCR still
+  returned the pre-chunk prefix. The previous recovery branch replayed the
+  whole chunk and produced two spaces, reproducing the reported failure at the
+  real watched-typing seam. The branch was removed because keyboard input has
+  no target-side idempotency acknowledgement. Ambiguous delivery now stops
+  unverified. A seeded 1,000-case stale-readback regression emitted every
+  canonical payload exactly once with zero introduced doubled spaces and zero
+  retries. The receipt now distinguishes the requested and canonical delivery
+  hashes, the actual ordered payload stream handed to the transport, the
+  complete OCR text, and the exact captured-frame hash. The UI labels this
+  strongest screen-bound state `Exact visual read-back`; it does not call it a
+  guest acknowledgement. No computer, VNC, PiKVM, provider, or approval was
+  contacted for this checkpoint.
 - Python regression suite: 569 passed, 1 opt-in benchmark skipped, and the one
   known-failing Paddle field-crop regression explicitly deselected in 58.01
   seconds.

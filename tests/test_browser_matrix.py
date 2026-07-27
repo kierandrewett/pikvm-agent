@@ -9,6 +9,7 @@ from typer.testing import CliRunner
 from pikvm_agent.cli import app
 from pikvm_agent.harness.browser_matrix import (
     _clean_failure,
+    _clean_messages,
     _is_fixture_request,
     parse_browser_names,
     write_browser_audit_report,
@@ -69,6 +70,19 @@ def test_public_failure_retains_sanitized_missing_library_diagnostic() -> None:
         "BrowserType.launch failed: <local-path> error while loading shared "
         "libraries: libexample.so: cannot open shared object file"
     )
+
+
+def test_public_browser_diagnostics_are_sanitized_and_bounded() -> None:
+    diagnostics = [
+        f"failed at /tmp/private-{index}/token.txt"
+        for index in range(25)
+    ]
+
+    cleaned = _clean_messages(diagnostics)
+
+    assert len(cleaned) == 20
+    assert cleaned[0] == "failed at <local-path>"
+    assert all("/tmp/" not in value for value in cleaned)
 
 
 def test_browser_report_is_private_and_cannot_be_overwritten(tmp_path) -> None:

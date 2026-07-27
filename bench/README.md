@@ -34,10 +34,10 @@ support a claim of generally reliable autonomous Windows operation.
 | Direct Claude/Codex/OpenCode calls are visible and operator-controllable | Actual MCP `ClientSession` dispatch test, exact redacted arguments plus durable outcome/latency, path/raw-payload exclusion, fail-closed missing-visibility tests, scoped observer credential, required frame/control/idempotency fields on every HID tool, real browser, 100-call audit at 6.70ms median / 7.54ms p95 | Passing local contract |
 | A coding client can submit once while the dedicated harness owns progression | The referenced Claude session used 551 direct PiKVM calls; 21 API contracts prove the replacement managed loop crosses action slices, safe replans and verifier-more-work checkpoints, resumes after exact human approval, recovers internal yields after restart, reconstructs its automatic-resume ceiling from durable history, and refuses overlapping Continue bypass. Operator steering is durable, forces a fresh managed plan, and cannot discard unsettled HID or take control from direct/external drivers. Exact generated configs initialize over real stdio for all four clients and preserve their validated client identity | Passing control-loop and generated-stdio inventory contracts; authenticated task/restart pending |
 | Effective client config cannot silently retain a second PiKVM tool surface | Fail-closed audit supports native Codex resolved inventory, Codex TOML/shared project JSON, Claude/Gemini JSON, and legacy/V2 OpenCode JSON/JSONC. Native read-only Codex inventory found one raw PiKVM registration and no managed registration. A session-only Codex override produced exactly one managed PiKVM surface while retaining unrelated MCPs; Claude's installed strict-MCP flags produced one explicit managed surface. OpenCode 1.14.44 resolved one managed surface under `--pure`, exact default-deny permissions, ephemeral writable state, and client-owned OAuth linked without copying it. Gemini 0.35.3 loaded the temporary system catalog natively and resolved one allowlisted managed surface from an empty dedicated profile; the exact admin-policy path/content and extension-disable argv are configured but not enforcement-tested. These paths modify no persisted registration and passed 54 launcher/audit/package contracts | Codex/Claude/OpenCode native isolation dry-runs pass; Gemini settings audit passes; no authenticated coding-client task or Gemini policy-enforcement call was run |
-| Managed and direct assurance levels are unambiguous | The reference conversation is explicitly retained as 551/551 direct calls, not reclassified as a managed run. A 645×1070 real-browser audit labelled a direct trace `Guarded direct`, named its launcher-declared provider/model, removed managed model routing and the chat composer, loaded the marked click preview, and offered a separate `New managed task`; horizontal overflow was 0px | Passing target-free ownership/UI contract; live computer task pending |
-| Computer-use actions remain inspectable while a run is changing | A target-free Chromium fixture retained a 12-action audit while showing only the current live input; the completed trace returns on inspection. Completed clicks now lead with a marked 72×40 pre-action crop of the actual visual target instead of coordinates, while the coordinate, MCP tool, model, state, full Screen evidence, Details, Raw request, and exact input remain available progressively. At a rendered 645×1070 viewport all 12 previews loaded with zero horizontal overflow. A separate dangerous Enter fixture rendered the exact two-input sequence, 47-character count, external-side-effect reason, and Allow once/Deny controls inline without committing input | Passing browser/UI contract |
+| Managed and direct assurance levels are unambiguous | The reference conversation is explicitly retained as 551/551 direct calls, not reclassified as a managed run. Chromium, Firefox, and WebKit each labelled the direct trace `Guarded direct`, named the launcher-declared caller/provider/model, removed managed assurance and the chat composer, and retained zero horizontal overflow | Passing target-free ownership/UI contract; live computer task pending |
+| Computer-use actions remain inspectable while a run is changing | The authenticated Chromium/Firefox/WebKit fixture retained and expanded all 12 actions, loaded 20 action-bound previews per engine, and exposed the exact MCP tool/model route with zero desktop or 390×844 overflow. The held Teams fixture showed the exact text, final Enter, reason, and Allow once/Deny controls without committing input | Passing target-free three-engine UI contract |
 | The operator can inspect the verifier's visual evidence | Authenticated API contracts return the labelled before/after bytes without exposing their local path; static UI contracts cover revision refresh, loading/error state, and blob revocation. A live disposable-Windows diagnostic exercised failed and uncertain visual verification without turning either into success | Passing local/browser contract; live task itself did not pass |
-| Long prose/code arrives exactly | Windows transport trials were exact 581/581 and 142/142 characters. A later seeded live boundary probe was 8/8 exact with 0 character errors and 0 duplicated spaces at 17–72 characters, although generic screen OCR was exact in 0/8. The repaired local path now canonicalizes each line-break boundary to one non-submitting space, retains extra suffixes before hashing, separates requested/delivery/issued/OCR SHA-256 values, and stops every uncertain typing result before Enter/click/more text; 208 focused, 1,175 full Python, and 87 frontend tests pass. One earlier 72-character diagnostic had matching OCR and independent helper hashes, but it predates this final fail-closed patch | Partial; local integrity contracts and earlier transport diagnostics pass, fresh live replay and generic OCR do not |
+| Long prose/code arrives exactly | Windows transport trials were exact 581/581 and 142/142 characters. A later seeded live boundary probe was 8/8 exact with 0 character errors and 0 duplicated spaces at 17–72 characters, although generic screen OCR was exact in 0/8. A deterministic repro then proved that replaying an apparently missing chunk could duplicate its already-delivered leading space. Typing is now at-most-once: ambiguous delivery stops unverified and never replays text. A 1,000-case stale-readback fuzz emitted every canonical payload exactly once with zero introduced doubled spaces. Receipts retain requested, delivery, emitted, OCR, and evaluated-frame SHA-256 values | Partial; target-free sender integrity passes, fresh live replay and generic OCR do not |
 | Raw HID avoids encoded/script transfer hacks | A seeded 1,000-payload corpus caught 800/800 unsafe shapes with 0/200 safe false positives; the public MCP integration also refuses encoded transfer before daemon contact | Passing local syntax gate; explicit byte-verified transfer channel pending |
 | Exact-byte virtual-media preparation works | 10/10 builder contracts plus 19/19 transaction/UI/adapter/surface contracts cover mode-0600 media, exact browser approval, rollback, cleanup uncertainty, identity, lease, stop, model-surface exclusion, and explicit unsupported VNC | Passing target-free contract; daemon bridge capability and live target result pending |
 | OCR can safely verify arbitrary desktop text | Tesseract is 56.9% selected and 61.4% expected-aware exact; its 800-case routine tier is 71.125% exact while the preserved 200-case confusable stress tier is 0%; PaddleOCR is 78.9% normalized exact; the retrospective known-intent candidate union is 82.7% overall, 97.0% routine, and 25.5% stress on the same 1,000 cases; no confidence threshold supports a 99% lower-bound claim | Failing release gate |
@@ -216,6 +216,29 @@ loads the retained 1280×720 pre-action image; removes managed model routing,
 the writable composer, and branch counters from the direct trace; and retains
 zero horizontal overflow at normal width and effective 200% reflow. No VNC,
 PiKVM, production daemon, or model API was contacted.
+
+The authenticated workspace now also has a repeatable three-engine gate.
+Playwright 1.61 ran the same 1,200-event fixture in Chromium 149, Firefox 151,
+and WebKit 26.5. Every engine expanded 12/12 computer actions, loaded 20
+action-bound previews, displayed the exact `pikvm_run_burst` tool and
+controller route, exposed both provider-owned OAuth and environment-owned API
+routes, and kept the held approval controls reachable. The direct fixture
+showed `Guarded direct`, `claude-cli`, `anthropic-oauth`, and `opus`; managed
+assurance and the writable composer were absent. Desktop and 390×844 document,
+conversation, and action overflow were all zero. There were no page errors,
+console errors, external requests, approval submissions, or computer inputs.
+
+This audit found one product defect before the final run: direct mode placed
+its ownership badge in the composer toolbar even though direct runs
+deliberately hide that composer. The badge now lives in the persistent header.
+The audit also stopped assuming fixture-internal credential wording and waits
+for asynchronously loaded provider routes, so it asserts the actual rendered
+ownership contract rather than implementation detail. Chromium, Firefox, and
+WebKit completed in 8.219s, 13.136s, and 17.328s. WebKit ran in Playwright's
+official Noble image because the Fedora host does not provide its Ubuntu-linked
+library versions. This remains synthetic, target-free UI evidence; it does not
+measure live-frame decode, memory, a model, or a computer task. See
+[`cross-browser-chat-workspace-audit.json`](results/2026-07-27/ui/cross-browser-chat-workspace-audit.json).
 
 ### Provider conformance boundary
 
@@ -1135,7 +1158,7 @@ messaging integration.
 ## Current headline
 
 <!-- pikvm-scorecard:start -->
-_Generated from checked JSON evidence as of 2026-07-27. Manifest `sha256:7518c2cd1fe4`; run `pikvm-agent harness scorecard --check` to detect drift._
+_Generated from checked JSON evidence as of 2026-07-27. Manifest `sha256:09562ef7cdd6`; run `pikvm-agent harness scorecard --check` to detect drift._
 
 | Suite | Route | Cases | Result | Median / p95 | Wall | Status | Evidence |
 | --- | --- | ---: | ---: | ---: | ---: | --- | --- |
@@ -1145,7 +1168,7 @@ _Generated from checked JSON evidence as of 2026-07-27. Manifest `sha256:7518c2c
 | Virtual-media transaction | Target-free approval/rollback state machine | 19 contracts | 19/19; 11 durable states; daemon bridge exposed: no | — | — | Passing target-free transaction contract; physical bridge gated | [JSON](results/2026-07-25/safety/virtual-media-transaction-2026-07-26.json) · `sha256:7bd38797d675` |
 | Windows VNC physical-loop diagnostic | Deterministic MCP trials; no model | 7 trials | 581 prose + 142 code characters exact; overall failed | See per-trial JSON | 336.17s | Failing diagnostic | [JSON](results/2026-07-25/windows/live-vnc-observer-iteration.json) · `sha256:5c7bab3e4abd` |
 | Live exact input read-back | Disposable Windows VM via isolated MCP | 1 diagnostic / 72 characters | Requested = issued = OCR SHA: yes; helper exact: yes; 0 repeated spaces | Not isolated | 55s | Passing n=1 diagnostic; generic OCR still failing | [JSON](results/2026-07-27/live-vnc/typing-exact-readback-case72.json) · `sha256:b737a799b1d6` |
-| Whitespace input integrity | Canonical delivery → issued prefix → complete OCR field | 208 focused + 1,175 full Python + 87 frontend | All passed; newline boundary emits 1 space; OCR guest ACK: no | 243,690-byte gzip JavaScript | Target-free contract | Passing local fail-closed contract; fresh replay refused by an existing target lease | [JSON](results/2026-07-27/ui/whitespace-input-integrity.json) · `sha256:2437c5075342` |
+| Whitespace input integrity | Canonical delivery → emitted payloads → OCR text → captured frame | 98 focused + 1,220 full Python + 130 frontend; 1,000 stale reads | 1,000/1,000 emitted exactly once; 0 introduced doubled spaces; 0 retries; newline boundary 1 space | 243,429-byte gzip JavaScript | Target-free contract | Passing exact_visual_readback sender/screen contract; OCR guest ACK: no; fresh live replay pending | [JSON](results/2026-07-27/ui/whitespace-input-integrity.json) · `sha256:7ba61dd8b7ba` |
 | Live VNC target contention | Runtime target → process lease → RFB | 40 focused + 1,199 full Python / 1 skipped + 1 live contention gate | Second VNC connection: no; input sent: no; private report mode 0600; endpoint retained: no | 1,550ms | Authorized disposable-target refusal | Passing live fail-closed contention gate; observer identity still pending | [JSON](results/2026-07-27/safety/vnc-target-lease-live-refusal.json) · `sha256:b6e61a5af30b` |
 | Direct MCP visibility bridge | Guarded local SQLite/ASGI | 100 calls + 10 contracts | Contracts passed; 143.8 calls/s | 6.70ms / 7.54ms | 695ms | Local diagnostic | [JSON](results/2026-07-25/ui/direct-mcp-visibility-audit.json) · `sha256:aa923113856c` |
 | Managed/direct control separation | assistant-ui ownership + click evidence | 93 frontend + 1,191 Python; 551 audited reference calls | 93/93; 1,191 passed / 1 skipped; reference route 551 direct / 0 managed; 0px normal / 0px 200% overflow | 239,916-byte gzip JavaScript | Target-free browser audit | Passing visible ownership contract; live computer task pending | [JSON](results/2026-07-27/ui/managed-direct-control-separation.json) · `sha256:650cf26af2f5` |
@@ -1167,6 +1190,7 @@ _Generated from checked JSON evidence as of 2026-07-27. Manifest `sha256:7518c2c
 | Action-bound screen evidence | Controller → computer input → verifier → authenticated image | 38 frontend + 113 focused Python | 38/38 + 113/113; 1,031 broader / 1 skipped; 2 model roles | 311,739-byte gzip JS; 18,134-byte gzip CSS | Target-free contract | Passing target-free contract; browser visual and concurrent Office file pending | [JSON](results/2026-07-27/ui/action-bound-screen-evidence.json) · `sha256:b5c40e8ccb52` |
 | Action-bound typing read-back | Watched typer → daemon receipt → assistant-ui action transcript | 42 frontend + 153 focused Python | 42/42 + 153/153; 1,037 broader / 1 skipped; 6 visible read-back states | 313,393-byte gzip JS; 17,936-byte gzip CSS | Detached target-free contract | Passing exact-input/read-back contract; browser visual audit pending | [JSON](results/2026-07-27/ui/action-bound-typing-readback.json) · `sha256:3ee72269bfa9` |
 | Computer-action timeline visual audit | assistant-ui timeline → live fixture → approval boundary | 1,200 events / 12 actions; 121 frontend + 24 Python | 121/121 + 24/24; 1,204 full Python / 1 skipped; 0px narrow / 0px 200% action overflow; approval held with 298px scroll | 333,122-byte gzip JS; 18,223-byte gzip CSS | Target-free browser audit | Desktop, 390×844, and effective 200% passing; cross-browser pending | [JSON](results/2026-07-27/ui/computer-action-timeline-visual-audit.json) · `sha256:49f63bf3d22a` |
+| Cross-browser chat workspace | Chromium + Firefox + WebKit → authenticated assistant-ui fixture | 3/3 engines; 12 actions / 20 previews per engine; clean source: yes | 0px desktop / 0px responsive overflow; connection visible: yes; 1 progress / 0 branches; 0 external requests | Chromium 8,219ms; Firefox 13,136ms; WebKit 17,328ms | Target-free official Playwright 1.61 image | Passing synthetic browser matrix; live computer and sustained decode pending | [JSON](results/2026-07-27/ui/cross-browser-chat-workspace-audit.json) · `sha256:a83ee2f1d387` |
 | Live-frame resource envelope | Target-free streamed preview adapter | 6 contracts | 6/6; 4,194,304-byte frame; 8 sessions / 33,554,432 bytes cached | 450ms minimum upstream interval | — | Passing transport resource contract; browser decode pending | [JSON](results/2026-07-25/ui/live-frame-resource-envelope-2026-07-26.json) · `sha256:345d2a92bda7` |
 | Normalized storage + bounded control | In-memory production contract | 100,000 events + 100 appends | 11,214.070× write-size reduction; 1,000 control events loaded | 0.086ms / 0.138ms append; 3.372ms / 4.539ms control | 214.978ms import | Serialization diagnostic; real SQLite pending | [JSON](results/2026-07-25/ui/normalized-storage-bounded-control-n100000-2026-07-26.json) · `sha256:9af680551989` |
 | Gemini CLI provider adapter | Gemini CLI 0.35.3 / `account-default` | 79 provider/config/UI cases | Adapter contracts passed; startup probe timeout; 228,904 KiB peak RSS | 60.01s startup probe | 60.01s | Adapter contract; live provider unproven | [JSON](results/gemini-cli-0.35.3-compatibility-2026-07-26.json) · `sha256:4beb22389eaa` |
@@ -1608,10 +1632,12 @@ invented `0.0` evaluator scores.
     replan. Downgraded actions now ask the verifier only to prove that the exact
     draft is visible and unsubmitted.
 30. R16 exposed a dropped final `.mp4` chunk and a pointer-only no-op. The
-    missing text was not submitted. Post-run typing code retries only that exact
-    chunk, once, when exact/code text has a grounded field, settled pixels show
-    no meaningful change, and OCR exactly matches the pre-chunk prefix.
-    Pointer-only moves are now rejected before HID.
+    missing text was not submitted. An initial repair replayed that exact chunk
+    once when pixels and OCR still showed the pre-chunk prefix. A later
+    deterministic boundary repro proved that policy unsafe: a leading space can
+    reach the guest before its glyphs repaint, so replay creates a doubled
+    space. The current path is at-most-once and stops unverified instead.
+    Pointer-only moves are rejected before HID.
 31. R17 and R18 showed that full-frame freshness can livelock on a playing
     video before a desktop shortcut reaches HID. A daemon-confirmed
     pre-execution stale refusal may now be rebound once only when the control
@@ -1794,13 +1820,27 @@ act as checksums:
 - several visibly correct 20–55-character commands produced no usable OCR.
 
 Input receipts now keep separate SHA-256 values for the requested payload,
-canonical delivery payload, sender-issued prefix, and OCR screen read-back.
-They expose the proof state as `exact_ocr_readback`,
+canonical delivery payload, logical sender-issued prefix, actual ordered text
+payloads handed to the transport, OCR screen read-back, and the exact captured
+frame that OCR evaluated. They expose the strongest screen-bound proof as
+`exact_visual_readback`; legacy receipts without a frame digest remain
+`exact_ocr_readback`. Other states are
 `normalized_readback`, `partial_readback`,
 `mismatched_readback`, `ambiguous_readback`, `issued_only`, or
 `not_retained`. Sender completion alone can only be `issued_only`, and an
-exact OCR hash is still screen evidence rather than a guest-side
-acknowledgement or saved-file oracle.
+exact OCR/frame hash is still screen evidence rather than a guest-side
+acknowledgement or saved-file oracle. The UI presents this as one compact
+payload/OCR/frame fingerprint beside the exact field read-back.
+
+A deterministic partial-delivery repro isolated the current doubled-space
+failure. The second word-boundary chunk began with one space. The transport
+accepted that space, the stale screen/OCR read still matched the previous
+prefix, and the recovery branch replayed the full chunk, producing two spaces.
+The branch has been removed: text transport is non-idempotent, so an ambiguous
+chunk is never replayed. A seeded 1,000-case stale-readback regression then
+proved that the exact canonical payload was handed to the backend once in every
+case, with no introduced doubled spaces and zero delivery retries. This is
+sender-side evidence; the guest and screen still require independent read-back.
 
 An eight-case seeded live probe then exercised lengths around the
 16-character chunk seam and the earlier 71-character failure. The Windows

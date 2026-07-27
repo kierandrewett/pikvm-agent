@@ -91,7 +91,7 @@ rows:
     status: "Passing n=1 diagnostic; generic OCR still failing"
 
   - suite: "Whitespace input integrity"
-    route: "Canonical delivery → issued prefix → complete OCR field"
+    route: "Canonical delivery → emitted payloads → OCR text → captured frame"
     source: "results/2026-07-27/ui/whitespace-input-integrity.json"
     fields:
       focused: {path: "validation.focused_python.passed", format: "integer"}
@@ -99,13 +99,18 @@ rows:
       skipped: {path: "validation.full_python.skipped", format: "integer"}
       frontend: {path: "validation.frontend.passed", format: "integer"}
       boundary: {path: "root_cause.fixed_delivery_space_count_at_boundary", format: "integer"}
+      fuzz: {path: "at_most_once_validation.cases", format: "integer"}
+      emitted: {path: "at_most_once_validation.payloads_emitted_exactly_once", format: "integer"}
+      doubled: {path: "at_most_once_validation.introduced_doubled_spaces", format: "integer"}
+      retries: {path: "at_most_once_validation.delivery_retries", format: "integer"}
+      proof: {path: "integrity_chain.strongest_screen_proof_state", format: "text"}
       ack: {path: "integrity_chain.exact_ocr_is_guest_acknowledgement", format: "text"}
       js: {path: "validation.production_build.javascript_gzip_bytes", format: "integer"}
-    cases: "{focused} focused + {python} full Python + {frontend} frontend"
-    result: "All passed; newline boundary emits {boundary} space; OCR guest ACK: {ack}"
+    cases: "{focused} focused + {python} full Python + {frontend} frontend; {fuzz} stale reads"
+    result: "{emitted}/{fuzz} emitted exactly once; {doubled} introduced doubled spaces; {retries} retries; newline boundary {boundary} space"
     latency: "{js}-byte gzip JavaScript"
     wall: "Target-free contract"
-    status: "Passing local fail-closed contract; fresh replay refused by an existing target lease"
+    status: "Passing {proof} sender/screen contract; OCR guest ACK: {ack}; fresh live replay pending"
 
   - suite: "Live VNC target contention"
     route: "Runtime target → process lease → RFB"
@@ -469,6 +474,30 @@ rows:
     latency: "{gzip_js}-byte gzip JS; {gzip_css}-byte gzip CSS"
     wall: "Target-free browser audit"
     status: "Desktop, 390×844, and effective 200% passing; cross-browser pending"
+
+  - suite: "Cross-browser chat workspace"
+    route: "Chromium + Firefox + WebKit → authenticated assistant-ui fixture"
+    source: "results/2026-07-27/ui/cross-browser-chat-workspace-audit.json"
+    fields:
+      requested: {path: "summary.requested", format: "integer"}
+      passed: {path: "summary.passed", format: "integer"}
+      actions: {path: "browsers.chromium.desktop.actions", format: "integer"}
+      previews: {path: "browsers.chromium.desktop.screen_previews_loaded", format: "integer"}
+      desktop_overflow: {path: "browsers.chromium.desktop.document_horizontal_overflow_pixels", format: "integer"}
+      responsive_overflow: {path: "browsers.chromium.responsive.document_horizontal_overflow_pixels", format: "integer"}
+      chromium: {path: "browsers.chromium.duration_ms", format: "milliseconds", digits: 0}
+      firefox: {path: "browsers.firefox.duration_ms", format: "milliseconds", digits: 0}
+      webkit: {path: "browsers.webkit.duration_ms", format: "milliseconds", digits: 0}
+      external: {path: "safety.external_requests", format: "integer"}
+      connection: {path: "browsers.chromium.connection.configured_state_visible", format: "text"}
+      progress: {path: "browsers.chromium.progress.count", format: "integer"}
+      branches: {path: "browsers.chromium.progress.branch_controls", format: "integer"}
+      clean: {path: "source_worktree_clean", format: "text"}
+    cases: "{passed}/{requested} engines; {actions} actions / {previews} previews per engine; clean source: {clean}"
+    result: "{desktop_overflow}px desktop / {responsive_overflow}px responsive overflow; connection visible: {connection}; {progress} progress / {branches} branches; {external} external requests"
+    latency: "Chromium {chromium}; Firefox {firefox}; WebKit {webkit}"
+    wall: "Target-free official Playwright 1.61 image"
+    status: "Passing synthetic browser matrix; live computer and sustained decode pending"
 
   - suite: "Live-frame resource envelope"
     route: "Target-free streamed preview adapter"

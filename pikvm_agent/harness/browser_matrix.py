@@ -144,6 +144,12 @@ def _clean_failure(cause: BaseException) -> str:
     return message[:480]
 
 
+def _clean_messages(values: Sequence[str]) -> list[str]:
+    """Sanitize browser diagnostics before they enter durable evidence."""
+
+    return [_clean_failure(RuntimeError(value)) for value in values[:20]]
+
+
 def _is_fixture_request(url: str, port: int) -> bool:
     parsed = urlparse(url)
     if parsed.scheme in {"blob", "data"}:
@@ -234,19 +240,207 @@ def _overflow_measurements(page: Any) -> dict[str, int]:
     )
 
 
+def _overflow_summary(measurements: dict[str, Any]) -> str:
+    return ", ".join(
+        f"{key}={value}"
+        for key, value in measurements.items()
+        if key.endswith("overflow_pixels")
+    )
+
+
+def _horizontal_overflow_offenders(page: Any) -> list[dict[str, Any]]:
+    return page.evaluate(
+        """() => Array.from(document.body.querySelectorAll('*'))
+          .map((element) => {
+            const style = getComputedStyle(element);
+            const bounds = element.getBoundingClientRect();
+            return {
+              tag: element.tagName.toLowerCase(),
+              slot: element.getAttribute('data-slot') || '',
+              aria: element.getAttribute('aria-label') || '',
+              position: style.position,
+              display: style.display,
+              visibility: style.visibility,
+              overflowX: style.overflowX,
+              left: Math.round(bounds.left),
+              right: Math.round(bounds.right),
+              width: Math.round(bounds.width),
+              clientWidth: element.clientWidth,
+              scrollWidth: element.scrollWidth,
+              excess: Math.round(
+                Math.max(0, bounds.right - innerWidth, -bounds.left)
+              ),
+            };
+          })
+          .filter((item) =>
+            item.display !== 'none' &&
+            item.visibility !== 'hidden' &&
+            (item.excess > 0 || item.scrollWidth > item.clientWidth + 1)
+          )
+          .sort((left, right) =>
+            Math.max(right.excess, right.scrollWidth - right.clientWidth) -
+            Math.max(left.excess, left.scrollWidth - left.clientWidth)
+          )
+          .slice(0, 8)"""
+    )
+
+
+def _wait_for_loaded_previews(
+    page: Any,
+    *,
+    minimum: int,
+    timeout_ms: int,
+) -> int:
+    deadline = time.monotonic() + timeout_ms / 1_000
+    last = {"total": 0, "loaded": 0}
+    while time.monotonic() < deadline:
+        last = page.evaluate(
+            """() => {
+              const images = Array.from(document.querySelectorAll(
+                '.computer-action-step img'
+              ));
+              return {
+                total: images.length,
+                loaded: images.filter(
+                  (image) => image.complete && image.naturalWidth > 0
+                ).length,
+              };
+            }"""
+        )
+        if last["total"] >= minimum and last["loaded"] == last["total"]:
+            return int(last["loaded"])
+        page.wait_for_timeout(100)
+    raise BrowserAuditFailure(
+        "action-bound previews did not load "
+        f"({last['loaded']}/{last['total']})"
+    )
+
+
+def _wait_for_texts(
+    locator: Any,
+    expected: Sequence[str],
+    *,
+    timeout_ms: int,
+) -> str:
+    deadline = time.monotonic() + timeout_ms / 1_000
+    last = ""
+    while time.monotonic() < deadline:
+        last = locator.inner_text()
+        if all(value in last for value in expected):
+            return last
+        time.sleep(0.1)
+    missing = ", ".join(value for value in expected if value not in last)
+    raise BrowserAuditFailure(f"rendered text is missing: {missing}")
+
+
+def _wait_for_hidden(locator: Any, *, timeout_ms: int) -> None:
+    deadline = time.monotonic() + timeout_ms / 1_000
+    while time.monotonic() < deadline:
+        if locator.count() == 0 or not locator.is_visible():
+            return
+        time.sleep(0.1)
+    last = locator.evaluate_all(
+        """(elements) => elements.map((element) => {
+              const style = getComputedStyle(element);
+              const bounds = element.getBoundingClientRect();
+              const opacityRules = [];
+              const collectRules = (rules) => {
+                for (const rule of rules) {
+                  if (rule.cssRules) {
+                    collectRules(rule.cssRules);
+                    continue;
+                  }
+                  if (
+                    rule.selectorText &&
+                    rule.style?.opacity &&
+                    element.matches(rule.selectorText)
+                  ) {
+                    opacityRules.push(
+                      `${rule.selectorText}{opacity:${rule.style.opacity}}`
+                    );
+                  }
+                }
+              };
+              for (const sheet of document.styleSheets) {
+                try {
+                  collectRules(sheet.cssRules);
+                } catch {}
+              }
+              return {
+                opacity: style.opacity,
+                opacityRules: opacityRules.slice(-4),
+                transform: style.transform,
+                translate: style.translate,
+                transitionDuration: style.transitionDuration,
+                transitionProperty: style.transitionProperty.slice(0, 80),
+                animationDuration: style.animationDuration,
+                animationName: style.animationName,
+                endingOpacityClass: element.classList.contains(
+                  'data-ending-style:opacity-0'
+                ),
+                inlineOpacity: element.style.opacity,
+                attributes: Object.fromEntries(
+                  Array.from(element.attributes).map(
+                    (attribute) => [attribute.name, attribute.value]
+                  ).filter(([name]) => name !== 'class' && name !== 'style')
+                ),
+                state: element.getAttribute('data-state'),
+                open: element.hasAttribute('data-open'),
+                closed: element.hasAttribute('data-closed'),
+                hidden: element.hidden,
+                ariaHidden: element.getAttribute('aria-hidden'),
+                display: style.display,
+                visibility: style.visibility,
+                pointerEvents: style.pointerEvents,
+                width: Math.round(bounds.width),
+                height: Math.round(bounds.height),
+              };
+            })"""
+    )
+    raise BrowserAuditFailure(
+        "UI surface did not close "
+        f"({json.dumps(last, separators=(',', ':'))[:320]})"
+    )
+
+
+def _pointer_click(page: Any, locator: Any) -> None:
+    """Issue a real pointer event at the measured centre of a UI control."""
+
+    locator.evaluate(
+        "(element) => element.scrollIntoView({"
+        "behavior: 'instant', block: 'center', inline: 'center'"
+        "})"
+    )
+    box = locator.bounding_box()
+    if (
+        box is None
+        or not locator.is_visible()
+        or not locator.is_enabled()
+    ):
+        raise BrowserAuditFailure("pointer target is not visible and enabled")
+    page.mouse.click(
+        box["x"] + box["width"] / 2,
+        box["y"] + box["height"] / 2,
+    )
+
+
 def _select_desktop_task(page: Any, title: str) -> None:
-    page.locator(
+    trigger = page.locator(
         'aside [data-slot="aui_thread-list-item-trigger"]'
-    ).filter(has_text=title).click()
+    ).filter(has_text=title)
+    _pointer_click(page, trigger)
     page.locator("header").get_by_text(title, exact=True).wait_for()
 
 
 def _select_mobile_task(page: Any, title: str) -> None:
-    page.get_by_role("button", name="Open tasks").click()
+    _pointer_click(page, page.get_by_role("button", name="Open tasks"))
     sheet = page.get_by_role("dialog")
-    sheet.locator('[data-slot="aui_thread-list-item-trigger"]').filter(
+    trigger = sheet.locator(
+        '[data-slot="aui_thread-list-item-trigger"]'
+    ).filter(
         has_text=title
-    ).first.click()
+    ).first
+    _pointer_click(page, trigger)
     page.locator("header").get_by_text(title, exact=True).wait_for()
 
 
@@ -346,7 +540,7 @@ def _audit_engine(
             'button[aria-label^="12 computer actions"]'
         )
         group.wait_for()
-        group.click()
+        _pointer_click(page, group)
         action_rows = page.locator(".computer-action-step")
         stage = "render twelve computer action rows"
         page.wait_for_function(
@@ -356,25 +550,22 @@ def _audit_engine(
         )
         stage = "expand individual computer actions"
         for index in range(action_rows.count()):
+            stage = f"expand computer action {index + 1}"
             trigger = action_rows.nth(index).locator(":scope > button").first
-            trigger.scroll_into_view_if_needed()
             if trigger.get_attribute("aria-expanded") == "false":
-                trigger.click()
+                _pointer_click(page, trigger)
+        stage = "open first computer action details"
         first_details = action_rows.first.get_by_role(
             "button", name="Details"
         )
-        first_details.click()
+        _pointer_click(page, first_details)
+        stage = "wait for first computer action receipt"
         page.get_by_label("Computer action receipt").first.wait_for()
-        preview_images = action_rows.locator("img")
         stage = "load action-bound screen previews"
-        page.wait_for_function(
-            """() => {
-              const images = Array.from(document.querySelectorAll(
-                '.computer-action-step img'
-              ));
-              return images.length >= 10 &&
-                images.every((image) => image.complete && image.naturalWidth > 0);
-            }"""
+        previews_loaded = _wait_for_loaded_previews(
+            page,
+            minimum=10,
+            timeout_ms=timeout_ms,
         )
         body_text = page.locator("body").inner_text()
         if "fast-controller-fixture" not in body_text:
@@ -384,25 +575,30 @@ def _audit_engine(
         desktop = {
             "viewport": "1440x900",
             "actions": action_rows.count(),
-            "screen_previews_loaded": preview_images.count(),
+            "screen_previews_loaded": previews_loaded,
             "model_route_visible": True,
             "exact_tool_visible": True,
             **_overflow_measurements(page),
         }
         if any(desktop[key] for key in desktop if key.endswith("overflow_pixels")):
-            raise BrowserAuditFailure("desktop workspace has horizontal overflow")
+            raise BrowserAuditFailure(
+                "desktop workspace has horizontal overflow "
+                f"({_overflow_summary(desktop)})"
+            )
 
         stage = "open model connections"
-        page.get_by_role("button", name="Open model connections").click()
+        _pointer_click(
+            page,
+            page.get_by_role("button", name="Open model connections"),
+        )
         models_sheet = page.get_by_role("dialog")
         models_sheet.get_by_role("heading", name="Models").wait_for()
         stage = "wait for configured model routes"
-        for route_name in ("claude-account", "fast-controller"):
-            models_sheet.get_by_text(
-                route_name,
-                exact=False,
-            ).first.wait_for()
-        models_text = models_sheet.inner_text()
+        models_text = _wait_for_texts(
+            models_sheet,
+            ("claude-account", "fast-controller"),
+            timeout_ms=timeout_ms,
+        )
         models = {
             "claude_oauth_visible": (
                 "claude-account" in models_text
@@ -420,8 +616,13 @@ def _audit_engine(
             raise BrowserAuditFailure(
                 f"model connection sheet is missing: {missing}"
             )
-        page.keyboard.press("Escape")
-        models_sheet.wait_for(state="hidden")
+        stage = "close model connections"
+        _pointer_click(
+            page,
+            models_sheet.get_by_role("button", name="Close"),
+        )
+        stage = "wait for model connections to close"
+        _wait_for_hidden(models_sheet, timeout_ms=timeout_ms)
 
         stage = "measure responsive timeline"
         page.set_viewport_size({"width": 390, "height": 844})
@@ -446,7 +647,11 @@ def _audit_engine(
             for key in responsive
             if key.endswith("overflow_pixels")
         ):
-            raise BrowserAuditFailure("responsive workspace has horizontal overflow")
+            raise BrowserAuditFailure(
+                "responsive workspace has horizontal overflow "
+                f"({_overflow_summary(responsive)}; offenders="
+                f"{json.dumps(_horizontal_overflow_offenders(page), separators=(',', ':'))})"
+            )
 
         stage = "select approval task"
         _select_mobile_task(page, APPROVAL_TASK)
@@ -456,8 +661,16 @@ def _audit_engine(
         page.get_by_text("external side effect", exact=False).wait_for()
         allow = page.get_by_role("button", name="Allow once")
         deny = page.get_by_role("button", name="Deny")
-        allow.scroll_into_view_if_needed()
-        deny.scroll_into_view_if_needed()
+        allow.evaluate(
+            "(element) => element.scrollIntoView({"
+            "behavior: 'instant', block: 'center'"
+            "})"
+        )
+        deny.evaluate(
+            "(element) => element.scrollIntoView({"
+            "behavior: 'instant', block: 'center'"
+            "})"
+        )
         allow_box = allow.bounding_box()
         deny_box = deny.bounding_box()
         conversation_box = conversation.bounding_box()
@@ -586,9 +799,9 @@ def _audit_engine(
             "approval": approval,
             "direct": direct,
             "progress": progress,
-            "console_errors": console_errors,
-            "page_errors": page_errors,
-            "external_requests": external_requests,
+            "console_errors": _clean_messages(console_errors),
+            "page_errors": _clean_messages(page_errors),
+            "external_requests": _clean_messages(external_requests),
         }
     except Exception as cause:
         return {
@@ -596,9 +809,9 @@ def _audit_engine(
             "duration_ms": round((time.perf_counter() - started) * 1_000),
             "failure_stage": stage,
             "failure": _clean_failure(cause),
-            "console_errors": console_errors,
-            "page_errors": page_errors,
-            "external_requests": external_requests,
+            "console_errors": _clean_messages(console_errors),
+            "page_errors": _clean_messages(page_errors),
+            "external_requests": _clean_messages(external_requests),
         }
     finally:
         if context is not None:

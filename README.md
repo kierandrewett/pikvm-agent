@@ -348,6 +348,26 @@ full 12-action timeline, 10 changing previews, and a held two-input send
 boundary; its measurements and the rendering defect found during the run are
 published in [`bench/README.md`](bench/README.md).
 
+Run the same authenticated workspace contract in Chromium, Firefox, and
+WebKit:
+
+```bash
+uv sync --extra browser
+uv run playwright install chromium firefox webkit
+uv run pikvm-agent harness browser-audit \
+  --output bench-local/cross-browser-chat-workspace-audit.json
+```
+
+The audit covers the 1,200-event/12-action transcript, authenticated action
+previews, exact MCP and model identity, OAuth- and API-backed provider rows,
+desktop and 390×844 overflow, the held approval boundary, and guarded-direct
+ownership. It refuses an unknown browser, records console/page errors and
+external requests, and contacts no computer or model. On Linux hosts whose
+native libraries do not match Playwright WebKit, run the command in the
+matching official Playwright image rather than weakening the browser matrix.
+The retained 3/3 report is
+[`cross-browser-chat-workspace-audit.json`](bench/results/2026-07-27/ui/cross-browser-chat-workspace-audit.json).
+
 For support diagnostics without contacting the selected machine or a provider:
 
 ```bash
@@ -654,6 +674,14 @@ pikvm-agent harness run-metrics \
 # Fails if the public headline or any linked evidence digest has drifted.
 pikvm-agent harness scorecard --check
 ```
+
+Typing itself is at-most-once. A stale screen cannot distinguish a completely
+dropped chunk from a boundary space that landed before the rest repainted, so
+the runtime never replays ambiguous text. It stops before Enter, click, or
+further input and reports separate delivery, emitted-payload, OCR-text, and
+evaluated-frame SHA-256 values. Matching OCR and frame-bound receipts prove
+which pixels were evaluated; only a lab observer, application-readable value,
+or file hash is an exact guest-side oracle.
 
 See [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md) for OSWorld, Windows Agent
 Arena, ScreenSpot-Pro, and the proposed seeded PiKVM-100 comparison protocol.

@@ -1,0 +1,213 @@
+{
+  "browsers": {
+    "chromium": {
+      "approval": {
+        "allow_once_visible": true,
+        "approval_submitted": false,
+        "composer_send_disabled": true,
+        "consequential_enter_visible": true,
+        "controls_horizontally_inside_conversation": true,
+        "deny_visible": true,
+        "exact_text_visible": true,
+        "hold_reason_visible": true
+      },
+      "browser_version": "149.0.7827.55",
+      "connection": {
+        "configured_state_visible": true,
+        "machine_visible": true,
+        "managed_mcp_visible": true,
+        "reachability_deferred_truthfully": true
+      },
+      "console_errors": [],
+      "desktop": {
+        "actions": 12,
+        "conversation_horizontal_overflow_pixels": 0,
+        "document_horizontal_overflow_pixels": 0,
+        "exact_tool_visible": true,
+        "maximum_action_horizontal_overflow_pixels": 0,
+        "model_route_visible": true,
+        "screen_previews_loaded": 20,
+        "viewport": "1440x900"
+      },
+      "direct": {
+        "caller_identity_visible": true,
+        "caller_model_visible": true,
+        "caller_provider_visible": true,
+        "composer_hidden": true,
+        "guarded_direct_visible": true,
+        "managed_assurance_hidden": true
+      },
+      "duration_ms": 8219,
+      "external_requests": [],
+      "models": {
+        "api_provider_visible": true,
+        "claude_oauth_visible": true
+      },
+      "page_errors": [],
+      "progress": {
+        "branch_controls": 0,
+        "count": 1,
+        "inside_assistant_message": false,
+        "text": "Starting the modelfast-controller",
+        "thread_owned": true
+      },
+      "responsive": {
+        "computer_connection_visible": true,
+        "computer_state_visible": true,
+        "conversation_horizontal_overflow_pixels": 0,
+        "document_horizontal_overflow_pixels": 0,
+        "maximum_action_horizontal_overflow_pixels": 0,
+        "viewport": "390x844"
+      },
+      "status": "passed"
+    },
+    "firefox": {
+      "approval": {
+        "allow_once_visible": true,
+        "approval_submitted": false,
+        "composer_send_disabled": true,
+        "consequential_enter_visible": true,
+        "controls_horizontally_inside_conversation": true,
+        "deny_visible": true,
+        "exact_text_visible": true,
+        "hold_reason_visible": true
+      },
+      "browser_version": "151.0",
+      "connection": {
+        "configured_state_visible": true,
+        "machine_visible": true,
+        "managed_mcp_visible": true,
+        "reachability_deferred_truthfully": true
+      },
+      "console_errors": [],
+      "desktop": {
+        "actions": 12,
+        "conversation_horizontal_overflow_pixels": 0,
+        "document_horizontal_overflow_pixels": 0,
+        "exact_tool_visible": true,
+        "maximum_action_horizontal_overflow_pixels": 0,
+        "model_route_visible": true,
+        "screen_previews_loaded": 20,
+        "viewport": "1440x900"
+      },
+      "direct": {
+        "caller_identity_visible": true,
+        "caller_model_visible": true,
+        "caller_provider_visible": true,
+        "composer_hidden": true,
+        "guarded_direct_visible": true,
+        "managed_assurance_hidden": true
+      },
+      "duration_ms": 13136,
+      "external_requests": [],
+      "models": {
+        "api_provider_visible": true,
+        "claude_oauth_visible": true
+      },
+      "page_errors": [],
+      "progress": {
+        "branch_controls": 0,
+        "count": 1,
+        "inside_assistant_message": false,
+        "text": "Starting the modelfast-controller",
+        "thread_owned": true
+      },
+      "responsive": {
+        "computer_connection_visible": true,
+        "computer_state_visible": true,
+        "conversation_horizontal_overflow_pixels": 0,
+        "document_horizontal_overflow_pixels": 0,
+        "maximum_action_horizontal_overflow_pixels": 0,
+        "viewport": "390x844"
+      },
+      "status": "passed"
+    },
+    "webkit": {
+      "approval": {
+        "allow_once_visible": true,
+        "approval_submitted": false,
+        "composer_send_disabled": true,
+        "consequential_enter_visible": true,
+        "controls_horizontally_inside_conversation": true,
+        "deny_visible": true,
+        "exact_text_visible": true,
+        "hold_reason_visible": true
+      },
+      "browser_version": "26.5",
+      "connection": {
+        "configured_state_visible": true,
+        "machine_visible": true,
+        "managed_mcp_visible": true,
+        "reachability_deferred_truthfully": true
+      },
+      "console_errors": [],
+      "desktop": {
+        "actions": 12,
+        "conversation_horizontal_overflow_pixels": 0,
+        "document_horizontal_overflow_pixels": 0,
+        "exact_tool_visible": true,
+        "maximum_action_horizontal_overflow_pixels": 0,
+        "model_route_visible": true,
+        "screen_previews_loaded": 20,
+        "viewport": "1440x900"
+      },
+      "direct": {
+        "caller_identity_visible": true,
+        "caller_model_visible": true,
+        "caller_provider_visible": true,
+        "composer_hidden": true,
+        "guarded_direct_visible": true,
+        "managed_assurance_hidden": true
+      },
+      "duration_ms": 17328,
+      "external_requests": [],
+      "models": {
+        "api_provider_visible": true,
+        "claude_oauth_visible": true
+      },
+      "page_errors": [],
+      "progress": {
+        "branch_controls": 0,
+        "count": 1,
+        "inside_assistant_message": false,
+        "text": "Starting the modelfast-controller",
+        "thread_owned": true
+      },
+      "responsive": {
+        "computer_connection_visible": true,
+        "computer_state_visible": true,
+        "conversation_horizontal_overflow_pixels": 0,
+        "document_horizontal_overflow_pixels": 0,
+        "maximum_action_horizontal_overflow_pixels": 0,
+        "viewport": "390x844"
+      },
+      "status": "passed"
+    }
+  },
+  "environment": "ephemeral-loopback-target-free-fixture",
+  "recorded_at": "2026-07-27T21:54:30.806981+00:00",
+  "requested_browsers": [
+    "chromium",
+    "firefox",
+    "webkit"
+  ],
+  "safety": {
+    "approval_submitted": false,
+    "computer_input_committed": false,
+    "external_requests": 0,
+    "model_provider_contacted": false,
+    "pikvm_contacted": false,
+    "production_daemon_contacted": false,
+    "vnc_contacted": false
+  },
+  "schema_version": 1,
+  "source_commit": "a68441eef0c569caf5c3e9cf68d0c99d0253c375",
+  "source_worktree_clean": true,
+  "suite": "cross-browser-chat-workspace-audit",
+  "summary": {
+    "failed": 0,
+    "passed": 3,
+    "release_gate_passed": true,
+    "requested": 3
+  }
+}
