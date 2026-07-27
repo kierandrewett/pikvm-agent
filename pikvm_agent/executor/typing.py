@@ -875,45 +875,54 @@ class WatchedTyper:
                     cur_region = union_region(cur_region, loc) if located else loc
                     located = True
                 elif not located and not secret and len(typed_so_far) >= ABORT_MIN_CHARS:
-                    # VNC video may trail HID by a frame.  Take exactly one
-                    # delayed sample before concluding the field was not focused.
-                    await asyncio.sleep(_VIDEO_RETRY_SETTLE_S)
-                    grid_retry = await self._grid()
-                    retry_loc = (
-                        locate_changed_bbox(grid_prev, grid_retry, dims)
-                        if grid_prev is not None and grid_retry is not None
-                        else None
-                    )
-                    if retry_loc is not None:
-                        cur_region = retry_loc
-                        located = True
-                        grid_now = grid_retry
-                    else:
+                    # Remote VNC video can trail acknowledged HID by more than
+                    # one frame. Take two bounded, read-only samples before
+                    # concluding that the field was not focused. Never emit
+                    # more text here: continue only when pixels or exact
+                    # grounded OCR prove that this first chunk landed.
+                    for settle_s in (
+                        _VIDEO_RETRY_SETTLE_S,
+                        _PRINT_SETTLE_S,
+                    ):
+                        await asyncio.sleep(settle_s)
+                        grid_retry = await self._grid()
+                        retry_loc = (
+                            locate_changed_bbox(grid_prev, grid_retry, dims)
+                            if grid_prev is not None and grid_retry is not None
+                            else None
+                        )
+                        if retry_loc is not None:
+                            cur_region = retry_loc
+                            located = True
+                            grid_now = grid_retry
+                            break
+
                         # Some VNC encoders quantize small dark-theme glyph
                         # changes below the grid threshold. Accept only grounded
                         # OCR evidence that the just-typed text is on screen.
-                        screen_read = await self._read_screen()
                         ocr_loc = self._locate_ocr_candidate(
-                            screen_read,
+                            await self._read_screen(),
                             typed_so_far,
                             dims,
                         )
                         if ocr_loc is not None:
                             cur_region = ocr_loc
                             located = True
-                        else:
-                            # No pixel or OCR evidence ⇒ wrong target.
-                            return self._halted_result(
-                                status="failed_focus_lost",
-                                field_text="",
-                                corrected=False,
-                                correction_count=corrections,
-                                delivery_retries=delivery_retries,
-                                used_fast_path=fast_print,
-                                typed_characters=len(typed_so_far),
-                                intended_characters=len(text),
-                                summary=NO_FOCUS_SUMMARY,
-                            )
+                            break
+
+                    if not located:
+                        # No pixel or OCR evidence ⇒ wrong target.
+                        return self._halted_result(
+                            status="failed_focus_lost",
+                            field_text="",
+                            corrected=False,
+                            correction_count=corrections,
+                            delivery_retries=delivery_retries,
+                            used_fast_path=fast_print,
+                            typed_characters=len(typed_so_far),
+                            intended_characters=len(text),
+                            summary=NO_FOCUS_SUMMARY,
+                        )
             if grid_now is not None:
                 grid_prev = grid_now
 
