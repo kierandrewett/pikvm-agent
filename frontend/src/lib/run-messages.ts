@@ -231,24 +231,38 @@ const inputReceipts = (value: unknown) =>
       type: safeString(item.type),
       status: safeString(item.status),
       verdict: safeString(item.verdict),
+      proof_state: safeString(item.proof_state),
       observed_text: safeString(item.observed_text),
       observed_text_redacted: item.observed_text_redacted === true,
-      typed_characters: safeNumber(item.typed_characters),
-      intended_characters: safeNumber(item.intended_characters),
+      requested_characters: safeNumber(
+        item.requested_characters ?? item.intended_characters,
+      ),
+      issued_characters: safeNumber(
+        item.issued_characters ?? item.typed_characters,
+      ),
+      observed_characters: safeNumber(item.observed_characters),
       correction_count: safeNumber(item.correction_count),
       delivery_retries: safeNumber(item.delivery_retries),
       used_fast_path: item.used_fast_path === true,
       summary: safeString(item.summary),
       edit_distance: safeNumber(item.edit_distance),
       focus_evidence: safeString(item.focus_evidence),
-      intended_sha256: safeString(item.intended_sha256),
-      acknowledged_prefix_sha256: safeString(
-        item.acknowledged_prefix_sha256,
+      requested_sha256: safeString(
+        item.requested_sha256 || item.intended_sha256,
       ),
-      observed_sha256: safeString(item.observed_sha256),
-      exact_sha256_match:
-        typeof item.exact_sha256_match === "boolean"
-          ? item.exact_sha256_match
+      issued_prefix_sha256: safeString(
+        item.issued_prefix_sha256 || item.acknowledged_prefix_sha256,
+      ),
+      readback_sha256: safeString(
+        item.readback_sha256 || item.observed_sha256,
+      ),
+      exact_readback_sha256_match:
+        typeof (
+          item.exact_readback_sha256_match ?? item.exact_sha256_match
+        ) === "boolean"
+          ? Boolean(
+              item.exact_readback_sha256_match ?? item.exact_sha256_match,
+            )
           : undefined,
     }));
 

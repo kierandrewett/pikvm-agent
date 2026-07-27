@@ -735,18 +735,19 @@ class DirectCallCoordinator:
         }
         for index, _ in active:
             receipt = by_index.get(index, {})
-            intended_hash = receipt.get("intended_sha256")
-            observed_hash = receipt.get("observed_sha256")
+            requested_hash = receipt.get("requested_sha256")
+            readback_hash = receipt.get("readback_sha256")
             if not (
                 receipt.get("status") == "verified_exact"
                 and receipt.get("verdict") == "match"
                 and receipt.get("focus_evidence") == "read_back_verified"
-                and receipt.get("exact_sha256_match") is True
-                and isinstance(intended_hash, str)
-                and intended_hash
-                and intended_hash == observed_hash
-                and receipt.get("typed_characters")
-                == receipt.get("intended_characters")
+                and receipt.get("proof_state") == "exact_readback"
+                and receipt.get("exact_readback_sha256_match") is True
+                and isinstance(requested_hash, str)
+                and requested_hash
+                and requested_hash == readback_hash
+                and receipt.get("issued_characters")
+                == receipt.get("requested_characters")
             ):
                 return False
         return True

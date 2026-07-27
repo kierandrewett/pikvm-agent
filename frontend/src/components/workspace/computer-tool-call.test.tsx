@@ -338,7 +338,7 @@ describe("ComputerInputSequence", () => {
     expect(screen.getByLabelText("Exact text input").textContent).toBe(
       "Quarterly figures are attached for your review.",
     );
-    expect(screen.getByText("Exact typed payload")).not.toBeNull();
+    expect(screen.getByText("Requested payload")).not.toBeNull();
     expect(screen.getByText("47 chars · 1 line")).not.toBeNull();
     expect(
       screen.getByLabelText("Exact key input: CTRL plus ENTER"),
@@ -357,35 +357,38 @@ describe("ComputerInputSequence", () => {
             type: "type_text",
             status: "verified_exact",
             verdict: "match",
+            proof_state: "exact_readback",
             observed_text: "hello world",
             observed_text_redacted: false,
-            typed_characters: 11,
-            intended_characters: 11,
+            issued_characters: 11,
+            requested_characters: 11,
+            observed_characters: 11,
             correction_count: 1,
             delivery_retries: 0,
             used_fast_path: false,
             summary: "Typed and verified.",
             edit_distance: 0,
             focus_evidence: "read_back_verified",
-            intended_sha256:
+            requested_sha256:
               "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9",
-            acknowledged_prefix_sha256:
+            issued_prefix_sha256:
               "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9",
-            observed_sha256:
+            readback_sha256:
               "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9",
-            exact_sha256_match: true,
+            exact_readback_sha256_match: true,
           },
         ]}
       />,
     );
 
     const readBack = screen.getByLabelText("Typing read-back for action 1");
-    expect(readBack.textContent).toContain("Exact read-back");
+    expect(readBack.textContent).toContain("Exact OCR read-back");
     expect(readBack.textContent).toContain("hello world");
-    expect(readBack.textContent).toContain("11 / 11 chars");
+    expect(readBack.textContent).toContain("11 / 11 issued");
+    expect(readBack.textContent).toContain("11 read back");
     expect(readBack.textContent).toContain("0 edits");
     expect(readBack.textContent).toContain("1 correction");
-    expect(readBack.textContent).toContain("Exact SHA-256");
+    expect(readBack.textContent).toContain("Read-back SHA-256");
     expect(readBack.textContent).toContain("b94d27b9934d");
   });
 
@@ -399,10 +402,12 @@ describe("ComputerInputSequence", () => {
             type: "type_text",
             status: "failed_focus_lost",
             verdict: "mismatch",
+            proof_state: "issued_only",
             observed_text: "",
             observed_text_redacted: false,
-            typed_characters: 5,
-            intended_characters: 11,
+            issued_characters: 5,
+            requested_characters: 11,
+            observed_characters: 0,
             correction_count: 0,
             delivery_retries: 0,
             used_fast_path: false,
@@ -415,7 +420,7 @@ describe("ComputerInputSequence", () => {
 
     const readBack = screen.getByLabelText("Typing read-back for action 1");
     expect(readBack.textContent).toContain("Focus lost");
-    expect(readBack.textContent).toContain("5 / 11 chars");
+    expect(readBack.textContent).toContain("5 / 11 issued");
     expect(readBack.textContent).not.toContain("Read-back matches");
   });
 
@@ -429,19 +434,21 @@ describe("ComputerInputSequence", () => {
             type: "type_text",
             status: "verified_safe_normalized",
             verdict: "match",
+            proof_state: "normalized_readback",
             observed_text: "one  space",
             observed_text_redacted: false,
-            typed_characters: 9,
-            intended_characters: 9,
+            issued_characters: 9,
+            requested_characters: 9,
+            observed_characters: 10,
             correction_count: 0,
             delivery_retries: 0,
             used_fast_path: false,
             edit_distance: 0,
             focus_evidence: "read_back_verified",
-            intended_sha256: "a".repeat(64),
-            acknowledged_prefix_sha256: "a".repeat(64),
-            observed_sha256: "b".repeat(64),
-            exact_sha256_match: false,
+            requested_sha256: "a".repeat(64),
+            issued_prefix_sha256: "a".repeat(64),
+            readback_sha256: "b".repeat(64),
+            exact_readback_sha256_match: false,
           },
         ]}
       />,
@@ -449,8 +456,46 @@ describe("ComputerInputSequence", () => {
 
     const readBack = screen.getByLabelText("Typing read-back for action 1");
     expect(readBack.textContent).toContain("Normalized only");
-    expect(readBack.textContent).toContain("aaaaaaaaaaaa ≠ bbbbbbbbbbbb");
+    expect(readBack.textContent).toContain(
+      "Requested aaaaaaaaaaaa ≠ read-back bbbbbbbbbbbb",
+    );
     expect(readBack.textContent).not.toContain("Exact read-back");
+  });
+
+  it("shows sender completion and a partial read-back as different facts", () => {
+    render(
+      <ComputerInputSequence
+        actions={[{ type: "type_text", text: "Get-Process observer*" }]}
+        inputReceipts={[
+          {
+            index: 0,
+            type: "type_text",
+            status: "unverified_truncated",
+            verdict: "unverified",
+            proof_state: "partial_readback",
+            observed_text: "Get-Process",
+            observed_text_redacted: false,
+            issued_characters: 21,
+            requested_characters: 21,
+            observed_characters: 11,
+            correction_count: 0,
+            delivery_retries: 0,
+            used_fast_path: false,
+            focus_evidence: "read_back_unverified",
+            requested_sha256: "a".repeat(64),
+            issued_prefix_sha256: "a".repeat(64),
+            readback_sha256: "b".repeat(64),
+            exact_readback_sha256_match: false,
+          },
+        ]}
+      />,
+    );
+
+    const readBack = screen.getByLabelText("Typing read-back for action 1");
+    expect(readBack.textContent).toContain("Partial OCR read-back");
+    expect(readBack.textContent).toContain("21 / 21 issued");
+    expect(readBack.textContent).toContain("11 read back");
+    expect(readBack.textContent).not.toContain("Exact OCR read-back");
   });
 
   it("never renders retained read-back for a secret input", () => {
@@ -470,10 +515,11 @@ describe("ComputerInputSequence", () => {
             type: "type_text",
             status: "delivered_unverified",
             verdict: "unverified",
+            proof_state: "not_retained",
             observed_text: "must not render",
             observed_text_redacted: true,
-            typed_characters: 14,
-            intended_characters: 14,
+            issued_characters: 14,
+            requested_characters: 14,
             correction_count: 0,
             delivery_retries: 0,
             used_fast_path: false,

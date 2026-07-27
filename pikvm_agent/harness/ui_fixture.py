@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
@@ -478,16 +479,28 @@ def build_fixture_run(
                     "type": "type_text",
                     "status": "verified_exact",
                     "verdict": "match",
+                    "proof_state": "exact_readback",
                     "observed_text": "Quarterly review draft",
                     "observed_text_redacted": False,
-                    "typed_characters": 22,
-                    "intended_characters": 22,
+                    "issued_characters": 22,
+                    "requested_characters": 22,
+                    "observed_characters": 22,
                     "correction_count": 0,
                     "delivery_retries": 0,
                     "used_fast_path": False,
                     "summary": "Typed and verified the target field.",
                     "edit_distance": 0,
                     "focus_evidence": "read_back_verified",
+                    "requested_sha256": hashlib.sha256(
+                        b"Quarterly review draft"
+                    ).hexdigest(),
+                    "issued_prefix_sha256": hashlib.sha256(
+                        b"Quarterly review draft"
+                    ).hexdigest(),
+                    "readback_sha256": hashlib.sha256(
+                        b"Quarterly review draft"
+                    ).hexdigest(),
+                    "exact_readback_sha256_match": True,
                 }
             ]
             if cycle % 3 == 1

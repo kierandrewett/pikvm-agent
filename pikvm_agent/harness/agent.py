@@ -79,12 +79,12 @@ control may be used only when its effect satisfies the amended request and can
 be verified. Do not add approval-request steps to the plan. The controller
 proposes the next bounded action; the independent daemon policy decides whether
 that exact action requires human approval and exits the model loop if it does.
-Treat recent_input_delivery as transport evidence. delivery_complete means the
-whole intended payload was acknowledged by the input transport; it is not
-screen proof. Do not replay delivery-complete text merely because OCR could not
-read invisible whitespace or a wrapped field. Progress to the next bounded
-application-level check, while requiring read_back_exact or artifact evidence
-before claiming exact on-screen or saved content."""
+Treat recent_input_delivery as sender evidence. sender_finished means the local
+sender issued the whole intended payload; it is not a transport acknowledgement
+and not screen proof. Do not blindly replay sender-finished text merely because
+OCR could not read invisible whitespace or a wrapped field. Re-observe first,
+then use a bounded application-level check. Require readback_exact or artifact
+evidence before claiming exact on-screen or saved content."""
 
 _CONTROLLER_SYSTEM = """\
 You are the fast controller for a physical computer. Choose one small logical
@@ -114,9 +114,10 @@ the same coordinate-only click: use a visibly grounded target, a safe keyboard
 navigation action, or request a replan. Treat ungrounded_navigation_history as
 explicitly refused pointer targets: do not revisit them or another blank/icon-
 only target that cannot be independently read. Treat recent_input_delivery as
-transport evidence. When delivery_complete is true, do not replay that text
-solely because OCR was ambiguous; move to a bounded application-level check.
-Only read_back_exact proves an exact visual read-back."""
+sender evidence. When sender_finished is true, the local sender finished issuing
+the payload, but the guest may still have dropped it. Never blindly replay it.
+Re-observe and use a bounded application-level check. Only readback_exact proves
+an exact OCR read-back."""
 
 _VERIFIER_SYSTEM = """\
 You are the independent verifier. Compare the plan, intended action, before
@@ -1554,32 +1555,32 @@ class AgentHarness:
             for receipt in receipts:
                 if not isinstance(receipt, dict):
                     continue
-                intended = receipt.get("intended_characters")
-                typed = receipt.get("typed_characters")
-                intended_hash = receipt.get("intended_sha256")
-                acknowledged_hash = receipt.get("acknowledged_prefix_sha256")
-                delivery_complete = (
-                    isinstance(intended, int)
-                    and not isinstance(intended, bool)
-                    and isinstance(typed, int)
-                    and not isinstance(typed, bool)
-                    and intended == typed
-                    and isinstance(intended_hash, str)
-                    and intended_hash != ""
-                    and intended_hash == acknowledged_hash
+                requested = receipt.get("requested_characters")
+                issued = receipt.get("issued_characters")
+                requested_hash = receipt.get("requested_sha256")
+                issued_hash = receipt.get("issued_prefix_sha256")
+                sender_finished = (
+                    isinstance(requested, int)
+                    and not isinstance(requested, bool)
+                    and isinstance(issued, int)
+                    and not isinstance(issued, bool)
+                    and requested == issued
+                    and isinstance(requested_hash, str)
+                    and requested_hash != ""
+                    and requested_hash == issued_hash
                 )
                 recent.append(
                     {
                         "action_index": event.data.get("index"),
                         "input_index": receipt.get("index"),
                         "status": receipt.get("status"),
-                        "typed_characters": typed,
-                        "intended_characters": intended,
-                        "delivery_complete": delivery_complete,
-                        "read_back_exact": (
-                            receipt.get("exact_sha256_match") is True
+                        "issued_characters": issued,
+                        "requested_characters": requested,
+                        "sender_finished": sender_finished,
+                        "readback_exact": (
+                            receipt.get("exact_readback_sha256_match") is True
                         ),
-                        "read_back_available": bool(
+                        "readback_available": bool(
                             receipt.get("observed_text")
                         ),
                     }

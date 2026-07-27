@@ -49,10 +49,20 @@ def public_input_receipts(
             "read_back_not_retained",
             "read_back_unavailable",
         },
+        "proof_state": {
+            "exact_readback",
+            "normalized_readback",
+            "partial_readback",
+            "mismatched_readback",
+            "ambiguous_readback",
+            "issued_only",
+            "not_retained",
+        },
     }
     integer_limits = {
-        "typed_characters": 480,
-        "intended_characters": 480,
+        "requested_characters": 480,
+        "issued_characters": 480,
+        "observed_characters": 960,
         "correction_count": 20,
         "delivery_retries": 20,
         "edit_distance": 960,
@@ -84,7 +94,13 @@ def public_input_receipts(
             if isinstance(value, str) and value in allowed:
                 receipt[key] = value
         for key, limit in integer_limits.items():
+            legacy_key = {
+                "requested_characters": "intended_characters",
+                "issued_characters": "typed_characters",
+            }.get(key)
             value = candidate.get(key)
+            if value is None and legacy_key is not None:
+                value = candidate.get(legacy_key)
             if (
                 isinstance(value, int)
                 and not isinstance(value, bool)
@@ -94,24 +110,28 @@ def public_input_receipts(
         used_fast_path = candidate.get("used_fast_path")
         if isinstance(used_fast_path, bool):
             receipt["used_fast_path"] = used_fast_path
-        for key in (
-            "intended_sha256",
-            "acknowledged_prefix_sha256",
-            "observed_sha256",
+        for key, legacy_key in (
+            ("requested_sha256", "intended_sha256"),
+            ("issued_prefix_sha256", "acknowledged_prefix_sha256"),
+            ("readback_sha256", "observed_sha256"),
         ):
             value = candidate.get(key)
+            if value is None:
+                value = candidate.get(legacy_key)
             if isinstance(value, str) and re.fullmatch(r"[0-9a-f]{64}", value):
                 receipt[key] = value
-        exact_sha256_match = candidate.get("exact_sha256_match")
+        exact_sha256_match = candidate.get("exact_readback_sha256_match")
+        if exact_sha256_match is None:
+            exact_sha256_match = candidate.get("exact_sha256_match")
         if isinstance(exact_sha256_match, bool):
-            receipt["exact_sha256_match"] = exact_sha256_match
+            receipt["exact_readback_sha256_match"] = exact_sha256_match
         receipt["observed_text_redacted"] = redacted
         if redacted:
             for key in (
-                "intended_sha256",
-                "acknowledged_prefix_sha256",
-                "observed_sha256",
-                "exact_sha256_match",
+                "requested_sha256",
+                "issued_prefix_sha256",
+                "readback_sha256",
+                "exact_readback_sha256_match",
             ):
                 receipt.pop(key, None)
             receipt.update(
@@ -119,14 +139,70 @@ def public_input_receipts(
                     "status": "delivered_unverified",
                     "verdict": "unverified",
                     "focus_evidence": "read_back_not_retained",
+                    "proof_state": "not_retained",
                 }
             )
         else:
             observed_text = candidate.get("observed_text")
             if isinstance(observed_text, str) and len(observed_text) <= 960:
                 receipt["observed_text"] = observed_text
+                receipt["observed_characters"] = len(observed_text)
             summary = candidate.get("summary")
             if isinstance(summary, str) and 0 < len(summary) <= 320:
                 receipt["summary"] = summary
+            receipt["proof_state"] = _proof_state(
+                receipt,
+                observed_text=(
+                    observed_text
+                    if isinstance(observed_text, str)
+                    else ""
+                ),
+                intended_text=str(action.get("text") or ""),
+            )
         output.append(receipt)
     return output
+
+
+def _proof_state(
+    receipt: dict[str, Any],
+    *,
+    observed_text: str,
+    intended_text: str,
+) -> str:
+    """Name exactly what the receipt proves; sender completion is not target ACK."""
+
+    if (
+        receipt.get("status") == "verified_exact"
+        and receipt.get("verdict") == "match"
+        and receipt.get("focus_evidence") == "read_back_verified"
+        and receipt.get("exact_readback_sha256_match") is True
+        and receipt.get("issued_characters")
+        == receipt.get("requested_characters")
+        and receipt.get("requested_sha256")
+        == receipt.get("issued_prefix_sha256")
+        and receipt.get("requested_sha256")
+        == receipt.get("readback_sha256")
+    ):
+        return "exact_readback"
+    if (
+        receipt.get("status") == "verified_safe_normalized"
+        and receipt.get("verdict") in {"match", "contains"}
+    ):
+        return "normalized_readback"
+    if observed_text:
+        if (
+            receipt.get("status") == "unverified_truncated"
+            or (
+                intended_text
+                and len(observed_text) < len(intended_text)
+                and intended_text.startswith(observed_text)
+            )
+        ):
+            return "partial_readback"
+        if (
+            receipt.get("verdict") == "mismatch"
+            or str(receipt.get("status") or "").startswith("failed_")
+        ):
+            return "mismatched_readback"
+        return "ambiguous_readback"
+    return "issued_only"

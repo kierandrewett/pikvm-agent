@@ -525,18 +525,19 @@ async def test_burst_type_text_proceeds_when_verified() -> None:
             "verdict": "match",
             "observed_text": "hi",
             "observed_text_redacted": False,
-            "typed_characters": 2,
-            "intended_characters": 2,
+            "issued_characters": 2,
+            "requested_characters": 2,
+            "observed_characters": 2,
             "correction_count": 1,
             "delivery_retries": 1,
             "used_fast_path": False,
             "summary": "stub",
             "edit_distance": 0,
             "focus_evidence": "read_back_verified",
-            "intended_sha256": hashlib.sha256(b"hi").hexdigest(),
-            "acknowledged_prefix_sha256": hashlib.sha256(b"hi").hexdigest(),
-            "observed_sha256": hashlib.sha256(b"hi").hexdigest(),
-            "exact_sha256_match": True,
+            "requested_sha256": hashlib.sha256(b"hi").hexdigest(),
+            "issued_prefix_sha256": hashlib.sha256(b"hi").hexdigest(),
+            "readback_sha256": hashlib.sha256(b"hi").hexdigest(),
+            "exact_readback_sha256_match": True,
         }
     ]
 
@@ -566,18 +567,19 @@ async def test_burst_retains_watched_readback_when_typing_fails() -> None:
             "verdict": "mismatch",
             "observed_text": "wrong",
             "observed_text_redacted": False,
-            "typed_characters": 5,
-            "intended_characters": 8,
+            "issued_characters": 5,
+            "requested_characters": 8,
+            "observed_characters": 5,
             "correction_count": 0,
             "delivery_retries": 0,
             "used_fast_path": False,
             "summary": "stub",
             "edit_distance": 7,
             "focus_evidence": "focus_lost",
-            "intended_sha256": hashlib.sha256(b"intended").hexdigest(),
-            "acknowledged_prefix_sha256": hashlib.sha256(b"inten").hexdigest(),
-            "observed_sha256": hashlib.sha256(b"wrong").hexdigest(),
-            "exact_sha256_match": False,
+            "requested_sha256": hashlib.sha256(b"intended").hexdigest(),
+            "issued_prefix_sha256": hashlib.sha256(b"inten").hexdigest(),
+            "readback_sha256": hashlib.sha256(b"wrong").hexdigest(),
+            "exact_readback_sha256_match": False,
         }
     ]
 
@@ -599,8 +601,8 @@ async def test_burst_secret_receipt_never_retains_secret_text() -> None:
             "status": "delivered_unverified",
             "verdict": "unverified",
             "observed_text_redacted": True,
-            "typed_characters": 12,
-            "intended_characters": 12,
+            "issued_characters": 12,
+            "requested_characters": 12,
             "correction_count": 0,
             "delivery_retries": 0,
             "used_fast_path": False,
@@ -627,8 +629,8 @@ async def test_burst_receipt_hashes_preserve_repeated_space_differences() -> Non
     )
 
     receipt = outcome.action_receipts[0]
-    assert receipt["intended_sha256"] != receipt["observed_sha256"]
-    assert receipt["exact_sha256_match"] is False
+    assert receipt["requested_sha256"] != receipt["readback_sha256"]
+    assert receipt["exact_readback_sha256_match"] is False
 
 
 async def test_burst_precise_text_stops_on_ambiguous_ocr_before_enter() -> None:
@@ -733,8 +735,8 @@ async def test_burst_reports_partial_type_progress_when_deadline_interrupts() ->
     assert out.completed == 0
     assert out.partial_action == {
         "type": "type_text",
-        "typed_characters": 16,
-        "intended_characters": 191,
+        "issued_characters": 16,
+        "requested_characters": 191,
     }
     assert not any(method == "keypress" for method, _ in be.calls)
 

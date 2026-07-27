@@ -120,20 +120,22 @@ export type InputReceipt = {
   type: string;
   status: string;
   verdict: string;
+  proof_state: string;
   observed_text: string;
   observed_text_redacted: boolean;
-  typed_characters?: number;
-  intended_characters?: number;
+  requested_characters?: number;
+  issued_characters?: number;
+  observed_characters?: number;
   correction_count?: number;
   delivery_retries?: number;
   used_fast_path: boolean;
   summary?: string;
   edit_distance?: number;
   focus_evidence: string;
-  intended_sha256?: string;
-  acknowledged_prefix_sha256?: string;
-  observed_sha256?: string;
-  exact_sha256_match?: boolean;
+  requested_sha256?: string;
+  issued_prefix_sha256?: string;
+  readback_sha256?: string;
+  exact_readback_sha256_match?: boolean;
 };
 
 const inputReceipt = (value: unknown): InputReceipt => {
@@ -143,22 +145,32 @@ const inputReceipt = (value: unknown): InputReceipt => {
     type: text(item.type),
     status: text(item.status),
     verdict: text(item.verdict),
+    proof_state: text(item.proof_state),
     observed_text: text(item.observed_text),
     observed_text_redacted: item.observed_text_redacted === true,
-    typed_characters: number(item.typed_characters),
-    intended_characters: number(item.intended_characters),
+    requested_characters: number(
+      item.requested_characters ?? item.intended_characters,
+    ),
+    issued_characters: number(item.issued_characters ?? item.typed_characters),
+    observed_characters: number(item.observed_characters),
     correction_count: number(item.correction_count),
     delivery_retries: number(item.delivery_retries),
     used_fast_path: item.used_fast_path === true,
     summary: text(item.summary),
     edit_distance: number(item.edit_distance),
     focus_evidence: text(item.focus_evidence),
-    intended_sha256: text(item.intended_sha256),
-    acknowledged_prefix_sha256: text(item.acknowledged_prefix_sha256),
-    observed_sha256: text(item.observed_sha256),
-    exact_sha256_match:
-      typeof item.exact_sha256_match === "boolean"
-        ? item.exact_sha256_match
+    requested_sha256: text(item.requested_sha256 || item.intended_sha256),
+    issued_prefix_sha256: text(
+      item.issued_prefix_sha256 || item.acknowledged_prefix_sha256,
+    ),
+    readback_sha256: text(item.readback_sha256 || item.observed_sha256),
+    exact_readback_sha256_match:
+      typeof (
+        item.exact_readback_sha256_match ?? item.exact_sha256_match
+      ) === "boolean"
+        ? Boolean(
+            item.exact_readback_sha256_match ?? item.exact_sha256_match,
+          )
         : undefined,
   };
 };
@@ -517,16 +529,21 @@ const readbackMeta = (receipt: InputReceipt) => {
       variant: "outline" as ReceiptBadgeVariant,
     };
   }
-  if (receipt.exact_sha256_match === true) {
+  if (
+    receipt.proof_state === "exact_readback" ||
+    (!receipt.proof_state &&
+      receipt.exact_readback_sha256_match === true)
+  ) {
     return {
-      label: "Exact read-back",
+      label: "Exact OCR read-back",
       Icon: CheckIcon,
       variant: "evidence" as ReceiptBadgeVariant,
     };
   }
   if (
-    receipt.status === "verified_safe_normalized" &&
-    receipt.exact_sha256_match === false
+    (receipt.proof_state === "normalized_readback" ||
+      receipt.status === "verified_safe_normalized") &&
+    receipt.exact_readback_sha256_match === false
   ) {
     return {
       label: "Normalized only",
@@ -545,8 +562,16 @@ const readbackMeta = (receipt: InputReceipt) => {
       variant: "evidence" as ReceiptBadgeVariant,
     };
   }
+  if (receipt.proof_state === "partial_readback") {
+    return {
+      label: "Partial OCR read-back",
+      Icon: EyeIcon,
+      variant: "caution" as ReceiptBadgeVariant,
+    };
+  }
   if (
     receipt.verdict === "mismatch" ||
+    receipt.proof_state === "mismatched_readback" ||
     receipt.status.startsWith("failed_")
   ) {
     return {
@@ -557,8 +582,9 @@ const readbackMeta = (receipt: InputReceipt) => {
   }
   return {
     label:
+      receipt.proof_state === "issued_only" ||
       receipt.status === "delivered_unverified"
-        ? "Delivery only"
+        ? "Issued; not verified"
         : "Read-back uncertain",
     Icon: EyeIcon,
     variant: "caution" as ReceiptBadgeVariant,
@@ -576,17 +602,20 @@ function TypingReadback({
   const meta = readbackMeta(receipt);
   const MetaIcon = meta.Icon;
   const fingerprint =
-    receipt.exact_sha256_match && receipt.intended_sha256
-      ? `Exact SHA-256 ${receipt.intended_sha256.slice(0, 12)}`
-      : receipt.intended_sha256 && receipt.observed_sha256
-        ? `SHA-256 ${receipt.intended_sha256.slice(0, 12)} ≠ ${receipt.observed_sha256.slice(0, 12)}`
-        : receipt.intended_sha256
-          ? `Payload SHA-256 ${receipt.intended_sha256.slice(0, 12)}`
+    receipt.exact_readback_sha256_match && receipt.requested_sha256
+      ? `Read-back SHA-256 ${receipt.requested_sha256.slice(0, 12)}`
+      : receipt.requested_sha256 && receipt.readback_sha256
+        ? `Requested ${receipt.requested_sha256.slice(0, 12)} ≠ read-back ${receipt.readback_sha256.slice(0, 12)}`
+        : receipt.issued_prefix_sha256
+          ? `Issued SHA-256 ${receipt.issued_prefix_sha256.slice(0, 12)} · no exact read-back`
           : "";
   const metrics = [
-    receipt.typed_characters != null &&
-    receipt.intended_characters != null
-      ? `${receipt.typed_characters} / ${receipt.intended_characters} chars`
+    receipt.issued_characters != null &&
+    receipt.requested_characters != null
+      ? `${receipt.issued_characters} / ${receipt.requested_characters} issued`
+      : "",
+    receipt.observed_characters != null
+      ? `${receipt.observed_characters} read back`
       : "",
     receipt.edit_distance != null
       ? `${receipt.edit_distance} ${receipt.edit_distance === 1 ? "edit" : "edits"}`
@@ -664,12 +693,12 @@ function ActionExactInput({
     if (!value) return null;
     const secret = action.secret === true || action.redacted === true;
     const lineCount = value.split(/\r\n|\r|\n/).length;
-    const characterCount = inputReceipt?.intended_characters ?? value.length;
+    const characterCount = inputReceipt?.requested_characters ?? value.length;
     return (
       <div className="mt-2">
         <div className="flex items-center justify-between gap-3">
           <span className="text-xs font-medium text-muted-foreground">
-            Exact typed payload
+            Requested payload
           </span>
           <span className="shrink-0 font-mono text-[10px] tabular-nums text-muted-foreground">
             {characterCount} chars · {lineCount}{" "}

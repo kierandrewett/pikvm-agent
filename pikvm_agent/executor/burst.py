@@ -545,13 +545,16 @@ def _typing_receipt(
         "verdict": verdict,
         "observed_text": observed,
         "observed_text_redacted": False,
-        "typed_characters": int(
+        # This is how much input the sender issued. RFB/HID completion is not an
+        # acknowledgement from the guest application.
+        "issued_characters": int(
             getattr(result, "typed_characters", len(intended)) or 0
         ),
-        "intended_characters": int(
+        "requested_characters": int(
             getattr(result, "intended_characters", len(intended))
             or len(intended)
         ),
+        "observed_characters": len(observed),
         "correction_count": int(
             getattr(result, "correction_count", 0) or 0
         ),
@@ -570,23 +573,23 @@ def _typing_receipt(
         observed_norm,
         max(len(intended_norm), len(observed_norm)),
     )
-    typed_characters = min(
+    issued_characters = min(
         len(intended),
-        max(0, int(receipt["typed_characters"])),
+        max(0, int(receipt["issued_characters"])),
     )
-    intended_sha256 = hashlib.sha256(intended.encode("utf-8")).hexdigest()
-    acknowledged_prefix_sha256 = hashlib.sha256(
-        intended[:typed_characters].encode("utf-8")
+    requested_sha256 = hashlib.sha256(intended.encode("utf-8")).hexdigest()
+    issued_prefix_sha256 = hashlib.sha256(
+        intended[:issued_characters].encode("utf-8")
     ).hexdigest()
-    observed_sha256 = hashlib.sha256(observed.encode("utf-8")).hexdigest()
+    readback_sha256 = hashlib.sha256(observed.encode("utf-8")).hexdigest()
     receipt.update(
         {
-            "intended_sha256": intended_sha256,
-            "acknowledged_prefix_sha256": acknowledged_prefix_sha256,
-            "observed_sha256": observed_sha256,
-            "exact_sha256_match": (
-                typed_characters == len(intended)
-                and intended_sha256 == observed_sha256
+            "requested_sha256": requested_sha256,
+            "issued_prefix_sha256": issued_prefix_sha256,
+            "readback_sha256": readback_sha256,
+            "exact_readback_sha256_match": (
+                issued_characters == len(intended)
+                and requested_sha256 == readback_sha256
             ),
         }
     )
@@ -613,12 +616,12 @@ def _unwatched_typing_receipt(
         "status": "delivered_unverified",
         "verdict": "unverified",
         "observed_text_redacted": secret,
-        "typed_characters": (
+        "issued_characters": (
             intended_characters
             if typed_characters is None
             else max(0, typed_characters)
         ),
-        "intended_characters": intended_characters,
+        "requested_characters": intended_characters,
         "correction_count": 0,
         "delivery_retries": 0,
         "used_fast_path": False,
@@ -673,10 +676,10 @@ async def _dispatch(
                 raise BurstInterrupted(
                     {
                         "type": "type_text",
-                        "typed_characters": int(
+                        "issued_characters": int(
                             getattr(res, "typed_characters", 0) or 0
                         ),
-                        "intended_characters": int(
+                        "requested_characters": int(
                             getattr(res, "intended_characters", len(text))
                             or len(text)
                         ),
@@ -706,8 +709,8 @@ async def _dispatch(
                     raise BurstInterrupted(
                         {
                             "type": "type_text",
-                            "typed_characters": typed_characters,
-                            "intended_characters": len(str(text)),
+                            "issued_characters": typed_characters,
+                            "requested_characters": len(str(text)),
                         },
                         action_receipt=receipt,
                     )

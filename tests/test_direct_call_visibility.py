@@ -234,14 +234,16 @@ async def test_direct_watched_typing_exposes_exact_readback_and_caller() -> None
             "status": "verified_exact",
             "verdict": "match",
             "focus_evidence": "read_back_verified",
-            "typed_characters": 18,
-            "intended_characters": 18,
-            "intended_sha256": "a" * 64,
-            "acknowledged_prefix_sha256": "a" * 64,
-            "observed_sha256": "a" * 64,
-            "exact_sha256_match": True,
+            "requested_characters": 18,
+            "issued_characters": 18,
+            "observed_characters": 18,
+            "requested_sha256": "a" * 64,
+            "issued_prefix_sha256": "a" * 64,
+            "readback_sha256": "a" * 64,
+            "exact_readback_sha256_match": True,
             "observed_text_redacted": False,
             "observed_text": "quarterly earnings",
+            "proof_state": "exact_readback",
         }
     ]
 
@@ -337,7 +339,7 @@ async def test_direct_secret_typing_never_retains_or_claims_readback() -> None:
     assert receipt["status"] == "delivered_unverified"
     assert receipt["observed_text_redacted"] is True
     assert "observed_text" not in receipt
-    assert "intended_sha256" not in receipt
+    assert "requested_sha256" not in receipt
 
 
 @pytest.mark.asyncio
