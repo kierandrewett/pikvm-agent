@@ -343,42 +343,7 @@ def _wait_for_hidden(locator: Any, *, timeout_ms: int) -> None:
         """(elements) => elements.map((element) => {
               const style = getComputedStyle(element);
               const bounds = element.getBoundingClientRect();
-              const opacityRules = [];
-              const collectRules = (rules) => {
-                for (const rule of rules) {
-                  if (rule.cssRules) {
-                    collectRules(rule.cssRules);
-                    continue;
-                  }
-                  if (
-                    rule.selectorText &&
-                    rule.style?.opacity &&
-                    element.matches(rule.selectorText)
-                  ) {
-                    opacityRules.push(
-                      `${rule.selectorText}{opacity:${rule.style.opacity}}`
-                    );
-                  }
-                }
-              };
-              for (const sheet of document.styleSheets) {
-                try {
-                  collectRules(sheet.cssRules);
-                } catch {}
-              }
               return {
-                opacity: style.opacity,
-                opacityRules: opacityRules.slice(-4),
-                transform: style.transform,
-                translate: style.translate,
-                transitionDuration: style.transitionDuration,
-                transitionProperty: style.transitionProperty.slice(0, 80),
-                animationDuration: style.animationDuration,
-                animationName: style.animationName,
-                endingOpacityClass: element.classList.contains(
-                  'data-ending-style:opacity-0'
-                ),
-                inlineOpacity: element.style.opacity,
                 attributes: Object.fromEntries(
                   Array.from(element.attributes).map(
                     (attribute) => [attribute.name, attribute.value]
@@ -391,6 +356,7 @@ def _wait_for_hidden(locator: Any, *, timeout_ms: int) -> None:
                 ariaHidden: element.getAttribute('aria-hidden'),
                 display: style.display,
                 visibility: style.visibility,
+                opacity: style.opacity,
                 pointerEvents: style.pointerEvents,
                 width: Math.round(bounds.width),
                 height: Math.round(bounds.height),
