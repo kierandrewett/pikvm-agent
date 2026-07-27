@@ -692,7 +692,7 @@ export function ComputerInputSequence({
                 aria-hidden="true"
               />
             ) : null}
-            <span className="relative flex size-6 items-center justify-center rounded-md bg-muted text-muted-foreground">
+            <span className="relative flex size-6 items-center justify-center text-muted-foreground">
               <Icon className="size-3.5" aria-hidden="true" />
             </span>
             <div className="min-w-0">
@@ -743,7 +743,7 @@ function ReceiptNode({ item }: { item: EvidenceItem }) {
     >
       <span
         className={cn(
-          "flex size-7 shrink-0 items-center justify-center rounded-md bg-muted/70",
+          "flex size-5 shrink-0 items-center justify-center",
           item.iconClass,
         )}
       >
@@ -1240,30 +1240,27 @@ const ComputerToolCallImpl: ToolCallMessagePartComponent<
                 : "complete"
       }
       className={cn(
-        "computer-action-step group/computer-tool rounded-lg transition-[background-color] duration-150 motion-reduce:transition-none",
-        (needsApproval || needsReview) && "bg-caution-soft/25",
-        failed && "bg-destructive/5",
-        running && "bg-info-soft/20",
+        "computer-action-step group/computer-tool relative",
       )}
     >
-      <CollapsibleTrigger className="group/trigger grid min-h-12 w-full grid-cols-[2rem_minmax(0,1fr)_auto] items-start gap-x-2.5 rounded-lg px-2 py-2 text-left outline-none transition-colors hover:bg-muted/35 focus-visible:ring-3 focus-visible:ring-ring/50 sm:grid-cols-[2rem_minmax(0,1fr)_auto_auto]">
+      <CollapsibleTrigger className="group/trigger grid min-h-12 w-full grid-cols-[2rem_minmax(0,1fr)_auto] items-start gap-x-2.5 py-2 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50 sm:grid-cols-[2rem_minmax(0,1fr)_auto_auto]">
         <span className="relative row-span-2 flex w-8 shrink-0 items-start justify-center">
           <span
             className={cn(
-              "computer-action-marker relative z-10 flex size-7 items-center justify-center rounded-md bg-muted text-muted-foreground",
+              "computer-action-marker relative z-10 flex size-6 items-center justify-center bg-background text-muted-foreground",
               needsApproval || needsReview
-                ? "bg-caution-soft text-caution-foreground"
+                ? "text-caution-foreground"
                 : failed
-                  ? "bg-destructive/10 text-destructive"
+                  ? "text-destructive"
                   : running
-                    ? "bg-info-soft text-info-foreground"
+                    ? "text-info-foreground"
                     : state.variant === "evidence"
-                      ? "bg-evidence-soft text-evidence-foreground"
+                      ? "text-evidence-foreground"
                       : "",
             )}
           >
             <PrimaryIcon className="size-3.5" aria-hidden="true" />
-            <span className="computer-action-index absolute -right-1 -bottom-1 flex min-w-3.5 items-center justify-center rounded-sm bg-background px-0.5 font-mono text-[8px] leading-3 tabular-nums text-muted-foreground ring-1 ring-border" />
+            <span className="computer-action-index absolute -right-1.5 -bottom-1 bg-background px-0.5 font-mono text-[8px] leading-3 tabular-nums text-muted-foreground" />
           </span>
         </span>
         <span className="min-w-0 flex-1">
@@ -1321,7 +1318,7 @@ const ComputerToolCallImpl: ToolCallMessagePartComponent<
       </CollapsibleTrigger>
 
       <CollapsibleContent className="data-closed:animate-collapsible-up data-open:animate-collapsible-down overflow-hidden motion-reduce:animate-none">
-        <div className="mx-2 mt-1 border-t border-border/60 pt-3 pb-2 sm:ml-12">
+        <div className="mt-1 border-t border-border/60 pt-3 pb-2 sm:ml-10">
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-xs font-semibold">Computer action</p>
@@ -1446,16 +1443,16 @@ export function ComputerToolGroup({
               ? "input sequence running"
               : "inspect exact inputs and screen evidence"
         }`}
-        className="group/trigger flex min-h-12 w-full items-center gap-2 rounded-lg border-y border-border/60 px-2 text-left outline-none transition-colors hover:bg-muted/30 focus-visible:ring-3 focus-visible:ring-ring/50"
+        className="group/trigger flex min-h-12 w-full items-center gap-2 border-y border-border/60 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
       >
         <span
           className={cn(
-            "flex size-8 shrink-0 items-center justify-center rounded-md",
+            "flex size-7 shrink-0 items-center justify-center",
             needsAttention
-              ? "bg-caution-soft text-caution-foreground"
+              ? "text-caution-foreground"
               : active
-                ? "bg-info-soft text-info-foreground"
-                : "bg-muted text-muted-foreground",
+                ? "text-info-foreground"
+                : "text-muted-foreground",
           )}
         >
           {needsAttention ? (
@@ -1484,9 +1481,13 @@ export function ComputerToolGroup({
           </span>
         </span>
         {needsAttention ? (
-          <Badge variant="caution">Review</Badge>
+          <span className="text-xs font-medium text-caution-foreground">
+            Review
+          </span>
         ) : active ? (
-          <Badge variant="info">Input live</Badge>
+          <span className="text-xs font-medium text-info-foreground">
+            Input live
+          </span>
         ) : null}
         <ChevronDownIcon className="size-4 -rotate-90 text-muted-foreground transition-transform duration-150 group-data-open/trigger:rotate-0 group-data-panel-open/trigger:rotate-0 motion-reduce:transition-none" />
       </CollapsibleTrigger>
