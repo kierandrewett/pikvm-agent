@@ -461,8 +461,22 @@ def _gemini_child_runtime(
         root = Path(root_value)
         workspace = root / "workspace"
         control = root / "control"
-        workspace.mkdir()
-        control.mkdir()
+        runtime_directories = {
+            "HOME": root / "home",
+            "USERPROFILE": root / "home",
+            "XDG_CACHE_HOME": root / "cache",
+            "XDG_CONFIG_HOME": root / "config",
+            "XDG_DATA_HOME": root / "data",
+            "XDG_STATE_HOME": root / "state",
+            "APPDATA": root / "config",
+            "LOCALAPPDATA": root / "data",
+        }
+        for directory in {
+            workspace,
+            control,
+            *runtime_directories.values(),
+        }:
+            directory.mkdir(parents=True, exist_ok=True)
         policy = control / "managed-only-policy.toml"
         system_settings = control / "system-settings.json"
         system_defaults = control / "system-defaults.json"
@@ -489,6 +503,10 @@ def _gemini_child_runtime(
                 "GEMINI_CLI_SYSTEM_SETTINGS_PATH": str(system_settings),
                 "GEMINI_CLI_SYSTEM_DEFAULTS_PATH": str(system_defaults),
                 "NO_COLOR": "1",
+                **{
+                    name: str(directory)
+                    for name, directory in runtime_directories.items()
+                },
             }
         )
         child.update(

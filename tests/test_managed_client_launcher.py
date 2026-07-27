@@ -271,7 +271,11 @@ def test_gemini_preflight_audits_native_effective_settings_and_admin_policy(
     assert isinstance(child_env, dict)
     assert child_env["GEMINI_CLI_HOME"] == str(profile)
     assert child_env["TEST_AGENT_TOKEN"] == "runtime-token"
-    assert "HOME" not in child_env
+    assert child_env["HOME"] != "/home/operator"
+    assert child_env["XDG_CACHE_HOME"] != "/home/operator/.cache"
+    assert child_env["XDG_CONFIG_HOME"] != "/home/operator/.config"
+    assert child_env["XDG_DATA_HOME"] != "/home/operator/.local/share"
+    assert child_env["XDG_STATE_HOME"] != "/home/operator/.local/state"
     assert "UNRELATED_SECRET" not in child_env
 
 
@@ -1208,7 +1212,11 @@ def test_gemini_task_reuses_native_policy_runtime_and_clean_workspace(
     assert isinstance(child_env, dict)
     assert child_env["GEMINI_CLI_HOME"] == str(profile)
     assert child_env["TEST_AGENT_TOKEN"] == "runtime-token"
-    assert "HOME" not in child_env
+    assert child_env["HOME"] != "/home/operator"
+    assert child_env["XDG_CACHE_HOME"] != "/home/operator/.cache"
+    assert child_env["XDG_CONFIG_HOME"] != "/home/operator/.config"
+    assert child_env["XDG_DATA_HOME"] != "/home/operator/.local/share"
+    assert child_env["XDG_STATE_HOME"] != "/home/operator/.local/state"
     assert "UNRELATED_SECRET" not in child_env
     system_settings = captured["system_settings"]
     assert isinstance(system_settings, dict)
