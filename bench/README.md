@@ -42,7 +42,7 @@ support a claim of generally reliable autonomous Windows operation.
 | OCR can safely verify arbitrary desktop text | Tesseract is 56.9% selected and 61.4% expected-aware exact; its 800-case routine tier is 71.125% exact while the preserved 200-case confusable stress tier is 0%; PaddleOCR is 78.9% normalized exact; the retrospective known-intent candidate union is 82.7% overall, 97.0% routine, and 25.5% stress on the same 1,000 cases; no confidence threshold supports a 99% lower-bound claim | Failing release gate |
 | Model grounding is reliable | Current seeded ScreenSpot-Pro sample is 73/100 | Diagnostic only |
 | End-to-end desktop tasks are reliable | Current OSWorld task set is 6/9; full scored-attempt denominator is 6/33 with 11 additional unscored failures | Failing release gate |
-| A model can autonomously complete routine Office work | Portable Word/Excel contracts, fresh guest paths, observer-only acceptance state, exact helper file capture, and semantic OOXML verification pass local tests; no live Office case has run | Not yet proven |
+| A model can autonomously complete routine Office work | Portable Word/Excel contracts and semantic OOXML verification pass local tests. Two live disposable-Windows Word attempts are now retained: r12 failed after 32.4 minutes with 7/12 actions complete and four typing verification failures; r13 was intentionally aborted after 24.3 minutes when a wrapped-prose crop caused an OCR false negative. Neither saved an artifact; both produced zero bytes | Failing live acceptance gate |
 | Windows Agent Arena is supported | 154 tasks discovered; official golden image is absent | Not run |
 | Provider choice is portable | Codex and Claude OAuth CLIs live-tested; dedicated-profile Gemini CLI OAuth, native OpenAI Responses, Azure OpenAI API-key/Entra modes, OpenAI-compatible, Anthropic, Gemini AI Studio, and Vertex AI adapters protocol-tested with mocks/source contracts; one target-free command now compares identical blind pixels/schema across configured routes. Its first two-provider attempt retained both failures; the Codex local-state defect is fixed, while the approved rerun was denied before launch | Partial; no successful frozen live all-provider matrix yet |
 
@@ -97,6 +97,47 @@ The full failure-inclusive record is
 It intentionally omits the VNC address, credentials, screenshots, prompts, and
 raw model responses. This is not an OSWorld, Windows Agent Arena, Office, or
 general desktop-reliability score.
+
+## Live Word acceptance failures
+
+Two Claude Opus reason-act-verify attempts ran against the authorized
+disposable Windows VM on 2026-07-27. The endpoint was supplied only as a
+runtime argument. The production PiKVM target was not contacted.
+
+Neither attempt passed. r12 wrote an unsaved draft but treated four visibly
+landed prose bursts as unverified, then failed before Save As. r13 resumed the
+visible draft, reached 135 words, and proved that guarded fast transport
+reduced ordinary action latency to a 3.44-second median. It then paused
+fail-closed because the inferred OCR crop covered only the first lines of a
+wrapped paragraph. Full-screen Tesseract read the complete new paragraph
+exactly, with 0.92–0.96 confidence on its three lines. The run was stopped
+between actions so a fresh process could load the fix.
+
+| Signal | r12 | r13 |
+| --- | ---: | ---: |
+| Final state | failed | aborted deliberately |
+| Wall time | 1,946.848 s | 1,459.761 s |
+| Model-active time | 1,193.748 s | 668.543 s |
+| Controller median | 36.422 s | 30.754 s |
+| Reasoner median | 59.747 s | 66.076 s |
+| Verifier median | 50.605 s | 60.310 s |
+| Actions completed / checkpointed | 7 / 12 | 4 / 7 |
+| Action median | 5.179 s | 3.435 s |
+| Provider schema repairs | 0 | 1 |
+| Saved DOCX bytes | 0 | 0 |
+
+The failures produced four concrete fixes: long model slices continue in the
+background, browser approvals acknowledge before model work, editor prose can
+use the guarded fast transport without weakening command/code verification,
+and wrapped editor prose receives a read-only full-screen OCR fallback that
+accepts only a complete punctuation-preserving occurrence. The last fix is
+covered by 188 focused typing/verification/direct-burst tests and had not yet
+been rerun live when these two records were published. These are failure
+records, not an Office capability claim.
+
+Public records:
+[`office-word-r12.json`](results/2026-07-27/live-vnc/office-word-r12.json) and
+[`office-word-r13.json`](results/2026-07-27/live-vnc/office-word-r13.json).
 
 ## Visibility during a run
 

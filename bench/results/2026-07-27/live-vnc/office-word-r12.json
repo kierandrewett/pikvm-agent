@@ -1,0 +1,99 @@
+{
+  "schema_version": 1,
+  "suite_id": "office-acceptance-v1",
+  "task_id": "word-shakespeare-essay",
+  "task_spec_sha256": "051c0e05c57b89151a9294fe77083d676db72febb6e06d02c2616dffff905ae1",
+  "run_id": "bdfb7dfd-f1a8-42cb-a27c-a50757e2c4ad",
+  "status": "run_incomplete",
+  "run_status": "failed",
+  "environment": "disposable-windows-vm",
+  "artifact": {
+    "format": "docx",
+    "passed": false,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "byte_count": 0,
+    "checks": [],
+    "error": "artifact is not a valid OOXML ZIP package"
+  },
+  "performance": {
+    "run_id": "bdfb7dfd-f1a8-42cb-a27c-a50757e2c4ad",
+    "status": "failed",
+    "wall_clock_ms": 1946848,
+    "model_active_ms": 1193748,
+    "model_lanes": [
+      {
+        "role": "controller",
+        "provider": "claude-opus",
+        "model": "opus",
+        "latency": {
+          "samples": 12,
+          "min_ms": 30354.0,
+          "median_ms": 36422.0,
+          "p95_ms": 56148.2,
+          "max_ms": 62471.0,
+          "mean_ms": 39083.5
+        }
+      },
+      {
+        "role": "reasoner",
+        "provider": "claude-opus",
+        "model": "opus",
+        "latency": {
+          "samples": 5,
+          "min_ms": 46129.0,
+          "median_ms": 59747.0,
+          "p95_ms": 85980.79999999999,
+          "max_ms": 89559.0,
+          "mean_ms": 63692.0
+        }
+      },
+      {
+        "role": "verifier",
+        "provider": "claude-opus",
+        "model": "opus",
+        "latency": {
+          "samples": 7,
+          "min_ms": 41574.0,
+          "median_ms": 50605.0,
+          "p95_ms": 83385.4,
+          "max_ms": 88192.0,
+          "mean_ms": 58040.857142857145
+        }
+      }
+    ],
+    "model_failures": 0,
+    "actions_checkpointed": 12,
+    "actions_attempted": 12,
+    "actions_completed": 7,
+    "progress_actions_completed": 7,
+    "observation_only_actions_completed": 0,
+    "action_recoverable_failures": 4,
+    "action_stale_retries": 0,
+    "pointer_noops_rejected": 0,
+    "repeated_actions_stopped": 0,
+    "non_idempotent_retries_stopped": 0,
+    "autonomous_resumes": 0,
+    "autonomy_stops": 0,
+    "provider_attempts": 24,
+    "provider_failures": 0,
+    "provider_fallbacks": 0,
+    "provider_schema_repairs": 0,
+    "provider_safety_downgrades": 1,
+    "action_latency": {
+      "samples": 11,
+      "min_ms": 3690.241,
+      "median_ms": 5179.339,
+      "p95_ms": 304652.775,
+      "max_ms": 337997.736,
+      "mean_ms": 66500.73327272727
+    },
+    "completion_efficiency": 0.5833333333333334,
+    "progress_action_ratio": 1.0
+  },
+  "committed_cost_microusd": 0,
+  "outstanding_cost_microusd": 0,
+  "max_cost_microusd": null,
+  "pricing_version": null,
+  "runner_stop_reason": "failed",
+  "artifact_capture_error": "artifact capture skipped because the managed run did not complete"
+}
