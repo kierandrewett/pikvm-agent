@@ -34,6 +34,7 @@ from pydantic import BaseModel
 
 from pikvm_agent.core.models import (
     CapturedFrame,
+    OCRLine,
     OCRResult,
     Region,
     VerificationResult,
@@ -158,6 +159,17 @@ def union_region(a: Region, b: Region) -> Region:
     x2 = max(a.x + a.width, b.x + b.width)
     y2 = max(a.y + a.height, b.y + b.height)
     return Region(x=x, y=y, width=x2 - x, height=y2 - y)
+
+
+def regions_overlap(a: Region, b: Region) -> bool:
+    """Whether two screen regions share at least one pixel."""
+
+    return (
+        a.x < b.x + b.width
+        and b.x < a.x + a.width
+        and a.y < b.y + b.height
+        and b.y < a.y + a.height
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -476,6 +488,71 @@ class WatchedTyper:
                 width=max(1, min(width, x1 + pad) - x),
                 height=max(1, min(height, y1 + pad) - y),
             )
+        return None
+
+    def _locate_wrapped_prose_tail(
+        self,
+        result: OCRResult,
+        intended: str,
+        dims: tuple[int, int],
+    ) -> Region | None:
+        """Locate the final words of acknowledged prose across OCR line wraps."""
+
+        words = intended.split()
+        if len(words) < 2:
+            return None
+        probe = " ".join(words[-min(8, len(words)) :])
+        width, height = dims
+        if width <= 0 or height <= 0:
+            return None
+
+        eligible: list[tuple[OCRLine, Region]] = []
+        for line in result.lines:
+            if (
+                line.confidence is not None
+                and float(line.confidence) < MIN_MISMATCH_OCR_CONFIDENCE
+            ):
+                continue
+            box = line.bbox
+            if (
+                not isinstance(box, list)
+                or len(box) != 4
+                or any(isinstance(value, list) for value in box)
+            ):
+                continue
+            x0, y0, x1, y1 = (int(value) for value in box)
+            if x1 <= x0 or y1 <= y0:
+                continue
+            eligible.append(
+                (
+                    line,
+                    Region(
+                        x=max(0, x0 - 8),
+                        y=max(0, y0 - 8),
+                        width=max(1, min(width, x1 + 8) - max(0, x0 - 8)),
+                        height=max(
+                            1,
+                            min(height, y1 + 8) - max(0, y0 - 8),
+                        ),
+                    ),
+                )
+            )
+
+        for start in range(len(eligible)):
+            window: list[OCRLine] = []
+            region: Region | None = None
+            for line, line_region in eligible[start : start + 3]:
+                window.append(line)
+                region = (
+                    line_region
+                    if region is None
+                    else union_region(region, line_region)
+                )
+                if self._full_screen_prose_candidate(
+                    OCRResult(lines=window),
+                    probe,
+                ):
+                    return region
         return None
 
     @staticmethod
@@ -843,12 +920,35 @@ class WatchedTyper:
                         # fresh full-screen read independently relocates the
                         # most recently acknowledged exact chunk. Never weaken
                         # the explicit-region, code, command, or secret paths.
+                        screen = await self._read_screen()
                         relocated = self._locate_ocr_candidate(
-                            await self._read_screen(),
+                            screen,
                             chunks[i - 1],
                             dims,
                             precise=False,
                         )
+                        if relocated is None:
+                            relocated = self._locate_wrapped_prose_tail(
+                                screen,
+                                typed_so_far,
+                                dims,
+                            )
+                        moved_region = locate_changed_bbox(
+                            grid_prev,
+                            preflight_grid,
+                            dims,
+                        )
+                        if (
+                            relocated is not None
+                            and (
+                                moved_region is None
+                                or not regions_overlap(
+                                    relocated,
+                                    moved_region,
+                                )
+                            )
+                        ):
+                            relocated = None
                     if relocated is not None:
                         cur_region = relocated
                         located = True

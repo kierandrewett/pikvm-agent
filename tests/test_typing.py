@@ -1207,13 +1207,19 @@ async def test_fast_print_relocates_after_verified_editor_page_reflow() -> None:
         return next(grids, next_page_line.reshape(-1))
 
     async def relocated_screen() -> OCRResult:
+        first_word, remaining = chunks[0].strip().split(" ", 1)
         return OCRResult(
             lines=[
                 OCRLine(
-                    text=chunks[0].strip(),
+                    text=first_word,
                     confidence=0.99,
-                    bbox=[700, 600, 900, 625],
-                )
+                    bbox=[370, 185, 420, 205],
+                ),
+                OCRLine(
+                    text=remaining,
+                    confidence=0.99,
+                    bbox=[370, 205, 470, 225],
+                ),
             ]
         )
 
@@ -1238,6 +1244,58 @@ async def test_fast_print_relocates_after_verified_editor_page_reflow() -> None:
     assert printed == chunks[:2]
     assert result.status == "blocked_by_policy"
     assert result.typed_characters == len("".join(chunks[:2]))
+    assert any(method == "release_all" for method, _ in backend.calls)
+    _assert_no_enter(backend)
+
+
+async def test_fast_print_rejects_unmoved_text_after_remote_notification() -> None:
+    backend = FakeBackend()
+    intended = (
+        "long prose remains visible while an unrelated notification changes "
+        "pixels elsewhere on the screen and must not authorize more input. "
+    ) * 2
+    assert len(intended) > FAST_PRINT_MIN
+    chunks = chunk_text(intended)
+    typer = WatchedTyper(backend, ScriptedOCR(""))
+    base = _flat_grid().reshape(GRID_ROWS, GRID_COLS)
+    first_line = base.copy()
+    first_line[2:4, 2:7] = 200
+    notification = first_line.copy()
+    notification[14:17, 28:35] = 200
+    grids = iter(
+        [
+            base.reshape(-1),
+            first_line.reshape(-1),
+            notification.reshape(-1),
+        ]
+    )
+
+    async def changing_grid() -> np.ndarray:
+        return next(grids, notification.reshape(-1))
+
+    async def unchanged_text_screen() -> OCRResult:
+        return OCRResult(
+            lines=[
+                OCRLine(
+                    text=chunks[0].strip(),
+                    confidence=0.99,
+                    bbox=[40, 45, 220, 70],
+                )
+            ]
+        )
+
+    typer._grid = changing_grid  # type: ignore[method-assign]
+    typer._read_screen = unchanged_text_screen  # type: ignore[method-assign]
+
+    result = await typer.type_text(intended)
+
+    printed = [
+        call["text"]
+        for method, call in backend.calls
+        if method == "print_text"
+    ]
+    assert printed == chunks[:1]
+    assert result.status == "failed_focus_lost"
     assert any(method == "release_all" for method, _ in backend.calls)
     _assert_no_enter(backend)
 
