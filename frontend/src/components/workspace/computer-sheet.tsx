@@ -8,7 +8,6 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { RunSnapshot } from "@/types";
@@ -88,23 +87,24 @@ export function ComputerSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-2xl">
-        <SheetHeader>
-          <SheetTitle className="flex items-center gap-2">
-            <MonitorIcon aria-hidden="true" />
+      <SheetContent side="right" className="computer-sheet">
+        <SheetHeader className="min-h-12 shrink-0 flex-row items-center gap-3 border-b border-white/10 bg-background px-3 py-2 pr-12">
+          <SheetTitle className="flex shrink-0 items-center gap-2 text-sm">
+            <MonitorIcon className="size-4" aria-hidden="true" />
             Computer
           </SheetTitle>
-          <SheetDescription>
+          <SheetDescription className="min-w-0 flex-1 truncate text-xs">
             {run ? `${alias} · ${layer}` : "No computer session is selected."}
           </SheetDescription>
           {run ? (
-            <div className="flex flex-wrap items-center gap-2 pt-2">
-              <Badge variant="outline">{run.status.replaceAll("_", " ")}</Badge>
-              {run.observation?.frame_id != null ? (
-                <Badge variant="secondary">
-                  frame {run.observation.frame_id}
-                </Badge>
-              ) : null}
+            <div className="flex shrink-0 items-center gap-2">
+              <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <span
+                  className="size-1.5 rounded-full bg-emerald-400"
+                  aria-hidden="true"
+                />
+                {run.status.replaceAll("_", " ")}
+              </span>
               {canPause ? (
                 <Button
                   variant="outline"
@@ -124,12 +124,12 @@ export function ComputerSheet({
             </div>
           ) : null}
         </SheetHeader>
-        <div className="min-h-0 flex-1 bg-black">
+        <div className="flex min-h-0 flex-1 items-center justify-center bg-black">
           {frameUrl ? (
             <img
               src={frameUrl}
               alt="Current remote computer screen"
-              className="size-full object-contain"
+              className="block size-full object-contain"
             />
           ) : (
             <div className="flex size-full min-h-80 items-center justify-center p-8">

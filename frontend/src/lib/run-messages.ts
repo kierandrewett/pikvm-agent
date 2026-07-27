@@ -107,21 +107,13 @@ const outcomeReason = (outcome: HarnessEvent) => {
 };
 
 const planMarkdown = (run: RunSnapshot) => {
-  const lines: string[] = [];
   if (run.plan) {
-    lines.push(run.plan.summary);
-    if (run.plan.steps.length) {
-      lines.push(
-        "",
-        ...run.plan.steps.map((step, index) => `${index + 1}. ${step}`),
-      );
-    }
-  } else if (run.status === "planning") {
-    lines.push("Planning the work and defining visible completion evidence.");
-  } else {
-    lines.push("Working through the requested task.");
+    return run.plan.summary;
   }
-  return lines.join("\n");
+  if (run.status === "planning") {
+    return "Planning the work and defining visible completion evidence.";
+  }
+  return "Working through the requested task.";
 };
 
 const completionMarkdown = (run: RunSnapshot) => {

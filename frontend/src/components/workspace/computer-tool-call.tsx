@@ -187,21 +187,21 @@ const statusMeta = (
     return {
       label: "Approval needed",
       Icon: ShieldAlertIcon,
-      tone: "border-amber-400/25 bg-amber-400/8 text-amber-200",
+      tone: "text-amber-200",
     };
   }
   if (status?.type === "running") {
     return {
       label: "Sending input",
       Icon: LoaderCircleIcon,
-      tone: "border-sky-400/20 bg-sky-400/8 text-sky-200",
+      tone: "text-sky-200",
     };
   }
   if (status?.type === "incomplete") {
     return {
       label: status.reason === "cancelled" ? "Cancelled" : "Failed",
       Icon: XIcon,
-      tone: "border-rose-400/25 bg-rose-400/8 text-rose-200",
+      tone: "text-rose-200",
     };
   }
   const value = record(result);
@@ -211,27 +211,27 @@ const statusMeta = (
     return {
       label: "Refused safely",
       Icon: CircleAlertIcon,
-      tone: "border-amber-400/20 bg-amber-400/8 text-amber-200",
+      tone: "text-amber-200",
     };
   }
   if (resultStatus === "unverified") {
     return {
       label: "Not verified",
       Icon: EyeIcon,
-      tone: "border-amber-400/20 bg-amber-400/8 text-amber-200",
+      tone: "text-amber-200",
     };
   }
   if (text(verification.verdict) === "verified") {
     return {
       label: "Verified",
       Icon: CheckIcon,
-      tone: "border-emerald-400/20 bg-emerald-400/8 text-emerald-200",
+      tone: "text-emerald-200",
     };
   }
   return {
     label: "Input complete",
     Icon: CheckIcon,
-    tone: "border-border bg-muted/30 text-muted-foreground",
+    tone: "text-muted-foreground",
   };
 };
 
@@ -303,18 +303,18 @@ export function ComputerInputSequence({
         return (
           <li
             key={`${actionName(action)}:${index}`}
-            className="relative grid grid-cols-[2rem_minmax(0,1fr)] gap-2 pb-3 last:pb-0"
+            className="relative grid grid-cols-[1.5rem_minmax(0,1fr)] gap-2 pb-3 last:pb-0"
           >
             {index < actions.length - 1 ? (
               <span
-                className="absolute top-8 bottom-0 left-[0.9375rem] w-px bg-border/80"
+                className="absolute top-6 bottom-0 left-[0.71875rem] w-px bg-border/70"
                 aria-hidden="true"
               />
             ) : null}
-            <span className="relative z-10 flex size-8 items-center justify-center rounded-md border border-border bg-muted/40 text-muted-foreground">
+            <span className="relative z-10 flex size-6 items-center justify-center bg-background text-muted-foreground">
               <Icon className="size-3.5" aria-hidden="true" />
             </span>
-            <div className="min-w-0 pt-0.5">
+            <div className="min-w-0">
               <div className="flex min-w-0 items-baseline gap-2">
                 <span className="text-[10px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
                   {index + 1}
@@ -441,16 +441,11 @@ function EvidenceStrip({
   ];
 
   return (
-    <dl className="mt-4 grid border-y border-border/70 sm:grid-cols-2">
-      {evidence.map((item, index) => (
+    <dl className="mt-4 grid gap-x-5 gap-y-3 border-t border-border/70 pt-3 sm:grid-cols-2">
+      {evidence.map((item) => (
         <div
           key={item.label}
-          className={cn(
-            "min-w-0 py-2.5 sm:px-3",
-            index % 2 === 0 ? "sm:pl-0" : "sm:border-l",
-            index < evidence.length - 1 && "border-b",
-            index >= 2 && "sm:border-b-0",
-          )}
+          className="min-w-0"
         >
           <dt className="text-[10px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
             {item.label}
@@ -517,23 +512,23 @@ const ComputerToolCallImpl: ToolCallMessagePartComponent<
       open={open}
       onOpenChange={setOpen}
       className={cn(
-        "group/computer-tool overflow-hidden rounded-lg border bg-muted/[0.08] transition-colors",
+        "group/computer-tool border-l-2 pl-3 transition-colors",
         needsApproval
-          ? "border-amber-400/35 bg-amber-400/[0.035]"
+          ? "border-amber-400/60"
           : needsReview
-            ? "border-amber-400/25"
+            ? "border-amber-400/45"
             : failed
-              ? "border-rose-400/30"
-              : "border-border/80",
+              ? "border-rose-400/50"
+              : "border-border/70",
       )}
     >
-      <CollapsibleTrigger className="group/trigger flex w-full items-start gap-3 px-3 py-2.5 text-left outline-none hover:bg-muted/20 focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-inset">
+      <CollapsibleTrigger className="group/trigger flex w-full items-start gap-2.5 py-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/60">
         <span
           className={cn(
-            "mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md border",
+            "mt-0.5 flex size-5 shrink-0 items-center justify-center",
             needsApproval
-              ? "border-amber-400/25 bg-amber-400/10 text-amber-200"
-              : "border-border bg-muted/40 text-muted-foreground",
+              ? "text-amber-200"
+              : "text-muted-foreground",
           )}
         >
           <PrimaryIcon className="size-3.5" aria-hidden="true" />
@@ -553,7 +548,7 @@ const ComputerToolCallImpl: ToolCallMessagePartComponent<
         </span>
         <span
           className={cn(
-            "flex shrink-0 items-center gap-1.5 rounded-full border px-2 py-1 text-[11px] font-medium",
+            "flex shrink-0 items-center gap-1.5 pt-0.5 text-[11px] font-medium",
             state.tone,
           )}
         >
@@ -573,7 +568,7 @@ const ComputerToolCallImpl: ToolCallMessagePartComponent<
       </CollapsibleTrigger>
 
       <CollapsibleContent className="data-closed:animate-collapsible-up data-open:animate-collapsible-down overflow-hidden">
-        <div className="border-t border-border/60 px-3 pt-3 pb-3 sm:px-4">
+        <div className="border-t border-border/50 pt-3 pb-2">
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-[10px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
@@ -602,7 +597,7 @@ const ComputerToolCallImpl: ToolCallMessagePartComponent<
           <ComputerInputSequence actions={summary.actions} />
 
           {needsApproval ? (
-            <div className="mt-4 rounded-md border border-amber-400/25 bg-amber-400/[0.06] p-3">
+            <div className="mt-4 border-l-2 border-amber-400/60 pl-3">
               <div className="flex items-start gap-2.5">
                 <ShieldAlertIcon
                   className="mt-0.5 size-4 shrink-0 text-amber-200"

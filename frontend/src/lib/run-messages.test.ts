@@ -171,7 +171,7 @@ describe("messagesForRun", () => {
     expect(tools).toHaveLength(1);
   });
 
-  it("shows explicit plans and status without inventing hidden reasoning", () => {
+  it("keeps the plan summary in chat without flooding it with execution steps", () => {
     const messages = messagesForRun(
       run({
         plan: {
@@ -182,9 +182,11 @@ describe("messagesForRun", () => {
         },
       }),
     );
-    const serialized = JSON.stringify(messages);
+    const serialized = JSON.stringify(messages.at(-1)?.content);
 
     expect(serialized).toContain("Use the smallest verifiable sequence.");
+    expect(serialized).not.toContain("Open Calculator");
+    expect(serialized).not.toContain("Enter the expression");
     expect(serialized).not.toContain("Model provider");
     expect(serialized).not.toContain("chain-of-thought");
     expect(serialized).not.toContain("success_criteria");
