@@ -211,6 +211,8 @@ class McpComputerDriver:
             width=state.get("width"),
             height=state.get("height"),
             image_path=str(images[0]) if images else None,
+            image_sha256=state.get("image_sha256") or None,
+            screen_hash=state.get("screen_hash") or None,
             approval_request=state.get("approval_request"),
             error=state.get("error"),
             raw=state,

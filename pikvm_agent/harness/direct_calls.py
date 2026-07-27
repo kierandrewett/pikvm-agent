@@ -433,6 +433,8 @@ class DirectCallCoordinator:
                 frame_id=result.get("frame_id"),
                 world_version=result.get("world_version"),
                 control_epoch=result.get("control_epoch"),
+                image_sha256=result.get("image_sha256"),
+                screen_hash=result.get("screen_hash"),
                 machine=observation.machine,
                 source="direct_mcp",
             )
@@ -588,6 +590,16 @@ class DirectCallCoordinator:
             image_path=(
                 str(result["image_path"])
                 if result.get("image_path")
+                else None
+            ),
+            image_sha256=(
+                str(result["image_sha256"])
+                if result.get("image_sha256")
+                else None
+            ),
+            screen_hash=(
+                str(result["screen_hash"])
+                if result.get("screen_hash")
                 else None
             ),
             approval_request=result.get("approval_request"),

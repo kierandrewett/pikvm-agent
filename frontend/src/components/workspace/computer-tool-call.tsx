@@ -1035,6 +1035,7 @@ export function ComputerActionReceipt({
   const sourceWorld = number(args.based_on_world_version);
   const frame = number(value.frame_id) ?? receipt.evidenceAfterFrame;
   const observedWorld = number(value.world_version);
+  const pixelChecksum = text(value.image_sha256);
   const verificationVerdict = text(verification.verdict);
   const verificationSummary = text(verification.summary);
   const actions = Array.isArray(args.actions) ? args.actions.map(record) : [];
@@ -1090,7 +1091,8 @@ export function ComputerActionReceipt({
       ? sourceWorld != null && observedWorld != null
         ? `world ${sourceWorld} → ${observedWorld}`
         : `world ${sourceWorld ?? observedWorld}`
-      : "",
+        : "",
+    pixelChecksum ? `pixels ${pixelChecksum.slice(0, 12)}` : "",
   ]
     .filter(Boolean)
     .join(" · ");

@@ -596,6 +596,8 @@ async def test_visible_mcp_wraps_the_real_tool_call_with_harness_events(
             "frame_id": 3,
             "world_version": 5,
             "control_epoch": 0,
+            "image_sha256": "a" * 64,
+            "screen_hash": "deadbeef",
         }
 
     result = await mcp.call_tool(
@@ -614,6 +616,9 @@ async def test_visible_mcp_wraps_the_real_tool_call_with_harness_events(
     assert run.session_id == "visible-session-1"
     assert run.observation is not None
     assert run.observation.frame_id == 3
+    assert run.observation.image_sha256 == "a" * 64
+    assert run.observation.screen_hash == "deadbeef"
+    assert run.events[-1].data["image_sha256"] == "a" * 64
     assert result
 
 

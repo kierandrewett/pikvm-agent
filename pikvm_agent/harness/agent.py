@@ -1043,6 +1043,14 @@ class AgentHarness:
             if input_receipts
             else {}
         )
+        screen_proof = {
+            key: value
+            for key, value in {
+                "image_sha256": observation.image_sha256,
+                "screen_hash": observation.screen_hash,
+            }.items()
+            if value
+        }
         continuity_before = before or run.observation
         previous_machine = (
             continuity_before.machine
@@ -1074,6 +1082,7 @@ class AgentHarness:
                 current_alias=observation.machine.get("alias"),
                 source="harness",
                 status=observation.status,
+                **screen_proof,
                 **receipt_outcome,
                 **tool_outcome,
             )
@@ -1305,6 +1314,7 @@ class AgentHarness:
                 world_version=observation.world_version,
                 reason=observation.raw.get("reason"),
                 status=observation.status,
+                **screen_proof,
                 **receipt_outcome,
                 **tool_outcome,
             )
@@ -1327,6 +1337,7 @@ class AgentHarness:
                     status=observation.status,
                     reason=observation.raw.get("reason"),
                     error=run.error,
+                    **screen_proof,
                     **receipt_outcome,
                     **tool_outcome,
                 )
@@ -1337,6 +1348,7 @@ class AgentHarness:
                     index=action.index if action else None,
                     status=observation.status,
                     error=run.error,
+                    **screen_proof,
                     **receipt_outcome,
                     **tool_outcome,
                 )
@@ -1353,6 +1365,7 @@ class AgentHarness:
             frame_id=observation.frame_id,
             world_version=observation.world_version,
             status=observation.status,
+            **screen_proof,
             **receipt_outcome,
             **tool_outcome,
         )

@@ -240,6 +240,14 @@ class ComputerObservation(BaseModel):
     width: int | None = None
     height: int | None = None
     image_path: str | None = None
+    image_sha256: str | None = Field(
+        default=None,
+        pattern=r"^[0-9a-f]{64}$",
+    )
+    screen_hash: str | None = Field(
+        default=None,
+        pattern=r"^[0-9a-f]+$",
+    )
     approval_request: dict[str, Any] | None = None
     error: str | None = None
     raw: dict[str, Any] = Field(default_factory=dict)

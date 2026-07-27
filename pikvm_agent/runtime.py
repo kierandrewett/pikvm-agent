@@ -548,11 +548,15 @@ class Runtime:
         }
         if frame is None:  # read-only poll before the first capture
             return {**base, "frame_id": None, "world_version": None, "screenshot_path": None,
+                    "image_sha256": None, "screen_hash": None,
                     "width": None, "height": None, "keyboard_state": None}
         return {
             **base,
             "frame_id": frame.frame_id, "world_version": frame.world_version,
-            "screenshot_path": frame.image_path, "width": frame.width, "height": frame.height,
+            "screenshot_path": frame.image_path,
+            "image_sha256": frame.image_sha256,
+            "screen_hash": frame.screen_hash,
+            "width": frame.width, "height": frame.height,
             "keyboard_state": frame.keyboard_state.model_dump(),
         }
 
@@ -1129,6 +1133,8 @@ class Runtime:
         if final is not None:
             out.update({"frame_id": final.frame_id, "world_version": final.world_version,
                         "screenshot_path": final.image_path,
+                        "image_sha256": final.image_sha256,
+                        "screen_hash": final.screen_hash,
                         "width": final.width, "height": final.height})
         if key:
             sr.burst_idempotency[key] = {
@@ -1221,7 +1227,10 @@ class Runtime:
         ]
         return {"session_id": session_id, "frame_id": frame.frame_id,
                 "world_version": frame.world_version, "control_epoch": sr.control_epoch,
-                "screenshot_path": frame.image_path, "elements": elements,
+                "screenshot_path": frame.image_path,
+                "image_sha256": frame.image_sha256,
+                "screen_hash": frame.screen_hash,
+                "elements": elements,
                 "ocr_text": em.ocr_text}
 
     async def ocr_region(self, session_id: str, x: int, y: int, w: int, h: int) -> dict[str, Any]:

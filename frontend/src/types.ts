@@ -61,6 +61,8 @@ export type RunSnapshot = RunSummary & {
     control_epoch?: number | null;
     width?: number | null;
     height?: number | null;
+    image_sha256?: string | null;
+    screen_hash?: string | null;
   } | null;
   pending_action?: {
     index: number;

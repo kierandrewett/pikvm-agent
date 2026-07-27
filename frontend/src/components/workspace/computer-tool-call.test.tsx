@@ -553,6 +553,8 @@ describe("ComputerActionReceipt", () => {
           status: "completed",
           frame_id: 42,
           world_version: 10,
+          image_sha256:
+            "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
           verification: {
             verdict: "verified",
             summary: "The Save dialog closed and the document remained open.",
@@ -574,7 +576,7 @@ describe("ComputerActionReceipt", () => {
     expect(receipt.textContent).toContain("Office lab");
     expect(receipt.textContent).toContain("Trace");
     expect(receipt.textContent).toContain(
-      "Office lab · 1920×1080 · frame 41 → 42",
+      "Office lab · 1920×1080 · frame 41 → 42 · pixels 0123456789ab",
     );
     expect(receipt.textContent).not.toContain("world 9 → 10");
     expect(receipt.textContent).not.toContain("control 3");
