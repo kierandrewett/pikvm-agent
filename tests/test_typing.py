@@ -283,6 +283,34 @@ def test_ocr_localization_ignores_chunk_boundary_space_before_caret() -> None:
     assert region.y == 441
 
 
+def test_ocr_localization_folds_smart_quotes_for_prose_only() -> None:
+    typer = WatchedTyper(FakeBackend(), ScriptedOCR())
+    result = OCRResult(
+        lines=[
+            OCRLine(
+                text="Banquo’s murder|",
+                confidence=0.96,
+                bbox=[448, 449, 540, 462],
+            )
+        ]
+    )
+
+    prose_region = typer._locate_ocr_candidate(  # noqa: SLF001
+        result,
+        " Banquo's murder ",
+        (1280, 720),
+    )
+    precise_region = typer._locate_ocr_candidate(  # noqa: SLF001
+        result,
+        " Banquo's murder ",
+        (1280, 720),
+        precise=True,
+    )
+
+    assert prose_region is not None
+    assert precise_region is None
+
+
 # --------------------------------------------------------------------------- #
 # fast print path
 # --------------------------------------------------------------------------- #
@@ -626,6 +654,49 @@ async def test_autolocate_uses_grounded_ocr_when_video_grid_misses_text() -> Non
     assert result.status == "verified_exact"
     assert result.ok is True
     assert result.field_text == intended
+
+
+async def test_fast_prose_autolocates_after_word_smartens_apostrophe() -> None:
+    """The first changed Word chunk may exist only in OCR with a curly quote."""
+
+    backend = FakeBackend()
+    intended = (
+        " Banquo's murder follows the same logic without the same excuse: no "
+        "prophecy demands it, only Macbeth's wish to keep what the first crime "
+        "won. Each killing leaves the next choice narrower."
+    )
+    smart_read = intended.replace("'", "’")
+
+    class SmartQuoteOCR:
+        async def ocr(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            return OCRResult(
+                lines=[
+                    OCRLine(
+                        text=smart_read,
+                        confidence=0.97,
+                        bbox=[440, 630, 820, 690],
+                    )
+                ]
+            )
+
+    typer = WatchedTyper(backend, SmartQuoteOCR())
+    flat = _flat_grid()
+
+    async def unchanged_grid() -> np.ndarray:
+        return flat
+
+    typer._grid = unchanged_grid  # type: ignore[method-assign]
+
+    result = await typer.type_text(intended, prose=True)
+
+    assert result.used_fast_path is True
+    assert result.status == "verified_exact"
+    assert result.typed_characters == len(intended)
+    assert result.ok is True
 
 
 async def test_autolocate_refines_dynamic_results_panel_to_typed_field() -> None:

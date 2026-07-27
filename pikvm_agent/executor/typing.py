@@ -416,18 +416,31 @@ class WatchedTyper:
         result: OCRResult,
         intended: str,
         dims: tuple[int, int],
+        *,
+        precise: bool = False,
     ) -> Region | None:
-        """Ground an OCR line containing the just-typed text, case-insensitively."""
+        """Ground an OCR line containing the just-typed text."""
         # Word-boundary chunks commonly end in a space. OCR omits that invisible
         # boundary and may render the adjacent caret as punctuation, so retain
         # the exact visible characters while excluding only outer whitespace
         # from this localisation probe.
-        needle = intended.strip().casefold()
+        if precise:
+            # Code, commands, paths, and URLs retain exact punctuation here;
+            # later verification remains the final authority on case as well.
+            needle = intended.strip().casefold()
+            normalize_line = str.casefold
+        else:
+            # Rich editors commonly replace straight quotes with smart quotes
+            # before the first verification frame. Use the same family-aware
+            # prose normalization as final read-back, without confusable or
+            # edit-distance tolerance.
+            needle = norm(intended, False)
+            normalize_line = lambda value: norm(value, False)
         width, height = dims
         if not needle or width <= 0 or height <= 0:
             return None
         for line in result.lines:
-            if needle not in line.text.casefold():
+            if needle not in normalize_line(line.text):
                 continue
             if (
                 line.confidence is not None
@@ -912,6 +925,7 @@ class WatchedTyper:
                             await self._read_screen(),
                             typed_so_far,
                             dims,
+                            precise=precise,
                         )
                         if ocr_loc is not None:
                             loc = ocr_loc
@@ -947,6 +961,7 @@ class WatchedTyper:
                             await self._read_screen(),
                             typed_so_far,
                             dims,
+                            precise=precise,
                         )
                         if ocr_loc is not None:
                             cur_region = ocr_loc
