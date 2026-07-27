@@ -270,6 +270,11 @@ tests, including 12 focused action-presentation tests, and 161/161
 provider/agent/API/store/fixture/static-UI tests in a detached worktree. The
 1,217,335-byte bundle remains below the enforced 1.25 MB cap. See
 [`computer-use-chat-controls.json`](results/2026-07-27/ui/computer-use-chat-controls.json).
+The subsequent branch-wide target-free run found one stale playbook test that
+omitted the now-required caller-stable idempotency key; the test was repaired
+without weakening the runtime gate. The follow-up is clean: 1,052 passed, one
+environment-dependent case skipped, 36/36 frontend tests passed, and the
+production scorecard/build/similarity checks remain current.
 
 The previous customer wheel was built offline with Hatchling 1.31.0 from the
 pre-existing cache. Its SHA-256 is
@@ -900,7 +905,7 @@ instrumentation check only, not an accuracy, average-token, or cost claim.
 ## Current headline
 
 <!-- pikvm-scorecard:start -->
-_Generated from checked JSON evidence as of 2026-07-27. Manifest `sha256:d5d69c5b1671`; run `pikvm-agent harness scorecard --check` to detect drift._
+_Generated from checked JSON evidence as of 2026-07-27. Manifest `sha256:fc577dceb140`; run `pikvm-agent harness scorecard --check` to detect drift._
 
 | Suite | Route | Cases | Result | Median / p95 | Wall | Status | Evidence |
 | --- | --- | ---: | ---: | ---: | ---: | --- | --- |
@@ -918,7 +923,7 @@ _Generated from checked JSON evidence as of 2026-07-27. Manifest `sha256:d5d69c5
 | Live computer activity in chat | Authenticated fetch SSE → assistant-ui | 19 frontend + 53 harness/API contracts | 19/19 + 53/53; action 394 → verification 396 | 75ms snapshot coalescing; 305,613-byte gzip JavaScript | Target-free runtime | Authenticated live stream passing; browser visual audit pending | [JSON](results/2026-07-27/ui/computer-action-live-stream.json) · `sha256:5d61d446891f` |
 | Computer-action transaction receipt | assistant-ui tool disclosure → four-phase receipt | 22 frontend + 58 harness/API contracts | 22/22 + 58/58; 4-phase receipt / 8 focused tests | 306,345-byte gzip JavaScript | Target-free contract | Component/build passing; browser visual audit pending | [JSON](results/2026-07-27/ui/computer-action-receipt.json) · `sha256:739f8fde11de` |
 | Model connections and role routing | Authenticated provider catalog → chat Models sheet | 26 frontend + 83 provider/API contracts | 26/26 + 83/83; 10 adapters / 2 configured / 3 roles | 309,038-byte gzip JavaScript | Target-free contract | Catalog/routing UI passing; live providers and browser visual audit pending | [JSON](results/2026-07-27/ui/model-connections-and-routing.json) · `sha256:28d26d4baf28` |
-| Computer-use chat controls | assistant-ui → per-role route + action receipt | 36 frontend + 161 provider/agent/API/UI contracts | 36/36 + 161/161; 3 model roles / 8 action states | 311,249-byte gzip JS; 18,064-byte gzip CSS | Detached commit contract | Passing isolated contract; browser visual audit pending | [JSON](results/2026-07-27/ui/computer-use-chat-controls.json) · `sha256:d8196a168420` |
+| Computer-use chat controls | assistant-ui → per-role route + action receipt | 36 frontend + 1,052 full Python | 36/36; 1,052 passed / 1 skipped; 3 model roles / 8 action states | 311,264-byte gzip JS; 18,064-byte gzip CSS | Detached commit contract | Passing isolated contract; browser visual audit pending | [JSON](results/2026-07-27/ui/computer-use-chat-controls.json) · `sha256:b835e8680388` |
 | Live-frame resource envelope | Target-free streamed preview adapter | 6 contracts | 6/6; 4,194,304-byte frame; 8 sessions / 33,554,432 bytes cached | 450ms minimum upstream interval | — | Passing transport resource contract; browser decode pending | [JSON](results/2026-07-25/ui/live-frame-resource-envelope-2026-07-26.json) · `sha256:345d2a92bda7` |
 | Normalized storage + bounded control | In-memory production contract | 100,000 events + 100 appends | 11,214.070× write-size reduction; 1,000 control events loaded | 0.086ms / 0.138ms append; 3.372ms / 4.539ms control | 214.978ms import | Serialization diagnostic; real SQLite pending | [JSON](results/2026-07-25/ui/normalized-storage-bounded-control-n100000-2026-07-26.json) · `sha256:9af680551989` |
 | Gemini CLI provider adapter | Gemini CLI 0.35.3 / `account-default` | 79 provider/config/UI cases | Adapter contracts passed; startup probe timeout; 228,904 KiB peak RSS | 60.01s startup probe | 60.01s | Adapter contract; live provider unproven | [JSON](results/gemini-cli-0.35.3-compatibility-2026-07-26.json) · `sha256:4beb22389eaa` |

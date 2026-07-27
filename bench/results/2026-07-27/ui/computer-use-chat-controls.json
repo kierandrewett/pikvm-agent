@@ -22,6 +22,36 @@
     "production_build": "passed",
     "typescript_similarity": "no duplicate functions or types"
   },
+  "follow_up_branch_regression": {
+    "generated_at": "2026-07-27T05:34:49Z",
+    "source_commit": "e4bb5ef",
+    "frontend": {
+      "passed": 36,
+      "total": 36
+    },
+    "python": {
+      "passed": 1052,
+      "skipped": 1,
+      "failed": 0,
+      "warnings": 4
+    },
+    "production_build": "passed",
+    "public_scorecard_check": "passed",
+    "typescript_similarity": "no duplicate functions or types",
+    "diagnostic_repair": {
+      "detected": "legacy playbook test omitted the required caller-stable idempotency key",
+      "resolution": "test now exercises the public required call shape",
+      "runtime_idempotency_requirement_weakened": false
+    },
+    "resource_envelope": {
+      "total_raw_bytes": 1217372,
+      "largest_asset_bytes": 1031014,
+      "javascript_raw_bytes": 1031014,
+      "javascript_gzip_bytes": 311264,
+      "css_raw_bytes": 109225,
+      "css_gzip_bytes": 18064
+    }
+  },
   "per_task_model_route": {
     "roles": [
       "reasoning",

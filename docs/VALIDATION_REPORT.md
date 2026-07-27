@@ -247,6 +247,15 @@ CSS. The in-app browser URL policy still blocked the post-change visual/reflow
 inspection, so this is isolated component/build evidence rather than a
 browser-layout result.
 
+A subsequent complete target-free regression caught one legacy playbook test
+calling the hardened HID path without its required caller-stable idempotency
+key. The runtime correctly failed closed; the test was updated to use the
+public call shape rather than generating a server-side key or weakening the
+boundary. The repaired branch completed 1,052 tests with zero failures and one
+environment-dependent skip in 86.80 seconds. All 36 frontend tests, the
+production build, public scorecard check, and TypeScript similarity scan also
+passed at `e4bb5ef`.
+
 Operator steering now has a durable managed-run boundary: only the browser
 operator credential can record guidance; an in-flight provider wait is
 cancelled before replanning; the next reasoner sees that guidance; and pending
