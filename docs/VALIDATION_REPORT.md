@@ -188,15 +188,26 @@ The returned model strings remain vendor CLI aliases because neither CLI
 exposed a resolved backend model. API-key adapters were exercised with mock
 transports only; this pass makes no live API-provider claim.
 
-The current production assistant-ui/shadcn workspace totals 1,188,014 raw
-bytes including local fonts (713 HTML, 1,004,653 JavaScript, 106,228 CSS, and
-76,420 fonts). JavaScript compresses to 303,420 bytes and CSS to 17,598 bytes.
+The current production assistant-ui/shadcn workspace totals 1,189,647 raw
+bytes including local fonts (713 HTML, 1,009,119 JavaScript, 103,395 CSS, and
+76,420 fonts). JavaScript compresses to 305,613 bytes and CSS to 17,331 bytes.
 Tests cap each asset at 1.1 MB, total assets at 1.25 MB, and gzip JavaScript/CSS
 at 320/24 KiB. This supersedes the obsolete 128 KiB hand-built-console
 envelope. Current provider/tool activity is stored outside the 500-event
 visible tail and streamed on start/end even when the run status does not
 change. Focused store, static UI, and direct async-generator stream checks
 pass.
+
+The chat workspace now consumes that authenticated stream rather than waiting
+on an unconditional 750 ms full refresh. A target-free runtime trace delivered
+model completion, checkpoint, exact action attempt, action completion, and
+independent verification as ordered events 391–396. The client coalesces
+snapshot reads for 75 ms, reconciles every 15 seconds while live, and discloses
+its Connecting, Live, Reconnecting, or Updates offline state; degraded mode
+uses 1.5-second bounded polling with 0.5–5-second reconnect backoff. Nineteen
+frontend and 53 harness/API/fixture tests pass. The in-app browser URL policy
+blocked the post-change visual/reflow inspection, so this is runtime and
+component evidence rather than a browser-layout pass.
 
 Operator steering now has a durable managed-run boundary: only the browser
 operator credential can record guidance; an in-flight provider wait is

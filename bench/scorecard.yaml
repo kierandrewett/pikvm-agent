@@ -166,6 +166,24 @@ rows:
     wall: "Target-free contract"
     status: "Component/build passing; post-change browser visual audit pending"
 
+  - suite: "Live computer activity in chat"
+    route: "Authenticated fetch SSE → assistant-ui"
+    source: "results/2026-07-27/ui/computer-action-live-stream.json"
+    fields:
+      frontend_passed: {path: "contracts.frontend.passed", format: "integer"}
+      frontend_total: {path: "contracts.frontend.total", format: "integer"}
+      harness_passed: {path: "contracts.harness_api_and_fixture.passed", format: "integer"}
+      harness_total: {path: "contracts.harness_api_and_fixture.total", format: "integer"}
+      attempted: {path: "runtime_stream.observed_sequences.action_attempted", format: "integer"}
+      verified: {path: "runtime_stream.observed_sequences.verification_completed", format: "integer"}
+      debounce: {path: "runtime_stream.snapshot_refresh_debounce_ms", format: "milliseconds", digits: 0}
+      gzip_js: {path: "resource_envelope.javascript_gzip_bytes", format: "integer"}
+    cases: "{frontend_total} frontend + {harness_total} harness/API contracts"
+    result: "{frontend_passed}/{frontend_total} + {harness_passed}/{harness_total}; action {attempted} → verification {verified}"
+    latency: "{debounce} snapshot coalescing; {gzip_js}-byte gzip JavaScript"
+    wall: "Target-free runtime"
+    status: "Authenticated live stream passing; browser visual audit pending"
+
   - suite: "Live-frame resource envelope"
     route: "Target-free streamed preview adapter"
     source: "results/2026-07-25/ui/live-frame-resource-envelope-2026-07-26.json"

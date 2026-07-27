@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-07-27T04:35:49Z",
+  "source_commit": "f3029be",
+  "route": "authenticated chat workspace to target-free synthetic harness stream",
+  "machine_contacted": false,
+  "model_api_contacted": false,
+  "contracts": {
+    "frontend": {
+      "passed": 19,
+      "total": 19
+    },
+    "harness_api_and_fixture": {
+      "passed": 53,
+      "total": 53
+    },
+    "production_build": "passed",
+    "typescript_similarity": "no duplicate functions or types"
+  },
+  "runtime_stream": {
+    "transport": "authenticated fetch SSE",
+    "token_in_url": false,
+    "start_cursor": 390,
+    "observed_sequences": {
+      "model_provider_completed": 391,
+      "model_completed": 392,
+      "action_checkpointed": 393,
+      "action_attempted": 394,
+      "action_completed": 395,
+      "verification_completed": 396
+    },
+    "ordered_action_and_verification": true,
+    "snapshot_refresh_debounce_ms": 75,
+    "live_reconciliation_interval_ms": 15000,
+    "degraded_reconciliation_interval_ms": 1500,
+    "retry_backoff_ms": {
+      "minimum": 500,
+      "maximum": 5000
+    },
+    "offline_after_consecutive_failures": 3
+  },
+  "operator_visibility": {
+    "states": [
+      "connecting",
+      "live",
+      "reconnecting",
+      "updates offline"
+    ],
+    "degraded_polling_disclosed": true,
+    "browser_authentication_not_labelled_as_mcp_connection": true,
+    "managed_mcp_visible_at_send_time": true
+  },
+  "resource_envelope": {
+    "total_raw_bytes": 1189647,
+    "javascript_raw_bytes": 1009119,
+    "javascript_gzip_bytes": 305613,
+    "css_raw_bytes": 103395,
+    "css_gzip_bytes": 17331,
+    "html_raw_bytes": 713,
+    "local_font_bytes": 76420
+  },
+  "browser_audit": {
+    "post_change_visual_review": false,
+    "blocker": "in-app browser URL policy blocked local navigation from its error page",
+    "alternate_browser_used": false
+  },
+  "status": "Runtime stream and component contracts pass; browser visual and reflow audit remains pending"
+}

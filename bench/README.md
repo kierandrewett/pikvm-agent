@@ -210,14 +210,28 @@ approval reasons were ellipsized, and dialogs had no viewport-height scroll
 boundary. Two static regressions pass. This is a fix record, not a completed
 200% browser claim.
 
-The current production assistant-ui/shadcn workspace assets are **1,188,014
-bytes total** including local fonts: 713 bytes HTML, 1,004,653 bytes
-JavaScript, 106,228 bytes CSS, and 76,420 bytes of local fonts. Gzip output is
-303,420 bytes for JavaScript and 17,598 bytes for CSS. Release regressions cap
+The current production assistant-ui/shadcn workspace assets are **1,189,647
+bytes total** including local fonts: 713 bytes HTML, 1,009,119 bytes
+JavaScript, 103,395 bytes CSS, and 76,420 bytes of local fonts. Gzip output is
+305,613 bytes for JavaScript and 17,331 bytes for CSS. Release regressions cap
 every asset at 1.1 MB, the total at 1.25 MB, and gzip JavaScript/CSS at 320/24
 KiB. This is materially larger than the retired hand-built console and remains
 within the explicit current envelope; the old 128 KiB claim no longer
 describes the shipped chat workspace.
+
+The chat now consumes the authenticated run SSE directly instead of waiting on
+an unconditional 750 ms full refresh. A target-free runtime trace delivered
+the exact action attempt, completion, and independent verification in order.
+The selected run coalesces snapshots for 75 ms and performs a 15-second
+reconciliation while live; if streaming fails, the header visibly changes
+from Live to Reconnecting or Updates offline while 1.5-second bounded polling
+and 0.5–5-second reconnect backoff preserve progress. Browser authentication
+is no longer labelled as MCP connectivity, and the managed MCP route is
+visible beside the model selector at send time. Nineteen frontend and 53
+harness/API/fixture contracts pass. The post-change browser visual/reflow audit
+remains pending because the in-app browser blocked local navigation from its
+error page; no alternate browser was used. See
+[`computer-action-live-stream.json`](results/2026-07-27/ui/computer-action-live-stream.json).
 
 The previous customer wheel was built offline with Hatchling 1.31.0 from the
 pre-existing cache. Its SHA-256 is
@@ -848,7 +862,7 @@ instrumentation check only, not an accuracy, average-token, or cost claim.
 ## Current headline
 
 <!-- pikvm-scorecard:start -->
-_Generated from checked JSON evidence as of 2026-07-27. Manifest `sha256:24b8a0912d58`; run `pikvm-agent harness scorecard --check` to detect drift._
+_Generated from checked JSON evidence as of 2026-07-27. Manifest `sha256:e03c14af4ff7`; run `pikvm-agent harness scorecard --check` to detect drift._
 
 | Suite | Route | Cases | Result | Median / p95 | Wall | Status | Evidence |
 | --- | --- | ---: | ---: | ---: | ---: | --- | --- |
@@ -863,6 +877,7 @@ _Generated from checked JSON evidence as of 2026-07-27. Manifest `sha256:24b8a09
 | Managed smoke lab contract | Target-free app + stdin client task | 24 contracts | 24/24; 44 focused gates | Not measured | Target-free contract | Passing contract; live task rejected-before-process-creation | [JSON](results/2026-07-26/harness/managed-smoke-lab-contract.json) · `sha256:c7bb759ff96b` |
 | Operator steering | Authenticated UI → managed replan | 12 tests / 13 contracts | Operator-only durable replan; 131,022-byte UI | — | 0.78s | Passing local contract and browser interaction | [JSON](results/2026-07-25/ui/operator-steering-2026-07-26.json) · `sha256:a4325a2ad4df` |
 | Computer-action chat workspace | Target-free synthetic fixture | 14 frontend + 14 harness UI/fixture contracts | 14/14 + 14/14; production build passed | 303,420-byte gzip JavaScript | Target-free contract | Component/build passing; post-change browser visual audit pending | [JSON](results/2026-07-27/ui/computer-action-chat-workspace.json) · `sha256:6578fe3fc553` |
+| Live computer activity in chat | Authenticated fetch SSE → assistant-ui | 19 frontend + 53 harness/API contracts | 19/19 + 53/53; action 394 → verification 396 | 75ms snapshot coalescing; 305,613-byte gzip JavaScript | Target-free runtime | Authenticated live stream passing; browser visual audit pending | [JSON](results/2026-07-27/ui/computer-action-live-stream.json) · `sha256:5d61d446891f` |
 | Live-frame resource envelope | Target-free streamed preview adapter | 6 contracts | 6/6; 4,194,304-byte frame; 8 sessions / 33,554,432 bytes cached | 450ms minimum upstream interval | — | Passing transport resource contract; browser decode pending | [JSON](results/2026-07-25/ui/live-frame-resource-envelope-2026-07-26.json) · `sha256:345d2a92bda7` |
 | Normalized storage + bounded control | In-memory production contract | 100,000 events + 100 appends | 11,214.070× write-size reduction; 1,000 control events loaded | 0.086ms / 0.138ms append; 3.372ms / 4.539ms control | 214.978ms import | Serialization diagnostic; real SQLite pending | [JSON](results/2026-07-25/ui/normalized-storage-bounded-control-n100000-2026-07-26.json) · `sha256:9af680551989` |
 | Gemini CLI provider adapter | Gemini CLI 0.35.3 / `account-default` | 79 provider/config/UI cases | Adapter contracts passed; startup probe timeout; 228,904 KiB peak RSS | 60.01s startup probe | 60.01s | Adapter contract; live provider unproven | [JSON](results/gemini-cli-0.35.3-compatibility-2026-07-26.json) · `sha256:4beb22389eaa` |
