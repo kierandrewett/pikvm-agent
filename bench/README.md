@@ -1014,6 +1014,28 @@ inherits no ambient API key or unrelated secret, starts in an empty temporary
 workspace, persists neither session nor prompt history, and preapproves only
 the four non-destructive managed controls. Abort remains prompt-gated.
 
+OpenCode 1.14.44 then passed after two retained preflight failures. The first
+omitted the disposable agent credential and failed closed. The second exposed
+a launcher portability defect: the user-facing wrapper resolved its real
+binary through `HOME` after `HOME` had become the process-private profile. The
+fixed launcher resolves that client-owned binary first while keeping OpenCode
+config, cache, state, data, plugins, and MCP inventory isolated. The final
+20.155-second run—including a first-run database migration—used only
+`pikvm_computer_start_task` and `pikvm_computer_status`, and produced the same
+22-event verified harness run. OpenCode's stream did not attest the concrete
+outer model, so the report leaves it unreported.
+
+Gemini CLI 0.35.3 remains a failure. Its native effective-settings loader
+proved one allowed managed MCP, deny-all/allow-managed admin policy, disabled
+extensions/skills/hooks/context, no permanent approval, and an empty workspace.
+An unauthenticated dedicated profile exited before model work. A disposable
+profile linked to the CLI-owned OAuth files then registered the MCP server, but
+the external service rejected this client version for the authenticated
+individual Code Assist tier before any model response, tool call, or harness
+run. The first authenticated attempt also exposed a shared-cache write; the
+fixed runtime now supplies disposable home and XDG cache/config/data/state
+roots. The post-fix failure took 6.627 seconds and wrote no shared cache.
+
 A separate first-party chat run exercised the opposite boundary: the harness
 itself called a live Codex account route for reasoner, controller, and verifier.
 It completed and independently verified the target-free click, but took
@@ -1027,7 +1049,7 @@ production daemon, or any computer target.
 ## Current headline
 
 <!-- pikvm-scorecard:start -->
-_Generated from checked JSON evidence as of 2026-07-27. Manifest `sha256:7112ae95ea33`; run `pikvm-agent harness scorecard --check` to detect drift._
+_Generated from checked JSON evidence as of 2026-07-27. Manifest `sha256:7fe420257746`; run `pikvm-agent harness scorecard --check` to detect drift._
 
 | Suite | Route | Cases | Result | Median / p95 | Wall | Status | Evidence |
 | --- | --- | ---: | ---: | ---: | ---: | --- | --- |
@@ -1042,6 +1064,8 @@ _Generated from checked JSON evidence as of 2026-07-27. Manifest `sha256:7112ae9
 | Managed smoke lab contract | Target-free app + stdin client task | 24 contracts | 24/24; 44 focused gates | Not measured | Target-free contract | Passing contract; live task rejected-before-process-creation | [JSON](results/2026-07-26/harness/managed-smoke-lab-contract.json) · `sha256:c7bb759ff96b` |
 | Live Codex managed task | Codex OAuth → isolated managed MCP → harness loop | 2 failure-inclusive attempts | 2 managed calls; 22 events / 3 inner model calls; completed | 13.70s fixed run | 13.70s | Passing target-free authenticated Codex task; live computer pending | [JSON](results/2026-07-27/harness/live-codex-managed-task.json) · `sha256:5efd19fa4ac7` |
 | Live Claude managed task | Claude OAuth → isolated managed MCP → harness loop | 6 failure-inclusive attempts | 2 managed calls; 22 events / 3 inner model calls; completed | 16.94s final run | 16.94s | Passing target-free authenticated Claude task; live computer pending | [JSON](results/2026-07-27/harness/live-claude-managed-task.json) · `sha256:44fa332cc5f6` |
+| Live OpenCode managed task | OpenCode OAuth → pure managed MCP → harness loop | 3 failure-inclusive attempts | 2 managed calls; 22 events / 3 inner model calls; completed | 20.16s final run | 20.16s | Passing target-free authenticated OpenCode task; live computer pending | [JSON](results/2026-07-27/harness/live-opencode-managed-task.json) · `sha256:9c72f47847b7` |
+| Live Gemini managed task | Gemini OAuth → native managed policy → external auth | 3 failure-inclusive attempts | Managed MCP registered: yes; 0 runs / 0 model calls; external_auth_compatibility_rejected | 6.63s final failure | 6.63s | Failing external OAuth compatibility; no computer contact | [JSON](results/2026-07-27/harness/live-gemini-managed-task.json) · `sha256:25eb2c5462ab` |
 | Live Codex inner loop | Chat UI → live reasoner/controller/verifier → smoke computer | 3 live model calls / 1 action | 22 events; completed; model latency 336.75s | 336.92s end-to-end | 336.92s | Passing target-free loop; too slow for single-heavy-model routing | [JSON](results/2026-07-27/harness/live-codex-inner-loop.json) · `sha256:baca00df92b1` |
 | Operator steering | Authenticated UI → managed replan | 12 tests / 13 contracts | Operator-only durable replan; 131,022-byte UI | — | 0.78s | Passing local contract and browser interaction | [JSON](results/2026-07-25/ui/operator-steering-2026-07-26.json) · `sha256:a4325a2ad4df` |
 | Computer-action chat workspace | Target-free synthetic fixture | 14 frontend + 14 harness UI/fixture contracts | 14/14 + 14/14; production build passed | 303,420-byte gzip JavaScript | Target-free contract | Component/build passing; post-change browser visual audit pending | [JSON](results/2026-07-27/ui/computer-action-chat-workspace.json) · `sha256:6578fe3fc553` |

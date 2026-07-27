@@ -168,6 +168,38 @@ rows:
     wall: "{elapsed}"
     status: "Passing target-free authenticated Claude task; live computer pending"
 
+  - suite: "Live OpenCode managed task"
+    route: "OpenCode OAuth → pure managed MCP → harness loop"
+    source: "results/2026-07-27/harness/live-opencode-managed-task.json"
+    fields:
+      attempts: {path: "attempts", format: "count"}
+      managed_calls: {path: "attempts.final_isolated.managed_tool_calls", format: "count"}
+      events: {path: "attempts.final_isolated.managed_run.events", format: "integer"}
+      model_calls: {path: "attempts.final_isolated.managed_run.model_calls", format: "integer"}
+      elapsed: {path: "attempts.final_isolated.elapsed_ms", format: "seconds_from_ms", digits: 2}
+      status: {path: "attempts.final_isolated.terminal_result", format: "text"}
+    cases: "{attempts} failure-inclusive attempts"
+    result: "{managed_calls} managed calls; {events} events / {model_calls} inner model calls; {status}"
+    latency: "{elapsed} final run"
+    wall: "{elapsed}"
+    status: "Passing target-free authenticated OpenCode task; live computer pending"
+
+  - suite: "Live Gemini managed task"
+    route: "Gemini OAuth → native managed policy → external auth"
+    source: "results/2026-07-27/harness/live-gemini-managed-task.json"
+    fields:
+      attempts: {path: "attempts", format: "count"}
+      managed: {path: "attempts.oauth_linked_after_cache_fix.managed_mcp_registered", format: "text"}
+      runs: {path: "attempts.oauth_linked_after_cache_fix.harness_runs_created", format: "integer"}
+      model_calls: {path: "attempts.oauth_linked_after_cache_fix.model_calls", format: "integer"}
+      elapsed: {path: "attempts.oauth_linked_after_cache_fix.elapsed_ms", format: "seconds_from_ms", digits: 2}
+      status: {path: "attempts.oauth_linked_after_cache_fix.terminal_result", format: "text"}
+    cases: "{attempts} failure-inclusive attempts"
+    result: "Managed MCP registered: {managed}; {runs} runs / {model_calls} model calls; {status}"
+    latency: "{elapsed} final failure"
+    wall: "{elapsed}"
+    status: "Failing external OAuth compatibility; no computer contact"
+
   - suite: "Live Codex inner loop"
     route: "Chat UI → live reasoner/controller/verifier → smoke computer"
     source: "results/2026-07-27/harness/live-codex-inner-loop.json"

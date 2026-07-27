@@ -1,0 +1,120 @@
+{
+  "schema_version": 1,
+  "suite": "live-opencode-managed-task",
+  "recorded_at": "2026-07-27T09:31:05Z",
+  "environment": "local-target-free-loopback",
+  "validated_source_state_commit": "618a20862096ab5284d4bcd5e866b8e369fc4836",
+  "ui_provenance_commit": "ad581e2a973799ab7d962ba256cac17148119a53",
+  "outer_client": {
+    "name": "OpenCode",
+    "version": "1.14.44",
+    "reported_model": null,
+    "authentication": "client-owned-oauth-linked-read-only",
+    "task_transport": "stdin",
+    "pure_mode": true
+  },
+  "attempts": {
+    "missing_scoped_agent_environment": {
+      "terminal_result": "preflight_refused",
+      "elapsed_ms": 299,
+      "harness_runs_created": 0,
+      "failure": "The disposable managed-agent environment variable was intentionally absent"
+    },
+    "home_relative_wrapper": {
+      "terminal_result": "resolved_config_probe_failed",
+      "elapsed_ms": 311,
+      "harness_runs_created": 0,
+      "failure": "The user-facing wrapper resolved the real OpenCode binary through HOME after HOME had become the isolated profile"
+    },
+    "final_isolated": {
+      "terminal_result": "completed",
+      "elapsed_ms": 20155,
+      "first_run_database_migration_included": true,
+      "run_id": "98aeca1d-53ed-426b-ae58-ada8b243508d",
+      "harness_runs_created": 1,
+      "managed_tool_calls": [
+        "pikvm_computer_start_task",
+        "pikvm_computer_status"
+      ],
+      "other_computer_or_mutation_tools_called": [],
+      "outer_model_usage": {
+        "input_tokens": 18,
+        "cache_creation_input_tokens": 8060,
+        "cache_read_input_tokens": 6595,
+        "output_tokens": 497,
+        "reported_cost_usd": 0.0050962
+      },
+      "managed_run": {
+        "origin": "managed",
+        "caller_interface": "managed_mcp",
+        "caller_label": "opencode-cli",
+        "status": "completed",
+        "wall_ms": 87,
+        "events": 22,
+        "model_calls": 3,
+        "model_roles": [
+          "reasoner",
+          "controller",
+          "verifier"
+        ],
+        "inner_model": "deterministic-smoke-v1",
+        "action_checkpoints": 1,
+        "action_transport_ms": 1,
+        "verification_revisions": 1,
+        "verdict": "complete"
+      }
+    }
+  },
+  "final_launch_boundary": {
+    "environment": "isolated_home_config_cache_state_data_plus_managed_agent_token",
+    "client_owned_oauth_file_copied": false,
+    "client_owned_oauth_file_linked": true,
+    "real_binary_resolved_before_home_isolation": true,
+    "pure_mode": true,
+    "default_plugins_disabled": true,
+    "claude_code_compatibility_import_disabled": true,
+    "default_permission": "deny",
+    "allowed_permission_pattern": "pikvm_*",
+    "managed_mcp_count": 1,
+    "persisted_client_config_modified": false
+  },
+  "user_visible_proof": {
+    "browser": "Codex in-app Chromium",
+    "viewport_css_pixels": {
+      "width": 645,
+      "height": 1061
+    },
+    "caller_label_visible": "via opencode-cli",
+    "collapsed_action_visible": "Click at 640 × 360",
+    "exact_mcp_tool_visible": "run_burst",
+    "inner_action_model_visible": "deterministic-smoke-v1",
+    "verification_state_visible": "Verified",
+    "raw_credentials_visible": false
+  },
+  "validation": {
+    "managed_client_launcher_tests": {
+      "passed": 27,
+      "failed": 0
+    },
+    "broader_client_selection": {
+      "passed": 70,
+      "failed": 0
+    }
+  },
+  "safety": {
+    "vnc_contact": false,
+    "pikvm_contact": false,
+    "production_daemon_contact": false,
+    "production_registration_modified": false,
+    "persisted_client_config_modified": false,
+    "computer_target_contact": false,
+    "external_outer_model_called": true,
+    "deterministic_inner_model_called": true
+  },
+  "limitations": [
+    "This is one authenticated OpenCode task against a target-free deterministic smoke computer, not a real Windows or Office task.",
+    "The OpenCode JSON stream did not attest the concrete outer model name, so the report does not infer one from account state or pricing.",
+    "The first-run database migration is included in the final wall time.",
+    "The inner reasoner, controller, and verifier were deterministic smoke providers, so this does not measure live computer-use model accuracy."
+  ]
+}

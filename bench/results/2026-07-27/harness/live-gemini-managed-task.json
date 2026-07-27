@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "suite": "live-gemini-managed-task",
+  "recorded_at": "2026-07-27T09:33:42Z",
+  "environment": "local-target-free-loopback",
+  "validated_source_state_commit": "441d67eb828b63888572ef168bb217848b7ed71e",
+  "outer_client": {
+    "name": "Gemini CLI",
+    "version": "0.35.3",
+    "reported_model": null,
+    "authentication": "client-owned-oauth-linked-into-disposable-profile",
+    "task_transport": "stdin"
+  },
+  "attempts": {
+    "unauthenticated_dedicated_profile": {
+      "terminal_result": "auth_method_missing",
+      "exit_code": 41,
+      "elapsed_ms": 1968,
+      "managed_mcp_count": 1,
+      "harness_runs_created": 0,
+      "model_calls": 0
+    },
+    "oauth_linked_before_cache_fix": {
+      "terminal_result": "external_auth_compatibility_rejected",
+      "exit_code": 1,
+      "elapsed_ms": 8532,
+      "managed_mcp_registered": true,
+      "harness_runs_created": 0,
+      "model_calls": 0,
+      "shared_cache_write_observed": true
+    },
+    "oauth_linked_after_cache_fix": {
+      "terminal_result": "external_auth_compatibility_rejected",
+      "exit_code": 1,
+      "elapsed_ms": 6627,
+      "managed_mcp_registered": true,
+      "harness_runs_created": 0,
+      "model_calls": 0,
+      "shared_cache_write_observed": false,
+      "external_failure": "The installed Gemini CLI is no longer supported for the authenticated individual Code Assist tier"
+    }
+  },
+  "final_launch_boundary": {
+    "effective_settings_audited_with_native_loader": true,
+    "managed_mcp_count": 1,
+    "allowed_mcp_server_names": [
+      "pikvm"
+    ],
+    "admin_policy": "deny_all_then_allow_managed_mcp",
+    "extensions_enabled": false,
+    "skills_enabled": false,
+    "hooks_enabled": false,
+    "workspace_context_enabled": false,
+    "permanent_tool_approval_enabled": false,
+    "always_allow_enabled": false,
+    "yolo_mode_enabled": false,
+    "workspace": "empty_temporary_directory",
+    "home": "temporary_isolated_directory",
+    "xdg_cache_config_data_state": "temporary_isolated_directories",
+    "dedicated_oauth_profile": true,
+    "oauth_files_copied": false,
+    "persisted_client_config_modified": false
+  },
+  "validation": {
+    "managed_client_launcher_tests": {
+      "passed": 27,
+      "failed": 0
+    },
+    "native_policy_and_settings_audit": "passed",
+    "live_mcp_registration": "passed",
+    "live_model_or_tool_call": "not_reached"
+  },
+  "safety": {
+    "vnc_contact": false,
+    "pikvm_contact": false,
+    "production_daemon_contact": false,
+    "production_registration_modified": false,
+    "persisted_client_config_modified": false,
+    "computer_target_contact": false,
+    "external_model_called": false,
+    "managed_mcp_tool_called": false
+  },
+  "limitations": [
+    "This is a retained failing compatibility result, not a successful Gemini task.",
+    "The external authenticated service rejected the installed Gemini CLI before a model response or managed tool call.",
+    "A supported Gemini client/account path or an explicitly configured Gemini API adapter is required for the next live task.",
+    "The MCP server registered before external authentication failed; no harness run was created."
+  ]
+}
