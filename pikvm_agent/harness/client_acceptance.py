@@ -21,6 +21,7 @@ import uvicorn
 import yaml
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
+from PIL import Image, ImageDraw
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from pikvm_agent.harness.agent import AgentHarness
@@ -261,6 +262,10 @@ class _AcceptanceProvider:
 
 
 class _AcceptanceComputer:
+    def __init__(self, *, before_image: Path, after_image: Path) -> None:
+        self.before_image = before_image
+        self.after_image = after_image
+
     @staticmethod
     def _observation(
         *,
@@ -269,6 +274,7 @@ class _AcceptanceComputer:
         frame_id: int,
         world_version: int,
         control_epoch: int | None,
+        image_path: Path,
     ) -> ComputerObservation:
         return ComputerObservation(
             session_id=session_id,
@@ -276,6 +282,7 @@ class _AcceptanceComputer:
             frame_id=frame_id,
             world_version=world_version,
             control_epoch=control_epoch,
+            image_path=str(image_path),
             machine={
                 "alias": "Acceptance desktop",
                 "fingerprint": "target:acceptance",
@@ -290,6 +297,17 @@ class _AcceptanceComputer:
             frame_id=1,
             world_version=1,
             control_epoch=1,
+            image_path=self.before_image,
+        )
+
+    async def refresh(self, *, session_id: str) -> ComputerObservation:
+        return self._observation(
+            session_id=session_id,
+            status="completed",
+            frame_id=2,
+            world_version=2,
+            control_epoch=1,
+            image_path=self.after_image,
         )
 
     async def burst(
@@ -307,6 +325,7 @@ class _AcceptanceComputer:
             frame_id=2,
             world_version=2,
             control_epoch=based_on_control_epoch,
+            image_path=self.after_image,
         )
 
     async def resolve_approval(
@@ -336,6 +355,20 @@ def build_managed_client_acceptance_app(
 ) -> Any:
     """Build the real harness API around deterministic target-free adapters."""
 
+    frame_dir = state_path.parent / "managed-client-acceptance-frames"
+    frame_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+    before_image = frame_dir / "before.png"
+    after_image = frame_dir / "after.png"
+    for path, text in (
+        (before_image, ""),
+        (after_image, "hello world"),
+    ):
+        image = Image.new("RGB", (640, 360), "#f4f4f5")
+        draw = ImageDraw.Draw(image)
+        draw.rectangle((80, 60, 560, 300), fill="#ffffff", outline="#a1a1aa")
+        draw.text((110, 100), text, fill="#18181b")
+        image.save(path, "PNG")
+
     provider = _AcceptanceProvider()
     pool = ModelPool(
         providers={provider.name: provider},
@@ -346,7 +379,10 @@ def build_managed_client_acceptance_app(
     )
     store = SqliteRunStore(state_path)
     harness = AgentHarness(
-        computer=_AcceptanceComputer(),
+        computer=_AcceptanceComputer(
+            before_image=before_image,
+            after_image=after_image,
+        ),
         models=pool,
         store=store,
         config=HarnessConfig(max_actions_per_advance=1),
