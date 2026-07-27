@@ -296,6 +296,22 @@ def _opencode_child_environment(
     if not source_data_home:
         source_data_home = str(Path(source_home) / ".local" / "share")
     source_auth = Path(source_data_home) / "opencode" / "auth.json"
+    real_binary_values = [
+        source.get("OPENCODE_REAL_BIN"),
+        str(Path(source_home) / ".opencode" / "bin" / "opencode"),
+    ]
+    real_binary = next(
+        (
+            candidate.resolve()
+            for value in real_binary_values
+            if value
+            for candidate in (Path(value).expanduser(),)
+            if candidate.is_absolute()
+            and candidate.is_file()
+            and os.access(candidate, os.X_OK)
+        ),
+        None,
+    )
     for name in plan.forwarded_env:
         if not source.get(name):
             raise ClientIsolationError(
@@ -335,6 +351,11 @@ def _opencode_child_environment(
         child["OPENCODE_DISABLE_PRUNE"] = "1"
         child["OPENCODE_DISABLE_DEFAULT_PLUGINS"] = "1"
         child["OPENCODE_DISABLE_CLAUDE_CODE"] = "1"
+        if real_binary is not None:
+            # Some user-facing launchers resolve the installed binary through
+            # HOME. Capture that client-owned path before HOME becomes the
+            # process-private profile rather than weakening profile isolation.
+            child["OPENCODE_REAL_BIN"] = str(real_binary)
         child.update(
             {
                 name: source[name]

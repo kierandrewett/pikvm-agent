@@ -611,6 +611,54 @@ def test_opencode_preflight_audits_resolved_pure_config_in_ephemeral_home(
     assert "UNRELATED_SECRET" not in child_env
 
 
+def test_opencode_isolation_resolves_home_relative_wrapper_before_replacing_home(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    home = tmp_path / "operator-home"
+    real_binary = home / ".opencode" / "bin" / "opencode"
+    real_binary.parent.mkdir(parents=True)
+    real_binary.write_text("#!/bin/sh\n", encoding="utf-8")
+    real_binary.chmod(0o700)
+    plan = build_managed_client_launch(
+        settings(monkeypatch),
+        client="opencode",
+        client_executable="/opt/opencode-wrapper",
+        mcp_executable="/opt/pikvm/python",
+        harness_config=tmp_path / "harness.yaml",
+        project_dir=tmp_path,
+    )
+    captured: dict[str, object] = {}
+
+    def fake_run(
+        argv: list[str],
+        **kwargs: object,
+    ) -> subprocess.CompletedProcess[bytes]:
+        captured.update(kwargs)
+        return subprocess.CompletedProcess(
+            argv,
+            0,
+            stdout=plan.rendered_config.encode(),
+            stderr=b"",
+        )
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    report = audit_managed_client_launch(
+        plan,
+        environ={
+            "HOME": str(home),
+            "PATH": "/usr/bin",
+            "TEST_AGENT_TOKEN": "runtime-token",
+        },
+    )
+
+    child_env = captured["env"]
+    assert isinstance(child_env, dict)
+    assert report.safe is True
+    assert child_env["OPENCODE_REAL_BIN"] == str(real_binary.resolve())
+    assert child_env["HOME"] != str(home)
+
+
 def test_opencode_preflight_refuses_competing_resolved_pikvm_surface(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
