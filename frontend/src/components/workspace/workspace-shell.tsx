@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   AssistantRuntimeProvider,
   type ExternalStoreThreadListAdapter,
@@ -50,6 +50,13 @@ export function WorkspaceShell() {
   const [modelsOpen, setModelsOpen] = useState(false);
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
   const [tasksOpen, setTasksOpen] = useState(false);
+  const managedControl = usesManagedControlLoop(
+    workspace.selectedRun?.origin,
+  );
+
+  useEffect(() => {
+    if (!managedControl) setModelsOpen(false);
+  }, [managedControl]);
 
   const messages = useMemo(
     () => messagesForRun(workspace.selectedRun),
@@ -120,7 +127,7 @@ export function WorkspaceShell() {
 
   const ComposerToolbar = () => (
     <div className="flex min-w-0 items-center gap-1">
-      {usesManagedControlLoop(workspace.selectedRun?.origin) ? (
+      {managedControl ? (
         <ModelPicker
           providers={workspace.providers}
           preferences={workspace.modelPreferences}
@@ -175,14 +182,16 @@ export function WorkspaceShell() {
               ) : null}
             </div>
             <div className="flex shrink-0 items-center gap-1">
-              <TooltipIconButton
-                tooltip="Models"
-                aria-label="Open model connections"
-                onClick={() => setModelsOpen(true)}
-                disabled={!workspace.connected}
-              >
-                <BotIcon />
-              </TooltipIconButton>
+              {managedControl ? (
+                <TooltipIconButton
+                  tooltip="Models"
+                  aria-label="Open model connections"
+                  onClick={() => setModelsOpen(true)}
+                  disabled={!workspace.connected}
+                >
+                  <BotIcon />
+                </TooltipIconButton>
+              ) : null}
               <TooltipIconButton
                 tooltip="Computer"
                 aria-label="Open computer view"
@@ -218,16 +227,21 @@ export function WorkspaceShell() {
             ) : null}
             {workspace.selectedRun?.origin === "direct_mcp" &&
             !workspace.error ? (
-              <DirectRunBanner onStartManaged={workspace.newThread} />
+              <DirectRunBanner
+                caller={workspace.selectedRun.caller}
+                onStartManaged={workspace.newThread}
+              />
             ) : null}
             <ComputerToolEnvironmentProvider value={computerEnvironment}>
-              <Thread
-                components={{
-                  ComposerToolbar,
-                  ToolFallback: ComputerToolCall,
-                  ToolGroup: ComputerToolGroup,
-                }}
-              />
+              <div className="min-h-0 flex-1">
+                <Thread
+                  components={{
+                    ComposerToolbar,
+                    ToolFallback: ComputerToolCall,
+                    ToolGroup: ComputerToolGroup,
+                  }}
+                />
+              </div>
             </ComputerToolEnvironmentProvider>
           </section>
         </main>
@@ -255,20 +269,22 @@ export function WorkspaceShell() {
         onPause={workspace.onCancel}
         onContinue={workspace.continueRun}
       />
-      <ProviderConnectionsSheet
-        open={modelsOpen}
-        onOpenChange={setModelsOpen}
-        providers={workspace.providers}
-        catalog={workspace.providerCatalog}
-        preferences={workspace.modelPreferences}
-        activeRoute={workspace.selectedRun?.model_route}
-        activeProvider={workspace.selectedRun?.model_provider}
-        locked={workspace.routeLocked}
-        onPreferenceChange={workspace.setModelPreference}
-        onResetPreferences={workspace.resetModelPreferences}
-        connectingProvider={workspace.connectingProvider}
-        onConnectProvider={workspace.connectProvider}
-      />
+      {managedControl ? (
+        <ProviderConnectionsSheet
+          open={modelsOpen}
+          onOpenChange={setModelsOpen}
+          providers={workspace.providers}
+          catalog={workspace.providerCatalog}
+          preferences={workspace.modelPreferences}
+          activeRoute={workspace.selectedRun?.model_route}
+          activeProvider={workspace.selectedRun?.model_provider}
+          locked={workspace.routeLocked}
+          onPreferenceChange={workspace.setModelPreference}
+          onResetPreferences={workspace.resetModelPreferences}
+          connectingProvider={workspace.connectingProvider}
+          onConnectProvider={workspace.connectProvider}
+        />
+      ) : null}
       <DiagnosticsSheet
         open={diagnosticsOpen}
         onOpenChange={setDiagnosticsOpen}

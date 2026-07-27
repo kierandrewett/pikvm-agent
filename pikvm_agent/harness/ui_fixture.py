@@ -57,6 +57,16 @@ def _write_fixture_evidence(path: Path) -> None:
     image.save(path, format="PNG", optimize=True)
 
 
+def _write_direct_fixture_evidence(path: Path) -> None:
+    image = Image.new("RGB", (1_280, 720), "#10141d")
+    draw = ImageDraw.Draw(image)
+    draw.text((36, 38), "DIRECT PRE-ACTION SCREEN", fill="#f1f2f5")
+    draw.text((36, 72), "Synthetic fixture · no machine input", fill="#e7bd67")
+    draw.rounded_rectangle((300, 220, 560, 350), 12, fill="#283246")
+    draw.text((350, 275), "Clicked control", fill="#f1f2f5")
+    image.save(path, format="PNG", optimize=True)
+
+
 @dataclass(frozen=True)
 class FixtureFrame:
     data: bytes
@@ -690,7 +700,9 @@ def build_approval_fixture_run() -> RunSnapshot:
     return run
 
 
-def build_direct_fixture_run() -> RunSnapshot:
+def build_direct_fixture_run(
+    evidence_path: Path | None = None,
+) -> RunSnapshot:
     """Build a guarded-direct trace whose outer client owns the action loop."""
 
     run = RunSnapshot(
@@ -708,6 +720,29 @@ def build_direct_fixture_run() -> RunSnapshot:
         observation=_fixture_observation(),
     )
     run.record("run.created", origin="direct_mcp", caller=run.caller)
+    if evidence_path is not None:
+        run.latest_verification_image_path = str(evidence_path)
+        run.latest_verification_image_revision = 1
+        run.verification_images = [
+            VerificationImageArtifact(
+                revision=1,
+                action_index=0,
+                kind="pre_action",
+                before_frame_id=1,
+                path=str(evidence_path),
+            )
+        ]
+        run.record(
+            "action.pre_action_evidence_captured",
+            call_id="fixture-direct-click",
+            tool="pikvm_run_burst",
+            revision=1,
+            action_index=0,
+            evidence_kind="pre_action",
+            before_frame_id=1,
+            source="harness",
+            synthetic=True,
+        )
     run.record(
         "action.attempted",
         call_id="fixture-direct-click",
@@ -727,7 +762,7 @@ def build_direct_fixture_run() -> RunSnapshot:
         },
     )
     run.record(
-        "action.completed_unverified",
+        "action.completed",
         call_id="fixture-direct-click",
         status="completed",
         latency_ms=84,
@@ -854,10 +889,12 @@ def build_fixture_app(
     store = InMemoryRunStore()
     run = build_fixture_run(prefill_events)
     approval_run = build_approval_fixture_run()
-    direct_run = build_direct_fixture_run()
     evidence_dir = TemporaryDirectory(prefix="pikvm-ui-fixture-")
     evidence_path = Path(evidence_dir.name) / "before-after.png"
+    direct_evidence_path = Path(evidence_dir.name) / "direct-before.png"
     _write_fixture_evidence(evidence_path)
+    _write_direct_fixture_evidence(direct_evidence_path)
+    direct_run = build_direct_fixture_run(direct_evidence_path)
     evidence_events = [
         event
         for event in run.events

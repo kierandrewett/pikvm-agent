@@ -302,6 +302,68 @@ describe("messagesForRun", () => {
     });
   });
 
+  it("keeps a production-shaped direct click unverified and attaches its pre-action preview", () => {
+    const snapshot = run({
+      origin: "direct_mcp",
+      events: [
+        {
+          sequence: 1,
+          at: "2026-07-27T12:00:00Z",
+          kind: "run.created",
+          data: { origin: "direct_mcp" },
+        },
+        {
+          sequence: 2,
+          at: "2026-07-27T12:00:01Z",
+          kind: "action.pre_action_evidence_captured",
+          data: {
+            call_id: "direct-click",
+            revision: 3,
+            evidence_kind: "pre_action",
+            before_frame_id: 17,
+          },
+        },
+        {
+          sequence: 3,
+          at: "2026-07-27T12:00:02Z",
+          kind: "action.attempted",
+          data: {
+            call_id: "direct-click",
+            tool: "pikvm_click",
+            arguments: { type: "click", x: 412, y: 286 },
+          },
+        },
+        {
+          sequence: 4,
+          at: "2026-07-27T12:00:03Z",
+          kind: "action.completed",
+          data: {
+            call_id: "direct-click",
+            frame_id: 18,
+            world_version: 18,
+          },
+        },
+      ],
+    });
+    const assistant = messagesForRun(snapshot).at(-1);
+    const tool = Array.isArray(assistant?.content)
+      ? assistant.content.find((part) => part.type === "tool-call")
+      : undefined;
+
+    expect(tool).toMatchObject({
+      args: {
+        __receipt: {
+          evidence_revision: 3,
+          evidence_kind: "pre_action",
+          evidence_before_frame_id: 17,
+        },
+      },
+      result: {
+        status: "unverified",
+      },
+    });
+  });
+
   it("exposes a pending dangerous action as inline approval choices", () => {
     const pending = run({
       status: "needs_approval",

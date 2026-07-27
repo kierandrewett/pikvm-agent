@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 import re
 import uuid
+from pathlib import Path
 from typing import Any, Literal, Protocol
 
 from pydantic import BaseModel, Field
@@ -19,12 +20,15 @@ from pikvm_agent.harness.agent_models import (
     ComputerObservation,
     RunSnapshot,
     RunStatus,
+    VerificationImageArtifact,
 )
 from pikvm_agent.harness.agent_store import RunStore
 from pikvm_agent.harness.redaction import redact_secrets
 
 
 class DirectComputer(Protocol):
+    async def refresh(self, *, session_id: str) -> ComputerObservation: ...
+
     async def resolve_approval(
         self, *, session_id: str, approval_id: str, decision: dict[str, Any]
     ) -> ComputerObservation: ...
@@ -105,11 +109,30 @@ class DirectCallCoordinator:
                 return DirectCallDecision(
                     allowed=False, run_id=run.run_id, reason=reason
                 )
+            evidence_refusal, action_index = (
+                await self._capture_pre_action_evidence(
+                    run,
+                    call,
+                    session_id=session_id,
+                )
+            )
+            if evidence_refusal:
+                await self.store.save(run)
+                return DirectCallDecision(
+                    allowed=False,
+                    run_id=run.run_id,
+                    reason=evidence_refusal,
+                )
             run.record(
                 "action.attempted",
                 call_id=call.call_id,
                 tool=call.tool,
                 arguments=redact_secrets(call.arguments),
+                **(
+                    {"index": action_index}
+                    if action_index is not None
+                    else {}
+                ),
                 source="direct_mcp",
                 caller=call.caller.model_dump(mode="json"),
             )
@@ -118,6 +141,124 @@ class DirectCallCoordinator:
             if session_id:
                 self._session_runs[session_id] = run.run_id
             return DirectCallDecision(allowed=True, run_id=run.run_id)
+
+    async def _capture_pre_action_evidence(
+        self,
+        run: RunSnapshot,
+        call: DirectCallBegin,
+        *,
+        session_id: str,
+    ) -> tuple[str, int | None]:
+        """Retain the exact screen a direct pointer action was based on."""
+
+        if not session_id or self._click_coordinates(call) is None:
+            return "", None
+        try:
+            observation = await self.computer.refresh(
+                session_id=session_id,
+            )
+        except Exception:
+            run.record(
+                "action.pre_action_evidence_unavailable",
+                call_id=call.call_id,
+                tool=call.tool,
+                reason="screen capture unavailable",
+                source="harness",
+            )
+            return "", None
+
+        previous_machine = (
+            run.observation.machine if run.observation is not None else {}
+        )
+        previous_fingerprint = str(
+            previous_machine.get("fingerprint") or ""
+        )
+        current_fingerprint = str(
+            observation.machine.get("fingerprint") or ""
+        )
+        run.observation = observation
+        if (
+            previous_fingerprint
+            and current_fingerprint
+            and previous_fingerprint != current_fingerprint
+        ):
+            run.status = RunStatus.BLOCKED
+            run.error = "target identity changed before direct MCP input"
+            run.pending_approval = None
+            run.record(
+                "target.identity_changed",
+                call_id=call.call_id,
+                previous_fingerprint=previous_fingerprint,
+                current_fingerprint=current_fingerprint,
+                previous_alias=previous_machine.get("alias"),
+                current_alias=observation.machine.get("alias"),
+                source="harness",
+            )
+            return run.error, None
+
+        image_path = Path(observation.image_path) if observation.image_path else None
+        if image_path is None or not image_path.is_file():
+            run.record(
+                "action.pre_action_evidence_unavailable",
+                call_id=call.call_id,
+                tool=call.tool,
+                reason="screen artifact unavailable",
+                source="harness",
+            )
+            return "", None
+
+        action_index = run.next_action_index
+        run.next_action_index += 1
+        run.latest_verification_image_path = str(image_path)
+        run.latest_verification_image_revision += 1
+        evidence = VerificationImageArtifact(
+            revision=run.latest_verification_image_revision,
+            action_index=action_index,
+            kind="pre_action",
+            before_frame_id=observation.frame_id,
+            path=str(image_path),
+        )
+        run.verification_images = [
+            *run.verification_images[-63:],
+            evidence,
+        ]
+        run.record(
+            "action.pre_action_evidence_captured",
+            call_id=call.call_id,
+            tool=call.tool,
+            revision=evidence.revision,
+            action_index=evidence.action_index,
+            evidence_kind=evidence.kind,
+            before_frame_id=evidence.before_frame_id,
+            source="harness",
+        )
+        return "", action_index
+
+    @staticmethod
+    def _click_coordinates(
+        call: DirectCallBegin,
+    ) -> tuple[int, int] | None:
+        if call.tool == "pikvm_click":
+            x = call.arguments.get("x")
+            y = call.arguments.get("y")
+            if isinstance(x, int) and isinstance(y, int):
+                return x, y
+            return None
+        if call.tool != "pikvm_run_burst":
+            return None
+        actions = call.arguments.get("actions")
+        if not isinstance(actions, list):
+            return None
+        for action in actions:
+            if not isinstance(action, dict):
+                continue
+            if action.get("type") not in {"click", "double_click"}:
+                continue
+            x = action.get("x")
+            y = action.get("y")
+            if isinstance(x, int) and isinstance(y, int):
+                return x, y
+        return None
 
     async def resolve_approval(
         self,

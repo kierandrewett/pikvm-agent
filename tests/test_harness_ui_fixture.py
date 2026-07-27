@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from PIL import Image
 from typer.testing import CliRunner
 
 from pikvm_agent.cli import app
@@ -75,8 +76,12 @@ def test_ui_fixture_includes_production_shaped_typing_readback() -> None:
     assert receipt["edit_distance"] == 0
 
 
-def test_ui_fixture_includes_an_honestly_labelled_direct_client_trace() -> None:
-    run = build_direct_fixture_run()
+def test_ui_fixture_includes_an_honestly_labelled_direct_client_trace(
+    tmp_path: Path,
+) -> None:
+    evidence_path = tmp_path / "direct-before.png"
+    Image.new("RGB", (1280, 720), "#10141d").save(evidence_path)
+    run = build_direct_fixture_run(evidence_path)
 
     assert run.origin == "direct_mcp"
     assert run.caller == {
@@ -88,10 +93,13 @@ def test_ui_fixture_includes_an_honestly_labelled_direct_client_trace() -> None:
     assert run.status.value == "paused"
     assert run.plan is None
     assert run.last_verification is None
+    assert run.verification_images[0].kind == "pre_action"
+    assert run.verification_images[0].path == str(evidence_path)
     assert [event.kind for event in run.events] == [
         "run.created",
+        "action.pre_action_evidence_captured",
         "action.attempted",
-        "action.completed_unverified",
+        "action.completed",
         "run.paused",
     ]
 

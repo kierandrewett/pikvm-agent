@@ -435,6 +435,7 @@ class VerificationImageArtifact(BaseModel):
 
     revision: int = Field(ge=1)
     action_index: int = Field(ge=0)
+    kind: Literal["before_after", "pre_action"] = "before_after"
     before_frame_id: int | None = Field(default=None, ge=0)
     after_frame_id: int | None = Field(default=None, ge=0)
     path: str = Field(min_length=1, max_length=4_096)

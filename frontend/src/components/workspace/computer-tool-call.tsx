@@ -94,6 +94,7 @@ type ReceiptContext = {
   latencyMs?: number;
   idempotencyKey: string;
   evidenceRevision?: number;
+  evidenceKind: string;
   evidenceBeforeFrame?: number;
   evidenceAfterFrame?: number;
   controller?: ModelReceipt;
@@ -178,6 +179,7 @@ const receiptContext = (args: JsonRecord): ReceiptContext => {
     latencyMs: number(receipt.latency_ms),
     idempotencyKey: text(receipt.idempotency_key),
     evidenceRevision: number(receipt.evidence_revision),
+    evidenceKind: text(receipt.evidence_kind),
     evidenceBeforeFrame: number(receipt.evidence_before_frame_id),
     evidenceAfterFrame: number(receipt.evidence_after_frame_id),
     controller: modelReceipt(receipt.controller),
@@ -278,7 +280,18 @@ const actionSequence = (actions: readonly JsonRecord[]) =>
   actions.map((action) => actionLabel(action)).join(" → ");
 
 const summarize = (toolName: string, args: JsonRecord) => {
-  const actions = Array.isArray(args.actions) ? args.actions.map(record) : [];
+  const actions = Array.isArray(args.actions)
+    ? args.actions.map(record)
+    : toolName === "pikvm_click"
+      ? [
+          {
+            type: "click",
+            x: args.x,
+            y: args.y,
+            button: args.button,
+          },
+        ]
+      : [];
   if (actions.length === 1) {
     return {
       title: actionLabel(actions[0]!),
@@ -922,11 +935,13 @@ function ClickTargetPreview({
 
 function VerificationEvidenceFigure({
   revision,
+  kind,
   environment,
   beforeFrame,
   afterFrame,
 }: {
   revision?: number;
+  kind?: string;
   environment: ComputerToolEnvironment;
   beforeFrame?: number;
   afterFrame?: number;
@@ -938,15 +953,26 @@ function VerificationEvidenceFigure({
   const { imageUrl, error } = useHarnessImage(environment, path);
 
   if (!path || !environment.token) return null;
-  const frameLabel = [
-    beforeFrame != null ? `frame ${beforeFrame}` : "before",
-    afterFrame != null ? `frame ${afterFrame}` : "after",
-  ].join(" → ");
+  const preActionOnly = kind === "pre_action";
+  const frameLabel = preActionOnly
+    ? beforeFrame != null
+      ? `frame ${beforeFrame}`
+      : "pre-action"
+    : [
+        beforeFrame != null ? `frame ${beforeFrame}` : "before",
+        afterFrame != null ? `frame ${afterFrame}` : "after",
+      ].join(" → ");
+  const evidenceLabel = preActionOnly
+    ? "Screen before input"
+    : "Screen change";
+  const evidenceAria = preActionOnly
+    ? "Pre-action screen evidence"
+    : "Before and after screen evidence";
 
   return (
     <figure
       className="mt-2 max-w-sm overflow-hidden rounded-md border border-border bg-background"
-      aria-label="Before and after screen evidence"
+      aria-label={evidenceAria}
     >
       <figcaption className="flex min-w-0 items-center justify-between gap-3 border-b border-border px-2.5 py-1.5">
         <span className="flex min-w-0 items-center gap-2 text-xs font-semibold">
@@ -954,7 +980,7 @@ function VerificationEvidenceFigure({
             className="size-3.5 shrink-0 text-evidence-foreground"
             aria-hidden="true"
           />
-          <span className="truncate">Screen change</span>
+          <span className="truncate">{evidenceLabel}</span>
         </span>
         <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
           {frameLabel}
@@ -963,7 +989,7 @@ function VerificationEvidenceFigure({
       {imageUrl ? (
         <img
           src={imageUrl}
-          alt={`Before and after screen evidence, ${frameLabel}`}
+          alt={`${evidenceAria}, ${frameLabel}`}
           className="block max-h-36 w-full bg-black object-contain"
         />
       ) : error ? (
@@ -1098,6 +1124,7 @@ export function ComputerActionReceipt({
       {showVisualEvidence ? (
         <VerificationEvidenceFigure
           revision={receipt.evidenceRevision}
+          kind={receipt.evidenceKind}
           environment={environment}
           beforeFrame={sourceFrame}
           afterFrame={frame}
@@ -1275,6 +1302,7 @@ const ComputerToolCallImpl: ToolCallMessagePartComponent<
         <div className="border-t border-border/50 pt-1.5 pb-1 sm:ml-9">
           <VerificationEvidenceFigure
             revision={receipt.evidenceRevision}
+            kind={receipt.evidenceKind}
             environment={environment}
             beforeFrame={beforeFrame}
             afterFrame={afterFrame}

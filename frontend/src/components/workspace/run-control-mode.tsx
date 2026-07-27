@@ -14,6 +14,30 @@ import type { RunSummary } from "@/types";
 
 type RunOrigin = RunSummary["origin"] | undefined;
 
+const callerValue = (
+  caller: Record<string, unknown> | undefined,
+  key: string,
+) => {
+  const value = caller?.[key];
+  return typeof value === "string" && value.trim() ? value.trim() : "";
+};
+
+export const directCallerSummary = (
+  caller: Record<string, unknown> | undefined,
+) => {
+  const identity =
+    callerValue(caller, "label") ||
+    callerValue(caller, "name") ||
+    "External MCP client";
+  const route = [
+    callerValue(caller, "provider"),
+    callerValue(caller, "model"),
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  return { identity, route };
+};
+
 export const usesManagedControlLoop = (origin: RunOrigin) =>
   origin !== "direct_mcp";
 
@@ -46,19 +70,22 @@ export function RunControlModeBadge({ origin }: { origin?: RunOrigin }) {
 }
 
 export function DirectRunBanner({
+  caller,
   onStartManaged,
 }: {
+  caller?: Record<string, unknown>;
   onStartManaged?: () => void;
 }) {
+  const { identity, route } = directCallerSummary(caller);
   return (
     <Alert variant="caution" className="workspace-mode-banner">
       <SquareTerminalIcon aria-hidden="true" />
       <AlertTitle>Outer client controls this run</AlertTitle>
       <AlertDescription>
-        Claude, Codex, Gemini, or OpenCode is choosing the raw inputs. The
-        harness records and gates them, but does not claim to have planned or
-        independently verified them. Start a new task for harness-managed
-        execution.
+        <span className="font-medium text-foreground">{identity}</span>
+        {route ? ` · ${route}` : ""} chooses the raw inputs. The harness
+        records and gates them, but does not claim to have planned or
+        independently verified them.
       </AlertDescription>
       {onStartManaged ? (
         <AlertAction>

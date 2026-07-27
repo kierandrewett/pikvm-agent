@@ -933,12 +933,14 @@ async def test_verification_images_are_addressed_by_durable_revision(
         {
             "revision": 1,
             "action_index": 0,
+            "kind": "before_after",
             "before_frame_id": 3,
             "after_frame_id": 4,
         },
         {
             "revision": 2,
             "action_index": 1,
+            "kind": "before_after",
             "before_frame_id": 4,
             "after_frame_id": 5,
         },

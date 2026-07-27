@@ -10,6 +10,7 @@ import pytest
 from mcp import ClientSession
 from mcp.server.fastmcp.exceptions import ToolError
 from mcp.types import Implementation
+from PIL import Image
 
 from pikvm_agent.harness.agent_models import ComputerObservation, RunSnapshot
 from pikvm_agent.harness.agent_store import InMemoryRunStore
@@ -44,6 +45,9 @@ class RecordingComputer:
     def __init__(self) -> None:
         self.calls: list[tuple[Any, ...]] = []
 
+    async def refresh(self, *, session_id: str) -> ComputerObservation:
+        return ComputerObservation(session_id=session_id, status="running")
+
     async def resolve_approval(
         self, *, session_id: str, approval_id: str, decision: dict[str, Any]
     ) -> ComputerObservation:
@@ -55,6 +59,24 @@ class RecordingComputer:
     ) -> ComputerObservation:
         self.calls.append(("abort", session_id, reason))
         return ComputerObservation(session_id=session_id, status="aborted")
+
+
+class PreviewComputer(RecordingComputer):
+    def __init__(self, image_path: Path) -> None:
+        super().__init__()
+        self.image_path = image_path
+
+    async def refresh(self, *, session_id: str) -> ComputerObservation:
+        return ComputerObservation(
+            session_id=session_id,
+            status="running",
+            frame_id=17,
+            world_version=17,
+            control_epoch=2,
+            width=1280,
+            height=720,
+            image_path=str(self.image_path),
+        )
 
 
 @pytest.mark.asyncio
@@ -143,6 +165,104 @@ async def test_direct_mcp_call_is_visible_before_hid_and_keeps_its_result(
     assert visible["observation"]["frame_id"] == 7
     assert visible["events"][-1]["kind"] == "action.completed"
     assert visible["events"][-1]["data"]["latency_ms"] == 412
+
+
+@pytest.mark.asyncio
+async def test_direct_click_retains_a_crop_capable_pre_action_frame(
+    tmp_path: Path,
+) -> None:
+    frame_path = tmp_path / "direct-before.png"
+    Image.new("RGB", (1280, 720), "#172033").save(frame_path)
+    store = InMemoryRunStore()
+    direct_calls = DirectCallCoordinator(
+        store=store,
+        computer=PreviewComputer(frame_path),
+    )
+    app = create_harness_app(
+        harness=NoopHarness(),  # type: ignore[arg-type]
+        store=store,
+        models=NoopModels(),
+        access_token=TEST_ACCESS_TOKEN,
+        observer_token=TEST_OBSERVER_TOKEN,
+        allowed_origins={"http://harness"},
+        direct_calls=direct_calls,
+    )
+    transport = httpx.ASGITransport(app=app)
+
+    async with httpx.AsyncClient(
+        transport=transport,
+        base_url="http://harness",
+        headers={"authorization": f"Bearer {TEST_ACCESS_TOKEN}"},
+    ) as client:
+        opened = (
+            await client.post(
+                "/api/direct/calls/begin",
+                json={
+                    "call_id": "open-preview",
+                    "tool": "pikvm_open",
+                    "arguments": {"label": "Direct click preview"},
+                },
+            )
+        ).json()
+        await client.post(
+            "/api/direct/calls/finish",
+            json={
+                "call_id": "open-preview",
+                "run_id": opened["run_id"],
+                "status": "completed",
+                "result": {
+                    "session_id": "session-preview",
+                    "status": "running",
+                },
+            },
+        )
+        click = await client.post(
+            "/api/direct/calls/begin",
+            json={
+                "call_id": "direct-click",
+                "tool": "pikvm_click",
+                "arguments": {
+                    "session_id": "session-preview",
+                    "x": 412,
+                    "y": 286,
+                    "based_on_world_version": 17,
+                    "based_on_control_epoch": 2,
+                    "idempotency_key": "preview:direct:click",
+                },
+            },
+        )
+        visible = (
+            await client.get(f"/api/runs/{opened['run_id']}")
+        ).json()
+        preview = await client.get(
+            f"/api/runs/{opened['run_id']}"
+            "/verification-images/1/click-target",
+            params={
+                "x": 412,
+                "y": 286,
+                "screen_width": 1280,
+                "screen_height": 720,
+            },
+        )
+
+    assert click.status_code == 200
+    assert click.json()["allowed"] is True
+    assert visible["verification_images"] == [
+        {
+            "revision": 1,
+            "action_index": 0,
+            "kind": "pre_action",
+            "before_frame_id": 17,
+            "after_frame_id": None,
+        }
+    ]
+    assert [event["kind"] for event in visible["events"]][-2:] == [
+        "action.pre_action_evidence_captured",
+        "action.attempted",
+    ]
+    assert preview.status_code == 200
+    assert preview.headers["x-pikvm-evidence-mode"] == "click-target"
+    assert preview.headers["content-type"] == "image/png"
 
 
 @pytest.mark.asyncio

@@ -1003,6 +1003,7 @@ def create_harness_app(
             raise HTTPException(404, "verification image revision is unavailable")
         return _verification_image_response(
             evidence.path,
+            kind=evidence.kind,
             revision=evidence.revision,
             action_index=evidence.action_index,
             before_frame_id=evidence.before_frame_id,
@@ -1033,6 +1034,7 @@ def create_harness_app(
             raise HTTPException(404, "verification image revision is unavailable")
         return _verification_click_target_response(
             evidence.path,
+            kind=evidence.kind,
             x=x,
             y=y,
             screen_width=screen_width,
@@ -1373,6 +1375,7 @@ def _image_mime(path: Path) -> str:
 def _verification_image_response(
     image_path: str,
     *,
+    kind: str = "before_after",
     revision: int | None = None,
     action_index: int | None = None,
     before_frame_id: int | None = None,
@@ -1385,7 +1388,7 @@ def _verification_image_response(
         )
     headers = {
         "Cache-Control": "no-store",
-        "X-PiKVM-Evidence-Mode": "before-after",
+        "X-PiKVM-Evidence-Mode": kind.replace("_", "-"),
     }
     for name, value in {
         "X-PiKVM-Evidence-Revision": revision,
@@ -1405,6 +1408,7 @@ def _verification_image_response(
 def _verification_click_target_response(
     image_path: str,
     *,
+    kind: str = "before_after",
     x: int,
     y: int,
     screen_width: int,
@@ -1412,7 +1416,7 @@ def _verification_click_target_response(
     revision: int,
     action_index: int,
 ) -> Response:
-    """Return a small marked crop from the pre-action half of the evidence."""
+    """Return a small marked crop from the pre-action evidence."""
 
     path = Path(image_path)
     if not path.is_file():
@@ -1422,11 +1426,16 @@ def _verification_click_target_response(
     try:
         with Image.open(path) as source:
             source.load()
-            panel_width = source.width // 2
-            label_height = min(32, max(0, source.height - 1))
-            panel_height = source.height - label_height
+            if kind == "pre_action":
+                panel_width = source.width
+                label_height = 0
+                panel_height = source.height
+            else:
+                panel_width = source.width // 2
+                label_height = min(32, max(0, source.height - 1))
+                panel_height = source.height - label_height
             if panel_width < 2 or panel_height < 2:
-                raise HTTPException(422, "verification image is not a composite")
+                raise HTTPException(422, "visual evidence image is too small")
 
             target_x = round(
                 min(screen_width, x) / screen_width * (panel_width - 1)

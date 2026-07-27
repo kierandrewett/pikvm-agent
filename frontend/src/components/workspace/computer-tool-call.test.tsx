@@ -226,6 +226,67 @@ describe("ComputerToolCall", () => {
     );
   });
 
+  it("shows the same visual target for a guarded-direct click tool", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(new Blob(["target"], { type: "image/png" }), {
+        status: 200,
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal("URL", {
+      createObjectURL: vi.fn(() => "blob:direct-click-target"),
+      revokeObjectURL: vi.fn(),
+    });
+
+    render(
+      <ComputerToolEnvironmentProvider
+        value={{
+          token: "local-workspace-token",
+          runId: "direct-run",
+          screenWidth: 1280,
+          screenHeight: 720,
+        }}
+      >
+        <ComputerToolCall
+          {...baseProps}
+          toolName="pikvm_click"
+          args={{
+            session_id: "redacted-session",
+            x: 412,
+            y: 286,
+            button: "left",
+            __receipt: {
+              evidence_revision: 3,
+              evidence_kind: "pre_action",
+              evidence_before_frame_id: 17,
+            },
+          }}
+          result={{ status: "unverified", frame_id: 18 }}
+        />
+      </ComputerToolEnvironmentProvider>,
+    );
+
+    await waitFor(() =>
+      expect(
+        screen.getByLabelText(
+          "Pre-action preview around click at 412, 286",
+        ),
+      ).not.toBeNull(),
+    );
+    expect(screen.getByText("Click target")).not.toBeNull();
+    expect(screen.getByText("Screen before input")).not.toBeNull();
+    expect(
+      screen.getByLabelText("Pre-action screen evidence"),
+    ).not.toBeNull();
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/runs/direct-run/verification-images/3/click-target?x=412&y=286&screen_width=1280&screen_height=720",
+      expect.objectContaining({
+        headers: { Authorization: "Bearer local-workspace-token" },
+        cache: "no-store",
+      }),
+    );
+  });
+
   it("keeps exact typing visible when a consequential action needs approval", () => {
     render(
       <ComputerToolCall

@@ -79,6 +79,7 @@ export type RunSnapshot = RunSummary & {
   verification_images?: Array<{
     revision: number;
     action_index: number;
+    kind?: "before_after" | "pre_action";
     before_frame_id?: number | null;
     after_frame_id?: number | null;
   }>;

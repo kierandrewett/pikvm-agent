@@ -129,6 +129,21 @@ const evidenceForOutcome = (
   );
 };
 
+const preActionEvidenceForAttempt = (
+  attempt: HarnessEvent,
+  events: readonly HarnessEvent[],
+) => {
+  const identity = eventIdentity(attempt);
+  return [...events]
+    .reverse()
+    .find(
+      (event) =>
+        event.sequence < attempt.sequence &&
+        event.kind === "action.pre_action_evidence_captured" &&
+        eventIdentity(event) === identity,
+    );
+};
+
 const controllerForCheckpoint = (
   checkpoint: HarnessEvent | undefined,
   events: readonly HarnessEvent[],
@@ -299,7 +314,9 @@ const toolParts = (run: RunSnapshot) => {
     const checkpoint = checkpointForAttempt(attempt, run.events);
     const outcome = outcomeForAttempt(attempt, run.events);
     const verification = verificationForOutcome(outcome, run.events);
-    const evidence = evidenceForOutcome(outcome, run.events);
+    const evidence =
+      preActionEvidenceForAttempt(attempt, run.events) ??
+      evidenceForOutcome(outcome, run.events);
     const controller = controllerForCheckpoint(checkpoint, run.events);
     const isPending = !outcome && index === attempts.length - 1;
     const approval = isPending ? run.pending_approval : null;
@@ -324,7 +341,8 @@ const toolParts = (run: RunSnapshot) => {
           : {
               status: SAFE_REFUSAL_OUTCOMES.has(outcome.kind)
                 ? "refused"
-                : outcome.kind === "action.completed_unverified"
+                : outcome.kind === "action.completed_unverified" ||
+                    (run.origin === "direct_mcp" && !verification)
                   ? "unverified"
                   : "completed",
               reason: outcomeReason(outcome) || undefined,
@@ -364,6 +382,7 @@ const toolParts = (run: RunSnapshot) => {
           safeString(attempt.data.idempotency_key) ||
           safeString(exactArgs.idempotency_key),
         evidence_revision: safeNumber(evidence?.data.revision),
+        evidence_kind: safeString(evidence?.data.evidence_kind),
         evidence_before_frame_id: safeNumber(evidence?.data.before_frame_id),
         evidence_after_frame_id: safeNumber(evidence?.data.after_frame_id),
         controller: modelReceipt(controller),
