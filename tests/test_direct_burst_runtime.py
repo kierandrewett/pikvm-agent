@@ -71,6 +71,52 @@ async def test_machine_identity_is_visible_stable_and_does_not_expose_endpoint(
     assert "pikvm.local" not in json.dumps(observed["machine"])
 
 
+async def test_ocr_region_uses_the_captured_frame_and_provider_crop(
+    runtime: Runtime,
+    monkeypatch,
+) -> None:
+    screenshot_calls = 0
+    original_screenshot = runtime.backend.screenshot
+
+    async def counted_screenshot(region=None):
+        nonlocal screenshot_calls
+        screenshot_calls += 1
+        return await original_screenshot(region)
+
+    monkeypatch.setattr(runtime.backend, "screenshot", counted_screenshot)
+
+    class RecordingOCR:
+        def __init__(self) -> None:
+            self.image_path = None
+            self.region = None
+
+        async def ocr(self, image_path, region=None):
+            self.image_path = image_path
+            self.region = region
+            return OCRResult(
+                lines=[
+                    OCRLine(
+                        text="field",
+                        confidence=0.99,
+                        bbox=[2, 3, 20, 14],
+                    )
+                ]
+            )
+
+    provider = RecordingOCR()
+    runtime._screen_parser.ocr = provider
+    session_id = (await runtime.start_session("direct"))["session_id"]
+
+    result = await runtime.ocr_region(session_id, 10, 20, 30, 40)
+
+    assert screenshot_calls == 1
+    assert provider.image_path is not None
+    assert provider.image_path.exists()
+    assert provider.region == Region(x=10, y=20, width=30, height=40)
+    assert result["text"] == "field"
+    assert result["frame_id"] == 1
+
+
 async def test_explicit_machine_id_controls_safe_fingerprint(
     app_config: AppConfig,
     monkeypatch,

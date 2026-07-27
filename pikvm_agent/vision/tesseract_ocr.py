@@ -16,7 +16,7 @@ import tempfile
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from PIL import Image, ImageFilter, ImageOps
+from PIL import Image, ImageFilter, ImageOps, ImageStat
 
 from pikvm_agent.core.models import OCRCandidate, OCRLine, OCRResult, Region
 
@@ -101,7 +101,12 @@ def _join_segment_words(
     return text
 
 
-def _parse_tsv(tsv: str, *, coordinate_scale: float = 1.0) -> list[OCRLine]:
+def _parse_tsv(
+    tsv: str,
+    *,
+    coordinate_scale: float = 1.0,
+    coordinate_offset: tuple[int, int] = (0, 0),
+) -> list[OCRLine]:
     rows = tsv.splitlines()
     if not rows:
         return []
@@ -123,8 +128,16 @@ def _parse_tsv(tsv: str, *, coordinate_scale: float = 1.0) -> list[OCRLine]:
         if conf < 0 or not text:
             continue
         key = (int(cols[idx["block_num"]]), int(cols[idx["par_num"]]), int(cols[idx["line_num"]]))
-        left = round(int(cols[idx["left"]]) / coordinate_scale)
-        top = round(int(cols[idx["top"]]) / coordinate_scale)
+        raw_left = (
+            round(int(cols[idx["left"]]) / coordinate_scale)
+            - coordinate_offset[0]
+        )
+        raw_top = (
+            round(int(cols[idx["top"]]) / coordinate_scale)
+            - coordinate_offset[1]
+        )
+        left = max(0, raw_left)
+        top = max(0, raw_top)
         width = round(int(cols[idx["width"]]) / coordinate_scale)
         height = round(int(cols[idx["height"]]) / coordinate_scale)
         groups.setdefault(key, []).append(
@@ -133,8 +146,8 @@ def _parse_tsv(tsv: str, *, coordinate_scale: float = 1.0) -> list[OCRLine]:
                 "confidence": conf,
                 "x0": left,
                 "y0": top,
-                "x1": left + width,
-                "y1": top + height,
+                "x1": max(left, raw_left + width),
+                "y1": max(top, raw_top + height),
                 "height": height,
             }
         )
@@ -327,6 +340,37 @@ def _remove_window_control_dot_artifacts(
     return lines
 
 
+def _inset_contrasting_left_border(
+    image: Image.Image,
+    *,
+    max_inset: int = 4,
+) -> tuple[Image.Image, int]:
+    """Remove a narrow widget border that Tesseract can join to the first word.
+
+    A plain margin is preserved. We only inset consecutive low-variance columns
+    whose colour materially differs from the crop's median background.
+    """
+
+    if image.width <= max_inset + 1 or image.height <= 1:
+        return image, 0
+    background = ImageStat.Stat(image).median[:3]
+    inset = 0
+    for x in range(min(max_inset, image.width - 1)):
+        stats = ImageStat.Stat(image.crop((x, 0, x + 1, image.height)))
+        mean = stats.mean[:3]
+        stddev = stats.stddev[:3]
+        contrasts_with_background = max(
+            abs(channel - background[index])
+            for index, channel in enumerate(mean)
+        ) >= 20
+        if max(stddev) > 6 or not contrasts_with_background:
+            break
+        inset += 1
+    if inset == 0:
+        return image, 0
+    return image.crop((inset, 0, image.width, image.height)), inset
+
+
 def _choose_ocr_candidate(
     raw_lines: list[OCRLine],
     prepared_lines: list[OCRLine],
@@ -460,19 +504,36 @@ class TesseractOcrProvider:
     ) -> OCRResult:
         src = Path(image_path)
         tmp: Path | None = None
+        coordinate_offset = (0, 0)
         prepared_images: list[tuple[Path, float]] = []
+        analysis_image: Image.Image
         if region is not None:
             img = Image.open(src).convert("RGB")
             x = max(0, int(region.x))
             y = max(0, int(region.y))
             box = (x, y, x + max(1, int(region.width)), y + max(1, int(region.height)))
             crop_img = img.crop(box)
+            analysis_image = crop_img.copy()
+            crop_img, left_inset = _inset_contrasting_left_border(crop_img)
+            padding = 12
+            median = tuple(
+                round(value)
+                for value in ImageStat.Stat(crop_img).median[:3]
+            )
+            crop_img = ImageOps.expand(
+                crop_img,
+                border=padding,
+                fill=median,
+            )
+            coordinate_offset = (padding - left_inset, padding)
             fd = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
             crop_img.save(fd, format="PNG")
             fd.close()
             tmp = Path(fd.name)
             src = tmp
         source_image = Image.open(src).convert("RGB")
+        if region is None:
+            analysis_image = source_image
 
         def prepare(scale: float) -> Path:
             image = source_image.convert("L")
@@ -517,8 +578,11 @@ class TesseractOcrProvider:
                     ),
                 )
                 raw_lines = _remove_window_control_dot_artifacts(
-                    _parse_tsv(outputs[0].decode("utf-8", "replace")),
-                    image=source_image,
+                    _parse_tsv(
+                        outputs[0].decode("utf-8", "replace"),
+                        coordinate_offset=coordinate_offset,
+                    ),
+                    image=analysis_image,
                 )
                 prepared_candidates = [
                     (
@@ -527,8 +591,9 @@ class TesseractOcrProvider:
                             _parse_tsv(
                                 output.decode("utf-8", "replace"),
                                 coordinate_scale=scale,
+                                coordinate_offset=coordinate_offset,
                             ),
-                            image=source_image,
+                            image=analysis_image,
                         ),
                     )
                     for output, (_prepared, scale) in zip(
@@ -587,10 +652,11 @@ class TesseractOcrProvider:
                     coordinate_scale=(
                         primary_upscale if primary is not None else 1.0
                     ),
+                    coordinate_offset=coordinate_offset,
                 )
                 lines = _remove_window_control_dot_artifacts(
                     lines,
-                    image=source_image,
+                    image=analysis_image,
                 )
         finally:
             if tmp is not None:

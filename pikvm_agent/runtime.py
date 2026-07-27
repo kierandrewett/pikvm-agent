@@ -15,7 +15,6 @@ import hashlib
 import json
 import logging
 import os
-import tempfile
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -1251,17 +1250,14 @@ class Runtime:
             if isinstance(provider, PiKVMOcrProvider):
                 res = await provider.ocr(None, region=region)
             else:
-                crop = await self.backend.screenshot(region)
-                handle = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)
-                path = Path(handle.name)
-                try:
-                    handle.write(crop.data)
-                    handle.close()
-                    res = await provider.ocr(path)
-                finally:
-                    if not handle.closed:
-                        handle.close()
-                    path.unlink(missing_ok=True)
+                # Use the exact frame already captured for this response. The
+                # provider owns the crop, adds OCR context padding, and returns
+                # evidence from the same frame ID instead of taking a second
+                # potentially different screenshot.
+                res = await provider.ocr(
+                    Path(frame.image_path),
+                    region=region,
+                )
         confidences = [
             float(line.confidence)
             for line in res.lines

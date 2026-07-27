@@ -206,6 +206,48 @@ async def test_tesseract_general_profile_keeps_the_two_read_latency_budget(
     assert sorted(observed_sizes) == [(100, 50), (200, 100)]
 
 
+async def test_tesseract_region_adds_context_and_translates_boxes(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    image_path = tmp_path / "screen.png"
+    image = Image.new("RGB", (100, 50), "white")
+    ImageDraw.Draw(image).rectangle((10, 5, 11, 14), fill=(165, 165, 165))
+    image.save(image_path)
+    observed: dict[str, object] = {}
+
+    async def fake_tesseract(src, *, lang, psm):
+        del lang, psm
+        with Image.open(src) as image:
+            observed["size"] = image.size
+            observed["border_pixel"] = image.getpixel((0, 0))
+        return (
+            "level\tpage_num\tblock_num\tpar_num\tline_num\tword_num"
+            "\tleft\ttop\twidth\theight\tconf\ttext\n"
+            "5\t1\t1\t1\t1\t1\t14\t15\t5\t4\t95\tfield\n"
+        ).encode()
+
+    monkeypatch.setattr(
+        "pikvm_agent.vision.tesseract_ocr._run_tesseract",
+        fake_tesseract,
+    )
+
+    result = await TesseractOcrProvider(
+        upscale=1.0,
+        ensemble=False,
+    ).ocr(
+        image_path,
+        region=Region(x=10, y=5, width=20, height=10),
+    )
+
+    assert observed == {
+        "size": (42, 34),
+        "border_pixel": (255, 255, 255),
+    }
+    assert result.text == "field"
+    assert result.lines[0].bbox == [4, 3, 9, 7]
+
+
 async def test_tesseract_precise_profile_can_read_a_small_ui_label_at_four_x(
     tmp_path,
     monkeypatch,
