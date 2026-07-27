@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
   "suite": "computer-action-timeline-visual-audit",
-  "recorded_at": "2026-07-27T07:49:30Z",
+  "recorded_at": "2026-07-27T20:11:49Z",
   "environment": "local-target-free-ui-fixture",
   "source_commit": "d7d56935f6101a981cb12a8d9cd1db979b177417",
-  "refinement_commit": "cf1027efc5505c3f6a763c08c77681988ad0c48f",
+  "refinement_commit": "5cfd854438f1d1fd4173ab6760380b241e6d54ea",
   "interface": {
     "chat_framework": "@assistant-ui/react 0.14",
     "component_framework": "@base-ui/react",
@@ -47,22 +47,60 @@
       "deny_visible": true,
       "input_committed_before_approval": false
     },
+    "effective_200_percent_reflow": {
+      "requested_outer_viewport": "458x720",
+      "rendered_inner_viewport": "416x655",
+      "passed": true,
+      "timeline": {
+        "actions": 12,
+        "screen_previews_loaded": "10/10",
+        "active_progress_indicators": 1,
+        "model_route_visible": true,
+        "group_expanded": true,
+        "document_horizontal_overflow_pixels": 0,
+        "conversation_horizontal_overflow_pixels": 0,
+        "tool_content_horizontal_overflow_pixels": 0,
+        "maximum_action_horizontal_overflow_pixels": 0
+      },
+      "approval": {
+        "exact_text_visible": true,
+        "consequential_enter_visible": true,
+        "hold_reason_visible": true,
+        "allow_once_horizontally_within_conversation": true,
+        "deny_horizontally_within_conversation": true,
+        "initially_below_viewport": true,
+        "scroll_pixels_needed": 53,
+        "available_scroll_pixels": 298,
+        "controls_reachable": true,
+        "composer_send_disabled": true,
+        "input_committed_before_approval": false
+      },
+      "regression_found_and_fixed": {
+        "symptom": "The expanded current assistant message retained a 200-pixel intrinsic placeholder and excluded the approval controls from the scroll range.",
+        "cause": "content-visibility auto was applied to the current message during responsive reflow.",
+        "fix": "Keep content visibility virtualization on old assistant messages only, and close the mobile task drawer before loading the selected task.",
+        "message_client_height_before": 230,
+        "message_scroll_height_before": 491,
+        "message_client_height_after": 521,
+        "message_scroll_height_after": 521
+      }
+    },
     "post_refinement": {
       "passed": true,
-      "rendered_inner_viewport": "645x1070",
-      "document_scroll_width": 645,
+      "rendered_inner_viewport": "416x655",
+      "document_scroll_width": 416,
       "horizontal_overflow_pixels": 0,
       "transaction_phases_visible": true,
       "approval_boundary_visible": true,
-      "frontend_tests": "42/42",
+      "frontend_tests": "119/119",
       "production_build": "passed"
     },
     "screenshots_persisted": false
   },
   "contracts": {
     "frontend": {
-      "passed": 42,
-      "total": 42,
+      "passed": 119,
+      "total": 119,
       "initial_full_run_flakes": 1,
       "isolated_flake_rerun_passed": true,
       "second_full_run_passed": true
@@ -70,6 +108,11 @@
     "focused_python": {
       "passed": 24,
       "total": 24
+    },
+    "full_python": {
+      "passed": 1203,
+      "skipped": 1,
+      "failed": 0
     },
     "production_build": "passed",
     "scorecard_integrity": "passed",
@@ -79,11 +122,11 @@
     }
   },
   "resource_envelope": {
-    "total_ui_bytes": 1227430,
-    "javascript_bytes": 1041143,
-    "javascript_gzip_9_bytes": 312433,
-    "css_bytes": 109154,
-    "css_gzip_9_bytes": 18109,
+    "total_ui_bytes": 1231684,
+    "javascript_bytes": 1075290,
+    "javascript_gzip_9_bytes": 332102,
+    "css_bytes": 109255,
+    "css_gzip_9_bytes": 18220,
     "remote_assets": 0
   },
   "safety": {
@@ -96,7 +139,7 @@
   "limitations": [
     "This is a target-free browser and component audit, not proof that a real computer action succeeded.",
     "The browser screenshots were inspected during the run but were not retained in the repository.",
-    "A 200 percent zoom audit and cross-browser matrix remain pending.",
+    "A cross-browser matrix remains pending.",
     "The action rail used a synthetic changing-frame fixture rather than a live VNC stream."
   ]
 }

@@ -455,16 +455,20 @@ rows:
       frontend_total: {path: "contracts.frontend.total", format: "integer"}
       python_passed: {path: "contracts.focused_python.passed", format: "integer"}
       python_total: {path: "contracts.focused_python.total", format: "integer"}
+      full_python_passed: {path: "contracts.full_python.passed", format: "integer"}
+      full_python_skipped: {path: "contracts.full_python.skipped", format: "integer"}
       events: {path: "interface.fixture_events", format: "integer"}
       actions: {path: "interface.visible_computer_actions", format: "integer"}
       overflow: {path: "visual_audit.narrow.horizontal_overflow_pixels", format: "integer"}
+      reflow_overflow: {path: "visual_audit.effective_200_percent_reflow.timeline.maximum_action_horizontal_overflow_pixels", format: "integer"}
+      approval_scroll: {path: "visual_audit.effective_200_percent_reflow.approval.available_scroll_pixels", format: "integer"}
       gzip_js: {path: "resource_envelope.javascript_gzip_9_bytes", format: "integer"}
       gzip_css: {path: "resource_envelope.css_gzip_9_bytes", format: "integer"}
     cases: "{events} events / {actions} actions; {frontend_total} frontend + {python_total} Python"
-    result: "{frontend_passed}/{frontend_total} + {python_passed}/{python_total}; {overflow}px narrow overflow; approval held"
+    result: "{frontend_passed}/{frontend_total} + {python_passed}/{python_total}; {full_python_passed} full Python / {full_python_skipped} skipped; {overflow}px narrow / {reflow_overflow}px 200% action overflow; approval held with {approval_scroll}px scroll"
     latency: "{gzip_js}-byte gzip JS; {gzip_css}-byte gzip CSS"
     wall: "Target-free browser audit"
-    status: "Desktop and 390×844 passing; 200% zoom/cross-browser pending"
+    status: "Desktop, 390×844, and effective 200% passing; cross-browser pending"
 
   - suite: "Live-frame resource envelope"
     route: "Target-free streamed preview adapter"

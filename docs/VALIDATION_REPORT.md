@@ -315,11 +315,18 @@ rejected and the scan removed before acceptance.
 
 The production aiosqlite filesystem run could not execute because the
 restricted runner blocks its worker thread and denied local escalation. The
-in-app browser also refused the synthetic non-network origin before the planned
-200% reflow run. Neither partial attempt is claimed. A loopback-only
-`harness ui-fixture` now packages the same 1,200-event, changing-frame,
-provider/action stream for repeatable execution outside this runner; it refuses
-the production daemon port and opens no VNC, PiKVM, or model API.
+loopback-only `harness ui-fixture` now packages the 1,200-event,
+changing-frame provider/action stream and has completed the missing effective
+200% reflow run without a computer target. At a rendered 416×655 viewport, all
+12 action rows and 10/10 screen previews loaded with zero horizontal overflow.
+The held Teams fixture initially reproduced a stale intrinsic-height bug that
+put Allow once and Deny outside the scroll range. Keeping
+`content-visibility` virtualization on old messages only repaired the current
+message from a 230/491 client/scroll-height mismatch to 521/521; 298 pixels of
+scroll were then available for controls needing 53 pixels. The exact text,
+final `ENTER`, and external-side-effect reason remained visible, the composer
+send stayed disabled, and no approval was submitted. The fixture refuses the
+production daemon port and opened no VNC, PiKVM, or model API.
 
 The public headline scorecard is no longer hand-maintained. The checked
 `bench/scorecard.yaml` manifest resolves measured fields from ten durable JSON

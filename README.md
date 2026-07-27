@@ -259,7 +259,7 @@ The collapsed row also distinguishes Running, Review, Refused, Failed, and
 Done, and an approval request opens automatically. Every first-party
 capability request is bound to the provider, model, and latency that selected
 it. A chat-to-computer transition is therefore a visible
-`computer.start_task` call with the exact handed-off task rather than an
+`computer_start_task` call with the exact handed-off task rather than an
 implicit mode switch. A live isolated Claude
 OAuth browser pass completed exact chat, ordinary knowledge, and two official-source
 research cases 4/4. The research run sampled from submission showed progress
@@ -331,7 +331,10 @@ pikvm-agent harness ui-fixture
 This loopback-only fixture prints a one-time token, preloads 1,200 events, and
 continuously alternates visible provider and exact tool activity while serving
 a changing synthetic frame. It refuses the production daemon port and never
-opens VNC, PiKVM, or a model API.
+opens VNC, PiKVM, or a model API. The retained effective-200% audit covers the
+full 12-action timeline, 10 changing previews, and a held two-input send
+boundary; its measurements and the rendering defect found during the run are
+published in [`bench/README.md`](bench/README.md).
 
 For support diagnostics without contacting the selected machine or a provider:
 

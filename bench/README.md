@@ -294,23 +294,36 @@ horizontal overflow. This was a static local rendering check, not a live model
 or HID result. See
 [`activity-status-responsive-audit.json`](results/2026-07-25/ui/activity-status-responsive-audit.json).
 
-A subsequent 200% reflow audit could not be run live because this execution
-sandbox forbids creating even a loopback listener, while the in-app browser
-correctly blocks local `file:`/`data:` fixtures. Static inspection still found
-and fixed four concrete defects: bare-text header labels overflowed their
-34-pixel compact buttons, the narrowest breakpoint removed provider status,
-approval reasons were ellipsized, and dialogs had no viewport-height scroll
-boundary. Two static regressions pass. This is a fix record, not a completed
-200% browser claim.
+A loopback-only synthetic workspace has now completed the missing effective
+200% reflow audit. A requested 458×720 outer viewport rendered at 416×655 CSS
+pixels. The expanded managed transcript retained all 12 computer actions,
+loaded 10/10 screen previews, kept the model route and one active progress
+indicator visible, and measured zero horizontal overflow across the document,
+conversation, tool content, and every action row.
 
-The current production assistant-ui/shadcn workspace assets are **1,206,165
-bytes total** including local fonts: 713 bytes HTML, 1,022,916 bytes
-JavaScript, 106,116 bytes CSS, and 76,420 bytes of local fonts. Gzip output is
-309,038 bytes for JavaScript and 17,693 bytes for CSS. Release regressions cap
-every asset at 1.1 MB, the total at 1.25 MB, and gzip JavaScript/CSS at 320/24
-KiB. This is materially larger than the retired hand-built console and remains
-within the explicit current envelope; the old 128 KiB claim no longer
-describes the shipped chat workspace.
+The held Teams-send fixture exposed a real first-run defect: after responsive
+reflow, `content-visibility: auto` left the current assistant message at its
+230-pixel intrinsic placeholder despite 491 pixels of content, so the approval
+controls were outside the available scroll range. The repair keeps that
+virtualization only on older messages and closes the mobile task drawer before
+loading the selected task. The repeated run laid the current message out at
+521/521 client/scroll pixels. Exact 47-character text, the final `ENTER`, the
+external-side-effect reason, Allow once, and Deny remained bound to the held
+action. The controls needed 53 pixels of scroll and had 298 pixels available;
+the composer send remained disabled and no approval was submitted. No VNC,
+PiKVM, production daemon, or model API was contacted. See
+[`computer-action-timeline-visual-audit.json`](results/2026-07-27/ui/computer-action-timeline-visual-audit.json).
+
+The current production assistant-ui/shadcn workspace assets are **1,231,684
+bytes total** including local fonts: 1,227 bytes HTML, 1,075,290 bytes
+JavaScript, 109,255 bytes CSS, and 45,912 bytes of local fonts. Gzip-9 output
+summed per file is 332,102 bytes for JavaScript and 18,220 bytes for CSS.
+Release regressions cap
+every asset at 1.1 MB, the total at 1.25 MB, the initial app gzip at 250 KiB,
+the initial static JavaScript imports at 300 KiB, and CSS gzip at 24 KiB. This
+is materially larger than the retired hand-built console and remains within
+the explicit current envelope; the old 128 KiB claim no longer describes the
+shipped chat workspace.
 
 The chat now consumes the authenticated run SSE directly instead of waiting on
 an unconditional 750 ms full refresh. A target-free runtime trace delivered
@@ -1111,7 +1124,7 @@ messaging integration.
 ## Current headline
 
 <!-- pikvm-scorecard:start -->
-_Generated from checked JSON evidence as of 2026-07-27. Manifest `sha256:f9bf5f65a87d`; run `pikvm-agent harness scorecard --check` to detect drift._
+_Generated from checked JSON evidence as of 2026-07-27. Manifest `sha256:852331631212`; run `pikvm-agent harness scorecard --check` to detect drift._
 
 | Suite | Route | Cases | Result | Median / p95 | Wall | Status | Evidence |
 | --- | --- | ---: | ---: | ---: | ---: | --- | --- |
@@ -1142,7 +1155,7 @@ _Generated from checked JSON evidence as of 2026-07-27. Manifest `sha256:f9bf5f6
 | Computer-use chat controls | assistant-ui → per-role route + action receipt | 36 frontend + 1,052 full Python | 36/36; 1,052 passed / 1 skipped; 3 model roles / 8 action states | 311,264-byte gzip JS; 18,064-byte gzip CSS | Detached commit contract | Passing isolated contract; browser visual audit pending | [JSON](results/2026-07-27/ui/computer-use-chat-controls.json) · `sha256:b835e8680388` |
 | Action-bound screen evidence | Controller → computer input → verifier → authenticated image | 38 frontend + 113 focused Python | 38/38 + 113/113; 1,031 broader / 1 skipped; 2 model roles | 311,739-byte gzip JS; 18,134-byte gzip CSS | Target-free contract | Passing target-free contract; browser visual and concurrent Office file pending | [JSON](results/2026-07-27/ui/action-bound-screen-evidence.json) · `sha256:b5c40e8ccb52` |
 | Action-bound typing read-back | Watched typer → daemon receipt → assistant-ui action transcript | 42 frontend + 153 focused Python | 42/42 + 153/153; 1,037 broader / 1 skipped; 6 visible read-back states | 313,393-byte gzip JS; 17,936-byte gzip CSS | Detached target-free contract | Passing exact-input/read-back contract; browser visual audit pending | [JSON](results/2026-07-27/ui/action-bound-typing-readback.json) · `sha256:3ee72269bfa9` |
-| Computer-action timeline visual audit | assistant-ui timeline → live fixture → approval boundary | 1,200 events / 12 actions; 42 frontend + 24 Python | 42/42 + 24/24; 0px narrow overflow; approval held | 312,433-byte gzip JS; 18,109-byte gzip CSS | Target-free browser audit | Desktop and 390×844 passing; 200% zoom/cross-browser pending | [JSON](results/2026-07-27/ui/computer-action-timeline-visual-audit.json) · `sha256:0fc59054eb09` |
+| Computer-action timeline visual audit | assistant-ui timeline → live fixture → approval boundary | 1,200 events / 12 actions; 119 frontend + 24 Python | 119/119 + 24/24; 1,203 full Python / 1 skipped; 0px narrow / 0px 200% action overflow; approval held with 298px scroll | 332,102-byte gzip JS; 18,220-byte gzip CSS | Target-free browser audit | Desktop, 390×844, and effective 200% passing; cross-browser pending | [JSON](results/2026-07-27/ui/computer-action-timeline-visual-audit.json) · `sha256:21cb673ebe95` |
 | Live-frame resource envelope | Target-free streamed preview adapter | 6 contracts | 6/6; 4,194,304-byte frame; 8 sessions / 33,554,432 bytes cached | 450ms minimum upstream interval | — | Passing transport resource contract; browser decode pending | [JSON](results/2026-07-25/ui/live-frame-resource-envelope-2026-07-26.json) · `sha256:345d2a92bda7` |
 | Normalized storage + bounded control | In-memory production contract | 100,000 events + 100 appends | 11,214.070× write-size reduction; 1,000 control events loaded | 0.086ms / 0.138ms append; 3.372ms / 4.539ms control | 214.978ms import | Serialization diagnostic; real SQLite pending | [JSON](results/2026-07-25/ui/normalized-storage-bounded-control-n100000-2026-07-26.json) · `sha256:9af680551989` |
 | Gemini CLI provider adapter | Gemini CLI 0.35.3 / `account-default` | 79 provider/config/UI cases | Adapter contracts passed; startup probe timeout; 228,904 KiB peak RSS | 60.01s startup probe | 60.01s | Adapter contract; live provider unproven | [JSON](results/gemini-cli-0.35.3-compatibility-2026-07-26.json) · `sha256:4beb22389eaa` |
