@@ -76,7 +76,10 @@ def build_bootstrap_commands(
         arguments = f" --callback {callback_url} --token {token}"
     if file_path is not None:
         normalized_path = validate_observer_file_path(file_path)
-        arguments += f' --file "{normalized_path}"'
+        # The validated workspace grammar contains no whitespace. Keeping this
+        # argument unquoted also avoids the US/UK keyboard-layout ambiguity
+        # where the physical double-quote key produces "@".
+        arguments += f" --file {normalized_path}"
     cleanup = [
         f"taskkill /IM {image} /F"
         for image in (
@@ -100,10 +103,13 @@ def build_bootstrap_commands(
     if visible:
         commands.append(f"& C:/PiKVM-Harness/observer.exe{arguments}")
     else:
-        hidden_arguments = arguments.replace('"', "").split()
+        hidden_arguments = arguments.split()
         argument_list = (
             " -ArgumentList "
-            + ",".join(f'"{argument}"' for argument in hidden_arguments)
+            + ",".join(
+                "'" + argument.replace("'", "''") + "'"
+                for argument in hidden_arguments
+            )
             if hidden_arguments
             else ""
         )
@@ -155,6 +161,15 @@ def _open_powershell(client: object, *, character_delay_s: float) -> None:
     client.keyPress("esc")
     client.keyPress("super-r")
     time.sleep(0.75)
+    _type_paced(
+        client,
+        "taskkill /IM observer.exe /F",
+        delay_s=character_delay_s,
+    )
+    client.keyPress("enter")
+    time.sleep(1.5)
+    client.keyPress("super-r")
+    time.sleep(0.75)
     _type_paced(client, "powershell", delay_s=character_delay_s)
     client.keyPress("enter")
     time.sleep(4)
@@ -196,15 +211,11 @@ def deploy(
         try:
             client.factory.force_caps = True
             client.captureScreen(io.BytesIO(), format="PNG")
-            width, height = client.protocol.screen.size
             if not powershell_ready:
                 _open_powershell(
                     client,
                     character_delay_s=character_delay_s,
                 )
-            client.mouseMove(width // 2, height // 3)
-            client.mousePress(1)
-            time.sleep(0.5)
             # Provisioning may resume after an interrupted experiment. Cancel any
             # PowerShell continuation prompt before clearing the current line;
             # Ctrl+A/Backspace alone only edits the latest `>>` line.

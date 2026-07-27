@@ -69,8 +69,70 @@ def test_bootstrap_opens_powershell_without_assuming_taskbar_alignment(
 
     bootstrap_windows._open_powershell(client, character_delay_s=0.05)
 
-    assert pressed == ["esc", "super-r", "enter"]
-    assert typed == ["powershell"]
+    assert pressed == [
+        "esc",
+        "super-r",
+        "enter",
+        "super-r",
+        "enter",
+    ]
+    assert typed == [
+        "taskkill /IM observer.exe /F",
+        "powershell",
+    ]
+
+
+def test_deployment_does_not_steal_focus_from_the_new_powershell(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    pressed: list[str] = []
+    typed: list[str] = []
+    pointer_actions: list[tuple[object, ...]] = []
+    client = SimpleNamespace(
+        factory=SimpleNamespace(force_caps=False),
+        protocol=SimpleNamespace(screen=SimpleNamespace(size=(1280, 800))),
+        captureScreen=lambda *_args, **_kwargs: None,
+        keyPress=pressed.append,
+        mouseMove=lambda *args: pointer_actions.append(("move", *args)),
+        mousePress=lambda *args: pointer_actions.append(("press", *args)),
+        disconnect=lambda: None,
+    )
+    package = ModuleType("vncdotool")
+    package.api = SimpleNamespace(  # type: ignore[attr-defined]
+        connect=lambda *_args, **_kwargs: client,
+        shutdown=lambda: None,
+    )
+    monkeypatch.setitem(sys.modules, "vncdotool", package)
+    monkeypatch.setenv("PIKVM_LAB_TARGET_LEASE_DIR", str(tmp_path))
+    monkeypatch.setattr(bootstrap_windows.time, "sleep", lambda _delay: None)
+    monkeypatch.setattr(
+        bootstrap_windows,
+        "_type_paced",
+        lambda _client, text, *, delay_s: typed.append(text),
+    )
+
+    deploy(
+        endpoint="disposable.invalid:5900",
+        artifact_url=None,
+        password=None,
+        username=None,
+        reuse_installed=True,
+    )
+
+    assert pointer_actions == []
+    assert pressed[:5] == [
+        "esc",
+        "super-r",
+        "enter",
+        "super-r",
+        "enter",
+    ]
+    assert typed[:2] == [
+        "taskkill /IM observer.exe /F",
+        "powershell",
+    ]
+    assert "taskkill /IM observer.exe /F" in typed
 
 
 def test_deployment_uses_short_quote_free_commands() -> None:
@@ -119,8 +181,9 @@ def test_bootstrap_can_select_a_runtime_only_workspace_artifact() -> None:
     )
 
     assert commands[-1].endswith(
-        ' --file "C:/PiKVM-Harness/workspace/quarterly-earnings.xlsx"'
+        " --file C:/PiKVM-Harness/workspace/quarterly-earnings.xlsx"
     )
+    assert '"' not in commands[-1]
     assert len(commands[-1]) < 180
 
 
@@ -143,8 +206,8 @@ def test_reuse_installed_observer_restarts_it_with_the_fresh_artifact_path() -> 
     )
     assert commands[-1] == (
         "& C:/PiKVM-Harness/observer.exe --file "
-        '"C:/PiKVM-Harness/workspace/'
-        'quarterly-earnings-a1b2c3d4e5f60718.xlsx"'
+        "C:/PiKVM-Harness/workspace/"
+        "quarterly-earnings-a1b2c3d4e5f60718.xlsx"
     )
     assert max(map(len, commands)) < 180
 
@@ -160,11 +223,11 @@ def test_hidden_observer_launch_returns_from_powershell_and_closes_the_host() ->
 
     assert commands[-2] == (
         "start C:/PiKVM-Harness/observer.exe -ArgumentList "
-        '"--file","C:/PiKVM-Harness/workspace/'
-        'shakespeare-essay-a1b2c3d4e5f60718.docx" '
+        "'--file','C:/PiKVM-Harness/workspace/"
+        "shakespeare-essay-a1b2c3d4e5f60718.docx' "
         "-WindowStyle Hidden"
     )
-    assert '"--file C:/' not in commands[-2]
+    assert '"' not in commands[-2]
     assert commands[-1] == "exit"
     assert "& C:/PiKVM-Harness/observer.exe" not in ";".join(commands)
 

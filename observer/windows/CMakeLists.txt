@@ -9,7 +9,7 @@ target_compile_definitions(
 )
 target_link_libraries(
   pikvm-accuracy-observer
-  PRIVATE advapi32 bcrypt comctl32 crypt32 shell32 winhttp
+  PRIVATE advapi32 bcrypt comctl32 crypt32 gdi32 shell32 winhttp
 )
 
 if(MINGW)
