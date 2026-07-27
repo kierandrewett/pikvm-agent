@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-07-27T23:16:02Z",
+  "source_commit": "dec0f0e8f95ebce2b9bf0fd5ca5ef0589a3aea2a",
+  "scope": {
+    "route": "first-party Electron chat -> managed harness -> disposable Windows VM",
+    "task_class": "explicit read-only screen description",
+    "target": "authorized disposable Windows VM; runtime endpoint omitted",
+    "screenshots_retained": 0,
+    "raw_model_output_retained": false
+  },
+  "safety": {
+    "production_pikvm_contacted": false,
+    "computer_input_events": 0,
+    "keyboard_input_events": 0,
+    "pointer_input_events": 0,
+    "approval_submissions": 0
+  },
+  "baseline": {
+    "run_id": "24fed93c-acdc-4163-8b8b-904167cf1f38",
+    "status": "completed",
+    "assistant": {
+      "provider": "claude-account",
+      "model": "opus",
+      "latency_ms": 6771
+    },
+    "verifier": {
+      "provider": "claude-account",
+      "model": "opus",
+      "latency_ms": 47130
+    },
+    "wall_ms": 56227,
+    "first_visible_feedback_ms": 211,
+    "maximum_simultaneous_progress_rows": 1,
+    "maximum_branch_controls": 0,
+    "computer_action_events": 0
+  },
+  "optimized": {
+    "run_id": "c557947a-83db-46ee-bc83-8938af06c1e5",
+    "status": "completed",
+    "assistant": {
+      "provider": "claude-account",
+      "model": "opus",
+      "latency_ms": 7336
+    },
+    "verifier": {
+      "provider": "claude-fast",
+      "model": "haiku",
+      "latency_ms": 18300
+    },
+    "wall_ms": 26663,
+    "first_visible_feedback_ms": 257,
+    "maximum_simultaneous_progress_rows": 1,
+    "maximum_branch_controls": 0,
+    "computer_action_events": 0
+  },
+  "comparison": {
+    "wall_time_reduction_ms": 29564,
+    "wall_time_reduction_percent": 52.58,
+    "speedup": 2.109,
+    "same_observation_only_classifier": true,
+    "same_disposable_vm": true
+  },
+  "validation": {
+    "focused_ui_and_fixture_tests": {
+      "passed": 39,
+      "total": 39
+    },
+    "focused_routing_tests": {
+      "passed": 90,
+      "total": 90
+    },
+    "full_python_suite": {
+      "passed": 1223,
+      "skipped": 1,
+      "warnings": 3
+    }
+  },
+  "limitations": [
+    "This is one paired diagnostic, not a latency distribution or a general model-quality ranking.",
+    "The task was observation-only and does not establish keyboard, pointer, Office, or consequential-action reliability.",
+    "The assistant handoff still used Opus; only independent screen verification moved to Haiku."
+  ]
+}

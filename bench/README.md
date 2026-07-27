@@ -31,6 +31,7 @@ support a claim of generally reliable autonomous Windows operation.
 | Product claim | Current evidence | Verdict |
 | --- | --- | --- |
 | Normal chat and research do not silently become computer actions | Target-free contracts cover durable multi-turn chat, ordinary replies without a computer session, one-at-a-time visible MCP tools, local read-only authority, exact approval for all other tools, explicit computer hand-off, per-turn tool attribution, and stable streamed reply identity. Claude OAuth passed the current five-case chat/research/handoff/approval contract 5/5 in 42.804s. Its consequential send-message request stopped at `needs_approval` in 6.970s with zero broker executions. Codex passed the same approval canary 1/1 with zero executions in 104.254s, after its earlier full 4/4 route established compatibility but poor interactive latency. A separate production-server probe started with no daemon, agent token, observer token, direct-call coordinator, or computer adapter and returned the exact requested Claude OAuth reply with one model call, zero computer events, no session, and `computer_control: disabled`. The first native Anthropic API canary failed authentication before any tool request or target contact and remains in the denominator | Passing live target-free OAuth/server path; API credential compatibility and browser-visible trace pending |
+| Read-only screen questions are visible without entering the input loop | A paired live run used the first-party Electron chat against the authorized disposable Windows VM. Both attempts completed with zero keyboard, pointer, action, or approval events and showed first progress in 211–257ms. The original Opus verifier took 47.130s and the run took 56.227s. Routing only independent verification to Claude Haiku reduced verifier time to 18.300s and wall time to 26.663s, a 52.58% reduction. The optimized run never displayed more than one progress row and displayed zero reply-branch controls | Passing n=1 read-only diagnostic; no action-quality claim |
 | Direct Claude/Codex/OpenCode calls are visible and operator-controllable | Actual MCP `ClientSession` dispatch test, exact redacted arguments plus durable outcome/latency, path/raw-payload exclusion, fail-closed missing-visibility tests, scoped observer credential, required frame/control/idempotency fields on every HID tool, real browser, 100-call audit at 6.70ms median / 7.54ms p95 | Passing local contract |
 | A coding client can submit once while the dedicated harness owns progression | The referenced Claude session used 551 direct PiKVM calls; 21 API contracts prove the replacement managed loop crosses action slices, safe replans and verifier-more-work checkpoints, resumes after exact human approval, recovers internal yields after restart, reconstructs its automatic-resume ceiling from durable history, and refuses overlapping Continue bypass. Operator steering is durable, forces a fresh managed plan, and cannot discard unsettled HID or take control from direct/external drivers. Exact generated configs initialize over real stdio for all four clients and preserve their validated client identity | Passing control-loop and generated-stdio inventory contracts; authenticated task/restart pending |
 | Effective client config cannot silently retain a second PiKVM tool surface | Fail-closed audit supports native Codex resolved inventory, Codex TOML/shared project JSON, Claude/Gemini JSON, and legacy/V2 OpenCode JSON/JSONC. Native read-only Codex inventory found one raw PiKVM registration and no managed registration. A session-only Codex override produced exactly one managed PiKVM surface while retaining unrelated MCPs; Claude's installed strict-MCP flags produced one explicit managed surface. OpenCode 1.14.44 resolved one managed surface under `--pure`, exact default-deny permissions, ephemeral writable state, and client-owned OAuth linked without copying it. Gemini 0.35.3 loaded the temporary system catalog natively and resolved one allowlisted managed surface from an empty dedicated profile; the exact admin-policy path/content and extension-disable argv are configured but not enforcement-tested. These paths modify no persisted registration and passed 54 launcher/audit/package contracts | Codex/Claude/OpenCode native isolation dry-runs pass; Gemini settings audit passes; no authenticated coding-client task or Gemini policy-enforcement call was run |
@@ -60,6 +61,32 @@ The output path is created mode `0600` and never overwritten. The corpus keeps
 unsafe refusals and ordinary safe controls in the same denominator.
 
 ## Latest disposable-Windows diagnostic
+
+### Read-only fast-verifier pair
+
+On 2026-07-27 the first-party Electron chat ran the same explicit read-only
+screen-description task twice against the authorized disposable Windows VM.
+Both runs acquired a fresh frame and completed with zero keyboard, pointer,
+computer-action, or approval events. The production PiKVM target was not
+contacted.
+
+| Signal | Opus verifier | Haiku verifier |
+| --- | ---: | ---: |
+| Final state | completed | completed |
+| First visible progress | 211 ms | 257 ms |
+| Assistant hand-off | 6.771 s | 7.336 s |
+| Independent screen verification | 47.130 s | 18.300 s |
+| Total wall time | 56.227 s | 26.663 s |
+| Maximum simultaneous progress rows | 1 | 1 |
+| Reply-branch controls | 0 | 0 |
+| Computer action events | 0 | 0 |
+
+This is a 52.58% wall-time reduction for one paired diagnostic. It supports
+using the faster route for independent screen verification while retaining
+Opus for the assistant hand-off and as a fallback. It is not a model-quality
+ranking and says nothing about Office or input reliability. The failure-
+inclusive machine-readable record is
+[`read-only-fast-verifier.json`](results/2026-07-27/live-vnc/read-only-fast-verifier.json).
 
 On 2026-07-27 the managed harness was given one bounded task: use Windows
 Search to open Notepad without pressing Enter or touching a destructive,
@@ -1162,7 +1189,7 @@ messaging integration.
 ## Current headline
 
 <!-- pikvm-scorecard:start -->
-_Generated from checked JSON evidence as of 2026-07-27. Manifest `sha256:058d1c1e2f01`; run `pikvm-agent harness scorecard --check` to detect drift._
+_Generated from checked JSON evidence as of 2026-07-27. Manifest `sha256:a4795e43bec7`; run `pikvm-agent harness scorecard --check` to detect drift._
 
 | Suite | Route | Cases | Result | Median / p95 | Wall | Status | Evidence |
 | --- | --- | ---: | ---: | ---: | ---: | --- | --- |
@@ -1177,6 +1204,7 @@ _Generated from checked JSON evidence as of 2026-07-27. Manifest `sha256:058d1c1
 | Direct MCP visibility bridge | Guarded local SQLite/ASGI | 100 calls + 10 contracts | Contracts passed; 143.8 calls/s | 6.70ms / 7.54ms | 695ms | Local diagnostic | [JSON](results/2026-07-25/ui/direct-mcp-visibility-audit.json) · `sha256:aa923113856c` |
 | Managed/direct control separation | assistant-ui ownership + click evidence | 93 frontend + 1,191 Python; 551 audited reference calls | 93/93; 1,191 passed / 1 skipped; reference route 551 direct / 0 managed; 0px normal / 0px 200% overflow | 239,916-byte gzip JavaScript | Target-free browser audit | Passing visible ownership contract; live computer task pending | [JSON](results/2026-07-27/ui/managed-direct-control-separation.json) · `sha256:650cf26af2f5` |
 | Live provider and pre-HID action visibility | SSE lifecycle → exact checkpoint → guarded HID | 105 frontend + 1,193 full Python / 1 skipped; 7 provider phases | 2 streamed events / 0 per-event refetches; exact action held 300ms before HID; 30 browser samples / 1 simultaneous progress | 241,373-byte gzip JavaScript | Target-free event/build/Electron contract | Passing isolated Electron/CDP contract; live computer pending | [JSON](results/2026-07-27/ui/live-provider-action-visibility.json) · `sha256:43e78e1497f9` |
+| Read-only screen verification | Electron chat → managed harness → disposable Windows VM | 1 paired live read-only task | 56.227s → 26.663s; 52.58% lower wall time; 1 progress row / 0 branches / 0 actions | 18.300s verifier | 26.663s | Passing n=1 read-only diagnostic; no action-quality claim | [JSON](results/2026-07-27/live-vnc/read-only-fast-verifier.json) · `sha256:e69b5d1b4b19` |
 | Managed client launch | Codex + Claude + Gemini + OpenCode | 4 clients; 12 stdio cases | 65 local contracts passed; 7/12 stdio executed; 5 skipped | Not measured | 6.96s local selection | Generated stdio proven locally; authenticated task/restart pending | [JSON](results/2026-07-25/safety/managed-client-launch-2026-07-26.json) · `sha256:b464af4a60c8` |
 | Isolated managed client launch | Codex + Claude + OpenCode; Gemini policy contract | 4 installed clients / 54 contracts | 3 native dry-runs; 1 settings-only audit; raw Codex baseline shadowed without persistence | Not measured | Dry-run | Three native isolation dry-runs plus Gemini settings audit; enforcement and tasks pending | [JSON](results/2026-07-26/safety/isolated-managed-client-launch.json) · `sha256:82c085f02a53` |
 | Managed smoke lab contract | Target-free app + stdin client task | 24 contracts | 24/24; 44 focused gates | Not measured | Target-free contract | Passing contract; live task rejected-before-process-creation | [JSON](results/2026-07-26/harness/managed-smoke-lab-contract.json) · `sha256:c7bb759ff96b` |

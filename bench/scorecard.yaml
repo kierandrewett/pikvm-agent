@@ -185,6 +185,23 @@ rows:
     wall: "Target-free event/build/Electron contract"
     status: "Passing isolated Electron/CDP contract; live computer pending"
 
+  - suite: "Read-only screen verification"
+    route: "Electron chat → managed harness → disposable Windows VM"
+    source: "results/2026-07-27/live-vnc/read-only-fast-verifier.json"
+    fields:
+      baseline_wall: {path: "baseline.wall_ms", format: "seconds_from_ms", digits: 3}
+      optimized_wall: {path: "optimized.wall_ms", format: "seconds_from_ms", digits: 3}
+      optimized_verifier: {path: "optimized.verifier.latency_ms", format: "seconds_from_ms", digits: 3}
+      reduction: {path: "comparison.wall_time_reduction_percent", format: "number", digits: 2}
+      progress: {path: "optimized.maximum_simultaneous_progress_rows", format: "integer"}
+      branches: {path: "optimized.maximum_branch_controls", format: "integer"}
+      actions: {path: "optimized.computer_action_events", format: "integer"}
+    cases: "1 paired live read-only task"
+    result: "{baseline_wall} → {optimized_wall}; {reduction}% lower wall time; {progress} progress row / {branches} branches / {actions} actions"
+    latency: "{optimized_verifier} verifier"
+    wall: "{optimized_wall}"
+    status: "Passing n=1 read-only diagnostic; no action-quality claim"
+
   - suite: "Managed client launch"
     route: "Codex + Claude + Gemini + OpenCode"
     source: "results/2026-07-25/safety/managed-client-launch-2026-07-26.json"
