@@ -265,6 +265,43 @@ class StallingControllerProvider(ScriptedProvider):
         return await super().complete(request)
 
 
+class RepeatedUngroundedThenKeyboardProvider(ScriptedProvider):
+    def __init__(self) -> None:
+        super().__init__()
+        self.controller_calls = 0
+
+    async def complete(self, request: ModelRequest) -> ModelResponse:
+        if request.role == "controller":
+            self.requests.append(request)
+            self.controller_calls += 1
+            actions = (
+                [{"type": "key", "keys": ["META", "M"]}]
+                if self.controller_calls == 3
+                else [
+                    {
+                        "type": "click",
+                        "x": 704 if self.controller_calls == 2 else 705,
+                        "y": 94,
+                    }
+                ]
+            )
+            return ModelResponse(
+                provider=self.name,
+                model="scripted-v1",
+                data={
+                    "outcome": "act",
+                    "intent": (
+                        "Minimize the visible windows with a safe shortcut."
+                        if self.controller_calls == 3
+                        else "Click the visible title-bar minimize control."
+                    ),
+                    "actions": actions,
+                    "expected_evidence": ["The obstructing windows are minimized."],
+                },
+            )
+        return await super().complete(request)
+
+
 class KeyOnlyControllerProvider(ScriptedProvider):
     async def complete(self, request: ModelRequest) -> ModelResponse:
         if request.role == "controller":
@@ -617,6 +654,14 @@ class UngroundedNavigationComputer(FakeComputer):
             world_version=7,
             control_epoch=2,
         )
+
+
+class UngroundedThenKeyboardComputer(UngroundedNavigationComputer):
+    async def burst(self, **kwargs: Any) -> ComputerObservation:
+        if kwargs["actions"] == [{"type": "key", "keys": ["META", "M"]}]:
+            return await FakeComputer.burst(self, **kwargs)
+        return await super().burst(**kwargs)
+
 
 class StaleThenFreshComputer(FakeComputer):
     def __init__(self) -> None:
@@ -1424,6 +1469,37 @@ async def test_ungrounded_navigation_is_rejected_and_replanned_not_approved() ->
     assert harness._trajectory_signals(paused)[
         "ungrounded_navigation_replans"
     ] == 1
+
+
+@pytest.mark.asyncio
+async def test_repeated_ungrounded_click_is_repaired_before_more_hid() -> None:
+    provider = RepeatedUngroundedThenKeyboardProvider()
+    computer = UngroundedThenKeyboardComputer()
+    harness = build_harness(provider, computer)
+
+    paused = await harness.start("Minimize the visible obstructing windows.")
+    completed = await harness.continue_run(paused.run_id)
+
+    assert paused.status is RunStatus.PAUSED
+    assert completed.status is RunStatus.COMPLETED
+    assert provider.controller_calls == 3
+    assert [burst["actions"] for burst in computer.bursts] == [
+        [{"type": "click", "x": 705, "y": 94, "button": "left"}],
+        [{"type": "key", "keys": ["META", "M"]}],
+    ]
+    controller_prompts = [
+        request.prompt
+        for request in provider.requests
+        if request.role == "controller"
+    ]
+    assert '"last_ungrounded_navigation": {' in controller_prompts[1]
+    assert '"x": 705' in controller_prompts[1]
+    assert '"controller_feedback": {' in controller_prompts[2]
+    assert "was already rejected before HID" in controller_prompts[2]
+    assert any(
+        event.kind == "controller.ungrounded_repeat_rejected"
+        for event in completed.events
+    )
 
 
 @pytest.mark.asyncio

@@ -446,6 +446,52 @@ class AgentHarness:
             retry_provider_cooldown = False
             if controller is None:
                 return run
+            if self._repeats_ungrounded_navigation(run, controller):
+                rejected = self._last_ungrounded_navigation(run) or {}
+                rejected_actions = rejected.get("rejected_actions") or []
+                run.record(
+                    "controller.ungrounded_repeat_rejected",
+                    actions=self._visible_actions(rejected_actions),
+                    reason=(
+                        "the same or near-identical coordinate-only navigation "
+                        "was already rejected before HID"
+                    ),
+                )
+                await self.store.save(run)
+                controller = await self._control(
+                    run,
+                    controller_feedback={
+                        "reason": (
+                            "This same or near-identical coordinate-only "
+                            "navigation was already rejected before HID "
+                            "because its target could not be independently "
+                            "grounded."
+                        ),
+                        "rejected_actions": self._visible_actions(
+                            rejected_actions
+                        ),
+                        "instruction": (
+                            "Do not repeat or slightly perturb these "
+                            "coordinates. Choose a safe keyboard navigation "
+                            "action, a visibly grounded text target, or replan."
+                        ),
+                    },
+                )
+                if controller is None:
+                    return run
+                if self._repeats_ungrounded_navigation(run, controller):
+                    run.plan = None
+                    run.status = RunStatus.PAUSED
+                    run.error = (
+                        "controller repeated an ungrounded coordinate action "
+                        "after explicit correction feedback"
+                    )
+                    run.record(
+                        "controller.ungrounded_correction_failed",
+                        actions=self._visible_actions(rejected_actions),
+                    )
+                    await self.store.save(run)
+                    return run
             if self._unsafe_non_idempotent_retry(
                 previous_controller,
                 controller,
@@ -634,9 +680,18 @@ class AgentHarness:
         run: RunSnapshot,
         *,
         bypass_cooldown: bool = False,
+        controller_feedback: dict[str, Any] | None = None,
     ) -> ControllerDecision | None:
         request = self._model_request(
-            run, "controller", ControllerDecision, _CONTROLLER_SYSTEM
+            run,
+            "controller",
+            ControllerDecision,
+            _CONTROLLER_SYSTEM,
+            extra=(
+                {"controller_feedback": controller_feedback}
+                if controller_feedback is not None
+                else None
+            ),
         )
         run.record(
             "model.started",
@@ -1383,7 +1438,117 @@ class AgentHarness:
             "recoverable_failures": recoverable_failures,
             "repeated_unsuccessful_text_stops": repeated_unsuccessful_text_stops,
             "ungrounded_navigation_replans": ungrounded_navigation_replans,
+            "last_ungrounded_navigation": (
+                AgentHarness._last_ungrounded_navigation(run)
+            ),
         }
+
+    @staticmethod
+    def _last_ungrounded_navigation(
+        run: RunSnapshot,
+    ) -> dict[str, Any] | None:
+        last_checkpointed_actions: list[dict[str, Any]] | None = None
+        last_rejection: dict[str, Any] | None = None
+        for event in run.events:
+            if event.kind == "action.checkpointed":
+                actions = event.data.get("actions")
+                if isinstance(actions, list):
+                    last_checkpointed_actions = [
+                        dict(action)
+                        for action in actions
+                        if (
+                            isinstance(action, dict)
+                            and action.get("type")
+                            in {
+                                "click",
+                                "double_click",
+                                "move",
+                                "scroll",
+                                "wait",
+                                "wait_for_stable_screen",
+                                "wait_for_change",
+                            }
+                        )
+                    ]
+            elif event.kind == "action.ungrounded_refreshed":
+                last_rejection = {
+                    "reason": (
+                        event.data.get("reason")
+                        or "coordinate click target could not be independently read"
+                    ),
+                    "rejected_actions": list(last_checkpointed_actions or []),
+                    "refused_frame_id": event.data.get("refused_frame_id"),
+                    "fresh_frame_id": event.data.get("fresh_frame_id"),
+                }
+        return last_rejection
+
+    @staticmethod
+    def _repeats_ungrounded_navigation(
+        run: RunSnapshot,
+        controller: ControllerDecision,
+    ) -> bool:
+        if controller.outcome != "act":
+            return False
+        last_rejection = AgentHarness._last_ungrounded_navigation(run)
+        if last_rejection is None:
+            return False
+        rejected_actions = last_rejection.get("rejected_actions")
+        proposed_actions = [
+            action.model_dump(mode="json", exclude_none=True)
+            for action in controller.actions
+        ]
+        if not isinstance(rejected_actions, list):
+            return False
+        navigation_action_types = {
+            "click",
+            "double_click",
+            "move",
+            "scroll",
+            "wait",
+            "wait_for_stable_screen",
+            "wait_for_change",
+        }
+        if not proposed_actions or not all(
+            str(action.get("type") or "") in navigation_action_types
+            for action in proposed_actions
+        ):
+            return False
+
+        def click_signature(
+            actions: list[dict[str, Any]],
+        ) -> list[tuple[str, int, int, str]]:
+            return [
+                (
+                    str(action.get("type") or ""),
+                    int(action.get("x") or 0),
+                    int(action.get("y") or 0),
+                    str(action.get("button") or "left"),
+                )
+                for action in actions
+                if action.get("type") in {"click", "double_click"}
+            ]
+
+        rejected_clicks = click_signature(rejected_actions)
+        proposed_clicks = click_signature(proposed_actions)
+        return bool(rejected_clicks) and len(rejected_clicks) == len(
+            proposed_clicks
+        ) and all(
+            rejected_type == proposed_type
+            and rejected_button == proposed_button
+            and abs(rejected_x - proposed_x) <= 4
+            and abs(rejected_y - proposed_y) <= 4
+            for (
+                rejected_type,
+                rejected_x,
+                rejected_y,
+                rejected_button,
+            ), (
+                proposed_type,
+                proposed_x,
+                proposed_y,
+                proposed_button,
+            ) in zip(rejected_clicks, proposed_clicks, strict=True)
+        )
 
     @staticmethod
     def _repeated_unsuccessful_text_input(
