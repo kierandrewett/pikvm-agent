@@ -288,6 +288,27 @@ def test_legacy_single_blob_snapshot_can_be_normalized_without_data_loss() -> No
     assert "events" not in json.loads(_state_json(migrated))
 
 
+def test_legacy_snapshot_clamps_an_oversized_verification_summary() -> None:
+    run = RunSnapshot(
+        run_id="legacy-verification-summary",
+        task="Load state written before verification summaries were bounded",
+        status=RunStatus.PAUSED,
+    )
+    payload = run.model_dump(mode="json")
+    payload["last_verification"] = {
+        "verdict": "uncertain",
+        "summary": "x" * 1_500,
+        "evidence": [],
+        "criteria": [],
+    }
+
+    migrated = _snapshot_from_parts(json.dumps(payload), [])
+
+    assert migrated.last_verification is not None
+    assert len(migrated.last_verification.summary) == 1_200
+    assert migrated.last_verification.summary.endswith("…")
+
+
 @pytest.mark.asyncio
 async def test_sqlite_store_normalizes_events_and_reads_light_summaries(
     tmp_path: Path,

@@ -164,7 +164,14 @@ export type ConnectableProviderKind =
   | "openai_responses"
   | "anthropic_api"
   | "gemini_api"
-  | "openai_compatible";
+  | "openai_compatible"
+  | "azure_openai_responses"
+  | "vertex_gemini";
+
+export type ProviderConnectionAuthMode =
+  | "api_key"
+  | "bearer_env"
+  | "bearer_command";
 
 export type ProviderConnectionInput = {
   alias: string;
@@ -173,6 +180,7 @@ export type ProviderConnectionInput = {
   base_url?: string;
   credential_env?: string;
   profile_home_env?: string;
+  auth_mode?: ProviderConnectionAuthMode;
 };
 
 export type ProviderConnectionResult = {

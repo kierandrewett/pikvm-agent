@@ -187,6 +187,102 @@ def test_cli_connection_uses_provider_owned_login_without_secret_fields() -> Non
     assert spec.headers == {}
 
 
+@pytest.mark.parametrize(
+    ("kind", "base_url", "expected_argv"),
+    [
+        (
+            "azure_openai_responses",
+            "https://resource.openai.azure.com/openai/v1",
+            [
+                "az",
+                "account",
+                "get-access-token",
+                "--resource",
+                "https://cognitiveservices.azure.com",
+                "--query",
+                "accessToken",
+                "-o",
+                "tsv",
+            ],
+        ),
+        (
+            "vertex_gemini",
+            (
+                "https://aiplatform.googleapis.com/v1/projects/test/"
+                "locations/global/publishers/google"
+            ),
+            ["gcloud", "auth", "print-access-token"],
+        ),
+    ],
+)
+def test_cloud_oauth_connection_uses_a_fixed_provider_cli_command(
+    kind: str,
+    base_url: str,
+    expected_argv: list[str],
+) -> None:
+    request = ProviderConnectionRequest(
+        alias="cloud-oauth",
+        kind=kind,  # type: ignore[arg-type]
+        model="computer-use-model",
+        base_url=base_url,
+        auth_mode="bearer_command",
+    )
+
+    spec = request.provider_spec()
+
+    assert spec.credential_argv == expected_argv
+    assert spec.credential_env is None
+    assert spec.api_key_env is None
+
+
+def test_azure_api_key_connection_keeps_only_the_environment_reference() -> None:
+    request = ProviderConnectionRequest(
+        alias="azure-key",
+        kind="azure_openai_responses",
+        model="controller-deployment",
+        base_url="https://resource.openai.azure.com/openai/v1",
+        auth_mode="api_key",
+        credential_env="AZURE_OPENAI_API_KEY",
+    )
+
+    spec = request.provider_spec()
+
+    assert spec.auth_mode == "api_key"
+    assert spec.credential_env == "AZURE_OPENAI_API_KEY"
+    assert spec.credential_argv == []
+
+
+@pytest.mark.parametrize(
+    "values",
+    [
+        {
+            "alias": "azure-oauth",
+            "kind": "azure_openai_responses",
+            "model": "deployment",
+            "base_url": "https://resource.openai.azure.com/openai/v1",
+            "auth_mode": "bearer_command",
+            "credential_env": "AZURE_TOKEN",
+        },
+        {
+            "alias": "vertex-key",
+            "kind": "vertex_gemini",
+            "model": "gemini-model",
+            "base_url": (
+                "https://aiplatform.googleapis.com/v1/projects/test/"
+                "locations/global/publishers/google"
+            ),
+            "auth_mode": "api_key",
+            "credential_env": "VERTEX_KEY",
+        },
+    ],
+)
+def test_cloud_connection_rejects_ambiguous_or_unsupported_auth(
+    values: dict[str, str],
+) -> None:
+    with pytest.raises(ValueError):
+        ProviderConnectionRequest.model_validate(values)
+
+
 @pytest.mark.asyncio
 async def test_cost_capped_harness_requires_reviewed_billing_configuration(
     tmp_path: Path,

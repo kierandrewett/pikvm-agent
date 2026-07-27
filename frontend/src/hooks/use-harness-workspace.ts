@@ -46,6 +46,10 @@ export const reconcileIntervalMs = (status: LiveUpdateStatus) =>
     ? DEGRADED_RECONCILE_MS
     : LIVE_RECONCILE_MS;
 
+const rejectsWorkspaceToken = (cause: unknown) =>
+  cause instanceof HarnessApiError &&
+  (cause.status === 401 || cause.status === 403);
+
 export const loadProviderCatalog = async (accessToken: string) => {
   try {
     return await harnessJson<ProviderCatalogEntry[]>(
@@ -203,9 +207,9 @@ export function useHarnessWorkspace() {
         setSelectedId(firstId);
         if (firstId) await loadRun(accessToken, firstId);
       } catch (cause) {
-        clearStoredToken();
+        if (rejectsWorkspaceToken(cause)) clearStoredToken();
         if (!mounted.current) return;
-        setConnected(false);
+        if (rejectsWorkspaceToken(cause)) setConnected(false);
         setError(cause instanceof Error ? cause.message : "Connection failed.");
       } finally {
         if (mounted.current) setLoading(false);

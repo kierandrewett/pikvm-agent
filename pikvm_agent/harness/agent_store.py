@@ -14,6 +14,7 @@ from pikvm_agent.harness.agent_models import (
     RunEventPage,
     RunSnapshot,
     RunSummary,
+    VERIFICATION_SUMMARY_MAX_LENGTH,
 )
 
 CONTROL_EVENT_TAIL_LIMIT = 1_000
@@ -65,6 +66,22 @@ def _summary_json(run: RunSnapshot) -> str:
     return RunSummary.from_snapshot(run).model_dump_json()
 
 
+def _normalize_legacy_state(payload: dict[str, object]) -> None:
+    """Keep pre-bound verification summaries readable after an upgrade."""
+    verification = payload.get("last_verification")
+    if not isinstance(verification, dict):
+        return
+    summary = verification.get("summary")
+    if (
+        not isinstance(summary, str)
+        or len(summary) <= VERIFICATION_SUMMARY_MAX_LENGTH
+    ):
+        return
+    verification["summary"] = (
+        summary[: VERIFICATION_SUMMARY_MAX_LENGTH - 1] + "…"
+    )
+
+
 def _snapshot_from_parts(
     state_json: str,
     event_jsons: list[str],
@@ -72,6 +89,7 @@ def _snapshot_from_parts(
     event_cursor: int | None = None,
 ) -> RunSnapshot:
     payload = json.loads(state_json)
+    _normalize_legacy_state(payload)
     legacy_events = payload.pop("events", [])
     events = (
         [json.loads(event_json) for event_json in event_jsons]

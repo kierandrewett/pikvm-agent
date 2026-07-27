@@ -34,6 +34,13 @@ ConnectableProviderKind = Literal[
     "anthropic_api",
     "gemini_api",
     "openai_compatible",
+    "azure_openai_responses",
+    "vertex_gemini",
+]
+ConnectableAuthMode = Literal[
+    "api_key",
+    "bearer_env",
+    "bearer_command",
 ]
 
 _API_KINDS = {
@@ -41,8 +48,29 @@ _API_KINDS = {
     "anthropic_api",
     "gemini_api",
     "openai_compatible",
+    "azure_openai_responses",
+    "vertex_gemini",
 }
 _CLI_KINDS = {"codex_cli", "claude_cli", "gemini_cli"}
+_CLOUD_AUTH_KINDS = {"azure_openai_responses", "vertex_gemini"}
+_FIXED_CREDENTIAL_COMMANDS = {
+    "azure_openai_responses": [
+        "az",
+        "account",
+        "get-access-token",
+        "--resource",
+        "https://cognitiveservices.azure.com",
+        "--query",
+        "accessToken",
+        "-o",
+        "tsv",
+    ],
+    "vertex_gemini": [
+        "gcloud",
+        "auth",
+        "print-access-token",
+    ],
+}
 _CREDENTIAL_PREFIXES = (
     "aiza",
     "bearer ",
@@ -102,6 +130,7 @@ class ProviderConnectionRequest(BaseModel):
         max_length=128,
         pattern=r"^[A-Z][A-Z0-9_]{1,127}$",
     )
+    auth_mode: ConnectableAuthMode | None = None
 
     @field_validator("alias", "model")
     @classmethod
@@ -146,7 +175,11 @@ class ProviderConnectionRequest(BaseModel):
     @model_validator(mode="after")
     def validate_kind_fields(self) -> "ProviderConnectionRequest":
         if self.kind in _CLI_KINDS:
-            if self.credential_env is not None or self.base_url is not None:
+            if (
+                self.credential_env is not None
+                or self.base_url is not None
+                or self.auth_mode is not None
+            ):
                 raise ValueError(
                     "CLI providers use provider-owned sign-in, not API fields"
                 )
@@ -159,10 +192,34 @@ class ProviderConnectionRequest(BaseModel):
                     "profile_home_env is only supported by gemini_cli"
                 )
             return self
-        if self.credential_env is None:
-            raise ValueError("API providers require a credential_env name")
         if self.profile_home_env is not None:
             raise ValueError("API providers cannot use profile_home_env")
+        if self.kind in _CLOUD_AUTH_KINDS:
+            if self.base_url is None:
+                raise ValueError(f"{self.kind} requires base_url")
+            if self.auth_mode is None:
+                raise ValueError(f"{self.kind} requires auth_mode")
+            if self.kind == "vertex_gemini" and self.auth_mode == "api_key":
+                raise ValueError(
+                    "vertex_gemini supports bearer_env or bearer_command"
+                )
+            if self.auth_mode in {"api_key", "bearer_env"}:
+                if self.credential_env is None:
+                    raise ValueError(
+                        f"{self.auth_mode} requires credential_env"
+                    )
+            elif self.credential_env is not None:
+                raise ValueError(
+                    "bearer_command uses the harness-owned fixed provider "
+                    "CLI command, not credential_env"
+                )
+            return self
+        if self.auth_mode is not None:
+            raise ValueError(
+                "auth_mode is only supported by Azure OpenAI or Vertex Gemini"
+            )
+        if self.credential_env is None:
+            raise ValueError("API providers require a credential_env name")
         if self.kind == "openai_compatible" and self.base_url is None:
             raise ValueError("openai_compatible requires base_url")
         return self
@@ -175,6 +232,25 @@ class ProviderConnectionRequest(BaseModel):
             }
             if self.kind == "gemini_cli":
                 values["profile_home_env"] = self.profile_home_env
+            return ProviderSpec.model_validate(values)
+        if self.kind in _CLOUD_AUTH_KINDS:
+            values = {
+                "kind": self.kind,
+                "model": self.model,
+                "base_url": self.base_url,
+                "auth_mode": self.auth_mode,
+                "reasoning_effort": (
+                    "low"
+                    if self.kind == "azure_openai_responses"
+                    else None
+                ),
+            }
+            if self.auth_mode == "bearer_command":
+                values["credential_argv"] = _FIXED_CREDENTIAL_COMMANDS[
+                    self.kind
+                ]
+            else:
+                values["credential_env"] = self.credential_env
             return ProviderSpec.model_validate(values)
         return ProviderSpec.model_validate(
             {

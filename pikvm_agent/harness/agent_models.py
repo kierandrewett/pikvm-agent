@@ -413,9 +413,15 @@ class CriterionAssessment(StrictModelDecision):
     evidence: str
 
 
+VERIFICATION_SUMMARY_MAX_LENGTH = 1_200
+
+
 class VerificationDecision(StrictModelDecision):
     verdict: Literal["verified", "complete", "uncertain", "failed"]
-    summary: str = Field(min_length=1, max_length=1_200)
+    summary: str = Field(
+        min_length=1,
+        max_length=VERIFICATION_SUMMARY_MAX_LENGTH,
+    )
     evidence: list[str] = Field(default_factory=list)
     criteria: list[CriterionAssessment] = Field(default_factory=list, max_length=20)
 

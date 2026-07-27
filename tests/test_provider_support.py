@@ -149,12 +149,15 @@ def test_operator_ui_explains_support_contract_without_overclaiming() -> None:
         / "workspace"
         / "model-picker.tsx"
     ).read_text()
-    javascript = (
+    compiled_ui = (
         Path(__file__).parents[1]
         / "pikvm_agent"
         / "harness_ui"
-        / "app.js"
-    ).read_text()
+    )
+    javascript = "\n".join(
+        path.read_text()
+        for path in sorted(compiled_ui.rglob("*.js"))
+    )
     connections = (
         Path(__file__).parents[1]
         / "frontend"

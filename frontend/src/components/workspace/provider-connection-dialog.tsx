@@ -28,15 +28,23 @@ import { Spinner } from "@/components/ui/spinner";
 import type {
   ConnectableProviderKind,
   ProviderCatalogEntry,
+  ProviderConnectionAuthMode,
   ProviderConnectionInput,
   ProviderConnectionResult,
 } from "@/types";
+
+type AuthChoice = {
+  value: ProviderConnectionAuthMode;
+  label: string;
+  credentialEnv?: string;
+};
 
 type SetupShape = {
   label: string;
   credentialEnv?: string;
   profileHomeEnv?: string;
   baseUrl: "none" | "optional" | "required";
+  auth?: AuthChoice[];
 };
 
 const SETUP: Record<ConnectableProviderKind, SetupShape> = {
@@ -73,6 +81,41 @@ const SETUP: Record<ConnectableProviderKind, SetupShape> = {
     credentialEnv: "MODEL_GATEWAY_KEY",
     baseUrl: "required",
   },
+  azure_openai_responses: {
+    label: "Azure OpenAI Responses API",
+    baseUrl: "required",
+    auth: [
+      {
+        value: "bearer_command",
+        label: "Azure CLI OAuth",
+      },
+      {
+        value: "api_key",
+        label: "API key environment",
+        credentialEnv: "AZURE_OPENAI_API_KEY",
+      },
+      {
+        value: "bearer_env",
+        label: "Bearer token environment",
+        credentialEnv: "AZURE_OPENAI_ACCESS_TOKEN",
+      },
+    ],
+  },
+  vertex_gemini: {
+    label: "Vertex AI Gemini",
+    baseUrl: "required",
+    auth: [
+      {
+        value: "bearer_command",
+        label: "Google Cloud CLI OAuth",
+      },
+      {
+        value: "bearer_env",
+        label: "Bearer token environment",
+        credentialEnv: "VERTEX_ACCESS_TOKEN",
+      },
+    ],
+  },
 };
 
 const isConnectable = (
@@ -102,25 +145,53 @@ export function ProviderConnectionDialog({
   );
   const initialKind = (adapters[0]?.kind ??
     "codex_cli") as ConnectableProviderKind;
+  const initialAuth = SETUP[initialKind].auth?.[0];
   const [kind, setKind] = useState<ConnectableProviderKind>(initialKind);
+  const [authMode, setAuthMode] =
+    useState<ProviderConnectionAuthMode | null>(
+      initialAuth?.value ?? null,
+    );
   const [alias, setAlias] = useState("");
   const [model, setModel] = useState("");
   const [baseUrl, setBaseUrl] = useState("");
   const [credentialEnv, setCredentialEnv] = useState(
-    SETUP[initialKind].credentialEnv ?? "",
+    initialAuth?.credentialEnv ??
+      SETUP[initialKind].credentialEnv ??
+      "",
   );
   const [profileHomeEnv, setProfileHomeEnv] = useState(
     SETUP[initialKind].profileHomeEnv ?? "",
   );
   const [error, setError] = useState("");
   const shape = SETUP[kind];
+  const authChoice = shape.auth?.find(
+    (choice) => choice.value === authMode,
+  );
+  const credentialEnvRequired = Boolean(
+    authChoice?.credentialEnv || shape.credentialEnv,
+  );
 
   const selectKind = (value: string | null) => {
     if (!value || !isConnectable(value)) return;
+    const nextShape = SETUP[value];
+    const nextAuth = nextShape.auth?.[0];
     setKind(value);
-    setCredentialEnv(SETUP[value].credentialEnv ?? "");
-    setProfileHomeEnv(SETUP[value].profileHomeEnv ?? "");
+    setAuthMode(nextAuth?.value ?? null);
+    setCredentialEnv(
+      nextAuth?.credentialEnv ?? nextShape.credentialEnv ?? "",
+    );
+    setProfileHomeEnv(nextShape.profileHomeEnv ?? "");
     setBaseUrl("");
+    setError("");
+  };
+
+  const selectAuthMode = (value: string | null) => {
+    const choice = shape.auth?.find(
+      (candidate) => candidate.value === value,
+    );
+    if (!choice) return;
+    setAuthMode(choice.value);
+    setCredentialEnv(choice.credentialEnv ?? "");
     setError("");
   };
 
@@ -135,7 +206,10 @@ export function ProviderConnectionDialog({
     if (shape.baseUrl !== "none" && baseUrl.trim()) {
       input.base_url = baseUrl.trim();
     }
-    if (shape.credentialEnv) {
+    if (authChoice) {
+      input.auth_mode = authChoice.value;
+    }
+    if (credentialEnvRequired) {
       input.credential_env = credentialEnv.trim();
     }
     if (shape.profileHomeEnv) {
@@ -154,7 +228,8 @@ export function ProviderConnectionDialog({
   const valid =
     alias.trim() &&
     model.trim() &&
-    (!shape.credentialEnv || credentialEnv.trim()) &&
+    (!shape.auth || authChoice) &&
+    (!credentialEnvRequired || credentialEnv.trim()) &&
     (shape.baseUrl !== "required" || baseUrl.trim()) &&
     (!shape.profileHomeEnv || profileHomeEnv.trim());
 
@@ -245,7 +320,48 @@ export function ProviderConnectionDialog({
                 />
               </Field>
             ) : null}
-            {shape.credentialEnv ? (
+            {shape.auth ? (
+              <Field>
+                <FieldLabel htmlFor="provider-auth-mode">
+                  Authentication
+                </FieldLabel>
+                <Select
+                  value={authMode}
+                  onValueChange={selectAuthMode}
+                  items={shape.auth.map((choice) => ({
+                    value: choice.value,
+                    label: choice.label,
+                  }))}
+                >
+                  <SelectTrigger
+                    id="provider-auth-mode"
+                    className="w-full"
+                    aria-label="Provider authentication"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent alignItemWithTrigger={false}>
+                    <SelectGroup>
+                      {shape.auth.map((choice) => (
+                        <SelectItem
+                          key={choice.value}
+                          value={choice.value}
+                        >
+                          {choice.label}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+                {authChoice?.value === "bearer_command" ? (
+                  <FieldDescription>
+                    Uses the provider CLI&apos;s existing login through a fixed
+                    harness command.
+                  </FieldDescription>
+                ) : null}
+              </Field>
+            ) : null}
+            {credentialEnvRequired ? (
               <Field>
                 <FieldLabel htmlFor="provider-credential-env">
                   Credential environment variable
@@ -280,6 +396,8 @@ export function ProviderConnectionDialog({
               />
               Credential values never enter this form. CLI providers keep their
               own login; API providers reference a server environment variable.
+              Cloud CLI commands are fixed by the harness and cannot be edited
+              here.
             </p>
             <FieldError>{error}</FieldError>
             <Button type="submit" disabled={connecting || !valid}>

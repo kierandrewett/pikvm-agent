@@ -75,6 +75,25 @@ const catalog: ProviderCatalogEntry[] = [
   },
 ];
 
+const azureCatalog: ProviderCatalogEntry = {
+  kind: "azure_openai_responses",
+  support_tier: "beta",
+  implementation_contract: "first_party",
+  interface: "Azure OpenAI Responses API",
+  pixel_input: "Native image input",
+  structured_output: "Strict JSON Schema",
+  auth: [
+    {
+      mode: "api_key_env",
+      credential_owner: "harness_environment",
+    },
+    {
+      mode: "bearer_command",
+      credential_owner: "provider_cli",
+    },
+  ],
+};
+
 afterEach(cleanup);
 
 describe("ProviderConnectionsSheet", () => {
@@ -340,6 +359,66 @@ describe("ProviderConnectionsSheet", () => {
       kind: "openai_responses",
       model: "gpt-5-mini",
       credential_env: "OPENAI_API_KEY",
+    });
+  });
+
+  it("connects Azure CLI OAuth without accepting an arbitrary command", async () => {
+    const user = userEvent.setup();
+    const onConnectProvider = vi.fn().mockResolvedValue({
+      provider: "azure-work",
+      configured_model: "controller-deployment",
+      kind: "azure_openai_responses",
+      ready: true,
+      credential_owner: "provider_cli",
+      configured_not_routed: true,
+      secret_received: false,
+    });
+
+    render(
+      <ProviderConnectionsSheet
+        open
+        onOpenChange={() => undefined}
+        providers={providers}
+        catalog={[azureCatalog]}
+        preferences={{}}
+        locked={false}
+        onPreferenceChange={() => undefined}
+        onResetPreferences={() => undefined}
+        onConnectProvider={onConnectProvider}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Add model" }));
+    expect(
+      screen.getByRole("combobox", {
+        name: "Provider authentication",
+      }).textContent,
+    ).toContain("Azure CLI OAuth");
+    expect(
+      screen.getByText(/fixed harness command/),
+    ).not.toBeNull();
+    expect(screen.queryByLabelText(/command/i)).toBeNull();
+    expect(
+      screen.queryByLabelText("Credential environment variable"),
+    ).toBeNull();
+
+    await user.type(screen.getByLabelText("Provider name"), "azure-work");
+    await user.type(
+      screen.getByLabelText("Model ID"),
+      "controller-deployment",
+    );
+    await user.type(
+      screen.getByLabelText("Base URL"),
+      "https://resource.openai.azure.com/openai/v1",
+    );
+    await user.click(screen.getByRole("button", { name: "Add model" }));
+
+    expect(onConnectProvider).toHaveBeenCalledWith({
+      alias: "azure-work",
+      kind: "azure_openai_responses",
+      model: "controller-deployment",
+      base_url: "https://resource.openai.azure.com/openai/v1",
+      auth_mode: "bearer_command",
     });
   });
 });
