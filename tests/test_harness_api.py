@@ -2600,3 +2600,75 @@ async def test_managed_background_continue_returns_before_model_loop_finishes(
 
     assert response.status_code == 200
     assert response.json()["status"] == "paused"
+
+
+@pytest.mark.asyncio
+async def test_managed_background_approval_returns_before_model_loop_finishes(
+    tmp_path: Path,
+) -> None:
+    started = asyncio.Event()
+    release = asyncio.Event()
+    frame = tmp_path / "frame.jpg"
+    frame.write_bytes(b"\xff\xd8fake-jpeg\xff\xd9")
+    store = InMemoryRunStore()
+
+    class BlockingHarness(StubHarness):
+        async def resolve_approval(
+            self,
+            run_id: str,
+            approval_id: str,
+            decision: dict[str, Any],
+        ) -> RunSnapshot:
+            started.set()
+            await release.wait()
+            return await super().resolve_approval(
+                run_id,
+                approval_id,
+                decision,
+            )
+
+    harness = BlockingHarness(store, frame)
+    run = await harness.create("Continue the approved Office action.")
+    run.status = RunStatus.NEEDS_APPROVAL
+    run.pending_approval = {
+        "kind": "direct_burst",
+        "approval_id": "approval-office-1",
+        "risk": "unknown",
+    }
+    await store.save(run)
+    app = create_harness_app(
+        harness=harness,
+        store=store,
+        models=StubModels(),
+        access_token=TEST_ACCESS_TOKEN,
+        allowed_origins={"http://harness"},
+    )
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app),
+        base_url="http://harness",
+        headers={"authorization": f"Bearer {TEST_ACCESS_TOKEN}"},
+    ) as client:
+        request = asyncio.create_task(
+            client.post(
+                (
+                    f"/api/runs/{run.run_id}/approvals/"
+                    "approval-office-1"
+                ),
+                params={"background": "true"},
+                json={"type": "approve", "reason": "reviewed"},
+                headers={
+                    "origin": "http://harness",
+                    "x-pikvm-approval-intent": "approval-office-1",
+                },
+            )
+        )
+        await asyncio.wait_for(started.wait(), timeout=0.1)
+        await asyncio.sleep(0.01)
+        returned_before_release = request.done()
+        release.set()
+        response = await asyncio.wait_for(request, timeout=0.1)
+
+    assert returned_before_release is True
+    assert response.status_code == 200
+    assert response.json()["status"] == "needs_approval"

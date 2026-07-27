@@ -470,6 +470,7 @@ def create_harness_app(
     app.state.shutdown_requested = shutdown_requested
     active_tasks: set[asyncio.Task[Any]] = set()
     continuation_tasks: dict[str, set[asyncio.Task[Any]]] = {}
+    background_approvals: set[tuple[str, str]] = set()
     resolved_run_locks = run_locks if run_locks is not None else {}
     app.state.run_locks = resolved_run_locks
 
@@ -577,6 +578,41 @@ def create_harness_app(
                 tasks.discard(task)
                 if not tasks:
                     continuation_tasks.pop(run_id, None)
+
+    async def resolve_managed_approval_in_background(
+        run_id: str,
+        approval_id: str,
+        decision: dict[str, Any],
+    ) -> None:
+        key = (run_id, approval_id)
+        try:
+            run, cancelled = await guarded_managed_approval(
+                run_id,
+                approval_id,
+                decision,
+            )
+            if (
+                not cancelled
+                and decision.get("type") == "approve"
+                and _autonomous_resume_reason(run) is not None
+            ):
+                schedule(guarded_continue(run_id))
+        except Exception as exc:  # noqa: BLE001 - publish async failure durably
+            log.exception("background approval resolution failed")
+            run = await store.get_control(run_id)
+            if run.status is RunStatus.NEEDS_APPROVAL:
+                run.status = RunStatus.PAUSED
+                run.error = (
+                    "approval resolution failed; no completion was claimed"
+                )
+                run.record(
+                    "approval.failed",
+                    approval_id=approval_id,
+                    error_class=type(exc).__name__,
+                )
+                await store.save(run)
+        finally:
+            background_approvals.discard(key)
 
     def schedule(coro: Any) -> None:
         task = asyncio.create_task(coro)
@@ -1128,14 +1164,40 @@ def create_harness_app(
 
     @app.post("/api/runs/{run_id}/approvals/{approval_id}")
     async def resolve_approval(
-        run_id: str, approval_id: str, body: ApprovalBody
+        run_id: str,
+        approval_id: str,
+        body: ApprovalBody,
+        background: bool = False,
     ) -> dict[str, Any]:
         existing = await store.get_state(run_id)
         decision = {"type": body.type, "reason": body.reason}
         cancelled = False
-        if existing.origin == "managed" and (
+        managed_approval = existing.origin == "managed" and (
             existing.pending_approval or {}
-        ).get("kind") != "virtual_media_attach":
+        ).get("kind") != "virtual_media_attach"
+        if managed_approval and background:
+            pending = existing.pending_approval or {}
+            if (
+                existing.status is not RunStatus.NEEDS_APPROVAL
+                or pending.get("approval_id") != approval_id
+            ):
+                raise HTTPException(
+                    409,
+                    "run is not waiting for this exact approval",
+                )
+            key = (run_id, approval_id)
+            if key in background_approvals:
+                raise HTTPException(409, "approval is already resolving")
+            background_approvals.add(key)
+            schedule(
+                resolve_managed_approval_in_background(
+                    run_id,
+                    approval_id,
+                    decision,
+                )
+            )
+            return _visible_run(existing)
+        if managed_approval:
             run, cancelled = await guarded_managed_approval(
                 run_id,
                 approval_id,

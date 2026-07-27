@@ -424,7 +424,9 @@ export function useHarnessWorkspace() {
         token,
         `/api/runs/${encodeURIComponent(
           selectedRun.run_id,
-        )}/approvals/${encodeURIComponent(decision.approvalId)}`,
+        )}/approvals/${encodeURIComponent(
+          decision.approvalId,
+        )}?background=true`,
         {
           method: "POST",
           headers: {
