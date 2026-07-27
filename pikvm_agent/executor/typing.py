@@ -487,6 +487,7 @@ class WatchedTyper:
         *,
         region: Region | None = None,
         code: bool = False,
+        prose: bool = False,
         secret: bool = False,
         should_continue: Callable[[], bool] | None = None,
     ) -> WatchedTypingResult:
@@ -497,7 +498,7 @@ class WatchedTyper:
         typer drops any held keys and stops MID-text instead of running the whole string
         to completion. This makes a long ``type_text`` interruptible, not just the gaps
         between transactions."""
-        precise = code or is_exact_text(text)
+        precise = code or (is_exact_text(text) and not prose)
         total = len(text)
 
         # FAST TRANSPORT: long, plain (non-exact, non-secret) prose uses the

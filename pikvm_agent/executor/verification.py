@@ -71,6 +71,16 @@ _COMMAND_HEAD = re.compile(
     r"(^|\s)(sudo|git|npm|yarn|pnpm|node|cd|ls|cat|grep|find|echo|rm|mkdir|cp|mv"
     r"|chmod|chown|ssh|scp|curl|wget|docker|kubectl|systemctl|tar|sed|awk)(\s|$)"
 )
+_CODE_OR_COMMAND_HEAD = re.compile(
+    r"^\s*(?:"
+    r"select|insert|update|delete|create|alter|drop|merge|"
+    r"def|class|function|import|from|const|let|var|if|for|while|"
+    r"terraform|powershell|pwsh|cmd"
+    r")\b",
+    re.IGNORECASE,
+)
+_PROSE_WORD = re.compile(r"[A-Za-z]+(?:['’][A-Za-z]+)?")
+_PROSE_UNSAFE_SYMBOLS = re.compile(r"[|&><$`~*\\{}\[\]=]")
 _WHITESPACE = re.compile(r"\s+")
 _NON_ALNUM = re.compile(r"[^a-z0-9]", re.IGNORECASE)
 _NON_ALNUM_LOWER = re.compile(r"[^a-z0-9]")
@@ -225,6 +235,28 @@ def is_exact_text(s: str) -> bool:
     if _COMMAND_HEAD.search(s):
         return True
     return False
+
+
+def is_editor_prose(s: str) -> bool:
+    """Recognise long natural-language editor text without relaxing code.
+
+    This is an eligibility check for lenient OCR and guarded printer delivery,
+    not a general safety classification. Shell metacharacters, paths, URLs,
+    command/code heads, indentation, and code-like symbol density all keep the
+    strict verifier even when a controller labels the target as an editor.
+    """
+
+    if len(s) < 80 or len(_PROSE_WORD.findall(s)) < 12:
+        return False
+    if _PROSE_UNSAFE_SYMBOLS.search(s):
+        return False
+    if _FLAGS_PATHS.search(s) or _URL_SCHEME.search(s):
+        return False
+    if _COMMAND_HEAD.search(s) or _CODE_OR_COMMAND_HEAD.search(s):
+        return False
+    if looks_like_code(s):
+        return False
+    return True
 
 
 # --------------------------------------------------------------------------- #

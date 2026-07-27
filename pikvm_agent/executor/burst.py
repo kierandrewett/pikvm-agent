@@ -24,6 +24,7 @@ from typing import Any, Awaitable, Callable
 
 from pikvm_agent.executor.typing import chunk_text
 from pikvm_agent.executor.verification import (
+    is_editor_prose,
     is_exact_text,
     levenshtein,
     norm,
@@ -560,18 +561,28 @@ async def _dispatch(
         text = a.get("text", "")
         method = str(a.get("method", "")).lower()
         code, secret = bool(a.get("code")), bool(a.get("secret"))
+        editor_prose = (
+            not code
+            and str(a.get("context", "")).lower() == "editor"
+            and is_editor_prose(str(text))
+        )
         precise = (
             code
             or str(a.get("context", "")).lower() in {"field", "terminal"}
-            or is_exact_text(str(text))
+            or (is_exact_text(str(text)) and not editor_prose)
         )
         fast = method in ("print", "hid_print", "pikvm_hid_print")
         if typer is not None and not secret:
             # A caller may request the printer transport, but it cannot disable
             # watched delivery and read-back when the runtime has a typer. The
             # typer itself selects guarded printer chunks for eligible prose.
-            res = await typer.type_text(text, code=precise, secret=secret,
-                                        should_continue=should_continue)
+            res = await typer.type_text(
+                text,
+                code=precise,
+                prose=editor_prose,
+                secret=secret,
+                should_continue=should_continue,
+            )
             action_receipt = _typing_receipt(a, res, precise=precise)
             status = str(getattr(res, "status", "") or "")
             if status == "blocked_by_policy":

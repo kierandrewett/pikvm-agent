@@ -354,9 +354,21 @@ class _StubTyper:
         self.delivery_retries = delivery_retries
         self.used_fast_path = used_fast_path
         self.calls: list[str] = []
+        self.modes: list[dict[str, bool]] = []
 
-    async def type_text(self, text, *, code=False, secret=False, should_continue=None):
+    async def type_text(
+        self,
+        text,
+        *,
+        code=False,
+        prose=False,
+        secret=False,
+        should_continue=None,
+    ):
         self.calls.append(text)
+        self.modes.append(
+            {"code": bool(code), "prose": bool(prose), "secret": bool(secret)}
+        )
         class _R:
             pass
         r = _R()
@@ -371,6 +383,42 @@ class _StubTyper:
         r.delivery_retries = self.delivery_retries
         r.used_fast_path = self.used_fast_path
         return r
+
+
+async def test_editor_prose_punctuation_uses_lenient_watched_mode() -> None:
+    text = (
+        "Shakespeare treats choice as a human burden; his characters inherit "
+        "pressure and prophecy, but they remain responsible for what follows."
+    )
+    be = FakeBackend()
+    typer = _StubTyper("verified_safe_normalized")
+
+    outcome = await run_burst(
+        [{"type": "type_text", "text": text, "context": "editor"}],
+        backend=be,
+        typer=typer,
+    )
+
+    assert outcome.status == "completed"
+    assert typer.modes == [{"code": False, "prose": True, "secret": False}]
+
+
+async def test_editor_label_cannot_relax_command_or_code_text() -> None:
+    be = FakeBackend()
+    typer = _StubTyper("verified_exact")
+    command = (
+        "terraform apply -auto-approve; rm -rf ./state "
+        "because this remains exact command text"
+    )
+
+    outcome = await run_burst(
+        [{"type": "type_text", "text": command, "context": "editor"}],
+        backend=be,
+        typer=typer,
+    )
+
+    assert outcome.status == "completed"
+    assert typer.modes == [{"code": True, "prose": False, "secret": False}]
 
 
 async def test_burst_type_text_verifies_and_stops_on_mismatch() -> None:

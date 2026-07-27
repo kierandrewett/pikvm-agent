@@ -251,6 +251,30 @@ async def test_fast_path_long_prose_matches() -> None:
     _assert_no_enter(backend)
 
 
+async def test_editor_prose_semicolon_can_use_guarded_fast_path() -> None:
+    backend = FakeBackend()
+    prose = (
+        "Shakespeare treats choice as a human burden; his characters inherit "
+        "pressure and prophecy, but they remain responsible for what follows."
+    )
+    orig_print = backend.print_text
+
+    async def printing(text: str) -> None:
+        await orig_print(text)
+        backend.set_screen("typed editor prose")
+
+    backend.print_text = printing  # type: ignore[method-assign]
+    typer = WatchedTyper(backend, ScriptedOCR(prose))
+
+    result = await typer.type_text(prose, prose=True)
+
+    assert result.used_fast_path is True
+    assert result.verdict == "match"
+    assert any(method == "print_text" for method, _ in backend.calls)
+    assert not any(method == "type_text" for method, _ in backend.calls)
+    _assert_no_enter(backend)
+
+
 async def test_caps_lock_disables_fast_path() -> None:
     backend = FakeBackend()
     backend.caps_lock = True
