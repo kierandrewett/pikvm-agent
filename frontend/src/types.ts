@@ -19,6 +19,13 @@ export type HarnessEvent = {
   data: Record<string, unknown>;
 };
 
+export type LiveUpdateStatus =
+  | "idle"
+  | "connecting"
+  | "live"
+  | "retrying"
+  | "offline";
+
 export type RunSummary = {
   run_id: string;
   task: string;

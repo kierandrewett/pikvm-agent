@@ -197,6 +197,28 @@ def test_tool_events_are_mapped_to_structured_parts_not_raw_console_rows() -> No
     assert "action.attempted" in mapper
 
 
+def test_chat_workspace_uses_the_authenticated_event_stream_for_live_work() -> None:
+    api = (FRONTEND_DIR / "src" / "lib" / "harness-api.ts").read_text()
+    workspace = (
+        FRONTEND_DIR / "src" / "hooks" / "use-harness-workspace.ts"
+    ).read_text()
+    shell = (
+        FRONTEND_DIR
+        / "src"
+        / "components"
+        / "workspace"
+        / "workspace-shell.tsx"
+    ).read_text()
+
+    assert 'headers.set("Accept", "text/event-stream")' in api
+    assert "harnessEventStream" in workspace
+    assert "/stream?after=" in workspace
+    assert "liveUpdateStatus" in workspace
+    assert "750" not in workspace
+    assert "LiveUpdateBadge" in shell
+    assert "Managed MCP connected" not in shell
+
+
 def test_hidden_diagnostics_do_not_build_an_unbounded_event_console() -> None:
     diagnostics = (
         FRONTEND_DIR

@@ -11,11 +11,13 @@ import type {
 } from "@assistant-ui/react";
 import {
   clearStoredToken,
+  harnessEventStream,
   harnessJson,
   readStoredToken,
   storeToken,
 } from "@/lib/harness-api";
 import type {
+  LiveUpdateStatus,
   ProviderMap,
   RunSnapshot,
   RunStatus,
@@ -31,6 +33,12 @@ const ACTIVE_OR_PAUSED = new Set<RunStatus>([
   "paused",
   "needs_approval",
 ]);
+
+const STREAM_REFRESH_DEBOUNCE_MS = 75;
+const STREAM_RETRY_BASE_MS = 500;
+const STREAM_RETRY_MAX_MS = 5_000;
+const LIVE_RECONCILE_MS = 15_000;
+const DEGRADED_RECONCILE_MS = 1_500;
 
 const messageText = (message: AppendMessage) => {
   const text = message.content
@@ -55,6 +63,9 @@ export function useHarnessWorkspace() {
   const [providers, setProviders] = useState<ProviderMap>({});
   const [selectedProvider, setSelectedProvider] = useState("");
   const [error, setError] = useState("");
+  const [liveUpdateStatus, setLiveUpdateStatus] =
+    useState<LiveUpdateStatus>("idle");
+  const [lastLiveEventAt, setLastLiveEventAt] = useState<string | null>(null);
   const mounted = useRef(true);
 
   useEffect(
@@ -69,7 +80,30 @@ export function useHarnessWorkspace() {
       accessToken,
       `/api/runs/${encodeURIComponent(runId)}`,
     );
-    if (mounted.current) setSelectedRun(run);
+    if (mounted.current) {
+      setSelectedRun(run);
+      setRuns((current) => {
+        const index = current.findIndex((item) => item.run_id === run.run_id);
+        const summary: RunSummary = {
+          run_id: run.run_id,
+          task: run.task,
+          status: run.status,
+          origin: run.origin,
+          model_provider: run.model_provider,
+          caller: run.caller,
+          session_id: run.session_id,
+          created_at: run.created_at,
+          updated_at: run.updated_at,
+          event_count: run.event_count,
+          event_cursor: run.event_cursor,
+          error: run.error,
+        };
+        if (index < 0) return [summary, ...current];
+        const next = [...current];
+        next[index] = summary;
+        return next;
+      });
+    }
     return run;
   }, []);
 
@@ -139,13 +173,138 @@ export function useHarnessWorkspace() {
 
   useEffect(() => {
     if (!connected || !token) return;
+    const interval =
+      liveUpdateStatus === "live"
+        ? LIVE_RECONCILE_MS
+        : DEGRADED_RECONCILE_MS;
     const timer = window.setInterval(() => {
       void refresh().catch((cause) => {
         if (cause instanceof Error && mounted.current) setError(cause.message);
       });
-    }, 750);
+    }, interval);
     return () => window.clearInterval(timer);
-  }, [connected, refresh, token]);
+  }, [connected, liveUpdateStatus, refresh, token]);
+
+  const streamRunId =
+    selectedRun?.run_id === selectedId ? selectedRun.run_id : null;
+
+  useEffect(() => {
+    if (!connected || !token || !selectedId || streamRunId !== selectedId) {
+      if (mounted.current) {
+        setLiveUpdateStatus(connected ? "idle" : "offline");
+        setLastLiveEventAt(null);
+      }
+      return;
+    }
+
+    let active = true;
+    let cursor = selectedRun?.event_cursor ?? 0;
+    let failures = 0;
+    let refreshTimer: number | undefined;
+    const streamController = new AbortController();
+    const delayController = new AbortController();
+
+    const scheduleSnapshotRefresh = () => {
+      if (refreshTimer != null) return;
+      refreshTimer = window.setTimeout(() => {
+        refreshTimer = undefined;
+        void loadRun(token, selectedId).catch((cause) => {
+          if (active && mounted.current && cause instanceof Error) {
+            setError(cause.message);
+          }
+        });
+      }, STREAM_REFRESH_DEBOUNCE_MS);
+    };
+
+    const waitForRetry = (delay: number) =>
+      new Promise<void>((resolve) => {
+        let timer: number | undefined;
+        const finish = () => {
+          if (timer != null) window.clearTimeout(timer);
+          delayController.signal.removeEventListener("abort", finish);
+          resolve();
+        };
+        timer = window.setTimeout(finish, delay);
+        delayController.signal.addEventListener("abort", finish, {
+          once: true,
+        });
+      });
+
+    const listen = async () => {
+      while (active) {
+        if (mounted.current) {
+          setLiveUpdateStatus(
+            failures === 0
+              ? "connecting"
+              : failures >= 3
+                ? "offline"
+                : "retrying",
+          );
+        }
+        try {
+          await harnessEventStream(
+            token,
+            `/api/runs/${encodeURIComponent(selectedId)}/stream?after=${cursor}`,
+            {
+              signal: streamController.signal,
+              onMessage: (message) => {
+                if (!active || !mounted.current) return;
+                const nextCursor = Number(message.id);
+                if (Number.isSafeInteger(nextCursor) && nextCursor > cursor) {
+                  cursor = nextCursor;
+                } else if (
+                  message.data &&
+                  typeof message.data === "object" &&
+                  "cursor" in message.data
+                ) {
+                  const announced = Number(message.data.cursor);
+                  if (Number.isSafeInteger(announced) && announced > cursor) {
+                    cursor = announced;
+                  }
+                }
+                failures = 0;
+                setLiveUpdateStatus("live");
+                setLastLiveEventAt(new Date().toISOString());
+                if (
+                  message.event === "run.event" ||
+                  message.event === "run.state"
+                ) {
+                  scheduleSnapshotRefresh();
+                }
+              },
+            },
+          );
+          if (!active) return;
+          throw new Error("Live update stream ended.");
+        } catch (cause) {
+          if (!active || streamController.signal.aborted) return;
+          failures += 1;
+          if (mounted.current) {
+            setLiveUpdateStatus(failures >= 3 ? "offline" : "retrying");
+          }
+          const delay = Math.min(
+            STREAM_RETRY_MAX_MS,
+            STREAM_RETRY_BASE_MS * 2 ** Math.min(failures - 1, 4),
+          );
+          await waitForRetry(delay);
+        }
+      }
+    };
+
+    void listen();
+    return () => {
+      active = false;
+      streamController.abort();
+      delayController.abort();
+      if (refreshTimer != null) window.clearTimeout(refreshTimer);
+    };
+  }, [
+    connected,
+    loadRun,
+    selectedId,
+    streamRunId,
+    token,
+  ]);
 
   const selectRun = useCallback(
     async (runId: string) => {
@@ -262,6 +421,8 @@ export function useHarnessWorkspace() {
     setSelectedId(null);
     setSelectedRun(null);
     setError("");
+    setLiveUpdateStatus("offline");
+    setLastLiveEventAt(null);
   }, []);
 
   const isRunning = Boolean(
@@ -282,6 +443,8 @@ export function useHarnessWorkspace() {
       providers,
       selectedProvider,
       error,
+      liveUpdateStatus,
+      lastLiveEventAt,
       isRunning,
       connect,
       disconnect,
@@ -304,6 +467,8 @@ export function useHarnessWorkspace() {
       providers,
       selectedProvider,
       error,
+      liveUpdateStatus,
+      lastLiveEventAt,
       isRunning,
       connect,
       disconnect,

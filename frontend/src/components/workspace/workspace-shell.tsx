@@ -9,12 +9,14 @@ import {
   LogOutIcon,
   MenuIcon,
   MonitorIcon,
+  ShieldCheckIcon,
   SparklesIcon,
 } from "lucide-react";
 import { Thread } from "@/components/assistant-ui/thread";
 import { ThreadList } from "@/components/assistant-ui/thread-list";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import {
   Sheet,
   SheetContent,
@@ -30,6 +32,7 @@ import {
   ComputerToolGroup,
 } from "@/components/workspace/computer-tool-call";
 import { DiagnosticsSheet } from "@/components/workspace/diagnostics-sheet";
+import { LiveUpdateBadge } from "@/components/workspace/live-update-badge";
 import { ModelPicker } from "@/components/workspace/model-picker";
 import { useHarnessWorkspace } from "@/hooks/use-harness-workspace";
 import { messagesForRun } from "@/lib/run-messages";
@@ -98,11 +101,20 @@ export function WorkspaceShell() {
   });
 
   const ComposerToolbar = () => (
-    <ModelPicker
-      providers={workspace.providers}
-      value={workspace.selectedProvider}
-      onValueChange={workspace.setSelectedProvider}
-    />
+    <div className="flex min-w-0 items-center gap-1">
+      <ModelPicker
+        providers={workspace.providers}
+        value={workspace.selectedProvider}
+        onValueChange={workspace.setSelectedProvider}
+      />
+      <Badge
+        variant="ghost"
+        title="Harness-managed MCP with policy, approvals, and verification"
+      >
+        <ShieldCheckIcon data-icon="inline-start" aria-hidden="true" />
+        Managed MCP
+      </Badge>
+    </div>
   );
 
   return (
@@ -137,10 +149,12 @@ export function WorkspaceShell() {
                 {workspace.selectedRun?.task || "New task"}
               </p>
               {workspace.connected ? (
-                <span
-                  className="size-1.5 shrink-0 rounded-full bg-emerald-400"
-                  aria-label="Managed MCP connected"
-                  title="Managed MCP connected"
+                <LiveUpdateBadge
+                  status={
+                    workspace.selectedRun
+                      ? workspace.liveUpdateStatus
+                      : "idle"
+                  }
                 />
               ) : null}
             </div>
