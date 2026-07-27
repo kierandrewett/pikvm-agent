@@ -608,6 +608,29 @@ async def test_office_http_client_requests_background_continuation() -> None:
     assert requests[0].url.params.get("background") == "true"
 
 
+def test_office_runner_accepts_sanitized_verification_receipts() -> None:
+    payload = RunSnapshot(
+        run_id="office-live",
+        task="task",
+        status=RunStatus.PAUSED,
+        verification_images=[
+            {
+                "revision": 1,
+                "action_index": 0,
+                "before_frame_id": 1,
+                "after_frame_id": 2,
+                "path": "/private/evidence.png",
+            }
+        ],
+    ).model_dump(mode="json")
+    payload["verification_images"][0].pop("path")
+
+    run = office_runner._run_snapshot(payload)
+
+    assert run.status is RunStatus.PAUSED
+    assert run.verification_images == []
+
+
 @pytest.mark.asyncio
 async def test_office_runner_does_not_duplicate_background_continuation() -> None:
     class Api:

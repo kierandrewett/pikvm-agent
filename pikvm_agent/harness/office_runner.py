@@ -157,7 +157,13 @@ def _artifact_acceptance_result(
 
 
 def _run_snapshot(payload: dict[str, Any]) -> RunSnapshot:
-    return RunSnapshot.model_validate(payload)
+    internal_payload = dict(payload)
+    # The operator API deliberately exposes durable evidence coordinates but
+    # never its private host path. The Office driver does not consume that
+    # evidence history, so do not validate the public receipts as internal
+    # storage artifacts.
+    internal_payload.pop("verification_images", None)
+    return RunSnapshot.model_validate(internal_payload)
 
 
 async def _abort_outcome(
