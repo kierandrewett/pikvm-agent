@@ -47,6 +47,7 @@ def build_bootstrap_commands(
     public_base_url: str | None = None,
     file_path: str | None = None,
     reuse_installed: bool = False,
+    visible: bool = True,
 ) -> list[str]:
     """Build short provisioning commands without coupling artifact and oracle.
 
@@ -93,7 +94,22 @@ def build_bootstrap_commands(
         commands.append(
             f"irm {artifact_url} -OutFile C:/PiKVM-Harness/observer.exe"
         )
-    commands.append(f"& C:/PiKVM-Harness/observer.exe{arguments}")
+    if visible:
+        commands.append(f"& C:/PiKVM-Harness/observer.exe{arguments}")
+    else:
+        hidden_arguments = arguments.replace('"', "").strip()
+        argument_list = (
+            f' "{hidden_arguments}"' if hidden_arguments else ""
+        )
+        commands.extend(
+            [
+                (
+                    "start C:/PiKVM-Harness/observer.exe"
+                    f"{argument_list} -WindowStyle Hidden"
+                ),
+                "exit",
+            ]
+        )
     return commands
 
 
@@ -105,6 +121,7 @@ def build_bootstrap_command(
     public_base_url: str | None = None,
     file_path: str | None = None,
     reuse_installed: bool = False,
+    visible: bool = True,
 ) -> str:
     """Return the auditable display form; deployment submits each line alone."""
     return ";".join(
@@ -115,6 +132,7 @@ def build_bootstrap_command(
             public_base_url=public_base_url,
             file_path=file_path,
             reuse_installed=reuse_installed,
+            visible=visible,
         )
     )
 
@@ -138,6 +156,7 @@ def deploy(
     powershell_ready: bool = False,
     character_delay_s: float = 0.050,
     reuse_installed: bool = False,
+    visible: bool = True,
 ) -> None:
     from vncdotool import api
 
@@ -148,6 +167,7 @@ def deploy(
         token=token,
         file_path=file_path,
         reuse_installed=reuse_installed,
+        visible=visible,
     )
     client = api.connect(
         normalize_vnc_endpoint(endpoint),

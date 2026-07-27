@@ -270,6 +270,7 @@ async def test_skip_provision_reuses_installed_observer_with_fresh_path(
         )
 
     assert captured["reuse_installed"] is True
+    assert captured["visible"] is False
     assert captured["artifact_url"] is None
     assert str(captured["file_path"]).startswith(
         "C:/PiKVM-Harness/workspace/quarterly-earnings-"

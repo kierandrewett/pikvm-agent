@@ -432,6 +432,7 @@ async def run_live_office_case(
         password=password,
         username=username,
         reuse_installed=skip_provision,
+        visible=False,
     )
     output_dir = output_dir.resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
