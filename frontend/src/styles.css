@@ -218,6 +218,10 @@ body,
     @apply absolute top-3 left-1/2 z-20 w-[min(42rem,calc(100%-2rem))] -translate-x-1/2 shadow-lg;
   }
 
+  .workspace-mode-banner {
+    @apply absolute top-3 left-1/2 z-10 w-[min(48rem,calc(100%-2rem))] -translate-x-1/2 shadow-lg;
+  }
+
   .computer-sheet {
     width: min(96vw, 96rem) !important;
     max-width: none !important;

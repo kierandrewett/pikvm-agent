@@ -690,6 +690,58 @@ def build_approval_fixture_run() -> RunSnapshot:
     return run
 
 
+def build_direct_fixture_run() -> RunSnapshot:
+    """Build a guarded-direct trace whose outer client owns the action loop."""
+
+    run = RunSnapshot(
+        run_id="direct-ui-audit",
+        task="Inspect a direct Claude computer-control trace",
+        status=RunStatus.RUNNING,
+        origin="direct_mcp",
+        caller={
+            "interface": "direct_mcp",
+            "label": "claude-cli",
+            "provider": "anthropic-oauth",
+            "model": "opus",
+        },
+        session_id="synthetic-session",
+        observation=_fixture_observation(),
+    )
+    run.record("run.created", origin="direct_mcp", caller=run.caller)
+    run.record(
+        "action.attempted",
+        call_id="fixture-direct-click",
+        tool="pikvm_run_burst",
+        arguments={
+            "actions": [
+                {
+                    "type": "click",
+                    "x": 412,
+                    "y": 286,
+                    "button": "left",
+                }
+            ],
+            "based_on_world_version": 1,
+            "based_on_control_epoch": 1,
+            "idempotency_key": "fixture:direct:click",
+        },
+    )
+    run.record(
+        "action.completed_unverified",
+        call_id="fixture-direct-click",
+        status="completed",
+        latency_ms=84,
+        frame_id=2,
+        world_version=2,
+    )
+    run.status = RunStatus.PAUSED
+    run.record(
+        "run.paused",
+        reason="Synthetic direct trace paused for operator inspection.",
+    )
+    return run
+
+
 def advance_fixture_run(
     run: RunSnapshot,
     tick: int,
@@ -802,6 +854,7 @@ def build_fixture_app(
     store = InMemoryRunStore()
     run = build_fixture_run(prefill_events)
     approval_run = build_approval_fixture_run()
+    direct_run = build_direct_fixture_run()
     evidence_dir = TemporaryDirectory(prefix="pikvm-ui-fixture-")
     evidence_path = Path(evidence_dir.name) / "before-after.png"
     _write_fixture_evidence(evidence_path)
@@ -830,6 +883,7 @@ def build_fixture_app(
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         await store.save(run)
         await store.save(approval_run)
+        await store.save(direct_run)
 
         async def produce() -> None:
             tick = 0
@@ -863,4 +917,5 @@ def build_fixture_app(
     app.state.synthetic_store = store
     app.state.synthetic_run = run
     app.state.synthetic_approval_run = approval_run
+    app.state.synthetic_direct_run = direct_run
     return app

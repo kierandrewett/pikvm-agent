@@ -216,6 +216,12 @@ const outcomeReason = (outcome: HarnessEvent) => {
 };
 
 const planMarkdown = (run: RunSnapshot) => {
+  if (run.origin === "direct_mcp") {
+    return (
+      "The outer client chose this action sequence. The harness records and " +
+      "gates each call without claiming to own its plan."
+    );
+  }
   if (run.plan) {
     return run.plan.summary;
   }
@@ -234,6 +240,12 @@ const completionMarkdown = (run: RunSnapshot) => {
     return `Stopped: ${run.error || run.status.replaceAll("_", " ")}.`;
   }
   if (run.status === "paused") {
+    if (run.origin === "direct_mcp") {
+      return (
+        "Direct gate paused. Resume it from the Computer view; the next " +
+        "action still comes from the outer client."
+      );
+    }
     return run.error
       ? `Paused: ${run.error}. Retry, choose another model, or give a correction.`
       : "Paused at a durable checkpoint. You can continue or give a correction.";

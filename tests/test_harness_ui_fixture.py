@@ -11,6 +11,7 @@ from pikvm_agent.harness.ui_fixture import (
     FixtureModels,
     advance_fixture_run,
     build_approval_fixture_run,
+    build_direct_fixture_run,
     build_fixture_app,
     build_fixture_run,
 )
@@ -72,6 +73,27 @@ def test_ui_fixture_includes_production_shaped_typing_readback() -> None:
     assert receipt["observed_text"] == "Quarterly review draft"
     assert receipt["focus_evidence"] == "read_back_verified"
     assert receipt["edit_distance"] == 0
+
+
+def test_ui_fixture_includes_an_honestly_labelled_direct_client_trace() -> None:
+    run = build_direct_fixture_run()
+
+    assert run.origin == "direct_mcp"
+    assert run.caller == {
+        "interface": "direct_mcp",
+        "label": "claude-cli",
+        "provider": "anthropic-oauth",
+        "model": "opus",
+    }
+    assert run.status.value == "paused"
+    assert run.plan is None
+    assert run.last_verification is None
+    assert [event.kind for event in run.events] == [
+        "run.created",
+        "action.attempted",
+        "action.completed_unverified",
+        "run.paused",
+    ]
 
 
 async def test_ui_fixture_exposes_and_resolves_a_synthetic_send_approval() -> None:
@@ -147,6 +169,7 @@ def test_ui_fixture_app_exposes_no_machine_marker_and_provider_matrix() -> None:
 
     assert app.state.synthetic_fixture is True
     assert app.state.synthetic_approval_run.status.value == "needs_approval"
+    assert app.state.synthetic_direct_run.origin == "direct_mcp"
     assert app.state.synthetic_run.verification_images[0].revision == 1
     assert any(
         event.kind == "verification.evidence_captured"

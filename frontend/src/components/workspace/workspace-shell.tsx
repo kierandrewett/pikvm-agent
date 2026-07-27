@@ -10,14 +10,12 @@ import {
   LogOutIcon,
   MenuIcon,
   MonitorIcon,
-  ShieldCheckIcon,
   SparklesIcon,
 } from "lucide-react";
 import { Thread } from "@/components/assistant-ui/thread";
 import { ThreadList } from "@/components/assistant-ui/thread-list";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import {
   Sheet,
   SheetContent,
@@ -36,6 +34,12 @@ import { DiagnosticsSheet } from "@/components/workspace/diagnostics-sheet";
 import { LiveUpdateBadge } from "@/components/workspace/live-update-badge";
 import { ModelPicker } from "@/components/workspace/model-picker";
 import { ProviderConnectionsSheet } from "@/components/workspace/provider-connections-sheet";
+import {
+  canComposeIntoRun,
+  DirectRunBanner,
+  RunControlModeBadge,
+  usesManagedControlLoop,
+} from "@/components/workspace/run-control-mode";
 import { RunProvenance } from "@/components/workspace/run-provenance";
 import { useHarnessWorkspace } from "@/hooks/use-harness-workspace";
 import { messagesForRun } from "@/lib/run-messages";
@@ -103,7 +107,10 @@ export function WorkspaceShell() {
     messages,
     convertMessage: (message) => message,
     isRunning: workspace.isRunning,
-    isSendDisabled: !workspace.connected,
+    isSendDisabled: !canComposeIntoRun(
+      workspace.connected,
+      workspace.selectedRun?.origin,
+    ),
     onNew: workspace.onNew,
     onCancel: workspace.onCancel,
     onRespondToToolApproval: workspace.respondToApproval,
@@ -113,21 +120,17 @@ export function WorkspaceShell() {
 
   const ComposerToolbar = () => (
     <div className="flex min-w-0 items-center gap-1">
-      <ModelPicker
-        providers={workspace.providers}
-        preferences={workspace.modelPreferences}
-        activeRoute={workspace.selectedRun?.model_route}
-        activeProvider={workspace.selectedRun?.model_provider}
-        locked={workspace.routeLocked}
-        onOpenModels={() => setModelsOpen(true)}
-      />
-      <Badge
-        variant="ghost"
-        title="Harness-managed MCP with policy, approvals, and verification"
-      >
-        <ShieldCheckIcon data-icon="inline-start" aria-hidden="true" />
-        Managed MCP
-      </Badge>
+      {usesManagedControlLoop(workspace.selectedRun?.origin) ? (
+        <ModelPicker
+          providers={workspace.providers}
+          preferences={workspace.modelPreferences}
+          activeRoute={workspace.selectedRun?.model_route}
+          activeProvider={workspace.selectedRun?.model_provider}
+          locked={workspace.routeLocked}
+          onOpenModels={() => setModelsOpen(true)}
+        />
+      ) : null}
+      <RunControlModeBadge origin={workspace.selectedRun?.origin} />
     </div>
   );
 
@@ -212,6 +215,10 @@ export function WorkspaceShell() {
               <Alert variant="destructive" className="workspace-error">
                 <AlertDescription>{workspace.error}</AlertDescription>
               </Alert>
+            ) : null}
+            {workspace.selectedRun?.origin === "direct_mcp" &&
+            !workspace.error ? (
+              <DirectRunBanner onStartManaged={workspace.newThread} />
             ) : null}
             <ComputerToolEnvironmentProvider value={computerEnvironment}>
               <Thread

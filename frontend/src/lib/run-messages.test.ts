@@ -372,6 +372,27 @@ describe("messagesForRun", () => {
     expect(serialized).not.toContain("success_criteria");
   });
 
+  it("does not narrate a direct client trace as harness-owned work", () => {
+    const assistant = messagesForRun(
+      run({
+        origin: "direct_mcp",
+        status: "paused",
+        plan: null,
+        error: null,
+      }),
+    ).at(-1);
+    const serialized = JSON.stringify(assistant?.content);
+
+    expect(serialized).toContain(
+      "The outer client chose this action sequence",
+    );
+    expect(serialized).toContain(
+      "Direct gate paused. Resume it from the Computer view",
+    );
+    expect(serialized).not.toContain("Working through the requested task");
+    expect(serialized).not.toContain("give a correction");
+  });
+
   it("names the live model lane without inventing hidden reasoning", () => {
     const assistant = messagesForRun(
       run({
