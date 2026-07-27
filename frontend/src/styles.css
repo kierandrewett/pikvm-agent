@@ -255,18 +255,6 @@ body,
     );
   }
 
-  .computer-transaction-flow {
-    counter-reset: computer-transaction-phase;
-  }
-
-  .computer-transaction-phase {
-    counter-increment: computer-transaction-phase;
-  }
-
-  .computer-transaction-phase-number::before {
-    content: counter(computer-transaction-phase, decimal-leading-zero);
-  }
-
   @media (prefers-reduced-motion: reduce) {
     .computer-action-step,
     .computer-action-marker {

@@ -5,11 +5,9 @@ import {
   useMemo,
   useRef,
   useState,
-  type ElementType,
   type PropsWithChildren,
 } from "react";
 import {
-  ArrowRightIcon,
   CheckIcon,
   ChevronDownIcon,
   CircleAlertIcon,
@@ -765,105 +763,48 @@ export function ComputerInputSequence({
   );
 }
 
-type EvidenceItem = {
-  label: string;
-  value: string;
-  detail?: string;
-  Icon: ElementType;
-  iconClass: string;
-  phase: "before" | "input" | "after";
-};
-
-function ReceiptNode({ item }: { item: EvidenceItem }) {
-  const Icon = item.Icon;
-  return (
-    <div
-      className="computer-transaction-phase flex min-w-0 flex-1 items-start gap-2.5"
-      data-phase={item.phase}
-    >
-      <span
-        className={cn(
-          "flex size-5 shrink-0 items-center justify-center",
-          item.iconClass,
-        )}
-      >
-        <Icon className="size-3.5" aria-hidden="true" />
-      </span>
-      <div className="min-w-0">
-        <dt className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
-          <span
-            className="computer-transaction-phase-number font-mono text-[9px] tabular-nums"
-            aria-hidden="true"
-          />
-          {item.label}
-        </dt>
-        <dd className="mt-0.5 truncate text-xs font-semibold">{item.value}</dd>
-        {item.detail ? (
-          <dd className="mt-0.5 line-clamp-2 text-[11px] leading-relaxed text-muted-foreground">
-            {item.detail}
-          </dd>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-function ModelIdentity({
+function AuditRow({
   label,
-  detail,
+  value,
 }: {
   label: string;
-  detail: ModelReceipt;
+  value: string;
 }) {
   return (
-    <div className="min-w-0">
-      <dt className="text-[11px] font-medium text-muted-foreground">{label}</dt>
-      <dd className="mt-0.5 truncate text-xs font-semibold">
-        {detail.model || "Model not reported"}
-      </dd>
-      <dd className="mt-0.5 flex min-w-0 flex-wrap gap-x-2 text-[10px] text-muted-foreground">
-        {detail.provider ? (
-          <span className="truncate">{detail.provider}</span>
-        ) : null}
-        {detail.latencyMs != null ? (
-          <span className="shrink-0 font-mono tabular-nums">
-            {detail.latencyMs.toLocaleString()} ms
-          </span>
-        ) : null}
-      </dd>
+    <div className="grid min-w-0 grid-cols-[4rem_minmax(0,1fr)] gap-2 text-xs">
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className="min-w-0 text-pretty text-foreground/90">{value}</dd>
     </div>
   );
 }
 
-function ModelHandoff({ receipt }: { receipt: ReceiptContext }) {
-  if (!receipt.controller && !receipt.verifier) return null;
-  return (
-    <dl
-      className="mt-3 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 border-t border-border pt-3"
-      aria-label="Model handoff"
-    >
-      {receipt.controller ? (
-        <ModelIdentity label="Action selected by" detail={receipt.controller} />
-      ) : (
-        <div />
-      )}
-      <ArrowRightIcon
-        className="size-3.5 text-muted-foreground"
-        aria-hidden="true"
-      />
-      {receipt.verifier ? (
-        <ModelIdentity label="Screen checked by" detail={receipt.verifier} />
-      ) : (
-        <div>
-          <dt className="text-[11px] font-medium text-muted-foreground">
-            Screen check
-          </dt>
-          <dd className="mt-0.5 text-xs font-semibold">Awaiting verifier</dd>
-        </div>
-      )}
-    </dl>
-  );
-}
+const modelIdentity = (detail?: ModelReceipt) =>
+  detail ? detail.model || detail.provider || "Model not reported" : "";
+
+const modelAuditSummary = (receipt: ReceiptContext) => {
+  const controller = modelIdentity(receipt.controller);
+  const verifier = modelIdentity(receipt.verifier);
+  const sameModel =
+    controller &&
+    verifier &&
+    controller === verifier &&
+    receipt.controller?.provider === receipt.verifier?.provider;
+  const latency = [receipt.controller?.latencyMs, receipt.verifier?.latencyMs]
+    .filter((value): value is number => value != null)
+    .map((value) => `${value.toLocaleString()} ms`)
+    .join(" + ");
+
+  const route = sameModel
+    ? `${controller} · selected + checked`
+    : controller && verifier
+      ? `${controller} → ${verifier}`
+      : controller
+        ? `${controller} · screen check pending`
+        : verifier
+          ? `${verifier} · checked`
+          : "";
+  return [route, latency].filter(Boolean).join(" · ");
+};
 
 function VerificationEvidenceFigure({
   revision,
@@ -938,7 +879,7 @@ function VerificationEvidenceFigure({
             className="size-3.5 shrink-0 text-evidence-foreground"
             aria-hidden="true"
           />
-          <span className="truncate">Observed screen transition</span>
+          <span className="truncate">Screen change</span>
         </span>
         <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
           {frameLabel}
@@ -948,7 +889,7 @@ function VerificationEvidenceFigure({
         <img
           src={imageUrl}
           alt={`Before and after screen evidence, ${frameLabel}`}
-          className="block max-h-80 w-full bg-black object-contain"
+          className="block max-h-64 w-full bg-black object-contain"
         />
       ) : error ? (
         <p className="px-3 py-4 text-xs text-muted-foreground">
@@ -973,6 +914,7 @@ export function ComputerActionReceipt({
   actionCount,
   characterCount,
   showVisualEvidence = true,
+  showInputSummary = true,
 }: {
   args: JsonRecord;
   result: unknown;
@@ -981,6 +923,7 @@ export function ComputerActionReceipt({
   actionCount: number;
   characterCount: number;
   showVisualEvidence?: boolean;
+  showInputSummary?: boolean;
 }) {
   const value = record(result);
   const verification = record(value.verification);
@@ -989,183 +932,94 @@ export function ComputerActionReceipt({
   const sourceFrame =
     number(args.based_on_frame_id) ?? receipt.evidenceBeforeFrame;
   const sourceWorld = number(args.based_on_world_version);
-  const sourceControl = number(args.based_on_control_epoch);
   const frame = number(value.frame_id) ?? receipt.evidenceAfterFrame;
   const observedWorld = number(value.world_version);
   const verificationVerdict = text(verification.verdict);
   const verificationSummary = text(verification.summary);
-  const state = statusMeta(status, result);
-  const StateIcon = state.Icon;
+  const actions = Array.isArray(args.actions) ? args.actions.map(record) : [];
+  const verified = verificationVerdict === "verified";
 
   let delivery = "Waiting";
-  let deliveryDetail = "No input has been committed";
   if (status?.type === "requires-action") {
     delivery = "Held for approval";
-    deliveryDetail = "The consequential input has not been sent";
   } else if (status?.type === "running") {
     delivery = "In progress";
-    deliveryDetail = "The harness is sending this bounded input";
   } else if (resultStatus === "failed") {
     delivery = "Failed";
-    deliveryDetail = "The input did not complete; details are in diagnostics";
   } else if (resultStatus === "refused") {
     delivery = "Refused";
-    deliveryDetail = text(value.reason) || "Stopped before input";
   } else if (resultStatus) {
     delivery = "Committed";
-    deliveryDetail =
-      frame != null ? `Fresh post-input frame ${frame}` : "HID completed";
   }
 
-  const evidence: EvidenceItem[] = [
-    {
-      label: "Screen before",
-      value:
-        sourceFrame != null
-          ? `Frame ${sourceFrame}`
-          : sourceWorld != null
-            ? `World ${sourceWorld}`
-            : "Not supplied",
-      detail:
-        sourceWorld != null
-          ? [
-              sourceFrame != null ? `world ${sourceWorld}` : "",
-              sourceControl != null ? `control ${sourceControl}` : "",
-            ]
-              .filter(Boolean)
-              .join(" · ") || "Freshness reference supplied"
-          : "No freshness reference",
-      Icon: EyeIcon,
-      iconClass: "text-muted-foreground",
-      phase: "before",
-    },
-    {
-      label: "Computer input",
-      value: delivery,
-      detail: [
-        `${actionCount} ${actionCount === 1 ? "input" : "inputs"}`,
-        characterCount ? `${characterCount} exact characters` : "",
-        deliveryDetail,
-      ]
-        .filter(Boolean)
-        .join(" · "),
-      Icon: state.Icon,
-      iconClass: statusTextClass(state.variant),
-      phase: "input",
-    },
-    {
-      label: "Screen after",
-      value:
-        verificationVerdict === "verified"
-          ? frame != null
-            ? `Frame ${frame} · verified`
-            : "Screen verified"
-          : resultStatus === "unverified"
-            ? "Not verified"
-            : frame != null
-              ? `Frame ${frame}`
-              : "Awaiting screen",
-      detail:
-        verificationSummary ||
-        (frame != null
-          ? [
-              `frame ${frame}`,
-              observedWorld != null ? `world ${observedWorld}` : "",
-            ]
-              .filter(Boolean)
-              .join(" · ")
-          : "Awaiting post-input evidence"),
-      Icon:
-        verificationVerdict === "verified"
-          ? CheckIcon
-          : resultStatus === "unverified"
-            ? CircleAlertIcon
-            : EyeIcon,
-      iconClass:
-        verificationVerdict === "verified"
-          ? "text-evidence-foreground"
-          : resultStatus === "unverified"
-            ? "text-caution-foreground"
-            : "text-muted-foreground",
-      phase: "after",
-    },
-  ];
+  const goal = [
+    receipt.intent,
+    !verified && receipt.expectedEvidence.length
+      ? `Success: ${receipt.expectedEvidence.join("; ")}`
+      : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  const input = [
+    delivery,
+    showInputSummary && actions.length
+      ? actionSequence(actions)
+      : `${actionCount} ${actionCount === 1 ? "input" : "inputs"}`,
+    characterCount ? `${characterCount} chars` : "",
+    receipt.attempt != null && receipt.attempt > 1
+      ? `attempt ${receipt.attempt}`
+      : "",
+    receipt.latencyMs != null
+      ? `${receipt.latencyMs.toLocaleString()} ms`
+      : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  const trace = [
+    environment.machineName || "Managed computer",
+    environment.screenWidth && environment.screenHeight
+      ? `${environment.screenWidth}×${environment.screenHeight}`
+      : "",
+    sourceFrame != null && frame != null
+      ? `frame ${sourceFrame} → ${frame}`
+      : sourceFrame != null || frame != null
+        ? `frame ${sourceFrame ?? frame}`
+        : "",
+    sourceFrame == null && frame == null && (sourceWorld != null || observedWorld != null)
+      ? sourceWorld != null && observedWorld != null
+        ? `world ${sourceWorld} → ${observedWorld}`
+        : `world ${sourceWorld ?? observedWorld}`
+      : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  const models = modelAuditSummary(receipt);
+  const outcome =
+    verificationSummary && (!verified || !receipt.intent)
+      ? verificationSummary
+      : resultStatus === "unverified"
+      ? "Not verified · screen captured without an independent check."
+      : resultStatus === "failed"
+        ? "Transport failed · details are retained in diagnostics."
+        : resultStatus === "refused"
+          ? text(value.reason) || "Stopped before input."
+          : "";
 
   return (
     <section
-      className="computer-transaction mt-3 border-y border-border/70 py-3"
+      className="mt-2"
       aria-label="Computer action receipt"
     >
-      <div className="mb-3 flex min-w-0 items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2 text-xs">
-          <MonitorIcon
-            className="size-3.5 shrink-0 text-muted-foreground"
-            aria-hidden="true"
-          />
-          <span className="truncate font-medium">
-            {environment.machineName || "Managed computer"}
-          </span>
-          <span className="hidden font-mono text-[11px] text-muted-foreground sm:inline">
-            {[
-              environment.currentFrameId != null
-                ? `live frame ${environment.currentFrameId}`
-                : "",
-              environment.screenWidth && environment.screenHeight
-                ? `${environment.screenWidth}×${environment.screenHeight}`
-                : "",
-            ]
-              .filter(Boolean)
-              .join(" · ") || "managed MCP"}
-          </span>
-        </div>
-        <span
-          className={cn(
-            "flex shrink-0 items-center gap-1.5 text-xs font-medium",
-            statusTextClass(state.variant),
-          )}
-        >
-          <StateIcon
-            className={cn(
-              "size-3.5",
-              status?.type === "running" &&
-                "animate-spin motion-reduce:animate-none",
-            )}
-            aria-hidden="true"
-          />
-          {state.label}
-        </span>
-      </div>
-      <dl className="computer-transaction-flow flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-2">
-        {evidence.map((item, index) => (
-          <div key={item.label} className="contents">
-            <ReceiptNode item={item} />
-            {index < evidence.length - 1 ? (
-              <ArrowRightIcon
-                className="hidden size-3.5 shrink-0 self-center text-muted-foreground sm:block"
-                aria-hidden="true"
-              />
-            ) : null}
-          </div>
-        ))}
+      <dl
+        className="grid gap-1.5 border-y border-border/60 py-2.5"
+        aria-label="Action audit summary"
+      >
+        {goal ? <AuditRow label="Goal" value={goal} /> : null}
+        <AuditRow label="Input" value={input} />
+        <AuditRow label="Trace" value={trace} />
+        {models ? <AuditRow label="Models" value={models} /> : null}
+        {outcome ? <AuditRow label="Result" value={outcome} /> : null}
       </dl>
-      {receipt.attempt != null ||
-      receipt.latencyMs != null ||
-      receipt.idempotencyKey ? (
-        <div className="mt-3 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 border-t border-border pt-2 font-mono text-[10px] text-muted-foreground">
-          {receipt.attempt != null ? (
-            <span>attempt {receipt.attempt}</span>
-          ) : null}
-          {receipt.latencyMs != null ? (
-            <span>{receipt.latencyMs.toLocaleString()} ms transport</span>
-          ) : null}
-          {receipt.idempotencyKey ? (
-            <span className="min-w-0 truncate" title={receipt.idempotencyKey}>
-              key {receipt.idempotencyKey}
-            </span>
-          ) : null}
-        </div>
-      ) : null}
-      <ModelHandoff receipt={receipt} />
       {showVisualEvidence ? (
         <VerificationEvidenceFigure
           revision={receipt.evidenceRevision}
@@ -1173,49 +1027,6 @@ export function ComputerActionReceipt({
           beforeFrame={sourceFrame}
           afterFrame={frame}
         />
-      ) : null}
-    </section>
-  );
-}
-
-function ActionIntent({ receipt }: { receipt: ReceiptContext }) {
-  if (!receipt.intent && !receipt.expectedEvidence.length) return null;
-  return (
-    <section
-      className="mt-3 grid gap-3 border-b border-border/60 pb-3 sm:grid-cols-2"
-      aria-label="Action intent and expected evidence"
-    >
-      {receipt.intent ? (
-        <div className="flex items-start gap-2">
-          <CrosshairIcon
-            className="mt-0.5 size-3.5 shrink-0 text-muted-foreground"
-            aria-hidden="true"
-          />
-          <div className="min-w-0">
-            <p className="text-[11px] font-medium text-muted-foreground">
-              Intended effect
-            </p>
-            <p className="mt-0.5 text-xs leading-relaxed">{receipt.intent}</p>
-          </div>
-        </div>
-      ) : null}
-      {receipt.expectedEvidence.length ? (
-        <div className="flex items-start gap-2">
-          <EyeIcon
-            className="mt-0.5 size-3.5 shrink-0 text-muted-foreground"
-            aria-hidden="true"
-          />
-          <div className="min-w-0">
-            <p className="text-[11px] font-medium text-muted-foreground">
-              Success should look like
-            </p>
-            <ul className="mt-0.5 flex flex-col gap-1 text-xs leading-relaxed">
-              {receipt.expectedEvidence.map((evidence, index) => (
-                <li key={`${evidence}:${index}`}>{evidence}</li>
-              ))}
-            </ul>
-          </div>
-        </div>
       ) : null}
     </section>
   );
@@ -1427,10 +1238,9 @@ const ComputerToolCallImpl: ToolCallMessagePartComponent<
             <Collapsible className="group/details min-w-0 flex-1">
               <CollapsibleTrigger className="flex min-h-9 w-full items-center gap-1.5 text-xs text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50">
                 <ChevronDownIcon className="size-3.5 -rotate-90 transition-transform duration-150 group-data-open/details:rotate-0 group-data-panel-open/details:rotate-0 motion-reduce:transition-none" />
-                Details
+                Audit
               </CollapsibleTrigger>
               <CollapsibleContent className="data-closed:animate-collapsible-up data-open:animate-collapsible-down overflow-hidden motion-reduce:animate-none">
-                <ActionIntent receipt={receipt} />
                 <ComputerActionReceipt
                   args={callArgs}
                   result={result}
@@ -1439,25 +1249,22 @@ const ComputerToolCallImpl: ToolCallMessagePartComponent<
                   actionCount={summary.actions.length}
                   characterCount={characters}
                   showVisualEvidence={false}
+                  showInputSummary={!showPrimaryInput}
                 />
-                {!showPrimaryInput ? (
-                  <section className="mt-3" aria-label="Exact input details">
-                    <ComputerInputSequence
-                      actions={summary.actions}
-                      environment={environment}
-                      inputReceipts={receipt.inputReceipts}
-                    />
-                  </section>
-                ) : null}
-                <div className="mt-3 border-t border-border/60 pt-3">
-                  <p className="text-[11px] text-muted-foreground">
-                    Raw MCP request ·{" "}
-                    <code className="font-mono">{toolName}</code>
-                  </p>
-                  <pre className="mt-2 max-h-72 overflow-auto rounded-md bg-background/70 p-3 font-mono text-[11px] leading-relaxed text-foreground/80 whitespace-pre-wrap">
-                    {argsText || JSON.stringify(args, null, 2)}
-                  </pre>
-                </div>
+                <Collapsible className="group/raw">
+                  <CollapsibleTrigger className="flex min-h-9 w-full items-center gap-1.5 text-[11px] text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50">
+                    <ChevronDownIcon className="size-3 -rotate-90 transition-transform duration-150 group-data-open/raw:rotate-0 group-data-panel-open/raw:rotate-0 motion-reduce:transition-none" />
+                    <span>Raw request</span>
+                    <code className="font-mono">
+                      {toolName.replace(/^pikvm_/, "")}
+                    </code>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="data-closed:animate-collapsible-up data-open:animate-collapsible-down overflow-hidden motion-reduce:animate-none">
+                    <pre className="max-h-72 overflow-auto rounded-md bg-background/70 p-3 font-mono text-[11px] leading-relaxed text-foreground/80 whitespace-pre-wrap">
+                      {argsText || JSON.stringify(args, null, 2)}
+                    </pre>
+                  </CollapsibleContent>
+                </Collapsible>
               </CollapsibleContent>
             </Collapsible>
             {environment.onOpenComputer ? (

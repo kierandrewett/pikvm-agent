@@ -330,9 +330,11 @@ describe("ComputerActionReceipt", () => {
     expect(receipt.textContent).toContain("Office lab");
     expect(receipt.textContent).toContain("Trace");
     expect(receipt.textContent).toContain(
-      "Office lab · 1920×1080 · frame 41 → 42 · world 9 → 10 · control 3",
+      "Office lab · 1920×1080 · frame 41 → 42",
     );
-    expect(receipt.textContent).toContain("Transport");
+    expect(receipt.textContent).not.toContain("world 9 → 10");
+    expect(receipt.textContent).not.toContain("control 3");
+    expect(receipt.textContent).toContain("Input");
     expect(receipt.textContent).toContain(
       "Committed · 2 inputs · 84 chars · attempt 2 · 742 ms",
     );
@@ -341,6 +343,66 @@ describe("ComputerActionReceipt", () => {
       "The Save dialog closed and the document remained open.",
     );
     expect(receipt.textContent).not.toContain("run:action:4:abc123");
+  });
+
+  it("keeps a verified managed action to four essential audit rows", () => {
+    render(
+      <ComputerActionReceipt
+        args={{
+          actions: [{ type: "click", x: 640, y: 360, button: "left" }],
+          based_on_frame_id: 1,
+          based_on_world_version: 1,
+          based_on_control_epoch: 1,
+          __receipt: {
+            intent: "Activate the managed smoke canvas.",
+            expected_evidence: ["The canvas visibly reports completion."],
+            attempt: 1,
+            latency_ms: 1,
+            idempotency_key: "hidden-action-key",
+            controller: {
+              provider: "managed-smoke",
+              model: "deterministic-smoke-v1",
+            },
+            verifier: {
+              provider: "managed-smoke",
+              model: "deterministic-smoke-v1",
+            },
+          },
+        }}
+        result={{
+          status: "completed",
+          frame_id: 2,
+          world_version: 2,
+          verification: {
+            verdict: "verified",
+            summary: "The managed smoke task is visibly complete.",
+          },
+        }}
+        status={{ type: "complete" }}
+        environment={{ machineName: "Managed smoke canvas" }}
+        actionCount={1}
+        characterCount={0}
+        showVisualEvidence={false}
+      />,
+    );
+
+    const audit = screen.getByLabelText("Action audit summary");
+    expect(audit.children).toHaveLength(4);
+    expect(audit.textContent).toContain("GoalActivate the managed smoke canvas.");
+    expect(audit.textContent).toContain(
+      "InputCommitted · Click at 640 × 360 · 1 ms",
+    );
+    expect(audit.textContent).toContain(
+      "TraceManaged smoke canvas · frame 1 → 2",
+    );
+    expect(audit.textContent).toContain(
+      "Modelsdeterministic-smoke-v1 · selected + checked",
+    );
+    expect(audit.textContent).not.toContain("The canvas visibly reports");
+    expect(audit.textContent).not.toContain("The managed smoke task is");
+    expect(audit.textContent).not.toContain("hidden-action-key");
+    expect(audit.textContent).not.toContain("world 1 → 2");
+    expect(audit.textContent).not.toContain("control 1");
   });
 
   it("makes a held action visibly distinct from a committed action", () => {
@@ -380,7 +442,6 @@ describe("ComputerActionReceipt", () => {
     );
 
     const receipt = screen.getByLabelText("Computer action receipt");
-    expect(receipt.textContent).toContain("Sending input");
     expect(receipt.textContent).toContain("In progress");
     expect(receipt.textContent).toContain("In progress · 1 input · 32 chars");
     expect(receipt.textContent).not.toContain("Committed");
@@ -405,7 +466,9 @@ describe("ComputerActionReceipt", () => {
 
     const receipt = screen.getByLabelText("Computer action receipt");
     expect(receipt.textContent).toContain("Failed");
-    expect(receipt.textContent).toContain("details are in diagnostics");
+    expect(receipt.textContent).toContain(
+      "Transport failed · details are retained in diagnostics.",
+    );
     expect(receipt.textContent).not.toContain("vm.internal.invalid");
     expect(receipt.textContent).not.toContain("credential=secret");
   });
