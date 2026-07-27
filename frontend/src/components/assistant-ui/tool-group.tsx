@@ -99,10 +99,7 @@ function ToolGroupRoot({
 }
 
 export type ToolGroupState =
-  | "running"
-  | "review"
-  | "failed"
-  | "complete";
+  "running" | "review" | "refused" | "failed" | "complete";
 
 const TOOL_GROUP_STATE = {
   running: {
@@ -117,6 +114,12 @@ const TOOL_GROUP_STATE = {
     icon: CircleAlertIcon,
     className: "text-caution-foreground",
   },
+  refused: {
+    label: "Refused",
+    accessibleLabel: "refused",
+    icon: CircleAlertIcon,
+    className: "text-caution-foreground",
+  },
   failed: {
     label: "Failed",
     accessibleLabel: "failed",
@@ -127,7 +130,7 @@ const TOOL_GROUP_STATE = {
     label: "Done",
     accessibleLabel: "completed",
     icon: CheckIcon,
-    className: "text-evidence-foreground",
+    className: "text-muted-foreground",
   },
 } satisfies Record<
   ToolGroupState,
@@ -141,14 +144,12 @@ const TOOL_GROUP_STATE = {
 
 function ToolGroupTrigger({
   count,
-  active = false,
-  state = active ? "running" : "complete",
+  state = "complete",
   toolNames = [],
   className,
   ...props
 }: React.ComponentProps<typeof CollapsibleTrigger> & {
   count: number;
-  active?: boolean;
   state?: ToolGroupState;
   toolNames?: readonly string[];
 }) {
@@ -186,7 +187,7 @@ function ToolGroupTrigger({
         className={cn(
           "size-3 shrink-0",
           state === "running" &&
-            "animate-spin [animation-duration:0.6s]",
+            "animate-spin [animation-duration:0.6s] motion-reduce:animate-none",
           statePresentation.className,
         )}
         aria-hidden="true"
@@ -211,7 +212,7 @@ function ToolGroupTrigger({
             {countLabel}
           </span>
         ) : null}
-        {active && (
+        {state === "running" && (
           <span
             aria-hidden
             data-slot="tool-group-trigger-shimmer"

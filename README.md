@@ -253,9 +253,9 @@ captured no screenshot and submitted no task through the real desktop app.
 Non-computer tool groups keep the conversation compact while naming the first
 calls in order and retaining the full count; a typical two-step research turn
 shows `web.search_text → web.extract_content` without opening the disclosure.
-The collapsed row also distinguishes Running, Review, Failed, and Done, and an
-approval request opens automatically. A live isolated Claude OAuth browser
-pass completed exact chat, ordinary knowledge, and two official-source
+The collapsed row also distinguishes Running, Review, Refused, Failed, and
+Done, and an approval request opens automatically. A live isolated Claude
+OAuth browser pass completed exact chat, ordinary knowledge, and two official-source
 research cases 4/4. The research run sampled from submission showed progress
 within 112 ms, its first named tool within 9.760 seconds, one assistant reply,
 at most one progress indicator, zero branch counters, and no computer session.

@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-07-27T19:30:33Z",
+  "generated_at": "2026-07-27T19:33:38Z",
   "source_commit_before_change": "078d43013604b3aa4e11f3e26489a0a4598e471d",
   "route": "isolated Electron chat workspace -> Claude CLI OAuth -> visible MCP research",
   "cases_requested": 4,
@@ -97,7 +97,7 @@
     "exact_tool_names_visible_without_expansion": true,
     "arguments_and_results_available_on_expansion": true,
     "approval_required_groups_open_automatically": true,
-    "running_failed_completed_states_covered": true
+    "running_refused_failed_completed_states_covered": true
   },
   "browser_audit": {
     "surface": "isolated Electron over CDP",
@@ -119,12 +119,12 @@
   },
   "contracts": {
     "frontend_full_suite": {
-      "passed": 110,
-      "total": 110
+      "passed": 111,
+      "total": 111
     },
     "focused_tool_visibility": {
-      "passed": 9,
-      "total": 9
+      "passed": 10,
+      "total": 10
     },
     "production_build": "passed",
     "typescript_typecheck": "passed",
@@ -132,8 +132,8 @@
     "typescript_similarity": "no new source duplication concern"
   },
   "resource_envelope": {
-    "javascript_raw_bytes": 815202,
-    "javascript_gzip_9_bytes": 241893,
+    "javascript_raw_bytes": 815445,
+    "javascript_gzip_9_bytes": 241944,
     "css_raw_bytes": 109080,
     "css_gzip_9_bytes": 18075
   },

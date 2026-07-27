@@ -1,12 +1,7 @@
 // @vitest-environment jsdom
 
 import "@testing-library/jest-dom/vitest";
-import {
-  cleanup,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import {
   AssistantRuntimeProvider,
   ExportedMessageRepository,
@@ -79,8 +74,7 @@ const toolMessages: ThreadMessageLike[] = [
         toolCallId: "search-1",
         toolName: "web.search_text",
         args: { query: "site:python.org latest Python release" },
-        argsText:
-          '{"query":"site:python.org latest Python release"}',
+        argsText: '{"query":"site:python.org latest Python release"}',
         result: { status: "completed" },
       },
       {
@@ -88,8 +82,7 @@ const toolMessages: ThreadMessageLike[] = [
         toolCallId: "extract-1",
         toolName: "web.extract_content",
         args: { url: "https://www.python.org/downloads/" },
-        argsText:
-          '{"url":"https://www.python.org/downloads/"}',
+        argsText: '{"url":"https://www.python.org/downloads/"}',
         result: { status: "completed" },
       },
     ],
@@ -112,8 +105,7 @@ const runningToolMessages: ThreadMessageLike[] = [
         toolCallId: "search-running",
         toolName: "web.search_text",
         args: { query: "site:python.org latest Python release" },
-        argsText:
-          '{"query":"site:python.org latest Python release"}',
+        argsText: '{"query":"site:python.org latest Python release"}',
       },
     ],
     status: { type: "running" },
@@ -135,8 +127,7 @@ const approvalToolMessages: ThreadMessageLike[] = [
         toolCallId: "mail-approval",
         toolName: "mail.send",
         args: { to: "person@example.test", body: "Hello" },
-        argsText:
-          '{"to":"person@example.test","body":"Hello"}',
+        argsText: '{"to":"person@example.test","body":"Hello"}',
         approval: {
           id: "mail-approval",
           options: [
@@ -169,8 +160,7 @@ const completedApprovalToolMessages: ThreadMessageLike[] = [
         toolCallId: "mail-approval",
         toolName: "mail.send",
         args: { to: "person@example.test", body: "Hello" },
-        argsText:
-          '{"to":"person@example.test","body":"Hello"}',
+        argsText: '{"to":"person@example.test","body":"Hello"}',
         result: { status: "completed" },
       },
     ],
@@ -193,10 +183,32 @@ const failedToolMessages: ThreadMessageLike[] = [
         toolCallId: "search-failed",
         toolName: "web.search_text",
         args: { query: "site:python.org latest Python release" },
-        argsText:
-          '{"query":"site:python.org latest Python release"}',
+        argsText: '{"query":"site:python.org latest Python release"}',
         result: { status: "failed", error: "Search unavailable." },
         isError: true,
+      },
+    ],
+    status: { type: "complete", reason: "stop" },
+  },
+];
+
+const refusedToolMessages: ThreadMessageLike[] = [
+  {
+    id: "user-refused-tool",
+    role: "user",
+    content: "Send the message.",
+  },
+  {
+    id: "assistant-refused-tool",
+    role: "assistant",
+    content: [
+      {
+        type: "tool-call",
+        toolCallId: "mail-refused",
+        toolName: "mail.send",
+        args: { to: "person@example.test", body: "Hello" },
+        argsText: '{"to":"person@example.test","body":"Hello"}',
+        result: { status: "refused", reason: "Denied by the operator." },
       },
     ],
     status: { type: "complete", reason: "stop" },
@@ -367,9 +379,7 @@ describe("Thread progress", () => {
     view.rerender(<SwitchingThread selected />);
 
     expect(screen.getByText("What about now?")).toBeVisible();
-    expect(screen.getByRole("status")).toHaveTextContent(
-      "Checking the result",
-    );
+    expect(screen.getByRole("status")).toHaveTextContent("Checking the result");
   });
 
   it("does not present transient assistant reconciliation as reply versions", () => {
@@ -385,12 +395,9 @@ describe("Thread progress", () => {
     render(<ToolThread messages={toolMessages} />);
 
     const trigger = screen.getByRole("button", {
-      name:
-        "web.search_text then web.extract_content, 2 tool calls, completed",
+      name: "web.search_text then web.extract_content, 2 tool calls, completed",
     });
-    expect(trigger).toHaveTextContent(
-      "web.search_text → web.extract_content",
-    );
+    expect(trigger).toHaveTextContent("web.search_text → web.extract_content");
     expect(trigger).toHaveTextContent("Done");
     expect(trigger).toHaveAttribute("aria-expanded", "false");
   });
@@ -427,9 +434,7 @@ describe("Thread progress", () => {
       }),
     ).toHaveAttribute("aria-expanded", "true");
 
-    view.rerender(
-      <ToolThread messages={completedApprovalToolMessages} />,
-    );
+    view.rerender(<ToolThread messages={completedApprovalToolMessages} />);
 
     await waitFor(() => {
       expect(
@@ -447,6 +452,16 @@ describe("Thread progress", () => {
       name: "web.search_text, 1 tool call, failed",
     });
     expect(trigger).toHaveTextContent("Failed");
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("shows a refused state instead of presenting denial as done", () => {
+    render(<ToolThread messages={refusedToolMessages} />);
+
+    const trigger = screen.getByRole("button", {
+      name: "mail.send, 1 tool call, refused",
+    });
+    expect(trigger).toHaveTextContent("Refused");
     expect(trigger).toHaveAttribute("aria-expanded", "false");
   });
 });
