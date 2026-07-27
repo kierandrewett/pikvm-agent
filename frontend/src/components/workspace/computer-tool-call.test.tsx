@@ -465,4 +465,35 @@ describe("ComputerActionReceipt", () => {
       }),
     );
   });
+
+  it("can keep the screen image outside the forensic receipt", () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <ComputerActionReceipt
+        args={{
+          based_on_frame_id: 41,
+          __receipt: {
+            evidence_revision: 7,
+          },
+        }}
+        result={{
+          status: "completed",
+          frame_id: 42,
+        }}
+        status={{ type: "complete" }}
+        environment={{
+          token: "local-workspace-token",
+          runId: "run-1",
+        }}
+        actionCount={1}
+        characterCount={0}
+        showVisualEvidence={false}
+      />,
+    );
+
+    expect(screen.queryByLabelText("Before and after screen evidence")).toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
 });

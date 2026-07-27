@@ -3,6 +3,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ElementType,
   type PropsWithChildren,
@@ -889,7 +890,7 @@ function VerificationEvidenceFigure({
 
   return (
     <figure
-      className="mt-3 overflow-hidden rounded-lg border border-border bg-background"
+      className="mt-3 max-w-lg overflow-hidden rounded-lg border border-border bg-background"
       aria-label="Before and after screen evidence"
     >
       <figcaption className="flex min-w-0 items-center justify-between gap-3 border-b border-border px-3 py-2">
@@ -932,6 +933,7 @@ export function ComputerActionReceipt({
   environment,
   actionCount,
   characterCount,
+  showVisualEvidence = true,
 }: {
   args: JsonRecord;
   result: unknown;
@@ -939,6 +941,7 @@ export function ComputerActionReceipt({
   environment: ComputerToolEnvironment;
   actionCount: number;
   characterCount: number;
+  showVisualEvidence?: boolean;
 }) {
   const value = record(result);
   const verification = record(value.verification);
@@ -1124,12 +1127,14 @@ export function ComputerActionReceipt({
         </div>
       ) : null}
       <ModelHandoff receipt={receipt} />
-      <VerificationEvidenceFigure
-        revision={receipt.evidenceRevision}
-        environment={environment}
-        beforeFrame={sourceFrame}
-        afterFrame={frame}
-      />
+      {showVisualEvidence ? (
+        <VerificationEvidenceFigure
+          revision={receipt.evidenceRevision}
+          environment={environment}
+          beforeFrame={sourceFrame}
+          afterFrame={frame}
+        />
+      ) : null}
     </section>
   );
 }
@@ -1201,6 +1206,7 @@ const ComputerToolCallImpl: ToolCallMessagePartComponent<
   const [open, setOpen] = useState(
     needsApproval || running || failed || needsReview,
   );
+  const wasRunning = useRef(running);
   const elapsed = useToolCallElapsed();
   const callArgs = record(args);
   const receipt = receiptContext(callArgs);
@@ -1219,9 +1225,24 @@ const ComputerToolCallImpl: ToolCallMessagePartComponent<
     0,
   );
   const visibleDuration = receipt.latencyMs ?? elapsed;
+  const resultValue = record(result);
+  const beforeFrame =
+    number(callArgs.based_on_frame_id) ?? receipt.evidenceBeforeFrame;
+  const afterFrame =
+    number(resultValue.frame_id) ?? receipt.evidenceAfterFrame;
+  const showPrimaryInput =
+    needsApproval ||
+    summary.actions.length > 1 ||
+    summary.actions.some((action) => actionName(action).includes("type"));
 
   useEffect(() => {
-    if (needsApproval || running || failed || needsReview) setOpen(true);
+    const inputJustFinished = wasRunning.current && !running;
+    if (needsApproval || running || failed || needsReview) {
+      setOpen(true);
+    } else if (inputJustFinished) {
+      setOpen(false);
+    }
+    wasRunning.current = running;
   }, [failed, needsApproval, needsReview, running]);
 
   return (
@@ -1318,57 +1339,34 @@ const ComputerToolCallImpl: ToolCallMessagePartComponent<
       </CollapsibleTrigger>
 
       <CollapsibleContent className="data-closed:animate-collapsible-up data-open:animate-collapsible-down overflow-hidden motion-reduce:animate-none">
-        <div className="mt-1 border-t border-border/60 pt-3 pb-2 sm:ml-10">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-xs font-semibold">Computer action</p>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                Observe, input, and independent screen verification.
-              </p>
-            </div>
-            {environment.onOpenComputer ? (
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                className="h-7 shrink-0 px-2 text-xs"
-                onClick={environment.onOpenComputer}
-              >
-                <MonitorIcon data-icon="inline-start" />
-                Current screen
-              </Button>
-            ) : null}
-          </div>
+        <div className="mt-1 border-t border-border/60 pt-2 pb-1 sm:ml-10">
+          {needsApproval ? <ActionIntent receipt={receipt} /> : null}
 
-          <ActionIntent receipt={receipt} />
-
-          <ComputerActionReceipt
-            args={callArgs}
-            result={result}
-            status={status}
+          <VerificationEvidenceFigure
+            revision={receipt.evidenceRevision}
             environment={environment}
-            actionCount={summary.actions.length}
-            characterCount={characters}
+            beforeFrame={beforeFrame}
+            afterFrame={afterFrame}
           />
 
-          <section className="mt-4" aria-labelledby="exact-input-title">
-            <p id="exact-input-title" className="text-xs font-semibold">
-              Exact input sequence
+          {showPrimaryInput ? (
+            <section className="mt-3" aria-label="Exact input">
+              <ComputerInputSequence
+                actions={summary.actions}
+                environment={environment}
+                inputReceipts={receipt.inputReceipts}
+              />
+            </section>
+          ) : null}
+
+          {failed ? (
+            <p className="mt-3 text-xs text-destructive">
+              This input failed. Diagnostic detail is retained below.
             </p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {summary.actions.length}{" "}
-              {summary.actions.length === 1 ? "input" : "inputs"}
-              {characters ? ` · ${characters} characters` : ""}
-            </p>
-            <ComputerInputSequence
-              actions={summary.actions}
-              environment={environment}
-              inputReceipts={receipt.inputReceipts}
-            />
-          </section>
+          ) : null}
 
           {needsApproval ? (
-            <Alert variant="caution" className="mt-4">
+            <Alert variant="caution" className="mt-3">
               <ShieldAlertIcon aria-hidden="true" />
               <AlertTitle>Held before a consequential input</AlertTitle>
               <AlertDescription>
@@ -1388,20 +1386,56 @@ const ComputerToolCallImpl: ToolCallMessagePartComponent<
             </Alert>
           ) : null}
 
-          <Collapsible className="group/arguments mt-2">
-            <CollapsibleTrigger className="flex min-h-11 w-full items-center justify-between rounded-md text-xs text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50">
-              <span>
-                Exact MCP arguments ·{" "}
-                <code className="font-mono">{toolName}</code>
-              </span>
-              <ChevronDownIcon className="size-3.5 -rotate-90 transition-transform duration-150 group-data-open/arguments:rotate-0 group-data-panel-open/arguments:rotate-0 motion-reduce:transition-none" />
-            </CollapsibleTrigger>
-            <CollapsibleContent className="data-closed:animate-collapsible-up data-open:animate-collapsible-down overflow-hidden motion-reduce:animate-none">
-              <pre className="mt-1 max-h-72 overflow-auto rounded-md border border-border/70 bg-background/70 p-3 font-mono text-[11px] leading-relaxed text-foreground/80 whitespace-pre-wrap">
-                {argsText || JSON.stringify(args, null, 2)}
-              </pre>
-            </CollapsibleContent>
-          </Collapsible>
+          <div className="mt-2 flex items-start gap-1">
+            <Collapsible className="group/details min-w-0 flex-1">
+              <CollapsibleTrigger className="flex min-h-9 w-full items-center gap-1.5 text-xs text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50">
+                <ChevronDownIcon className="size-3.5 -rotate-90 transition-transform duration-150 group-data-open/details:rotate-0 group-data-panel-open/details:rotate-0 motion-reduce:transition-none" />
+                Details
+              </CollapsibleTrigger>
+              <CollapsibleContent className="data-closed:animate-collapsible-up data-open:animate-collapsible-down overflow-hidden motion-reduce:animate-none">
+                {needsApproval ? null : <ActionIntent receipt={receipt} />}
+                <ComputerActionReceipt
+                  args={callArgs}
+                  result={result}
+                  status={status}
+                  environment={environment}
+                  actionCount={summary.actions.length}
+                  characterCount={characters}
+                  showVisualEvidence={false}
+                />
+                {!showPrimaryInput ? (
+                  <section className="mt-3" aria-label="Exact input details">
+                    <ComputerInputSequence
+                      actions={summary.actions}
+                      environment={environment}
+                      inputReceipts={receipt.inputReceipts}
+                    />
+                  </section>
+                ) : null}
+                <div className="mt-3 border-t border-border/60 pt-3">
+                  <p className="text-[11px] text-muted-foreground">
+                    Raw MCP request ·{" "}
+                    <code className="font-mono">{toolName}</code>
+                  </p>
+                  <pre className="mt-2 max-h-72 overflow-auto rounded-md bg-background/70 p-3 font-mono text-[11px] leading-relaxed text-foreground/80 whitespace-pre-wrap">
+                    {argsText || JSON.stringify(args, null, 2)}
+                  </pre>
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+            {environment.onOpenComputer ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="h-9 shrink-0 px-2 text-xs text-muted-foreground"
+                onClick={environment.onOpenComputer}
+              >
+                <MonitorIcon data-icon="inline-start" />
+                Screen
+              </Button>
+            ) : null}
+          </div>
         </div>
       </CollapsibleContent>
     </Collapsible>
