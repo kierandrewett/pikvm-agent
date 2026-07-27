@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import asyncio
 import io
 import subprocess
 import sys
+import threading
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
 
@@ -149,6 +151,53 @@ async def test_failed_vnc_connection_does_not_strand_the_target_lease(
     transport = VncDotoolTransport("unused.invalid:5900")
     with pytest.raises(OSError, match="synthetic connection failure"):
         await transport.connect()
+
+    replacement = VncTargetLease.acquire(
+        "unused.invalid::5900",
+        lock_dir=tmp_path,
+    )
+    replacement.release()
+
+
+async def test_cancelled_connect_holds_lease_until_worker_finishes(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("PIKVM_LAB_TARGET_LEASE_DIR", str(tmp_path))
+    started = threading.Event()
+    finish = threading.Event()
+    disconnected = threading.Event()
+
+    class Client:
+        def disconnect(self) -> None:
+            disconnected.set()
+
+    def connect(*_args: object, **_kwargs: object) -> Client:
+        started.set()
+        assert finish.wait(timeout=2)
+        return Client()
+
+    api = SimpleNamespace(connect=connect)
+    client = SimpleNamespace(VNCDoToolFactory=object)
+    package = ModuleType("vncdotool")
+    package.api = api  # type: ignore[attr-defined]
+    package.client = client  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "vncdotool", package)
+
+    transport = VncDotoolTransport("unused.invalid:5900")
+    connecting = asyncio.create_task(transport.connect())
+    assert await asyncio.to_thread(started.wait, 1)
+    connecting.cancel()
+    await asyncio.sleep(0)
+    assert not connecting.done()
+
+    with pytest.raises(VncTargetAlreadyLeased):
+        VncTargetLease.acquire("unused.invalid::5900", lock_dir=tmp_path)
+
+    finish.set()
+    with pytest.raises(asyncio.CancelledError):
+        await connecting
+    assert disconnected.is_set()
 
     replacement = VncTargetLease.acquire(
         "unused.invalid::5900",

@@ -334,14 +334,30 @@ class VncDotoolTransport:
                 # US-layout Shift chord from a semantic character.
                 force_caps = False
 
-            client = await asyncio.to_thread(
-                api.connect,
-                self.endpoint,
-                self.password,
-                LabVncFactory,
-                timeout=30,
-                username=self.username,
+            connect_task = asyncio.create_task(
+                asyncio.to_thread(
+                    api.connect,
+                    self.endpoint,
+                    self.password,
+                    LabVncFactory,
+                    timeout=30,
+                    username=self.username,
+                )
             )
+            try:
+                client = await asyncio.shield(connect_task)
+            except asyncio.CancelledError:
+                # Cancelling ``to_thread`` only abandons the await; the VNC
+                # connection continues in its worker. Keep the lease until the
+                # bounded attempt finishes, then close any client it created.
+                try:
+                    client = await asyncio.shield(connect_task)
+                except Exception:
+                    client = None
+                if client is not None:
+                    await asyncio.to_thread(client.disconnect)
+                    client = None
+                raise
             self._client = client
             await asyncio.to_thread(self._release_client_modifiers)
             await self.screenshot()
