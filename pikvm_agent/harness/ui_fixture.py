@@ -830,7 +830,7 @@ def build_assistant_handoff_fixture_run() -> RunSnapshot:
     run.record(
         "assistant.computer_handoff",
         call_id="fixture-computer-handoff",
-        tool="computer.start_task",
+        tool="computer_start_task",
         arguments={"task": "Inspect the connected screen without changing it"},
         selected_by={
             "provider": "claude-account",
@@ -846,6 +846,18 @@ def build_assistant_handoff_fixture_run() -> RunSnapshot:
             content="I’ll inspect the managed computer without making changes.",
             event_cursor=run.event_cursor,
         )
+    )
+    run.record(
+        "assistant.computer_handoff_started",
+        call_id="fixture-computer-handoff",
+        tool="computer_start_task",
+        session_id=None,
+        selected_by={
+            "provider": "claude-account",
+            "model": "opus",
+            "latency_ms": 5_188,
+        },
+        synthetic=True,
     )
     run.error = "Synthetic fixture held before computer target contact"
     run.record(

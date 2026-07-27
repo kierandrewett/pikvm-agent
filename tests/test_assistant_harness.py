@@ -41,10 +41,18 @@ class ScriptedAssistantProvider:
 
 
 class StubComputerHarness:
-    def __init__(self, store: InMemoryRunStore) -> None:
+    def __init__(
+        self,
+        store: InMemoryRunStore,
+        *,
+        fail_activation: bool = False,
+        complete_activation: bool = False,
+    ) -> None:
         self.store = store
         self.budget_policy = ModelBudgetPolicy(max_provider_attempts=50)
         self.activated: list[tuple[str, str]] = []
+        self.fail_activation = fail_activation
+        self.complete_activation = complete_activation
 
     async def activate_computer(
         self,
@@ -55,6 +63,20 @@ class StubComputerHarness:
         run = await self.store.get_control(run_id)
         run.mode = "computer"
         run.computer_task = computer_task
+        if self.fail_activation:
+            run.status = RunStatus.FAILED
+            run.error = "computer open failed: fixture unavailable"
+            run.record("computer.open_failed", error="fixture unavailable")
+            await self.store.save(run)
+            return run
+        if self.complete_activation:
+            run.status = RunStatus.COMPLETED
+            run.record(
+                "assistant.acceptance_computer_handoff",
+                target_contacted=False,
+            )
+            await self.store.save(run)
+            return run
         run.session_id = "computer-session"
         run.status = RunStatus.RUNNING
         run.record("computer.opened", session_id=run.session_id)
@@ -95,6 +117,8 @@ def assistant_harness(
     decisions: list[dict[str, Any]],
     *,
     tools: StubToolBroker | None = None,
+    computer_fails: bool = False,
+    computer_completes_on_activation: bool = False,
 ) -> tuple[
     AssistantHarness,
     ScriptedAssistantProvider,
@@ -111,7 +135,11 @@ def assistant_harness(
             "verifier": RoleRoute([provider.name]),
         },
     )
-    computer = StubComputerHarness(store)
+    computer = StubComputerHarness(
+        store,
+        fail_activation=computer_fails,
+        complete_activation=computer_completes_on_activation,
+    )
     harness = AssistantHarness(
         models=pool,
         store=store,
@@ -387,7 +415,7 @@ async def test_computer_handoff_preserves_the_exact_bounded_task() -> None:
         for event in completed.events
         if event.kind == "assistant.computer_handoff"
     )
-    assert handoff.data["tool"] == "computer.start_task"
+    assert handoff.data["tool"] == "computer_start_task"
     assert handoff.data["arguments"] == {
         "task": "Create a quarterly earnings spreadsheet in the open workbook."
     }
@@ -396,6 +424,13 @@ async def test_computer_handoff_preserves_the_exact_bounded_task() -> None:
         "model": "scripted-chat-v1",
         "latency_ms": None,
     }
+    started = next(
+        event
+        for event in completed.events
+        if event.kind == "assistant.computer_handoff_started"
+    )
+    assert started.data["call_id"] == handoff.data["call_id"]
+    assert started.data["session_id"] == "computer-session"
 
 
 @pytest.mark.asyncio
@@ -415,13 +450,105 @@ async def test_computer_handoff_is_visible_even_without_model_prose() -> None:
     assert computer.activated == [
         (created.run_id, "Inspect the connected screen.")
     ]
-    assert completed.conversation[-1].content == (
-        "I’ll use the managed computer for this."
-    )
+    assert completed.conversation[-1].content == ""
     assert any(
         event.kind == "assistant.computer_handoff"
         for event in completed.events
     )
+
+
+@pytest.mark.asyncio
+async def test_computer_handoff_failure_is_bound_to_the_visible_tool_call() -> None:
+    harness, _, _, _ = assistant_harness(
+        [
+            {
+                "outcome": "computer",
+                "computer_task": "Inspect the connected screen.",
+            }
+        ],
+        computer_fails=True,
+    )
+
+    created = await harness.create("What is on the screen?")
+    failed = await harness.continue_run(created.run_id)
+
+    assert failed.status is RunStatus.FAILED
+    attempted = next(
+        event
+        for event in failed.events
+        if event.kind == "assistant.computer_handoff"
+    )
+    outcome = next(
+        event
+        for event in failed.events
+        if event.kind == "assistant.computer_handoff_failed"
+    )
+    assert outcome.data["call_id"] == attempted.data["call_id"]
+    assert outcome.data["error"] == "computer open failed: fixture unavailable"
+
+
+@pytest.mark.asyncio
+async def test_successful_terminal_handoff_is_not_reported_as_failed() -> None:
+    harness, _, _, _ = assistant_harness(
+        [
+            {
+                "outcome": "computer",
+                "computer_task": "Inspect without contacting a target.",
+            }
+        ],
+        computer_completes_on_activation=True,
+    )
+
+    created = await harness.create("Run the target-free hand-off acceptance.")
+    completed = await harness.continue_run(created.run_id)
+
+    assert completed.status is RunStatus.COMPLETED
+    attempted = next(
+        event
+        for event in completed.events
+        if event.kind == "assistant.computer_handoff"
+    )
+    outcome = next(
+        event
+        for event in completed.events
+        if event.kind == "assistant.computer_handoff_completed"
+    )
+    assert outcome.data["call_id"] == attempted.data["call_id"]
+    assert not any(
+        event.kind == "assistant.computer_handoff_failed"
+        for event in completed.events
+    )
+
+
+@pytest.mark.asyncio
+async def test_unknown_model_selected_tool_retains_exact_failed_call() -> None:
+    tools = StubToolBroker([])
+    harness, _, _, _ = assistant_harness(
+        [
+            {
+                "outcome": "tool",
+                "tool_call": {
+                    "name": "missing.lookup",
+                    "arguments_json": '{"query":"quarterly earnings"}',
+                },
+            },
+            {
+                "outcome": "reply",
+                "message": "That tool is unavailable.",
+            },
+        ],
+        tools=tools,
+    )
+
+    created = await harness.create("Find the latest report")
+    completed = await harness.continue_run(created.run_id)
+
+    failed = next(
+        event for event in completed.events if event.kind == "tool.failed"
+    )
+    assert failed.data["tool"] == "missing.lookup"
+    assert failed.data["arguments"] == {"query": "quarterly earnings"}
+    assert failed.data["selected_by"]["model"] == "scripted-chat-v1"
 
 
 @pytest.mark.asyncio

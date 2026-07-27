@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  eventNeedsSnapshotReconciliation,
   preferNewestRunRevision,
   reduceRunEvent,
   reduceRunState,
@@ -171,5 +172,29 @@ describe("live run reducer", () => {
       provider: "strong-controller",
     });
     expect(updated.events).toHaveLength(1);
+  });
+
+  it("reconciles snapshots when a computer hand-off resolves", () => {
+    expect(
+      eventNeedsSnapshotReconciliation(
+        event(2, "assistant.computer_handoff_started", {
+          call_id: "handoff-1",
+        }),
+      ),
+    ).toBe(true);
+    expect(
+      eventNeedsSnapshotReconciliation(
+        event(2, "assistant.computer_handoff_failed", {
+          call_id: "handoff-1",
+        }),
+      ),
+    ).toBe(true);
+    expect(
+      eventNeedsSnapshotReconciliation(
+        event(2, "assistant.computer_handoff_completed", {
+          call_id: "handoff-1",
+        }),
+      ),
+    ).toBe(true);
   });
 });

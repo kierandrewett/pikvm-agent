@@ -25,7 +25,10 @@ import {
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import type { ModelReceipt } from "@/lib/model-receipt";
+import {
+  parseModelSelectionReceipt,
+  type ModelReceipt,
+} from "@/lib/model-receipt";
 
 const ANIMATION_DURATION = 200;
 
@@ -103,38 +106,6 @@ const formatToolDuration = (ms: number) => {
   if (seconds < 10) return `${(Math.floor(seconds * 10) / 10).toFixed(1)}s`;
   if (seconds < 60) return `${Math.floor(seconds)}s`;
   return `${Math.floor(seconds / 60)}m ${Math.floor(seconds % 60)}s`;
-};
-
-const toolSelectionReceipt = (
-  args: unknown,
-): ModelReceipt | undefined => {
-  if (!args || typeof args !== "object" || Array.isArray(args)) {
-    return undefined;
-  }
-  const receipt = (args as Record<string, unknown>).__receipt;
-  if (!receipt || typeof receipt !== "object" || Array.isArray(receipt)) {
-    return undefined;
-  }
-  const selectedBy = (receipt as Record<string, unknown>).selected_by;
-  if (
-    !selectedBy ||
-    typeof selectedBy !== "object" ||
-    Array.isArray(selectedBy)
-  ) {
-    return undefined;
-  }
-  const data = selectedBy as Record<string, unknown>;
-  const provider =
-    typeof data.provider === "string" ? data.provider.trim() : "";
-  const model = typeof data.model === "string" ? data.model.trim() : "";
-  const latencyMs =
-    typeof data.latency_ms === "number" &&
-    Number.isFinite(data.latency_ms)
-      ? data.latency_ms
-      : undefined;
-  return provider || model
-    ? { provider, model, latencyMs }
-    : undefined;
 };
 
 function ToolFallbackAttribution({
@@ -614,7 +585,7 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
   const isCancelled =
     status?.type === "incomplete" && status.reason === "cancelled";
   const isRequiresAction = status?.type === "requires-action";
-  const selectedBy = toolSelectionReceipt(args);
+  const selectedBy = parseModelSelectionReceipt(args);
 
   const [open, setOpen] = useState(isRequiresAction);
   const [prevRequiresAction, setPrevRequiresAction] =

@@ -1,5 +1,6 @@
 import type { ThreadMessageLike } from "@assistant-ui/react";
 import type { HarnessEvent, RunSnapshot } from "@/types";
+import { parseModelReceipt } from "@/lib/model-receipt";
 
 const ACTIVE_STATUSES = new Set([
   "created",
@@ -157,27 +158,19 @@ const controllerForCheckpoint = (
     );
 };
 
-const modelReceipt = (event: HarnessEvent | undefined) =>
-  event
+const visibleModelReceipt = (value: unknown) => {
+  const receipt = parseModelReceipt(value);
+  return receipt
     ? {
-        provider: safeString(event.data.provider),
-        model: safeString(event.data.model),
-        latency_ms: safeNumber(event.data.latency_ms),
+        provider: receipt.provider,
+        model: receipt.model,
+        latency_ms: receipt.latencyMs,
       }
     : undefined;
-
-const selectedByReceipt = (value: unknown) => {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return undefined;
-  }
-  const selectedBy = value as Record<string, unknown>;
-  const receipt = {
-    provider: safeString(selectedBy.provider),
-    model: safeString(selectedBy.model),
-    latency_ms: safeNumber(selectedBy.latency_ms),
-  };
-  return receipt.provider || receipt.model ? receipt : undefined;
 };
+
+const modelReceipt = (event: HarnessEvent | undefined) =>
+  visibleModelReceipt(event?.data);
 
 const callerReceipt = (value: unknown) => {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -364,14 +357,18 @@ const completionMarkdown = (run: RunSnapshot) => {
   return "";
 };
 
-const toolParts = (run: RunSnapshot) => {
-  const attempts = run.events.filter(
+const toolParts = (
+  run: RunSnapshot,
+  events: readonly HarnessEvent[] = run.events,
+  includeLiveState = true,
+) => {
+  const attempts = events.filter(
     (event) => event.kind === "action.attempted",
   );
   const attemptedKeys = new Set(
     attempts.map((event) => safeString(event.data.idempotency_key)),
   );
-  for (const checkpoint of run.events.filter(
+  for (const checkpoint of events.filter(
     (event) => event.kind === "action.checkpointed",
   )) {
     const idempotencyKey = safeString(checkpoint.data.idempotency_key);
@@ -399,7 +396,11 @@ const toolParts = (run: RunSnapshot) => {
   const activeAlreadyRepresented = activeCallId
     ? attempts.some((event) => safeString(event.data.call_id) === activeCallId)
     : attempts.length > 0;
-  if (run.active_activity?.kind === "tool" && !activeAlreadyRepresented) {
+  if (
+    includeLiveState &&
+    run.active_activity?.kind === "tool" &&
+    !activeAlreadyRepresented
+  ) {
     attempts.push({
       sequence: run.event_cursor + 1,
       at: run.active_activity.started_at,
@@ -415,15 +416,16 @@ const toolParts = (run: RunSnapshot) => {
   attempts.splice(0, Math.max(0, attempts.length - 12));
 
   return attempts.map((attempt, index) => {
-    const checkpoint = checkpointForAttempt(attempt, run.events);
-    const outcome = outcomeForAttempt(attempt, run.events);
-    const verification = verificationForOutcome(outcome, run.events);
+    const checkpoint = checkpointForAttempt(attempt, events);
+    const outcome = outcomeForAttempt(attempt, events);
+    const verification = verificationForOutcome(outcome, events);
     const evidence =
-      preActionEvidenceForAttempt(attempt, run.events) ??
-      evidenceForOutcome(outcome, run.events);
-    const controller = controllerForCheckpoint(checkpoint, run.events);
+      preActionEvidenceForAttempt(attempt, events) ??
+      evidenceForOutcome(outcome, events);
+    const controller = controllerForCheckpoint(checkpoint, events);
     const isPending = !outcome && index === attempts.length - 1;
-    const approval = isPending ? run.pending_approval : null;
+    const approval =
+      includeLiveState && isPending ? run.pending_approval : null;
     const approvalId = safeString(approval?.approval_id);
     const approvalRisk = safeString(approval?.risk).replaceAll("_", " ").trim();
     const approvalReason = safeString(approval?.reason).trim();
@@ -566,7 +568,8 @@ const assistantToolParts = (
     (event) =>
       event.kind === "tool.started" ||
       event.kind === "tool.approval_required" ||
-      event.kind === "assistant.computer_handoff",
+      event.kind === "assistant.computer_handoff" ||
+      event.kind === "tool.failed",
   );
   const calls = new Map<string, HarnessEvent>();
   for (const event of candidates) {
@@ -576,9 +579,20 @@ const assistantToolParts = (
   return [...calls.entries()].map(([callId, attempt]) => {
     const isComputerHandoff =
       attempt.kind === "assistant.computer_handoff";
-    const outcome = isComputerHandoff
-      ? undefined
-      : events.find(
+    const outcome =
+      attempt.kind === "tool.failed"
+        ? attempt
+        : isComputerHandoff
+          ? events.find(
+              (event) =>
+                event.sequence > attempt.sequence &&
+                safeString(event.data.call_id) === callId &&
+                [
+                  "assistant.computer_handoff_started",
+                  "assistant.computer_handoff_failed",
+                ].includes(event.kind),
+            )
+          : events.find(
           (event) =>
             event.sequence > attempt.sequence &&
             safeString(event.data.call_id) === callId &&
@@ -588,7 +602,7 @@ const assistantToolParts = (
         );
     const toolName =
       safeString(attempt.data.tool) ||
-      (isComputerHandoff ? "computer.start_task" : "Tool");
+      (isComputerHandoff ? "computer_start_task" : "Tool");
     const exactArgs =
       attempt.data.arguments &&
       typeof attempt.data.arguments === "object" &&
@@ -597,18 +611,30 @@ const assistantToolParts = (
         : isComputerHandoff
           ? { task: safeString(attempt.data.task) }
           : {};
-    const selectedBy = selectedByReceipt(attempt.data.selected_by);
+    const selectedBy = visibleModelReceipt(attempt.data.selected_by);
     const approval =
       safeString(run.pending_approval?.approval_id) === callId
         ? run.pending_approval
         : null;
-    const failed = outcome?.kind === "tool.failed";
+    const failed =
+      outcome?.kind === "tool.failed" ||
+      outcome?.kind === "assistant.computer_handoff_failed";
     const refused = outcome?.kind === "tool.refused";
     const result = isComputerHandoff
-      ? {
-          status: "accepted",
-          control: "managed",
-        }
+      ? outcome == null
+        ? undefined
+        : failed
+          ? {
+              status: "failed",
+              error:
+                safeString(outcome.data.error) ||
+                "Computer hand-off failed.",
+            }
+          : {
+              status: "started",
+              control: "managed",
+              session_id: outcome.data.session_id,
+            }
       : outcome == null
         ? undefined
         : failed
@@ -698,6 +724,8 @@ export function messagesForRun(run: RunSnapshot | null): ThreadMessageLike[] {
     const messages: ThreadMessageLike[] = [];
     let precedingCursor = 0;
     let precedingUserMessageId = "";
+    let latestAssistantStartCursor = 0;
+    let latestAssistantMessageIndex = -1;
     for (const message of run.conversation!) {
       const messageCursor = message.event_cursor ?? precedingCursor;
       if (message.role === "user") {
@@ -717,17 +745,29 @@ export function messagesForRun(run: RunSnapshot | null): ThreadMessageLike[] {
           event.sequence <= messageCursor,
       );
       const tools = assistantToolParts(run, turnEvents);
+      const includesComputerHandoff = turnEvents.some(
+        (event) => event.kind === "assistant.computer_handoff",
+      );
+      const computerTools = includesComputerHandoff
+        ? toolParts(run, turnEvents, false)
+        : [];
+      const contentParts = [
+        ...tools,
+        ...computerTools,
+        ...(message.content
+          ? [{ type: "text" as const, text: message.content }]
+          : []),
+      ];
+      latestAssistantStartCursor = precedingCursor;
+      latestAssistantMessageIndex = messages.length;
       messages.push({
         id: precedingUserMessageId
           ? `${run.run_id}:assistant:reply-to:${precedingUserMessageId}`
           : `${run.run_id}:${message.message_id}`,
         role: "assistant",
         content:
-          tools.length > 0
-            ? [
-                ...tools,
-                { type: "text" as const, text: message.content },
-              ]
+          tools.length > 0 || computerTools.length > 0
+            ? contentParts
             : message.content,
         createdAt: new Date(message.created_at),
         status: { type: "complete", reason: "stop" },
@@ -735,6 +775,34 @@ export function messagesForRun(run: RunSnapshot | null): ThreadMessageLike[] {
       precedingCursor = messageCursor;
     }
     const latest = run.conversation!.at(-1);
+    if (latest?.role === "assistant" && latestAssistantMessageIndex >= 0) {
+      const activeTurnEvents = run.events.filter(
+        (event) => event.sequence > latestAssistantStartCursor,
+      );
+      const includesComputerHandoff = activeTurnEvents.some(
+        (event) => event.kind === "assistant.computer_handoff",
+      );
+      if (includesComputerHandoff) {
+        const completion = completionMarkdown(run);
+        const content: ThreadMessageLike["content"] = [
+          ...assistantToolParts(run, activeTurnEvents),
+          ...toolParts(run, activeTurnEvents),
+          ...(latest.content
+            ? [{ type: "text" as const, text: latest.content }]
+            : []),
+          ...(completion
+            ? [{ type: "text" as const, text: completion }]
+            : []),
+        ];
+        messages[latestAssistantMessageIndex] = {
+          ...messages[latestAssistantMessageIndex]!,
+          content,
+          createdAt: new Date(run.updated_at),
+          status: assistantStatus(run),
+        };
+        return messages;
+      }
+    }
     if (run.mode === "assistant" && latest?.role === "user") {
       const activeEvents = run.events.filter(
         (event) => event.sequence > (latest.event_cursor ?? precedingCursor),

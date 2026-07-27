@@ -459,7 +459,7 @@ describe("messagesForRun", () => {
     );
   });
 
-  it("keeps the hand-off reply identity when computer progress is appended", () => {
+  it("keeps hand-off and computer progress in one assistant turn", () => {
     const user = {
       message_id: "user-turn-1",
       role: "user" as const,
@@ -497,7 +497,7 @@ describe("messagesForRun", () => {
           kind: "assistant.computer_handoff",
           data: {
             call_id: "computer-handoff-1",
-            tool: "computer.start_task",
+            tool: "computer_start_task",
             arguments: { task: "Inspect the connected screen." },
             selected_by: {
               provider: "claude-account",
@@ -506,21 +506,36 @@ describe("messagesForRun", () => {
             },
           },
         },
+        {
+          sequence: 3,
+          at: "2026-07-27T12:00:02Z",
+          kind: "assistant.computer_handoff_started",
+          data: {
+            call_id: "computer-handoff-1",
+            tool: "computer_start_task",
+            session_id: "session-1",
+          },
+        },
       ],
-      event_count: 2,
-      event_cursor: 2,
+      event_count: 3,
+      event_cursor: 3,
     });
 
     const beforeReply = messagesForRun(before).at(-1);
     const afterMessages = messagesForRun(after);
-    expect(afterMessages.at(-2)?.id).toBe(beforeReply?.id);
-    expect(afterMessages.at(-1)?.id).not.toBe(beforeReply?.id);
-    const handoffContent = afterMessages.at(-2)?.content;
+    expect(afterMessages).toHaveLength(2);
+    expect(afterMessages.at(-1)?.id).toBe(beforeReply?.id);
+    expect(afterMessages.at(-1)?.status).toEqual({ type: "running" });
+    const handoffContent = afterMessages.at(-1)?.content;
+    expect(Array.isArray(handoffContent) ? handoffContent[0] : null).toEqual({
+      type: "text",
+      text: "Let me take a look at the screen.",
+    });
     const handoff = Array.isArray(handoffContent)
       ? handoffContent.find((part) => part.type === "tool-call")
       : undefined;
     expect(handoff).toMatchObject({
-      toolName: "computer.start_task",
+      toolName: "computer_start_task",
       args: {
         task: "Inspect the connected screen.",
         __receipt: {
@@ -532,10 +547,197 @@ describe("messagesForRun", () => {
         },
       },
       result: {
-        status: "accepted",
+        status: "started",
         control: "managed",
       },
     });
+  });
+
+  it("renders an immediately completed target-free hand-off as successful", () => {
+    const assistant = messagesForRun(
+      run({
+        mode: "computer",
+        status: "completed",
+        conversation: [
+          {
+            message_id: "user-turn-1",
+            role: "user",
+            content: "test the hand-off",
+            created_at: "2026-07-27T12:00:00Z",
+            event_cursor: 0,
+          },
+          {
+            message_id: "handoff-turn-1",
+            role: "assistant",
+            content: "",
+            created_at: "2026-07-27T12:00:01Z",
+            event_cursor: 2,
+          },
+        ],
+        events: [
+          {
+            sequence: 2,
+            at: "2026-07-27T12:00:01Z",
+            kind: "assistant.computer_handoff",
+            data: {
+              call_id: "handoff-1",
+              tool: "computer_start_task",
+              arguments: { task: "Target-free acceptance" },
+            },
+          },
+          {
+            sequence: 3,
+            at: "2026-07-27T12:00:02Z",
+            kind: "assistant.computer_handoff_completed",
+            data: {
+              call_id: "handoff-1",
+              target_contacted: false,
+            },
+          },
+        ],
+        event_count: 3,
+        event_cursor: 3,
+      }),
+    ).at(-1);
+    const parts = Array.isArray(assistant?.content) ? assistant.content : [];
+
+    expect(parts[0]).toMatchObject({
+      type: "tool-call",
+      toolName: "computer_start_task",
+      result: {
+        status: "completed",
+        control: "managed",
+      },
+      isError: false,
+    });
+  });
+
+  it("shows a prose-less hand-off without inventing assistant text", () => {
+    const assistant = messagesForRun(
+      run({
+        mode: "computer",
+        status: "failed",
+        error: "computer open failed: target unavailable",
+        conversation: [
+          {
+            message_id: "user-turn-1",
+            role: "user",
+            content: "what is on the screen",
+            created_at: "2026-07-27T12:00:00Z",
+            event_cursor: 0,
+          },
+          {
+            message_id: "handoff-turn-1",
+            role: "assistant",
+            content: "",
+            created_at: "2026-07-27T12:00:01Z",
+            event_cursor: 2,
+          },
+        ],
+        events: [
+          {
+            sequence: 2,
+            at: "2026-07-27T12:00:01Z",
+            kind: "assistant.computer_handoff",
+            data: {
+              call_id: "handoff-1",
+              tool: "computer_start_task",
+              arguments: { task: "Inspect the connected screen." },
+            },
+          },
+          {
+            sequence: 3,
+            at: "2026-07-27T12:00:02Z",
+            kind: "assistant.computer_handoff_failed",
+            data: {
+              call_id: "handoff-1",
+              error: "computer open failed: target unavailable",
+            },
+          },
+        ],
+        event_count: 3,
+        event_cursor: 3,
+      }),
+    ).at(-1);
+
+    expect(assistant?.status).toEqual({
+      type: "incomplete",
+      reason: "error",
+      error: "computer open failed: target unavailable",
+    });
+    expect(assistant?.content).toEqual([
+      expect.objectContaining({
+        type: "tool-call",
+        toolName: "computer_start_task",
+        result: {
+          status: "failed",
+          error: "computer open failed: target unavailable",
+        },
+      }),
+      expect.objectContaining({
+        type: "text",
+        text: "Stopped: computer open failed: target unavailable.",
+      }),
+    ]);
+  });
+
+  it("renders an invalid model-selected tool as an exact failed call", () => {
+    const assistant = messagesForRun(
+      run({
+        mode: "assistant",
+        status: "completed",
+        conversation: [
+          {
+            message_id: "user-turn-1",
+            role: "user",
+            content: "search for the report",
+            created_at: "2026-07-27T12:00:00Z",
+            event_cursor: 0,
+          },
+          {
+            message_id: "assistant-turn-1",
+            role: "assistant",
+            content: "That tool is unavailable.",
+            created_at: "2026-07-27T12:00:02Z",
+            event_cursor: 2,
+          },
+        ],
+        events: [
+          {
+            sequence: 1,
+            at: "2026-07-27T12:00:01Z",
+            kind: "tool.failed",
+            data: {
+              call_id: "missing-1",
+              tool: "missing.lookup",
+              arguments: { query: "quarterly earnings" },
+              error: "tool is not in the current catalogue",
+              selected_by: {
+                provider: "claude-account",
+                model: "opus",
+                latency_ms: 900,
+              },
+            },
+          },
+        ],
+        event_count: 2,
+        event_cursor: 2,
+      }),
+    ).at(-1);
+    const parts = Array.isArray(assistant?.content) ? assistant.content : [];
+
+    expect(parts).toContainEqual(
+      expect.objectContaining({
+        type: "tool-call",
+        toolName: "missing.lookup",
+        argsText: '{\n  "query": "quarterly earnings"\n}',
+        result: {
+          status: "failed",
+          error: "tool is not in the current catalogue",
+        },
+        isError: true,
+      }),
+    );
   });
 
   it("shows a paused assistant turn as incomplete instead of a blank success", () => {

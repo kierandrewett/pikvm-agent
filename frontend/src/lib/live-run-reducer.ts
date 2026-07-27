@@ -256,6 +256,8 @@ export const reduceRunState = (
 
 export const eventNeedsSnapshotReconciliation = (event: HarnessEvent) =>
   event.kind === "assistant.computer_handoff" ||
+  event.kind === "assistant.computer_handoff_started" ||
+  event.kind === "assistant.computer_handoff_failed" ||
   event.kind === "run.completed" ||
   event.kind === "run.failed" ||
   event.kind === "run.blocked" ||

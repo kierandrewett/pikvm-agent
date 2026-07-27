@@ -50,7 +50,10 @@ import {
   useComputerToolEnvironment,
 } from "@/components/workspace/computer-tool-environment";
 import { harnessBlob } from "@/lib/harness-api";
-import type { ModelReceipt } from "@/lib/model-receipt";
+import {
+  parseModelReceipt,
+  type ModelReceipt,
+} from "@/lib/model-receipt";
 import { cn } from "@/lib/utils";
 
 type JsonRecord = Record<string, unknown>;
@@ -154,18 +157,6 @@ const inputReceipt = (value: unknown): InputReceipt => {
   };
 };
 
-const modelReceipt = (value: unknown): ModelReceipt | undefined => {
-  const item = record(value);
-  const provider = text(item.provider);
-  const model = text(item.model);
-  if (!provider && !model) return undefined;
-  return {
-    provider,
-    model,
-    latencyMs: number(item.latency_ms),
-  };
-};
-
 const callerReceipt = (value: unknown): CallerReceipt | undefined => {
   const item = record(value);
   const identity = text(item.label) || text(item.name);
@@ -197,8 +188,8 @@ const receiptContext = (args: JsonRecord): ReceiptContext => {
     evidenceKind: text(receipt.evidence_kind),
     evidenceBeforeFrame: number(receipt.evidence_before_frame_id),
     evidenceAfterFrame: number(receipt.evidence_after_frame_id),
-    controller: modelReceipt(receipt.controller),
-    verifier: modelReceipt(receipt.verifier),
+    controller: parseModelReceipt(receipt.controller),
+    verifier: parseModelReceipt(receipt.verifier),
     caller: callerReceipt(receipt.caller),
     inputReceipts: Array.isArray(receipt.input_receipts)
       ? receipt.input_receipts.map(inputReceipt)

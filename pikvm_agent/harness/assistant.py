@@ -252,18 +252,18 @@ class AssistantHarness:
             if decision.outcome == "computer":
                 computer_task = decision.computer_task or ""
                 selected_by = self._latest_assistant_model_receipt(run)
+                call_id = str(uuid.uuid4())
                 run.record(
                     "assistant.computer_handoff",
-                    call_id=str(uuid.uuid4()),
-                    tool="computer.start_task",
+                    call_id=call_id,
+                    tool="computer_start_task",
                     arguments={"task": computer_task},
                     selected_by=selected_by,
                 )
                 run.conversation.append(
                     self._message(
                         "assistant",
-                        decision.message.strip()
-                        or "I’ll use the managed computer for this.",
+                        decision.message.strip(),
                         event_cursor=run.event_cursor,
                     )
                 )
@@ -273,7 +273,23 @@ class AssistantHarness:
                     computer_task,
                 )
                 if activated.status in TERMINAL_RUN_STATUSES:
+                    activated.record(
+                        "assistant.computer_handoff_failed",
+                        call_id=call_id,
+                        tool="computer_start_task",
+                        error=activated.error or "computer hand-off failed",
+                        selected_by=selected_by,
+                    )
+                    await self.store.save(activated)
                     return activated
+                activated.record(
+                    "assistant.computer_handoff_started",
+                    call_id=call_id,
+                    tool="computer_start_task",
+                    session_id=activated.session_id,
+                    selected_by=selected_by,
+                )
+                await self.store.save(activated)
                 return await self.computer.continue_run(run.run_id)
             assert decision.tool_call is not None
             if tool_rounds >= self.max_tool_rounds:
@@ -304,6 +320,8 @@ class AssistantHarness:
         run = await self.store.get_control(run_id)
         if run.mode != "assistant":
             if run.conversation and run.status is RunStatus.COMPLETED:
+                if run.conversation[-1].role == "assistant":
+                    run.conversation[-1].event_cursor = run.event_cursor
                 run.mode = "assistant"
                 run.computer_task = None
                 run.status = RunStatus.PLANNING
@@ -516,6 +534,7 @@ class AssistantHarness:
                 "tool.failed",
                 call_id=call_id,
                 tool=name,
+                arguments=arguments,
                 error="tool is not in the current catalogue",
                 selected_by=selected_by,
             )

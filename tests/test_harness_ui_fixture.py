@@ -118,12 +118,18 @@ def test_ui_fixture_includes_attributed_chat_to_computer_handoff() -> None:
         for event in run.events
         if event.kind == "assistant.computer_handoff"
     )
-    assert handoff.data["tool"] == "computer.start_task"
+    assert handoff.data["tool"] == "computer_start_task"
     assert handoff.data["selected_by"] == {
         "provider": "claude-account",
         "model": "opus",
         "latency_ms": 5_188,
     }
+    started = next(
+        event
+        for event in run.events
+        if event.kind == "assistant.computer_handoff_started"
+    )
+    assert started.data["call_id"] == handoff.data["call_id"]
     assert run.session_id is None
     assert run.status.value == "paused"
 

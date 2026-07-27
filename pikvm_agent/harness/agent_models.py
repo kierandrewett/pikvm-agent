@@ -327,15 +327,21 @@ class AssistantDecision(StrictModelDecision):
 
 
 class ConversationMessage(BaseModel):
-    """Durable user-visible text in a normal assistant conversation."""
+    """Durable turn boundary in a normal assistant conversation."""
 
     model_config = ConfigDict(extra="forbid")
 
     message_id: str = Field(min_length=1, max_length=200)
     role: Literal["user", "assistant"]
-    content: str = Field(min_length=1, max_length=40_000)
+    content: str = Field(max_length=40_000)
     created_at: datetime = Field(default_factory=utc_now)
     event_cursor: int = Field(default=0, ge=0)
+
+    @model_validator(mode="after")
+    def user_turn_requires_text(self) -> ConversationMessage:
+        if self.role == "user" and not self.content.strip():
+            raise ValueError("user conversation message must not be empty")
+        return self
 
 
 class PlanDecision(StrictModelDecision):
