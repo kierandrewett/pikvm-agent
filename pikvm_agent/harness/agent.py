@@ -26,6 +26,7 @@ from pikvm_agent.harness.agent_models import (
     RunStatus,
     TERMINAL_RUN_STATUSES,
     VerificationDecision,
+    VerificationImageArtifact,
 )
 from pikvm_agent.harness.agent_store import RunStore
 from pikvm_agent.harness.model_budget import (
@@ -818,8 +819,32 @@ class AgentHarness:
             run_id=run.run_id,
             action_index=run.next_action_index,
         )
-        run.latest_verification_image_path = comparison_image
-        run.latest_verification_image_revision += 1
+        if comparison_image:
+            run.latest_verification_image_path = comparison_image
+            run.latest_verification_image_revision += 1
+            evidence = VerificationImageArtifact(
+                revision=run.latest_verification_image_revision,
+                action_index=run.next_action_index,
+                before_frame_id=before.frame_id if before else None,
+                after_frame_id=(
+                    run.observation.frame_id
+                    if run.observation is not None
+                    else None
+                ),
+                path=comparison_image,
+            )
+            run.verification_images = [
+                *run.verification_images[-63:],
+                evidence,
+            ]
+            run.record(
+                "verification.evidence_captured",
+                revision=evidence.revision,
+                action_index=evidence.action_index,
+                before_frame_id=evidence.before_frame_id,
+                after_frame_id=evidence.after_frame_id,
+            )
+            await self.store.save(run)
         request = self._model_request(
             run,
             "verifier",

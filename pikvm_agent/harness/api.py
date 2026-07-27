@@ -910,18 +910,30 @@ def create_harness_app(
         image_path = run.latest_verification_image_path
         if not image_path:
             raise HTTPException(404, "run has no verification image")
-        path = Path(image_path)
-        if not path.is_file():
-            raise HTTPException(
-                404, "verification image artifact is unavailable"
-            )
-        return Response(
-            content=path.read_bytes(),
-            media_type=_image_mime(path),
-            headers={
-                "Cache-Control": "no-store",
-                "X-PiKVM-Evidence-Mode": "before-after",
-            },
+        return _verification_image_response(image_path)
+
+    @app.get("/api/runs/{run_id}/verification-images/{revision}")
+    async def get_verification_image_revision(
+        run_id: str,
+        revision: int,
+    ) -> Response:
+        run = await store.get_state(run_id)
+        evidence = next(
+            (
+                item
+                for item in run.verification_images
+                if item.revision == revision
+            ),
+            None,
+        )
+        if evidence is None:
+            raise HTTPException(404, "verification image revision is unavailable")
+        return _verification_image_response(
+            evidence.path,
+            revision=evidence.revision,
+            action_index=evidence.action_index,
+            before_frame_id=evidence.before_frame_id,
+            after_frame_id=evidence.after_frame_id,
         )
 
     @app.post("/api/runs/{run_id}/artifact-acceptance")
@@ -1227,6 +1239,38 @@ def _image_mime(path: Path) -> str:
     return "image/jpeg"
 
 
+def _verification_image_response(
+    image_path: str,
+    *,
+    revision: int | None = None,
+    action_index: int | None = None,
+    before_frame_id: int | None = None,
+    after_frame_id: int | None = None,
+) -> Response:
+    path = Path(image_path)
+    if not path.is_file():
+        raise HTTPException(
+            404, "verification image artifact is unavailable"
+        )
+    headers = {
+        "Cache-Control": "no-store",
+        "X-PiKVM-Evidence-Mode": "before-after",
+    }
+    for name, value in {
+        "X-PiKVM-Evidence-Revision": revision,
+        "X-PiKVM-Action-Index": action_index,
+        "X-PiKVM-Before-Frame": before_frame_id,
+        "X-PiKVM-After-Frame": after_frame_id,
+    }.items():
+        if value is not None:
+            headers[name] = str(value)
+    return Response(
+        content=path.read_bytes(),
+        media_type=_image_mime(path),
+        headers=headers,
+    )
+
+
 def _sse_event(
     event: str,
     data: dict[str, Any],
@@ -1266,7 +1310,11 @@ def _visible_run(
     )
     payload = run.model_dump(
         mode="json",
-        exclude={"events", "latest_verification_image_path"},
+        exclude={
+            "events",
+            "latest_verification_image_path",
+            "verification_images",
+        },
     )
     observation = payload.get("observation")
     if isinstance(observation, dict):
@@ -1278,6 +1326,10 @@ def _visible_run(
     payload["verification_image_revision"] = (
         run.latest_verification_image_revision
     )
+    payload["verification_images"] = [
+        evidence.model_dump(mode="json", exclude={"path"})
+        for evidence in run.verification_images
+    ]
     payload["events"] = [
         event.model_dump(mode="json")
         for event in run.events[-RUN_EVENT_TAIL_LIMIT:]

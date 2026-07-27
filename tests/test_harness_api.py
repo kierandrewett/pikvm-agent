@@ -863,6 +863,88 @@ async def test_verification_image_is_404_until_verifier_evidence_exists(
     assert evidence.status_code == 404
 
 
+@pytest.mark.asyncio
+async def test_verification_images_are_addressed_by_durable_revision(
+    tmp_path: Path,
+) -> None:
+    frame = tmp_path / "frame.jpg"
+    frame.write_bytes(b"frame")
+    first = tmp_path / "before-after-1.png"
+    first.write_bytes(b"\x89PNG\r\n\x1a\nfirst")
+    second = tmp_path / "before-after-2.png"
+    second.write_bytes(b"\x89PNG\r\n\x1a\nsecond")
+    store = InMemoryRunStore()
+    run = RunSnapshot.model_validate(
+        {
+            "run_id": "revision_evidence",
+            "task": "Inspect both transitions",
+            "status": "paused",
+            "latest_verification_image_path": str(second),
+            "latest_verification_image_revision": 2,
+            "verification_images": [
+                {
+                    "revision": 1,
+                    "action_index": 0,
+                    "before_frame_id": 3,
+                    "after_frame_id": 4,
+                    "path": str(first),
+                },
+                {
+                    "revision": 2,
+                    "action_index": 1,
+                    "before_frame_id": 4,
+                    "after_frame_id": 5,
+                    "path": str(second),
+                },
+            ],
+        }
+    )
+    await store.save(run)
+    app = create_harness_app(
+        harness=StubHarness(store, frame),  # type: ignore[arg-type]
+        store=store,
+        models=StubModels(),
+        access_token=TEST_ACCESS_TOKEN,
+        allowed_origins={"http://harness"},
+    )
+    transport = httpx.ASGITransport(app=app)
+
+    async with httpx.AsyncClient(
+        transport=transport,
+        base_url="http://harness",
+        headers={"authorization": f"Bearer {TEST_ACCESS_TOKEN}"},
+    ) as client:
+        detail = await client.get("/api/runs/revision_evidence")
+        first_evidence = await client.get(
+            "/api/runs/revision_evidence/verification-images/1"
+        )
+        second_evidence = await client.get(
+            "/api/runs/revision_evidence/verification-images/2"
+        )
+
+    payload = detail.json()
+    assert first_evidence.status_code == 200
+    assert first_evidence.content == first.read_bytes()
+    assert second_evidence.status_code == 200
+    assert second_evidence.content == second.read_bytes()
+    assert payload["verification_images"] == [
+        {
+            "revision": 1,
+            "action_index": 0,
+            "before_frame_id": 3,
+            "after_frame_id": 4,
+        },
+        {
+            "revision": 2,
+            "action_index": 1,
+            "before_frame_id": 4,
+            "after_frame_id": 5,
+        },
+    ]
+    assert str(first) not in detail.text
+    assert str(second) not in detail.text
+
+
 def test_sse_event_exposes_retry_ready_and_heartbeat_contract() -> None:
     ready = _sse_event(
         "stream.ready",
@@ -908,6 +990,7 @@ def test_visible_run_never_serializes_unbounded_event_history(
         assert kwargs.get("exclude") == {
             "events",
             "latest_verification_image_path",
+            "verification_images",
         }
         return original_model_dump(self, *args, **kwargs)
 

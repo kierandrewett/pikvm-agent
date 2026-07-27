@@ -430,6 +430,16 @@ class HarnessEvent(BaseModel):
     data: dict[str, Any] = Field(default_factory=dict)
 
 
+class VerificationImageArtifact(BaseModel):
+    """Private path plus safe coordinates for one visual action receipt."""
+
+    revision: int = Field(ge=1)
+    action_index: int = Field(ge=0)
+    before_frame_id: int | None = Field(default=None, ge=0)
+    after_frame_id: int | None = Field(default=None, ge=0)
+    path: str = Field(min_length=1, max_length=4_096)
+
+
 class CurrentActivity(BaseModel):
     """Durable in-flight work independent of the bounded visible event tail."""
 
@@ -499,6 +509,10 @@ class RunSnapshot(BaseModel):
     last_verification: VerificationDecision | None = None
     latest_verification_image_path: str | None = None
     latest_verification_image_revision: int = Field(default=0, ge=0)
+    verification_images: list[VerificationImageArtifact] = Field(
+        default_factory=list,
+        max_length=64,
+    )
     artifact_acceptance: ArtifactAcceptance | None = None
     media_transaction: MediaTransaction | None = None
     next_action_index: int = 0

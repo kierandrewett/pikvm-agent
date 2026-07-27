@@ -7,10 +7,13 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import Any
 from uuid import uuid4
 
 from fastapi import FastAPI
+from PIL import Image, ImageDraw
 
 from pikvm_agent.harness.agent_models import (
     ComputerObservation,
@@ -20,12 +23,33 @@ from pikvm_agent.harness.agent_models import (
     RunModelRoute,
     RunSnapshot,
     RunStatus,
+    VerificationImageArtifact,
 )
 from pikvm_agent.harness.agent_store import InMemoryRunStore
 from pikvm_agent.harness.api import create_harness_app
 from pikvm_agent.harness.provider_support import provider_support
 
 FIXTURE_RUN_ID = "chat-ui-audit"
+
+
+def _write_fixture_evidence(path: Path) -> None:
+    image = Image.new("RGB", (1_280, 392), "#0c0d10")
+    draw = ImageDraw.Draw(image)
+    draw.rectangle((0, 0, 639, 391), fill="#171a22")
+    draw.rectangle((640, 0, 1_279, 391), fill="#171a22")
+    draw.text((20, 16), "BEFORE", fill="#f1f2f5")
+    draw.text((660, 16), "AFTER", fill="#f1f2f5")
+    draw.text((42, 90), "Synthetic settings", fill="#a8abb5")
+    draw.text((682, 90), "Synthetic settings", fill="#a8abb5")
+    draw.rounded_rectangle((42, 140, 590, 232), 8, fill="#22232a")
+    draw.rounded_rectangle((682, 140, 1_230, 232), 8, fill="#22232a")
+    draw.text((70, 176), "Computer-use evidence", fill="#f1f2f5")
+    draw.text((710, 176), "Computer-use evidence", fill="#f1f2f5")
+    draw.ellipse((520, 167, 556, 203), fill="#6b6e78")
+    draw.ellipse((1_160, 167, 1_196, 203), fill="#78d69b")
+    draw.text((42, 300), "No machine input", fill="#e7bd67")
+    draw.text((682, 300), "Observed visual change", fill="#78d69b")
+    image.save(path, format="PNG", optimize=True)
 
 
 @dataclass(frozen=True)
@@ -419,10 +443,14 @@ def build_fixture_run(
                 },
             ),
             (
-                "verification.completed",
+                "model.completed",
                 {
+                    "role": "verifier",
+                    "provider": "claude-account",
+                    "model": "opus",
                     "verdict": "verified",
                     "summary": "The synthetic target changed as expected.",
+                    "latency_ms": 12_120,
                 },
             ),
         ):
@@ -604,9 +632,13 @@ def advance_fixture_run(run: RunSnapshot, tick: int) -> None:
         world_version=tick + 2,
     )
     run.record(
-        "verification.completed",
+        "model.completed",
+        role="verifier",
+        provider="claude-account",
+        model="opus",
         verdict="verified",
         summary="The synthetic target changed as expected.",
+        latency_ms=12_120,
     )
     run.next_action_index += 1
     if run.observation is not None:
@@ -633,6 +665,35 @@ def build_fixture_app(
     store = InMemoryRunStore()
     run = build_fixture_run(prefill_events)
     approval_run = build_approval_fixture_run()
+    evidence_dir = TemporaryDirectory(prefix="pikvm-ui-fixture-")
+    evidence_path = Path(evidence_dir.name) / "before-after.png"
+    _write_fixture_evidence(evidence_path)
+    last_action = next(
+        event
+        for event in reversed(run.events)
+        if event.kind == "action.completed"
+    )
+    after_frame_id = int(last_action.data.get("frame_id") or 1)
+    action_index = int(last_action.data.get("index") or 0)
+    run.latest_verification_image_path = str(evidence_path)
+    run.latest_verification_image_revision = 1
+    run.verification_images = [
+        VerificationImageArtifact(
+            revision=1,
+            action_index=action_index,
+            before_frame_id=max(1, after_frame_id - 1),
+            after_frame_id=after_frame_id,
+            path=str(evidence_path),
+        )
+    ]
+    run.record(
+        "verification.evidence_captured",
+        revision=1,
+        action_index=action_index,
+        before_frame_id=max(1, after_frame_id - 1),
+        after_frame_id=after_frame_id,
+        synthetic=True,
+    )
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -653,6 +714,7 @@ def build_fixture_app(
         finally:
             producer.cancel()
             await asyncio.gather(producer, return_exceptions=True)
+            evidence_dir.cleanup()
 
     app = create_harness_app(
         harness=FixtureHarness(store),  # type: ignore[arg-type]

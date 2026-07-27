@@ -33,6 +33,13 @@ def test_ui_fixture_is_a_large_visible_run_without_a_machine_target() -> None:
 
 def test_ui_fixture_alternates_visible_model_and_exact_tool_activity() -> None:
     run = build_fixture_run(64)
+    verifier = next(
+        event
+        for event in reversed(run.events)
+        if event.kind == "model.completed"
+        and event.data.get("role") == "verifier"
+    )
+    assert verifier.data["model"] == "opus"
 
     advance_fixture_run(run, 1)
     assert run.active_activity is not None
@@ -118,6 +125,11 @@ def test_ui_fixture_app_exposes_no_machine_marker_and_provider_matrix() -> None:
 
     assert app.state.synthetic_fixture is True
     assert app.state.synthetic_approval_run.status.value == "needs_approval"
+    assert app.state.synthetic_run.verification_images[0].revision == 1
+    assert any(
+        event.kind == "verification.evidence_captured"
+        for event in app.state.synthetic_run.events
+    )
     assert set(providers) == {"claude-account", "fast-controller"}
     assert providers["claude-account"]["credential"] == "CLI-owned OAuth"
     assert providers["claude-account"]["auth_mode"] == "saved_cli_login"

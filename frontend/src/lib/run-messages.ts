@@ -9,8 +9,7 @@ const ACTIVE_STATUSES = new Set([
   "verifying",
 ]);
 
-const safeString = (value: unknown) =>
-  typeof value === "string" ? value : "";
+const safeString = (value: unknown) => (typeof value === "string" ? value : "");
 
 const safeNumber = (value: unknown) =>
   typeof value === "number" && Number.isFinite(value) ? value : undefined;
@@ -18,7 +17,10 @@ const safeNumber = (value: unknown) =>
 const elapsedLabel = (startedAt: string) => {
   const started = Date.parse(startedAt);
   if (!Number.isFinite(started)) return "";
-  const elapsedSeconds = Math.max(0, Math.floor((Date.now() - started) / 1_000));
+  const elapsedSeconds = Math.max(
+    0,
+    Math.floor((Date.now() - started) / 1_000),
+  );
   if (elapsedSeconds < 60) return `${elapsedSeconds}s`;
   const minutes = Math.floor(elapsedSeconds / 60);
   const seconds = elapsedSeconds % 60;
@@ -104,15 +106,70 @@ const verificationForOutcome = (
     (event) =>
       event.sequence > outcome.sequence &&
       (nextAttempt == null || event.sequence < nextAttempt.sequence) &&
-      event.kind === "verification.completed",
+      (event.kind === "verification.completed" ||
+        (event.kind === "model.completed" &&
+          safeString(event.data.role) === "verifier")),
   );
+};
+
+const evidenceForOutcome = (
+  outcome: HarnessEvent | undefined,
+  events: readonly HarnessEvent[],
+) => {
+  if (!outcome) return undefined;
+  const nextAttempt = events.find(
+    (event) =>
+      event.sequence > outcome.sequence && event.kind === "action.attempted",
+  );
+  return events.find(
+    (event) =>
+      event.sequence > outcome.sequence &&
+      (nextAttempt == null || event.sequence < nextAttempt.sequence) &&
+      event.kind === "verification.evidence_captured",
+  );
+};
+
+const controllerForCheckpoint = (
+  checkpoint: HarnessEvent | undefined,
+  events: readonly HarnessEvent[],
+) => {
+  if (!checkpoint) return undefined;
+  const previousAttempt = [...events]
+    .reverse()
+    .find(
+      (event) =>
+        event.sequence < checkpoint.sequence &&
+        event.kind === "action.attempted",
+    );
+  return [...events]
+    .reverse()
+    .find(
+      (event) =>
+        event.sequence < checkpoint.sequence &&
+        (previousAttempt == null ||
+          event.sequence > previousAttempt.sequence) &&
+        event.kind === "model.completed" &&
+        safeString(event.data.role) === "controller",
+    );
+};
+
+const modelReceipt = (event: HarnessEvent | undefined) =>
+  event
+    ? {
+        provider: safeString(event.data.provider),
+        model: safeString(event.data.model),
+        latency_ms: safeNumber(event.data.latency_ms),
+      }
+    : undefined;
+
+const verificationVerdict = (event: HarnessEvent) => {
+  const verdict = safeString(event.data.verdict) || "verified";
+  return verdict === "complete" ? "verified" : verdict;
 };
 
 const outcomeReason = (outcome: HarnessEvent) => {
   if (outcome.kind === "action.stale_world_refreshed") {
-    const refused = safeString(outcome.data.status)
-      .replaceAll("_", " ")
-      .trim();
+    const refused = safeString(outcome.data.status).replaceAll("_", " ").trim();
     return `${refused || "stale input"}; screen refreshed`;
   }
   if (outcome.kind === "action.ungrounded_refreshed") {
@@ -177,14 +234,9 @@ const toolParts = (run: RunSnapshot) => {
     .slice(-12);
   const activeCallId = safeString(run.active_activity?.call_id);
   const activeAlreadyRepresented = activeCallId
-    ? attempts.some(
-        (event) => safeString(event.data.call_id) === activeCallId,
-      )
+    ? attempts.some((event) => safeString(event.data.call_id) === activeCallId)
     : attempts.length > 0;
-  if (
-    run.active_activity?.kind === "tool" &&
-    !activeAlreadyRepresented
-  ) {
+  if (run.active_activity?.kind === "tool" && !activeAlreadyRepresented) {
     attempts.push({
       sequence: run.event_cursor + 1,
       at: run.active_activity.started_at,
@@ -202,12 +254,12 @@ const toolParts = (run: RunSnapshot) => {
     const checkpoint = checkpointForAttempt(attempt, run.events);
     const outcome = outcomeForAttempt(attempt, run.events);
     const verification = verificationForOutcome(outcome, run.events);
+    const evidence = evidenceForOutcome(outcome, run.events);
+    const controller = controllerForCheckpoint(checkpoint, run.events);
     const isPending = !outcome && index === attempts.length - 1;
     const approval = isPending ? run.pending_approval : null;
     const approvalId = safeString(approval?.approval_id);
-    const approvalRisk = safeString(approval?.risk)
-      .replaceAll("_", " ")
-      .trim();
+    const approvalRisk = safeString(approval?.risk).replaceAll("_", " ").trim();
     const approvalReason = safeString(approval?.reason).trim();
     const approvalDescription = [approvalRisk, approvalReason]
       .filter(Boolean)
@@ -225,27 +277,26 @@ const toolParts = (run: RunSnapshot) => {
               completed_at: outcome.at,
             }
           : {
-              status:
-                SAFE_REFUSAL_OUTCOMES.has(outcome.kind)
-                  ? "refused"
-                  : outcome.kind === "action.completed_unverified"
-                    ? "unverified"
-                    : "completed",
+              status: SAFE_REFUSAL_OUTCOMES.has(outcome.kind)
+                ? "refused"
+                : outcome.kind === "action.completed_unverified"
+                  ? "unverified"
+                  : "completed",
               reason: outcomeReason(outcome) || undefined,
-              frame_id:
-                outcome.data.frame_id ?? outcome.data.fresh_frame_id,
+              frame_id: outcome.data.frame_id ?? outcome.data.fresh_frame_id,
               world_version:
-                outcome.data.world_version ??
-                outcome.data.fresh_world_version,
+                outcome.data.world_version ?? outcome.data.fresh_world_version,
               attempt: safeNumber(attempt.data.attempt),
               attempted_at: attempt.at,
               completed_at: outcome.at,
               verification: verification
                 ? {
-                    verdict:
-                      safeString(verification.data.verdict) || "verified",
+                    verdict: verificationVerdict(verification),
                     summary: safeString(verification.data.summary),
                     observed_at: verification.at,
+                    provider: safeString(verification.data.provider),
+                    model: safeString(verification.data.model),
+                    latency_ms: safeNumber(verification.data.latency_ms),
                   }
                 : undefined,
             };
@@ -267,6 +318,11 @@ const toolParts = (run: RunSnapshot) => {
         idempotency_key:
           safeString(attempt.data.idempotency_key) ||
           safeString(exactArgs.idempotency_key),
+        evidence_revision: safeNumber(evidence?.data.revision),
+        evidence_before_frame_id: safeNumber(evidence?.data.before_frame_id),
+        evidence_after_frame_id: safeNumber(evidence?.data.after_frame_id),
+        controller: modelReceipt(controller),
+        verifier: modelReceipt(verification),
       },
     };
     return {

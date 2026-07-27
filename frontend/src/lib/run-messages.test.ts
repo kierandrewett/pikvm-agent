@@ -124,6 +124,92 @@ describe("messagesForRun", () => {
     });
   });
 
+  it("binds production model and before-after evidence events to the action receipt", () => {
+    const snapshot = run({
+      events: [
+        {
+          sequence: 1,
+          at: "2026-07-27T11:59:58Z",
+          kind: "model.completed",
+          data: {
+            role: "controller",
+            provider: "gemini-account",
+            model: "gemini-3-flash",
+            latency_ms: 320,
+          },
+        },
+        {
+          ...run().events[0]!,
+          sequence: 2,
+        },
+        {
+          ...run().events[1]!,
+          sequence: 3,
+        },
+        {
+          ...run().events[2]!,
+          sequence: 4,
+        },
+        {
+          sequence: 5,
+          at: "2026-07-27T12:00:01Z",
+          kind: "verification.evidence_captured",
+          data: {
+            revision: 7,
+            action_index: 1,
+            before_frame_id: 11,
+            after_frame_id: 12,
+          },
+        },
+        {
+          sequence: 6,
+          at: "2026-07-27T12:00:02Z",
+          kind: "model.completed",
+          data: {
+            role: "verifier",
+            provider: "claude-account",
+            model: "claude-opus-4-8",
+            verdict: "verified",
+            summary: "Calculator now shows 42.",
+            latency_ms: 940,
+          },
+        },
+      ],
+    });
+    const assistant = messagesForRun(snapshot).at(-1);
+    const tool = Array.isArray(assistant?.content)
+      ? assistant.content.find((part) => part.type === "tool-call")
+      : undefined;
+
+    expect(tool).toMatchObject({
+      args: {
+        __receipt: {
+          evidence_revision: 7,
+          evidence_before_frame_id: 11,
+          evidence_after_frame_id: 12,
+          controller: {
+            provider: "gemini-account",
+            model: "gemini-3-flash",
+            latency_ms: 320,
+          },
+          verifier: {
+            provider: "claude-account",
+            model: "claude-opus-4-8",
+            latency_ms: 940,
+          },
+        },
+      },
+      result: {
+        verification: {
+          verdict: "verified",
+          summary: "Calculator now shows 42.",
+          provider: "claude-account",
+          model: "claude-opus-4-8",
+        },
+      },
+    });
+  });
+
   it("does not attach a later verification after the next action starts", () => {
     const snapshot = run({
       events: [

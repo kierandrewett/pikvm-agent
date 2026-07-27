@@ -74,6 +74,14 @@ export type RunSnapshot = RunSummary & {
   } | null;
   pending_approval?: Record<string, unknown> | null;
   last_verification?: Record<string, unknown> | null;
+  verification_image_available?: boolean;
+  verification_image_revision?: number;
+  verification_images?: Array<{
+    revision: number;
+    action_index: number;
+    before_frame_id?: number | null;
+    after_frame_id?: number | null;
+  }>;
   active_activity?: {
     kind: "model" | "tool";
     started_at: string;

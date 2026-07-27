@@ -53,6 +53,8 @@ export function WorkspaceShell() {
   const computerEnvironment = useMemo(() => {
     const machine = workspace.selectedRun?.observation?.machine;
     return {
+      token: workspace.token,
+      runId: workspace.selectedRun?.run_id,
       machineName:
         machine && typeof machine.alias === "string"
           ? machine.alias
@@ -63,10 +65,12 @@ export function WorkspaceShell() {
       onOpenComputer: () => setComputerOpen(true),
     };
   }, [
+    workspace.selectedRun?.run_id,
     workspace.selectedRun?.observation?.frame_id,
     workspace.selectedRun?.observation?.height,
     workspace.selectedRun?.observation?.machine,
     workspace.selectedRun?.observation?.width,
+    workspace.token,
   ]);
   const threadList = useMemo<ExternalStoreThreadListAdapter>(
     () => ({

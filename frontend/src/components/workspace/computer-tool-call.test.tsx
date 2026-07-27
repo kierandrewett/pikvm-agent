@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ThreadGroupPart } from "@/components/assistant-ui/thread";
 import {
   ComputerActionReceipt,
@@ -17,7 +17,10 @@ const group = (status: ThreadGroupPart["status"], count = 2): ThreadGroupPart =>
     status,
   }) as ThreadGroupPart;
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 describe("ComputerToolGroup", () => {
   it("does not wrap a single action in a redundant group control", () => {
@@ -109,9 +112,7 @@ describe("ComputerInputSequence", () => {
     ).not.toBeNull();
     expect(screen.getByText("x 1012").tagName).toBe("CODE");
     expect(
-      screen.getByLabelText(
-        "Pointer target 1012, 642 on 1920 × 1080 screen",
-      ),
+      screen.getByLabelText("Pointer target 1012, 642 on 1920 × 1080 screen"),
     ).not.toBeNull();
     expect(screen.getByText(/52.7% across · 59.4% down/)).not.toBeNull();
   });
@@ -285,5 +286,77 @@ describe("ComputerActionReceipt", () => {
     const receipt = screen.getByLabelText("Computer action receipt");
     expect(receipt.textContent).toContain("Not verified");
     expect(receipt.textContent).not.toContain("Frame 89 · verified");
+  });
+
+  it("shows the model handoff and authenticated before-after evidence", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(new Blob(["image"], { type: "image/png" }), {
+        status: 200,
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal("URL", {
+      createObjectURL: vi.fn(() => "blob:action-evidence"),
+      revokeObjectURL: vi.fn(),
+    });
+
+    render(
+      <ComputerActionReceipt
+        args={{
+          based_on_frame_id: 41,
+          __receipt: {
+            evidence_revision: 7,
+            controller: {
+              provider: "gemini-account",
+              model: "gemini-3-flash",
+              latency_ms: 320,
+            },
+            verifier: {
+              provider: "claude-account",
+              model: "claude-opus-4-8",
+              latency_ms: 940,
+            },
+          },
+        }}
+        result={{
+          status: "completed",
+          frame_id: 42,
+          verification: {
+            verdict: "verified",
+            summary: "The intended control changed.",
+          },
+        }}
+        status={{ type: "complete" }}
+        environment={{
+          token: "local-workspace-token",
+          runId: "run-1",
+          machineName: "Office lab",
+        }}
+        actionCount={1}
+        characterCount={0}
+      />,
+    );
+
+    const receipt = screen.getByLabelText("Computer action receipt");
+    expect(receipt.textContent).toContain("Action selected by");
+    expect(receipt.textContent).toContain("gemini-3-flash");
+    expect(receipt.textContent).toContain("Screen checked by");
+    expect(receipt.textContent).toContain("claude-opus-4-8");
+    expect(receipt.textContent).not.toContain("local-workspace-token");
+
+    await waitFor(() =>
+      expect(
+        screen.getByAltText(
+          "Before and after screen evidence, frame 41 → frame 42",
+        ),
+      ).not.toBeNull(),
+    );
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/runs/run-1/verification-images/7",
+      expect.objectContaining({
+        headers: { Authorization: "Bearer local-workspace-token" },
+        cache: "no-store",
+      }),
+    );
   });
 });

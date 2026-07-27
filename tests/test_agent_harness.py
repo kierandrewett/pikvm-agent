@@ -2009,6 +2009,21 @@ async def test_verifier_receives_labelled_before_after_composite(
     composite = Path(request.image_path)
     assert result.latest_verification_image_path == str(composite)
     assert result.latest_verification_image_revision == 1
+    assert len(result.verification_images) == 1
+    assert result.verification_images[0].revision == 1
+    assert result.verification_images[0].action_index == 1
+    assert result.verification_images[0].path == str(composite)
+    evidence_event = next(
+        event
+        for event in result.events
+        if event.kind == "verification.evidence_captured"
+    )
+    assert evidence_event.data == {
+        "revision": 1,
+        "action_index": 1,
+        "before_frame_id": 1,
+        "after_frame_id": 2,
+    }
     assert composite.is_file()
     assert "before-after" in composite.name
     with Image.open(composite) as image:

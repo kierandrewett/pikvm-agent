@@ -38,11 +38,7 @@ import {
   ToolGroupRoot,
 } from "@/components/assistant-ui/tool-group";
 import type { ThreadGroupPart } from "@/components/assistant-ui/thread";
-import {
-  Alert,
-  AlertDescription,
-  AlertTitle,
-} from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -50,11 +46,15 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { Skeleton } from "@/components/ui/skeleton";
+import { harnessBlob } from "@/lib/harness-api";
 import { cn } from "@/lib/utils";
 
 type JsonRecord = Record<string, unknown>;
 
 export type ComputerToolEnvironment = {
+  token?: string;
+  runId?: string;
   machineName?: string;
   currentFrameId?: number;
   screenWidth?: number;
@@ -93,6 +93,29 @@ type ReceiptContext = {
   attempt?: number;
   latencyMs?: number;
   idempotencyKey: string;
+  evidenceRevision?: number;
+  evidenceBeforeFrame?: number;
+  evidenceAfterFrame?: number;
+  controller?: ModelReceipt;
+  verifier?: ModelReceipt;
+};
+
+type ModelReceipt = {
+  provider: string;
+  model: string;
+  latencyMs?: number;
+};
+
+const modelReceipt = (value: unknown): ModelReceipt | undefined => {
+  const item = record(value);
+  const provider = text(item.provider);
+  const model = text(item.model);
+  if (!provider && !model) return undefined;
+  return {
+    provider,
+    model,
+    latencyMs: number(item.latency_ms),
+  };
 };
 
 const receiptContext = (args: JsonRecord): ReceiptContext => {
@@ -105,6 +128,11 @@ const receiptContext = (args: JsonRecord): ReceiptContext => {
     attempt: number(receipt.attempt),
     latencyMs: number(receipt.latency_ms),
     idempotencyKey: text(receipt.idempotency_key),
+    evidenceRevision: number(receipt.evidence_revision),
+    evidenceBeforeFrame: number(receipt.evidence_before_frame_id),
+    evidenceAfterFrame: number(receipt.evidence_after_frame_id),
+    controller: modelReceipt(receipt.controller),
+    verifier: modelReceipt(receipt.verifier),
   };
 };
 
@@ -235,11 +263,7 @@ const durationLabel = (milliseconds: number | undefined) => {
 };
 
 type ReceiptBadgeVariant =
-  | "outline"
-  | "evidence"
-  | "caution"
-  | "info"
-  | "destructive";
+  "outline" | "evidence" | "caution" | "info" | "destructive";
 
 const statusMeta = (
   status: ToolCallMessagePartProps["status"],
@@ -343,7 +367,9 @@ function PointerTargetMap({
     height && height > 0 ? Math.min(100, Math.max(0, (y / height) * 100)) : 50;
   const coordinateLabel = `${x}, ${y}`;
   const screenLabel =
-    width && height ? `${width} × ${height} screen` : "screen dimensions unknown";
+    width && height
+      ? `${width} × ${height} screen`
+      : "screen dimensions unknown";
 
   return (
     <figure
@@ -534,6 +560,163 @@ function ReceiptNode({ item }: { item: EvidenceItem }) {
   );
 }
 
+function ModelIdentity({
+  label,
+  detail,
+}: {
+  label: string;
+  detail: ModelReceipt;
+}) {
+  return (
+    <div className="min-w-0">
+      <dt className="text-[11px] font-medium text-muted-foreground">{label}</dt>
+      <dd className="mt-0.5 truncate text-xs font-semibold">
+        {detail.model || "Model not reported"}
+      </dd>
+      <dd className="mt-0.5 flex min-w-0 flex-wrap gap-x-2 text-[10px] text-muted-foreground">
+        {detail.provider ? (
+          <span className="truncate">{detail.provider}</span>
+        ) : null}
+        {detail.latencyMs != null ? (
+          <span className="shrink-0 font-mono tabular-nums">
+            {detail.latencyMs.toLocaleString()} ms
+          </span>
+        ) : null}
+      </dd>
+    </div>
+  );
+}
+
+function ModelHandoff({ receipt }: { receipt: ReceiptContext }) {
+  if (!receipt.controller && !receipt.verifier) return null;
+  return (
+    <dl
+      className="mt-3 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 border-t border-border pt-3"
+      aria-label="Model handoff"
+    >
+      {receipt.controller ? (
+        <ModelIdentity label="Action selected by" detail={receipt.controller} />
+      ) : (
+        <div />
+      )}
+      <ArrowRightIcon
+        className="size-3.5 text-muted-foreground"
+        aria-hidden="true"
+      />
+      {receipt.verifier ? (
+        <ModelIdentity label="Screen checked by" detail={receipt.verifier} />
+      ) : (
+        <div>
+          <dt className="text-[11px] font-medium text-muted-foreground">
+            Screen check
+          </dt>
+          <dd className="mt-0.5 text-xs font-semibold">Awaiting verifier</dd>
+        </div>
+      )}
+    </dl>
+  );
+}
+
+function VerificationEvidenceFigure({
+  revision,
+  environment,
+  beforeFrame,
+  afterFrame,
+}: {
+  revision?: number;
+  environment: ComputerToolEnvironment;
+  beforeFrame?: number;
+  afterFrame?: number;
+}) {
+  const [imageUrl, setImageUrl] = useState("");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (revision == null || !environment.token || !environment.runId) {
+      setImageUrl((previous) => {
+        if (previous) URL.revokeObjectURL(previous);
+        return "";
+      });
+      return;
+    }
+    setImageUrl((previous) => {
+      if (previous) URL.revokeObjectURL(previous);
+      return "";
+    });
+    setError("");
+    let active = true;
+    let currentUrl = "";
+    const controller = new AbortController();
+    void harnessBlob(
+      environment.token,
+      `/api/runs/${encodeURIComponent(environment.runId)}/verification-images/${revision}`,
+      controller.signal,
+    )
+      .then((blob) => {
+        if (!active) return;
+        currentUrl = URL.createObjectURL(blob);
+        setImageUrl(currentUrl);
+        setError("");
+      })
+      .catch((cause) => {
+        if (!active || controller.signal.aborted) return;
+        setError(
+          cause instanceof Error
+            ? cause.message
+            : "Visual evidence is unavailable.",
+        );
+      });
+    return () => {
+      active = false;
+      controller.abort();
+      if (currentUrl) URL.revokeObjectURL(currentUrl);
+    };
+  }, [environment.runId, environment.token, revision]);
+
+  if (revision == null || !environment.token || !environment.runId) return null;
+  const frameLabel = [
+    beforeFrame != null ? `frame ${beforeFrame}` : "before",
+    afterFrame != null ? `frame ${afterFrame}` : "after",
+  ].join(" → ");
+
+  return (
+    <figure
+      className="mt-3 overflow-hidden rounded-lg border border-border bg-background"
+      aria-label="Before and after screen evidence"
+    >
+      <figcaption className="flex min-w-0 items-center justify-between gap-3 border-b border-border px-3 py-2">
+        <span className="flex min-w-0 items-center gap-2 text-xs font-semibold">
+          <EyeIcon
+            className="size-3.5 shrink-0 text-evidence-foreground"
+            aria-hidden="true"
+          />
+          <span className="truncate">Observed screen transition</span>
+        </span>
+        <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
+          {frameLabel}
+        </span>
+      </figcaption>
+      {imageUrl ? (
+        <img
+          src={imageUrl}
+          alt={`Before and after screen evidence, ${frameLabel}`}
+          className="block max-h-80 w-full bg-black object-contain"
+        />
+      ) : error ? (
+        <p className="px-3 py-4 text-xs text-muted-foreground">
+          Visual evidence could not be loaded. The action and verifier receipt
+          remain available.
+        </p>
+      ) : (
+        <Skeleton
+          className="aspect-[32/9] w-full rounded-none"
+          aria-label="Loading before and after screen evidence"
+        />
+      )}
+    </figure>
+  );
+}
+
 export function ComputerActionReceipt({
   args,
   result,
@@ -552,14 +735,15 @@ export function ComputerActionReceipt({
   const value = record(result);
   const verification = record(value.verification);
   const resultStatus = text(value.status);
-  const sourceFrame = number(args.based_on_frame_id);
+  const receipt = receiptContext(args);
+  const sourceFrame =
+    number(args.based_on_frame_id) ?? receipt.evidenceBeforeFrame;
   const sourceWorld = number(args.based_on_world_version);
   const sourceControl = number(args.based_on_control_epoch);
-  const frame = number(value.frame_id);
+  const frame = number(value.frame_id) ?? receipt.evidenceAfterFrame;
   const observedWorld = number(value.world_version);
   const verificationVerdict = text(verification.verdict);
   const verificationSummary = text(verification.summary);
-  const receipt = receiptContext(args);
   const state = statusMeta(status, result);
   const StateIcon = state.Icon;
 
@@ -717,15 +901,19 @@ export function ComputerActionReceipt({
             <span>{receipt.latencyMs.toLocaleString()} ms transport</span>
           ) : null}
           {receipt.idempotencyKey ? (
-            <span
-              className="min-w-0 truncate"
-              title={receipt.idempotencyKey}
-            >
+            <span className="min-w-0 truncate" title={receipt.idempotencyKey}>
               key {receipt.idempotencyKey}
             </span>
           ) : null}
         </div>
       ) : null}
+      <ModelHandoff receipt={receipt} />
+      <VerificationEvidenceFigure
+        revision={receipt.evidenceRevision}
+        environment={environment}
+        beforeFrame={sourceFrame}
+        afterFrame={frame}
+      />
     </section>
   );
 }
@@ -752,7 +940,9 @@ function ActionIntent({ receipt }: { receipt: ReceiptContext }) {
         </div>
       ) : null}
       {receipt.expectedEvidence.length ? (
-        <div className={cn("flex items-start gap-2", receipt.intent && "mt-2.5")}>
+        <div
+          className={cn("flex items-start gap-2", receipt.intent && "mt-2.5")}
+        >
           <EyeIcon
             className="mt-0.5 size-3.5 shrink-0 text-muted-foreground"
             aria-hidden="true"
@@ -861,6 +1051,19 @@ const ComputerToolCallImpl: ToolCallMessagePartComponent<
                 <span aria-hidden="true">·</span>
                 <span className="shrink-0 tabular-nums">
                   {durationLabel(visibleDuration)}
+                </span>
+              </>
+            ) : null}
+            {receipt.controller?.model ? (
+              <>
+                <span aria-hidden="true">·</span>
+                <span
+                  className="hidden min-w-0 truncate sm:inline"
+                  title={[receipt.controller.model, receipt.controller.provider]
+                    .filter(Boolean)
+                    .join(" · ")}
+                >
+                  {receipt.controller.model}
                 </span>
               </>
             ) : null}
