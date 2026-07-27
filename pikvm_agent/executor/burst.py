@@ -342,6 +342,12 @@ def validate_actions(
             contiguous_text_parts = []
             continue
 
+        verification = str(action.get("verification", "auto")).lower()
+        if verification not in {"auto", "exact"}:
+            raise BurstError(
+                f"type_text action {index} has unsupported verification "
+                f"{verification!r}; use 'auto' or 'exact'"
+            )
         text = str(action.get("text", ""))
         editor_prose = (
             str(action.get("context", "")).lower() == "editor"
@@ -705,13 +711,17 @@ async def _dispatch(
         text = a.get("text", "")
         method = str(a.get("method", "")).lower()
         code, secret = bool(a.get("code")), bool(a.get("secret"))
+        exact_verification = (
+            str(a.get("verification", "auto")).lower() == "exact"
+        )
         editor_prose = (
             not code
             and str(a.get("context", "")).lower() == "editor"
             and is_editor_prose(str(text))
         )
         precise = (
-            code
+            exact_verification
+            or code
             or str(a.get("context", "")).lower() in {"field", "terminal"}
             or (is_exact_text(str(text)) and not editor_prose)
         )

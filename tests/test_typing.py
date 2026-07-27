@@ -251,7 +251,7 @@ def test_autodetected_readback_region_adds_context_without_changing_explicit() -
         located,
         (1280, 720),
         explicit=False,
-    ) == Region(x=104, y=182, width=412, height=56)
+    ) == Region(x=104, y=200, width=412, height=20)
     assert readback_region(
         located,
         (1280, 720),
@@ -768,7 +768,7 @@ async def test_autolocate_refines_dynamic_results_panel_to_typed_field() -> None
                         )
                     ]
                 )
-            if region.height <= 72:
+            if region.height <= 50:
                 return OCRResult(
                     lines=[OCRLine(text=intended, confidence=0.96)]
                 )
@@ -787,7 +787,7 @@ async def test_autolocate_refines_dynamic_results_panel_to_typed_field() -> None
     assert result.field_text == intended
     assert None in ocr.regions
     assert any(
-        region is not None and region.height <= 72
+        region is not None and region.height <= 50
         for region in ocr.regions
     )
     _assert_no_enter(backend)

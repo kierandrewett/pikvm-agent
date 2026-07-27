@@ -71,7 +71,6 @@ MAX_AUTODETECTED_FIELD_HEIGHT = 80
 MAX_AUTODETECTED_FIELD_HEIGHT_FRAC = 0.15
 MAX_PROSE_EDGE_CONTEXT_CHARS = 96
 AUTODETECTED_READBACK_MARGIN_X_FRAC = 0.075
-AUTODETECTED_READBACK_MARGIN_Y_FRAC = 0.025
 
 # Pauses (seconds) — let a print / clear land and the video settle before reading.
 _PRINT_SETTLE_S = 0.45
@@ -188,11 +187,10 @@ def readback_region(
     if width <= 0 or height <= 0:
         return region
     margin_x = max(16, round(width * AUTODETECTED_READBACK_MARGIN_X_FRAC))
-    margin_y = max(8, round(height * AUTODETECTED_READBACK_MARGIN_Y_FRAC))
     x = max(0, int(region.x) - margin_x)
-    y = max(0, int(region.y) - margin_y)
     x2 = min(width, math.ceil(region.x + region.width) + margin_x)
-    y2 = min(height, math.ceil(region.y + region.height) + margin_y)
+    y = max(0, int(region.y))
+    y2 = min(height, math.ceil(region.y + region.height))
     return Region(
         x=x,
         y=y,

@@ -480,6 +480,59 @@ async def test_editor_prose_punctuation_uses_lenient_watched_mode() -> None:
     assert typer.modes == [{"code": False, "prose": True, "secret": False}]
 
 
+async def test_editor_prose_can_require_exact_ocr_checksum_proof() -> None:
+    text = (
+        "Shakespeare treats choice as a human burden, and every word here "
+        "must retain exactly one space."
+    )
+    be = FakeBackend()
+    typer = _StubTyper(
+        "verified_exact",
+        field_text=text,
+        typed_characters=len(text),
+        intended_characters=len(text),
+    )
+
+    outcome = await run_burst(
+        [
+            {
+                "type": "type_text",
+                "text": text,
+                "context": "editor",
+                "verification": "exact",
+            }
+        ],
+        backend=be,
+        typer=typer,
+    )
+
+    assert outcome.status == "completed"
+    assert typer.modes == [{"code": True, "prose": True, "secret": False}]
+    assert (
+        outcome.action_receipts[0]["exact_readback_sha256_match"]
+        is True
+    )
+    assert outcome.action_receipts[0]["proof_state"] == "exact_readback"
+
+
+async def test_burst_rejects_unknown_text_verification_mode_before_hid() -> None:
+    backend = FakeBackend()
+
+    with pytest.raises(BurstError, match="verification"):
+        await run_burst(
+            [
+                {
+                    "type": "type_text",
+                    "text": "payload",
+                    "verification": "trust-me",
+                }
+            ],
+            backend=backend,
+        )
+
+    assert backend.calls == []
+
+
 async def test_editor_label_cannot_relax_command_or_code_text() -> None:
     be = FakeBackend()
     typer = _StubTyper("verified_exact")
