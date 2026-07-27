@@ -143,6 +143,36 @@ def test_gemini_cli_config_rejects_missing_profile_environment_name() -> None:
         )
 
 
+def test_optional_daemon_url_distinguishes_chat_only_from_selected_computer(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    settings = HarnessSettings(
+        daemon_url_env="TEST_OPTIONAL_DAEMON",
+        providers={
+            "fixture": {
+                "kind": "subprocess_json",
+                "model": "fixture-model",
+                "argv": ["fixture-provider"],
+            }
+        },
+        routes={
+            "reasoner": ["fixture"],
+            "controller": ["fixture"],
+            "verifier": ["fixture"],
+        },
+    )
+    monkeypatch.delenv("TEST_OPTIONAL_DAEMON", raising=False)
+
+    assert settings.optional_daemon_url() is None
+
+    monkeypatch.setenv(
+        "TEST_OPTIONAL_DAEMON",
+        "http://127.0.0.1:48123/",
+    )
+
+    assert settings.optional_daemon_url() == "http://127.0.0.1:48123"
+
+
 def test_loads_provider_routes_without_secrets_or_machine_endpoint_in_yaml(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

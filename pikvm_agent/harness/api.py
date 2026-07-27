@@ -403,6 +403,7 @@ def create_harness_app(
     run_locks: dict[str, asyncio.Lock] | None = None,
     max_autonomous_resumes: int = 64,
     external_driver: bool = False,
+    computer_control_enabled: bool = True,
     ui_dir: Path | None = None,
     lifespan: Callable[[FastAPI], AbstractAsyncContextManager[None]] | None = None,
 ) -> FastAPI:
@@ -690,6 +691,9 @@ def create_harness_app(
             ),
             "direct_call_visibility": (
                 "enabled" if direct_calls is not None else "disabled"
+            ),
+            "computer_control": (
+                "enabled" if computer_control_enabled else "disabled"
             ),
         }
 

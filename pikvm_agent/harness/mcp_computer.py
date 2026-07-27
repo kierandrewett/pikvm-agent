@@ -52,6 +52,54 @@ class ToolClient(Protocol):
     ) -> dict[str, Any]: ...
 
 
+COMPUTER_NOT_CONFIGURED = (
+    "computer control is not configured; select a PiKVM agent daemon and "
+    "restart the harness"
+)
+
+
+class UnavailableComputerDriver:
+    """Fail closed when the chat workspace has no selected computer."""
+
+    @staticmethod
+    def _unavailable() -> None:
+        raise RuntimeError(COMPUTER_NOT_CONFIGURED)
+
+    async def open(self, label: str) -> ComputerObservation:
+        self._unavailable()
+
+    async def refresh(self, *, session_id: str) -> ComputerObservation:
+        self._unavailable()
+
+    async def burst(
+        self,
+        *,
+        session_id: str,
+        actions: list[dict[str, Any]],
+        based_on_world_version: int | None,
+        based_on_control_epoch: int | None,
+        idempotency_key: str,
+    ) -> ComputerObservation:
+        self._unavailable()
+
+    async def resolve_approval(
+        self,
+        *,
+        session_id: str,
+        approval_id: str,
+        decision: dict[str, Any],
+    ) -> ComputerObservation:
+        self._unavailable()
+
+    async def abort(
+        self,
+        *,
+        session_id: str,
+        reason: str,
+    ) -> ComputerObservation:
+        self._unavailable()
+
+
 class PersistentMcpToolClient:
     """One stdio child/session for an entire harness process."""
 

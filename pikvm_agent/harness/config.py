@@ -353,6 +353,13 @@ class HarnessSettings(BaseModel):
     def daemon_url(self) -> str:
         return require_daemon_url(env_name=self.daemon_url_env)
 
+    def optional_daemon_url(self) -> str | None:
+        """Return the explicitly selected computer endpoint, if configured."""
+
+        if not os.environ.get(self.daemon_url_env, "").strip():
+            return None
+        return self.daemon_url()
+
     def access_token(self) -> str:
         value = os.environ.get(self.access_token_env, "")
         if len(value) < HARNESS_ACCESS_TOKEN_MIN_LENGTH:
