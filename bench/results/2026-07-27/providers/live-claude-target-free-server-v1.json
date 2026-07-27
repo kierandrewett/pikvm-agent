@@ -1,0 +1,26 @@
+{
+  "suite": "target-free-server-live-v1",
+  "created_at": "2026-07-27T17:57:38Z",
+  "source_commit": "1f2ef0c",
+  "provider": "claude-account",
+  "provider_interface": "Claude Code OAuth CLI",
+  "computer_target_configured": false,
+  "computer_target_contacted": false,
+  "direct_call_visibility": "disabled",
+  "operator_server_started": true,
+  "cases_requested": 1,
+  "cases_passed": 1,
+  "provider_calls": 1,
+  "computer_events": 0,
+  "session_created": false,
+  "reply_exact": true,
+  "final_status": "completed",
+  "final_mode": "assistant",
+  "evaluation_wall_ms_approximate": 7690,
+  "privacy": {
+    "daemon_endpoint_included": false,
+    "provider_credential_included": false,
+    "operator_token_included": false,
+    "prompt_or_response_body_included": false
+  }
+}

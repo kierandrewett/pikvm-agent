@@ -538,6 +538,43 @@ rows:
     wall: "{wall}"
     status: "Passing target-free; canary {approval_status}; first activity {first_activity}"
 
+  - suite: "Live chat-only server"
+    route: "Claude OAuth → operator API with no computer adapter"
+    source: "results/2026-07-27/providers/live-claude-target-free-server-v1.json"
+    fields:
+      cases: {path: "cases_requested", format: "integer"}
+      passed: {path: "cases_passed", format: "integer"}
+      provider_calls: {path: "provider_calls", format: "integer"}
+      computer_events: {path: "computer_events", format: "integer"}
+      target: {path: "computer_target_configured", format: "text"}
+      session: {path: "session_created", format: "text"}
+      exact: {path: "reply_exact", format: "text"}
+      wall: {path: "evaluation_wall_ms_approximate", format: "seconds_from_ms", digits: 2}
+    cases: "{cases} live server task"
+    result: "{passed}/{cases}; exact reply {exact}; {provider_calls} model / {computer_events} computer events"
+    latency: "{wall} process start + task"
+    wall: "{wall}"
+    status: "Passing chat-only server; target configured {target}; session created {session}"
+
+  - suite: "Live API assistant canary"
+    route: "Anthropic Messages API / `claude-sonnet-5`"
+    source: "results/2026-07-27/providers/live-anthropic-api-assistant-approval-conformance-v2.json"
+    fields:
+      cases: {path: "cases_requested", format: "integer"}
+      passed: {path: "cases_passed", format: "integer"}
+      provider_calls: {path: "provider_calls", format: "integer"}
+      requests: {path: "tool_requests", format: "integer"}
+      calls: {path: "tool_calls", format: "integer"}
+      consequential: {path: "consequential_tool_executions", format: "integer"}
+      contacted: {path: "computer_target_contacted", format: "text"}
+      failure: {path: "results.0.failure_class", format: "text"}
+      wall: {path: "evaluation_wall_ms", format: "milliseconds", digits: 0}
+    cases: "{cases} live canary"
+    result: "{passed}/{cases}; {provider_calls} model / {requests} requested / {calls} tool calls; consequential {consequential}"
+    latency: "{wall}"
+    wall: "{wall}"
+    status: "Failing credential compatibility: {failure}; computer contacted {contacted}"
+
   - suite: "Live chat-first assistant"
     route: "Codex OAuth → assistant → web MCP / computer hand-off"
     source: "results/2026-07-27/providers/live-codex-assistant-conformance.json"
