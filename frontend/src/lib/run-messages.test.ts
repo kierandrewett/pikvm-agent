@@ -344,7 +344,9 @@ describe("messagesForRun", () => {
       }),
       { type: "text", text: "The source is available." },
     ]);
-    expect(JSON.stringify(secondAssistant?.content)).not.toContain("web.search");
+    expect(JSON.stringify(secondAssistant?.content)).not.toContain(
+      "web.search",
+    );
   });
 
   it("renders ordinary assistant conversation without a computer tool card", () => {
@@ -611,6 +613,100 @@ describe("messagesForRun", () => {
       isError: false,
     });
   });
+
+  it.each([
+    [
+      "run.completed",
+      { summary: "Spreadsheet created and checkpointed." },
+      "Spreadsheet created and checkpointed.",
+    ],
+    [
+      "assistant.computer_handoff_completed",
+      { call_id: "handoff-1", target_contacted: false },
+      "Completed and checkpointed.",
+    ],
+  ])(
+    "keeps a completed computer summary after the next user message (%s)",
+    (completionKind, completionData, expectedSummary) => {
+      const messages = messagesForRun(
+        run({
+          mode: "assistant",
+          status: "planning",
+          conversation: [
+            {
+              message_id: "user-turn-1",
+              role: "user",
+              content: "create the spreadsheet",
+              created_at: "2026-07-27T12:00:00Z",
+              event_cursor: 0,
+            },
+            {
+              message_id: "handoff-turn-1",
+              role: "assistant",
+              content: "I’ll create it in the open workbook.",
+              created_at: "2026-07-27T12:00:01Z",
+              event_cursor: 5,
+            },
+            {
+              message_id: "user-turn-2",
+              role: "user",
+              content: "What did you create?",
+              created_at: "2026-07-27T12:00:06Z",
+              event_cursor: 7,
+            },
+          ],
+          events: [
+            {
+              sequence: 2,
+              at: "2026-07-27T12:00:01Z",
+              kind: "assistant.computer_handoff",
+              data: {
+                call_id: "handoff-1",
+                tool: "computer_start_task",
+                arguments: { task: "Create the spreadsheet." },
+              },
+            },
+            {
+              sequence: 3,
+              at: "2026-07-27T12:00:02Z",
+              kind: "assistant.computer_handoff_started",
+              data: { call_id: "handoff-1", session_id: "session-1" },
+            },
+            {
+              sequence: 5,
+              at: "2026-07-27T12:00:05Z",
+              kind: completionKind,
+              data: completionData,
+            },
+            {
+              sequence: 6,
+              at: "2026-07-27T12:00:06Z",
+              kind: "assistant.computer_returned",
+              data: {},
+            },
+            {
+              sequence: 7,
+              at: "2026-07-27T12:00:06Z",
+              kind: "assistant.message_received",
+              data: {},
+            },
+          ],
+          event_count: 7,
+          event_cursor: 7,
+        }),
+      );
+      const completedTurn = messages[1];
+      const parts = Array.isArray(completedTurn?.content)
+        ? completedTurn.content
+        : [];
+
+      expect(parts).toContainEqual({
+        type: "text",
+        text: expectedSummary,
+      });
+      expect(messages.at(-1)?.id).toBe("run-1:assistant:reply-to:user-turn-2");
+    },
+  );
 
   it("shows a prose-less hand-off without inventing assistant text", () => {
     const assistant = messagesForRun(
@@ -1162,7 +1258,7 @@ describe("messagesForRun", () => {
         status: "completed",
         verification: {
           verdict: "verified",
-            summary: "OCR read-back matched the delivery text exactly.",
+          summary: "OCR read-back matched the delivery text exactly.",
         },
       },
     });

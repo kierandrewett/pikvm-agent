@@ -92,15 +92,15 @@
       "horizontal_overflow_pixels": 0,
       "transaction_phases_visible": true,
       "approval_boundary_visible": true,
-      "frontend_tests": "119/119",
+      "frontend_tests": "121/121",
       "production_build": "passed"
     },
     "screenshots_persisted": false
   },
   "contracts": {
     "frontend": {
-      "passed": 119,
-      "total": 119,
+      "passed": 121,
+      "total": 121,
       "initial_full_run_flakes": 1,
       "isolated_flake_rerun_passed": true,
       "second_full_run_passed": true
@@ -122,9 +122,9 @@
     }
   },
   "resource_envelope": {
-    "total_ui_bytes": 1231684,
-    "javascript_bytes": 1075290,
-    "javascript_gzip_9_bytes": 333078,
+    "total_ui_bytes": 1231904,
+    "javascript_bytes": 1075510,
+    "javascript_gzip_9_bytes": 333122,
     "css_bytes": 109255,
     "css_gzip_9_bytes": 18223,
     "remote_assets": 0

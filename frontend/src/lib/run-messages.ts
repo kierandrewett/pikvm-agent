@@ -260,16 +260,11 @@ const inputReceipts = (value: unknown) =>
       issued_prefix_sha256: safeString(
         item.issued_prefix_sha256 || item.acknowledged_prefix_sha256,
       ),
-      readback_sha256: safeString(
-        item.readback_sha256 || item.observed_sha256,
-      ),
+      readback_sha256: safeString(item.readback_sha256 || item.observed_sha256),
       exact_readback_sha256_match:
-        typeof (
-          item.exact_readback_sha256_match ?? item.exact_sha256_match
-        ) === "boolean"
-          ? Boolean(
-              item.exact_readback_sha256_match ?? item.exact_sha256_match,
-            )
+        typeof (item.exact_readback_sha256_match ?? item.exact_sha256_match) ===
+        "boolean"
+          ? Boolean(item.exact_readback_sha256_match ?? item.exact_sha256_match)
           : undefined,
     }));
 
@@ -301,10 +296,7 @@ export const userFacingCompletionSummary = (value: unknown) => {
 
   summary = summary
     .replace(/^The before\/after comparison image[^.]*\.\s*/i, "")
-    .replace(
-      /^The frame itself visibly contains[^:]{0,240}:\s*/i,
-      "",
-    )
+    .replace(/^The frame itself visibly contains[^:]{0,240}:\s*/i, "")
     .trim();
   if (summary) {
     summary = `${summary[0]!.toUpperCase()}${summary.slice(1)}`;
@@ -332,9 +324,7 @@ export const userFacingCompletionSummary = (value: unknown) => {
 
 const completionMarkdown = (run: RunSnapshot) => {
   if (run.status === "completed") {
-    const summary = userFacingCompletionSummary(
-      run.last_verification?.summary,
-    );
+    const summary = userFacingCompletionSummary(run.last_verification?.summary);
     return summary || "Completed and checkpointed.";
   }
   if (["failed", "blocked", "rejected", "aborted"].includes(run.status)) {
@@ -357,14 +347,27 @@ const completionMarkdown = (run: RunSnapshot) => {
   return "";
 };
 
+const completionMarkdownForEvents = (events: readonly HarnessEvent[]) => {
+  const completed = [...events]
+    .reverse()
+    .find(
+      (event) =>
+        event.kind === "run.completed" ||
+        event.kind === "assistant.computer_handoff_completed",
+    );
+  if (!completed) return "";
+  return (
+    userFacingCompletionSummary(completed.data.summary) ||
+    "Completed and checkpointed."
+  );
+};
+
 const toolParts = (
   run: RunSnapshot,
   events: readonly HarnessEvent[] = run.events,
   includeLiveState = true,
 ) => {
-  const attempts = events.filter(
-    (event) => event.kind === "action.attempted",
-  );
+  const attempts = events.filter((event) => event.kind === "action.attempted");
   const attemptedKeys = new Set(
     attempts.map((event) => safeString(event.data.idempotency_key)),
   );
@@ -481,7 +484,8 @@ const toolParts = (
                 : directEffectVerified
                   ? {
                       verdict: "verified",
-          summary: "OCR read-back matched the delivery text exactly.",
+                      summary:
+                        "OCR read-back matched the delivery text exactly.",
                       observed_at: outcome.at,
                       provider: "",
                       model: "",
@@ -502,9 +506,7 @@ const toolParts = (
       ...(displayActions ? { actions: displayActions } : {}),
       __receipt: {
         phase:
-          attempt.data.checkpoint_only === true
-            ? "checkpointed"
-            : "attempted",
+          attempt.data.checkpoint_only === true ? "checkpointed" : "attempted",
         intent: safeString(checkpoint?.data.intent),
         expected_evidence: Array.isArray(checkpoint?.data.expected_evidence)
           ? checkpoint.data.expected_evidence.map(String)
@@ -520,9 +522,7 @@ const toolParts = (
         evidence_after_frame_id: safeNumber(evidence?.data.after_frame_id),
         controller: modelReceipt(controller),
         verifier: modelReceipt(verification),
-        caller: callerReceipt(
-          outcome?.data.caller ?? attempt.data.caller,
-        ),
+        caller: callerReceipt(outcome?.data.caller ?? attempt.data.caller),
         input_receipts: inputReceipts(outcome?.data.input_receipts),
       },
     };
@@ -577,8 +577,7 @@ const assistantToolParts = (
     if (!calls.has(identity)) calls.set(identity, event);
   }
   return [...calls.entries()].map(([callId, attempt]) => {
-    const isComputerHandoff =
-      attempt.kind === "assistant.computer_handoff";
+    const isComputerHandoff = attempt.kind === "assistant.computer_handoff";
     const outcome =
       attempt.kind === "tool.failed"
         ? attempt
@@ -594,13 +593,13 @@ const assistantToolParts = (
                 ].includes(event.kind),
             )
           : events.find(
-          (event) =>
-            event.sequence > attempt.sequence &&
-            safeString(event.data.call_id) === callId &&
-            ["tool.completed", "tool.failed", "tool.refused"].includes(
-              event.kind,
-            ),
-        );
+              (event) =>
+                event.sequence > attempt.sequence &&
+                safeString(event.data.call_id) === callId &&
+                ["tool.completed", "tool.failed", "tool.refused"].includes(
+                  event.kind,
+                ),
+            );
     const toolName =
       safeString(attempt.data.tool) ||
       (isComputerHandoff ? "computer_start_task" : "Tool");
@@ -621,8 +620,7 @@ const assistantToolParts = (
       outcome?.kind === "tool.failed" ||
       outcome?.kind === "assistant.computer_handoff_failed";
     const refused = outcome?.kind === "tool.refused";
-    const completed =
-      outcome?.kind === "assistant.computer_handoff_completed";
+    const completed = outcome?.kind === "assistant.computer_handoff_completed";
     const result = isComputerHandoff
       ? outcome == null
         ? undefined
@@ -630,8 +628,7 @@ const assistantToolParts = (
           ? {
               status: "failed",
               error:
-                safeString(outcome.data.error) ||
-                "Computer hand-off failed.",
+                safeString(outcome.data.error) || "Computer hand-off failed.",
             }
           : {
               status: completed ? "completed" : "started",
@@ -643,8 +640,7 @@ const assistantToolParts = (
         : failed
           ? {
               status: "failed",
-              error:
-                safeString(outcome.data.error) || "Tool execution failed.",
+              error: safeString(outcome.data.error) || "Tool execution failed.",
             }
           : refused
             ? {
@@ -663,9 +659,7 @@ const assistantToolParts = (
       toolName,
       args: {
         ...exactArgs,
-        ...(selectedBy
-          ? { __receipt: { selected_by: selectedBy } }
-          : {}),
+        ...(selectedBy ? { __receipt: { selected_by: selectedBy } } : {}),
       } as never,
       argsText: JSON.stringify(exactArgs, null, 2),
       result,
@@ -708,9 +702,7 @@ const assistantStatus = (
   }
   if (ACTIVE_STATUSES.has(run.status)) return { type: "running" };
   if (
-    ["paused", "failed", "blocked", "rejected", "aborted"].includes(
-      run.status,
-    )
+    ["paused", "failed", "blocked", "rejected", "aborted"].includes(run.status)
   ) {
     return {
       type: "incomplete",
@@ -744,8 +736,7 @@ export function messagesForRun(run: RunSnapshot | null): ThreadMessageLike[] {
       }
       const turnEvents = run.events.filter(
         (event) =>
-          event.sequence > precedingCursor &&
-          event.sequence <= messageCursor,
+          event.sequence > precedingCursor && event.sequence <= messageCursor,
       );
       const tools = assistantToolParts(run, turnEvents);
       const includesComputerHandoff = turnEvents.some(
@@ -757,8 +748,23 @@ export function messagesForRun(run: RunSnapshot | null): ThreadMessageLike[] {
       const prose = message.content
         ? [{ type: "text" as const, text: message.content }]
         : [];
+      const historicalCompletion = includesComputerHandoff
+        ? completionMarkdownForEvents(turnEvents)
+        : "";
       const contentParts = includesComputerHandoff
-        ? [...prose, ...tools, ...computerTools]
+        ? [
+            ...prose,
+            ...tools,
+            ...computerTools,
+            ...(historicalCompletion
+              ? [
+                  {
+                    type: "text" as const,
+                    text: historicalCompletion,
+                  },
+                ]
+              : []),
+          ]
         : [...tools, ...computerTools, ...prose];
       latestAssistantStartCursor = precedingCursor;
       latestAssistantMessageIndex = messages.length;
@@ -792,9 +798,7 @@ export function messagesForRun(run: RunSnapshot | null): ThreadMessageLike[] {
             : []),
           ...assistantToolParts(run, activeTurnEvents),
           ...toolParts(run, activeTurnEvents),
-          ...(completion
-            ? [{ type: "text" as const, text: completion }]
-            : []),
+          ...(completion ? [{ type: "text" as const, text: completion }] : []),
         ];
         messages[latestAssistantMessageIndex] = {
           ...messages[latestAssistantMessageIndex]!,
