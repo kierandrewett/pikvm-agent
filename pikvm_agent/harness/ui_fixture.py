@@ -18,6 +18,7 @@ from PIL import Image, ImageDraw
 
 from pikvm_agent.harness.agent_models import (
     ComputerObservation,
+    ConversationMessage,
     ControllerDecision,
     PendingAction,
     PlanDecision,
@@ -794,6 +795,67 @@ def build_direct_fixture_run(
     return run
 
 
+def build_assistant_handoff_fixture_run() -> RunSnapshot:
+    """Build an attributed chat-to-computer hand-off without target contact."""
+
+    run = RunSnapshot(
+        run_id="assistant-handoff-ui-audit",
+        task="Inspect the connected screen without changing it",
+        mode="computer",
+        status=RunStatus.PAUSED,
+        origin="managed",
+        model_route=RunModelRoute(
+            reasoner=["claude-account"],
+            controller=["fast-controller"],
+            verifier=["claude-account"],
+        ),
+        conversation=[
+            {
+                "message_id": "fixture-handoff-user",
+                "role": "user",
+                "content": "Inspect the connected screen without changing it",
+                "event_cursor": 0,
+            }
+        ],
+    )
+    run.record(
+        "model.completed",
+        role="assistant",
+        provider="claude-account",
+        model="opus",
+        latency_ms=5_188,
+        outcome="computer",
+        synthetic=True,
+    )
+    run.record(
+        "assistant.computer_handoff",
+        call_id="fixture-computer-handoff",
+        tool="computer.start_task",
+        arguments={"task": "Inspect the connected screen without changing it"},
+        selected_by={
+            "provider": "claude-account",
+            "model": "opus",
+            "latency_ms": 5_188,
+        },
+        synthetic=True,
+    )
+    run.conversation.append(
+        ConversationMessage(
+            message_id="fixture-handoff-assistant",
+            role="assistant",
+            content="I’ll inspect the managed computer without making changes.",
+            event_cursor=run.event_cursor,
+        )
+    )
+    run.error = "Synthetic fixture held before computer target contact"
+    run.record(
+        "run.paused",
+        reason=run.error,
+        synthetic=True,
+    )
+    return run
+
+
 def advance_fixture_run(
     run: RunSnapshot,
     tick: int,
@@ -906,6 +968,7 @@ def build_fixture_app(
     store = InMemoryRunStore()
     run = build_fixture_run(prefill_events)
     approval_run = build_approval_fixture_run()
+    handoff_run = build_assistant_handoff_fixture_run()
     evidence_dir = TemporaryDirectory(prefix="pikvm-ui-fixture-")
     evidence_path = Path(evidence_dir.name) / "before-after.png"
     direct_evidence_path = Path(evidence_dir.name) / "direct-before.png"
@@ -937,6 +1000,7 @@ def build_fixture_app(
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         await store.save(run)
         await store.save(approval_run)
+        await store.save(handoff_run)
         await store.save(direct_run)
 
         async def produce() -> None:
@@ -971,5 +1035,6 @@ def build_fixture_app(
     app.state.synthetic_store = store
     app.state.synthetic_run = run
     app.state.synthetic_approval_run = approval_run
+    app.state.synthetic_handoff_run = handoff_run
     app.state.synthetic_direct_run = direct_run
     return app

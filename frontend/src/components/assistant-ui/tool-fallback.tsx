@@ -3,6 +3,7 @@
 import { memo, useCallback, useRef, useState } from "react";
 import {
   AlertCircleIcon,
+  BotIcon,
   CheckIcon,
   ChevronDownIcon,
   LoaderIcon,
@@ -102,6 +103,83 @@ const formatToolDuration = (ms: number) => {
   if (seconds < 60) return `${Math.floor(seconds)}s`;
   return `${Math.floor(seconds / 60)}m ${Math.floor(seconds % 60)}s`;
 };
+
+type ToolSelectionReceipt = {
+  provider: string;
+  model: string;
+  latencyMs?: number;
+};
+
+const toolSelectionReceipt = (
+  args: unknown,
+): ToolSelectionReceipt | undefined => {
+  if (!args || typeof args !== "object" || Array.isArray(args)) {
+    return undefined;
+  }
+  const receipt = (args as Record<string, unknown>).__receipt;
+  if (!receipt || typeof receipt !== "object" || Array.isArray(receipt)) {
+    return undefined;
+  }
+  const selectedBy = (receipt as Record<string, unknown>).selected_by;
+  if (
+    !selectedBy ||
+    typeof selectedBy !== "object" ||
+    Array.isArray(selectedBy)
+  ) {
+    return undefined;
+  }
+  const data = selectedBy as Record<string, unknown>;
+  const provider =
+    typeof data.provider === "string" ? data.provider.trim() : "";
+  const model = typeof data.model === "string" ? data.model.trim() : "";
+  const latencyMs =
+    typeof data.latency_ms === "number" &&
+    Number.isFinite(data.latency_ms)
+      ? data.latency_ms
+      : undefined;
+  return provider || model
+    ? { provider, model, latencyMs }
+    : undefined;
+};
+
+function ToolFallbackAttribution({
+  selectedBy,
+}: {
+  selectedBy?: ToolSelectionReceipt;
+}) {
+  if (!selectedBy) return null;
+  const identity = selectedBy.model || selectedBy.provider;
+  const provider =
+    selectedBy.provider && selectedBy.provider !== identity
+      ? selectedBy.provider
+      : "";
+
+  return (
+    <p
+      data-slot="tool-fallback-attribution"
+      className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground"
+    >
+      <BotIcon className="size-3 shrink-0" aria-hidden="true" />
+      <span className="shrink-0">Selected by</span>
+      <span className="truncate font-medium text-foreground/85" title={identity}>
+        {identity}
+      </span>
+      {provider ? (
+        <>
+          <span className="shrink-0">via</span>
+          <span className="truncate font-mono" title={provider}>
+            {provider}
+          </span>
+        </>
+      ) : null}
+      {selectedBy.latencyMs != null ? (
+        <span className="shrink-0 tabular-nums">
+          · {formatToolDuration(selectedBy.latencyMs)}
+        </span>
+      ) : null}
+    </p>
+  );
+}
 
 function ToolFallbackDuration({
   className,
@@ -528,6 +606,7 @@ function ToolFallbackApproval({
 
 const ToolFallbackImpl: ToolCallMessagePartComponent = ({
   toolName,
+  args,
   argsText,
   result,
   status,
@@ -540,6 +619,7 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
   const isCancelled =
     status?.type === "incomplete" && status.reason === "cancelled";
   const isRequiresAction = status?.type === "requires-action";
+  const selectedBy = toolSelectionReceipt(args);
 
   const [open, setOpen] = useState(isRequiresAction);
   const [prevRequiresAction, setPrevRequiresAction] =
@@ -554,6 +634,7 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
       <ToolFallbackTrigger toolName={toolName} status={status} />
       <ToolFallbackContent>
         <ToolFallbackError status={status} />
+        <ToolFallbackAttribution selectedBy={selectedBy} />
         <ToolFallbackArgs
           argsText={argsText}
           className={cn(isCancelled && "opacity-60")}
@@ -603,4 +684,5 @@ export {
   ToolFallbackResult,
   ToolFallbackError,
   ToolFallbackApproval,
+  ToolFallbackAttribution,
 };

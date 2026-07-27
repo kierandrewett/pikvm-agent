@@ -11,6 +11,7 @@ from pikvm_agent.harness.ui_fixture import (
     FixtureLiveFrames,
     FixtureModels,
     advance_fixture_run,
+    build_assistant_handoff_fixture_run,
     build_approval_fixture_run,
     build_direct_fixture_run,
     build_fixture_app,
@@ -107,6 +108,24 @@ def test_ui_fixture_includes_an_honestly_labelled_direct_client_trace(
     assert attempted.data["caller"] == run.caller
     assert completed.data["caller"] == run.caller
     assert completed.data["effect_state"] == "unverified"
+
+
+def test_ui_fixture_includes_attributed_chat_to_computer_handoff() -> None:
+    run = build_assistant_handoff_fixture_run()
+
+    handoff = next(
+        event
+        for event in run.events
+        if event.kind == "assistant.computer_handoff"
+    )
+    assert handoff.data["tool"] == "computer.start_task"
+    assert handoff.data["selected_by"] == {
+        "provider": "claude-account",
+        "model": "opus",
+        "latency_ms": 5_188,
+    }
+    assert run.session_id is None
+    assert run.status.value == "paused"
 
 
 async def test_ui_fixture_exposes_and_resolves_a_synthetic_send_approval() -> None:

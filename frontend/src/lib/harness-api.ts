@@ -10,14 +10,36 @@ export class HarnessApiError extends Error {
   }
 }
 
-export const readStoredToken = () => sessionStorage.getItem(TOKEN_KEY) ?? "";
+const browserSessionStorage = (): Storage | undefined => {
+  try {
+    return typeof sessionStorage === "undefined" ? undefined : sessionStorage;
+  } catch {
+    return undefined;
+  }
+};
+
+export const readStoredToken = () => {
+  try {
+    return browserSessionStorage()?.getItem(TOKEN_KEY) ?? "";
+  } catch {
+    return "";
+  }
+};
 
 export const storeToken = (token: string) => {
-  sessionStorage.setItem(TOKEN_KEY, token);
+  try {
+    browserSessionStorage()?.setItem(TOKEN_KEY, token);
+  } catch {
+    // Storage is a convenience only; the active React state still owns access.
+  }
 };
 
 export const clearStoredToken = () => {
-  sessionStorage.removeItem(TOKEN_KEY);
+  try {
+    browserSessionStorage()?.removeItem(TOKEN_KEY);
+  } catch {
+    // A blocked storage backend must not prevent an explicit disconnect.
+  }
 };
 
 const responseMessage = async (response: Response) => {

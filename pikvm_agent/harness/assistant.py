@@ -250,22 +250,27 @@ class AssistantHarness:
                 await self.store.save(run)
                 return run
             if decision.outcome == "computer":
-                if decision.message.strip():
-                    run.record(
-                        "assistant.computer_handoff",
-                        task=decision.computer_task or "",
+                computer_task = decision.computer_task or ""
+                selected_by = self._latest_assistant_model_receipt(run)
+                run.record(
+                    "assistant.computer_handoff",
+                    call_id=str(uuid.uuid4()),
+                    tool="computer.start_task",
+                    arguments={"task": computer_task},
+                    selected_by=selected_by,
+                )
+                run.conversation.append(
+                    self._message(
+                        "assistant",
+                        decision.message.strip()
+                        or "I’ll use the managed computer for this.",
+                        event_cursor=run.event_cursor,
                     )
-                    run.conversation.append(
-                        self._message(
-                            "assistant",
-                            decision.message.strip(),
-                            event_cursor=run.event_cursor,
-                        )
-                    )
-                    await self.store.save(run)
+                )
+                await self.store.save(run)
                 activated = await self.computer.activate_computer(
                     run.run_id,
-                    decision.computer_task or "",
+                    computer_task,
                 )
                 if activated.status in TERMINAL_RUN_STATUSES:
                     return activated
@@ -277,6 +282,7 @@ class AssistantHarness:
                 run,
                 decision.tool_call.name,
                 decision.tool_call.arguments,
+                selected_by=self._latest_assistant_model_receipt(run),
             )
             if waiting:
                 return run
@@ -389,6 +395,9 @@ class AssistantHarness:
         arguments = pending.get("arguments")
         if not isinstance(arguments, dict):
             raise ValueError("pending tool arguments are invalid")
+        selected_by = pending.get("selected_by")
+        if not isinstance(selected_by, dict):
+            selected_by = {}
         run.pending_approval = None
         run.status = RunStatus.RUNNING
         if decision_type == "reject":
@@ -397,6 +406,7 @@ class AssistantHarness:
                 call_id=approval_id,
                 tool=tool,
                 reason=str(decision.get("reason") or "denied by operator"),
+                selected_by=selected_by,
             )
             await self.store.save(run)
             return run
@@ -405,6 +415,7 @@ class AssistantHarness:
             call_id=approval_id,
             name=tool,
             arguments=arguments,
+            selected_by=selected_by,
         )
         return run
 
@@ -494,6 +505,8 @@ class AssistantHarness:
         run: RunSnapshot,
         name: str,
         arguments: dict[str, Any],
+        *,
+        selected_by: dict[str, Any],
     ) -> bool:
         catalog = {tool.name: tool for tool in await self.tools.catalog()}
         descriptor = catalog.get(name)
@@ -504,6 +517,7 @@ class AssistantHarness:
                 call_id=call_id,
                 tool=name,
                 error="tool is not in the current catalogue",
+                selected_by=selected_by,
             )
             await self.store.save(run)
             return False
@@ -514,6 +528,7 @@ class AssistantHarness:
                 "approval_id": call_id,
                 "tool": name,
                 "arguments": arguments,
+                "selected_by": selected_by,
                 "risk": risk,
                 "reason": (
                     "This external tool is not declared read-only and may "
@@ -527,6 +542,7 @@ class AssistantHarness:
                 tool=name,
                 arguments=arguments,
                 risk=risk,
+                selected_by=selected_by,
             )
             await self.store.save(run)
             return True
@@ -535,6 +551,7 @@ class AssistantHarness:
             call_id=call_id,
             name=name,
             arguments=arguments,
+            selected_by=selected_by,
         )
         return False
 
@@ -545,12 +562,14 @@ class AssistantHarness:
         call_id: str,
         name: str,
         arguments: dict[str, Any],
+        selected_by: dict[str, Any],
     ) -> ToolResult:
         run.record(
             "tool.started",
             call_id=call_id,
             tool=name,
             arguments=arguments,
+            selected_by=selected_by,
         )
         await self.store.save(run)
         try:
@@ -565,6 +584,7 @@ class AssistantHarness:
                 call_id=call_id,
                 tool=name,
                 error=result.content,
+                selected_by=selected_by,
             )
         else:
             event_kind = "tool.failed" if result.is_error else "tool.completed"
@@ -578,6 +598,7 @@ class AssistantHarness:
                     else {"content": result.content}
                 ),
                 is_error=result.is_error,
+                selected_by=selected_by,
             )
         await self.store.save(run)
         return result
@@ -608,6 +629,30 @@ class AssistantHarness:
         if run.model_route is None:
             return None
         return run.model_route.for_role("reasoner")
+
+    @staticmethod
+    def _latest_assistant_model_receipt(
+        run: RunSnapshot,
+    ) -> dict[str, Any]:
+        """Bind a capability request to the model decision that selected it."""
+
+        for event in reversed(run.events):
+            if (
+                event.kind == "model.completed"
+                and event.data.get("role") == "assistant"
+            ):
+                latency = event.data.get("latency_ms")
+                return {
+                    "provider": str(event.data.get("provider") or ""),
+                    "model": str(event.data.get("model") or ""),
+                    "latency_ms": (
+                        latency
+                        if isinstance(latency, int | float)
+                        and not isinstance(latency, bool)
+                        else None
+                    ),
+                }
+        return {"provider": "", "model": "", "latency_ms": None}
 
     @staticmethod
     def _recent_tool_results(run: RunSnapshot) -> list[dict[str, Any]]:

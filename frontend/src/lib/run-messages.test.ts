@@ -495,7 +495,16 @@ describe("messagesForRun", () => {
           sequence: 2,
           at: "2026-07-27T12:00:01Z",
           kind: "assistant.computer_handoff",
-          data: { task: "Inspect the connected screen." },
+          data: {
+            call_id: "computer-handoff-1",
+            tool: "computer.start_task",
+            arguments: { task: "Inspect the connected screen." },
+            selected_by: {
+              provider: "claude-account",
+              model: "claude-opus-4-8",
+              latency_ms: 5188,
+            },
+          },
         },
       ],
       event_count: 2,
@@ -506,6 +515,27 @@ describe("messagesForRun", () => {
     const afterMessages = messagesForRun(after);
     expect(afterMessages.at(-2)?.id).toBe(beforeReply?.id);
     expect(afterMessages.at(-1)?.id).not.toBe(beforeReply?.id);
+    const handoffContent = afterMessages.at(-2)?.content;
+    const handoff = Array.isArray(handoffContent)
+      ? handoffContent.find((part) => part.type === "tool-call")
+      : undefined;
+    expect(handoff).toMatchObject({
+      toolName: "computer.start_task",
+      args: {
+        task: "Inspect the connected screen.",
+        __receipt: {
+          selected_by: {
+            provider: "claude-account",
+            model: "claude-opus-4-8",
+            latency_ms: 5188,
+          },
+        },
+      },
+      result: {
+        status: "accepted",
+        control: "managed",
+      },
+    });
   });
 
   it("shows a paused assistant turn as incomplete instead of a blank success", () => {

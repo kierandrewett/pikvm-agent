@@ -166,6 +166,19 @@ const modelReceipt = (event: HarnessEvent | undefined) =>
       }
     : undefined;
 
+const selectedByReceipt = (value: unknown) => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return undefined;
+  }
+  const selectedBy = value as Record<string, unknown>;
+  const receipt = {
+    provider: safeString(selectedBy.provider),
+    model: safeString(selectedBy.model),
+    latency_ms: safeNumber(selectedBy.latency_ms),
+  };
+  return receipt.provider || receipt.model ? receipt : undefined;
+};
+
 const callerReceipt = (value: unknown) => {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return undefined;
@@ -552,7 +565,8 @@ const assistantToolParts = (
   const candidates = events.filter(
     (event) =>
       event.kind === "tool.started" ||
-      event.kind === "tool.approval_required",
+      event.kind === "tool.approval_required" ||
+      event.kind === "assistant.computer_handoff",
   );
   const calls = new Map<string, HarnessEvent>();
   for (const event of candidates) {
@@ -560,27 +574,42 @@ const assistantToolParts = (
     if (!calls.has(identity)) calls.set(identity, event);
   }
   return [...calls.entries()].map(([callId, attempt]) => {
-    const outcome = events.find(
-      (event) =>
-        event.sequence > attempt.sequence &&
-        safeString(event.data.call_id) === callId &&
-        ["tool.completed", "tool.failed", "tool.refused"].includes(event.kind),
-    );
-    const toolName = safeString(attempt.data.tool) || "Tool";
+    const isComputerHandoff =
+      attempt.kind === "assistant.computer_handoff";
+    const outcome = isComputerHandoff
+      ? undefined
+      : events.find(
+          (event) =>
+            event.sequence > attempt.sequence &&
+            safeString(event.data.call_id) === callId &&
+            ["tool.completed", "tool.failed", "tool.refused"].includes(
+              event.kind,
+            ),
+        );
+    const toolName =
+      safeString(attempt.data.tool) ||
+      (isComputerHandoff ? "computer.start_task" : "Tool");
     const exactArgs =
       attempt.data.arguments &&
       typeof attempt.data.arguments === "object" &&
       !Array.isArray(attempt.data.arguments)
         ? (attempt.data.arguments as Record<string, unknown>)
-        : {};
+        : isComputerHandoff
+          ? { task: safeString(attempt.data.task) }
+          : {};
+    const selectedBy = selectedByReceipt(attempt.data.selected_by);
     const approval =
       safeString(run.pending_approval?.approval_id) === callId
         ? run.pending_approval
         : null;
     const failed = outcome?.kind === "tool.failed";
     const refused = outcome?.kind === "tool.refused";
-    const result =
-      outcome == null
+    const result = isComputerHandoff
+      ? {
+          status: "accepted",
+          control: "managed",
+        }
+      : outcome == null
         ? undefined
         : failed
           ? {
@@ -603,7 +632,12 @@ const assistantToolParts = (
       type: "tool-call" as const,
       toolCallId: `${run.run_id}:${callId}`,
       toolName,
-      args: exactArgs as never,
+      args: {
+        ...exactArgs,
+        ...(selectedBy
+          ? { __receipt: { selected_by: selectedBy } }
+          : {}),
+      } as never,
       argsText: JSON.stringify(exactArgs, null, 2),
       result,
       isError: failed,

@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { harnessEventStream } from "@/lib/harness-api";
+import {
+  clearStoredToken,
+  harnessEventStream,
+  readStoredToken,
+  storeToken,
+} from "@/lib/harness-api";
 
 const encoder = new TextEncoder();
 
@@ -19,6 +24,35 @@ const streamResponse = (...chunks: string[]) =>
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
+
+describe("workspace token storage", () => {
+  it("keeps connection flow usable when session storage is unavailable", () => {
+    vi.stubGlobal("sessionStorage", undefined);
+
+    expect(readStoredToken()).toBe("");
+    expect(() => storeToken("workspace-secret")).not.toThrow();
+    expect(() => clearStoredToken()).not.toThrow();
+  });
+
+  it("keeps connection flow usable when browser storage throws", () => {
+    vi.stubGlobal("sessionStorage", {
+      getItem: () => {
+        throw new DOMException("Storage blocked", "SecurityError");
+      },
+      setItem: () => {
+        throw new DOMException("Storage blocked", "SecurityError");
+      },
+      removeItem: () => {
+        throw new DOMException("Storage blocked", "SecurityError");
+      },
+    });
+
+    expect(readStoredToken()).toBe("");
+    expect(() => storeToken("workspace-secret")).not.toThrow();
+    expect(() => clearStoredToken()).not.toThrow();
+  });
 });
 
 describe("harnessEventStream", () => {

@@ -211,6 +211,14 @@ async def test_read_only_tool_is_visible_and_old_result_is_not_replayed_next_tur
     event_kinds = [event.kind for event in second.events]
     assert "tool.started" in event_kinds
     assert "tool.completed" in event_kinds
+    started = next(
+        event for event in second.events if event.kind == "tool.started"
+    )
+    assert started.data["selected_by"] == {
+        "provider": "scripted-assistant",
+        "model": "scripted-chat-v1",
+        "latency_ms": None,
+    }
     assert "https://example.test" not in provider.requests[-1].prompt
     provider_schema = provider.requests[0].output_schema
     wire_tool = provider_schema["$defs"]["_ProviderAssistantToolCall"]
@@ -373,6 +381,46 @@ async def test_computer_handoff_preserves_the_exact_bounded_task() -> None:
     ]
     assert completed.conversation[-1].content == (
         "I’ll use the computer for the spreadsheet."
+    )
+    handoff = next(
+        event
+        for event in completed.events
+        if event.kind == "assistant.computer_handoff"
+    )
+    assert handoff.data["tool"] == "computer.start_task"
+    assert handoff.data["arguments"] == {
+        "task": "Create a quarterly earnings spreadsheet in the open workbook."
+    }
+    assert handoff.data["selected_by"] == {
+        "provider": "scripted-assistant",
+        "model": "scripted-chat-v1",
+        "latency_ms": None,
+    }
+
+
+@pytest.mark.asyncio
+async def test_computer_handoff_is_visible_even_without_model_prose() -> None:
+    harness, _, computer, _ = assistant_harness(
+        [
+            {
+                "outcome": "computer",
+                "computer_task": "Inspect the connected screen.",
+            }
+        ]
+    )
+
+    created = await harness.create("What is on the screen?")
+    completed = await harness.continue_run(created.run_id)
+
+    assert computer.activated == [
+        (created.run_id, "Inspect the connected screen.")
+    ]
+    assert completed.conversation[-1].content == (
+        "I’ll use the managed computer for this."
+    )
+    assert any(
+        event.kind == "assistant.computer_handoff"
+        for event in completed.events
     )
 
 

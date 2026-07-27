@@ -3,7 +3,10 @@
 import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ToolFallbackApproval } from "@/components/assistant-ui/tool-fallback";
+import {
+  ToolFallbackApproval,
+  ToolFallbackAttribution,
+} from "@/components/assistant-ui/tool-fallback";
 
 afterEach(cleanup);
 
@@ -68,5 +71,24 @@ describe("ToolFallbackApproval", () => {
     expect(respond).toHaveBeenCalledOnce();
     expect(respond).toHaveBeenCalledWith({ optionId: "reject" });
     expect(screen.queryByText("Allow mail.send?")).toBeNull();
+  });
+});
+
+describe("ToolFallbackAttribution", () => {
+  it("shows the model that selected a capability without turning it into telemetry", () => {
+    render(
+      <ToolFallbackAttribution
+        selectedBy={{
+          provider: "claude-account",
+          model: "claude-opus-4-8",
+          latencyMs: 5188,
+        }}
+      />,
+    );
+
+    expect(screen.getByText("Selected by")).toBeVisible();
+    expect(screen.getByText("claude-opus-4-8")).toBeVisible();
+    expect(screen.getByText("claude-account")).toBeVisible();
+    expect(screen.getByText("· 5.1s")).toBeVisible();
   });
 });
