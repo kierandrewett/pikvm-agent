@@ -416,7 +416,11 @@ class WatchedTyper:
         dims: tuple[int, int],
     ) -> Region | None:
         """Ground an OCR line containing the just-typed text, case-insensitively."""
-        needle = intended.casefold()
+        # Word-boundary chunks commonly end in a space. OCR omits that invisible
+        # boundary and may render the adjacent caret as punctuation, so retain
+        # the exact visible characters while excluding only outer whitespace
+        # from this localisation probe.
+        needle = intended.strip().casefold()
         width, height = dims
         if not needle or width <= 0 or height <= 0:
             return None

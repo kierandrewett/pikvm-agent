@@ -240,6 +240,29 @@ def test_focus_change_guard_declines_unknown_screen_dimensions() -> None:
     )
 
 
+def test_ocr_localization_ignores_chunk_boundary_space_before_caret() -> None:
+    typer = WatchedTyper(FakeBackend(), ScriptedOCR())
+    result = OCRResult(
+        lines=[
+            OCRLine(
+                text="The consequence}",
+                confidence=0.96,
+                bbox=[448, 449, 516, 462],
+            )
+        ]
+    )
+
+    region = typer._locate_ocr_candidate(  # noqa: SLF001 - locator regression
+        result,
+        "The consequence ",
+        (1280, 720),
+    )
+
+    assert region is not None
+    assert region.x == 440
+    assert region.y == 441
+
+
 # --------------------------------------------------------------------------- #
 # fast print path
 # --------------------------------------------------------------------------- #
