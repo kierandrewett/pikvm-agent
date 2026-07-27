@@ -1835,6 +1835,56 @@ async def test_action_event_exposes_only_bounded_input_readback_receipts() -> No
     ]
     assert "private_path" not in repr(event.data["input_receipts"])
     assert "unknown" not in repr(event.data["input_receipts"])
+    assert harness._recent_input_delivery(completed) == [
+        {
+            "action_index": 0,
+            "input_index": 0,
+            "status": "verified_exact",
+            "typed_characters": 11,
+            "intended_characters": 11,
+            "delivery_complete": True,
+            "read_back_exact": True,
+            "read_back_available": True,
+        }
+    ]
+
+
+def test_recent_input_delivery_distinguishes_transport_from_screen_proof() -> None:
+    run = RunSnapshot(
+        run_id="invisible-whitespace-receipt",
+        task="Replace two spaces with one",
+        status=RunStatus.PAUSED,
+    )
+    run.record(
+        "action.completed_unverified",
+        index=4,
+        input_receipts=[
+            {
+                "index": 0,
+                "status": "unverified_ambiguous",
+                "typed_characters": 2,
+                "intended_characters": 2,
+                "intended_sha256": "a" * 64,
+                "acknowledged_prefix_sha256": "a" * 64,
+                "observed_sha256": "b" * 64,
+                "exact_sha256_match": False,
+                "observed_text": "",
+            }
+        ],
+    )
+
+    assert AgentHarness._recent_input_delivery(run) == [
+        {
+            "action_index": 4,
+            "input_index": 0,
+            "status": "unverified_ambiguous",
+            "typed_characters": 2,
+            "intended_characters": 2,
+            "delivery_complete": True,
+            "read_back_exact": False,
+            "read_back_available": False,
+        }
+    ]
 
 
 def test_secret_input_receipt_is_redacted_again_at_harness_boundary() -> None:
