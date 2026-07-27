@@ -40,8 +40,19 @@ describe("useHarnessWorkspace authentication boundary", () => {
             ]),
           );
         }
-        if (url === "/api/providers" || url === "/api/provider-catalog") {
-          return Promise.resolve(jsonResponse(url.endsWith("catalog") ? [] : {}));
+        if (
+          url === "/api/providers" ||
+          url === "/api/provider-catalog" ||
+          url === "/api/tools" ||
+          url === "/api/tool-servers"
+        ) {
+          return Promise.resolve(
+            jsonResponse(
+              url === "/api/providers" || url === "/api/tool-servers"
+                ? {}
+                : [],
+            ),
+          );
         }
         if (url === "/api/runs/legacy-run") {
           return Promise.resolve(

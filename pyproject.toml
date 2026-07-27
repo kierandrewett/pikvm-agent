@@ -26,6 +26,7 @@ dependencies = [
   "langgraph-checkpoint-sqlite>=2",
   "aiosqlite>=0.20",
   "mcp[cli]>=1.2",
+  "ddgs[mcp]>=9.14,<10",
   "python-multipart>=0.0.9",
   "rich>=13",
   "typer>=0.12",

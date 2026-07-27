@@ -158,6 +158,21 @@ routes:
   controller: ["model-gateway-fast", "openai-native", "gemini", "gemini-account", "codex-account"]
   verifier: ["gemini", "openai-native", "anthropic", "gemini-account", "codex-account"]
 
+# Normal assistant capabilities are independent from PiKVM. Every MCP tool is
+# namespaced as <server>.<tool> in the model prompt and visible chat trace.
+# Nothing is exposed without allowed_tools. Only locally reviewed
+# read_only_tools run automatically; every other call stops for exact operator
+# approval.
+assistant_tools:
+  web:
+    transport: "stdio"
+    command: "ddgs"
+    args: ["mcp"]
+    inherited_env: ["PATH", "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY"]
+    allowed_tools: ["search_text", "search_news", "extract_content"]
+    read_only_tools: ["search_text", "search_news", "extract_content"]
+    timeout_s: 30
+
 # Every real provider attempt, including fallback and schema repair, consumes
 # this durable run budget before the provider is called.
 model_budget:

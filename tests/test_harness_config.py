@@ -6,6 +6,7 @@ import pytest
 
 from pikvm_agent.harness.config import (
     HarnessSettings,
+    McpToolServerSpec,
     build_model_budget_policy,
     build_model_pool,
     check_provider_prerequisites,
@@ -215,6 +216,53 @@ routes:
         pool.health()["claude-oauth"]["conformance_status"]
         == "not-run"
     )
+
+
+def test_assistant_mcp_tools_require_an_explicit_allow_list() -> None:
+    with pytest.raises(ValueError, match="allowed_tools"):
+        McpToolServerSpec(
+            command="example-mcp",
+        )
+
+    with pytest.raises(ValueError, match="read_only_tools"):
+        McpToolServerSpec(
+            command="example-mcp",
+            allowed_tools=["search"],
+            read_only_tools=["send"],
+        )
+
+    configured = McpToolServerSpec(
+        command="example-mcp",
+        allowed_tools=["search", "send"],
+        read_only_tools=["search"],
+    )
+
+    assert configured.allowed_tools == ["search", "send"]
+    assert configured.read_only_tools == ["search"]
+
+
+def test_assistant_mcp_server_namespace_cannot_collide_with_tool_separator() -> None:
+    with pytest.raises(ValueError, match="server names"):
+        HarnessSettings(
+            providers={
+                "model": {
+                    "kind": "openai_responses",
+                    "model": "model",
+                    "api_key_env": "TEST_MODEL_KEY",
+                }
+            },
+            routes={
+                "reasoner": ["model"],
+                "controller": ["model"],
+                "verifier": ["model"],
+            },
+            assistant_tools={
+                "bad.name": {
+                    "command": "example-mcp",
+                    "allowed_tools": ["search"],
+                }
+            },
+        )
 
 
 def test_azure_responses_factory_supports_api_key_and_cli_owned_oauth(

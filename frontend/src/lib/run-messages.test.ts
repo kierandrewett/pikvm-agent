@@ -62,6 +62,290 @@ const run = (overrides: Partial<RunSnapshot> = {}): RunSnapshot => ({
 });
 
 describe("messagesForRun", () => {
+  it("renders durable assistant conversation turns instead of treating chat as one computer task", () => {
+    const messages = messagesForRun(
+      run({
+        mode: "assistant",
+        status: "completed",
+        conversation: [
+          {
+            message_id: "user-1",
+            role: "user",
+            content: "What are quarterly earnings?",
+            created_at: "2026-07-27T12:00:00Z",
+            event_cursor: 1,
+          },
+          {
+            message_id: "assistant-1",
+            role: "assistant",
+            content: "Results published every three months.",
+            created_at: "2026-07-27T12:00:01Z",
+            event_cursor: 3,
+          },
+          {
+            message_id: "user-2",
+            role: "user",
+            content: "Explain fiscal quarters too.",
+            created_at: "2026-07-27T12:00:02Z",
+            event_cursor: 4,
+          },
+          {
+            message_id: "assistant-2",
+            role: "assistant",
+            content: "A fiscal year can start in any month.",
+            created_at: "2026-07-27T12:00:03Z",
+            event_cursor: 6,
+          },
+        ],
+        events: [],
+      }),
+    );
+
+    expect(messages.map((message) => message.content)).toEqual([
+      "What are quarterly earnings?",
+      "Results published every three months.",
+      "Explain fiscal quarters too.",
+      "A fiscal year can start in any month.",
+    ]);
+  });
+
+  it("shows a general MCP tool call, exact arguments, result, and approval inline", () => {
+    const snapshot = run({
+      mode: "assistant",
+      status: "needs_approval",
+      conversation: [
+        {
+          message_id: "user-1",
+          role: "user",
+          content: "Send this email",
+          created_at: "2026-07-27T12:00:00Z",
+          event_cursor: 1,
+        },
+      ],
+      pending_approval: {
+        kind: "assistant_tool",
+        approval_id: "approval-mail",
+        tool: "mail.send",
+        arguments: { to: "person@example.test", body: "Hello" },
+        risk: "side_effect",
+        reason: "This external tool may change state.",
+      },
+      events: [
+        {
+          sequence: 2,
+          at: "2026-07-27T12:00:01Z",
+          kind: "tool.approval_required",
+          data: {
+            call_id: "approval-mail",
+            tool: "mail.send",
+            arguments: { to: "person@example.test", body: "Hello" },
+            risk: "side_effect",
+          },
+        },
+      ],
+    });
+    const assistant = messagesForRun(snapshot).at(-1);
+    const tool = Array.isArray(assistant?.content)
+      ? assistant.content.find((part) => part.type === "tool-call")
+      : undefined;
+
+    expect(tool).toMatchObject({
+      type: "tool-call",
+      toolName: "mail.send",
+      args: { to: "person@example.test", body: "Hello" },
+      argsText: JSON.stringify(
+        { to: "person@example.test", body: "Hello" },
+        null,
+        2,
+      ),
+      approval: {
+        id: "approval-mail",
+        options: [
+          { kind: "allow-once", label: "Allow once" },
+          { kind: "reject-once", label: "Deny" },
+        ],
+      },
+    });
+    expect(assistant?.status).toEqual({
+      type: "requires-action",
+      reason: "tool-calls",
+    });
+  });
+
+  it("keeps completed general tool evidence in the assistant turn that used it", () => {
+    const messages = messagesForRun(
+      run({
+        mode: "assistant",
+        status: "completed",
+        conversation: [
+          {
+            message_id: "user-1",
+            role: "user",
+            content: "Find the source",
+            created_at: "2026-07-27T12:00:00Z",
+            event_cursor: 1,
+          },
+          {
+            message_id: "assistant-1",
+            role: "assistant",
+            content: "The source is available.",
+            created_at: "2026-07-27T12:00:03Z",
+            event_cursor: 5,
+          },
+          {
+            message_id: "user-2",
+            role: "user",
+            content: "Now answer without a tool",
+            created_at: "2026-07-27T12:00:04Z",
+            event_cursor: 6,
+          },
+          {
+            message_id: "assistant-2",
+            role: "assistant",
+            content: "This answer used no tool.",
+            created_at: "2026-07-27T12:00:05Z",
+            event_cursor: 8,
+          },
+        ],
+        events: [
+          {
+            sequence: 2,
+            at: "2026-07-27T12:00:01Z",
+            kind: "tool.started",
+            data: {
+              call_id: "search-1",
+              tool: "web.search",
+              arguments: { query: "source" },
+            },
+          },
+          {
+            sequence: 3,
+            at: "2026-07-27T12:00:02Z",
+            kind: "tool.completed",
+            data: {
+              call_id: "search-1",
+              tool: "web.search",
+              content: '{"url":"https://example.test"}',
+            },
+          },
+        ],
+      }),
+    );
+    const firstAssistant = messages[1];
+    const secondAssistant = messages[3];
+
+    expect(firstAssistant?.content).toEqual([
+      expect.objectContaining({
+        type: "tool-call",
+        toolName: "web.search",
+        args: { query: "source" },
+        result: '{"url":"https://example.test"}',
+      }),
+      { type: "text", text: "The source is available." },
+    ]);
+    expect(JSON.stringify(secondAssistant?.content)).not.toContain("web.search");
+  });
+
+  it("renders ordinary assistant conversation without a computer tool card", () => {
+    const messages = messagesForRun(
+      run({
+        task: "hi",
+        mode: "assistant",
+        status: "completed",
+        session_id: null,
+        conversation: [
+          {
+            message_id: "user-1",
+            role: "user",
+            content: "hi",
+            created_at: "2026-07-27T12:00:00Z",
+          },
+          {
+            message_id: "assistant-1",
+            role: "assistant",
+            content: "Hi! How can I help?",
+            created_at: "2026-07-27T12:00:01Z",
+          },
+        ],
+        events: [],
+        event_count: 0,
+        event_cursor: 0,
+      }),
+    );
+
+    expect(messages).toHaveLength(2);
+    expect(messages[0]?.content).toBe("hi");
+    expect(messages[1]?.content).toBe("Hi! How can I help?");
+  });
+
+  it("keeps one in-progress reply across streamed event updates", () => {
+    const conversation = [
+      {
+        message_id: "user-turn-1",
+        role: "user" as const,
+        content: "what is on the screen",
+        created_at: "2026-07-27T12:00:00Z",
+        event_cursor: 0,
+      },
+    ];
+    const before = run({
+      task: "what is on the screen",
+      mode: "assistant",
+      status: "running",
+      conversation,
+      events: [],
+      event_count: 1,
+      event_cursor: 1,
+    });
+    const after = run({
+      ...before,
+      events: [
+        {
+          sequence: 2,
+          at: "2026-07-27T12:00:01Z",
+          kind: "model.provider_started",
+          data: { role: "assistant", provider: "claude-account" },
+        },
+      ],
+      event_count: 2,
+      event_cursor: 2,
+    });
+
+    expect(messagesForRun(before).at(-1)?.id).toBe(
+      "run-1:assistant:reply-to:user-turn-1",
+    );
+    expect(messagesForRun(after).at(-1)?.id).toBe(
+      messagesForRun(before).at(-1)?.id,
+    );
+  });
+
+  it("shows a paused assistant turn as incomplete instead of a blank success", () => {
+    const assistant = messagesForRun(
+      run({
+        task: "research the latest release",
+        mode: "assistant",
+        status: "paused",
+        error: "assistant tool-round limit reached",
+        conversation: [
+          {
+            message_id: "user-turn-1",
+            role: "user",
+            content: "research the latest release",
+            created_at: "2026-07-27T12:00:00Z",
+            event_cursor: 0,
+          },
+        ],
+        events: [],
+      }),
+    ).at(-1);
+
+    expect(assistant?.status).toEqual({
+      type: "incomplete",
+      reason: "error",
+      error: "assistant tool-round limit reached",
+    });
+  });
+
   it("removes verifier mechanics and bounds legacy completion walls", () => {
     const summary = userFacingCompletionSummary(
       "The before/after comparison image shows two pixel-equivalent frames: " +

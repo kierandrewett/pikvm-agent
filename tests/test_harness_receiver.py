@@ -69,6 +69,7 @@ def test_receiver_serves_artifact_and_accepts_authenticated_snapshot(tmp_path) -
         "guest_fingerprint": "guest:0123456789abcdef",
         "guest_session_id": 2,
         "input_desktop": "Default",
+        "observer_process_id": None,
     }
     assert "guest_computer_name" not in type(latest).model_fields
     assert client.get("/latest").status_code == 404

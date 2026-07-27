@@ -21,6 +21,7 @@ from pydantic import (
 )
 
 ModelRole = Literal["reasoner", "controller", "verifier"]
+RunMode = Literal["assistant", "computer"]
 ProviderAlias = Annotated[
     str,
     Field(pattern=r"^[A-Za-z0-9_.:-]{1,128}$"),
@@ -276,6 +277,53 @@ class StrictModelDecision(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class AssistantToolCall(StrictModelDecision):
+    """One host-validated capability request from the conversational model."""
+
+    name: str = Field(pattern=r"^[A-Za-z0-9_.:-]{1,200}$")
+    arguments: dict[str, Any] = Field(default_factory=dict)
+
+
+class AssistantDecision(StrictModelDecision):
+    """Normal chat reply, visible tool request, or explicit computer hand-off."""
+
+    outcome: Literal["reply", "tool", "computer"]
+    message: str = Field(default="", max_length=40_000)
+    tool_call: AssistantToolCall | None = None
+    computer_task: str | None = Field(default=None, max_length=20_000)
+
+    @model_validator(mode="after")
+    def payload_matches_outcome(self) -> "AssistantDecision":
+        if self.outcome == "reply":
+            if not self.message.strip():
+                raise ValueError("reply outcome requires a message")
+            if self.tool_call is not None or self.computer_task is not None:
+                raise ValueError("reply outcome cannot include a capability request")
+        elif self.outcome == "tool":
+            if self.tool_call is None:
+                raise ValueError("tool outcome requires tool_call")
+            if self.computer_task is not None:
+                raise ValueError("tool outcome cannot include computer_task")
+        else:
+            if not (self.computer_task or "").strip():
+                raise ValueError("computer outcome requires computer_task")
+            if self.tool_call is not None:
+                raise ValueError("computer outcome cannot include tool_call")
+        return self
+
+
+class ConversationMessage(BaseModel):
+    """Durable user-visible text in a normal assistant conversation."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    message_id: str = Field(min_length=1, max_length=200)
+    role: Literal["user", "assistant"]
+    content: str = Field(min_length=1, max_length=40_000)
+    created_at: datetime = Field(default_factory=utc_now)
+    event_cursor: int = Field(default=0, ge=0)
+
+
 class PlanDecision(StrictModelDecision):
     summary: str
     steps: list[str] = Field(min_length=1, max_length=30)
@@ -488,6 +536,10 @@ _TOOL_ACTIVITY_CLOSED = {
     "action.recoverable_failure",
     "approval.required",
     "target.identity_changed",
+    "tool.completed",
+    "tool.failed",
+    "tool.refused",
+    "tool.approval_required",
 }
 _RUN_ACTIVITY_CLOSED = {
     "run.paused",
@@ -505,6 +557,8 @@ class RunSnapshot(BaseModel):
     run_id: str
     task: str
     status: RunStatus
+    mode: RunMode = "computer"
+    computer_task: str | None = Field(default=None, max_length=20_000)
     origin: Literal["managed", "direct_mcp"] = "managed"
     model_provider: str | None = Field(
         default=None,
@@ -517,6 +571,10 @@ class RunSnapshot(BaseModel):
     session_id: str | None = None
     plan: PlanDecision | None = None
     operator_guidance: list[str] = Field(default_factory=list, max_length=20)
+    conversation: list[ConversationMessage] = Field(
+        default_factory=list,
+        max_length=200,
+    )
     observation: ComputerObservation | None = None
     pending_action: PendingAction | None = None
     pending_approval: dict[str, Any] | None = None
@@ -585,6 +643,18 @@ class RunSnapshot(BaseModel):
                     else {}
                 ),
             )
+        elif kind == "tool.started":
+            self.active_activity = CurrentActivity(
+                kind="tool",
+                started_at=event.at,
+                tool=str(data.get("tool") or "Tool"),
+                call_id=str(data.get("call_id") or "") or None,
+                arguments=(
+                    dict(data["arguments"])
+                    if isinstance(data.get("arguments"), dict)
+                    else {}
+                ),
+            )
         elif kind in _MODEL_ACTIVITY_CLOSED:
             activity = self.active_activity
             if (
@@ -645,6 +715,7 @@ class RunSummary(BaseModel):
     run_id: str
     task: str
     status: RunStatus
+    mode: RunMode = "computer"
     origin: Literal["managed", "direct_mcp"] = "managed"
     model_provider: str | None = None
     model_route: RunModelRoute | None = None
@@ -670,6 +741,7 @@ class RunSummary(BaseModel):
             run_id=run.run_id,
             task=run.task,
             status=run.status,
+            mode=run.mode,
             origin=run.origin,
             model_provider=run.model_provider,
             model_route=run.model_route,

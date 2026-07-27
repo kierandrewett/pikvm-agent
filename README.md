@@ -39,19 +39,27 @@ decisions:
 ## Architecture
 
 ```text
-Operator UI / high-level MCP client
-  → Managed AgentHarness
-      reason → one bounded action → verify → recover / finish
-        → private raw MCP child
-          → guarded PiKVM Agent Daemon
-            → runtime-selected PiKVM or VNC adapter
+Chat UI
+  → AssistantHarness
+      answer normally / use one visible MCP tool
+      or explicitly hand off a computer task
+        → Managed AgentHarness
+            reason → one bounded action → verify → recover / finish
+              → private raw MCP child
+                → guarded PiKVM Agent Daemon
+                  → runtime-selected PiKVM or VNC adapter
 ```
 
-The managed harness is the default product loop and exposes only five
-high-level task controls to coding clients. The **daemon** remains the
-authoritative machine boundary for sessions, frame state, policy, approvals,
-and execution. Raw tools are private to the harness; guarded direct MCP is an
-explicit compatibility mode.
+The desktop app is a normal chat agent first. Greetings, questions, writing,
+code, and research do not acquire a computer session. Every non-computer tool
+call appears inline; only a locally reviewed read-only allow-list can run
+without approval. When the user actually asks to view or operate the computer,
+the assistant hands the exact task to the managed reason-act-verify loop.
+
+The managed computer harness exposes only five high-level task controls to
+coding clients. The **daemon** remains the authoritative machine boundary for
+sessions, frame state, policy, approvals, and execution. Raw tools are private
+to the harness; guarded direct MCP is an explicit compatibility mode.
 
 ## Install
 
@@ -154,8 +162,9 @@ quiesced, and prints the safe machine alias and fingerprint it stopped.
 
 ```bash
 # Auto-detect logged-in Codex/Claude CLIs and a configured dedicated Gemini
-# profile, then write a secret-free config.
+# profile, add packaged read-only web research, then write a secret-free config.
 pikvm-agent harness init --out config.harness.yaml
+# Use --no-web-search for a computer-only/offline installation.
 
 # Gemini CLI OAuth requires an isolated profile root. First choose an absolute
 # path, export its name below, and log in with that profile:
@@ -228,6 +237,16 @@ exact/schema/latency result. Direct-client model metadata is
 labelled launcher-declared because MCP does not provide an independently
 verifiable model identity. “Prerequisites present” is deliberately not
 presented as proof of working authentication.
+
+Normal assistant tools use the standard MCP Python SDK over persistent stdio or
+Streamable HTTP sessions. Tools are namespaced as `<server>.<tool>`, must be on
+an explicit local allow-list, and never inherit auto-execution authority from a
+remote server's annotations. `harness init` enables DDGS search, news, and page
+extraction as reviewed read-only tools; additional MCP servers can be declared
+under `assistant_tools`. Header values and child-process credentials are
+inherited by environment-variable name and are not written to configuration or
+returned by the UI. Any tool not on the local `read_only_tools` list pauses for
+an exact browser approval showing its arguments before execution.
 
 Compare configured OAuth and API routes against identical seeded pixels and
 one strict schema without opening any computer target:

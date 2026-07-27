@@ -27,6 +27,7 @@ from pikvm_agent.harness.api import (
     _visible_run,
     create_harness_app,
 )
+from pikvm_agent.harness.general_tools import ToolDescriptor
 
 TEST_ACCESS_TOKEN = "test-harness-token-0123456789abcdef"
 TEST_AGENT_TOKEN = "test-agent-token-000123456789abcdef"
@@ -106,6 +107,64 @@ class StubHarness:
         self.calls.append(("abort", run_id, reason))
         run = await self.store.get(run_id)
         run.status = RunStatus.ABORTED
+        await self.store.save(run)
+        return run
+
+
+class StubAssistant:
+    def __init__(self, store: InMemoryRunStore) -> None:
+        self.store = store
+        self.calls: list[tuple[str, Any]] = []
+
+    async def create(
+        self,
+        task: str,
+        *,
+        caller: dict[str, Any] | None = None,
+        model_provider: str | None = None,
+        model_route: RunModelRoute | None = None,
+    ) -> RunSnapshot:
+        self.calls.append(("create", task))
+        run = RunSnapshot(
+            run_id="chat_1",
+            task=task,
+            mode="assistant",
+            status=RunStatus.PLANNING,
+            caller=dict(caller or {}),
+            model_provider=model_provider,
+            model_route=model_route,
+        )
+        run.record("run.created", mode="assistant")
+        await self.store.save(run)
+        return run
+
+    async def catalog(self) -> list[ToolDescriptor]:
+        return [
+            ToolDescriptor(
+                name="web.search_text",
+                title="Search",
+                description="Search the web.",
+                input_schema={"type": "object"},
+                read_only=True,
+                open_world=True,
+            )
+        ]
+
+    def tool_health(self) -> dict[str, dict[str, object]]:
+        return {
+            "web": {
+                "ready": True,
+                "tools": 1,
+                "error": None,
+            }
+        }
+
+    async def steer(self, run_id: str, instruction: str) -> RunSnapshot:
+        self.calls.append(("steer", run_id, instruction))
+        run = await self.store.get_control(run_id)
+        run.mode = "assistant"
+        run.status = RunStatus.PLANNING
+        run.record("assistant.message_received")
         await self.store.save(run)
         return run
 
@@ -210,6 +269,109 @@ async def test_agent_created_run_preserves_managed_client_identity(
         "label": "codex-cli",
     }
     assert (await store.get("run_1")).caller == response.json()["caller"]
+
+
+@pytest.mark.asyncio
+async def test_chat_workspace_creates_assistant_run_without_opening_computer(
+    tmp_path: Path,
+) -> None:
+    frame = tmp_path / "frame.jpg"
+    frame.write_bytes(b"frame")
+    store = InMemoryRunStore()
+    computer = StubHarness(store, frame)
+    assistant = StubAssistant(store)
+    app = create_harness_app(
+        harness=computer,  # type: ignore[arg-type]
+        assistant=assistant,  # type: ignore[arg-type]
+        store=store,
+        models=StubModels(),
+        access_token=TEST_ACCESS_TOKEN,
+        allowed_origins={"http://harness"},
+    )
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app),
+        base_url="http://harness",
+        headers={"authorization": f"Bearer {TEST_ACCESS_TOKEN}"},
+    ) as client:
+        created = await client.post(
+            "/api/runs",
+            json={
+                "task": "hi",
+                "mode": "assistant",
+                "auto_start": False,
+                "source_client": "chat-workspace",
+            },
+        )
+        tools = await client.get("/api/tools")
+        tool_servers = await client.get("/api/tool-servers")
+
+    assert created.status_code == 200
+    assert created.json()["mode"] == "assistant"
+    assert created.json()["session_id"] is None
+    assert assistant.calls == [("create", "hi")]
+    assert tools.json()[0]["name"] == "web.search_text"
+    assert tool_servers.json() == {
+        "web": {
+            "ready": True,
+            "tools": 1,
+            "error": None,
+        }
+    }
+
+
+@pytest.mark.asyncio
+async def test_completed_computer_handoff_routes_follow_up_back_to_assistant(
+    tmp_path: Path,
+) -> None:
+    frame = tmp_path / "frame.jpg"
+    frame.write_bytes(b"frame")
+    store = InMemoryRunStore()
+    computer = StubHarness(store, frame)
+    assistant = StubAssistant(store)
+    run = RunSnapshot(
+        run_id="chat-computer-complete",
+        task="Create the workbook",
+        mode="computer",
+        status=RunStatus.COMPLETED,
+        session_id="s_1",
+        conversation=[
+            {
+                "message_id": "user-1",
+                "role": "user",
+                "content": "Create the workbook",
+                "event_cursor": 1,
+            }
+        ],
+    )
+    await store.save(run)
+    app = create_harness_app(
+        harness=computer,  # type: ignore[arg-type]
+        assistant=assistant,  # type: ignore[arg-type]
+        store=store,
+        models=StubModels(),
+        access_token=TEST_ACCESS_TOKEN,
+        allowed_origins={"http://harness"},
+    )
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app),
+        base_url="http://harness",
+        headers={"authorization": f"Bearer {TEST_ACCESS_TOKEN}"},
+    ) as client:
+        response = await client.post(
+            f"/api/runs/{run.run_id}/steer",
+            json={
+                "instruction": "What did you create?",
+                "auto_resume": False,
+            },
+        )
+
+    assert response.status_code == 200
+    assert response.json()["mode"] == "assistant"
+    assert assistant.calls == [
+        ("steer", run.run_id, "What did you create?")
+    ]
 
 
 @pytest.mark.asyncio

@@ -27,6 +27,7 @@ def build_initial_harness_settings(
     executable_lookup: ExecutableLookup = shutil.which,
     environment_lookup: EnvironmentLookup = os.environ.get,
     gemini_cli_home_env: str = "PIKVM_GEMINI_CLI_HOME",
+    web_search: bool = True,
     listen: str = "127.0.0.1:47616",
     openai_model: str | None = None,
     openai_base_url: str | None = None,
@@ -280,6 +281,23 @@ def build_initial_harness_settings(
         ),
         providers,
     )
+    assistant_tools: dict[str, dict[str, object]] = {}
+    if web_search:
+        assistant_tools["web"] = {
+            "transport": "stdio",
+            "command": "ddgs",
+            "args": ["mcp"],
+            "allowed_tools": [
+                "search_text",
+                "search_news",
+                "extract_content",
+            ],
+            "read_only_tools": [
+                "search_text",
+                "search_news",
+                "extract_content",
+            ],
+        }
     return HarnessSettings.model_validate(
         {
             "listen": listen,
@@ -290,6 +308,7 @@ def build_initial_harness_settings(
             "state_path": ".pikvm-harness/state.sqlite3",
             "artifact_dir": ".pikvm-harness/artifacts",
             "providers": providers,
+            "assistant_tools": assistant_tools,
             "routes": {
                 "reasoner": reasoner,
                 "controller": controller,

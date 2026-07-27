@@ -32,6 +32,7 @@ export type RunSummary = {
   run_id: string;
   task: string;
   status: RunStatus;
+  mode?: "assistant" | "computer";
   origin: "managed" | "direct_mcp";
   model_provider?: string | null;
   model_route?: RunModelRoute | null;
@@ -45,6 +46,14 @@ export type RunSummary = {
 };
 
 export type RunSnapshot = RunSummary & {
+  computer_task?: string | null;
+  conversation?: Array<{
+    message_id: string;
+    role: "user" | "assistant";
+    content: string;
+    created_at: string;
+    event_cursor?: number;
+  }>;
   plan?: {
     summary: string;
     steps: string[];
@@ -193,3 +202,22 @@ export type ProviderConnectionResult = {
   configured_not_routed: boolean;
   secret_received: false;
 };
+
+export type AssistantTool = {
+  name: string;
+  title: string;
+  description: string;
+  input_schema: Record<string, unknown>;
+  read_only: boolean;
+  destructive: boolean;
+  open_world: boolean;
+};
+
+export type AssistantToolServerMap = Record<
+  string,
+  {
+    ready: boolean;
+    tools: number;
+    error?: string | null;
+  }
+>;

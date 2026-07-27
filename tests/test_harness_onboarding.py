@@ -29,6 +29,13 @@ def test_auto_onboarding_combines_available_oauth_and_selected_api_routes() -> N
     assert settings.providers["codex-account"].billing is None
     assert settings.model_budget.max_provider_attempts_per_run == 500
     assert settings.providers["openai-api"].api_key_env == "OPENAI_API_KEY"
+    assert list(settings.assistant_tools) == ["web"]
+    assert settings.assistant_tools["web"].command == "ddgs"
+    assert settings.assistant_tools["web"].read_only_tools == [
+        "search_text",
+        "search_news",
+        "extract_content",
+    ]
     assert settings.routes.controller[0] == "openai-api"
     assert settings.routes.reasoner[0] == "anthropic-api"
     assert settings.routes.verifier[0] == "openai-api"
@@ -205,6 +212,16 @@ def test_onboarding_refuses_an_empty_provider_set() -> None:
         assert "no providers" in str(exc)
     else:
         raise AssertionError("empty provider onboarding should fail")
+
+
+def test_onboarding_can_disable_packaged_web_search() -> None:
+    settings = build_initial_harness_settings(
+        oauth_clis="codex",
+        executable_lookup=lambda _name: None,
+        web_search=False,
+    )
+
+    assert settings.assistant_tools == {}
 
 
 def test_harness_init_writes_secret_free_config_without_overwriting(tmp_path) -> None:

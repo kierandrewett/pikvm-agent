@@ -12,6 +12,8 @@ import {
   storeToken,
 } from "@/lib/harness-api";
 import type {
+  AssistantTool,
+  AssistantToolServerMap,
   LiveUpdateStatus,
   ModelPreferences,
   ModelRole,
@@ -62,11 +64,33 @@ export const loadProviderCatalog = async (accessToken: string) => {
   }
 };
 
+export const loadAssistantTools = async (accessToken: string) => {
+  try {
+    return await harnessJson<AssistantTool[]>(accessToken, "/api/tools");
+  } catch (cause) {
+    if (cause instanceof HarnessApiError && cause.status === 404) return [];
+    throw cause;
+  }
+};
+
+export const loadAssistantToolServers = async (accessToken: string) => {
+  try {
+    return await harnessJson<AssistantToolServerMap>(
+      accessToken,
+      "/api/tool-servers",
+    );
+  } catch (cause) {
+    if (cause instanceof HarnessApiError && cause.status === 404) return {};
+    throw cause;
+  }
+};
+
 export const createRunPayload = (
   task: string,
   preferences: ModelPreferences,
 ) => ({
   task,
+  mode: "assistant",
   auto_start: true,
   model_preferences:
     Object.keys(preferences).length > 0 ? preferences : null,
@@ -84,7 +108,7 @@ const messageText = (message: AppendMessage) => {
     .map((part) => part.text)
     .join("\n")
     .trim();
-  if (!text) throw new Error("Enter a task for the computer.");
+  if (!text) throw new Error("Enter a message.");
   return text;
 };
 
@@ -96,6 +120,8 @@ export function useHarnessWorkspace() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedRun, setSelectedRun] = useState<RunSnapshot | null>(null);
   const [providers, setProviders] = useState<ProviderMap>({});
+  const [tools, setTools] = useState<AssistantTool[]>([]);
+  const [toolServers, setToolServers] = useState<AssistantToolServerMap>({});
   const [providerCatalog, setProviderCatalog] = useState<
     ProviderCatalogEntry[]
   >([]);
@@ -128,6 +154,7 @@ export function useHarnessWorkspace() {
           run_id: run.run_id,
           task: run.task,
           status: run.status,
+          mode: run.mode,
           origin: run.origin,
           model_provider: run.model_provider,
           model_route: run.model_route,
@@ -151,11 +178,20 @@ export function useHarnessWorkspace() {
   const refresh = useCallback(
     async (accessToken = token, runId = selectedId) => {
       if (!accessToken) return;
-      const [nextRuns, nextProviders, nextCatalog, nextRun] = await Promise.all(
+      const [
+        nextRuns,
+        nextProviders,
+        nextCatalog,
+        nextTools,
+        nextToolServers,
+        nextRun,
+      ] = await Promise.all(
         [
           harnessJson<RunSummary[]>(accessToken, "/api/runs"),
           harnessJson<ProviderMap>(accessToken, "/api/providers"),
           loadProviderCatalog(accessToken),
+          loadAssistantTools(accessToken),
+          loadAssistantToolServers(accessToken),
           runId ? loadRun(accessToken, runId) : Promise.resolve(null),
         ],
       );
@@ -163,6 +199,8 @@ export function useHarnessWorkspace() {
       setRuns(nextRuns);
       setProviders(nextProviders);
       setProviderCatalog(nextCatalog);
+      setTools(nextTools);
+      setToolServers(nextToolServers);
       if (!runId) setSelectedRun(null);
       setModelPreferences((current) =>
         Object.fromEntries(
@@ -191,10 +229,18 @@ export function useHarnessWorkspace() {
       setLoading(true);
       setError("");
       try {
-        const [nextRuns, nextProviders, nextCatalog] = await Promise.all([
+        const [
+          nextRuns,
+          nextProviders,
+          nextCatalog,
+          nextTools,
+          nextToolServers,
+        ] = await Promise.all([
           harnessJson<RunSummary[]>(accessToken, "/api/runs"),
           harnessJson<ProviderMap>(accessToken, "/api/providers"),
           loadProviderCatalog(accessToken),
+          loadAssistantTools(accessToken),
+          loadAssistantToolServers(accessToken),
         ]);
         if (!mounted.current) return;
         setToken(accessToken);
@@ -202,6 +248,8 @@ export function useHarnessWorkspace() {
         setRuns(nextRuns);
         setProviders(nextProviders);
         setProviderCatalog(nextCatalog);
+        setTools(nextTools);
+        setToolServers(nextToolServers);
         setConnected(true);
         const firstId = nextRuns[0]?.run_id ?? null;
         setSelectedId(firstId);
@@ -377,7 +425,14 @@ export function useHarnessWorkspace() {
       setError("");
       try {
         let run: RunSnapshot;
-        if (selectedRun && ACTIVE_OR_PAUSED.has(selectedRun.status)) {
+        const reusableAssistant =
+          selectedRun != null &&
+          (selectedRun?.conversation?.length ?? 0) > 0 &&
+          !["aborted", "failed", "rejected"].includes(selectedRun.status);
+        if (
+          selectedRun &&
+          (ACTIVE_OR_PAUSED.has(selectedRun.status) || reusableAssistant)
+        ) {
           run = await harnessJson<RunSnapshot>(
             token,
             `/api/runs/${encodeURIComponent(selectedRun.run_id)}/steer`,
@@ -461,6 +516,8 @@ export function useHarnessWorkspace() {
     setRuns([]);
     setProviders({});
     setProviderCatalog([]);
+    setTools([]);
+    setToolServers({});
     setModelPreferences({});
     setSelectedId(null);
     setSelectedRun(null);
@@ -528,6 +585,8 @@ export function useHarnessWorkspace() {
       selectedId,
       selectedRun,
       providers,
+      tools,
+      toolServers,
       providerCatalog,
       connectingProvider,
       modelPreferences,
@@ -557,6 +616,8 @@ export function useHarnessWorkspace() {
       selectedId,
       selectedRun,
       providers,
+      tools,
+      toolServers,
       providerCatalog,
       connectingProvider,
       modelPreferences,

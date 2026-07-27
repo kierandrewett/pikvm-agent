@@ -62,6 +62,7 @@ describe("createRunPayload", () => {
   it("keeps automatic routing explicit without using the legacy all-role pin", () => {
     expect(createRunPayload("Open the report", {})).toEqual({
       task: "Open the report",
+      mode: "assistant",
       auto_start: true,
       model_preferences: null,
       source_client: "chat-workspace",

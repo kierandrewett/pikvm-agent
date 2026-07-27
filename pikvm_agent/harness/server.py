@@ -11,6 +11,7 @@ from fastapi import FastAPI
 from pikvm_agent.harness.agent import AgentHarness
 from pikvm_agent.harness.agent_models import HarnessConfig
 from pikvm_agent.harness.agent_store import SqliteRunStore
+from pikvm_agent.harness.assistant import AssistantHarness
 from pikvm_agent.harness.api import create_harness_app
 from pikvm_agent.harness.config import (
     HarnessSettings,
@@ -25,6 +26,10 @@ from pikvm_agent.harness.mcp_computer import (
     PersistentMcpToolClient,
 )
 from pikvm_agent.harness.live_frames import DaemonLiveFrameSource
+from pikvm_agent.harness.general_tools import (
+    McpServerConnection,
+    McpToolBroker,
+)
 from pikvm_agent.harness.provider_connections import ProviderConnectionManager
 
 
@@ -64,6 +69,31 @@ def build_harness_app(
         ),
         budget_policy=build_model_budget_policy(settings),
     )
+    tool_broker = McpToolBroker(
+        [
+            McpServerConnection(
+                name=name,
+                transport=spec.transport,
+                command=spec.command,
+                args=tuple(spec.args),
+                cwd=spec.cwd,
+                inherited_env=tuple(spec.inherited_env),
+                url=spec.url,
+                header_env=dict(spec.header_env),
+                allowed_tools=frozenset(spec.allowed_tools),
+                read_only_tools=frozenset(spec.read_only_tools),
+                timeout_s=spec.timeout_s,
+            )
+            for name, spec in settings.assistant_tools.items()
+        ]
+    )
+    assistant = AssistantHarness(
+        models=models,
+        store=store,
+        computer=harness,
+        tools=tool_broker,
+        budget_policy=build_model_budget_policy(settings),
+    )
     direct_calls = DirectCallCoordinator(store=store, computer=computer)
     provider_connections = (
         ProviderConnectionManager(
@@ -78,9 +108,11 @@ def build_harness_app(
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> Any:
         await tool_client.start()
+        await tool_broker.start()
         try:
             yield
         finally:
+            await tool_broker.close()
             await tool_client.close()
             await live_frames.aclose()
             for provider in models.providers.values():
@@ -90,6 +122,7 @@ def build_harness_app(
 
     app = create_harness_app(
         harness=harness,
+        assistant=assistant,
         store=store,
         models=models,
         access_token=settings.access_token(),
@@ -103,6 +136,8 @@ def build_harness_app(
         lifespan=lifespan,
     )
     app.state.harness = harness
+    app.state.assistant_harness = assistant
+    app.state.assistant_tools = tool_broker
     app.state.harness_store = store
     app.state.model_pool = models
     app.state.direct_calls = direct_calls

@@ -258,6 +258,66 @@ class AgentHarness:
         await self.store.save(run)
         return run
 
+    async def activate_computer(
+        self,
+        run_id: str,
+        computer_task: str,
+    ) -> RunSnapshot:
+        """Acquire the physical computer only after an assistant requests it."""
+
+        computer_task = computer_task.strip()
+        if not computer_task:
+            raise ValueError("computer task must not be empty")
+        run = await self.store.get_control(run_id)
+        if run.origin != "managed" or run.mode != "assistant":
+            raise ValueError("only an assistant run can activate the computer")
+        if run.pending_approval is not None or run.pending_action is not None:
+            raise ValueError("assistant run is not at a computer hand-off checkpoint")
+        run.mode = "computer"
+        run.computer_task = computer_task
+        run.plan = None
+        run.operator_guidance = []
+        run.last_controller = None
+        run.last_verification = None
+        run.latest_verification_image_path = None
+        run.status = RunStatus.PLANNING
+        run.error = None
+        existing_session_id = run.session_id
+        run.record(
+            "assistant.computer_requested",
+            task=computer_task,
+            reusing_session=existing_session_id is not None,
+        )
+        await self.store.save(run)
+        try:
+            observation = (
+                await self.computer.refresh(session_id=existing_session_id)
+                if existing_session_id is not None
+                else await self.computer.open(computer_task)
+            )
+        except Exception as exc:
+            run.status = RunStatus.FAILED
+            operation = "refresh" if existing_session_id is not None else "open"
+            run.error = f"computer {operation} failed: {exc}"
+            run.record(f"computer.{operation}_failed", error=str(exc))
+            await self.store.save(run)
+            return run
+        run.session_id = observation.session_id
+        run.observation = observation
+        run.status = RunStatus.RUNNING
+        run.record(
+            (
+                "computer.reused"
+                if existing_session_id is not None
+                else "computer.opened"
+            ),
+            session_id=observation.session_id,
+            frame_id=observation.frame_id,
+            world_version=observation.world_version,
+        )
+        await self.store.save(run)
+        return run
+
     async def status(self, run_id: str) -> RunSnapshot:
         return await self.store.get_control(run_id)
 
@@ -1514,7 +1574,7 @@ class AgentHarness:
         image_path: str | None = None,
     ) -> ModelRequest:
         context: dict[str, Any] = {
-            "task": run.task,
+            "task": run.computer_task or run.task,
             "operator_guidance": run.operator_guidance,
             "plan": run.plan.model_dump(mode="json") if run.plan else None,
             "action_index": run.next_action_index,

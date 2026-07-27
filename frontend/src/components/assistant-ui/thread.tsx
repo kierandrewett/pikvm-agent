@@ -210,11 +210,11 @@ const ThreadWelcome: FC = () => {
   return (
     <div className="aui-thread-welcome-root mb-6 flex flex-col items-center px-4 text-center">
       <h1 className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-1 animate-in fill-mode-both text-2xl font-semibold duration-200">
-        What should the computer do?
+        How can I help?
       </h1>
       <p className="text-muted-foreground mt-2 max-w-md text-sm">
-        Describe the outcome you want. The agent will use the managed MCP
-        connection and show each action here.
+        Ask a question, do some research, or describe something you want done
+        on the connected computer.
       </p>
     </div>
   );
@@ -242,12 +242,12 @@ const Composer: FC = () => {
   return (
     <ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col">
       <ComposerPrimitive.AttachmentDropzone render={<div data-slot="aui_composer-shell" className="border-border/60 data-[dragging=true]:border-ring focus-within:border-border dark:border-muted-foreground/15 dark:focus-within:border-muted-foreground/30 flex w-full flex-col gap-2 rounded-(--composer-radius) border bg-(--composer-bg) p-(--composer-padding) shadow-[0_2px_8px_-4px_rgba(0,0,0,0.14)] transition-[border-color,box-shadow] focus-within:shadow-[0_2px_8px_-3px_rgba(0,0,0,0.2)] data-[dragging=true]:border-dashed data-[dragging=true]:bg-[color-mix(in_oklab,var(--color-accent)_50%,var(--color-background))] dark:shadow-none" />}><ComposerAttachments /><ComposerPrimitive.Input
-                      placeholder="Ask the computer to do something"
+                      placeholder="Message PiKVM Agent"
                       className="aui-composer-input caret-primary placeholder:text-muted-foreground/80 max-h-32 min-h-10 w-full resize-none bg-transparent px-2.5 py-1 text-base outline-none"
                       rows={1}
                       autoFocus
                       enterKeyHint="send"
-                      aria-label="Task message"
+                      aria-label="Message"
                     /><ComposerAction /></ComposerPrimitive.AttachmentDropzone>
     </ComposerPrimitive.Root>
   );

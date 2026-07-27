@@ -23,6 +23,7 @@ from PIL import Image, ImageDraw, UnidentifiedImageError
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from pikvm_agent.harness.agent import AgentHarness
+from pikvm_agent.harness.assistant import AssistantHarness
 from pikvm_agent.harness.agent_models import (
     TERMINAL_RUN_STATUSES,
     ArtifactAcceptance,
@@ -85,6 +86,12 @@ def _autonomous_resume_reason(run: RunSnapshot) -> str | None:
     return reason if reason in _AUTONOMOUS_PAUSE_REASONS else None
 
 
+def _continue_after_approval(run: RunSnapshot) -> bool:
+    return (
+        run.mode == "assistant" and run.status is RunStatus.RUNNING
+    ) or _autonomous_resume_reason(run) is not None
+
+
 class HealthSource(Protocol):
     def health(self) -> dict[str, dict[str, object]]: ...
 
@@ -135,6 +142,7 @@ class CreateRunBody(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     task: str = Field(min_length=1, max_length=20_000)
+    mode: Literal["assistant", "computer"] = "computer"
     auto_start: bool = True
     model_provider: str | None = Field(
         default=None,
@@ -381,6 +389,7 @@ class ShutdownSafeStreamingResponse(StreamingResponse):
 def create_harness_app(
     *,
     harness: AgentHarness,
+    assistant: AssistantHarness | None = None,
     store: RunStore,
     models: HealthSource,
     access_token: str,
@@ -471,7 +480,7 @@ def create_harness_app(
                 yield
 
     app = FastAPI(
-        title="PiKVM Operator Harness",
+        title="PiKVM Agent Workspace",
         version="0.1.0",
         lifespan=managed_lifespan,
     )
@@ -492,6 +501,26 @@ def create_harness_app(
 
     def lock_for(run_id: str) -> asyncio.Lock:
         return resolved_run_locks.setdefault(run_id, asyncio.Lock())
+
+    def managed_driver(run: RunSnapshot) -> Any:
+        assistant_thread = (
+            assistant is not None
+            and run.origin == "managed"
+            and bool(run.conversation)
+            and (
+                run.mode == "assistant"
+                or run.status in TERMINAL_RUN_STATUSES
+            )
+        )
+        return assistant if assistant_thread else harness
+
+    async def continue_managed_run(run_id: str) -> RunSnapshot:
+        run = await store.get_state(run_id)
+        if run.mode == "assistant" and assistant is None:
+            raise RuntimeError(
+                "assistant mode is not configured for this harness"
+            )
+        return await managed_driver(run).continue_run(run_id)
 
     async def guarded_continue(run_id: str) -> Any:
         task = asyncio.current_task()
@@ -514,7 +543,7 @@ def create_harness_app(
             try:
                 while True:
                     async with lock_for(run_id):
-                        run = await harness.continue_run(run_id)
+                        run = await continue_managed_run(run_id)
                         resume_reason = _autonomous_resume_reason(run)
                         if resume_reason is None:
                             return run
@@ -578,8 +607,10 @@ def create_harness_app(
         try:
             try:
                 async with lock_for(run_id):
+                    existing = await store.get_state(run_id)
+                    driver = managed_driver(existing)
                     return (
-                        await harness.resolve_approval(
+                        await driver.resolve_approval(
                             run_id,
                             approval_id,
                             decision,
@@ -609,8 +640,7 @@ def create_harness_app(
             )
             if (
                 not cancelled
-                and decision.get("type") == "approve"
-                and _autonomous_resume_reason(run) is not None
+                and _continue_after_approval(run)
             ):
                 schedule(guarded_continue(run_id))
         except Exception as exc:  # noqa: BLE001 - publish async failure durably
@@ -666,6 +696,19 @@ def create_harness_app(
     @app.get("/api/providers")
     async def providers() -> dict[str, dict[str, object]]:
         return models.health()
+
+    @app.get("/api/tools")
+    async def assistant_tool_catalog() -> list[dict[str, Any]]:
+        if assistant is None:
+            return []
+        return [
+            tool.model_dump(mode="json")
+            for tool in await assistant.catalog()
+        ]
+
+    @app.get("/api/tool-servers")
+    async def assistant_tool_server_health() -> dict[str, dict[str, object]]:
+        return assistant.tool_health() if assistant is not None else {}
 
     @app.post(
         "/api/providers",
@@ -774,7 +817,15 @@ def create_harness_app(
             create_options["model_provider"] = body.model_provider
         if model_route is not None:
             create_options["model_route"] = model_route
-        run = await harness.create(body.task, **create_options)
+        if body.mode == "assistant":
+            if assistant is None:
+                raise HTTPException(
+                    503,
+                    "normal assistant mode is not configured",
+                )
+            run = await assistant.create(body.task, **create_options)
+        else:
+            run = await harness.create(body.task, **create_options)
         if body.auto_start and run.status.value not in {
             "failed",
             "aborted",
@@ -1176,7 +1227,11 @@ def create_harness_app(
                 409,
                 "only managed runs can be started by the harness",
             )
-        if run.status is not RunStatus.RUNNING or run.pending_approval:
+        startable = run.status is RunStatus.RUNNING or (
+            run.mode == "assistant"
+            and run.status is RunStatus.PLANNING
+        )
+        if not startable or run.pending_approval:
             raise HTTPException(
                 409,
                 "run is not at a startable checkpoint",
@@ -1204,7 +1259,8 @@ def create_harness_app(
                     )
                 run = await direct_calls.pause(run_id, body.reason)
             else:
-                run = await harness.pause(run_id, body.reason)
+                driver = managed_driver(existing)
+                run = await driver.pause(run_id, body.reason)
         return _visible_run(run)
 
     @app.post("/api/runs/{run_id}/steer")
@@ -1226,7 +1282,8 @@ def create_harness_app(
                     "direct MCP runs remain controlled by their external client",
                 )
             try:
-                run = await harness.steer(run_id, body.instruction)
+                driver = managed_driver(existing)
+                run = await driver.steer(run_id, body.instruction)
             except ValueError as exc:
                 raise HTTPException(409, str(exc)) from exc
         if body.auto_resume:
@@ -1310,8 +1367,7 @@ def create_harness_app(
                     )
         if (
             not cancelled
-            and body.type == "approve"
-            and _autonomous_resume_reason(run) is not None
+            and _continue_after_approval(run)
         ):
             schedule(guarded_continue(run_id))
         return _visible_run(run)
@@ -1331,7 +1387,8 @@ def create_harness_app(
                 except ValueError as exc:
                     raise HTTPException(409, str(exc)) from exc
             else:
-                run = await harness.abort(run_id, body.reason)
+                driver = managed_driver(existing)
+                run = await driver.abort(run_id, body.reason)
             transaction = run.media_transaction
             if (
                 media_transactions is not None
@@ -1588,6 +1645,7 @@ def _visible_run_summary(run: Any) -> dict[str, Any]:
         "run_id": run.run_id,
         "task": run.task,
         "status": run.status.value,
+        "mode": run.mode,
         "origin": run.origin,
         "model_provider": run.model_provider,
         "model_route": (

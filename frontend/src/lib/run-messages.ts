@@ -512,6 +512,98 @@ const toolParts = (run: RunSnapshot) => {
   });
 };
 
+const assistantToolParts = (
+  run: RunSnapshot,
+  events: readonly HarnessEvent[],
+) => {
+  const candidates = events.filter(
+    (event) =>
+      event.kind === "tool.started" ||
+      event.kind === "tool.approval_required",
+  );
+  const calls = new Map<string, HarnessEvent>();
+  for (const event of candidates) {
+    const identity = safeString(event.data.call_id) || String(event.sequence);
+    if (!calls.has(identity)) calls.set(identity, event);
+  }
+  return [...calls.entries()].map(([callId, attempt]) => {
+    const outcome = events.find(
+      (event) =>
+        event.sequence > attempt.sequence &&
+        safeString(event.data.call_id) === callId &&
+        ["tool.completed", "tool.failed", "tool.refused"].includes(event.kind),
+    );
+    const toolName = safeString(attempt.data.tool) || "Tool";
+    const exactArgs =
+      attempt.data.arguments &&
+      typeof attempt.data.arguments === "object" &&
+      !Array.isArray(attempt.data.arguments)
+        ? (attempt.data.arguments as Record<string, unknown>)
+        : {};
+    const approval =
+      safeString(run.pending_approval?.approval_id) === callId
+        ? run.pending_approval
+        : null;
+    const failed = outcome?.kind === "tool.failed";
+    const refused = outcome?.kind === "tool.refused";
+    const result =
+      outcome == null
+        ? undefined
+        : failed
+          ? {
+              status: "failed",
+              error:
+                safeString(outcome.data.error) || "Tool execution failed.",
+            }
+          : refused
+            ? {
+                status: "refused",
+                reason:
+                  safeString(outcome.data.reason) || "Denied by the operator.",
+              }
+            : safeString(outcome.data.content) || {
+                status: "completed",
+              };
+    const risk = safeString(approval?.risk).replaceAll("_", " ");
+    const reason = safeString(approval?.reason);
+    return {
+      type: "tool-call" as const,
+      toolCallId: `${run.run_id}:${callId}`,
+      toolName,
+      args: exactArgs as never,
+      argsText: JSON.stringify(exactArgs, null, 2),
+      result,
+      isError: failed,
+      approval: approval
+        ? {
+            id: callId,
+            options: [
+              {
+                id: "approve",
+                kind: "allow-once" as const,
+                label: "Allow once",
+                description:
+                  [risk, reason].filter(Boolean).join(": ") ||
+                  "Permit this exact external tool call once.",
+                confirm: {
+                  title: `Allow ${toolName}?`,
+                  description:
+                    reason ||
+                    "The exact arguments shown here will be sent once.",
+                },
+              },
+              {
+                id: "reject",
+                kind: "reject-once" as const,
+                label: "Deny",
+              },
+            ],
+          }
+        : undefined,
+    };
+  });
+};
+
 const assistantStatus = (
   run: RunSnapshot,
 ): NonNullable<ThreadMessageLike["status"]> => {
@@ -519,11 +611,15 @@ const assistantStatus = (
     return { type: "requires-action", reason: "tool-calls" };
   }
   if (ACTIVE_STATUSES.has(run.status)) return { type: "running" };
-  if (["failed", "blocked", "rejected", "aborted"].includes(run.status)) {
+  if (
+    ["paused", "failed", "blocked", "rejected", "aborted"].includes(
+      run.status,
+    )
+  ) {
     return {
       type: "incomplete",
       reason: run.status === "aborted" ? "cancelled" : "error",
-      error: run.error || run.status,
+      error: run.error || (run.status === "paused" ? "Paused" : run.status),
     };
   }
   return { type: "complete", reason: "stop" };
@@ -531,6 +627,72 @@ const assistantStatus = (
 
 export function messagesForRun(run: RunSnapshot | null): ThreadMessageLike[] {
   if (!run) return [];
+  if ((run.conversation?.length ?? 0) > 0) {
+    const messages: ThreadMessageLike[] = [];
+    let precedingCursor = 0;
+    for (const message of run.conversation!) {
+      const messageCursor = message.event_cursor ?? precedingCursor;
+      if (message.role === "user") {
+        messages.push({
+          id: `${run.run_id}:${message.message_id}`,
+          role: "user",
+          content: message.content,
+          createdAt: new Date(message.created_at),
+        });
+        precedingCursor = messageCursor;
+        continue;
+      }
+      const turnEvents = run.events.filter(
+        (event) =>
+          event.sequence > precedingCursor &&
+          event.sequence <= messageCursor,
+      );
+      const tools = assistantToolParts(run, turnEvents);
+      messages.push({
+        id: `${run.run_id}:${message.message_id}`,
+        role: "assistant",
+        content:
+          tools.length > 0
+            ? [
+                ...tools,
+                { type: "text" as const, text: message.content },
+              ]
+            : message.content,
+        createdAt: new Date(message.created_at),
+        status: { type: "complete", reason: "stop" },
+      });
+      precedingCursor = messageCursor;
+    }
+    const latest = run.conversation!.at(-1);
+    if (run.mode === "assistant" && latest?.role === "user") {
+      const activeEvents = run.events.filter(
+        (event) => event.sequence > (latest.event_cursor ?? precedingCursor),
+      );
+      messages.push({
+        id: `${run.run_id}:assistant:reply-to:${latest.message_id}`,
+        role: "assistant",
+        content: assistantToolParts(run, activeEvents),
+        createdAt: new Date(run.updated_at),
+        status: assistantStatus(run),
+      });
+      return messages;
+    }
+    if (run.mode === "assistant") return messages;
+
+    const completion = completionMarkdown(run);
+    const content: ThreadMessageLike["content"] = [
+      ...toolParts(run),
+      ...(completion ? [{ type: "text" as const, text: completion }] : []),
+    ];
+    messages.push({
+      id: `${run.run_id}:computer:reply-to:${latest?.message_id ?? "task"}`,
+      role: "assistant",
+      content,
+      createdAt: new Date(run.updated_at),
+      status: assistantStatus(run),
+    });
+    return messages;
+  }
   const completion = completionMarkdown(run);
   const content: ThreadMessageLike["content"] = [
     ...toolParts(run),

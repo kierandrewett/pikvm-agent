@@ -384,6 +384,7 @@ async def test_runtime_returns_secret_safe_input_receipt(runtime: Runtime) -> No
             "delivery_retries": 0,
             "used_fast_path": False,
             "focus_evidence": "read_back_not_retained",
+            "proof_state": "not_retained",
         }
     ]
     assert "super-secret" not in repr(res["action_receipts"])

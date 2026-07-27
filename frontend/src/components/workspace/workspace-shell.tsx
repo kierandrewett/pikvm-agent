@@ -11,6 +11,7 @@ import {
   type ExternalStoreAdapter,
   type ExternalStoreThreadListAdapter,
   type ThreadMessageLike,
+  type ToolCallMessagePartProps,
   useExternalStoreRuntime,
 } from "@assistant-ui/react";
 import {
@@ -20,11 +21,14 @@ import {
   MenuIcon,
   MonitorIcon,
   SparklesIcon,
+  WrenchIcon,
 } from "lucide-react";
 import { Thread } from "@/components/assistant-ui/thread";
 import { ThreadList } from "@/components/assistant-ui/thread-list";
+import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import {
   Sheet,
   SheetContent,
@@ -37,7 +41,6 @@ import { AuthDialog } from "@/components/workspace/auth-dialog";
 import { ComputerToolEnvironmentProvider } from "@/components/workspace/computer-tool-environment";
 import {
   DeferredComputerToolCall as ComputerToolCall,
-  DeferredComputerToolGroup as ComputerToolGroup,
 } from "@/components/workspace/deferred-computer-tools";
 import { LiveUpdateBadge } from "@/components/workspace/live-update-badge";
 import { ModelPicker } from "@/components/workspace/model-picker";
@@ -75,6 +78,13 @@ const useDeferredMount = (open: boolean) => {
   }, [open]);
   return mounted || open;
 };
+
+const WorkspaceToolCall = (props: ToolCallMessagePartProps) =>
+  props.toolName.startsWith("pikvm_") ? (
+    <ComputerToolCall {...props} />
+  ) : (
+    <ToolFallback {...props} />
+  );
 
 function RuntimeInstance({
   adapter,
@@ -224,6 +234,10 @@ export function WorkspaceShell() {
     adapters: { threadList },
     unstable_capabilities: { copy: true },
   };
+  const toolServerEntries = Object.entries(workspace.toolServers);
+  const offlineToolServers = toolServerEntries.filter(
+    ([, status]) => !status.ready,
+  ).length;
 
   const ComposerToolbar = () => (
     <div className="flex min-w-0 items-center gap-1">
@@ -236,6 +250,23 @@ export function WorkspaceShell() {
           locked={workspace.routeLocked}
           onOpenModels={() => setModelsOpen(true)}
         />
+      ) : null}
+      {workspace.tools.length > 0 || toolServerEntries.length > 0 ? (
+        <Badge
+          variant="outline"
+          title={[
+            ...workspace.tools.map((tool) => tool.name),
+            ...toolServerEntries
+              .filter(([, status]) => !status.ready)
+              .map(([name, status]) => `${name}: ${status.error || "offline"}`),
+          ].join("\n")}
+        >
+          <WrenchIcon data-icon="inline-start" aria-hidden="true" />
+          {workspace.tools.length} tools
+          {offlineToolServers > 0
+            ? ` · ${offlineToolServers} offline`
+            : ""}
+        </Badge>
       ) : null}
       <RunControlModeBadge origin={workspace.selectedRun?.origin} />
     </div>
@@ -273,7 +304,7 @@ export function WorkspaceShell() {
                 <MenuIcon />
               </TooltipIconButton>
               <p className="truncate text-sm font-medium">
-                {workspace.selectedRun?.task || "New task"}
+                {workspace.selectedRun?.task || "New chat"}
               </p>
               {workspace.selectedRun?.origin === "direct_mcp" ? (
                 <RunProvenance caller={workspace.selectedRun.caller} />
@@ -345,8 +376,7 @@ export function WorkspaceShell() {
                   working={workspace.isRunning}
                   components={{
                     ComposerToolbar,
-                    ToolFallback: ComputerToolCall,
-                    ToolGroup: ComputerToolGroup,
+                    ToolFallback: WorkspaceToolCall,
                   }}
                 />
               </div>

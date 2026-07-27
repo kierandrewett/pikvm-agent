@@ -36,7 +36,11 @@ The report stores typed-text lengths and hash prefixes, never the typed bodies.
 
 ```mermaid
 flowchart LR
-    U["Operator UI"] -->|"task, steer, approval"| S["Harness API + run store"]
+    U["Chat UI"] -->|"message, steer, approval"| S["Harness API + run store"]
+    S -->|"ordinary conversation"| AH["AssistantHarness"]
+    AH -->|"reply"| U
+    AH -->|"one visible call"| GT["Namespaced MCP tool broker"]
+    AH -->|"explicit computer hand-off"| H
     C["Claude/Codex MCP client"] -->|"five high-level controls"| HM["Harness MCP"]
     HM --> S
     S -->|"managed run"| H["AgentHarness"]
@@ -56,7 +60,24 @@ flowchart LR
     E --> OA["DOCX/XLSX semantic verifier"]
 ```
 
-`AgentHarness` is the deep module. Its public interface is:
+`AssistantHarness` owns the top-level conversation. Its public interface is:
+
+- `create(message, caller=None)`
+- `continue_run(run_id)`
+- `steer(run_id, message)`
+- `catalog()` / `tool_health()`
+- `resolve_approval(run_id, approval_id, decision)`
+- `pause(run_id)` / `abort(run_id)`
+
+It does not observe or open the computer for ordinary chat. A schema-valid
+`computer` decision is the only transition into `AgentHarness`; a schema-valid
+`tool` decision can invoke exactly one namespaced capability. Remote MCP
+annotations are display evidence only. The host's explicit
+`read_only_tools` allow-list decides whether a call can run automatically, and
+all other tools stop on an exact operator approval containing the immutable
+tool name and arguments.
+
+`AgentHarness` is the deep computer-use module. Its public interface is:
 
 - `create(task, caller=None)` / `start(task)`
 - `continue_run(run_id)`

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ipaddress
 import os
+import re
 import secrets
 import shutil
 from decimal import ROUND_CEILING, Decimal
@@ -230,6 +231,51 @@ class ModelBudgetSettings(BaseModel):
         return self
 
 
+class McpToolServerSpec(BaseModel):
+    """One non-PiKVM MCP server available to normal assistant turns."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    transport: Literal["stdio", "streamable_http"] = "stdio"
+    command: str | None = None
+    args: list[str] = Field(default_factory=list)
+    cwd: Path | None = None
+    inherited_env: list[str] = Field(default_factory=lambda: ["PATH"])
+    url: str | None = None
+    header_env: dict[str, str] = Field(default_factory=dict)
+    allowed_tools: list[str] = Field(min_length=1)
+    read_only_tools: list[str] = Field(default_factory=list)
+    timeout_s: float = Field(default=30.0, ge=1, le=300)
+
+    @model_validator(mode="after")
+    def validate_transport_fields(self) -> "McpToolServerSpec":
+        if self.transport == "stdio":
+            if not self.command:
+                raise ValueError("stdio MCP tool server requires command")
+            if self.url is not None or self.header_env:
+                raise ValueError(
+                    "stdio MCP tool server cannot define URL or headers"
+                )
+        else:
+            if not self.url:
+                raise ValueError(
+                    "streamable_http MCP tool server requires url"
+                )
+            if self.command is not None or self.args or self.cwd is not None:
+                raise ValueError(
+                    "streamable_http MCP tool server cannot define a command"
+                )
+            if self.inherited_env != ["PATH"]:
+                raise ValueError(
+                    "streamable_http MCP tool server uses header_env, not inherited_env"
+                )
+        if set(self.read_only_tools) - set(self.allowed_tools):
+            raise ValueError(
+                "read_only_tools must be included in allowed_tools"
+            )
+        return self
+
+
 class HarnessSettings(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -247,6 +293,9 @@ class HarnessSettings(BaseModel):
     allowed_origins: list[str] = Field(default_factory=list)
     providers: dict[str, ProviderSpec]
     routes: RoleRoutes
+    assistant_tools: dict[str, McpToolServerSpec] = Field(
+        default_factory=dict
+    )
     model_budget: ModelBudgetSettings = Field(default_factory=ModelBudgetSettings)
     max_actions_per_advance: int = Field(default=4, ge=1, le=32)
     max_autonomous_resumes: int = Field(default=64, ge=1, le=10_000)
@@ -256,6 +305,16 @@ class HarnessSettings(BaseModel):
 
     @model_validator(mode="after")
     def validate_routes(self) -> "HarnessSettings":
+        invalid_tool_servers = sorted(
+            name
+            for name in self.assistant_tools
+            if not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", name)
+        )
+        if invalid_tool_servers:
+            raise ValueError(
+                "assistant tool server names use letters, numbers, _ or -: "
+                + ", ".join(invalid_tool_servers)
+            )
         configured = set(self.providers)
         for role in ("reasoner", "controller", "verifier"):
             missing = set(getattr(self.routes, role)) - configured
@@ -382,6 +441,14 @@ def load_harness_settings(path: Path) -> HarnessSettings:
         raw["provider_conformance_path"] = str(
             base / ".pikvm-harness/provider-conformance.json"
         )
+    assistant_tools = raw.get("assistant_tools")
+    if isinstance(assistant_tools, dict):
+        for value in assistant_tools.values():
+            if not isinstance(value, dict) or "cwd" not in value:
+                continue
+            candidate = Path(str(value["cwd"]))
+            if not candidate.is_absolute():
+                value["cwd"] = str(base / candidate)
     return HarnessSettings.model_validate(raw)
 
 

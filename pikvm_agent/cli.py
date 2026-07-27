@@ -825,6 +825,14 @@ def harness_init(
             "root; required for the Gemini OAuth adapter."
         ),
     ),
+    web_search: bool = typer.Option(
+        True,
+        "--web-search/--no-web-search",
+        help=(
+            "Expose the packaged read-only web search MCP tools to normal "
+            "assistant chats."
+        ),
+    ),
     listen: str = typer.Option(
         "127.0.0.1:47616",
         "--listen",
@@ -952,6 +960,7 @@ def harness_init(
         settings = build_initial_harness_settings(
             oauth_clis=oauth_clis,
             gemini_cli_home_env=gemini_cli_home_env,
+            web_search=web_search,
             listen=listen,
             openai_model=openai_model,
             openai_base_url=openai_base_url,

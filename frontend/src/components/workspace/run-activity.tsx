@@ -6,7 +6,9 @@ type ActiveActivity = RunSnapshot["active_activity"];
 export const activityPresentation = (activity: ActiveActivity) => {
   const role = activity?.kind === "model" ? activity.role : "";
   const label =
-    role === "reasoner"
+    role === "assistant"
+      ? "Thinking"
+      : role === "reasoner"
       ? "Planning the task"
       : role === "controller"
         ? "Choosing the next action"

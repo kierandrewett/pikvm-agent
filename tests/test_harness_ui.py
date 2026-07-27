@@ -117,8 +117,11 @@ def test_workspace_uses_production_chat_and_component_libraries() -> None:
     assert package["dependencies"]["@assistant-ui/react"].startswith("^0.14")
     assert package["dependencies"]["@base-ui/react"]
     assert "useExternalStoreRuntime" in shell
-    assert "ToolFallback: ComputerToolCall" in shell
-    assert "ToolGroup: ComputerToolGroup" in shell
+    assert "ToolFallback: WorkspaceToolCall" in shell
+    assert 'props.toolName.startsWith("pikvm_")' in shell
+    assert "<ComputerToolCall {...props} />" in shell
+    assert "<ToolFallback {...props} />" in shell
+    assert "groupPartByType" in thread
     assert "<ThreadList />" in shell
     assert "onRespondToToolApproval" in shell
     assert "AssistantRuntimeProvider" in shell
