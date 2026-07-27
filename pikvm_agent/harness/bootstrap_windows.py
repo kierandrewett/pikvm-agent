@@ -149,6 +149,17 @@ def _type_paced(client: object, text: str, *, delay_s: float) -> None:
         time.sleep(delay_s)
 
 
+def _open_powershell(client: object, *, character_delay_s: float) -> None:
+    """Open PowerShell without assuming where Windows placed the Start button."""
+
+    client.keyPress("esc")
+    client.keyPress("super-r")
+    time.sleep(0.75)
+    _type_paced(client, "powershell", delay_s=character_delay_s)
+    client.keyPress("enter")
+    time.sleep(4)
+
+
 def deploy(
     *,
     endpoint: str,
@@ -187,13 +198,10 @@ def deploy(
             client.captureScreen(io.BytesIO(), format="PNG")
             width, height = client.protocol.screen.size
             if not powershell_ready:
-                client.keyPress("esc")
-                client.mouseMove(24, height - 24)
-                client.mousePress(1)
-                time.sleep(1.5)
-                _type_paced(client, "powershell", delay_s=character_delay_s)
-                client.keyPress("enter")
-                time.sleep(4)
+                _open_powershell(
+                    client,
+                    character_delay_s=character_delay_s,
+                )
             client.mouseMove(width // 2, height // 3)
             client.mousePress(1)
             time.sleep(0.5)

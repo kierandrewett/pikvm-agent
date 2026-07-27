@@ -54,6 +54,25 @@ def test_bootstrap_command_is_a_single_powershell_statement() -> None:
     assert len(command) < 512
 
 
+def test_bootstrap_opens_powershell_without_assuming_taskbar_alignment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    pressed: list[str] = []
+    typed: list[str] = []
+    client = SimpleNamespace(keyPress=pressed.append)
+    monkeypatch.setattr(bootstrap_windows.time, "sleep", lambda _delay: None)
+    monkeypatch.setattr(
+        bootstrap_windows,
+        "_type_paced",
+        lambda _client, text, *, delay_s: typed.append(text),
+    )
+
+    bootstrap_windows._open_powershell(client, character_delay_s=0.05)
+
+    assert pressed == ["esc", "super-r", "enter"]
+    assert typed == ["powershell"]
+
+
 def test_deployment_uses_short_quote_free_commands() -> None:
     commands = build_bootstrap_commands(
         public_base_url="https://temporary.example",
