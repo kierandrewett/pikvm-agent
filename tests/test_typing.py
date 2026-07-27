@@ -126,6 +126,32 @@ class PreciseProfileOCR:
         return OCRResult(lines=[OCRLine(text=self.intended)])
 
 
+class CropMissFullScreenOCR:
+    """Model the Word failure where the inferred crop misses wrapped prose."""
+
+    def __init__(self, intended: str) -> None:
+        self.intended = intended
+        self.crop_calls = 0
+        self.screen_calls = 0
+
+    async def ocr(
+        self,
+        image_path: Path,
+        region: Region | None = None,
+    ) -> OCRResult:
+        if region is not None:
+            self.crop_calls += 1
+            return OCRResult()
+        self.screen_calls += 1
+        return OCRResult(
+            lines=[
+                OCRLine(text="Microsoft Word"),
+                OCRLine(text=self.intended, confidence=0.96),
+                OCRLine(text="Page 1 of 1"),
+            ]
+        )
+
+
 def _assert_no_enter(backend: FakeBackend) -> None:
     for method, kw in backend.calls:
         if method == "press_key":
@@ -272,6 +298,33 @@ async def test_editor_prose_semicolon_can_use_guarded_fast_path() -> None:
     assert result.verdict == "match"
     assert any(method == "print_text" for method, _ in backend.calls)
     assert not any(method == "type_text" for method, _ in backend.calls)
+    _assert_no_enter(backend)
+
+
+async def test_fast_editor_prose_falls_back_to_full_screen_readback() -> None:
+    backend = FakeBackend()
+    prose = (
+        "Macbeth turns the same question toward ambition. The witches name a "
+        "possibility; they do not perform it. The prophecy tells Macbeth what "
+        "may be true, and leaves the murder entirely to him."
+    )
+    orig_print = backend.print_text
+
+    async def printing(text: str) -> None:
+        await orig_print(text)
+        backend.set_screen("wrapped editor prose changed several lines")
+
+    backend.print_text = printing  # type: ignore[method-assign]
+    ocr = CropMissFullScreenOCR(prose)
+    typer = WatchedTyper(backend, ocr)
+
+    result = await typer.type_text(prose, prose=True)
+
+    assert result.used_fast_path is True
+    assert result.verdict == "match"
+    assert result.field_text == prose
+    assert ocr.crop_calls >= 1
+    assert ocr.screen_calls == 1
     _assert_no_enter(backend)
 
 

@@ -461,6 +461,32 @@ class WatchedTyper:
             return read_back
         return read_back[index : index + len(intended)]
 
+    @classmethod
+    def _full_screen_exact_candidate(
+        cls,
+        result: OCRResult,
+        intended: str,
+    ) -> str:
+        """Return only an exact case-insensitive occurrence from screen OCR.
+
+        A word processor can wrap one print burst across several lines while
+        the grid-diff crop still covers only the first changed line. Full-screen
+        OCR is a safe fallback only when it contains the complete punctuation-
+        preserving payload; noisy similarity never becomes positive evidence.
+        """
+
+        for read_back in (
+            result.text,
+            *(candidate.text for candidate in result.alternatives),
+        ):
+            exact = cls._typed_candidate(read_back, intended, True)
+            if (
+                len(exact) == len(intended)
+                and exact.casefold() == intended.casefold()
+            ):
+                return exact
+        return ""
+
     # ---- corrective primitives ------------------------------------------- #
 
     async def _clear_from_start(self, n_chars: int) -> None:
@@ -893,6 +919,21 @@ class WatchedTyper:
                     }:
                         last_read = settled_read
                         break
+
+        if (
+            fast_print
+            and compute_verdict(text, last_read, precise)
+            not in {"match", "contains"}
+        ):
+            # Rich editors wrap prose beyond the first changed-line crop. Do
+            # one read-only full-screen pass and accept only a complete exact
+            # occurrence, never an approximate OCR similarity.
+            screen_candidate = self._full_screen_exact_candidate(
+                await self._read_screen(),
+                text,
+            )
+            if screen_candidate:
+                last_read = screen_candidate
 
         verdict = compute_verdict(text, last_read, precise)
         corrected = corrections > 0 or delivery_retries > 0
