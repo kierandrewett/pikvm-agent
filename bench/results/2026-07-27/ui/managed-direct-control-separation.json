@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-07-27T12:30:00Z",
+  "source_commit": "3c4ffb0e8e32268cf429e047b916c74f7aaad60e",
+  "route": "assistant-ui managed run and guarded-direct trace ownership",
+  "machine_contacted": false,
+  "model_api_contacted": false,
+  "contracts": {
+    "frontend": {
+      "passed": 65,
+      "total": 65
+    },
+    "python": {
+      "passed": 1108,
+      "total": 1108,
+      "skipped": 1
+    },
+    "production_build": "passed",
+    "diff_check": "passed",
+    "typescript_similarity": "no new source duplication concern",
+    "python_similarity": "no new source duplication concern"
+  },
+  "historical_route_audit": {
+    "source": "docs/HISTORICAL_FAILURE_AUDIT.md",
+    "reference_conversation": {
+      "pikvm_calls": 551,
+      "direct_calls": 551,
+      "current_managed_facade_calls": 0
+    },
+    "codex_histories": {
+      "sessions": 7,
+      "low_level_calls": 1482,
+      "current_managed_facade_calls": 0
+    },
+    "opencode_histories": {
+      "sessions": 2,
+      "direct_calls": 95,
+      "current_managed_facade_calls": 0
+    }
+  },
+  "interface_contract": {
+    "managed_label": "Managed harness",
+    "direct_label": "Guarded direct",
+    "direct_owner_explained": true,
+    "direct_chat_composer_present": false,
+    "managed_model_route_visible_on_direct_trace": false,
+    "new_managed_task_control_visible": true,
+    "direct_trace_claims_independent_verification": false,
+    "click_preview": {
+      "source": "retained pre-action screen evidence",
+      "exact_marker_visible": true,
+      "coordinates_required_for_primary_interpretation": false,
+      "coordinates_retained_in_details": true
+    }
+  },
+  "browser_audit": {
+    "browser": "Codex in-app Chromium",
+    "target_free_fixture": true,
+    "selected_trace_origin": "direct_mcp",
+    "rendered_viewport_width": 645,
+    "rendered_viewport_height": 1070,
+    "document_client_width": 645,
+    "document_scroll_width": 645,
+    "horizontal_overflow_pixels": 0,
+    "managed_route_buttons_on_direct_trace": 0,
+    "chat_send_present": false,
+    "direct_owner_banner_visible": true,
+    "direct_owner_banner_overlaps_first_action": false,
+    "new_managed_task_control_visible": true,
+    "click_preview_image_loaded": true,
+    "visual_review_passed": true,
+    "screenshots_persisted": false
+  },
+  "resource_envelope": {
+    "html_raw_bytes": 713,
+    "javascript_raw_bytes": 1046230,
+    "javascript_gzip_9_bytes": 314500,
+    "css_raw_bytes": 108948,
+    "css_gzip_9_bytes": 18042
+  },
+  "safety": {
+    "vnc_contact": false,
+    "pikvm_contact": false,
+    "production_daemon_contact": false,
+    "external_model_called": false,
+    "approval_submitted": false
+  },
+  "limitations": [
+    "This proves the visible ownership and click-evidence contract, not that a real computer action succeeded.",
+    "The direct fixture is synthetic; the historical routing counts come from privacy-preserving conversation audits.",
+    "No managed live Office, OSWorld, or Windows Agent Arena result is created by this UI audit.",
+    "The browser screenshot was inspected during the run but was not retained in the repository."
+  ]
+}

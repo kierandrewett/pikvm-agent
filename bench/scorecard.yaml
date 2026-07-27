@@ -89,6 +89,24 @@ rows:
     wall: "{wall}"
     status: "Local diagnostic"
 
+  - suite: "Managed/direct control separation"
+    route: "assistant-ui ownership + click evidence"
+    source: "results/2026-07-27/ui/managed-direct-control-separation.json"
+    fields:
+      frontend_passed: {path: "contracts.frontend.passed", format: "integer"}
+      frontend_total: {path: "contracts.frontend.total", format: "integer"}
+      python_passed: {path: "contracts.python.passed", format: "integer"}
+      python_skipped: {path: "contracts.python.skipped", format: "integer"}
+      direct_calls: {path: "historical_route_audit.reference_conversation.direct_calls", format: "integer"}
+      managed_calls: {path: "historical_route_audit.reference_conversation.current_managed_facade_calls", format: "integer"}
+      overflow: {path: "browser_audit.horizontal_overflow_pixels", format: "integer"}
+      gzip_js: {path: "resource_envelope.javascript_gzip_9_bytes", format: "integer"}
+    cases: "{frontend_total} frontend + {python_passed} Python; {direct_calls} audited reference calls"
+    result: "{frontend_passed}/{frontend_total}; {python_passed} passed / {python_skipped} skipped; reference route {direct_calls} direct / {managed_calls} managed; {overflow}px overflow"
+    latency: "{gzip_js}-byte gzip JavaScript"
+    wall: "Target-free browser audit"
+    status: "Passing visible ownership contract; live computer task pending"
+
   - suite: "Managed client launch"
     route: "Codex + Claude + Gemini + OpenCode"
     source: "results/2026-07-25/safety/managed-client-launch-2026-07-26.json"

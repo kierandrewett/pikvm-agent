@@ -113,6 +113,14 @@ With that boundary, its actual
 tool body and reports completion afterward. These runs are labelled
 `direct_mcp`; the UI shows the external caller/provider/model and never implies
 that `AgentHarness` chose or independently verified the action.
+The chat surface reinforces that boundary rather than relying on event
+metadata alone: a direct trace is labelled `Guarded direct`, its managed model
+route picker and chat composer are absent, and a visible
+`New managed task` control creates a separate harness-owned run. Before a
+direct pointer action, the observer captures and retains the exact pre-action
+frame. The action row leads with a marked crop of that frame while keeping the
+coordinate in Details, and the full frame is labelled `pre_action` rather than
+being presented as independent verification.
 
 For managed runs, every verifier call produces a labelled, full-resolution
 before/after composite. The latest composite is checkpointed with the run and

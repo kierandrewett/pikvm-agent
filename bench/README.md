@@ -33,7 +33,7 @@ support a claim of generally reliable autonomous Windows operation.
 | Direct Claude/Codex/OpenCode calls are visible and operator-controllable | Actual MCP `ClientSession` dispatch test, exact redacted arguments plus durable outcome/latency, path/raw-payload exclusion, fail-closed missing-visibility tests, scoped observer credential, required frame/control/idempotency fields on every HID tool, real browser, 100-call audit at 6.70ms median / 7.54ms p95 | Passing local contract |
 | A coding client can submit once while the dedicated harness owns progression | The referenced Claude session used 551 direct PiKVM calls; 21 API contracts prove the replacement managed loop crosses action slices, safe replans and verifier-more-work checkpoints, resumes after exact human approval, recovers internal yields after restart, reconstructs its automatic-resume ceiling from durable history, and refuses overlapping Continue bypass. Operator steering is durable, forces a fresh managed plan, and cannot discard unsettled HID or take control from direct/external drivers. Exact generated configs initialize over real stdio for all four clients and preserve their validated client identity | Passing control-loop and generated-stdio inventory contracts; authenticated task/restart pending |
 | Effective client config cannot silently retain a second PiKVM tool surface | Fail-closed audit supports native Codex resolved inventory, Codex TOML/shared project JSON, Claude/Gemini JSON, and legacy/V2 OpenCode JSON/JSONC. Native read-only Codex inventory found one raw PiKVM registration and no managed registration. A session-only Codex override produced exactly one managed PiKVM surface while retaining unrelated MCPs; Claude's installed strict-MCP flags produced one explicit managed surface. OpenCode 1.14.44 resolved one managed surface under `--pure`, exact default-deny permissions, ephemeral writable state, and client-owned OAuth linked without copying it. Gemini 0.35.3 loaded the temporary system catalog natively and resolved one allowlisted managed surface from an empty dedicated profile; the exact admin-policy path/content and extension-disable argv are configured but not enforcement-tested. These paths modify no persisted registration and passed 54 launcher/audit/package contracts | Codex/Claude/OpenCode native isolation dry-runs pass; Gemini settings audit passes; no authenticated coding-client task or Gemini policy-enforcement call was run |
-| Managed and direct assurance levels are unambiguous | Real browser showed persistent managed/direct control contracts; 390×844 check had no horizontal overflow | Passing UI contract |
+| Managed and direct assurance levels are unambiguous | The reference conversation is explicitly retained as 551/551 direct calls, not reclassified as a managed run. A 645×1070 real-browser audit labelled a direct trace `Guarded direct`, named its launcher-declared provider/model, removed managed model routing and the chat composer, loaded the marked click preview, and offered a separate `New managed task`; horizontal overflow was 0px | Passing target-free ownership/UI contract; live computer task pending |
 | Computer-use actions remain inspectable while a run is changing | A target-free Chromium fixture retained a 12-action audit while showing only the current live input; the completed trace returns on inspection. Completed clicks now lead with a marked 72×40 pre-action crop of the actual visual target instead of coordinates, while the coordinate, MCP tool, model, state, full Screen evidence, Details, Raw request, and exact input remain available progressively. At a rendered 645×1070 viewport all 12 previews loaded with zero horizontal overflow. A separate dangerous Enter fixture rendered the exact two-input sequence, 47-character count, external-side-effect reason, and Allow once/Deny controls inline without committing input | Passing browser/UI contract |
 | The operator can inspect the verifier's visual evidence | Authenticated API contracts return the labelled before/after bytes without exposing their local path; static UI contracts cover revision refresh, loading/error state, and blob revocation. A live disposable-Windows diagnostic exercised failed and uncertain visual verification without turning either into success | Passing local/browser contract; live task itself did not pass |
 | Long prose/code arrives exactly | Windows transport trials were exact 581/581 and 142/142 characters, but the seven-trial physical loop still failed overall | Partial; not a release claim |
@@ -153,7 +153,12 @@ active, a persistent status chip
 names the unmatched provider call or MCP action and updates its elapsed time
 once per second. Direct-client provider/model strings are explicitly labelled
 as launcher-declared; the UI does not pretend it independently identified
-them. Managed actions and opt-in guarded direct calls are committed to SQLite
+them. The composer says `Managed harness` only when the harness owns the
+reason-act-verify loop. A selected `direct_mcp` trace instead says
+`Guarded direct`, names the actual declared client/provider/model, hides
+managed model routing, and removes the chat composer. `New managed task` starts a
+separate harness-owned run instead of silently taking over historical direct
+work. Managed actions and opt-in guarded direct calls are committed to SQLite
 before HID execution. Labelled before/after images and quiet adapter/daemon logs
 are retained with managed runs. The latest labelled comparison is also fetched
 through an authenticated, no-store, path-free endpoint and shown as the primary
@@ -191,6 +196,8 @@ route a newly configured provider. Fifty-five frontend and 1,106 Python
 contracts pass at the exact published source commit; no provider or computer
 was contacted. See
 [`provider-connections-and-click-targets.json`](results/2026-07-27/ui/provider-connections-and-click-targets.json).
+The corresponding ownership and direct-click audit is
+[`managed-direct-control-separation.json`](results/2026-07-27/ui/managed-direct-control-separation.json).
 
 ### Provider conformance boundary
 
@@ -1066,7 +1073,7 @@ production daemon, or any computer target.
 ## Current headline
 
 <!-- pikvm-scorecard:start -->
-_Generated from checked JSON evidence as of 2026-07-27. Manifest `sha256:5eb7045294b8`; run `pikvm-agent harness scorecard --check` to detect drift._
+_Generated from checked JSON evidence as of 2026-07-27. Manifest `sha256:886e3a5eca5c`; run `pikvm-agent harness scorecard --check` to detect drift._
 
 | Suite | Route | Cases | Result | Median / p95 | Wall | Status | Evidence |
 | --- | --- | ---: | ---: | ---: | ---: | --- | --- |
@@ -1076,6 +1083,7 @@ _Generated from checked JSON evidence as of 2026-07-27. Manifest `sha256:5eb7045
 | Virtual-media transaction | Target-free approval/rollback state machine | 19 contracts | 19/19; 11 durable states; daemon bridge exposed: no | — | — | Passing target-free transaction contract; physical bridge gated | [JSON](results/2026-07-25/safety/virtual-media-transaction-2026-07-26.json) · `sha256:7bd38797d675` |
 | Windows VNC physical-loop diagnostic | Deterministic MCP trials; no model | 7 trials | 581 prose + 142 code characters exact; overall failed | See per-trial JSON | 336.17s | Failing diagnostic | [JSON](results/2026-07-25/windows/live-vnc-observer-iteration.json) · `sha256:5c7bab3e4abd` |
 | Direct MCP visibility bridge | Guarded local SQLite/ASGI | 100 calls + 10 contracts | Contracts passed; 143.8 calls/s | 6.70ms / 7.54ms | 695ms | Local diagnostic | [JSON](results/2026-07-25/ui/direct-mcp-visibility-audit.json) · `sha256:aa923113856c` |
+| Managed/direct control separation | assistant-ui ownership + click evidence | 65 frontend + 1,108 Python; 551 audited reference calls | 65/65; 1,108 passed / 1 skipped; reference route 551 direct / 0 managed; 0px overflow | 314,500-byte gzip JavaScript | Target-free browser audit | Passing visible ownership contract; live computer task pending | [JSON](results/2026-07-27/ui/managed-direct-control-separation.json) · `sha256:69ffd36eeb26` |
 | Managed client launch | Codex + Claude + Gemini + OpenCode | 4 clients; 12 stdio cases | 65 local contracts passed; 7/12 stdio executed; 5 skipped | Not measured | 6.96s local selection | Generated stdio proven locally; authenticated task/restart pending | [JSON](results/2026-07-25/safety/managed-client-launch-2026-07-26.json) · `sha256:b464af4a60c8` |
 | Isolated managed client launch | Codex + Claude + OpenCode; Gemini policy contract | 4 installed clients / 54 contracts | 3 native dry-runs; 1 settings-only audit; raw Codex baseline shadowed without persistence | Not measured | Dry-run | Three native isolation dry-runs plus Gemini settings audit; enforcement and tasks pending | [JSON](results/2026-07-26/safety/isolated-managed-client-launch.json) · `sha256:82c085f02a53` |
 | Managed smoke lab contract | Target-free app + stdin client task | 24 contracts | 24/24; 44 focused gates | Not measured | Target-free contract | Passing contract; live task rejected-before-process-creation | [JSON](results/2026-07-26/harness/managed-smoke-lab-contract.json) · `sha256:c7bb759ff96b` |
