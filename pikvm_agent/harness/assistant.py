@@ -272,6 +272,16 @@ class AssistantHarness:
                     run.run_id,
                     computer_task,
                 )
+                if activated.status is RunStatus.COMPLETED:
+                    activated.record(
+                        "assistant.computer_handoff_completed",
+                        call_id=call_id,
+                        tool="computer_start_task",
+                        session_id=activated.session_id,
+                        selected_by=selected_by,
+                    )
+                    await self.store.save(activated)
+                    return activated
                 if activated.status in TERMINAL_RUN_STATUSES:
                     activated.record(
                         "assistant.computer_handoff_failed",

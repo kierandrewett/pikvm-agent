@@ -589,6 +589,7 @@ const assistantToolParts = (
                 safeString(event.data.call_id) === callId &&
                 [
                   "assistant.computer_handoff_started",
+                  "assistant.computer_handoff_completed",
                   "assistant.computer_handoff_failed",
                 ].includes(event.kind),
             )
@@ -620,6 +621,8 @@ const assistantToolParts = (
       outcome?.kind === "tool.failed" ||
       outcome?.kind === "assistant.computer_handoff_failed";
     const refused = outcome?.kind === "tool.refused";
+    const completed =
+      outcome?.kind === "assistant.computer_handoff_completed";
     const result = isComputerHandoff
       ? outcome == null
         ? undefined
@@ -631,7 +634,7 @@ const assistantToolParts = (
                 "Computer hand-off failed.",
             }
           : {
-              status: "started",
+              status: completed ? "completed" : "started",
               control: "managed",
               session_id: outcome.data.session_id,
             }
@@ -751,13 +754,12 @@ export function messagesForRun(run: RunSnapshot | null): ThreadMessageLike[] {
       const computerTools = includesComputerHandoff
         ? toolParts(run, turnEvents, false)
         : [];
-      const contentParts = [
-        ...tools,
-        ...computerTools,
-        ...(message.content
-          ? [{ type: "text" as const, text: message.content }]
-          : []),
-      ];
+      const prose = message.content
+        ? [{ type: "text" as const, text: message.content }]
+        : [];
+      const contentParts = includesComputerHandoff
+        ? [...prose, ...tools, ...computerTools]
+        : [...tools, ...computerTools, ...prose];
       latestAssistantStartCursor = precedingCursor;
       latestAssistantMessageIndex = messages.length;
       messages.push({
@@ -785,11 +787,11 @@ export function messagesForRun(run: RunSnapshot | null): ThreadMessageLike[] {
       if (includesComputerHandoff) {
         const completion = completionMarkdown(run);
         const content: ThreadMessageLike["content"] = [
-          ...assistantToolParts(run, activeTurnEvents),
-          ...toolParts(run, activeTurnEvents),
           ...(latest.content
             ? [{ type: "text" as const, text: latest.content }]
             : []),
+          ...assistantToolParts(run, activeTurnEvents),
+          ...toolParts(run, activeTurnEvents),
           ...(completion
             ? [{ type: "text" as const, text: completion }]
             : []),
