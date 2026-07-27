@@ -1002,10 +1002,32 @@ remained prompt-gated. This was target-free: no VNC, PiKVM, production daemon,
 or computer target was contacted, and it is not evidence of Windows or Office
 accuracy.
 
+Claude Code 2.1.220 then completed the same authenticated outer-client
+boundary. All six compatibility attempts are retained: missing stream
+verbosity failed before a run; two CLI tool-filter shapes hid Claude's deferred
+MCP tools; the first dynamic-discovery run passed; an unsupported environment
+scrub removed access to client-owned OAuth; and the final isolated run passed
+in 16.944 seconds. The final client used only `computer_start_task` and
+`computer_status`; the harness recorded 22 events, three deterministic inner
+model calls, one bounded click, and one verification revision. The launch
+inherits no ambient API key or unrelated secret, starts in an empty temporary
+workspace, persists neither session nor prompt history, and preapproves only
+the four non-destructive managed controls. Abort remains prompt-gated.
+
+A separate first-party chat run exercised the opposite boundary: the harness
+itself called a live Codex account route for reasoner, controller, and verifier.
+It completed and independently verified the target-free click, but took
+336.916 seconds. The three model calls consumed 336.753 seconds—99.95% of wall
+time—while the guarded action transport took 1 ms. This is direct evidence for
+per-role routing rather than one heavyweight model everywhere: use a faster
+controller, reserve stronger reasoning/checking models for the steps that need
+them, and retain explicit fallbacks. Neither result contacted VNC, PiKVM, the
+production daemon, or any computer target.
+
 ## Current headline
 
 <!-- pikvm-scorecard:start -->
-_Generated from checked JSON evidence as of 2026-07-27. Manifest `sha256:9d16990b787b`; run `pikvm-agent harness scorecard --check` to detect drift._
+_Generated from checked JSON evidence as of 2026-07-27. Manifest `sha256:7112ae95ea33`; run `pikvm-agent harness scorecard --check` to detect drift._
 
 | Suite | Route | Cases | Result | Median / p95 | Wall | Status | Evidence |
 | --- | --- | ---: | ---: | ---: | ---: | --- | --- |
@@ -1019,6 +1041,8 @@ _Generated from checked JSON evidence as of 2026-07-27. Manifest `sha256:9d16990
 | Isolated managed client launch | Codex + Claude + OpenCode; Gemini policy contract | 4 installed clients / 54 contracts | 3 native dry-runs; 1 settings-only audit; raw Codex baseline shadowed without persistence | Not measured | Dry-run | Three native isolation dry-runs plus Gemini settings audit; enforcement and tasks pending | [JSON](results/2026-07-26/safety/isolated-managed-client-launch.json) · `sha256:82c085f02a53` |
 | Managed smoke lab contract | Target-free app + stdin client task | 24 contracts | 24/24; 44 focused gates | Not measured | Target-free contract | Passing contract; live task rejected-before-process-creation | [JSON](results/2026-07-26/harness/managed-smoke-lab-contract.json) · `sha256:c7bb759ff96b` |
 | Live Codex managed task | Codex OAuth → isolated managed MCP → harness loop | 2 failure-inclusive attempts | 2 managed calls; 22 events / 3 inner model calls; completed | 13.70s fixed run | 13.70s | Passing target-free authenticated Codex task; live computer pending | [JSON](results/2026-07-27/harness/live-codex-managed-task.json) · `sha256:5efd19fa4ac7` |
+| Live Claude managed task | Claude OAuth → isolated managed MCP → harness loop | 6 failure-inclusive attempts | 2 managed calls; 22 events / 3 inner model calls; completed | 16.94s final run | 16.94s | Passing target-free authenticated Claude task; live computer pending | [JSON](results/2026-07-27/harness/live-claude-managed-task.json) · `sha256:44fa332cc5f6` |
+| Live Codex inner loop | Chat UI → live reasoner/controller/verifier → smoke computer | 3 live model calls / 1 action | 22 events; completed; model latency 336.75s | 336.92s end-to-end | 336.92s | Passing target-free loop; too slow for single-heavy-model routing | [JSON](results/2026-07-27/harness/live-codex-inner-loop.json) · `sha256:baca00df92b1` |
 | Operator steering | Authenticated UI → managed replan | 12 tests / 13 contracts | Operator-only durable replan; 131,022-byte UI | — | 0.78s | Passing local contract and browser interaction | [JSON](results/2026-07-25/ui/operator-steering-2026-07-26.json) · `sha256:a4325a2ad4df` |
 | Computer-action chat workspace | Target-free synthetic fixture | 14 frontend + 14 harness UI/fixture contracts | 14/14 + 14/14; production build passed | 303,420-byte gzip JavaScript | Target-free contract | Component/build passing; post-change browser visual audit pending | [JSON](results/2026-07-27/ui/computer-action-chat-workspace.json) · `sha256:6578fe3fc553` |
 | Live computer activity in chat | Authenticated fetch SSE → assistant-ui | 19 frontend + 53 harness/API contracts | 19/19 + 53/53; action 394 → verification 396 | 75ms snapshot coalescing; 305,613-byte gzip JavaScript | Target-free runtime | Authenticated live stream passing; browser visual audit pending | [JSON](results/2026-07-27/ui/computer-action-live-stream.json) · `sha256:5d61d446891f` |

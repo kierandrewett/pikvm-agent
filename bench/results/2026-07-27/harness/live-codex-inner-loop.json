@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "suite": "live-codex-inner-loop",
+  "recorded_at": "2026-07-27T08:16:39Z",
+  "environment": "local-target-free-loopback",
+  "source_commit": "de63d2d9f370a43cf5066e93f57c5777d2e6389c",
+  "task_entry": {
+    "interface": "first-party-chat-workspace",
+    "caller_interface": "managed_mcp",
+    "caller_label": "chat-workspace"
+  },
+  "route": {
+    "reasoner": "codex-account/account-default",
+    "controller": "codex-account/account-default",
+    "verifier": "codex-account/account-default"
+  },
+  "result": {
+    "terminal_result": "completed",
+    "run_id": "d40d7c6e-57c8-454a-849d-cde3c0a40536",
+    "wall_ms": 336916,
+    "events": 22,
+    "model_calls": 3,
+    "action_checkpoints": 1,
+    "action_transport_ms": 1,
+    "verification_revisions": 1,
+    "verdict": "complete"
+  },
+  "model_performance": {
+    "summed_model_latency_ms": 336753,
+    "share_of_run_wall_time": 0.9995,
+    "roles": {
+      "reasoner": {
+        "latency_ms": 106138,
+        "input_tokens": 20484,
+        "cached_input_tokens": 0,
+        "output_tokens": 139,
+        "reasoning_output_tokens": 0
+      },
+      "controller": {
+        "latency_ms": 131192,
+        "input_tokens": 21422,
+        "cached_input_tokens": 0,
+        "output_tokens": 179,
+        "reasoning_output_tokens": 80
+      },
+      "verifier": {
+        "latency_ms": 99423,
+        "input_tokens": 21562,
+        "cached_input_tokens": 0,
+        "output_tokens": 126,
+        "reasoning_output_tokens": 0
+      }
+    },
+    "totals": {
+      "input_tokens": 63468,
+      "cached_input_tokens": 0,
+      "output_tokens": 444,
+      "reasoning_output_tokens": 80
+    }
+  },
+  "observed_action": {
+    "tool": "pikvm_run_burst",
+    "type": "click",
+    "coordinates": {
+      "x": 638,
+      "y": 410
+    },
+    "before_frame_id": 1,
+    "after_frame_id": 2
+  },
+  "interpretation": {
+    "correctness": "The live reasoner, controller, and verifier completed the target-free task and independently verified the labelled after frame.",
+    "efficiency": "Using the same heavyweight account-default route for all three roles took 5.62 minutes for one bounded click; 99.95% of wall time was model latency.",
+    "routing_implication": "The harness needs per-role model selection in production: a fast action controller, a stronger reasoner/verifier where needed, and explicit fallbacks."
+  },
+  "safety": {
+    "vnc_contact": false,
+    "pikvm_contact": false,
+    "production_daemon_contact": false,
+    "production_registration_modified": false,
+    "computer_target_contact": false,
+    "external_model_called": true
+  },
+  "limitations": [
+    "This is one successful target-free smoke task and is not an autonomy rate.",
+    "The model alias was reported as account-default; the exact backend model was not independently attested.",
+    "The deterministic computer had one action and does not approximate Windows, Office, OSWorld, ScreenSpot-Pro, or Windows Agent Arena complexity.",
+    "Provider cost was not available for this run."
+  ]
+}

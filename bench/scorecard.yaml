@@ -152,6 +152,38 @@ rows:
     wall: "{elapsed}"
     status: "Passing target-free authenticated Codex task; live computer pending"
 
+  - suite: "Live Claude managed task"
+    route: "Claude OAuth → isolated managed MCP → harness loop"
+    source: "results/2026-07-27/harness/live-claude-managed-task.json"
+    fields:
+      attempts: {path: "attempts", format: "count"}
+      managed_calls: {path: "attempts.final_isolated.managed_tool_calls", format: "count"}
+      events: {path: "attempts.final_isolated.managed_run.events", format: "integer"}
+      model_calls: {path: "attempts.final_isolated.managed_run.model_calls", format: "integer"}
+      elapsed: {path: "attempts.final_isolated.elapsed_ms", format: "seconds_from_ms", digits: 2}
+      status: {path: "attempts.final_isolated.terminal_result", format: "text"}
+    cases: "{attempts} failure-inclusive attempts"
+    result: "{managed_calls} managed calls; {events} events / {model_calls} inner model calls; {status}"
+    latency: "{elapsed} final run"
+    wall: "{elapsed}"
+    status: "Passing target-free authenticated Claude task; live computer pending"
+
+  - suite: "Live Codex inner loop"
+    route: "Chat UI → live reasoner/controller/verifier → smoke computer"
+    source: "results/2026-07-27/harness/live-codex-inner-loop.json"
+    fields:
+      model_calls: {path: "result.model_calls", format: "integer"}
+      actions: {path: "result.action_checkpoints", format: "integer"}
+      events: {path: "result.events", format: "integer"}
+      wall: {path: "result.wall_ms", format: "seconds_from_ms", digits: 2}
+      model_wall: {path: "model_performance.summed_model_latency_ms", format: "seconds_from_ms", digits: 2}
+      status: {path: "result.terminal_result", format: "text"}
+    cases: "{model_calls} live model calls / {actions} action"
+    result: "{events} events; {status}; model latency {model_wall}"
+    latency: "{wall} end-to-end"
+    wall: "{wall}"
+    status: "Passing target-free loop; too slow for single-heavy-model routing"
+
   - suite: "Operator steering"
     route: "Authenticated UI → managed replan"
     source: "results/2026-07-25/ui/operator-steering-2026-07-26.json"

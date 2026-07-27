@@ -1,0 +1,152 @@
+{
+  "schema_version": 1,
+  "suite": "live-claude-managed-task",
+  "recorded_at": "2026-07-27T09:06:18Z",
+  "environment": "local-target-free-loopback",
+  "validated_source_state_commit": "fd411cd6462a6c98695d50a162a494c29b30a541",
+  "ui_provenance_commit": "ad581e2a973799ab7d962ba256cac17148119a53",
+  "outer_client": {
+    "name": "Claude Code",
+    "version": "2.1.220",
+    "reported_model": "claude-opus-5",
+    "authentication": "client-owned-oauth",
+    "task_transport": "stdin",
+    "permission_mode": "dontAsk",
+    "session_persistence": false
+  },
+  "attempts": {
+    "stream_json_without_verbose": {
+      "terminal_result": "client_startup_error",
+      "elapsed_ms": 1569,
+      "harness_runs_created": 0,
+      "failure": "Claude Code requires --verbose with stream-json print mode"
+    },
+    "empty_tool_filter": {
+      "terminal_result": "completed_without_managed_call",
+      "elapsed_ms": 3621,
+      "harness_runs_created": 0,
+      "failure": "The client initialized with no visible tools"
+    },
+    "exact_mcp_name_tool_filter": {
+      "terminal_result": "completed_without_managed_call",
+      "elapsed_ms": 9581,
+      "harness_runs_created": 0,
+      "failure": "Claude Code deferred MCP discovery was hidden by the CLI tool filter"
+    },
+    "dynamic_tool_discovery_enabled": {
+      "terminal_result": "completed",
+      "elapsed_ms": 17998,
+      "run_id": "a906ab12-d113-4410-a847-f33a53499626",
+      "harness_runs_created": 1,
+      "managed_tool_calls": [
+        "computer_start_task",
+        "computer_status"
+      ],
+      "outer_model_cost_usd": 0.240023
+    },
+    "unsupported_simple_scrub_probe": {
+      "terminal_result": "authentication_failed",
+      "elapsed_ms": 1217,
+      "harness_runs_created": 0,
+      "failure": "CLAUDE_CODE_SIMPLE removed access to the client-owned OAuth login; subprocess scrubbing also changed the effective permission mode"
+    },
+    "final_isolated": {
+      "terminal_result": "completed",
+      "elapsed_ms": 16944,
+      "run_id": "9f6c2f86-9555-44ee-8437-2f561ca8602e",
+      "harness_runs_created": 1,
+      "managed_tool_calls": [
+        "computer_start_task",
+        "computer_status"
+      ],
+      "other_computer_or_mutation_tools_called": [],
+      "outer_model_usage": {
+        "input_tokens": 7,
+        "cache_creation_input_tokens": 17910,
+        "cache_read_input_tokens": 89878,
+        "output_tokens": 795,
+        "reported_cost_usd": 0.244584
+      },
+      "managed_run": {
+        "origin": "managed",
+        "caller_interface": "managed_mcp",
+        "caller_label": "claude-cli",
+        "status": "completed",
+        "wall_ms": 83,
+        "events": 22,
+        "model_calls": 3,
+        "model_roles": [
+          "reasoner",
+          "controller",
+          "verifier"
+        ],
+        "inner_model": "deterministic-smoke-v1",
+        "action_checkpoints": 1,
+        "action_transport_ms": 1,
+        "verification_revisions": 1,
+        "verdict": "complete"
+      }
+    }
+  },
+  "final_launch_boundary": {
+    "environment": "bounded_runtime_allowlist_plus_managed_agent_token",
+    "ambient_anthropic_api_key_forwarded": false,
+    "ambient_unrelated_secrets_forwarded": false,
+    "workspace": "empty_temporary_directory",
+    "strict_mcp_config": true,
+    "settings_sources": [],
+    "slash_commands_enabled": false,
+    "chrome_integration_enabled": false,
+    "prompt_history_persisted": false,
+    "session_persisted": false,
+    "preapproved_managed_tools": [
+      "computer_start_task",
+      "computer_status",
+      "computer_continue",
+      "computer_pause"
+    ],
+    "destructive_abort_preapproved": false,
+    "deferred_tool_discovery_required": true
+  },
+  "user_visible_proof": {
+    "browser": "Codex in-app Chromium",
+    "viewport_css_pixels": {
+      "width": 645,
+      "height": 1061
+    },
+    "caller_label_visible": "via claude-cli",
+    "collapsed_action_visible": "Click at 640 × 360",
+    "exact_mcp_tool_visible": "run_burst",
+    "inner_action_model_visible": "deterministic-smoke-v1",
+    "verification_state_visible": "Verified",
+    "raw_credentials_visible": false
+  },
+  "validation": {
+    "managed_client_launcher_tests": {
+      "passed": 26,
+      "failed": 0
+    },
+    "provenance_and_computer_receipt_tests": {
+      "passed": 19,
+      "failed": 0
+    },
+    "production_frontend_build": "passed"
+  },
+  "safety": {
+    "vnc_contact": false,
+    "pikvm_contact": false,
+    "production_daemon_contact": false,
+    "production_registration_modified": false,
+    "persisted_client_config_modified": false,
+    "computer_target_contact": false,
+    "external_outer_model_called": true,
+    "deterministic_inner_model_called": true
+  },
+  "limitations": [
+    "This is one authenticated Claude Code task against a target-free deterministic smoke computer, not a real Windows or Office task.",
+    "The six-attempt denominator includes launcher compatibility failures and an explicitly unsupported environment-hardening probe.",
+    "The inner reasoner, controller, and verifier were deterministic smoke providers, so this does not measure live computer-use model accuracy.",
+    "The reported cost and token totals are single diagnostic attempts and are not representative production estimates.",
+    "Gemini CLI and OpenCode live client-task paths remain unexecuted."
+  ]
+}
