@@ -211,6 +211,17 @@ def test_chunk_text_hard_splits_long_word() -> None:
     assert len(chunks) == 3  # 16 + 16 + 8
 
 
+def test_chunk_text_keeps_separator_at_the_start_of_the_next_prose_chunk() -> None:
+    text = (
+        "The consequence spreads outward and remains visible after interruption."
+    )
+    chunks = chunk_text(text)
+
+    assert "".join(chunks) == text
+    assert all(not chunk.endswith(" ") for chunk in chunks[:-1])
+    assert all(chunk.startswith(" ") for chunk in chunks[1:])
+
+
 # --------------------------------------------------------------------------- #
 # locate_changed_bbox
 # --------------------------------------------------------------------------- #

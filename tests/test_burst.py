@@ -348,6 +348,45 @@ async def test_burst_allows_prose_and_short_inspectable_terminal_text() -> None:
         assert any(method == "type_text" for method, _ in be.calls)
 
 
+@pytest.mark.parametrize(
+    "text, reason",
+    [
+        ("A prose action must not end with an invisible boundary. ", "end in whitespace"),
+        ("A prose action must not contain  doubled spaces.", "repeated spaces"),
+    ],
+)
+async def test_burst_rejects_ambiguous_editor_prose_whitespace_before_hid(
+    text: str,
+    reason: str,
+) -> None:
+    backend = FakeBackend()
+
+    with pytest.raises(BurstError, match=reason):
+        await run_burst(
+            [{"type": "type_text", "text": text, "context": "editor"}],
+            backend=backend,
+        )
+
+    assert backend.calls == []
+
+
+async def test_burst_allows_one_leading_space_for_an_editor_continuation() -> None:
+    backend = FakeBackend()
+
+    outcome = await run_burst(
+        [
+            {
+                "type": "type_text",
+                "text": " and this continuation has one explicit boundary.",
+                "context": "editor",
+            }
+        ],
+        backend=backend,
+    )
+
+    assert outcome.status == "completed"
+
+
 async def test_burst_backend_failure_is_reported_not_raised() -> None:
     be = FakeBackend()
 

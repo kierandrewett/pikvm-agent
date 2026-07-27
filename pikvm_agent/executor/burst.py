@@ -342,6 +342,22 @@ def validate_actions(
             continue
 
         text = str(action.get("text", ""))
+        editor_prose = (
+            str(action.get("context", "")).lower() == "editor"
+            and action.get("code") is not True
+            and not is_exact_text(text)
+        )
+        if editor_prose and text and text[-1].isspace():
+            raise BurstError(
+                f"type_text action {index} is editor prose and must not end in "
+                "whitespace; put one explicit separator at the start of the "
+                "next continuation"
+            )
+        if editor_prose and "  " in text:
+            raise BurstError(
+                f"type_text action {index} is editor prose and contains repeated "
+                "spaces; correct the exact payload before HID delivery"
+            )
         if not contiguous_text_parts:
             contiguous_text_start = index
         contiguous_text_parts.append(text)

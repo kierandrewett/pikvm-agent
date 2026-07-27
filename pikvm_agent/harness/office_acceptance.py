@@ -85,6 +85,7 @@ class DocxExpectation(BaseModel):
     min_paragraphs: int = Field(default=1, ge=1, le=10_000)
     min_word_count: int = Field(default=1, ge=1, le=1_000_000)
     max_word_count: int | None = Field(default=None, ge=1, le=1_000_000)
+    forbid_repeated_spaces: bool = False
     required_phrases: list[str] = Field(default_factory=list, max_length=200)
     exact_paragraphs: list[str] = Field(default_factory=list, max_length=10_000)
 
@@ -427,6 +428,15 @@ def _verify_docx(
                 word_count <= expectation.max_word_count,
                 "word-count ceiling met",
                 "document exceeds the maximum word count",
+            )
+        )
+    if expectation.forbid_repeated_spaces:
+        checks.append(
+            _check(
+                "repeated_spaces",
+                "  " not in combined,
+                "document contained no repeated spaces",
+                "document contained repeated spaces",
             )
         )
     if expectation.title is not None:

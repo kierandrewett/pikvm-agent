@@ -22,6 +22,7 @@ tasks:
         min_paragraphs: 7
         min_word_count: 650
         max_word_count: 900
+        forbid_repeated_spaces: true
         required_phrases:
           - Hamlet
           - Macbeth

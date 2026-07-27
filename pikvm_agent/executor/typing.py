@@ -192,6 +192,17 @@ def chunk_text(s: str) -> list[str]:
         buf += word
     if buf:
         out.append(buf)
+    # A cooperative stop may leave the guest containing exactly the chunks
+    # already acknowledged. Keep separators at the beginning of the next chunk
+    # so an interrupted prose prefix never ends in invisible whitespace that a
+    # later continuation can accidentally duplicate.
+    for index in range(len(out) - 1):
+        match = re.search(r"\s+$", out[index])
+        if match is None or match.start() == 0:
+            continue
+        separator = match.group()
+        out[index] = out[index][: match.start()]
+        out[index + 1] = separator + out[index + 1]
     return out
 
 

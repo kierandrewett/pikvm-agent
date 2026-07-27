@@ -141,6 +141,7 @@ def _suite() -> OfficeAcceptanceSuite:
                             "title_style": "Title",
                             "min_paragraphs": 3,
                             "min_word_count": 18,
+                            "forbid_repeated_spaces": True,
                             "required_phrases": [
                                 "Hamlet",
                                 "Macbeth",
@@ -351,6 +352,34 @@ def test_docx_verifier_reports_missing_content_without_echoing_document_text() -
         "required_phrase:the-tempest",
     }
     assert "Hamlet appears" not in result.model_dump_json()
+
+
+def test_docx_verifier_rejects_repeated_spaces_without_echoing_document_text() -> None:
+    task = _suite().task("word-essay")
+    artifact = _docx(
+        [
+            ("Shakespeare and Human Choice", "Title"),
+            (
+                "Hamlet turns hesitation into a dramatic study of choice and "
+                "responsibility.",
+                None,
+            ),
+            (
+                "Macbeth and The Tempest show ambition,  mercy, power, and "
+                "consequence from sharply different perspectives.",
+                None,
+            ),
+        ]
+    )
+
+    result = verify_office_artifact(task.artifact, artifact)
+
+    repeated_spaces = next(
+        check for check in result.checks if check.name == "repeated_spaces"
+    )
+    assert result.passed is False
+    assert repeated_spaces.passed is False
+    assert "ambition,  mercy" not in result.model_dump_json()
 
 
 def test_xlsx_task_verifies_exact_cells_and_formulas_semantically() -> None:
