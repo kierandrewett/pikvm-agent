@@ -1063,6 +1063,7 @@ function VerificationEvidenceFigure({
 }
 
 export function ComputerActionReceipt({
+  toolName,
   args,
   result,
   status,
@@ -1072,6 +1073,7 @@ export function ComputerActionReceipt({
   showVisualEvidence = true,
   showInputSummary = true,
 }: {
+  toolName?: string;
   args: JsonRecord;
   result: unknown;
   status: ToolCallMessagePartProps["status"];
@@ -1173,6 +1175,7 @@ export function ComputerActionReceipt({
         className="grid gap-1.5 border-y border-border/60 py-2.5"
         aria-label="Action audit summary"
       >
+        {toolName ? <AuditRow label="MCP tool" value={toolName} /> : null}
         {goal ? <AuditRow label="Goal" value={goal} /> : null}
         <AuditRow label="Input" value={input} />
         <AuditRow label="Trace" value={trace} />
@@ -1342,7 +1345,7 @@ const ComputerToolCallImpl: ToolCallMessagePartComponent<
             {visibleTitle}
           </span>
           <code className="hidden shrink-0 font-mono text-[10px] text-muted-foreground sm:inline">
-            {toolName.replace(/^pikvm_/, "")}
+            {toolName}
           </code>
           {durationLabel(visibleDuration) ? (
             <span className="hidden shrink-0 font-mono text-[10px] tabular-nums text-muted-foreground sm:inline">
@@ -1441,6 +1444,7 @@ const ComputerToolCallImpl: ToolCallMessagePartComponent<
               </CollapsibleTrigger>
               <CollapsibleContent className="data-closed:animate-collapsible-up data-open:animate-collapsible-down basis-full overflow-hidden motion-reduce:animate-none">
                 <ComputerActionReceipt
+                  toolName={toolName}
                   args={callArgs}
                   result={result}
                   status={status}

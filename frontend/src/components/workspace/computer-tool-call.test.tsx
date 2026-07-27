@@ -171,7 +171,7 @@ describe("ComputerToolCall", () => {
     const trigger = screen.getByRole("button", {
       name: /Click at 638 × 410.*Verified/i,
     });
-    expect(trigger.textContent).toContain("run_burst");
+    expect(trigger.textContent).toContain("pikvm_run_burst");
     expect(trigger.textContent).toContain("<1s");
     expect(screen.queryByRole("button", { name: "Details" })).toBeNull();
     expect(
@@ -656,6 +656,7 @@ describe("ComputerActionReceipt", () => {
   it("shows a source-to-verification receipt for a completed input", () => {
     render(
       <ComputerActionReceipt
+        toolName="pikvm_run_burst"
         args={{
           based_on_frame_id: 41,
           based_on_world_version: 9,
@@ -690,6 +691,7 @@ describe("ComputerActionReceipt", () => {
     );
 
     const receipt = screen.getByLabelText("Computer action receipt");
+    expect(receipt.textContent).toContain("MCP toolpikvm_run_burst");
     expect(receipt.textContent).toContain("Office lab");
     expect(receipt.textContent).toContain("Trace");
     expect(receipt.textContent).toContain(

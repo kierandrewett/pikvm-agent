@@ -1,5 +1,10 @@
 import { useEffect, useState } from "react";
-import { MonitorIcon, PauseIcon, PlayIcon } from "lucide-react";
+import {
+  MonitorIcon,
+  MonitorOffIcon,
+  PauseIcon,
+  PlayIcon,
+} from "lucide-react";
 import { harnessBlob } from "@/lib/harness-api";
 import {
   Sheet,
@@ -17,6 +22,7 @@ type ComputerSheetProps = {
   onOpenChange: (open: boolean) => void;
   token: string;
   run: RunSnapshot | null;
+  connectionEnabled: boolean;
   onPause: () => Promise<void>;
   onContinue: () => Promise<void>;
 };
@@ -26,6 +32,7 @@ export function ComputerSheet({
   onOpenChange,
   token,
   run,
+  connectionEnabled,
   onPause,
   onContinue,
 }: ComputerSheetProps) {
@@ -84,6 +91,13 @@ export function ComputerSheet({
   const canPause = Boolean(
     run && ["planning", "running", "executing", "verifying"].includes(run.status),
   );
+  const hasComputerSession = Boolean(run?.session_id);
+  const emptyTitle = connectionEnabled
+    ? "Managed PiKVM MCP is configured"
+    : "No managed computer configured";
+  const emptyDescription = connectionEnabled
+    ? "A live screen appears here when a task starts using the computer."
+    : "Chat and research tools remain available without computer control.";
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -94,9 +108,13 @@ export function ComputerSheet({
             Computer
           </SheetTitle>
           <SheetDescription className="min-w-0 flex-1 truncate text-xs">
-            {run ? `${alias} · ${layer}` : "No computer session is selected."}
+            {hasComputerSession
+              ? `${alias} · ${layer}`
+              : connectionEnabled
+                ? "Managed PiKVM MCP · no active session"
+                : "Chat-only workspace"}
           </SheetDescription>
-          {run ? (
+          {hasComputerSession && run ? (
             <div className="flex shrink-0 items-center gap-2">
               <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <span
@@ -125,7 +143,27 @@ export function ComputerSheet({
           ) : null}
         </SheetHeader>
         <div className="flex min-h-0 flex-1 items-center justify-center bg-black">
-          {frameUrl ? (
+          {!hasComputerSession ? (
+            <div className="flex max-w-sm flex-col items-center gap-2 px-8 text-center">
+              {connectionEnabled ? (
+                <MonitorIcon
+                  className="mb-1 size-7 text-muted-foreground"
+                  aria-hidden="true"
+                />
+              ) : (
+                <MonitorOffIcon
+                  className="mb-1 size-7 text-muted-foreground"
+                  aria-hidden="true"
+                />
+              )}
+              <p className="text-sm font-medium text-foreground">
+                {emptyTitle}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {emptyDescription}
+              </p>
+            </div>
+          ) : frameUrl ? (
             <img
               src={frameUrl}
               alt="Current remote computer screen"

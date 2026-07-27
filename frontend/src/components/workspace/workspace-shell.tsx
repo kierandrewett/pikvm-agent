@@ -39,6 +39,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { AuthDialog } from "@/components/workspace/auth-dialog";
 import { ComputerToolEnvironmentProvider } from "@/components/workspace/computer-tool-environment";
+import { ComputerConnectionButton } from "@/components/workspace/computer-connection-button";
 import {
   DeferredComputerToolCall as ComputerToolCall,
   DeferredWorkspaceToolGroup as WorkspaceToolGroup,
@@ -252,9 +253,15 @@ export function WorkspaceShell() {
           onOpenModels={() => setModelsOpen(true)}
         />
       ) : null}
+      <ComputerConnectionButton
+        enabled={workspace.computerControlEnabled}
+        machineName={computerEnvironment.machineName}
+        onOpen={() => setComputerOpen(true)}
+      />
       {workspace.tools.length > 0 || toolServerEntries.length > 0 ? (
         <Badge
           variant="outline"
+          className="hidden sm:inline-flex"
           title={[
             ...workspace.tools.map((tool) => tool.name),
             ...toolServerEntries
@@ -333,17 +340,15 @@ export function WorkspaceShell() {
                 tooltip={
                   workspace.computerControlEnabled
                     ? "Computer"
-                    : "No computer connected"
+                    : "Computer connection details"
                 }
                 aria-label={
                   workspace.computerControlEnabled
                     ? "Open computer view"
-                    : "No computer connected"
+                    : "Open computer connection details"
                 }
                 onClick={() => setComputerOpen(true)}
-                disabled={
-                  !workspace.selectedRun || !workspace.computerControlEnabled
-                }
+                disabled={!workspace.connected}
               >
                 <MonitorIcon />
               </TooltipIconButton>
@@ -427,6 +432,7 @@ export function WorkspaceShell() {
             onOpenChange={setComputerOpen}
             token={workspace.token}
             run={workspace.selectedRun}
+            connectionEnabled={workspace.computerControlEnabled}
             onPause={workspace.onCancel}
             onContinue={workspace.continueRun}
           />
