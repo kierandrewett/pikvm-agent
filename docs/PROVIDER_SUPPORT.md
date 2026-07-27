@@ -60,6 +60,27 @@ output and credential values are not persisted.
 `subprocess_json` is deliberately marked external: credential handling inside
 the bridge remains the bridge operator's responsibility.
 
+## First-party connection flow
+
+The Models sheet provides an additive setup flow for the three provider-owned
+CLI logins (`codex_cli`, `claude_cli`, and `gemini_cli`) and four common API
+routes (`openai_responses`, `anthropic_api`, `gemini_api`, and
+`openai_compatible`). The browser never accepts a credential value. It sends
+only a unique provider alias, model ID, optional safe base URL, and the name of
+the server environment variable that already owns an API credential. CLI
+providers continue to use their own login store.
+
+New providers are written atomically to the harness configuration with mode
+`0600`, cannot replace an existing alias, become visible without silently
+changing any reasoner/controller/verifier route, and reject credential-like
+values in public text fields. A harness with an active per-run cost cap refuses
+browser setup until billing terms are reviewed in configuration. Azure, Vertex,
+and custom subprocess routes remain reviewed configuration work rather than a
+simplified browser flow.
+
+This is not a hosted OAuth broker. The only OAuth involved in the simple flow
+is the provider CLI's own sign-in outside the browser form.
+
 ## Readiness is not compatibility
 
 Readiness checks are local and non-billable. They prove only that a configured

@@ -34,7 +34,7 @@ support a claim of generally reliable autonomous Windows operation.
 | A coding client can submit once while the dedicated harness owns progression | The referenced Claude session used 551 direct PiKVM calls; 21 API contracts prove the replacement managed loop crosses action slices, safe replans and verifier-more-work checkpoints, resumes after exact human approval, recovers internal yields after restart, reconstructs its automatic-resume ceiling from durable history, and refuses overlapping Continue bypass. Operator steering is durable, forces a fresh managed plan, and cannot discard unsettled HID or take control from direct/external drivers. Exact generated configs initialize over real stdio for all four clients and preserve their validated client identity | Passing control-loop and generated-stdio inventory contracts; authenticated task/restart pending |
 | Effective client config cannot silently retain a second PiKVM tool surface | Fail-closed audit supports native Codex resolved inventory, Codex TOML/shared project JSON, Claude/Gemini JSON, and legacy/V2 OpenCode JSON/JSONC. Native read-only Codex inventory found one raw PiKVM registration and no managed registration. A session-only Codex override produced exactly one managed PiKVM surface while retaining unrelated MCPs; Claude's installed strict-MCP flags produced one explicit managed surface. OpenCode 1.14.44 resolved one managed surface under `--pure`, exact default-deny permissions, ephemeral writable state, and client-owned OAuth linked without copying it. Gemini 0.35.3 loaded the temporary system catalog natively and resolved one allowlisted managed surface from an empty dedicated profile; the exact admin-policy path/content and extension-disable argv are configured but not enforcement-tested. These paths modify no persisted registration and passed 54 launcher/audit/package contracts | Codex/Claude/OpenCode native isolation dry-runs pass; Gemini settings audit passes; no authenticated coding-client task or Gemini policy-enforcement call was run |
 | Managed and direct assurance levels are unambiguous | Real browser showed persistent managed/direct control contracts; 390×844 check had no horizontal overflow | Passing UI contract |
-| Computer-use actions remain inspectable while a run is changing | A target-free Chromium fixture retained a 12-action audit while showing only the current live input; the completed trace returns on inspection. Each quiet row retains semantic action, MCP tool, model and state, while Screen, Audit, and raw request remain progressively disclosed. At 390×844 the conversation measured 341px client/scroll width with zero horizontal overflow and kept both model route and Managed MCP visible. A separate dangerous Enter fixture rendered the exact two-input sequence, 47-character count, external-side-effect reason, and Allow once/Deny controls inline without committing input | Passing browser/UI contract |
+| Computer-use actions remain inspectable while a run is changing | A target-free Chromium fixture retained a 12-action audit while showing only the current live input; the completed trace returns on inspection. Completed clicks now lead with a marked 72×40 pre-action crop of the actual visual target instead of coordinates, while the coordinate, MCP tool, model, state, full Screen evidence, Details, Raw request, and exact input remain available progressively. At a rendered 645×1070 viewport all 12 previews loaded with zero horizontal overflow. A separate dangerous Enter fixture rendered the exact two-input sequence, 47-character count, external-side-effect reason, and Allow once/Deny controls inline without committing input | Passing browser/UI contract |
 | The operator can inspect the verifier's visual evidence | Authenticated API contracts return the labelled before/after bytes without exposing their local path; static UI contracts cover revision refresh, loading/error state, and blob revocation. A live disposable-Windows diagnostic exercised failed and uncertain visual verification without turning either into success | Passing local/browser contract; live task itself did not pass |
 | Long prose/code arrives exactly | Windows transport trials were exact 581/581 and 142/142 characters, but the seven-trial physical loop still failed overall | Partial; not a release claim |
 | Raw HID avoids encoded/script transfer hacks | A seeded 1,000-payload corpus caught 800/800 unsafe shapes with 0/200 safe false positives; the public MCP integration also refuses encoded transfer before daemon contact | Passing local syntax gate; explicit byte-verified transfer channel pending |
@@ -157,8 +157,11 @@ them. Managed actions and opt-in guarded direct calls are committed to SQLite
 before HID execution. Labelled before/after images and quiet adapter/daemon logs
 are retained with managed runs. The latest labelled comparison is also fetched
 through an authenticated, no-store, path-free endpoint and shown as the primary
-Screen change evidence. Goal, exact input, frame trace, and model route sit in
-one compact Audit disclosure; the raw MCP request stays closed until requested.
+Screen change evidence. Completed clicks also show a marked crop from the
+pre-action half of that same retained evidence, so the operator can recognize
+the clicked control without interpreting coordinates. Goal, frame trace, and
+model route sit in a compact Details disclosure; Raw and exact Input are
+separate disclosures and stay closed for routine verified actions.
 The JSON files linked below are derived from those durable records; the UI is
 not a separate, less-auditable execution path.
 
@@ -177,13 +180,17 @@ authenticated catalog comes from the same canonical ten-adapter backend
 contract, while the configured-account view shows the reasoning, acting, and
 checking routes, primary/fallback position, readiness, authentication owner,
 coarse success/latency, and conformance state. It never renders raw
-readiness/provider errors or credential source paths and contains no browser
-secret-entry form. The composer now shows the effective model for all three
+readiness/provider errors or credential source paths. Its connection form is
+secret-free: API routes accept an environment-variable name, never the
+credential value, while CLI routes retain provider-owned sign-in. The composer
+now shows the effective model for all three
 roles before send, and an active run exposes its durable route as locked rather
-than silently adopting later settings changes. Thirty-six frontend and 161
-provider/agent/API/store/fixture/static-UI contracts pass at the exact published
-commit; no provider or computer was contacted. See
-[`model-connections-and-routing.json`](results/2026-07-27/ui/model-connections-and-routing.json).
+than silently adopting later settings changes. The additive flow refuses alias
+replacement, writes mode-0600 configuration atomically, and does not silently
+route a newly configured provider. Fifty-five frontend and 1,106 Python
+contracts pass at the exact published source commit; no provider or computer
+was contacted. See
+[`provider-connections-and-click-targets.json`](results/2026-07-27/ui/provider-connections-and-click-targets.json).
 
 ### Provider conformance boundary
 
