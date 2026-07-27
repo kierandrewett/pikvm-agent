@@ -276,6 +276,28 @@ without weakening the runtime gate. The follow-up is clean: 1,052 passed, one
 environment-dependent case skipped, 36/36 frontend tests passed, and the
 production scorecard/build/similarity checks remain current.
 
+The next receipt pass fixed a production/fixture contract mismatch rather than
+adding presentation around synthetic data. Real verifier results arrive as
+`model.completed` with role `verifier`; the chat had only linked the fixture's
+older `verification.completed` shape. Each action now binds the actual
+controller and verifier provider/model/latency, and each generated before/after
+composite receives a durable revision, source/destination frame IDs, and an
+authenticated revision-specific endpoint. A historical receipt therefore
+cannot silently show a newer action's “latest” image, and host paths remain
+private. The target-free UI fixture exercises the same event shape and image
+fetch without connecting to a machine or model provider.
+
+All 38 frontend tests, 113 focused Python contracts, the production build,
+resource gate, and TypeScript similarity scan pass. A broader run excluding a
+concurrently modified, independently CPU-bound Office acceptance file completed
+1,031 passes and one environment-dependent skip in 79.79 seconds. The
+repository-wide attempt had reached 700 passes, one skip, and zero failures
+before only that validation process was interrupted after 692.72 seconds; this
+is not presented as a full-suite pass. The current bundle is 1,222,540 raw
+bytes, with 311,739-byte gzip JavaScript and 18,134-byte gzip CSS. The in-app
+browser URL policy still blocks the post-change visual/reflow audit. See
+[`action-bound-screen-evidence.json`](results/2026-07-27/ui/action-bound-screen-evidence.json).
+
 The previous customer wheel was built offline with Hatchling 1.31.0 from the
 pre-existing cache. Its SHA-256 is
 `7252debceaad7ff3ec499712e6439e1c590d27ca0effd2cec029d2524bbde96f`;
@@ -905,7 +927,7 @@ instrumentation check only, not an accuracy, average-token, or cost claim.
 ## Current headline
 
 <!-- pikvm-scorecard:start -->
-_Generated from checked JSON evidence as of 2026-07-27. Manifest `sha256:fc577dceb140`; run `pikvm-agent harness scorecard --check` to detect drift._
+_Generated from checked JSON evidence as of 2026-07-27. Manifest `sha256:7ea77b32a37c`; run `pikvm-agent harness scorecard --check` to detect drift._
 
 | Suite | Route | Cases | Result | Median / p95 | Wall | Status | Evidence |
 | --- | --- | ---: | ---: | ---: | ---: | --- | --- |
@@ -924,6 +946,7 @@ _Generated from checked JSON evidence as of 2026-07-27. Manifest `sha256:fc577dc
 | Computer-action transaction receipt | assistant-ui tool disclosure → four-phase receipt | 22 frontend + 58 harness/API contracts | 22/22 + 58/58; 4-phase receipt / 8 focused tests | 306,345-byte gzip JavaScript | Target-free contract | Component/build passing; browser visual audit pending | [JSON](results/2026-07-27/ui/computer-action-receipt.json) · `sha256:739f8fde11de` |
 | Model connections and role routing | Authenticated provider catalog → chat Models sheet | 26 frontend + 83 provider/API contracts | 26/26 + 83/83; 10 adapters / 2 configured / 3 roles | 309,038-byte gzip JavaScript | Target-free contract | Catalog/routing UI passing; live providers and browser visual audit pending | [JSON](results/2026-07-27/ui/model-connections-and-routing.json) · `sha256:28d26d4baf28` |
 | Computer-use chat controls | assistant-ui → per-role route + action receipt | 36 frontend + 1,052 full Python | 36/36; 1,052 passed / 1 skipped; 3 model roles / 8 action states | 311,264-byte gzip JS; 18,064-byte gzip CSS | Detached commit contract | Passing isolated contract; browser visual audit pending | [JSON](results/2026-07-27/ui/computer-use-chat-controls.json) · `sha256:b835e8680388` |
+| Action-bound screen evidence | Controller → computer input → verifier → authenticated image | 38 frontend + 113 focused Python | 38/38 + 113/113; 1,031 broader / 1 skipped; 2 model roles | 311,739-byte gzip JS; 18,134-byte gzip CSS | Target-free contract | Passing target-free contract; browser visual and concurrent Office file pending | [JSON](results/2026-07-27/ui/action-bound-screen-evidence.json) · `sha256:b5c40e8ccb52` |
 | Live-frame resource envelope | Target-free streamed preview adapter | 6 contracts | 6/6; 4,194,304-byte frame; 8 sessions / 33,554,432 bytes cached | 450ms minimum upstream interval | — | Passing transport resource contract; browser decode pending | [JSON](results/2026-07-25/ui/live-frame-resource-envelope-2026-07-26.json) · `sha256:345d2a92bda7` |
 | Normalized storage + bounded control | In-memory production contract | 100,000 events + 100 appends | 11,214.070× write-size reduction; 1,000 control events loaded | 0.086ms / 0.138ms append; 3.372ms / 4.539ms control | 214.978ms import | Serialization diagnostic; real SQLite pending | [JSON](results/2026-07-25/ui/normalized-storage-bounded-control-n100000-2026-07-26.json) · `sha256:9af680551989` |
 | Gemini CLI provider adapter | Gemini CLI 0.35.3 / `account-default` | 79 provider/config/UI cases | Adapter contracts passed; startup probe timeout; 228,904 KiB peak RSS | 60.01s startup probe | 60.01s | Adapter contract; live provider unproven | [JSON](results/gemini-cli-0.35.3-compatibility-2026-07-26.json) · `sha256:4beb22389eaa` |

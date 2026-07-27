@@ -247,6 +247,33 @@ CSS. The in-app browser URL policy still blocked the post-change visual/reflow
 inspection, so this is isolated component/build evidence rather than a
 browser-layout result.
 
+A production-event regression then showed that the chat projection linked the
+fixture's `verification.completed` event but not the real harness event,
+`model.completed` with role `verifier`. The repaired projection accepts both
+without inventing verifier evidence. It associates the last controller result
+with the action checkpoint and the verifier result only within that action's
+outcome window, so provider/model/latency attribution does not bleed across the
+next attempt.
+
+Before/after composites are now durable action artifacts rather than a single
+mutable “latest image.” The run retains at most 64 revision records containing
+the action index and before/after frame IDs; host paths remain excluded from the
+visible run. The browser fetches the selected revision through an authenticated
+no-store endpoint, clears the previous image before a new revision loads, and
+revokes object URLs on cleanup. The synthetic UI fixture emits the same
+production-shaped model events and a labelled PNG without opening a computer
+target.
+
+At commit `7b98468`, 38/38 frontend tests, 113/113 focused Python contracts,
+the production build, resource gate, and TypeScript similarity scan passed. A
+broader non-Office run completed 1,031 tests with one skip in 79.79 seconds.
+The repository-wide run was interrupted after 700 passes, one skip, zero
+failures, and 692.72 seconds because a concurrently modified Office acceptance
+file was independently CPU-bound; this is explicitly not a full-suite pass.
+The bundle remains inside its current envelope at 1,222,540 raw bytes,
+311,739-byte gzip JavaScript, and 18,134-byte gzip CSS. Browser visual/reflow
+inspection remains blocked by the in-app browser URL policy.
+
 A subsequent complete target-free regression caught one legacy playbook test
 calling the hardened HID path without its required caller-stable idempotency
 key. The runtime correctly failed closed; the test was updated to use the

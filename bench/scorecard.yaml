@@ -237,6 +237,26 @@ rows:
     wall: "Detached commit contract"
     status: "Passing isolated contract; browser visual audit pending"
 
+  - suite: "Action-bound screen evidence"
+    route: "Controller → computer input → verifier → authenticated image"
+    source: "results/2026-07-27/ui/action-bound-screen-evidence.json"
+    fields:
+      frontend_passed: {path: "contracts.frontend.passed", format: "integer"}
+      frontend_total: {path: "contracts.frontend.total", format: "integer"}
+      focused_passed: {path: "contracts.focused_python.passed", format: "integer"}
+      focused_total: {path: "contracts.focused_python.total", format: "integer"}
+      broader_passed: {path: "contracts.broader_python_without_concurrent_office_file.passed", format: "integer"}
+      broader_skipped: {path: "contracts.broader_python_without_concurrent_office_file.skipped", format: "integer"}
+      roles: {path: "model_handoff.roles", format: "count"}
+      revisions: {path: "action_bound_evidence.max_retained_revisions_per_run", format: "integer"}
+      gzip_js: {path: "resource_envelope.javascript_gzip_bytes", format: "integer"}
+      gzip_css: {path: "resource_envelope.css_gzip_bytes", format: "integer"}
+    cases: "{frontend_total} frontend + {focused_total} focused Python"
+    result: "{frontend_passed}/{frontend_total} + {focused_passed}/{focused_total}; {broader_passed} broader / {broader_skipped} skipped; {roles} model roles"
+    latency: "{gzip_js}-byte gzip JS; {gzip_css}-byte gzip CSS"
+    wall: "Target-free contract"
+    status: "Passing target-free contract; browser visual and concurrent Office file pending"
+
   - suite: "Live-frame resource envelope"
     route: "Target-free streamed preview adapter"
     source: "results/2026-07-25/ui/live-frame-resource-envelope-2026-07-26.json"

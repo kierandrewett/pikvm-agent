@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-07-27T06:07:33Z",
+  "source_commit": "7b98468",
+  "machine_contacted": false,
+  "model_api_contacted": false,
+  "route": "production harness events to assistant-ui computer action receipt",
+  "contracts": {
+    "frontend": {
+      "passed": 38,
+      "total": 38
+    },
+    "focused_computer_action_component": {
+      "passed": 13,
+      "total": 13
+    },
+    "focused_run_message_projection": {
+      "passed": 10,
+      "total": 10
+    },
+    "focused_python": {
+      "passed": 113,
+      "total": 113
+    },
+    "broader_python_without_concurrent_office_file": {
+      "passed": 1031,
+      "skipped": 1,
+      "failed": 0,
+      "warnings": 4,
+      "wall_seconds": 79.79
+    },
+    "interrupted_repository_run": {
+      "passed_before_interrupt": 700,
+      "skipped_before_interrupt": 1,
+      "failed_before_interrupt": 0,
+      "wall_seconds": 692.72,
+      "reason": "A concurrently modified Office acceptance file was independently CPU-bound; only this validation process was interrupted."
+    },
+    "production_build": "passed",
+    "resource_regression": "passed",
+    "typescript_similarity": "no duplicate functions or types",
+    "python_similarity": "no new duplicated runtime path identified; existing broad structural and test-fixture matches remain"
+  },
+  "production_event_repair": {
+    "reproduced_failure": "The receipt recognized fixture verification.completed events but not the real model.completed event with role verifier.",
+    "production_verifier_event_supported": true,
+    "synthetic_verifier_event_compatibility_preserved": true,
+    "controller_identity_bound_to_checkpoint": true,
+    "verifier_identity_bound_between_action_attempts": true,
+    "task_complete_verdict_normalized_to_verified_visual_evidence": true
+  },
+  "action_bound_evidence": {
+    "durable_revision_per_composite": true,
+    "authenticated_revision_endpoint": true,
+    "before_frame_id_visible": true,
+    "after_frame_id_visible": true,
+    "private_host_path_visible": false,
+    "max_retained_revisions_per_run": 64,
+    "historical_receipt_cannot_resolve_to_newer_latest_image": true,
+    "old_image_cleared_before_loading_new_revision": true,
+    "object_url_revoked_on_cleanup": true
+  },
+  "model_handoff": {
+    "roles": [
+      "controller",
+      "verifier"
+    ],
+    "provider_visible": true,
+    "model_visible": true,
+    "latency_visible": true,
+    "controller_model_visible_in_collapsed_row": true
+  },
+  "target_free_visual_fixture": {
+    "production_shaped_events": true,
+    "before_after_png": true,
+    "authenticated_fetch": true,
+    "machine_connected": false,
+    "provider_called": false
+  },
+  "resource_envelope": {
+    "total_raw_bytes": 1222540,
+    "largest_asset_bytes": 1035945,
+    "javascript_raw_bytes": 1035945,
+    "javascript_gzip_bytes": 311739,
+    "css_raw_bytes": 109462,
+    "css_gzip_bytes": 18134,
+    "enforced_limits": {
+      "total_raw_bytes": 1250000,
+      "largest_asset_bytes": 1100000,
+      "javascript_gzip_bytes": 327680,
+      "css_gzip_bytes": 24576
+    }
+  },
+  "browser_audit": {
+    "post_change_visual_review": false,
+    "blocker": "The in-app browser URL policy still blocks local app inspection.",
+    "alternate_browser_used": false
+  },
+  "status": "Target-free production-event, authenticated evidence, component, fixture, build, resource, and broad non-Office contracts pass; browser visual audit and the concurrently changing Office file remain outside this claim."
+}
