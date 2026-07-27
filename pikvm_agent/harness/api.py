@@ -93,6 +93,10 @@ class MediaTransactionSource(Protocol):
 class CreateRunBody(BaseModel):
     task: str = Field(min_length=1, max_length=20_000)
     auto_start: bool = True
+    model_provider: str | None = Field(
+        default=None,
+        pattern=r"^[A-Za-z0-9_.:-]{1,128}$",
+    )
     source_client: str | None = Field(
         default=None,
         pattern=r"^[A-Za-z0-9_-]{1,64}$",
@@ -537,17 +541,27 @@ def create_harness_app(
                 409,
                 "this console observes an externally driven benchmark",
             )
-        run = (
-            await harness.create(
-                body.task,
-                caller={
-                    "interface": "managed_mcp",
-                    "label": body.source_client,
-                },
-            )
-            if body.source_client
-            else await harness.create(body.task)
-        )
+        if body.model_provider is not None:
+            provider_health = models.health()
+            if body.model_provider not in provider_health:
+                raise HTTPException(
+                    422,
+                    f"unknown model provider: {body.model_provider}",
+                )
+            if not provider_health[body.model_provider].get("ready", True):
+                raise HTTPException(
+                    409,
+                    f"model provider is not ready: {body.model_provider}",
+                )
+        create_options: dict[str, Any] = {}
+        if body.source_client:
+            create_options["caller"] = {
+                "interface": "managed_mcp",
+                "label": body.source_client,
+            }
+        if body.model_provider:
+            create_options["model_provider"] = body.model_provider
+        run = await harness.create(body.task, **create_options)
         if body.auto_start and run.status.value not in {
             "failed",
             "aborted",

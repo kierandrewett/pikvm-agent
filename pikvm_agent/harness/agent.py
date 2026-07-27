@@ -148,6 +148,7 @@ class AgentHarness:
         task: str,
         *,
         caller: dict[str, Any] | None = None,
+        model_provider: str | None = None,
     ) -> RunSnapshot:
         """Create/open a run without waiting for a model.
 
@@ -162,6 +163,7 @@ class AgentHarness:
             task=task,
             status=RunStatus.PLANNING,
             caller=dict(caller or {}),
+            model_provider=model_provider,
         )
         run.model_budget.provider_attempt_limit = (
             self.budget_policy.max_provider_attempts
@@ -174,6 +176,7 @@ class AgentHarness:
             "run.created",
             interface=run.caller.get("interface"),
             caller_label=run.caller.get("label"),
+            model_provider=run.model_provider,
         )
         await self.store.save(run)
         try:
@@ -579,7 +582,10 @@ class AgentHarness:
         run.record(
             "model.started",
             role="reasoner",
-            candidates=self.models.route_names("reasoner"),
+            candidates=self.models.route_names(
+                "reasoner",
+                preferred_provider=run.model_provider,
+            ),
         )
         await self.store.save(run)
         try:
@@ -589,6 +595,7 @@ class AgentHarness:
                 on_event=self._model_event_sink(run, "reasoner"),
                 bypass_cooldown=bypass_cooldown,
                 budget=self._model_budget(run),
+                preferred_provider=run.model_provider,
             )
         except ModelBudgetExceeded as exc:
             await self._model_budget_exhausted(run, "reasoner", exc)
@@ -621,7 +628,10 @@ class AgentHarness:
         run.record(
             "model.started",
             role="controller",
-            candidates=self.models.route_names("controller"),
+            candidates=self.models.route_names(
+                "controller",
+                preferred_provider=run.model_provider,
+            ),
         )
         await self.store.save(run)
         try:
@@ -631,6 +641,7 @@ class AgentHarness:
                 on_event=self._model_event_sink(run, "controller"),
                 bypass_cooldown=bypass_cooldown,
                 budget=self._model_budget(run),
+                preferred_provider=run.model_provider,
             )
         except ModelBudgetExceeded as exc:
             await self._model_budget_exhausted(run, "controller", exc)
@@ -695,7 +706,10 @@ class AgentHarness:
         run.record(
             "model.started",
             role="verifier",
-            candidates=self.models.route_names("verifier"),
+            candidates=self.models.route_names(
+                "verifier",
+                preferred_provider=run.model_provider,
+            ),
         )
         await self.store.save(run)
         try:
@@ -704,6 +718,7 @@ class AgentHarness:
                 VerificationDecision,
                 on_event=self._model_event_sink(run, "verifier"),
                 budget=self._model_budget(run),
+                preferred_provider=run.model_provider,
             )
         except ModelBudgetExceeded as exc:
             await self._model_budget_exhausted(run, "verifier", exc)

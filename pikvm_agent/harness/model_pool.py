@@ -265,7 +265,14 @@ class ModelPool:
         self._cooldown_deadlines: dict[str, float] = {}
         self._monotonic = monotonic
 
-    def route_names(self, role: ModelRole) -> list[str]:
+    def route_names(
+        self,
+        role: ModelRole,
+        *,
+        preferred_provider: str | None = None,
+    ) -> list[str]:
+        if preferred_provider is not None:
+            return [preferred_provider]
         route = self.routes.get(role)
         return list(route.providers) if route else []
 
@@ -317,16 +324,22 @@ class ModelPool:
         on_event: ModelEventSink | None = None,
         bypass_cooldown: bool = False,
         budget: ModelAttemptBudget | None = None,
+        preferred_provider: str | None = None,
     ) -> tuple[OutputT, ModelResponse]:
         route = self.routes.get(request.role)
         if route is None:
             raise ModelPoolError(f"no provider route for role {request.role}")
+        provider_names = (
+            [preferred_provider]
+            if preferred_provider is not None
+            else route.providers
+        )
         errors: list[str] = []
         async def emit(kind: str, **data: object) -> None:
             if on_event is not None:
                 await on_event(kind, data)
 
-        for route_index, name in enumerate(route.providers):
+        for route_index, name in enumerate(provider_names):
             provider = self.providers.get(name)
             if provider is None:
                 errors.append(f"{name}=not-configured")

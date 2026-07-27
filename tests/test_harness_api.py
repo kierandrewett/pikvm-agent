@@ -41,11 +41,13 @@ class StubHarness:
         task: str,
         *,
         caller: dict[str, Any] | None = None,
+        model_provider: str | None = None,
     ) -> RunSnapshot:
         run = RunSnapshot(
             run_id="run_1",
             task=task,
             status=RunStatus.RUNNING,
+            model_provider=model_provider,
             caller=dict(caller or {}),
             session_id="s_1",
             observation=ComputerObservation(
@@ -174,6 +176,49 @@ async def test_agent_created_run_preserves_managed_client_identity(
         "label": "codex-cli",
     }
     assert (await store.get("run_1")).caller == response.json()["caller"]
+
+
+@pytest.mark.asyncio
+async def test_operator_can_choose_a_configured_byo_model_provider(
+    tmp_path: Path,
+) -> None:
+    frame = tmp_path / "frame.jpg"
+    frame.write_bytes(b"frame")
+    store = InMemoryRunStore()
+    app = create_harness_app(
+        harness=StubHarness(store, frame),  # type: ignore[arg-type]
+        store=store,
+        models=StubModels(),
+        access_token=TEST_ACCESS_TOKEN,
+        allowed_origins={"http://harness"},
+    )
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app),
+        base_url="http://harness",
+        headers={"authorization": f"Bearer {TEST_ACCESS_TOKEN}"},
+    ) as client:
+        selected = await client.post(
+            "/api/runs",
+            json={
+                "task": "Create the quarterly workbook",
+                "auto_start": False,
+                "model_provider": "fast-oauth",
+            },
+        )
+        unknown = await client.post(
+            "/api/runs",
+            json={
+                "task": "Create the quarterly workbook",
+                "auto_start": False,
+                "model_provider": "not-configured",
+            },
+        )
+
+    assert selected.status_code == 200
+    assert selected.json()["model_provider"] == "fast-oauth"
+    assert unknown.status_code == 422
+    assert "unknown model provider" in unknown.json()["detail"]
 
 
 @pytest.mark.asyncio

@@ -434,6 +434,10 @@ class RunSnapshot(BaseModel):
     task: str
     status: RunStatus
     origin: Literal["managed", "direct_mcp"] = "managed"
+    model_provider: str | None = Field(
+        default=None,
+        pattern=r"^[A-Za-z0-9_.:-]{1,128}$",
+    )
     caller: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)
@@ -551,6 +555,7 @@ class RunSummary(BaseModel):
     task: str
     status: RunStatus
     origin: Literal["managed", "direct_mcp"] = "managed"
+    model_provider: str | None = None
     caller: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime
     updated_at: datetime
@@ -574,6 +579,7 @@ class RunSummary(BaseModel):
             task=run.task,
             status=run.status,
             origin=run.origin,
+            model_provider=run.model_provider,
             caller=run.caller,
             created_at=run.created_at,
             updated_at=run.updated_at,

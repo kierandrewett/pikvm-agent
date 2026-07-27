@@ -184,6 +184,30 @@ async def test_model_pool_falls_back_only_before_schema_valid_output() -> None:
 
 
 @pytest.mark.asyncio
+async def test_model_pool_honors_an_explicit_byo_provider() -> None:
+    invalid = InvalidProvider()
+    valid = ValidProvider()
+    pool = ModelPool(
+        providers={"invalid": invalid, "valid": valid},
+        routes={"reasoner": RoleRoute(providers=["invalid", "valid"])},
+    )
+
+    plan, response = await pool.complete(
+        request(),
+        PlanDecision,
+        preferred_provider="valid",
+    )
+
+    assert plan.summary == "A valid plan"
+    assert response.provider == "valid"
+    assert pool.health()["invalid"]["calls"] == 0
+    assert pool.route_names(
+        "reasoner",
+        preferred_provider="valid",
+    ) == ["valid"]
+
+
+@pytest.mark.asyncio
 async def test_model_pool_downgrades_text_plus_commit_to_a_visible_safe_draft() -> None:
     provider = TextAndCommitProvider()
     pool = ModelPool(
