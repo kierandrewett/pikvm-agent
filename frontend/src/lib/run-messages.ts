@@ -115,7 +115,7 @@ const completionMarkdown = (run: RunSnapshot) => {
       : "Paused at a durable checkpoint. You can continue or give a correction.";
   }
   if (run.status === "needs_approval") {
-    return "This action needs your approval before the computer can continue.";
+    return "";
   }
   const activity = run.active_activity;
   if (activity?.kind === "model") {

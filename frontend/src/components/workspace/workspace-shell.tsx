@@ -15,7 +15,6 @@ import { Thread } from "@/components/assistant-ui/thread";
 import { ThreadList } from "@/components/assistant-ui/thread-list";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import {
   Sheet,
   SheetContent,
@@ -122,16 +121,11 @@ export function WorkspaceShell() {
                 {workspace.selectedRun?.task || "New task"}
               </p>
               {workspace.connected ? (
-                <Badge
-                  variant="outline"
-                  className="hidden shrink-0 gap-1.5 font-normal sm:flex"
-                >
-                  <span
-                    className="size-1.5 rounded-full bg-emerald-400"
-                    aria-hidden="true"
-                  />
-                  Managed MCP
-                </Badge>
+                <span
+                  className="size-1.5 shrink-0 rounded-full bg-emerald-400"
+                  aria-label="Managed MCP connected"
+                  title="Managed MCP connected"
+                />
               ) : null}
             </div>
             <div className="flex shrink-0 items-center gap-1">

@@ -8,16 +8,35 @@ import { ComputerToolGroup } from "./computer-tool-call";
 
 const group = (
   status: ThreadGroupPart["status"],
+  count = 2,
 ): ThreadGroupPart =>
   ({
     type: "group-tool",
-    indices: [0, 1],
+    indices: Array.from({ length: count }, (_, index) => index),
     status,
   }) as ThreadGroupPart;
 
 afterEach(cleanup);
 
 describe("ComputerToolGroup", () => {
+  it("does not wrap a single action in a redundant group control", () => {
+    render(
+      <ComputerToolGroup
+        group={group(
+          { type: "requires-action", reason: "interrupt" },
+          1,
+        )}
+      >
+        <span>Exact approval</span>
+      </ComputerToolGroup>,
+    );
+
+    expect(screen.queryByText("Exact approval")).not.toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /1 computer action/i }),
+    ).toBeNull();
+  });
+
   it("keeps active computer inputs expanded during live event updates", () => {
     render(
       <ComputerToolGroup group={group({ type: "running" })}>

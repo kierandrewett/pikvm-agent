@@ -453,6 +453,10 @@ export function ComputerToolGroup({
     if (needsAttention || active) setOpen(true);
   }, [active, needsAttention]);
 
+  if (count === 1) {
+    return <div className="my-3">{children}</div>;
+  }
+
   return (
     <ToolGroupRoot
       variant="ghost"
