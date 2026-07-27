@@ -210,11 +210,14 @@ approval reasons were ellipsized, and dialogs had no viewport-height scroll
 boundary. Two static regressions pass. This is a fix record, not a completed
 200% browser claim.
 
-The current static operator assets are **130,991 bytes total**: 17,760 bytes
-HTML, 81,299 bytes JavaScript, and 31,932 bytes CSS. Release regressions cap
-the total at 128 KiB, JavaScript at 80 KiB, and CSS at 36 KiB. This is an
-uncompressed local-asset budget, not a frame-decode or browser-memory
-measurement.
+The current production assistant-ui/shadcn workspace assets are **1,188,014
+bytes total** including local fonts: 713 bytes HTML, 1,004,653 bytes
+JavaScript, 106,228 bytes CSS, and 76,420 bytes of local fonts. Gzip output is
+303,420 bytes for JavaScript and 17,598 bytes for CSS. Release regressions cap
+every asset at 1.1 MB, the total at 1.25 MB, and gzip JavaScript/CSS at 320/24
+KiB. This is materially larger than the retired hand-built console and remains
+within the explicit current envelope; the old 128 KiB claim no longer
+describes the shipped chat workspace.
 
 The previous customer wheel was built offline with Hatchling 1.31.0 from the
 pre-existing cache. Its SHA-256 is
@@ -845,7 +848,7 @@ instrumentation check only, not an accuracy, average-token, or cost claim.
 ## Current headline
 
 <!-- pikvm-scorecard:start -->
-_Generated from checked JSON evidence as of 2026-07-27. Manifest `sha256:1c6e58cccca3`; run `pikvm-agent harness scorecard --check` to detect drift._
+_Generated from checked JSON evidence as of 2026-07-27. Manifest `sha256:24b8a0912d58`; run `pikvm-agent harness scorecard --check` to detect drift._
 
 | Suite | Route | Cases | Result | Median / p95 | Wall | Status | Evidence |
 | --- | --- | ---: | ---: | ---: | ---: | --- | --- |
@@ -859,6 +862,7 @@ _Generated from checked JSON evidence as of 2026-07-27. Manifest `sha256:1c6e58c
 | Isolated managed client launch | Codex + Claude + OpenCode; Gemini policy contract | 4 installed clients / 54 contracts | 3 native dry-runs; 1 settings-only audit; raw Codex baseline shadowed without persistence | Not measured | Dry-run | Three native isolation dry-runs plus Gemini settings audit; enforcement and tasks pending | [JSON](results/2026-07-26/safety/isolated-managed-client-launch.json) · `sha256:82c085f02a53` |
 | Managed smoke lab contract | Target-free app + stdin client task | 24 contracts | 24/24; 44 focused gates | Not measured | Target-free contract | Passing contract; live task rejected-before-process-creation | [JSON](results/2026-07-26/harness/managed-smoke-lab-contract.json) · `sha256:c7bb759ff96b` |
 | Operator steering | Authenticated UI → managed replan | 12 tests / 13 contracts | Operator-only durable replan; 131,022-byte UI | — | 0.78s | Passing local contract and browser interaction | [JSON](results/2026-07-25/ui/operator-steering-2026-07-26.json) · `sha256:a4325a2ad4df` |
+| Computer-action chat workspace | Target-free synthetic fixture | 14 frontend + 14 harness UI/fixture contracts | 14/14 + 14/14; production build passed | 303,420-byte gzip JavaScript | Target-free contract | Component/build passing; post-change browser visual audit pending | [JSON](results/2026-07-27/ui/computer-action-chat-workspace.json) · `sha256:6578fe3fc553` |
 | Live-frame resource envelope | Target-free streamed preview adapter | 6 contracts | 6/6; 4,194,304-byte frame; 8 sessions / 33,554,432 bytes cached | 450ms minimum upstream interval | — | Passing transport resource contract; browser decode pending | [JSON](results/2026-07-25/ui/live-frame-resource-envelope-2026-07-26.json) · `sha256:345d2a92bda7` |
 | Normalized storage + bounded control | In-memory production contract | 100,000 events + 100 appends | 11,214.070× write-size reduction; 1,000 control events loaded | 0.086ms / 0.138ms append; 3.372ms / 4.539ms control | 214.978ms import | Serialization diagnostic; real SQLite pending | [JSON](results/2026-07-25/ui/normalized-storage-bounded-control-n100000-2026-07-26.json) · `sha256:9af680551989` |
 | Gemini CLI provider adapter | Gemini CLI 0.35.3 / `account-default` | 79 provider/config/UI cases | Adapter contracts passed; startup probe timeout; 228,904 KiB peak RSS | 60.01s startup probe | 60.01s | Adapter contract; live provider unproven | [JSON](results/gemini-cli-0.35.3-compatibility-2026-07-26.json) · `sha256:4beb22389eaa` |
@@ -870,8 +874,8 @@ _Generated from checked JSON evidence as of 2026-07-27. Manifest `sha256:1c6e58c
 | Hybrid OCR worker lifecycle | Tesseract precise + killable Paddle worker | 5 lifecycle cases + 19 contracts | 19/19; hard timeout before yes, after no | 5,025ms / 5,062ms | 5.07s | Process lifecycle fixed; diagnostic only, n=5 | [JSON](results/2026-07-26/ocr/hybrid-worker-shutdown-smoke-2026-07-27.json) · `sha256:766f4b73b6db` |
 | OSWorld-Verified tracer | Codex, Claude, and mixed role routes | 9 current; 33 scored + 11 unscored attempts | 6/9 current; 6/33 all scored attempts | 128.56s / 883.97s | 2,583.98s current set | Diagnostic; three current failures | [JSON](results/2026-07-25/osworld/summary.json) · `sha256:061062fbbdbe` |
 | Windows Agent Arena | — | 154 tasks discovered | Not run | — | — | Blocked by missing official image | [JSON](results/2026-07-24/inventories/windows-agent-arena.json) · `sha256:c52ba54f6b29` |
-| Historical PiKVM incident audit | Claude Code + Codex + OpenCode histories | 24 conversations; 4,453 PiKVM calls | 69 incidents: 19 critical, 27 high | — | — | Available local histories audited | [JSON](historical_pikvm_incidents.json) · `sha256:bacb512a2412` |
-| Historical critical/high regression coverage | Checked local control ledger | 46 critical/high incidents | 6 locally covered; 40 partial; 0 open | — | — | Coverage ledger; most incidents remain partial | [JSON](historical_pikvm_coverage.json) · `sha256:889c51665af3` |
+| Historical PiKVM incident audit | Claude Code + Codex + OpenCode histories | 24 conversations; 4,453 PiKVM calls | 70 incidents: 20 critical, 27 high | — | — | Available local histories audited | [JSON](historical_pikvm_incidents.json) · `sha256:77e3703476cd` |
+| Historical critical/high regression coverage | Checked local control ledger | 47 critical/high incidents | 7 locally covered; 40 partial; 0 open | — | — | Coverage ledger; most incidents remain partial | [JSON](historical_pikvm_coverage.json) · `sha256:d6164522d369` |
 <!-- pikvm-scorecard:end -->
 
 The current 100-case Codex sample is 73%, with a Wilson 95% interval of
@@ -1393,9 +1397,17 @@ or hidden by this project.
 
 The local Claude Code, Codex, and OpenCode histories contained 24 conversations
 with 4,453 PiKVM tool calls. A deep, sequence-aware reconstruction identified
-69 redacted incident chains: 19 critical, 27 high, 20 medium, and 3 low. These
+70 redacted incident chains: 20 critical, 27 high, 20 medium, and 3 low. These
 are not model failure rates—the corpus intentionally records visible
 failure/correction chains—but they are direct regression inputs.
+
+A 2026-07-27 source correction also established the route actually used. The
+reference Claude conversation made 551/551 PiKVM calls directly; the seven
+audited Codex histories made 1,482/1,482 low-level calls, and the two OpenCode
+histories made 95/95 direct calls. None used the current managed `computer_*`
+facade. Four older Claude conversations made 37 calls through a different
+legacy autonomous route; its internal model was not recorded and its failures
+must not be attributed to the visible outer Claude model.
 
 - [`HISTORICAL_FAILURE_AUDIT.md`](../docs/HISTORICAL_FAILURE_AUDIT.md) explains
   the failures, model attribution, user corrections, and one-shot risk.
@@ -1407,8 +1419,8 @@ failure/correction chains—but they are direct regression inputs.
 - `tests/test_historical_pikvm_incidents.py` validates its provenance,
   redaction, summaries, and the two largest reconstructed runaway payloads.
 
-The checked coverage ledger is intentionally severe: of 46 critical/high
-incidents, 6 are locally covered, 40 are partial, and 0 are open. The five
+The checked coverage ledger is intentionally severe: of 47 critical/high
+incidents, 7 are locally covered, 40 are partial, and 0 are open. The five
 editor-transaction incidents moved from open to partial after exact
 baseline/diff/diagnostic/rollback contracts landed; those local evaluators are
 not presented as real-application proof. Three ledger-contract tests prevent
@@ -1419,14 +1431,18 @@ The highest-risk incidents now have executable gates: 4,265- and
 10,259-character input is refused before HID; raw and watched fast-print paths
 check the stop gate between submissions of at most 16 characters; panic-stop
 cannot return `ok=true` until already-started HID has quiesced; and an in-flight
-request cannot overwrite the sticky stopped state afterward. Watched normal and
-fast-print typing also compares a fresh pixel grid before every later chunk. A
-clustered change outside the established field stops before further input and
-reports the exact committed prefix. The fast path never clears and replays a
-whole prose draft after an OCR mismatch. Any unverified read-back blocks Enter,
-keys, clicks, and further text; only passive evidence waits may follow. A
-direct caller's `method=print` is now only a transport hint when the production
-watched typer is present, and `no_verify` is refused before HID.
+request cannot overwrite the sticky stopped state afterward. Infrastructure
+auto-approval flags, Terraform/OpenTofu apply or destroy, and forced OCI
+deletion/termination are now dangerous from command text alone on both direct
+and managed paths, even without caller-supplied terminal context. Watched
+normal and fast-print typing also compares a fresh pixel grid before every
+later chunk. A clustered change outside the established field stops before
+further input and reports the exact committed prefix. The fast path never
+clears and replays a whole prose draft after an OCR mismatch. Any unverified
+read-back blocks Enter, keys, clicks, and further text; only passive evidence
+waits may follow. A direct caller's `method=print` is now only a transport hint
+when the production watched typer is present, and `no_verify` is refused before
+HID.
 
 These focus-theft and submit-boundary protections pass 31 watched-typing tests
 and 38 burst/verification tests locally. They are synthetic regressions derived

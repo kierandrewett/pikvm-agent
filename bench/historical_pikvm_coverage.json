@@ -6,10 +6,10 @@
       "critical",
       "high"
     ],
-    "incident_count": 46
+    "incident_count": 47
   },
   "status_counts": {
-    "covered_local": 6,
+    "covered_local": 7,
     "partial": 40,
     "open": 0
   },
@@ -123,6 +123,7 @@
       "status": "partial",
       "incident_ids": [
         "cc-agent-teams-draft-formatting",
+        "cc-737-planner-omitted-three-chunks",
         "cc-737-escaping-and-dropped-character",
         "cx-377d-large-heredoc-runaway",
         "cx-46eb-oversized-command-runaway",
@@ -172,7 +173,6 @@
       "incident_ids": [
         "cc-d818-partial-planner-input",
         "cc-969-long-command-died",
-        "cc-737-silent-base64-chunk-loss",
         "cx-18de-terminal-submit-and-tail-loss",
         "cx-377d-partial-prompt-focus-loss",
         "oc-filename-enter-race"
@@ -216,15 +216,19 @@
       "incident_ids": [
         "cc-64db-destructive-anchor-typo",
         "cc-737-destructive-actions-without-clear-approval",
-        "cx-46eb-panic-stop-did-not-stop-buffered-input"
+        "cx-46eb-panic-stop-did-not-stop-buffered-input",
+        "oc-dry-run-auto-approve-submitted"
       ],
       "controls": [
         "Dangerous send, delete, publish, commit, cloud mutation, and broad terminal mutation require exact operator approval.",
+        "Infrastructure auto-approval flags, Terraform/OpenTofu apply or destroy, and forced OCI deletion/termination are classified as dangerous from command text alone, without trusting caller-supplied terminal context.",
         "Models have no approval-resolution tool.",
         "Panic stop waits for already-started HID to quiesce before returning success."
       ],
       "regression_tests": [
         "tests/test_direct_burst_policy.py::test_observed_send_and_delete_targets_require_human",
+        "tests/test_direct_burst_policy.py::test_infrastructure_auto_approval_requires_human_without_context_metadata",
+        "tests/test_policy.py::test_managed_policy_escalates_infrastructure_auto_approval",
         "tests/test_agent_harness.py::test_approval_escapes_the_model_loop_and_only_exact_human_resume_executes",
         "tests/test_phase3_hardening.py::test_panic_stop_waits_for_started_hid_before_reporting_success"
       ],

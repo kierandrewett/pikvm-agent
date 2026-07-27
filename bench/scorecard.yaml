@@ -150,6 +150,22 @@ rows:
     wall: "{wall}s"
     status: "Passing local contract and browser interaction"
 
+  - suite: "Computer-action chat workspace"
+    route: "Target-free synthetic fixture"
+    source: "results/2026-07-27/ui/computer-action-chat-workspace.json"
+    fields:
+      frontend_passed: {path: "contracts.frontend_tests.passed", format: "integer"}
+      frontend_total: {path: "contracts.frontend_tests.total", format: "integer"}
+      harness_passed: {path: "contracts.harness_ui_fixture_tests.passed", format: "integer"}
+      harness_total: {path: "contracts.harness_ui_fixture_tests.total", format: "integer"}
+      build: {path: "contracts.production_build", format: "text"}
+      gzip_js: {path: "resource_envelope.javascript_gzip_bytes", format: "integer"}
+    cases: "{frontend_total} frontend + {harness_total} harness UI/fixture contracts"
+    result: "{frontend_passed}/{frontend_total} + {harness_passed}/{harness_total}; production build {build}"
+    latency: "{gzip_js}-byte gzip JavaScript"
+    wall: "Target-free contract"
+    status: "Component/build passing; post-change browser visual audit pending"
+
   - suite: "Live-frame resource envelope"
     route: "Target-free streamed preview adapter"
     source: "results/2026-07-25/ui/live-frame-resource-envelope-2026-07-26.json"

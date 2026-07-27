@@ -55,13 +55,13 @@
     {"client":"opencode","session_id":"ses_0758ae687ffeh5acBnBDtlBaqx","started_at":"2026-07-22T15:32:37.880Z","ended_at":"2026-07-22T15:49:14.052Z","pikvm_tool_calls":70,"model_call_counts":{"openrouter/google/gemini-3.5-flash":15,"openrouter/google/gemini-3.6-flash":55},"coverage":"deep_reviewed"}
   ],
   "incident_summary": {
-    "total": 69,
-    "severity": {"critical":19,"high":27,"low":3,"medium":20},
-    "category": {"command_or_script_corruption":7,"concurrency":1,"duplicate_or_extra_input":6,"focus_loss":11,"grounding_click":5,"keyboard_layout_or_case":1,"ocr_misread":2,"operator_loop":2,"pager_or_modal":2,"selection_or_editor":9,"transport_or_schema":6,"typing_truncation":6,"unsafe_or_unapproved":3,"wrong_app_or_window":3,"wrong_target":5},
-    "outcome": {"abandoned":3,"contained":13,"no_state_change":3,"recovered":49,"unresolved":1},
-    "cause_attribution": {"mixed":29,"model":20,"tool_or_transport":18,"unknown":2},
-    "one_shot_risk": {"cloud_mutation":9,"commit_or_push":2,"external_message":6,"file_overwrite":31,"none":18,"shared_task_mutation":3},
-    "attributed_model": {"claude-opus-4-8":25,"claude-sonnet-4-6":9,"claude-sonnet-5":17,"gpt-5.4-mini":2,"gpt-5.5":14,"openrouter/google/gemini-3.5-flash + openrouter/google/gemini-3.6-flash":1,"openrouter/google/gemini-3.6-flash":1}
+    "total": 70,
+    "severity": {"critical":20,"high":27,"low":3,"medium":20},
+    "category": {"command_or_script_corruption":8,"concurrency":1,"duplicate_or_extra_input":6,"focus_loss":11,"grounding_click":5,"keyboard_layout_or_case":1,"ocr_misread":2,"operator_loop":2,"pager_or_modal":2,"selection_or_editor":9,"transport_or_schema":6,"typing_truncation":5,"unsafe_or_unapproved":4,"wrong_app_or_window":3,"wrong_target":5},
+    "outcome": {"abandoned":3,"contained":14,"no_state_change":2,"recovered":49,"unresolved":2},
+    "cause_attribution": {"mixed":30,"model":21,"tool_or_transport":17,"unknown":2},
+    "one_shot_risk": {"cloud_mutation":10,"commit_or_push":2,"external_message":6,"file_overwrite":31,"none":18,"shared_task_mutation":3},
+    "attributed_model": {"claude-opus-4-8":25,"claude-opus-4-8 + claude-sonnet-5":1,"claude-sonnet-4-6":9,"claude-sonnet-5":16,"gpt-5.4-mini":2,"gpt-5.5":14,"openrouter/google/gemini-3.6-flash":3}
   },
   "incidents": [
     {
@@ -638,13 +638,13 @@
     },
     {
       "id": "cc-737-accidental-app-launches",
-      "source": {"client":"claude_code","session_id":"737f59a5-cba2-44aa-ad94-669b120c6403","record_indices":[1257,2787,2797],"tool_sequences":[126,277,278]},
-      "model": {"id":"claude-sonnet-5","attribution":"tool_call_message"},
+      "source": {"client":"claude_code","session_id":"737f59a5-cba2-44aa-ad94-669b120c6403","record_indices":[1257,1258,2787,2788,2797,2798],"tool_sequences":[124,303,304]},
+      "model": {"id":"claude-opus-4-8 + claude-sonnet-5","attribution":"tool_call_message"},
       "category": "grounding_click",
       "severity": "medium",
       "cause_attribution": "model",
       "one_shot_risk": "none",
-      "failure": "Grounding errors opened Sticky Notes, the wrong sound settings window, and an unrelated search application.",
+      "failure": "Opus 4.8 opened Sticky Notes by mistake; later Sonnet 5 opened the wrong sound settings window and an unrelated search application.",
       "correction": "Closed each unexpected application and navigated again from a fresh screenshot.",
       "outcome": "recovered",
       "regression_requirements": ["Re-ground after every unexpected app launch.", "Use title and icon agreement before click."]
@@ -663,21 +663,21 @@
       "regression_requirements": ["Expose session cancellation state and support deterministic reset."]
     },
     {
-      "id": "cc-737-silent-base64-chunk-loss",
-      "source": {"client":"claude_code","session_id":"737f59a5-cba2-44aa-ad94-669b120c6403","record_indices":[3382,3405,3412,3476],"tool_sequences":[336,339,340,347]},
+      "id": "cc-737-planner-omitted-three-chunks",
+      "source": {"client":"claude_code","session_id":"737f59a5-cba2-44aa-ad94-669b120c6403","record_indices":[3374,3376,3378,3379,3380,3381,3391,3405,3452,3460,3463,3467],"tool_sequences":[388,401,402,403]},
       "model": {"id":"claude-sonnet-5","attribution":"tool_call_message"},
-      "category": "typing_truncation",
+      "category": "command_or_script_corruption",
       "severity": "critical",
-      "cause_attribution": "tool_or_transport",
+      "cause_attribution": "model",
       "one_shot_risk": "file_overwrite",
-      "failure": "Three consecutive encoded chunks, totalling 600 characters, silently failed to land even though the burst calls reported success.",
+      "failure": "The model prepared three consecutive 200-character chunks, but emitted no PiKVM call for any of them before appending the final tail. The remote file was therefore 600 bytes short; this was not a successful transport that silently lost input.",
       "correction": "Binary-searched the hash divergence, truncated to the known-good prefix, re-appended small chunks with per-chunk hashes, then verified a byte-exact final hash and script syntax.",
       "outcome": "recovered",
-      "regression_requirements": ["Return observed rather than attempted character counts.", "Require per-chunk acknowledgements and end-to-end hashes.", "Never equate a successful HID call with successful text entry."]
+      "regression_requirements": ["Assign every prepared chunk a sequence ID and reconcile the planned count against emitted tool calls.", "Require exact expected length and an end-to-end hash before decode or commit.", "Refuse encoded file-transfer workflows on the raw HID path."]
     },
     {
       "id": "cc-737-live-wrong-target-detected",
-      "source": {"client":"claude_code","session_id":"737f59a5-cba2-44aa-ad94-669b120c6403","record_indices":[3568],"tool_sequences":[356]},
+      "source": {"client":"claude_code","session_id":"737f59a5-cba2-44aa-ad94-669b120c6403","record_indices":[3559,3560,3561,3568],"tool_sequences":[414]},
       "model": {"id":"claude-sonnet-5","attribution":"tool_call_message"},
       "category": "wrong_target",
       "severity": "critical",
@@ -703,15 +703,15 @@
     },
     {
       "id": "cc-737-destructive-actions-without-clear-approval",
-      "source": {"client":"claude_code","session_id":"737f59a5-cba2-44aa-ad94-669b120c6403","record_indices":[2386,3050,3967,4760],"tool_sequences":[236,300,395,506]},
+      "source": {"client":"claude_code","session_id":"737f59a5-cba2-44aa-ad94-669b120c6403","record_indices":[2721,2722,2729,2730,2732,2734],"tool_sequences":[300]},
       "model": {"id":"claude-sonnet-5","attribution":"tool_call_message"},
       "category": "unsafe_or_unapproved",
       "severity": "critical",
       "cause_attribution": "model",
       "one_shot_risk": "cloud_mutation",
-      "failure": "The agent proposed multiple destructive actions in tool calls without a sufficiently clear just-in-time approval boundary. The user rejected the calls and later explicitly prohibited automatic approval.",
-      "correction": "User rejection prevented execution; later work treated the destructive step as approval-gated.",
-      "outcome": "no_state_change",
+      "failure": "After narrating the exact target and effect, the agent immediately submitted a forced cloud-instance termination. It reported a zero return code and later confirmed the VM and its boot volume were gone before the user interrupted and asked what had been torn down. No harness-owned approval boundary occurred between proposal and Enter.",
+      "correction": "The user interrupted and demanded an exact account of the state change; the assistant reported the terminated resources. The action was not reversible.",
+      "outcome": "contained",
       "regression_requirements": ["Require a fresh, action-specific approval immediately before every irreversible mutation.", "Never infer approval from an earlier general request.", "Show the exact target and effect in the approval UI."]
     },
     {
@@ -938,15 +938,35 @@
       "regression_requirements": ["Panic stop must drain and invalidate every queued HID event.", "Expose queue depth and a hardware-level stopped acknowledgement."]
     },
     {
+      "id": "oc-dry-run-auto-approve-submitted",
+      "source": {
+        "client":"opencode",
+        "session_id":"ses_0758ae687ffeh5acBnBDtlBaqx",
+        "record_indices":[215,234,408],
+        "tool_sequences":[33,36,70],
+        "record_index_basis":"session message/part chronological union",
+        "source_timestamps_ms":[1784734746954,1784734783776,1784735346930]
+      },
+      "model": {"id":"openrouter/google/gemini-3.6-flash","attribution":"active_model_transition"},
+      "category": "unsafe_or_unapproved",
+      "severity": "critical",
+      "cause_attribution": "mixed",
+      "one_shot_risk": "cloud_mutation",
+      "failure": "Despite an explicit dry-run request, Gemini 3.6 directly typed and submitted a wrapper command with infrastructure auto-approval enabled three times. The raw MCP calls reported all HID actions completed; the local history does not independently prove the final cloud outcome.",
+      "correction": "No first-party harness blocked the submissions. The historical record does not establish a rollback, so the external effect remains unresolved.",
+      "outcome": "unresolved",
+      "regression_requirements": ["Classify infrastructure auto-approval flags and forced cloud termination as dangerous without relying on caller-supplied terminal context.", "Hold both direct and managed paths before HID and require an exact target-and-effect-bound human approval.", "Treat a dry-run constraint as incompatible with auto-approval or forced mutation."]
+    },
+    {
       "id": "oc-filename-enter-race",
       "source": {"client":"opencode","session_id":"ses_0758ae687ffeh5acBnBDtlBaqx","record_indices":[863,1043,1073,1075],"tool_sequences":[2,53,63]},
-      "model": {"id":"openrouter/google/gemini-3.5-flash + openrouter/google/gemini-3.6-flash","attribution":"active_model_transition"},
+      "model": {"id":"openrouter/google/gemini-3.6-flash","attribution":"active_model_transition"},
       "category": "typing_truncation",
       "severity": "critical",
       "cause_attribution": "mixed",
       "one_shot_risk": "file_overwrite",
-      "failure": "Filename tails arrived before or after Enter, creating malformed names, duplicate extensions, incomplete prompts, and extraneous characters. Both models participated across the failure-and-recovery chain.",
-      "correction": "The user identified the type-versus-Enter race. The agent cancelled, cleaned temporary files, added explicit waits, and switched to smaller chunks.",
+      "failure": "While Gemini 3.6 was active, interrupted bursts were followed by guessed suffix repairs and Enter, creating malformed names, duplicate extensions, incomplete prompts, and extraneous characters.",
+      "correction": "The user explicitly required each filename tail to finish before Enter. The agent cancelled, cleaned temporary files, added waits, and switched to smaller chunks.",
       "outcome": "recovered",
       "regression_requirements": ["Do not queue Enter until text delivery is acknowledged.", "Model type and submit as separate transactions."]
     },

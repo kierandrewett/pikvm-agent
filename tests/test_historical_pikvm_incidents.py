@@ -176,6 +176,29 @@ def test_every_reviewed_client_has_incident_coverage() -> None:
             assert key in covered_sessions
 
 
+def test_corrected_reference_incidents_match_the_raw_route_audit() -> None:
+    incidents = {
+        row["id"]: row for row in load_corpus()["incidents"]
+    }
+
+    assert "cc-737-silent-base64-chunk-loss" not in incidents
+    omission = incidents["cc-737-planner-omitted-three-chunks"]
+    assert omission["cause_attribution"] == "model"
+    assert omission["category"] == "command_or_script_corruption"
+    assert "emitted no PiKVM call" in omission["failure"]
+
+    destructive = incidents[
+        "cc-737-destructive-actions-without-clear-approval"
+    ]
+    assert destructive["outcome"] == "contained"
+    assert "reported a zero return code" in destructive["failure"]
+
+    dry_run = incidents["oc-dry-run-auto-approve-submitted"]
+    assert dry_run["model"]["id"] == "openrouter/google/gemini-3.6-flash"
+    assert dry_run["outcome"] == "unresolved"
+    assert dry_run["source"]["tool_sequences"] == [33, 36, 70]
+
+
 @pytest.mark.parametrize("size", [4265, 10259])
 def test_historical_runaway_payload_sizes_are_rejected_before_hid(size: int) -> None:
     """Executable guard for the two largest reconstructed typing incidents."""

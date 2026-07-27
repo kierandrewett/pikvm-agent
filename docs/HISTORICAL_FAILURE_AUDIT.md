@@ -1,6 +1,7 @@
 # Historical PiKVM failure audit
 
 Audit cutoff: 2026-07-24 22:30 UTC
+Source-correction pass: 2026-07-27
 
 ## Outcome
 
@@ -13,13 +14,13 @@ The local histories contain 24 conversations with 4,453 PiKVM tool calls:
 | OpenCode | 2 | 95 |
 | **Total** | **24** | **4,453** |
 
-The reconstruction produced 69 redacted incident records. Nineteen are critical and 27 are high severity. These are incident sequences, not raw error-line counts: one record can contain repeated manifestations of the same failure, such as the eleven confirmed repeated-character typos in one policy-editing session.
+The reconstruction produced 70 redacted incident records. Twenty are critical and 27 are high severity. These are incident sequences, not raw error-line counts: one record can contain repeated manifestations of the same failure, such as the eleven confirmed repeated-character typos in one policy-editing session.
 
 The machine-readable corpus is `bench/historical_pikvm_incidents.json`. It omits raw typed bodies, screenshots, credentials, machine addresses, email addresses, and private file contents. It retains conversation ID, model attribution, source record indices, safe typo fragments, correction, outcome, risk, and concrete regression requirements.
 
-`bench/historical_pikvm_coverage.json` separately maps all 46 critical/high
+`bench/historical_pikvm_coverage.json` separately maps all 47 critical/high
 incidents exactly once to a current control family, real regression test nodes,
-and an explicit limitation. Its checked status is 6 locally covered, 40
+and an explicit limitation. Its checked status is 7 locally covered, 40
 partial, and 0 open. The low covered count is intentional: the five editor
 incidents moved only to partial after exact baseline/diff/diagnostic/rollback
 contracts landed; local evaluators are not upgraded into real-application
@@ -27,11 +28,40 @@ claims.
 
 The audit was read-only. It did not connect to or operate any PiKVM target.
 
+## Which operator loop actually ran
+
+The reference Claude conversation did not use the current managed harness at
+all. All 551 PiKVM calls were direct: 513 raw bursts, 30 screenshots, and 8
+opens. The seven audited Codex histories likewise made 1,482 low-level calls,
+and the two OpenCode histories made 95 direct calls. None invoked the current
+`computer_*` managed facade.
+
+Four older Claude conversations made 37 calls through a legacy hidden
+autonomous route. Those runs showed provider errors, no-op “done” results, and
+operator confusion before callers switched back to direct control. The internal
+server-side model was not recorded, so those decisions cannot be attributed to
+the visible outer Claude model. This legacy route is not the current first-party
+managed harness.
+
+The historical failure surface was therefore overwhelmingly the outer coding
+model selecting raw HID itself. The first-party harness must own progression,
+policy, verification, approval, and recovery; merely adding another prompt
+around the old raw tools would preserve the failure mode.
+
 ## What failed most seriously
 
-### 1. A successful tool call did not mean successful input
+### 1. Prepared work did not mean emitted or verified work
 
-The most important transport failure was silent loss. In one Claude Sonnet 5 sequence, three adjacent 200-character encoded chunks never appeared on the remote machine even though the bursts returned success. The agent only discovered the missing 600 characters through an end-to-end hash mismatch.
+One Claude Sonnet 5 sequence was originally misclassified as silent transport
+loss. The source shows something different: the model prepared three adjacent
+200-character chunks, then emitted no PiKVM call for any of them before
+appending the final tail. The hash check found the 600-byte gap. The repair
+calls were the first calls that ever contained those chunks.
+
+That distinction matters. Transport acknowledgement cannot detect an action
+the planner never emitted. Prepared multi-part work needs sequence IDs, planned
+and emitted counts, and exact expected length/hash reconciliation before decode
+or commit.
 
 Other sessions showed:
 
@@ -42,7 +72,11 @@ Other sessions showed:
 - repeated letters and punctuation;
 - an action reporting cancellation while buffered HID input continued.
 
-The MCP success contract is therefore wrong if it means only “events were queued.” A type action needs an observed-delivery state: attempted length, delivered or visually reconciled length, outstanding queue depth, interruption reason, and verification result.
+The MCP success contract is still wrong if it means only “events were queued.”
+A type action needs an observed-delivery state: attempted length, delivered or
+visually reconciled length, outstanding queue depth, interruption reason, and
+verification result. The harness also needs a separate planned-versus-emitted
+sequence invariant above transport.
 
 ### 2. Long input became an uncontrolled hazardous process
 
@@ -121,7 +155,11 @@ No audited conversation proved that an email or Teams message was accidentally s
 - terminal text landed in a Teams compose box;
 - agent and user nearly edited the same compose box concurrently;
 - rich-text transformations changed a draft;
-- destructive cloud actions were proposed repeatedly and stopped by user rejection;
+- Sonnet 5 submitted a forced cloud-instance termination and confirmed the VM
+  and boot volume were gone before the user interrupted and asked what changed;
+- Gemini 3.6 submitted an infrastructure wrapper with auto-approval enabled
+  three times despite an explicit dry-run request; the local history proves the
+  HID submissions, but not the final cloud outcome;
 - an incorrect destructive text-processing anchor was caught only before submission;
 - wrong-page and wrong-target navigation occurred near cloud mutation work.
 
@@ -154,12 +192,12 @@ Approval cannot be inferred from a general earlier request. The approval UI must
 | Attributed model | Incident records |
 |---|---:|
 | Claude Opus 4.8 | 25 |
+| Claude Opus 4.8 + Sonnet 5 sequence | 1 |
 | Claude Sonnet 4.6 | 9 |
-| Claude Sonnet 5 | 17 |
+| Claude Sonnet 5 | 16 |
 | GPT-5.4 mini | 2 |
 | GPT-5.5 | 14 |
-| Gemini 3.6 Flash | 1 |
-| Gemini 3.5/3.6 transition sequence | 1 |
+| Gemini 3.6 Flash | 3 |
 
 These figures are not failure rates and should not be used as a leaderboard. Tasks, risk, session length, PiKVM server version, operator mode, and user supervision differed substantially. One corpus record may combine many repeated errors, while another captures one event. The safe use is regression design: replay the failure class against multiple models under identical randomized conditions.
 
@@ -172,7 +210,7 @@ The first OpenCode session advertises Kimi K2.7 Code in session metadata, but Ki
 - Claude Code records normally carry the model on each assistant tool-call message. Synthetic compaction messages were excluded from model attribution.
 - Codex records carry the model in turn context. PiKVM calls inherit the active turn model.
 - OpenCode stores a session-level model that can become stale after model switching. Attribution was reconstructed from the latest model transition preceding each call.
-- Some incidents are plainly tool or transport failures, such as silent chunk loss. Others are model planning failures, such as choosing the wrong target. Many are mixed.
+- Some incidents are plainly tool or transport failures, such as interrupted delivery and buffered input after cancellation. Others are model planning failures, such as omitting prepared chunks or choosing the wrong target. Many are mixed.
 - Screenshots do not identify the internal operator model used behind a server-side autonomous call. The outer conversation model is known; the inner operator may not be.
 - Histories capture what the assistant and user noticed. An undetected typo or unintended click with no later correction cannot be reconstructed from dialogue alone.
 
@@ -219,7 +257,7 @@ These corrections should become product invariants and executable tests, not sta
 | Codex | `019f46eb-4a65-7782-9bb5-07d6918f76fa` | 255 | 2 | GPT-5.5 |
 | Codex | `019f942a-8387-7f53-ab13-28bacd39b51a` | 1 | 0 | GPT-5.6-sol |
 | OpenCode | `ses_0759ab1adffeahPfYnG9TVWd6T` | 25 | 0 | Gemini 3.6, Qwen 3.5, GPT-5.4 mini-fast |
-| OpenCode | `ses_0758ae687ffeh5acBnBDtlBaqx` | 70 | 2 | Gemini 3.5, Gemini 3.6 |
+| OpenCode | `ses_0758ae687ffeh5acBnBDtlBaqx` | 70 | 3 | Gemini 3.5, Gemini 3.6 |
 
 Zero reconstructed incidents means no failure-and-correction chain was visible in that conversation, not that the model or tool was proven error-free.
 
@@ -228,15 +266,16 @@ Zero reconstructed incidents means no failure-and-correction chain was visible i
 The corpus is intended to seed deterministic and randomized regression tests:
 
 1. **Type/submit race:** vary payload length, punctuation, filename suffix length, and inter-event delay; fail if Enter is observed before the exact text.
-2. **Silent loss:** inject dropped HID events while returning transport success; require the verifier to detect the mismatch.
+2. **Planned/emitted sequence integrity:** prepare numbered chunks, omit one or more tool calls, and require planned count, emitted count, expected length, and final hash to disagree before commit.
 3. **Duplicate keys:** inject repeated letters, quotes, and punctuation; require exact readback before commit.
 4. **Focus theft:** raise a notification or switch foreground windows midway through a burst; require immediate pause with zero subsequent characters.
 5. **Nested desktop identity:** present visually similar host and AVD desktops; fail any action against the wrong layer.
 6. **Human concurrency:** inject human input during a draft; require epoch revocation and no clearing or sending.
 7. **Wrapped lines and rich text:** test logical-line selection, auto-pairing, Teams bullets, and case normalization.
 8. **Panic stop:** preload a long queue, stop it, and prove at the observer that no further HID events arrive.
-9. **Approval:** attempt send, delete, publish, cloud mutation, and broad replacement without a fresh action-specific approval; require a hard block.
-10. **OCR disagreement:** show confusable glyphs and low-confidence tokens; require corroboration before mutation.
+9. **Approval:** attempt send, delete, publish, cloud mutation, infrastructure auto-approval, forced termination, and broad replacement without a fresh action-specific approval; require a hard block.
+10. **Dry-run invariants:** inject auto-approval or forced mutation under an explicit dry-run constraint; require refusal before HID.
+11. **OCR disagreement:** show confusable glyphs and low-confidence tokens; require corroboration before mutation.
 
 The current watched-typing regressions now cover two of the most dangerous
 cross-incident combinations. Both per-key typing and the faster printer take a
@@ -278,7 +317,7 @@ claimed pytest node exists.
 Focused result:
 
 ```text
-5 passed in 0.05s
+11 passed in 0.10s
 ```
 
 The implementation-facing typing and submit-boundary regression slices pass

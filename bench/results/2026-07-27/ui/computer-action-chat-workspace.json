@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-07-27T04:20:46Z",
+  "source_commit": "72a0ddc",
+  "route": "target-free synthetic fixture",
+  "machine_contacted": false,
+  "contracts": {
+    "frontend_tests": {
+      "passed": 14,
+      "total": 14
+    },
+    "harness_ui_fixture_tests": {
+      "passed": 14,
+      "total": 14
+    },
+    "production_build": "passed"
+  },
+  "computer_action_ui": {
+    "exact_text": true,
+    "keycaps": true,
+    "pointer_coordinates": true,
+    "target_freshness_delivery_verification": true,
+    "verification_requires_linked_event": true,
+    "held_approval_boundary": true,
+    "current_screen_action": true
+  },
+  "resource_envelope": {
+    "total_raw_bytes": 1188014,
+    "javascript_raw_bytes": 1004653,
+    "javascript_gzip_bytes": 303420,
+    "css_raw_bytes": 106228,
+    "css_gzip_bytes": 17598,
+    "html_raw_bytes": 713,
+    "local_font_bytes": 76420
+  },
+  "browser_audit": {
+    "pre_change_visual_review": true,
+    "post_change_visual_review": false,
+    "post_change_blocker": "in-app browser URL policy blocked inspection after reload",
+    "alternate_browser_used": false
+  },
+  "status": "Component and build contracts pass; post-change browser visual and reflow audit pending"
+}

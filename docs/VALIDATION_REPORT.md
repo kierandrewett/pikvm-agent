@@ -188,12 +188,15 @@ The returned model strings remain vendor CLI aliases because neither CLI
 exposed a resolved backend model. API-key adapters were exercised with mock
 transports only; this pass makes no live API-provider claim.
 
-The current static operator assets total 130,991 bytes (17,760 HTML, 81,299
-JavaScript, 31,932 CSS) and pass tested 128 KiB total, 80 KiB JavaScript, and
-36 KiB CSS release budgets. Current provider/tool activity is stored outside
-the 500-event visible tail and streamed on start/end even when the run status
-does not change. Focused store, static UI, and direct async-generator stream
-checks pass.
+The current production assistant-ui/shadcn workspace totals 1,188,014 raw
+bytes including local fonts (713 HTML, 1,004,653 JavaScript, 106,228 CSS, and
+76,420 fonts). JavaScript compresses to 303,420 bytes and CSS to 17,598 bytes.
+Tests cap each asset at 1.1 MB, total assets at 1.25 MB, and gzip JavaScript/CSS
+at 320/24 KiB. This supersedes the obsolete 128 KiB hand-built-console
+envelope. Current provider/tool activity is stored outside the 500-event
+visible tail and streamed on start/end even when the run status does not
+change. Focused store, static UI, and direct async-generator stream checks
+pass.
 
 Operator steering now has a durable managed-run boundary: only the browser
 operator credential can record guidance; an in-flight provider wait is

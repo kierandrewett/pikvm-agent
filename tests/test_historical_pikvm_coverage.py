@@ -30,7 +30,7 @@ def test_every_critical_and_high_incident_has_one_honest_coverage_entry() -> Non
         for incident_id in family["incident_ids"]
     ]
 
-    assert coverage["scope"]["incident_count"] == len(expected) == 46
+    assert coverage["scope"]["incident_count"] == len(expected) == 47
     assert set(mapped) == expected
     assert len(mapped) == len(set(mapped))
 
