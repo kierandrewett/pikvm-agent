@@ -1,0 +1,118 @@
+{
+  "schema_version": 1,
+  "kind": "managed_live_office_artifact_recovery",
+  "created_at": "2026-07-27T14:46:59Z",
+  "suite_id": "office-acceptance-v1",
+  "task_id": "word-shakespeare-essay",
+  "run_id": "bf0382b7-bae6-45f2-b673-c8bf24408609",
+  "target": {
+    "class": "disposable_windows_vnc_vm",
+    "runtime_endpoint_persisted": false,
+    "production_target_touched": false,
+    "lab_observer_used": true
+  },
+  "canonical_runner_result": {
+    "status": "artifact_failed",
+    "run_status": "completed",
+    "artifact_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "artifact_bytes": 0,
+    "reason": "A stale observer process owned the global snapshot hotkey and returned the wrong empty file. The original result remains unchanged."
+  },
+  "recovery": {
+    "status": "artifact_recovered_and_verified",
+    "observed_path_exact": true,
+    "artifact_format": "docx",
+    "artifact_bytes": 16081,
+    "artifact_sha256": "61b3c4e334db105e27817db6115542a01f0002afd74939271bd9782766a442ce",
+    "zip_integrity_passed": true,
+    "mode": "0600",
+    "semantic_verifier_passed": true,
+    "checks": [
+      "minimum_paragraphs",
+      "minimum_word_count",
+      "maximum_word_count",
+      "repeated_spaces",
+      "title",
+      "title_style",
+      "required_phrase:hamlet",
+      "required_phrase:macbeth",
+      "required_phrase:king-lear",
+      "required_phrase:the-tempest",
+      "required_phrase:human-choice"
+    ]
+  },
+  "visible_task_evidence": {
+    "word_count": 665,
+    "page_count": 2,
+    "title_exact": true,
+    "title_style": "Title",
+    "title_size_points": 28,
+    "repeated_space_replacements": 3,
+    "repeated_spaces_after_repair": 0
+  },
+  "integrity_findings": [
+    {
+      "class": "false_sender_acknowledgement",
+      "detail": "One 71-character command reported every character issued while the guest showed only a prefix. A stable delayed screenshot proved this was not framebuffer lag."
+    },
+    {
+      "class": "horizontal_scroll_false_visual_confidence",
+      "detail": "A path textbox appeared to show the desired suffix, while the helper reported that it had been appended to the old value. Exact helper read-back caught the hidden prefix."
+    },
+    {
+      "class": "context_dependent_select_all",
+      "detail": "Ctrl-A did not select the helper path field. Home followed by Shift-End produced the exact replacement."
+    },
+    {
+      "class": "ocr_absence",
+      "detail": "Several visibly exact short commands returned no OCR text. Their receipts remained issued-only rather than being promoted to verified."
+    }
+  ],
+  "performance": {
+    "wall_clock_ms": 1470445,
+    "model_active_ms": 1140675,
+    "actions_attempted": 17,
+    "actions_completed": 13,
+    "completion_efficiency": 0.7647058823529411,
+    "model_lanes": [
+      {
+        "role": "controller",
+        "provider": "claude-fable",
+        "model": "fable",
+        "samples": 17,
+        "median_ms": 19036,
+        "p95_ms": 28711.6
+      },
+      {
+        "role": "reasoner",
+        "provider": "claude-opus",
+        "model": "opus",
+        "samples": 7,
+        "median_ms": 39620,
+        "p95_ms": 42036.8
+      },
+      {
+        "role": "verifier",
+        "provider": "claude-fable",
+        "model": "fable",
+        "samples": 11,
+        "median_ms": 32943,
+        "p95_ms": 52897
+      },
+      {
+        "role": "verifier_fallback",
+        "provider": "claude-sonnet",
+        "model": "sonnet",
+        "samples": 1,
+        "median_ms": 79989,
+        "p95_ms": 79989
+      }
+    ]
+  },
+  "acceptance": {
+    "saved_office_artifact_verified": true,
+    "canonical_end_to_end_runner_pass": false,
+    "release_pass": false
+  },
+  "claim_boundary": "The managed model completed the visible Word task and the saved DOCX was later recovered from the same disposable VM and passed every semantic check. The original runner transaction still failed its artifact-capture step, so this is not presented as a clean end-to-end acceptance pass."
+}

@@ -36,13 +36,13 @@ support a claim of generally reliable autonomous Windows operation.
 | Managed and direct assurance levels are unambiguous | The reference conversation is explicitly retained as 551/551 direct calls, not reclassified as a managed run. A 645×1070 real-browser audit labelled a direct trace `Guarded direct`, named its launcher-declared provider/model, removed managed model routing and the chat composer, loaded the marked click preview, and offered a separate `New managed task`; horizontal overflow was 0px | Passing target-free ownership/UI contract; live computer task pending |
 | Computer-use actions remain inspectable while a run is changing | A target-free Chromium fixture retained a 12-action audit while showing only the current live input; the completed trace returns on inspection. Completed clicks now lead with a marked 72×40 pre-action crop of the actual visual target instead of coordinates, while the coordinate, MCP tool, model, state, full Screen evidence, Details, Raw request, and exact input remain available progressively. At a rendered 645×1070 viewport all 12 previews loaded with zero horizontal overflow. A separate dangerous Enter fixture rendered the exact two-input sequence, 47-character count, external-side-effect reason, and Allow once/Deny controls inline without committing input | Passing browser/UI contract |
 | The operator can inspect the verifier's visual evidence | Authenticated API contracts return the labelled before/after bytes without exposing their local path; static UI contracts cover revision refresh, loading/error state, and blob revocation. A live disposable-Windows diagnostic exercised failed and uncertain visual verification without turning either into success | Passing local/browser contract; live task itself did not pass |
-| Long prose/code arrives exactly | Windows transport trials were exact 581/581 and 142/142 characters, but the seven-trial physical loop still failed overall | Partial; not a release claim |
+| Long prose/code arrives exactly | Windows transport trials were exact 581/581 and 142/142 characters. A later seeded live boundary probe was 8/8 exact with 0 character errors and 0 duplicated spaces at 17–72 characters, although screen OCR was exact in 0/8. The seven-trial physical loop still failed overall | Partial; transport diagnostics pass, OCR does not |
 | Raw HID avoids encoded/script transfer hacks | A seeded 1,000-payload corpus caught 800/800 unsafe shapes with 0/200 safe false positives; the public MCP integration also refuses encoded transfer before daemon contact | Passing local syntax gate; explicit byte-verified transfer channel pending |
 | Exact-byte virtual-media preparation works | 10/10 builder contracts plus 19/19 transaction/UI/adapter/surface contracts cover mode-0600 media, exact browser approval, rollback, cleanup uncertainty, identity, lease, stop, model-surface exclusion, and explicit unsupported VNC | Passing target-free contract; daemon bridge capability and live target result pending |
 | OCR can safely verify arbitrary desktop text | Tesseract is 56.9% selected and 61.4% expected-aware exact; its 800-case routine tier is 71.125% exact while the preserved 200-case confusable stress tier is 0%; PaddleOCR is 78.9% normalized exact; the retrospective known-intent candidate union is 82.7% overall, 97.0% routine, and 25.5% stress on the same 1,000 cases; no confidence threshold supports a 99% lower-bound claim | Failing release gate |
 | Model grounding is reliable | Current seeded ScreenSpot-Pro sample is 73/100 | Diagnostic only |
 | End-to-end desktop tasks are reliable | Current OSWorld task set is 6/9; full scored-attempt denominator is 6/33 with 11 additional unscored failures | Failing release gate |
-| A model can autonomously complete routine Office work | Portable Word/Excel contracts and semantic OOXML verification pass local tests. Two live disposable-Windows Word attempts are now retained: r12 failed after 32.4 minutes with 7/12 actions complete and four typing verification failures; r13 was intentionally aborted after 24.3 minutes when a wrapped-prose crop caused an OCR false negative. Neither saved an artifact; both produced zero bytes | Failing live acceptance gate |
+| A model can autonomously complete routine Office work | Portable Word/Excel contracts and semantic OOXML verification pass local tests. r12 failed and r13 was deliberately aborted. r29 completed the visible Word task and saved a 16,081-byte DOCX that was recovered from the same disposable VM and passed all 11 semantic checks, including exact title/style, word-count bounds, required Shakespeare coverage, and zero repeated spaces. The canonical r29 runner result remains `artifact_failed` because a stale helper owned the capture hotkey; post-run recovery does not convert that transaction into a clean pass | First verified live saved artifact; failing clean end-to-end acceptance gate |
 | Windows Agent Arena is supported | 154 tasks discovered; official golden image is absent | Not run |
 | Provider choice is portable | Codex and Claude OAuth CLIs live-tested; dedicated-profile Gemini CLI OAuth, native OpenAI Responses, Azure OpenAI API-key/Entra modes, OpenAI-compatible, Anthropic, Gemini AI Studio, and Vertex AI adapters protocol-tested with mocks/source contracts; one target-free command now compares identical blind pixels/schema across configured routes. Its first two-provider attempt retained both failures; the Codex local-state defect is fixed, while the approved rerun was denied before launch | Partial; no successful frozen live all-provider matrix yet |
 
@@ -98,7 +98,7 @@ It intentionally omits the VNC address, credentials, screenshots, prompts, and
 raw model responses. This is not an OSWorld, Windows Agent Arena, Office, or
 general desktop-reliability score.
 
-## Live Word acceptance failures
+## Live Word acceptance iterations
 
 Two Claude Opus reason-act-verify attempts ran against the authorized
 disposable Windows VM on 2026-07-27. The endpoint was supplied only as a
@@ -1686,6 +1686,51 @@ HID.
 These focus-theft and submit-boundary protections pass 31 watched-typing tests
 and 38 burst/verification tests locally. They are synthetic regressions derived
 from the historical failures, not a live Office or notification-shape score.
+
+### r29 saved artifact and input-integrity recovery
+
+r29 completed the visible managed Word task in 1,470.445 seconds. Word showed
+665 words across two pages. The model repaired three repeated-space matches,
+leaving zero. The original immutable runner result is still
+`artifact_failed`: an older observer process owned the global snapshot hotkey
+and returned an empty unrelated file.
+
+A bounded recovery on the same disposable VM selected the saved document,
+proved the observer's exact path, transferred 16,081 bytes through the
+triple-copy/CRC32 visual channel, and computed SHA-256
+`61b3c4e334db105e27817db6115542a01f0002afd74939271bd9782766a442ce`.
+The independent host verifier accepted the OOXML package and all 11 semantic
+checks: paragraph and word-count bounds, zero repeated spaces, exact title,
+Title style, and the required Hamlet, Macbeth, King Lear, The Tempest, and
+human-choice coverage.
+
+This is the first retained live saved Office artifact that passes the semantic
+verifier. It is not called a clean end-to-end acceptance pass because artifact
+capture required post-run recovery. The machine-readable record is
+[`office-word-r29-recovery.json`](results/2026-07-27/live-vnc/office-word-r29-recovery.json).
+
+The same recovery exposed why screen appearance and sender completion cannot
+act as checksums:
+
+- a 71-character command reported all characters issued while Windows showed
+  only a prefix;
+- a horizontally scrolled path field appeared correct while hiding an old
+  prefix; the helper's exact value exposed the append;
+- several visibly correct 20–55-character commands produced no usable OCR.
+
+Input receipts now keep separate SHA-256 values for the requested payload,
+sender-issued prefix, and screen read-back. They expose the proof state as
+`exact_readback`, `normalized_readback`, `partial_readback`,
+`mismatched_readback`, `ambiguous_readback`, `issued_only`, or
+`not_retained`. Sender completion alone can only be `issued_only`.
+
+An eight-case seeded live probe then exercised lengths around the
+16-character chunk seam and the earlier 71-character failure. The Windows
+helper measured 8/8 exact strings, zero character errors, and zero duplicated
+spaces; screen OCR was exact in 0/8. This isolates the result: the repaired
+chunk transport passed this diagnostic sample, while OCR remains the release
+blocker. Full metrics are in
+[`typing-space-integrity-probe.json`](results/2026-07-27/live-vnc/typing-space-integrity-probe.json).
 
 ## Exact Windows guest, foreground, and focus identity
 

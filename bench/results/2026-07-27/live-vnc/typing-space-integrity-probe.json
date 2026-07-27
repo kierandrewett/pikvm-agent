@@ -1,0 +1,147 @@
+{
+  "schema_version": 1,
+  "kind": "live_windows_input_integrity_probe",
+  "created_at": "2026-07-27T14:51:46Z",
+  "target": {
+    "class": "disposable_windows_vnc_vm",
+    "runtime_endpoint_persisted": false,
+    "production_target_touched": false,
+    "lab_observer_used": true
+  },
+  "method": {
+    "seed": 20260727,
+    "case_count": 8,
+    "requested_length_targets": [
+      15,
+      16,
+      17,
+      31,
+      32,
+      33,
+      55,
+      71
+    ],
+    "actual_character_counts": [
+      17,
+      21,
+      18,
+      35,
+      36,
+      34,
+      57,
+      72
+    ],
+    "source_of_truth": "Windows helper exact text buffer",
+    "secondary_evaluator": "screen OCR",
+    "text_disclosed": false
+  },
+  "result": {
+    "helper_exact_matches": 8,
+    "helper_character_errors": 0,
+    "helper_repeated_spaces": 0,
+    "ocr_exact_matches": 0,
+    "ocr_normalized_exact_matches": 0,
+    "runtime_completed_receipts": 1,
+    "runtime_unverified_receipts": 7,
+    "transport_diagnostic_pass": true,
+    "ocr_release_pass": false,
+    "release_evidence": false
+  },
+  "cases": [
+    {
+      "case": 0,
+      "requested_characters": 17,
+      "requested_spaces": 2,
+      "runtime_status": "unverified",
+      "helper_exact": true,
+      "helper_character_errors": 0,
+      "helper_repeated_spaces": 0,
+      "ocr_exact": false
+    },
+    {
+      "case": 1,
+      "requested_characters": 21,
+      "requested_spaces": 2,
+      "runtime_status": "unverified",
+      "helper_exact": true,
+      "helper_character_errors": 0,
+      "helper_repeated_spaces": 0,
+      "ocr_exact": false
+    },
+    {
+      "case": 2,
+      "requested_characters": 18,
+      "requested_spaces": 2,
+      "runtime_status": "completed_with_contains_readback",
+      "helper_exact": true,
+      "helper_character_errors": 0,
+      "helper_repeated_spaces": 0,
+      "ocr_exact": false
+    },
+    {
+      "case": 3,
+      "requested_characters": 35,
+      "requested_spaces": 5,
+      "runtime_status": "unverified",
+      "helper_exact": true,
+      "helper_character_errors": 0,
+      "helper_repeated_spaces": 0,
+      "ocr_exact": false
+    },
+    {
+      "case": 4,
+      "requested_characters": 36,
+      "requested_spaces": 5,
+      "runtime_status": "unverified",
+      "helper_exact": true,
+      "helper_character_errors": 0,
+      "helper_repeated_spaces": 0,
+      "ocr_exact": false
+    },
+    {
+      "case": 5,
+      "requested_characters": 34,
+      "requested_spaces": 4,
+      "runtime_status": "unverified",
+      "helper_exact": true,
+      "helper_character_errors": 0,
+      "helper_repeated_spaces": 0,
+      "ocr_exact": false
+    },
+    {
+      "case": 6,
+      "requested_characters": 57,
+      "requested_spaces": 8,
+      "runtime_status": "unverified",
+      "helper_exact": true,
+      "helper_character_errors": 0,
+      "helper_repeated_spaces": 0,
+      "ocr_exact": false
+    },
+    {
+      "case": 7,
+      "requested_characters": 72,
+      "requested_spaces": 10,
+      "runtime_status": "unverified",
+      "helper_exact": true,
+      "helper_character_errors": 0,
+      "helper_repeated_spaces": 0,
+      "ocr_exact": false
+    }
+  ],
+  "fixes_under_test": [
+    {
+      "commit": "fc8ccd5",
+      "control": "Whitespace separators stay at the start of the next watched chunk, preventing a stopped or resumed prefix from owning an invisible trailing boundary."
+    },
+    {
+      "commit": "cd39f72",
+      "control": "Sender-issued input is no longer labelled guest-acknowledged."
+    },
+    {
+      "commit": "7a30b26",
+      "control": "Raw MCP receipts expose the target-proof state and retain only requested and issued hashes when read-back is absent."
+    }
+  ],
+  "claim_boundary": "Eight seeded live cases are diagnostic. They show that the repaired transport did not duplicate spaces in this sample; they do not establish a population-level rate, and the failed OCR results remain a release blocker."
+}
