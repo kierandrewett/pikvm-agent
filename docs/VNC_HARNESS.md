@@ -19,6 +19,10 @@ or benchmark report. The same adapter can target Windows or Linux.
 - The generated MCP server is named `pikvm-lab`.
 - Missing or shared operator/agent/observer credentials are refused before the
   adapter contacts the VNC target.
+- A process-independent local target lease is acquired before RFB connection.
+  A second lab selecting the same canonical endpoint fails closed even when the
+  VNC server does not report the other client. The lease filename contains only
+  a versioned endpoint digest, never the endpoint.
 - Stopping `lab up` terminates the adapter, daemon, and operator harness.
 
 Install the harness extra and start an isolated lab:

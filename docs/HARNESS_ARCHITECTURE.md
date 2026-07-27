@@ -186,6 +186,9 @@ gate.
 20. Operator steering is durable and forces a fresh reasoner plan, but cannot
     discard a pending action, resolve an approval, or change the owner of a
     direct or externally driven run.
+21. A VNC lab adapter acquires one process-independent, canonical-target lease
+    before opening RFB. A second local adapter fails before target contact, and
+    neither the lease filename nor its contents persist the runtime endpoint.
 
 The exact-byte replacement is specified in
 [`CONTENT_TRANSFER.md`](CONTENT_TRANSFER.md). It is an approval-gated,

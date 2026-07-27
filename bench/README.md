@@ -87,7 +87,10 @@ exposed a real lab defect: another disposable adapter was connected to the same
 VNC endpoint, while the mock adapter reported no other client. Two populated
 Notepad windows therefore appeared without an attributable action in this
 trajectory. Cross-adapter target leasing is a release blocker for the VNC lab,
-and this task cannot support an autonomy claim.
+and this task cannot support an autonomy claim. A post-run fix now acquires a
+process-independent, canonical-target lease before RFB and passes local
+integration tests; that fix has not yet been rerun against the disposable VM,
+so this historical result and its verdict remain unchanged.
 
 The full failure-inclusive record is
 [`notepad-managed-diagnostic.json`](results/2026-07-27/live-vnc/notepad-managed-diagnostic.json).

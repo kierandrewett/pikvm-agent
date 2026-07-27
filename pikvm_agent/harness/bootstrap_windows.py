@@ -13,7 +13,7 @@ import re
 import time
 from urllib.parse import quote, urlsplit
 
-from pikvm_agent.harness.vnc_pikvm_api import normalize_vnc_endpoint
+from pikvm_agent.harness.vnc_target_lease import normalize_vnc_endpoint
 
 
 def _require_https(url: str, *, label: str) -> str:

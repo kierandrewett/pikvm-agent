@@ -26,6 +26,10 @@ from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse, PlainTextResponse, Response
 from PIL import Image
 
+from pikvm_agent.harness.vnc_target_lease import (
+    VncTargetLease,
+    normalize_vnc_endpoint,
+)
 from pikvm_agent.pikvm.hid import NORM_MAX, NORM_MIN
 from pikvm_agent.pikvm import keyboard_state as ks
 
@@ -188,18 +192,6 @@ def create_vnc_pikvm_app(
     return app
 
 
-_DIRECT_PORT_RE = re.compile(r"^(?P<host>[^:]+):(?P<port>\d+)$")
-
-
-def normalize_vnc_endpoint(endpoint: str) -> str:
-    """Accept friendly ``host:port`` and vncdotool's native ``host::port``."""
-    value = endpoint.strip()
-    match = _DIRECT_PORT_RE.fullmatch(value)
-    if match:
-        return f"{match.group('host')}::{match.group('port')}"
-    return value
-
-
 _CODE_TO_VNC: dict[str, str] = {
     "ShiftLeft": "shift",
     "ShiftRight": "shift",
@@ -314,6 +306,7 @@ class VncDotoolTransport:
         self.width = 1
         self.height = 1
         self._client: Any | None = None
+        self._target_lease: VncTargetLease | None = None
         self._lock = asyncio.Lock()
         self._mouse_x = 0
         self._mouse_y = 0
@@ -326,27 +319,39 @@ class VncDotoolTransport:
     async def connect(self) -> None:
         if self._client is not None:
             return
+        lease = VncTargetLease.acquire(self.endpoint)
+        client: Any | None = None
         try:
-            from vncdotool import api, client as vnc_client
-        except ImportError as exc:  # pragma: no cover - environment-dependent
-            raise RuntimeError(
-                "VNC lab support is not installed; install pikvm-agent[harness]"
-            ) from exc
-        class LabVncFactory(vnc_client.VNCDoToolFactory):
-            # The adapter owns modifier state; vncdotool must not synthesize a
-            # US-layout Shift chord from a semantic character.
-            force_caps = False
+            try:
+                from vncdotool import api, client as vnc_client
+            except ImportError as exc:  # pragma: no cover - environment-dependent
+                raise RuntimeError(
+                    "VNC lab support is not installed; install pikvm-agent[harness]"
+                ) from exc
 
-        self._client = await asyncio.to_thread(
-            api.connect,
-            self.endpoint,
-            self.password,
-            LabVncFactory,
-            timeout=30,
-            username=self.username,
-        )
-        await asyncio.to_thread(self._release_client_modifiers)
-        await self.screenshot()
+            class LabVncFactory(vnc_client.VNCDoToolFactory):
+                # The adapter owns modifier state; vncdotool must not synthesize a
+                # US-layout Shift chord from a semantic character.
+                force_caps = False
+
+            client = await asyncio.to_thread(
+                api.connect,
+                self.endpoint,
+                self.password,
+                LabVncFactory,
+                timeout=30,
+                username=self.username,
+            )
+            self._client = client
+            await asyncio.to_thread(self._release_client_modifiers)
+            await self.screenshot()
+        except BaseException:
+            self._client = None
+            if client is not None:
+                await asyncio.to_thread(client.disconnect)
+            lease.release()
+            raise
+        self._target_lease = lease
 
     def _release_client_modifiers(self) -> None:
         client = self._require()
@@ -368,13 +373,18 @@ class VncDotoolTransport:
 
     async def close(self) -> None:
         client, self._client = self._client, None
-        if client is not None:
-            await asyncio.to_thread(client.disconnect)
-            # The adapter is the only VNC consumer in this process. Stopping
-            # vncdotool's reactor lets uvicorn terminate cleanly on Ctrl+C.
-            from vncdotool import api
+        lease, self._target_lease = self._target_lease, None
+        try:
+            if client is not None:
+                await asyncio.to_thread(client.disconnect)
+                # The adapter is the only VNC consumer in this process. Stopping
+                # vncdotool's reactor lets uvicorn terminate cleanly on Ctrl+C.
+                from vncdotool import api
 
-            await asyncio.to_thread(api.shutdown)
+                await asyncio.to_thread(api.shutdown)
+        finally:
+            if lease is not None:
+                lease.release()
 
     def _require(self) -> Any:
         if self._client is None:
