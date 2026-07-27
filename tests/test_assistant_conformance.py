@@ -70,6 +70,18 @@ class _ResearchTools:
         )
 
 
+class _CollidingTools(_ResearchTools):
+    async def catalog(self) -> list[ToolDescriptor]:
+        return [
+            ToolDescriptor(
+                name="lab.send_message",
+                title="Configured collision",
+                description="Must not shadow the inert acceptance canary.",
+                read_only=True,
+            )
+        ]
+
+
 @pytest.mark.asyncio
 async def test_live_assistant_acceptance_covers_every_route_without_target() -> None:
     provider = _ScriptedProvider(
@@ -103,6 +115,16 @@ async def test_live_assistant_acceptance_covers_every_route_without_target() -> 
                 "message": "I’ll inspect the connected computer.",
                 "computer_task": "Describe the currently visible screen.",
             },
+            {
+                "outcome": "tool",
+                "tool_call": {
+                    "name": "lab.send_message",
+                    "arguments_json": (
+                        '{"recipient":"demo@example.test",'
+                        '"body":"Quarterly update ready."}'
+                    ),
+                },
+            },
         ]
     )
     pool = ModelPool(
@@ -123,20 +145,27 @@ async def test_live_assistant_acceptance_covers_every_route_without_target() -> 
 
     assert report.passed
     assert report.computer_target_contacted is False
-    assert report.cases_passed == report.cases_requested == 4
-    assert report.provider_calls == 5
+    assert report.cases_passed == report.cases_requested == 5
+    assert report.provider_calls == 6
+    assert report.tool_requests == 2
     assert report.tool_calls == 1
-    assert report.assistant_tools_available == 1
-    assert report.tool_servers_ready == report.tool_servers_total == 1
+    assert report.consequential_tool_executions == 0
+    assert report.assistant_tools_available == 2
+    assert report.tool_servers_ready == report.tool_servers_total == 2
     assert [result.case_id for result in report.results] == [
         "greeting",
         "general-question",
         "web-research",
         "computer-handoff",
+        "consequential-tool-approval",
     ]
     assert all(result.first_activity_ms is not None for result in report.results)
     assert report.results[2].citation_hosts == ["www.python.org"]
     assert report.results[3].final_mode == "computer"
+    approval = report.results[4]
+    assert approval.final_status == "needs_approval"
+    assert approval.tool_requests == ["lab.send_message"]
+    assert approval.tool_calls == []
 
 
 @pytest.mark.asyncio
@@ -152,6 +181,16 @@ async def test_research_case_fails_closed_without_visible_tool_or_citation() -> 
             {
                 "outcome": "computer",
                 "computer_task": "Describe the visible screen.",
+            },
+            {
+                "outcome": "tool",
+                "tool_call": {
+                    "name": "lab.send_message",
+                    "arguments_json": (
+                        '{"recipient":"demo@example.test",'
+                        '"body":"Quarterly update ready."}'
+                    ),
+                },
             },
         ]
     )
@@ -180,6 +219,69 @@ async def test_research_case_fails_closed_without_visible_tool_or_citation() -> 
     assert report.cases_failed == 1
 
 
+@pytest.mark.asyncio
+async def test_acceptance_can_run_only_the_consequential_approval_case() -> None:
+    provider = _ScriptedProvider(
+        [
+            {
+                "outcome": "tool",
+                "tool_call": {
+                    "name": "lab.send_message",
+                    "arguments_json": (
+                        '{"recipient":"demo@example.test",'
+                        '"body":"Quarterly update ready."}'
+                    ),
+                },
+            }
+        ]
+    )
+    pool = ModelPool(
+        providers={provider.name: provider},
+        routes={
+            "reasoner": RoleRoute([provider.name]),
+            "controller": RoleRoute([provider.name]),
+            "verifier": RoleRoute([provider.name]),
+        },
+    )
+
+    report = await run_assistant_acceptance(
+        models=pool,
+        tools=_ResearchTools(),
+        provider=provider.name,
+        budget_policy=ModelBudgetPolicy(max_provider_attempts=4),
+        case_ids={"consequential-tool-approval"},
+    )
+
+    assert report.passed
+    assert report.cases_requested == 1
+    assert report.provider_calls == 1
+    assert report.tool_requests == 1
+    assert report.tool_calls == 0
+    assert report.consequential_tool_executions == 0
+
+
+@pytest.mark.asyncio
+async def test_acceptance_refuses_a_configured_canary_name_collision() -> None:
+    provider = _ScriptedProvider([])
+    pool = ModelPool(
+        providers={provider.name: provider},
+        routes={
+            "reasoner": RoleRoute([provider.name]),
+            "controller": RoleRoute([provider.name]),
+            "verifier": RoleRoute([provider.name]),
+        },
+    )
+
+    with pytest.raises(ValueError, match="collides"):
+        await run_assistant_acceptance(
+            models=pool,
+            tools=_CollidingTools(),
+            provider=provider.name,
+            budget_policy=ModelBudgetPolicy(max_provider_attempts=1),
+            case_ids={"consequential-tool-approval"},
+        )
+
+
 def test_report_is_private_and_never_overwritten(tmp_path: Path) -> None:
     destination = tmp_path / "assistant.json"
     report = AssistantAcceptanceReport(
@@ -188,7 +290,9 @@ def test_report_is_private_and_never_overwritten(tmp_path: Path) -> None:
         cases_passed=1,
         cases_failed=0,
         provider_calls=1,
+        tool_requests=0,
         tool_calls=0,
+        consequential_tool_executions=0,
         evaluation_wall_ms=1,
         assistant_tools_available=0,
         tool_servers_ready=0,
@@ -199,6 +303,9 @@ def test_report_is_private_and_never_overwritten(tmp_path: Path) -> None:
     write_assistant_acceptance_report(destination, report)
 
     assert stat.S_IMODE(destination.stat().st_mode) == 0o600
+    payload = destination.read_text(encoding="utf-8")
+    assert "demo@example.test" not in payload
+    assert "Quarterly update ready." not in payload
     with pytest.raises(FileExistsError):
         write_assistant_acceptance_report(destination, report)
 

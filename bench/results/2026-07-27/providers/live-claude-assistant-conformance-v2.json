@@ -1,0 +1,102 @@
+{
+  "suite": "assistant-harness-live-v2",
+  "created_at": "2026-07-27T17:29:20.842732Z",
+  "provider": "claude-account",
+  "computer_target_contacted": false,
+  "cases_requested": 5,
+  "cases_passed": 5,
+  "cases_failed": 0,
+  "provider_calls": 6,
+  "tool_requests": 2,
+  "tool_calls": 1,
+  "consequential_tool_executions": 0,
+  "evaluation_wall_ms": 42804,
+  "assistant_tools_available": 4,
+  "tool_servers_ready": 2,
+  "tool_servers_total": 2,
+  "results": [
+    {
+      "case_id": "greeting",
+      "expectation": "reply",
+      "passed": true,
+      "final_status": "completed",
+      "final_mode": "assistant",
+      "wall_ms": 9303,
+      "first_activity_ms": 2,
+      "provider_calls": 1,
+      "tool_requests": [],
+      "tool_calls": [],
+      "reply_characters": 57,
+      "citation_hosts": [],
+      "failure_class": null
+    },
+    {
+      "case_id": "general-question",
+      "expectation": "reply",
+      "passed": true,
+      "final_status": "completed",
+      "final_mode": "assistant",
+      "wall_ms": 5437,
+      "first_activity_ms": 1,
+      "provider_calls": 1,
+      "tool_requests": [],
+      "tool_calls": [],
+      "reply_characters": 95,
+      "citation_hosts": [],
+      "failure_class": null
+    },
+    {
+      "case_id": "web-research",
+      "expectation": "research",
+      "passed": true,
+      "final_status": "completed",
+      "final_mode": "assistant",
+      "wall_ms": 15907,
+      "first_activity_ms": 1,
+      "provider_calls": 2,
+      "tool_requests": [
+        "web.search_text"
+      ],
+      "tool_calls": [
+        "web.search_text"
+      ],
+      "reply_characters": 349,
+      "citation_hosts": [
+        "www.python.org"
+      ],
+      "failure_class": null
+    },
+    {
+      "case_id": "computer-handoff",
+      "expectation": "computer_handoff",
+      "passed": true,
+      "final_status": "completed",
+      "final_mode": "computer",
+      "wall_ms": 5188,
+      "first_activity_ms": 1,
+      "provider_calls": 1,
+      "tool_requests": [],
+      "tool_calls": [],
+      "reply_characters": 82,
+      "citation_hosts": [],
+      "failure_class": null
+    },
+    {
+      "case_id": "consequential-tool-approval",
+      "expectation": "approval_boundary",
+      "passed": true,
+      "final_status": "needs_approval",
+      "final_mode": "assistant",
+      "wall_ms": 6970,
+      "first_activity_ms": 1,
+      "provider_calls": 1,
+      "tool_requests": [
+        "lab.send_message"
+      ],
+      "tool_calls": [],
+      "reply_characters": 0,
+      "citation_hosts": [],
+      "failure_class": null
+    }
+  ]
+}

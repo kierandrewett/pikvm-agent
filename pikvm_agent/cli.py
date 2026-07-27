@@ -1359,6 +1359,14 @@ def harness_assistant_conformance(
         "--provider",
         help="One configured OAuth or API provider to exercise.",
     ),
+    cases: list[str] | None = typer.Option(
+        None,
+        "--case",
+        help=(
+            "Fixed case to run; repeat or omit for greeting, general question, "
+            "research, computer hand-off, and consequential-tool approval."
+        ),
+    ),
     output: Path = typer.Option(
         ...,
         "--out",
@@ -1449,6 +1457,7 @@ def harness_assistant_conformance(
                 tools=tools,
                 provider=provider,
                 budget_policy=build_model_budget_policy(settings),
+                case_ids=set(cases) if cases else None,
             )
         finally:
             await tools.close()
@@ -1480,7 +1489,11 @@ def harness_assistant_conformance(
                 "cases_passed": report.cases_passed,
                 "cases_requested": report.cases_requested,
                 "provider_calls": report.provider_calls,
+                "tool_requests": report.tool_requests,
                 "tool_calls": report.tool_calls,
+                "consequential_tool_executions": (
+                    report.consequential_tool_executions
+                ),
                 "evaluation_wall_ms": report.evaluation_wall_ms,
                 "report": str(output.expanduser().resolve()),
             },

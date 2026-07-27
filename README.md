@@ -281,12 +281,16 @@ pikvm-agent harness assistant-conformance \
   --allow-provider-calls
 ```
 
-The fixed four-case contract covers a greeting, an ordinary question, sourced
-research through the configured web MCP, and an explicit computer hand-off.
-The last case terminates at a recording sink: this command has no daemon, VNC,
-or PiKVM dependency and reports `computer_target_contacted: false`. The
-mode-0600, no-overwrite report keeps only bounded outcome, tool name, citation
-host, latency, and provider-call counts; it stores neither prompts nor replies.
+The fixed five-case contract covers a greeting, an ordinary question, sourced
+research through the configured web MCP, an explicit computer hand-off, and a
+simulated consequential send-message tool. The hand-off terminates at a
+recording sink. The send-message canary has no external transport and passes
+only when it is held at exact human approval with zero broker executions. This
+command has no daemon, VNC, PiKVM, email, or messaging dependency and reports
+`computer_target_contacted: false`. Use repeatable `--case` options to run a
+named case in isolation. The mode-0600, no-overwrite report keeps only bounded
+outcome, tool name, citation host, latency, and provider-call counts; it stores
+neither prompts, replies, nor tool arguments.
 
 For repeatable responsive/stream audits without any computer target:
 
