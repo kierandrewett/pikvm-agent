@@ -177,15 +177,18 @@ _OBSERVATION_TARGET_PATTERN = re.compile(
     r"\b(?:describe|report|show|tell me|what)\b"
     r".{0,120}\b(?:desktop|screen|visible|window|vm)\b"
 )
+_COMPUTER_INPUT_VERB_PATTERN = (
+    r"(?:click|double click|drag|move|open|press|save|scroll|select|"
+    r"send|submit|type)"
+)
 _FOLLOW_UP_INPUT_PATTERN = re.compile(
     r"\b(?:after(?: that| [a-z ]{1,80},)|afterwards?|also|and|"
     r"but(?: also)?|finally|next|then)\s+"
-    r"(?:please\s+)?(?:click|double click|drag|move|open|press|save|scroll|"
-    r"send|submit|type)\b"
+    rf"(?:please\s+)?{_COMPUTER_INPUT_VERB_PATTERN}\b"
 )
 _SENTENCE_INPUT_PATTERN = re.compile(
     r"(?:^|[.!?;:]\s*)(?:please\s+)?"
-    r"(?:click|double click|drag|move|open|press|save|scroll|send|submit|type)\b"
+    rf"{_COMPUTER_INPUT_VERB_PATTERN}\b"
 )
 
 
