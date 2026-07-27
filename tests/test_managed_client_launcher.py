@@ -1037,8 +1037,8 @@ def test_claude_task_allows_only_non_destructive_managed_controls(
         "mcp__pikvm__computer_pause",
     ]
     assert "mcp__pikvm__computer_abort" not in allowed
-    tools_index = argv.index("--tools")
-    assert argv[tools_index + 1] == ""
+    assert "--tools" not in argv
+    assert "--verbose" in argv
 
 
 def test_opencode_task_reuses_ephemeral_default_deny_environment(

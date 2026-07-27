@@ -1022,10 +1022,9 @@ def build_managed_client_task_argv(
         )
     return (
         *plan.argv,
-        "--tools",
-        "",
         "--allowedTools",
         ",".join(_CLAUDE_ALLOWED_MANAGED_TOOLS),
+        "--verbose",
         "--print",
         "--output-format",
         "stream-json",
