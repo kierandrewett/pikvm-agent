@@ -223,4 +223,54 @@ body,
     max-width: none !important;
     gap: 0;
   }
+
+  .computer-action-list {
+    counter-reset: computer-action;
+  }
+
+  .computer-action-step {
+    counter-increment: computer-action;
+  }
+
+  .computer-action-index::before {
+    content: counter(computer-action, decimal-leading-zero);
+  }
+
+  .computer-action-list .computer-action-step:not(:last-child)::after {
+    position: absolute;
+    top: 2.25rem;
+    bottom: -0.35rem;
+    left: 1.48rem;
+    width: 1px;
+    background: color-mix(in oklab, var(--color-border) 78%, transparent);
+    content: "";
+  }
+
+  .computer-action-list
+    .computer-action-step[data-computer-state="complete"]::after {
+    background: color-mix(
+      in oklab,
+      var(--color-evidence) 42%,
+      var(--color-border)
+    );
+  }
+
+  .computer-transaction-flow {
+    counter-reset: computer-transaction-phase;
+  }
+
+  .computer-transaction-phase {
+    counter-increment: computer-transaction-phase;
+  }
+
+  .computer-transaction-phase-number::before {
+    content: counter(computer-transaction-phase, decimal-leading-zero);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .computer-action-step,
+    .computer-action-marker {
+      transition: none;
+    }
+  }
 }

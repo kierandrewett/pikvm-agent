@@ -51,6 +51,12 @@ describe("ComputerToolGroup", () => {
         .getByRole("button", { name: /2 computer actions/i })
         .getAttribute("aria-expanded"),
     ).toBe("true");
+    expect(screen.getByText("Computer activity")).not.toBeNull();
+    expect(screen.getByText("2 actions")).not.toBeNull();
+    expect(screen.getByText("Input live")).not.toBeNull();
+    expect(
+      screen.getByText("Current input stays open while the screen changes"),
+    ).not.toBeNull();
   });
 
   it("lets a completed input group stay compact until inspected", async () => {
@@ -280,13 +286,13 @@ describe("ComputerActionReceipt", () => {
     const receipt = screen.getByLabelText("Computer action receipt");
     expect(receipt.textContent).toContain("Office lab");
     expect(receipt.textContent).toContain("1920×1080");
-    expect(receipt.textContent).toContain("Read from");
+    expect(receipt.textContent).toContain("Screen before");
     expect(receipt.textContent).toContain("Frame 41");
     expect(receipt.textContent).toContain("world 9 · control 3");
-    expect(receipt.textContent).toContain("Input boundary");
+    expect(receipt.textContent).toContain("Computer input");
     expect(receipt.textContent).toContain("Committed");
     expect(receipt.textContent).toContain("84 exact characters");
-    expect(receipt.textContent).toContain("Observed after");
+    expect(receipt.textContent).toContain("Screen after");
     expect(receipt.textContent).toContain("Frame 42 · verified");
     expect(receipt.textContent).toContain(
       "The Save dialog closed and the document remained open.",

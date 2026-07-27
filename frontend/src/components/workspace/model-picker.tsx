@@ -59,7 +59,7 @@ export function ModelPicker({
       type="button"
       size="sm"
       variant="ghost"
-      className="max-w-[min(58vw,24rem)] justify-start px-1.5"
+      className="max-w-[44vw] justify-start px-1.5 sm:max-w-[min(58vw,24rem)]"
       aria-label={`Configure model route. ${routeDescription}`}
       title={`${routeDescription}.${locked ? " Locked for this run." : " Click to configure this task."}`}
       onClick={onOpenModels}

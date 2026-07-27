@@ -731,22 +731,30 @@ type EvidenceItem = {
   detail?: string;
   Icon: ElementType;
   iconClass: string;
+  phase: "before" | "input" | "after";
 };
 
 function ReceiptNode({ item }: { item: EvidenceItem }) {
   const Icon = item.Icon;
   return (
-    <div className="flex min-w-0 flex-1 items-start gap-2.5">
+    <div
+      className="computer-transaction-phase flex min-w-0 flex-1 items-start gap-2.5"
+      data-phase={item.phase}
+    >
       <span
         className={cn(
-          "flex size-5 shrink-0 items-center justify-center",
+          "flex size-7 shrink-0 items-center justify-center rounded-md bg-muted/70",
           item.iconClass,
         )}
       >
         <Icon className="size-3.5" aria-hidden="true" />
       </span>
       <div className="min-w-0">
-        <dt className="text-[11px] font-medium text-muted-foreground">
+        <dt className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
+          <span
+            className="computer-transaction-phase-number font-mono text-[9px] tabular-nums"
+            aria-hidden="true"
+          />
           {item.label}
         </dt>
         <dd className="mt-0.5 truncate text-xs font-semibold">{item.value}</dd>
@@ -969,7 +977,7 @@ export function ComputerActionReceipt({
 
   const evidence: EvidenceItem[] = [
     {
-      label: "Read from",
+      label: "Screen before",
       value:
         sourceFrame != null
           ? `Frame ${sourceFrame}`
@@ -987,9 +995,10 @@ export function ComputerActionReceipt({
           : "No freshness reference",
       Icon: EyeIcon,
       iconClass: "text-muted-foreground",
+      phase: "before",
     },
     {
-      label: "Input boundary",
+      label: "Computer input",
       value: delivery,
       detail: [
         `${actionCount} ${actionCount === 1 ? "input" : "inputs"}`,
@@ -1000,9 +1009,10 @@ export function ComputerActionReceipt({
         .join(" · "),
       Icon: state.Icon,
       iconClass: statusTextClass(state.variant),
+      phase: "input",
     },
     {
-      label: "Observed after",
+      label: "Screen after",
       value:
         verificationVerdict === "verified"
           ? frame != null
@@ -1035,12 +1045,13 @@ export function ComputerActionReceipt({
           : resultStatus === "unverified"
             ? "text-caution-foreground"
             : "text-muted-foreground",
+      phase: "after",
     },
   ];
 
   return (
     <section
-      className="mt-3 border-y border-border/70 py-3"
+      className="computer-transaction mt-3 border-y border-border/70 py-3"
       aria-label="Computer action receipt"
     >
       <div className="mb-3 flex min-w-0 items-center justify-between gap-3">
@@ -1082,7 +1093,7 @@ export function ComputerActionReceipt({
           {state.label}
         </span>
       </div>
-      <dl className="flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-2">
+      <dl className="computer-transaction-flow flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-2">
         {evidence.map((item, index) => (
           <div key={item.label} className="contents">
             <ReceiptNode item={item} />
@@ -1217,27 +1228,43 @@ const ComputerToolCallImpl: ToolCallMessagePartComponent<
     <Collapsible
       open={open}
       onOpenChange={setOpen}
-      className={cn(
-        "group/computer-tool border-l-2 pl-3 transition-[border-color] duration-150 motion-reduce:transition-none",
+      data-computer-state={
         needsApproval
-          ? "border-caution"
+          ? "approval"
           : needsReview
-            ? "border-caution"
+            ? "review"
             : failed
-              ? "border-destructive"
+              ? "failed"
               : running
-                ? "border-info"
-                : "border-border",
+                ? "running"
+                : "complete"
+      }
+      className={cn(
+        "computer-action-step group/computer-tool rounded-lg transition-[background-color] duration-150 motion-reduce:transition-none",
+        (needsApproval || needsReview) && "bg-caution-soft/25",
+        failed && "bg-destructive/5",
+        running && "bg-info-soft/20",
       )}
     >
-      <CollapsibleTrigger className="group/trigger grid min-h-11 w-full grid-cols-[1.25rem_minmax(0,1fr)_auto] items-start gap-x-2.5 py-1 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50 sm:grid-cols-[1.25rem_minmax(0,1fr)_auto_auto]">
-        <span
-          className={cn(
-            "mt-0.5 flex size-5 shrink-0 items-center justify-center text-muted-foreground",
-            statusTextClass(state.variant),
-          )}
-        >
-          <PrimaryIcon className="size-4" aria-hidden="true" />
+      <CollapsibleTrigger className="group/trigger grid min-h-12 w-full grid-cols-[2rem_minmax(0,1fr)_auto] items-start gap-x-2.5 rounded-lg px-2 py-2 text-left outline-none transition-colors hover:bg-muted/35 focus-visible:ring-3 focus-visible:ring-ring/50 sm:grid-cols-[2rem_minmax(0,1fr)_auto_auto]">
+        <span className="relative row-span-2 flex w-8 shrink-0 items-start justify-center">
+          <span
+            className={cn(
+              "computer-action-marker relative z-10 flex size-7 items-center justify-center rounded-md bg-muted text-muted-foreground",
+              needsApproval || needsReview
+                ? "bg-caution-soft text-caution-foreground"
+                : failed
+                  ? "bg-destructive/10 text-destructive"
+                  : running
+                    ? "bg-info-soft text-info-foreground"
+                    : state.variant === "evidence"
+                      ? "bg-evidence-soft text-evidence-foreground"
+                      : "",
+            )}
+          >
+            <PrimaryIcon className="size-3.5" aria-hidden="true" />
+            <span className="computer-action-index absolute -right-1 -bottom-1 flex min-w-3.5 items-center justify-center rounded-sm bg-background px-0.5 font-mono text-[8px] leading-3 tabular-nums text-muted-foreground ring-1 ring-border" />
+          </span>
         </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-semibold">
@@ -1294,12 +1321,12 @@ const ComputerToolCallImpl: ToolCallMessagePartComponent<
       </CollapsibleTrigger>
 
       <CollapsibleContent className="data-closed:animate-collapsible-up data-open:animate-collapsible-down overflow-hidden motion-reduce:animate-none">
-        <div className="mt-2 border-t border-border/60 pt-3 pb-1">
+        <div className="mx-2 mt-1 border-t border-border/60 pt-3 pb-2 sm:ml-12">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-xs font-semibold">Input transaction</p>
+              <p className="text-xs font-semibold">Computer action</p>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                Screen context, exact input, delivery, and visual proof.
+                Observe, input, and independent screen verification.
               </p>
             </div>
             {environment.onOpenComputer ? (
@@ -1409,12 +1436,21 @@ export function ComputerToolGroup({
       variant="ghost"
       open={open}
       onOpenChange={setOpen}
-      className="my-3 border-l-2 border-border pl-3"
+      className="my-3"
     >
-      <CollapsibleTrigger className="group/trigger flex min-h-11 w-full items-center gap-2 rounded-md text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
+      <CollapsibleTrigger
+        aria-label={`${count} computer actions, ${
+          needsAttention
+            ? "approval waiting"
+            : active
+              ? "input sequence running"
+              : "inspect exact inputs and screen evidence"
+        }`}
+        className="group/trigger flex min-h-12 w-full items-center gap-2 rounded-lg border-y border-border/60 px-2 text-left outline-none transition-colors hover:bg-muted/30 focus-visible:ring-3 focus-visible:ring-ring/50"
+      >
         <span
           className={cn(
-            "flex size-7 shrink-0 items-center justify-center rounded-md",
+            "flex size-8 shrink-0 items-center justify-center rounded-md",
             needsAttention
               ? "bg-caution-soft text-caution-foreground"
               : active
@@ -1430,26 +1466,31 @@ export function ComputerToolGroup({
             <MousePointer2Icon className="size-3.5" />
           )}
         </span>
-        <span className="flex min-w-0 flex-1 items-baseline gap-2">
-          <span className="shrink-0 text-sm font-semibold">
-            {count} computer {count === 1 ? "action" : "actions"}
+        <span className="flex min-w-0 flex-1 flex-col">
+          <span className="flex min-w-0 items-baseline gap-2">
+            <span className="truncate text-sm font-semibold">
+              Computer activity
+            </span>
+            <span className="shrink-0 font-mono text-[10px] tabular-nums text-muted-foreground">
+              {count} {count === 1 ? "action" : "actions"}
+            </span>
           </span>
-          <span className="hidden truncate text-xs text-muted-foreground sm:block">
+          <span className="truncate text-[11px] text-muted-foreground">
             {needsAttention
-              ? "Approval is waiting inside"
+              ? "A consequential input is waiting for you"
               : active
-                ? "Input sequence is running"
-                : "Inspect exact inputs and screen evidence"}
+                ? "Current input stays open while the screen changes"
+                : "Exact inputs, target read-back, and visual proof"}
           </span>
         </span>
         {needsAttention ? (
-          <Badge variant="caution">Approval waiting</Badge>
+          <Badge variant="caution">Review</Badge>
         ) : active ? (
-          <Badge variant="info">Live</Badge>
+          <Badge variant="info">Input live</Badge>
         ) : null}
         <ChevronDownIcon className="size-4 -rotate-90 text-muted-foreground transition-transform duration-150 group-data-open/trigger:rotate-0 group-data-panel-open/trigger:rotate-0 motion-reduce:transition-none" />
       </CollapsibleTrigger>
-      <ToolGroupContent className="pb-2 [&>div]:gap-2">
+      <ToolGroupContent className="computer-action-list pb-2 [&>div]:gap-1">
         {children}
       </ToolGroupContent>
     </ToolGroupRoot>
