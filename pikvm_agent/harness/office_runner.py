@@ -455,18 +455,28 @@ async def _probe_visual_observer(
     snapshot = await _read_visual_observer(
         lab,
         observer_token=observer_token,
-        include_file=True,
+        include_file=False,
         key="office-observer-preflight",
     )
     if not snapshot.guest_fingerprint or not snapshot.input_desktop:
         raise ObserverVisualError(
             "observer visual preflight lacked guest identity"
         )
-    if snapshot.file is None:
+    observed_path = snapshot.observed_path
+    if not observed_path:
+        snapshot = await _read_visual_observer(
+            lab,
+            observer_token=observer_token,
+            include_file=True,
+            key="office-observer-legacy-path-preflight",
+        )
+        if snapshot.file is not None:
+            observed_path = snapshot.file.path
+    if not observed_path:
         raise ObserverVisualError(
             "observer visual preflight lacked file-path evidence"
         )
-    if _normalise_windows_path(snapshot.file.path) != _normalise_windows_path(
+    if _normalise_windows_path(observed_path) != _normalise_windows_path(
         expected_path
     ):
         raise ObserverVisualError(

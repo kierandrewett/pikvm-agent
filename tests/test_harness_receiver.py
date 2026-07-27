@@ -95,6 +95,8 @@ def test_compact_visual_wire_keys_expand_to_the_same_snapshot() -> None:
             "gf": "guest:0123456789abcdef",
             "gs": 1,
             "id": "Default",
+            "op": "C:/PiKVM-Harness/workspace/report.docx",
+            "oi": 7171,
         }
     )
 
@@ -104,6 +106,8 @@ def test_compact_visual_wire_keys_expand_to_the_same_snapshot() -> None:
         "guest:0123456789abcdef"
     )
     assert snapshot.focused_control_class == "Edit"
+    assert snapshot.observed_path.endswith("report.docx")
+    assert snapshot.observer_process_id == 7171
 
 
 def test_receiver_rejects_bad_tokens_and_sequence_regressions(tmp_path) -> None:

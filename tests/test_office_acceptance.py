@@ -458,11 +458,7 @@ async def test_observer_preflight_requires_the_exact_runtime_artifact_path(
             text="",
             guest_fingerprint="guest:0123456789abcdef",
             input_desktop="WinSta0\\Default",
-            file=ObservedFile(
-                path="C:/PiKVM-Harness/workspace/actual.txt",
-                content_base64="",
-                error="open failed",
-            ),
+            observed_path="C:/PiKVM-Harness/workspace/actual.txt",
         )
 
     monkeypatch.setattr(
@@ -497,11 +493,7 @@ async def test_observer_preflight_accepts_missing_file_at_the_exact_path(
             text="",
             guest_fingerprint="guest:0123456789abcdef",
             input_desktop="WinSta0\\Default",
-            file=ObservedFile(
-                path=expected.replace("/", "\\"),
-                content_base64="",
-                error="open failed",
-            ),
+            observed_path=expected.replace("/", "\\"),
         )
 
     monkeypatch.setattr(

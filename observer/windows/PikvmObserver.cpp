@@ -69,6 +69,65 @@ std::vector<std::vector<unsigned char>> g_visual_pages;
 std::size_t g_visual_page = 0;
 bool g_visual_mode = false;
 
+bool ClosePreviousObserver() {
+  const HWND existing = FindWindowW(kWindowClass, nullptr);
+  if (!existing) {
+    return true;
+  }
+
+  DWORD process_id = 0;
+  GetWindowThreadProcessId(existing, &process_id);
+  if (process_id == 0 || process_id == GetCurrentProcessId()) {
+    return process_id == GetCurrentProcessId();
+  }
+
+  HANDLE process = OpenProcess(SYNCHRONIZE, FALSE, process_id);
+  if (!PostMessageW(existing, WM_CLOSE, 0, 0)) {
+    if (process) {
+      CloseHandle(process);
+    }
+    return false;
+  }
+  if (process) {
+    const DWORD wait = WaitForSingleObject(process, 5000);
+    CloseHandle(process);
+    return wait == WAIT_OBJECT_0;
+  }
+  for (int attempt = 0; attempt < 100; ++attempt) {
+    if (!IsWindow(existing)) {
+      return true;
+    }
+    Sleep(50);
+  }
+  return false;
+}
+
+bool RegisterObserverHotkeys(HWND window) {
+  const struct {
+    UINT id;
+    UINT virtual_key;
+  } hotkeys[] = {
+      {kHotkeyReset, VK_F9},
+      {kHotkeySnapshot, VK_F10},
+      {kHotkeyFile, VK_F11},
+      {kHotkeyFocus, VK_F12},
+      {kHotkeyPreviousPage, VK_F7},
+      {kHotkeyNextPage, VK_F8},
+  };
+  std::size_t registered = 0;
+  for (const auto& hotkey : hotkeys) {
+    if (!RegisterHotKey(window, hotkey.id, MOD_CONTROL | MOD_SHIFT,
+                        hotkey.virtual_key)) {
+      for (std::size_t index = 0; index < registered; ++index) {
+        UnregisterHotKey(window, hotkeys[index].id);
+      }
+      return false;
+    }
+    ++registered;
+  }
+  return true;
+}
+
 std::uint64_t NowMs() {
   return static_cast<std::uint64_t>(
       std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -513,7 +572,11 @@ std::string BuildSnapshot(bool include_file, bool compact_events,
        << "\",\"" << key("guest_session_id", "gs") << "\":";
   WriteOptionalInteger(json, environment.guest_session_id);
   json << ",\"" << key("input_desktop", "id") << "\":\""
-       << JsonEscape(environment.input_desktop) << '"';
+       << JsonEscape(environment.input_desktop) << "\",\""
+       << key("observed_path", "op") << "\":\""
+       << JsonEscape(WideToUtf8(WindowText(g_path))) << "\",\""
+       << key("observer_process_id", "oi") << "\":"
+       << GetCurrentProcessId();
   if (include_file) {
     const FileResult file = ReadObservedFile();
     json << ",\"" << key("file", "fl") << "\":{\"path\":\""
@@ -853,13 +916,9 @@ LRESULT CALLBACK WindowProc(HWND window, UINT message, WPARAM wparam,
                                  reinterpret_cast<HMENU>(
                                      static_cast<INT_PTR>(kStatusId)),
                                  GetModuleHandleW(nullptr), nullptr);
-      RegisterHotKey(window, kHotkeyReset, MOD_CONTROL | MOD_SHIFT, VK_F9);
-      RegisterHotKey(window, kHotkeySnapshot, MOD_CONTROL | MOD_SHIFT, VK_F10);
-      RegisterHotKey(window, kHotkeyFile, MOD_CONTROL | MOD_SHIFT, VK_F11);
-      RegisterHotKey(window, kHotkeyFocus, MOD_CONTROL | MOD_SHIFT, VK_F12);
-      RegisterHotKey(window, kHotkeyPreviousPage, MOD_CONTROL | MOD_SHIFT,
-                     VK_F7);
-      RegisterHotKey(window, kHotkeyNextPage, MOD_CONTROL | MOD_SHIFT, VK_F8);
+      if (!RegisterObserverHotkeys(window)) {
+        return -1;
+      }
       g_keyboard_hook =
           SetWindowsHookExW(WH_KEYBOARD_LL, KeyboardHook, nullptr, 0);
       g_mouse_hook = SetWindowsHookExW(WH_MOUSE_LL, MouseHook, nullptr, 0);
@@ -984,6 +1043,9 @@ LRESULT CALLBACK WindowProc(HWND window, UINT message, WPARAM wparam,
 
 int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show) {
   SetProcessDPIAware();
+  if (!ClosePreviousObserver()) {
+    return 3;
+  }
 
   int argument_count = 0;
   wchar_t** arguments = CommandLineToArgvW(GetCommandLineW(), &argument_count);

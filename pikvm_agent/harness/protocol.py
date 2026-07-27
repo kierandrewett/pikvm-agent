@@ -59,6 +59,8 @@ class OracleSnapshot(BaseModel):
     )
     guest_session_id: int | None = Field(default=None, ge=0)
     input_desktop: str = Field(default="", max_length=512)
+    observed_path: str = Field(default="", max_length=4096)
+    observer_process_id: int | None = Field(default=None, ge=1)
 
     @model_validator(mode="before")
     @classmethod
@@ -85,6 +87,8 @@ class OracleSnapshot(BaseModel):
             "gf": "guest_fingerprint",
             "gs": "guest_session_id",
             "id": "input_desktop",
+            "op": "observed_path",
+            "oi": "observer_process_id",
             "fl": "file",
         }
         for compact, field in aliases.items():
@@ -103,4 +107,5 @@ class OracleSnapshot(BaseModel):
             "guest_fingerprint": self.guest_fingerprint or None,
             "guest_session_id": self.guest_session_id,
             "input_desktop": self.input_desktop,
+            "observer_process_id": self.observer_process_id,
         }
