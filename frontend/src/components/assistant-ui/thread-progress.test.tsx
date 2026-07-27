@@ -38,9 +38,51 @@ const messages: ThreadMessageLike[] = [
   },
 ];
 
+const handoffMessages: ThreadMessageLike[] = [
+  {
+    id: "user-1",
+    role: "user",
+    content: "What is on the screen?",
+  },
+  {
+    id: "assistant-handoff",
+    role: "assistant",
+    content: "Let me take a look at the screen.",
+    status: { type: "complete", reason: "stop" },
+  },
+  {
+    id: "assistant-computer",
+    role: "assistant",
+    content: [],
+    status: { type: "running" },
+  },
+];
+
 function RunningThread() {
   const runtime = useExternalStoreRuntime({
     messages,
+    convertMessage: (message) => message,
+    isRunning: true,
+    onNew: async () => undefined,
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Thread
+        working
+        activity={{
+          kind: "model",
+          started_at: "2026-07-27T12:00:00Z",
+          role: "reasoner",
+        }}
+      />
+    </AssistantRuntimeProvider>
+  );
+}
+
+function RunningHandoffThread() {
+  const runtime = useExternalStoreRuntime({
+    messages: handoffMessages,
     convertMessage: (message) => message,
     isRunning: true,
     onNew: async () => undefined,
@@ -135,6 +177,13 @@ describe("Thread progress", () => {
   it("renders model progress even when the assistant has no content yet", () => {
     render(<RunningThread />);
 
+    expect(screen.getByRole("status")).toHaveTextContent("Planning the task");
+  });
+
+  it("renders active progress only on the latest assistant message", () => {
+    render(<RunningHandoffThread />);
+
+    expect(screen.getAllByRole("status")).toHaveLength(1);
     expect(screen.getByRole("status")).toHaveTextContent("Planning the task");
   });
 

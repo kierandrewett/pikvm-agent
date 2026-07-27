@@ -301,6 +301,7 @@ const AssistantMessage: FC = () => {
     ReasoningGroup,
   } = useContext(ThreadComponentsContext);
   const { activity, working } = useContext(ThreadActivityContext);
+  const isLast = useAuiState((s) => s.message.isLast);
 
   const ACTION_BAR_PT = "pt-1.5";
   // Keep the action bar inside the contained root's paint box, then cancel its reserved space in flow.
@@ -371,7 +372,7 @@ const AssistantMessage: FC = () => {
             }
           }}
         </MessagePrimitive.GroupedParts>
-        <RunActivity activity={activity} working={working} />
+        <RunActivity activity={activity} working={working && isLast} />
         <MessageError />
       </div>
 
