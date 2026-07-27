@@ -13,7 +13,10 @@ import re
 import time
 from urllib.parse import quote, urlsplit
 
-from pikvm_agent.harness.vnc_target_lease import normalize_vnc_endpoint
+from pikvm_agent.harness.vnc_target_lease import (
+    VncTargetLease,
+    normalize_vnc_endpoint,
+)
 
 
 def _require_https(url: str, *, label: str) -> str:
@@ -97,9 +100,12 @@ def build_bootstrap_commands(
     if visible:
         commands.append(f"& C:/PiKVM-Harness/observer.exe{arguments}")
     else:
-        hidden_arguments = arguments.replace('"', "").strip()
+        hidden_arguments = arguments.replace('"', "").split()
         argument_list = (
-            f' "{hidden_arguments}"' if hidden_arguments else ""
+            " -ArgumentList "
+            + ",".join(f'"{argument}"' for argument in hidden_arguments)
+            if hidden_arguments
+            else ""
         )
         commands.extend(
             [
@@ -169,42 +175,43 @@ def deploy(
         reuse_installed=reuse_installed,
         visible=visible,
     )
-    client = api.connect(
-        normalize_vnc_endpoint(endpoint),
-        password,
-        timeout=90,
-        username=username,
-    )
-    try:
-        client.factory.force_caps = True
-        client.captureScreen(io.BytesIO(), format="PNG")
-        width, height = client.protocol.screen.size
-        if not powershell_ready:
-            client.keyPress("esc")
-            client.mouseMove(24, height - 24)
+    with VncTargetLease.acquire(endpoint):
+        client = api.connect(
+            normalize_vnc_endpoint(endpoint),
+            password,
+            timeout=90,
+            username=username,
+        )
+        try:
+            client.factory.force_caps = True
+            client.captureScreen(io.BytesIO(), format="PNG")
+            width, height = client.protocol.screen.size
+            if not powershell_ready:
+                client.keyPress("esc")
+                client.mouseMove(24, height - 24)
+                client.mousePress(1)
+                time.sleep(1.5)
+                _type_paced(client, "powershell", delay_s=character_delay_s)
+                client.keyPress("enter")
+                time.sleep(4)
+            client.mouseMove(width // 2, height // 3)
             client.mousePress(1)
-            time.sleep(1.5)
-            _type_paced(client, "powershell", delay_s=character_delay_s)
-            client.keyPress("enter")
-            time.sleep(4)
-        client.mouseMove(width // 2, height // 3)
-        client.mousePress(1)
-        time.sleep(0.5)
-        # Provisioning may resume after an interrupted experiment. Cancel any
-        # PowerShell continuation prompt before clearing the current line;
-        # Ctrl+A/Backspace alone only edits the latest `>>` line.
-        client.keyPress("ctrl-c")
-        time.sleep(0.5)
-        client.keyPress("ctrl-a")
-        client.keyPress("bsp")
-        for index, command in enumerate(commands):
-            _type_paced(client, command, delay_s=character_delay_s)
-            client.keyPress("enter")
-            # The download command needs more time before starting the process.
-            time.sleep(8 if index == 2 else 1)
-    finally:
-        client.disconnect()
-        api.shutdown()
+            time.sleep(0.5)
+            # Provisioning may resume after an interrupted experiment. Cancel any
+            # PowerShell continuation prompt before clearing the current line;
+            # Ctrl+A/Backspace alone only edits the latest `>>` line.
+            client.keyPress("ctrl-c")
+            time.sleep(0.5)
+            client.keyPress("ctrl-a")
+            client.keyPress("bsp")
+            for index, command in enumerate(commands):
+                _type_paced(client, command, delay_s=character_delay_s)
+                client.keyPress("enter")
+                # The download command needs more time before starting the process.
+                time.sleep(8 if index == 2 else 1)
+        finally:
+            client.disconnect()
+            api.shutdown()
 
 
 def main() -> None:

@@ -1,8 +1,17 @@
+import sys
+from pathlib import Path
+from types import ModuleType, SimpleNamespace
+
 import pytest
 
 from pikvm_agent.harness.bootstrap_windows import (
     build_bootstrap_command,
     build_bootstrap_commands,
+    deploy,
+)
+from pikvm_agent.harness.vnc_target_lease import (
+    VncTargetAlreadyLeased,
+    VncTargetLease,
 )
 
 
@@ -130,13 +139,44 @@ def test_hidden_observer_launch_returns_from_powershell_and_closes_the_host() ->
     )
 
     assert commands[-2] == (
-        "start C:/PiKVM-Harness/observer.exe "
-        '"--file C:/PiKVM-Harness/workspace/'
+        "start C:/PiKVM-Harness/observer.exe -ArgumentList "
+        '"--file","C:/PiKVM-Harness/workspace/'
         'shakespeare-essay-a1b2c3d4e5f60718.docx" '
         "-WindowStyle Hidden"
     )
+    assert '"--file C:/' not in commands[-2]
     assert commands[-1] == "exit"
     assert "& C:/PiKVM-Harness/observer.exe" not in ";".join(commands)
+
+
+def test_deployment_refuses_a_leased_target_before_vnc_connect(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setenv("PIKVM_LAB_TARGET_LEASE_DIR", str(tmp_path))
+
+    def unexpected_connect(*_args: object, **_kwargs: object) -> None:
+        raise AssertionError("deployment must acquire the target lease first")
+
+    package = ModuleType("vncdotool")
+    package.api = SimpleNamespace(connect=unexpected_connect)  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "vncdotool", package)
+
+    lease = VncTargetLease.acquire("leased.invalid:5900")
+    try:
+        with pytest.raises(
+            VncTargetAlreadyLeased,
+            match="already controlled by another local lab",
+        ):
+            deploy(
+                endpoint="LEASED.invalid::5900",
+                artifact_url=None,
+                password=None,
+                username=None,
+                reuse_installed=True,
+            )
+    finally:
+        lease.release()
 
 
 @pytest.mark.parametrize(
