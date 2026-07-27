@@ -831,18 +831,40 @@ class WatchedTyper:
                         dims,
                     )
                 ):
-                    await self._release_all_quietly()
-                    return self._halted_result(
-                        status="failed_focus_lost",
-                        field_text=last_read,
-                        corrected=corrections > 0,
-                        correction_count=corrections,
-                        delivery_retries=delivery_retries,
-                        typed_characters=len(typed_so_far),
-                        intended_characters=len(text),
-                        used_fast_path=fast_print,
-                        summary=FOCUS_CHANGED_SUMMARY,
-                    )
+                    relocated = None
+                    if (
+                        fast_print
+                        and not precise
+                        and not secret
+                        and not explicit_region
+                    ):
+                        # Rich editors can reflow the page while a paragraph is
+                        # growing. Treat that as expected movement only when a
+                        # fresh full-screen read independently relocates the
+                        # most recently acknowledged exact chunk. Never weaken
+                        # the explicit-region, code, command, or secret paths.
+                        relocated = self._locate_ocr_candidate(
+                            await self._read_screen(),
+                            chunks[i - 1],
+                            dims,
+                            precise=False,
+                        )
+                    if relocated is not None:
+                        cur_region = relocated
+                        located = True
+                    else:
+                        await self._release_all_quietly()
+                        return self._halted_result(
+                            status="failed_focus_lost",
+                            field_text=last_read,
+                            corrected=corrections > 0,
+                            correction_count=corrections,
+                            delivery_retries=delivery_retries,
+                            typed_characters=len(typed_so_far),
+                            intended_characters=len(text),
+                            used_fast_path=fast_print,
+                            summary=FOCUS_CHANGED_SUMMARY,
+                        )
                 if preflight_grid is not None:
                     grid_prev = preflight_grid
             await emit_text(chunk)

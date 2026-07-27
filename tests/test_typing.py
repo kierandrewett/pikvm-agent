@@ -1178,6 +1178,70 @@ async def test_fast_print_stops_after_out_of_field_screen_change() -> None:
     assert any(method == "release_all" for method, _ in backend.calls)
 
 
+async def test_fast_print_relocates_after_verified_editor_page_reflow() -> None:
+    backend = FakeBackend()
+    intended = (
+        "long prose remains grounded while a word processor paginates the "
+        "document and moves the active line onto the next visible page. "
+    ) * 2
+    assert len(intended) > FAST_PRINT_MIN
+    chunks = chunk_text(intended)
+    typer = WatchedTyper(backend, ScriptedOCR(""))
+    base = _flat_grid().reshape(GRID_ROWS, GRID_COLS)
+    first_line = base.copy()
+    first_line[2:4, 2:7] = 200
+    reflow = first_line.copy()
+    reflow[14:17, 28:35] = 200
+    next_page_line = reflow.copy()
+    next_page_line[15:17, 29:34] = 240
+    grids = iter(
+        [
+            base.reshape(-1),
+            first_line.reshape(-1),
+            reflow.reshape(-1),
+            next_page_line.reshape(-1),
+        ]
+    )
+
+    async def changing_grid() -> np.ndarray:
+        return next(grids, next_page_line.reshape(-1))
+
+    async def relocated_screen() -> OCRResult:
+        return OCRResult(
+            lines=[
+                OCRLine(
+                    text=chunks[0].strip(),
+                    confidence=0.99,
+                    bbox=[700, 600, 900, 625],
+                )
+            ]
+        )
+
+    typer._grid = changing_grid  # type: ignore[method-assign]
+    typer._read_screen = relocated_screen  # type: ignore[method-assign]
+
+    def keep_two_chunks() -> bool:
+        return (
+            sum(method == "print_text" for method, _ in backend.calls) < 2
+        )
+
+    result = await typer.type_text(
+        intended,
+        should_continue=keep_two_chunks,
+    )
+
+    printed = [
+        call["text"]
+        for method, call in backend.calls
+        if method == "print_text"
+    ]
+    assert printed == chunks[:2]
+    assert result.status == "blocked_by_policy"
+    assert result.typed_characters == len("".join(chunks[:2]))
+    assert any(method == "release_all" for method, _ in backend.calls)
+    _assert_no_enter(backend)
+
+
 async def test_fast_print_mismatch_never_clears_and_replays_long_prose() -> None:
     backend = FakeBackend()
     intended = "long prose that must not be replayed after OCR mismatch " * 4
