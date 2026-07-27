@@ -423,6 +423,16 @@ describe("Thread progress", () => {
     expect(screen.getByRole("status")).toHaveTextContent("Planning the task");
   });
 
+  it("owns active progress at the thread level instead of an assistant branch", () => {
+    render(<RunningHandoffThread />);
+
+    expect(
+      screen
+        .getByRole("status")
+        .closest("[data-slot='aui_assistant-message-root']"),
+    ).toBeNull();
+  });
+
   it("virtualizes old assistant messages without virtualizing the current one", () => {
     render(<RunningHandoffThread />);
 

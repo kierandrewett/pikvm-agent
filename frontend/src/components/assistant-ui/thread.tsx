@@ -160,6 +160,7 @@ const ThreadRoot: FC<{ isEmpty: boolean; readOnly: boolean }> = ({
             <ThreadPrimitive.Messages>
               {() => <ThreadMessage />}
             </ThreadPrimitive.Messages>
+            <ThreadRunActivity />
           </div>
 
           <ThreadPrimitive.ViewportFooter
@@ -196,6 +197,17 @@ const ThreadMessage: FC = () => {
   if (isEditing) return <EditComposer />;
   if (role === "user") return <UserMessage />;
   return <AssistantMessageComponent />;
+};
+
+const ThreadRunActivity: FC = () => {
+  const { activity, working } = useContext(ThreadActivityContext);
+  if (!working || activity?.kind === "tool") return null;
+
+  return (
+    <div className="px-2" data-slot="aui_thread-run-activity">
+      <RunActivity activity={activity} working />
+    </div>
+  );
 };
 
 const ThreadScrollToBottom: FC = () => {
@@ -439,7 +451,6 @@ const AssistantMessage: FC = () => {
     ToolGroup,
     ReasoningGroup,
   } = useContext(ThreadComponentsContext);
-  const { activity, working } = useContext(ThreadActivityContext);
   const isLast = useAuiState((s) => s.message.isLast);
 
   const ACTION_BAR_PT = "pt-1.5";
@@ -508,7 +519,6 @@ const AssistantMessage: FC = () => {
             }
           }}
         </MessagePrimitive.GroupedParts>
-        <RunActivity activity={activity} working={working && isLast} />
         <MessageError />
       </div>
 
