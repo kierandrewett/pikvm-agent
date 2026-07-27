@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "suite": "computer-action-timeline-visual-audit",
+  "recorded_at": "2026-07-27T07:49:30Z",
+  "environment": "local-target-free-ui-fixture",
+  "source_commit": "d7d56935f6101a981cb12a8d9cd1db979b177417",
+  "interface": {
+    "chat_framework": "@assistant-ui/react 0.14",
+    "component_framework": "@base-ui/react",
+    "icon_library": "lucide-react",
+    "fixture_events": 1200,
+    "visible_computer_actions": 12
+  },
+  "visual_audit": {
+    "browser": "Codex in-app Chromium",
+    "desktop": {
+      "requested_viewport": "1440x980",
+      "passed": true,
+      "verified": [
+        "numbered action timeline",
+        "persistent exact action and MCP tool",
+        "live input remains expanded",
+        "controller identity remains visible",
+        "observe-input-verify transaction phases",
+        "exact pointer target map"
+      ]
+    },
+    "narrow": {
+      "requested_viewport": "390x844",
+      "rendered_inner_viewport": "355x767",
+      "passed": true,
+      "conversation_client_width": 341,
+      "conversation_scroll_width": 341,
+      "horizontal_overflow_pixels": 0,
+      "model_route_visible": true,
+      "managed_mcp_visible": true
+    },
+    "approval_boundary": {
+      "passed": true,
+      "task": "synthetic Teams-send fixture",
+      "exact_inputs": 2,
+      "typed_characters": 47,
+      "consequential_key": "ENTER",
+      "external_side_effect_reason_visible": true,
+      "allow_once_visible": true,
+      "deny_visible": true,
+      "input_committed_before_approval": false
+    },
+    "screenshots_persisted": false
+  },
+  "contracts": {
+    "frontend": {
+      "passed": 42,
+      "total": 42,
+      "initial_full_run_flakes": 1,
+      "isolated_flake_rerun_passed": true,
+      "second_full_run_passed": true
+    },
+    "focused_python": {
+      "passed": 24,
+      "total": 24
+    },
+    "production_build": "passed",
+    "scorecard_integrity": "passed",
+    "source_similarity": {
+      "duplicate_functions": 0,
+      "similar_types": 0
+    }
+  },
+  "resource_envelope": {
+    "total_ui_bytes": 1229279,
+    "javascript_bytes": 1041548,
+    "javascript_gzip_9_bytes": 312532,
+    "css_bytes": 110598,
+    "css_gzip_9_bytes": 18233,
+    "remote_assets": 0
+  },
+  "safety": {
+    "vnc_contact": false,
+    "pikvm_contact": false,
+    "production_daemon_contact": false,
+    "external_model_called": false,
+    "approval_submitted": false
+  },
+  "limitations": [
+    "This is a target-free browser and component audit, not proof that a real computer action succeeded.",
+    "The browser screenshots were inspected during the run but were not retained in the repository.",
+    "A 200 percent zoom audit and cross-browser matrix remain pending.",
+    "The action rail used a synthetic changing-frame fixture rather than a live VNC stream."
+  ]
+}

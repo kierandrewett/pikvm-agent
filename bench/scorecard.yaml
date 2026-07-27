@@ -292,6 +292,25 @@ rows:
     wall: "Detached target-free contract"
     status: "Passing exact-input/read-back contract; browser visual audit pending"
 
+  - suite: "Computer-action timeline visual audit"
+    route: "assistant-ui timeline → live fixture → approval boundary"
+    source: "results/2026-07-27/ui/computer-action-timeline-visual-audit.json"
+    fields:
+      frontend_passed: {path: "contracts.frontend.passed", format: "integer"}
+      frontend_total: {path: "contracts.frontend.total", format: "integer"}
+      python_passed: {path: "contracts.focused_python.passed", format: "integer"}
+      python_total: {path: "contracts.focused_python.total", format: "integer"}
+      events: {path: "interface.fixture_events", format: "integer"}
+      actions: {path: "interface.visible_computer_actions", format: "integer"}
+      overflow: {path: "visual_audit.narrow.horizontal_overflow_pixels", format: "integer"}
+      gzip_js: {path: "resource_envelope.javascript_gzip_9_bytes", format: "integer"}
+      gzip_css: {path: "resource_envelope.css_gzip_9_bytes", format: "integer"}
+    cases: "{events} events / {actions} actions; {frontend_total} frontend + {python_total} Python"
+    result: "{frontend_passed}/{frontend_total} + {python_passed}/{python_total}; {overflow}px narrow overflow; approval held"
+    latency: "{gzip_js}-byte gzip JS; {gzip_css}-byte gzip CSS"
+    wall: "Target-free browser audit"
+    status: "Desktop and 390×844 passing; 200% zoom/cross-browser pending"
+
   - suite: "Live-frame resource envelope"
     route: "Target-free streamed preview adapter"
     source: "results/2026-07-25/ui/live-frame-resource-envelope-2026-07-26.json"
