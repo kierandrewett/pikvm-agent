@@ -73,6 +73,23 @@ rows:
     wall: "{wall}"
     status: "Failing diagnostic"
 
+  - suite: "Live exact input read-back"
+    route: "Disposable Windows VM via isolated MCP"
+    source: "results/2026-07-27/live-vnc/typing-exact-readback-case72.json"
+    fields:
+      cases: {path: "method.cases", format: "integer"}
+      characters: {path: "method.requested_characters", format: "integer"}
+      spaces: {path: "method.requested_spaces", format: "integer"}
+      hash_match: {path: "result.exact_readback_sha256_match", format: "text"}
+      helper_exact: {path: "result.windows_observer_exact", format: "text"}
+      repeated_spaces: {path: "result.windows_observer_repeated_spaces", format: "integer"}
+      wall: {path: "timing.wall_seconds_approximate", format: "number", digits: 0}
+    cases: "{cases} diagnostic / {characters} characters"
+    result: "Requested = issued = OCR SHA: {hash_match}; helper exact: {helper_exact}; {repeated_spaces} repeated spaces"
+    latency: "Not isolated"
+    wall: "{wall}s"
+    status: "Passing n=1 diagnostic; generic OCR still failing"
+
   - suite: "Direct MCP visibility bridge"
     route: "Guarded local SQLite/ASGI"
     source: "results/2026-07-25/ui/direct-mcp-visibility-audit.json"

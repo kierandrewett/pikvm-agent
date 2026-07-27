@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "kind": "live_windows_exact_input_readback",
+  "created_at": "2026-07-27T15:39:56Z",
+  "target": {
+    "class": "disposable_windows_vnc_vm",
+    "endpoint_persisted": false,
+    "production_target_contacted": false,
+    "lab_observer_installed": true
+  },
+  "method": {
+    "cases": 1,
+    "requested_characters": 72,
+    "requested_spaces": 10,
+    "verification_mode": "exact",
+    "readback_sources": [
+      "runtime_known_intent_ocr",
+      "windows_lab_observer"
+    ]
+  },
+  "result": {
+    "requested_sha256": "3102cdfa96a2eef4b33ecad84806cc35526f154cd660d405408316ba010e893b",
+    "issued_prefix_sha256": "3102cdfa96a2eef4b33ecad84806cc35526f154cd660d405408316ba010e893b",
+    "readback_sha256": "3102cdfa96a2eef4b33ecad84806cc35526f154cd660d405408316ba010e893b",
+    "exact_readback_sha256_match": true,
+    "receipt_status": "verified_exact",
+    "proof_state": "exact_readback",
+    "windows_observer_exact": true,
+    "windows_observer_repeated_spaces": 0,
+    "generic_region_ocr_exact": false,
+    "generic_region_ocr_limitation": "Raw region OCR retained caret or widget artifacts; it is not treated as an exact field checksum."
+  },
+  "timing": {
+    "wall_seconds_approximate": 55
+  },
+  "implementation": {
+    "commits": [
+      "cab4ff9",
+      "79ace58",
+      "003a67b"
+    ]
+  },
+  "claim_boundary": {
+    "release_evidence": false,
+    "diagnostic_only": true,
+    "reason": "This proves one live 72-character known-intent readback case. It does not replace the 1,000-case blind OCR release gate or prove arbitrary field-wide text attestation without a guest observer."
+  }
+}
