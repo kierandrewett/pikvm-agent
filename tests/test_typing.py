@@ -372,6 +372,72 @@ async def test_fast_editor_prose_falls_back_to_full_screen_readback() -> None:
     _assert_no_enter(backend)
 
 
+async def test_fast_editor_continuation_matches_inside_existing_ocr_line() -> None:
+    """Word can place new prose directly after text that predates this call."""
+
+    backend = FakeBackend()
+    continuation = (
+        " convenience the court has agreed to, and it is chosen again each day "
+        "it is not corrected. Hamlet's hesitation is therefore not a flaw of "
+        "temperament but a moral position: he refuses to act until the ground "
+        "of the act is known."
+    )
+    orig_print = backend.print_text
+
+    async def printing(text: str) -> None:
+        await orig_print(text)
+        backend.set_screen("wrapped editor continuation changed several lines")
+
+    backend.print_text = printing  # type: ignore[method-assign]
+
+    class ContinuationOCR:
+        async def ocr(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            if region is not None:
+                return OCRResult()
+            return OCRResult(
+                lines=[
+                    OCRLine(text="Microsoft Word"),
+                    OCRLine(
+                        text=(
+                            "That lie is a convenience the court has agreed to, "
+                            "and it is chosen again each day it is"
+                        ),
+                        confidence=0.96,
+                    ),
+                    OCRLine(
+                        text=(
+                            "not corrected. Hamlet's hesitation is therefore "
+                            "not a flaw of temperament but a moral"
+                        ),
+                        confidence=0.95,
+                    ),
+                    OCRLine(
+                        text=(
+                            "position: he refuses to act until the ground of "
+                            "the act is known."
+                        ),
+                        confidence=0.96,
+                    ),
+                    OCRLine(text="Page 1 of 1"),
+                ]
+            )
+
+    typer = WatchedTyper(backend, ContinuationOCR())
+
+    result = await typer.type_text(continuation, prose=True)
+
+    assert result.used_fast_path is True
+    assert result.verdict == "match"
+    assert result.ok is True
+    assert result.field_text.startswith("convenience the court")
+    assert result.field_text.endswith("the act is known.")
+    _assert_no_enter(backend)
+
+
 async def test_caps_lock_disables_fast_path() -> None:
     backend = FakeBackend()
     backend.caps_lock = True

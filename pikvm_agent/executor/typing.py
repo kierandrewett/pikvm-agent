@@ -512,6 +512,27 @@ class WatchedTyper:
         max_distance = max(1, math.ceil(len(folded_intended) * 0.08))
         best = ""
         best_distance = max_distance + 1
+
+        def consider(candidate: str) -> None:
+            nonlocal best, best_distance
+            if (
+                not candidate
+                or abs(len(candidate) - len(visible_intended))
+                > max_distance
+            ):
+                return
+            folded_candidate = candidate.casefold()
+            if len(folded_candidate) != len(candidate):
+                return
+            distance = levenshtein(
+                folded_intended,
+                folded_candidate,
+                max_distance,
+            )
+            if distance < best_distance:
+                best = candidate
+                best_distance = distance
+
         for lines in sources:
             visible_lines = [
                 " ".join(line.split())
@@ -529,17 +550,39 @@ class WatchedTyper:
                         > max_distance
                     ):
                         continue
-                    folded_window = window.casefold()
-                    if len(folded_window) != len(window):
-                        continue
-                    distance = levenshtein(
-                        folded_intended,
-                        folded_window,
-                        max_distance,
-                    )
-                    if distance < best_distance:
-                        best = window
-                        best_distance = distance
+                    consider(window)
+
+                    # A continuation can begin or end inside an OCR line because
+                    # the editor already held text on that line before this call.
+                    # Trim only at word boundaries and only within the existing
+                    # prose error budget at either edge. This finds the newly
+                    # appended suffix without accepting an arbitrary distant
+                    # paragraph or weakening exact paths/code verification.
+                    boundaries = [
+                        match.end()
+                        for match in re.finditer(r" +", window)
+                    ]
+                    left_edges = [
+                        0,
+                        *(
+                            boundary
+                            for boundary in boundaries
+                            if boundary <= max_distance
+                        ),
+                    ]
+                    right_edges = [
+                        *(
+                            boundary - 1
+                            for boundary in boundaries
+                            if len(window) - (boundary - 1)
+                            <= max_distance
+                        ),
+                        len(window),
+                    ]
+                    for left in left_edges:
+                        for right in right_edges:
+                            if left or right != len(window):
+                                consider(window[left:right].strip())
         if (
             best
             and best_distance <= max_distance
