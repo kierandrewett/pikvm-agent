@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import stat
 
 import pytest
 from typer.testing import CliRunner
@@ -10,6 +11,7 @@ from pikvm_agent.harness.browser_matrix import (
     _clean_failure,
     _is_fixture_request,
     parse_browser_names,
+    write_browser_audit_report,
 )
 
 
@@ -69,6 +71,18 @@ def test_public_failure_retains_sanitized_missing_library_diagnostic() -> None:
     )
 
 
+def test_browser_report_is_private_and_cannot_be_overwritten(tmp_path) -> None:
+    output = tmp_path / "browser-audit.json"
+    report = {"summary": {"release_gate_passed": True}}
+
+    write_browser_audit_report(output, report)
+
+    assert json.loads(output.read_text()) == report
+    assert stat.S_IMODE(output.stat().st_mode) == 0o600
+    with pytest.raises(ValueError, match="already exists"):
+        write_browser_audit_report(output, report)
+
+
 def test_browser_audit_cli_writes_passing_evidence(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path,
@@ -106,6 +120,7 @@ def test_browser_audit_cli_writes_passing_evidence(
     assert result.exit_code == 0
     assert "2/2 passed" in result.stdout
     assert json.loads(output.read_text()) == report
+    assert stat.S_IMODE(output.stat().st_mode) == 0o600
 
 
 def test_browser_audit_cli_fails_closed_on_engine_failure(

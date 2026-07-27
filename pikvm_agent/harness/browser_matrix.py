@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+import os
 import re
 import secrets
 import socket
@@ -27,6 +29,7 @@ TIMELINE_TASK = (
 APPROVAL_TASK = "Review a Teams message before the final send input"
 DIRECT_TASK = "Inspect a direct Claude computer-control trace"
 APPROVAL_TEXT = "Quarterly figures are attached for your review."
+PROGRESS_TASK = "Audit singular task progress ownership"
 
 
 class BrowserAuditDependencyError(RuntimeError):
@@ -57,7 +60,9 @@ def parse_browser_names(value: str | Sequence[str]) -> tuple[str, ...]:
     return names
 
 
-def _current_commit() -> str | None:
+def _git_output(*arguments: str) -> str | None:
+    """Run one read-only git query against the source checkout, if available."""
+
     roots = tuple(
         dict.fromkeys(
             (
@@ -69,7 +74,7 @@ def _current_commit() -> str | None:
     for root in roots:
         try:
             return subprocess.run(
-                ["git", "rev-parse", "HEAD"],
+                ["git", *arguments],
                 cwd=root,
                 check=True,
                 capture_output=True,
@@ -79,6 +84,40 @@ def _current_commit() -> str | None:
         except (OSError, subprocess.SubprocessError):
             continue
     return None
+
+
+def _current_commit() -> str | None:
+    return _git_output("rev-parse", "HEAD")
+
+
+def _source_worktree_clean() -> bool | None:
+    output = _git_output("status", "--porcelain")
+    return None if output is None else not output
+
+
+def write_browser_audit_report(
+    path: Path,
+    report: dict[str, Any],
+) -> None:
+    """Create private evidence and refuse accidental replacement."""
+
+    destination = path.expanduser().resolve()
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        descriptor = os.open(
+            destination,
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL,
+            0o600,
+        )
+    except FileExistsError as exc:
+        raise ValueError("browser audit output already exists") from exc
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            json.dump(report, handle, indent=2, sort_keys=True)
+            handle.write("\n")
+    except BaseException:
+        destination.unlink(missing_ok=True)
+        raise
 
 
 def _clean_failure(cause: BaseException) -> str:
@@ -196,14 +235,18 @@ def _overflow_measurements(page: Any) -> dict[str, int]:
 
 
 def _select_desktop_task(page: Any, title: str) -> None:
-    page.get_by_text(title, exact=True).first.click()
+    page.locator(
+        'aside [data-slot="aui_thread-list-item-trigger"]'
+    ).filter(has_text=title).click()
     page.locator("header").get_by_text(title, exact=True).wait_for()
 
 
 def _select_mobile_task(page: Any, title: str) -> None:
     page.get_by_role("button", name="Open tasks").click()
     sheet = page.get_by_role("dialog")
-    sheet.get_by_text(title, exact=True).click()
+    sheet.locator('[data-slot="aui_thread-list-item-trigger"]').filter(
+        has_text=title
+    ).first.click()
     page.locator("header").get_by_text(title, exact=True).wait_for()
 
 
@@ -270,6 +313,34 @@ def _audit_engine(
 
         stage = "select timeline task"
         _select_desktop_task(page, TIMELINE_TASK)
+        stage = "inspect configured computer identity"
+        computer_connection = page.get_by_role(
+            "button",
+            name=re.compile(r"^Open managed computer"),
+        )
+        computer_connection.wait_for()
+        computer_connection_text = computer_connection.inner_text()
+        computer_connection_label = computer_connection.get_attribute(
+            "aria-label"
+        ) or ""
+        connection = {
+            "machine_visible": "Synthetic audit target" in computer_connection_text,
+            "configured_state_visible": "configured" in computer_connection_text,
+            "managed_mcp_visible": (
+                "Managed PiKVM MCP is configured" in computer_connection_label
+            ),
+            "reachability_deferred_truthfully": (
+                "reachability is checked when computer work begins"
+                in computer_connection_label
+            ),
+        }
+        if not all(connection.values()):
+            missing = ", ".join(
+                name for name, visible in connection.items() if not visible
+            )
+            raise BrowserAuditFailure(
+                f"configured computer identity is incomplete: {missing}"
+            )
         stage = "expand computer action group"
         group = page.locator(
             'button[aria-label^="12 computer actions"]'
@@ -357,8 +428,19 @@ def _audit_engine(
         page.wait_for_timeout(100)
         responsive = {
             "viewport": "390x844",
+            "computer_connection_visible": computer_connection.is_visible(),
+            "computer_state_visible": "configured"
+            in computer_connection.inner_text(),
             **_overflow_measurements(page),
         }
+        if not responsive["computer_connection_visible"]:
+            raise BrowserAuditFailure(
+                "responsive workspace hides configured computer identity"
+            )
+        if not responsive["computer_state_visible"]:
+            raise BrowserAuditFailure(
+                "responsive workspace hides configured computer state"
+            )
         if any(
             responsive[key]
             for key in responsive
@@ -426,6 +508,69 @@ def _audit_engine(
             raise BrowserAuditFailure(
                 f"direct-call ownership is ambiguous: {missing}"
             )
+
+        stage = "create synthetic progress task"
+        progress_create = page.evaluate(
+            """async ({ task }) => {
+              const token = sessionStorage.getItem('pikvm-harness-token');
+              const response = await fetch('/api/runs', {
+                method: 'POST',
+                headers: {
+                  authorization: `Bearer ${token}`,
+                  'content-type': 'application/json',
+                },
+                body: JSON.stringify({
+                  task,
+                  mode: 'computer',
+                  auto_start: false,
+                  source_client: 'chat-workspace',
+                }),
+              });
+              return { status: response.status, body: await response.json() };
+            }""",
+            {"task": PROGRESS_TASK},
+        )
+        if progress_create["status"] != 200:
+            raise BrowserAuditFailure(
+                "synthetic progress task could not be created"
+            )
+        stage = "reload synthetic progress task"
+        page.reload(wait_until="domcontentloaded")
+        conversation.wait_for()
+        _select_mobile_task(page, PROGRESS_TASK)
+        stage = "inspect singular task progress"
+        progress_status = page.get_by_role("status")
+        progress_status.wait_for()
+        progress = page.evaluate(
+            """() => {
+              const statuses = Array.from(
+                document.querySelectorAll('[role="status"]')
+              );
+              const status = statuses[0];
+              return {
+                count: statuses.length,
+                text: status?.textContent?.trim() || '',
+                thread_owned: Boolean(
+                  status?.closest('[data-slot="aui_thread-run-activity"]')
+                ),
+                inside_assistant_message: Boolean(
+                  status?.closest('[data-slot="aui_assistant-message-root"]')
+                ),
+                branch_controls: document.querySelectorAll(
+                  '[data-slot*="branch"]'
+                ).length,
+              };
+            }"""
+        )
+        if (
+            progress["count"] != 1
+            or not progress["thread_owned"]
+            or progress["inside_assistant_message"]
+            or progress["branch_controls"] != 0
+        ):
+            raise BrowserAuditFailure(
+                "task progress is duplicated or owned by an assistant branch"
+            )
         if console_errors or page_errors or external_requests:
             raise BrowserAuditFailure(
                 "browser emitted runtime errors or external requests"
@@ -436,9 +581,11 @@ def _audit_engine(
             "duration_ms": round((time.perf_counter() - started) * 1_000),
             "desktop": desktop,
             "responsive": responsive,
+            "connection": connection,
             "models": models,
             "approval": approval,
             "direct": direct,
+            "progress": progress,
             "console_errors": console_errors,
             "page_errors": page_errors,
             "external_requests": external_requests,
@@ -513,6 +660,7 @@ def run_browser_matrix_audit(
         "suite": "cross-browser-chat-workspace-audit",
         "recorded_at": datetime.now(UTC).isoformat(),
         "source_commit": _current_commit(),
+        "source_worktree_clean": _source_worktree_clean(),
         "environment": "ephemeral-loopback-target-free-fixture",
         "requested_browsers": list(names),
         "summary": {

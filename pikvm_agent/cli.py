@@ -224,12 +224,11 @@ def harness_browser_audit(
     ),
 ) -> None:
     """Audit the authenticated chat/tool UI without a computer or model."""
-    import json
-
     from pikvm_agent.harness.browser_matrix import (
         BrowserAuditDependencyError,
         parse_browser_names,
         run_browser_matrix_audit,
+        write_browser_audit_report,
     )
 
     try:
@@ -239,11 +238,11 @@ def harness_browser_audit(
         typer.echo(f"Browser audit refused: {exc}", err=True)
         raise typer.Exit(2)
     if output is not None:
-        output.parent.mkdir(parents=True, exist_ok=True)
-        output.write_text(
-            json.dumps(report, indent=2, sort_keys=True) + "\n",
-            encoding="utf-8",
-        )
+        try:
+            write_browser_audit_report(output, report)
+        except ValueError as exc:
+            typer.echo(f"Browser audit refused: {exc}", err=True)
+            raise typer.Exit(2)
         typer.echo(f"Evidence: {output}")
     summary = report["summary"]
     typer.echo(
