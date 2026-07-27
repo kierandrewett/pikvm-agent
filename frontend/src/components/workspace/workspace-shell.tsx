@@ -329,10 +329,20 @@ export function WorkspaceShell() {
                 </TooltipIconButton>
               ) : null}
               <TooltipIconButton
-                tooltip="Computer"
-                aria-label="Open computer view"
+                tooltip={
+                  workspace.computerControlEnabled
+                    ? "Computer"
+                    : "No computer connected"
+                }
+                aria-label={
+                  workspace.computerControlEnabled
+                    ? "Open computer view"
+                    : "No computer connected"
+                }
                 onClick={() => setComputerOpen(true)}
-                disabled={!workspace.selectedRun}
+                disabled={
+                  !workspace.selectedRun || !workspace.computerControlEnabled
+                }
               >
                 <MonitorIcon />
               </TooltipIconButton>

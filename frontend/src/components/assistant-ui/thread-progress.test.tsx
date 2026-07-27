@@ -135,9 +135,9 @@ function BranchingThread() {
     [
       {
         message: {
-          id: "user-1",
+          id: "user-old",
           role: "user",
-          content: "What is on the screen?",
+          content: "Old request.",
         },
         parentId: null,
       },
@@ -147,7 +147,15 @@ function BranchingThread() {
           role: "assistant",
           content: "Old transient reply.",
         },
-        parentId: "user-1",
+        parentId: "user-old",
+      },
+      {
+        message: {
+          id: "user-current",
+          role: "user",
+          content: "What is on the screen?",
+        },
+        parentId: null,
       },
       {
         message: {
@@ -155,7 +163,7 @@ function BranchingThread() {
           role: "assistant",
           content: "Current reply.",
         },
-        parentId: "user-1",
+        parentId: "user-current",
       },
     ],
     { headId: "assistant-current" },

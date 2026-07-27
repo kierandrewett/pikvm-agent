@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createRunPayload,
+  loadHarnessHealth,
   loadProviderCatalog,
   reconcileIntervalMs,
 } from "@/hooks/use-harness-workspace";
@@ -55,6 +56,39 @@ describe("loadProviderCatalog", () => {
     );
 
     await expect(loadProviderCatalog("workspace-token")).resolves.toEqual([]);
+  });
+});
+
+describe("loadHarnessHealth", () => {
+  it("distinguishes a chat-only server from a connected computer", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            status: "ok",
+            computer_control: "disabled",
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+      ),
+    );
+
+    await expect(loadHarnessHealth("workspace-token")).resolves.toBe(false);
+  });
+
+  it("keeps older harness servers computer-capable by default", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ status: "ok" }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      ),
+    );
+
+    await expect(loadHarnessHealth("workspace-token")).resolves.toBe(true);
   });
 });
 

@@ -54,6 +54,14 @@ describe("useHarnessWorkspace authentication boundary", () => {
             ),
           );
         }
+        if (url === "/api/health") {
+          return Promise.resolve(
+            jsonResponse({
+              status: "ok",
+              computer_control: "disabled",
+            }),
+          );
+        }
         if (url === "/api/runs/legacy-run") {
           return Promise.resolve(
             jsonResponse(
@@ -74,6 +82,7 @@ describe("useHarnessWorkspace authentication boundary", () => {
       ),
     );
     expect(result.current.connected).toBe(true);
+    expect(result.current.computerControlEnabled).toBe(false);
     expect(sessionStorage.getItem("pikvm-harness-token")).toBe(
       "desktop-managed",
     );

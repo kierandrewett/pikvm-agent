@@ -22,6 +22,13 @@ export type HarnessEvent = {
 export type LiveUpdateStatus =
   "idle" | "connecting" | "live" | "retrying" | "offline";
 
+export type HarnessHealth = {
+  status: string;
+  control_mode?: string;
+  direct_call_visibility?: "enabled" | "disabled";
+  computer_control?: "enabled" | "disabled";
+};
+
 export type ModelRole = "reasoner" | "controller" | "verifier";
 
 export type ModelPreferences = Partial<Record<ModelRole, string>>;

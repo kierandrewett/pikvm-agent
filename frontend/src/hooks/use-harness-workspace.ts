@@ -14,6 +14,7 @@ import {
 import type {
   AssistantTool,
   AssistantToolServerMap,
+  HarnessHealth,
   LiveUpdateStatus,
   ModelPreferences,
   ModelRole,
@@ -85,6 +86,11 @@ export const loadAssistantToolServers = async (accessToken: string) => {
   }
 };
 
+export const loadHarnessHealth = async (accessToken: string) => {
+  const health = await harnessJson<HarnessHealth>(accessToken, "/api/health");
+  return health.computer_control !== "disabled";
+};
+
 export const createRunPayload = (
   task: string,
   preferences: ModelPreferences,
@@ -122,6 +128,7 @@ export function useHarnessWorkspace() {
   const [providers, setProviders] = useState<ProviderMap>({});
   const [tools, setTools] = useState<AssistantTool[]>([]);
   const [toolServers, setToolServers] = useState<AssistantToolServerMap>({});
+  const [computerControlEnabled, setComputerControlEnabled] = useState(true);
   const [providerCatalog, setProviderCatalog] = useState<
     ProviderCatalogEntry[]
   >([]);
@@ -235,12 +242,14 @@ export function useHarnessWorkspace() {
           nextCatalog,
           nextTools,
           nextToolServers,
+          nextComputerControlEnabled,
         ] = await Promise.all([
           harnessJson<RunSummary[]>(accessToken, "/api/runs"),
           harnessJson<ProviderMap>(accessToken, "/api/providers"),
           loadProviderCatalog(accessToken),
           loadAssistantTools(accessToken),
           loadAssistantToolServers(accessToken),
+          loadHarnessHealth(accessToken),
         ]);
         if (!mounted.current) return;
         setToken(accessToken);
@@ -250,6 +259,7 @@ export function useHarnessWorkspace() {
         setProviderCatalog(nextCatalog);
         setTools(nextTools);
         setToolServers(nextToolServers);
+        setComputerControlEnabled(nextComputerControlEnabled);
         setConnected(true);
         const firstId = nextRuns[0]?.run_id ?? null;
         setSelectedId(firstId);
@@ -518,6 +528,7 @@ export function useHarnessWorkspace() {
     setProviderCatalog([]);
     setTools([]);
     setToolServers({});
+    setComputerControlEnabled(true);
     setModelPreferences({});
     setSelectedId(null);
     setSelectedRun(null);
@@ -587,6 +598,7 @@ export function useHarnessWorkspace() {
       providers,
       tools,
       toolServers,
+      computerControlEnabled,
       providerCatalog,
       connectingProvider,
       modelPreferences,
@@ -618,6 +630,7 @@ export function useHarnessWorkspace() {
       providers,
       tools,
       toolServers,
+      computerControlEnabled,
       providerCatalog,
       connectingProvider,
       modelPreferences,
