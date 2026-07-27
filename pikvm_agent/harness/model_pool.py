@@ -284,9 +284,18 @@ class ModelPool:
         role: ModelRole,
         *,
         preferred_provider: str | None = None,
+        provider_route: list[str] | None = None,
     ) -> list[str]:
+        if preferred_provider is not None and provider_route is not None:
+            raise ValueError(
+                "preferred_provider and provider_route are mutually exclusive"
+            )
         if preferred_provider is not None:
             return [preferred_provider]
+        if provider_route is not None:
+            if not provider_route:
+                raise ValueError("provider_route cannot be empty")
+            return list(provider_route)
         route = self.routes.get(role)
         return list(route.providers) if route else []
 
@@ -339,15 +348,25 @@ class ModelPool:
         bypass_cooldown: bool = False,
         budget: ModelAttemptBudget | None = None,
         preferred_provider: str | None = None,
+        provider_route: list[str] | None = None,
     ) -> tuple[OutputT, ModelResponse]:
-        route = self.routes.get(request.role)
-        if route is None:
-            raise ModelPoolError(f"no provider route for role {request.role}")
-        provider_names = (
-            [preferred_provider]
-            if preferred_provider is not None
-            else route.providers
-        )
+        if preferred_provider is not None and provider_route is not None:
+            raise ValueError(
+                "preferred_provider and provider_route are mutually exclusive"
+            )
+        if preferred_provider is not None:
+            provider_names = [preferred_provider]
+        elif provider_route is not None:
+            if not provider_route:
+                raise ValueError("provider_route cannot be empty")
+            provider_names = list(provider_route)
+        else:
+            route = self.routes.get(request.role)
+            if route is None:
+                raise ModelPoolError(
+                    f"no provider route for role {request.role}"
+                )
+            provider_names = route.providers
         errors: list[str] = []
         async def emit(kind: str, **data: object) -> None:
             if on_event is not None:

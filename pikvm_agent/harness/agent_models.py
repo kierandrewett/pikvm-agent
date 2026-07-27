@@ -21,6 +21,10 @@ from pydantic import (
 )
 
 ModelRole = Literal["reasoner", "controller", "verifier"]
+ProviderAlias = Annotated[
+    str,
+    Field(pattern=r"^[A-Za-z0-9_.:-]{1,128}$"),
+]
 
 
 def utc_now() -> datetime:
@@ -181,6 +185,48 @@ class RunModelBudgetState(BaseModel):
     @property
     def outstanding_cost_microusd(self) -> int:
         return sum(self.reservations_microusd.values())
+
+
+class RunModelRoute(BaseModel):
+    """Durable per-role candidates selected for one managed run."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    reasoner: list[ProviderAlias] | None = Field(
+        default=None,
+        min_length=1,
+        max_length=16,
+    )
+    controller: list[ProviderAlias] | None = Field(
+        default=None,
+        min_length=1,
+        max_length=16,
+    )
+    verifier: list[ProviderAlias] | None = Field(
+        default=None,
+        min_length=1,
+        max_length=16,
+    )
+
+    @field_validator("reasoner", "controller", "verifier")
+    @classmethod
+    def candidates_are_unique(
+        cls,
+        value: list[str] | None,
+    ) -> list[str] | None:
+        if value is not None and len(value) != len(set(value)):
+            raise ValueError("provider route candidates must be unique")
+        return value
+
+    @model_validator(mode="after")
+    def at_least_one_role_is_selected(self) -> "RunModelRoute":
+        if not any((self.reasoner, self.controller, self.verifier)):
+            raise ValueError("model route must select at least one role")
+        return self
+
+    def for_role(self, role: ModelRole) -> list[str] | None:
+        value = getattr(self, role)
+        return list(value) if value is not None else None
 
 
 class ComputerObservation(BaseModel):
@@ -438,6 +484,7 @@ class RunSnapshot(BaseModel):
         default=None,
         pattern=r"^[A-Za-z0-9_.:-]{1,128}$",
     )
+    model_route: RunModelRoute | None = None
     caller: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)
@@ -459,6 +506,14 @@ class RunSnapshot(BaseModel):
     active_activity: CurrentActivity | None = None
     event_cursor: int = Field(default=0, ge=0)
     events: list[HarnessEvent] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def model_selection_is_unambiguous(self) -> "RunSnapshot":
+        if self.model_provider is not None and self.model_route is not None:
+            raise ValueError(
+                "model_provider and model_route cannot both be selected"
+            )
+        return self
 
     def record(self, kind: str, **data: Any) -> None:
         next_sequence = max(
@@ -556,6 +611,7 @@ class RunSummary(BaseModel):
     status: RunStatus
     origin: Literal["managed", "direct_mcp"] = "managed"
     model_provider: str | None = None
+    model_route: RunModelRoute | None = None
     caller: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime
     updated_at: datetime
@@ -580,6 +636,7 @@ class RunSummary(BaseModel):
             status=run.status,
             origin=run.origin,
             model_provider=run.model_provider,
+            model_route=run.model_route,
             caller=run.caller,
             created_at=run.created_at,
             updated_at=run.updated_at,

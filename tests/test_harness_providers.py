@@ -208,6 +208,37 @@ async def test_model_pool_honors_an_explicit_byo_provider() -> None:
 
 
 @pytest.mark.asyncio
+async def test_model_pool_honors_an_ordered_per_run_route_with_fallback() -> None:
+    invalid = InvalidProvider()
+    valid = ValidProvider()
+    pool = ModelPool(
+        providers={"invalid": invalid, "valid": valid},
+        routes={"reasoner": RoleRoute(providers=["valid"])},
+    )
+
+    plan, response = await pool.complete(
+        request(),
+        PlanDecision,
+        provider_route=["invalid", "valid"],
+    )
+
+    assert plan.summary == "A valid plan"
+    assert response.provider == "valid"
+    assert pool.health()["invalid"]["calls"] >= 1
+    assert pool.health()["valid"]["calls"] == 1
+    assert pool.route_names(
+        "reasoner",
+        provider_route=["invalid", "valid"],
+    ) == ["invalid", "valid"]
+    with pytest.raises(ValueError, match="mutually exclusive"):
+        pool.route_names(
+            "reasoner",
+            preferred_provider="valid",
+            provider_route=["invalid", "valid"],
+        )
+
+
+@pytest.mark.asyncio
 async def test_model_pool_downgrades_text_plus_commit_to_a_visible_safe_draft() -> None:
     provider = TextAndCommitProvider()
     pool = ModelPool(

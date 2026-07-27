@@ -18,7 +18,7 @@ from fastapi.responses import (
     StreamingResponse,
 )
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from pikvm_agent.harness.agent import AgentHarness
 from pikvm_agent.harness.agent_models import (
@@ -26,6 +26,8 @@ from pikvm_agent.harness.agent_models import (
     ArtifactAcceptance,
     ArtifactAcceptanceState,
     MediaTransactionState,
+    ProviderAlias,
+    RunModelRoute,
     RunSnapshot,
     RunStatus,
 )
@@ -98,17 +100,88 @@ class MediaTransactionSource(Protocol):
     ) -> RunSnapshot: ...
 
 
+class ModelPreferences(BaseModel):
+    """Per-role primary choices expanded server-side into fallback routes."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    reasoner: ProviderAlias | None = None
+    controller: ProviderAlias | None = None
+    verifier: ProviderAlias | None = None
+
+    @model_validator(mode="after")
+    def at_least_one_preference(self) -> "ModelPreferences":
+        if not any((self.reasoner, self.controller, self.verifier)):
+            raise ValueError("model preferences must select at least one role")
+        return self
+
+
 class CreateRunBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     task: str = Field(min_length=1, max_length=20_000)
     auto_start: bool = True
     model_provider: str | None = Field(
         default=None,
         pattern=r"^[A-Za-z0-9_.:-]{1,128}$",
     )
+    model_preferences: ModelPreferences | None = None
     source_client: str | None = Field(
         default=None,
         pattern=r"^[A-Za-z0-9_-]{1,64}$",
     )
+
+    @model_validator(mode="after")
+    def model_selection_is_unambiguous(self) -> "CreateRunBody":
+        if self.model_provider is not None and self.model_preferences is not None:
+            raise ValueError(
+                "model_provider and model_preferences cannot both be selected"
+            )
+        return self
+
+
+def _expanded_model_route(
+    preferences: ModelPreferences,
+    provider_health: dict[str, dict[str, object]],
+) -> RunModelRoute:
+    """Resolve primary choices into durable per-role fallback candidates."""
+
+    selected_by_role = preferences.model_dump(exclude_none=True)
+    expanded: dict[str, list[str]] = {}
+    for role, selected_value in selected_by_role.items():
+        selected = str(selected_value)
+        if selected not in provider_health:
+            raise KeyError(selected)
+        if not provider_health[selected].get("ready", True):
+            raise RuntimeError(selected)
+        default_candidates: list[tuple[int, str]] = []
+        for name, health in provider_health.items():
+            if not health.get("ready", True):
+                continue
+            routes = health.get("routes")
+            if not isinstance(routes, list):
+                continue
+            for route in routes:
+                if not isinstance(route, dict) or route.get("role") != role:
+                    continue
+                position = route.get("position")
+                default_candidates.append(
+                    (
+                        (
+                            int(position)
+                            if isinstance(position, int)
+                            and not isinstance(position, bool)
+                            else 10_000
+                        ),
+                        name,
+                    )
+                )
+        ordered = [selected]
+        for _, candidate in sorted(default_candidates):
+            if candidate not in ordered:
+                ordered.append(candidate)
+        expanded[role] = ordered
+    return RunModelRoute.model_validate(expanded)
 
 
 class ApprovalBody(BaseModel):
@@ -584,8 +657,13 @@ def create_harness_app(
                 409,
                 "this console observes an externally driven benchmark",
             )
+        provider_health = (
+            models.health()
+            if body.model_provider is not None
+            or body.model_preferences is not None
+            else {}
+        )
         if body.model_provider is not None:
-            provider_health = models.health()
             if body.model_provider not in provider_health:
                 raise HTTPException(
                     422,
@@ -596,6 +674,23 @@ def create_harness_app(
                     409,
                     f"model provider is not ready: {body.model_provider}",
                 )
+        model_route: RunModelRoute | None = None
+        if body.model_preferences is not None:
+            try:
+                model_route = _expanded_model_route(
+                    body.model_preferences,
+                    provider_health,
+                )
+            except KeyError as exc:
+                raise HTTPException(
+                    422,
+                    f"unknown model provider: {exc.args[0]}",
+                ) from exc
+            except RuntimeError as exc:
+                raise HTTPException(
+                    409,
+                    f"model provider is not ready: {exc.args[0]}",
+                ) from exc
         create_options: dict[str, Any] = {}
         if body.source_client:
             create_options["caller"] = {
@@ -604,6 +699,8 @@ def create_harness_app(
             }
         if body.model_provider:
             create_options["model_provider"] = body.model_provider
+        if model_route is not None:
+            create_options["model_route"] = model_route
         run = await harness.create(body.task, **create_options)
         if body.auto_start and run.status.value not in {
             "failed",
@@ -1185,6 +1282,12 @@ def _visible_run_summary(run: Any) -> dict[str, Any]:
         "task": run.task,
         "status": run.status.value,
         "origin": run.origin,
+        "model_provider": run.model_provider,
+        "model_route": (
+            run.model_route.model_dump(mode="json", exclude_none=True)
+            if run.model_route is not None
+            else None
+        ),
         "caller": run.caller,
         "session_id": run.session_id,
         "created_at": run.created_at,

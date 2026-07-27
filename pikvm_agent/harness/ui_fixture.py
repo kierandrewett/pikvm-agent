@@ -17,6 +17,7 @@ from pikvm_agent.harness.agent_models import (
     ControllerDecision,
     PendingAction,
     PlanDecision,
+    RunModelRoute,
     RunSnapshot,
     RunStatus,
 )
@@ -142,15 +143,25 @@ class FixtureHarness:
         *,
         caller: dict[str, Any] | None = None,
         model_provider: str | None = None,
+        model_route: RunModelRoute | None = None,
     ) -> RunSnapshot:
         run = build_fixture_run(
             64,
             task=task,
             run_id=f"fixture-{uuid4()}",
             model_provider=model_provider,
+            model_route=model_route,
         )
         run.caller = dict(caller or {})
-        run.record("fixture.task_received", model_provider=model_provider)
+        run.record(
+            "fixture.task_received",
+            model_provider=model_provider,
+            model_route=(
+                model_route.model_dump(mode="json", exclude_none=True)
+                if model_route is not None
+                else None
+            ),
+        )
         await self.store.save(run)
         return run
 
@@ -262,6 +273,7 @@ def _new_fixture_run(
     run_id: str,
     task: str,
     model_provider: str | None,
+    model_route: RunModelRoute | None,
     plan: PlanDecision,
     pending_action: PendingAction | None,
     last_controller: ControllerDecision | None,
@@ -272,6 +284,7 @@ def _new_fixture_run(
         task=task,
         status=RunStatus.RUNNING,
         model_provider=model_provider,
+        model_route=model_route,
         session_id="synthetic-session",
         plan=plan,
         observation=_fixture_observation(),
@@ -287,10 +300,15 @@ def build_fixture_run(
     task: str | None = None,
     run_id: str = FIXTURE_RUN_ID,
     model_provider: str | None = None,
+    model_route: RunModelRoute | None = None,
 ) -> RunSnapshot:
     if prefill_events < 32:
         raise ValueError("prefill_events must be at least 32")
-    provider_name = model_provider or "fast-controller"
+    provider_name = (
+        model_route.controller[0]
+        if model_route is not None and model_route.controller
+        else model_provider or "fast-controller"
+    )
     model_name = _fixture_model_name(provider_name)
     run = _new_fixture_run(
         run_id=run_id,
@@ -300,6 +318,7 @@ def build_fixture_run(
             "updates, a 1,200-event timeline, and 200% browser reflow"
         ),
         model_provider=model_provider,
+        model_route=model_route,
         plan=PlanDecision(
             summary="Prove that live oversight remains legible under load.",
             steps=[
@@ -428,6 +447,7 @@ def build_approval_fixture_run() -> RunSnapshot:
         task="Review a Teams message before the final send input",
         run_id="approval-ui-audit",
         model_provider="claude-account",
+        model_route=None,
         plan=PlanDecision(
             summary="Prepare the message, but stop before the irreversible input.",
             steps=[
@@ -528,7 +548,11 @@ def build_approval_fixture_run() -> RunSnapshot:
 
 
 def advance_fixture_run(run: RunSnapshot, tick: int) -> None:
-    provider_name = run.model_provider or "fast-controller"
+    provider_name = (
+        run.model_route.controller[0]
+        if run.model_route is not None and run.model_route.controller
+        else run.model_provider or "fast-controller"
+    )
     model_name = _fixture_model_name(provider_name)
     activity = run.active_activity
     if activity is not None and activity.kind == "model":

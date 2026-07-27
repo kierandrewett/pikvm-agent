@@ -18,6 +18,7 @@ from pikvm_agent.harness.agent_models import (
     ModelResponse,
     PendingAction,
     PlanDecision,
+    RunModelRoute,
     RunSnapshot,
     RunStatus,
     VerificationDecision,
@@ -91,6 +92,23 @@ def test_artifact_acceptance_pass_requires_complete_host_evidence() -> None:
             checks_total=24,
             byte_count=12_345,
             sha256="a" * 64,
+        )
+
+
+def test_durable_model_route_rejects_duplicates_and_ambiguous_legacy_pin() -> None:
+    with pytest.raises(ValidationError, match="must be unique"):
+        RunModelRoute(reasoner=["strong", "strong"])
+
+    with pytest.raises(
+        ValidationError,
+        match="model_provider and model_route cannot both be selected",
+    ):
+        RunSnapshot(
+            run_id="ambiguous-model-route",
+            task="Do the task",
+            status=RunStatus.RUNNING,
+            model_provider="strong",
+            model_route=RunModelRoute(reasoner=["strong", "backup"]),
         )
 
 
@@ -959,6 +977,56 @@ async def test_start_runs_a_checkpointed_reason_act_verify_slice() -> None:
     assert completed.data["tool"] == "pikvm_run_burst"
     assert completed.data["status"] == "completed"
     assert completed.data["latency_ms"] >= 0
+
+
+@pytest.mark.asyncio
+async def test_run_uses_independent_durable_routes_for_each_model_role() -> None:
+    strong = ScriptedProvider()
+    strong.name = "strong-model"
+    fast = ScriptedProvider()
+    fast.name = "fast-model"
+    pool = ModelPool(
+        providers={strong.name: strong, fast.name: fast},
+        routes={
+            role: RoleRoute(providers=[fast.name, strong.name])
+            for role in ("reasoner", "controller", "verifier")
+        },
+    )
+    harness = AgentHarness(
+        computer=FakeComputer(),
+        models=pool,
+        store=InMemoryRunStore(),
+        config=HarnessConfig(max_actions_per_advance=1),
+    )
+    route = RunModelRoute(
+        reasoner=[strong.name, fast.name],
+        controller=[fast.name, strong.name],
+        verifier=[strong.name, fast.name],
+    )
+
+    created = await harness.create(
+        "Type hello world in the open editor.",
+        model_route=route,
+    )
+    result = await harness.continue_run(created.run_id)
+
+    assert result.status is RunStatus.COMPLETED
+    assert result.model_route == route
+    assert [request.role for request in strong.requests] == [
+        "reasoner",
+        "verifier",
+    ]
+    assert [request.role for request in fast.requests] == ["controller"]
+    started = [
+        event
+        for event in result.events
+        if event.kind == "model.started"
+    ]
+    assert [event.data["candidates"] for event in started] == [
+        ["strong-model", "fast-model"],
+        ["fast-model", "strong-model"],
+        ["strong-model", "fast-model"],
+    ]
 
 
 @pytest.mark.asyncio
