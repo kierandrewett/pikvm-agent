@@ -52,18 +52,41 @@ const ACTION_OUTCOMES = new Set([
   ...FAILED_OUTCOMES,
 ]);
 
-const latestOutcome = (
+const outcomeForAttempt = (
   attempt: HarnessEvent,
   events: readonly HarnessEvent[],
 ) => {
   const identity = eventIdentity(attempt);
-  return [...events]
-    .reverse()
-    .find(
-      (event) =>
-        ACTION_OUTCOMES.has(event.kind) &&
-        eventIdentity(event) === identity,
-    );
+  const nextAttempt = events.find(
+    (event) =>
+      event.sequence > attempt.sequence &&
+      event.kind === "action.attempted" &&
+      eventIdentity(event) === identity,
+  );
+  return events.find(
+    (event) =>
+      event.sequence > attempt.sequence &&
+      (nextAttempt == null || event.sequence < nextAttempt.sequence) &&
+      ACTION_OUTCOMES.has(event.kind) &&
+      eventIdentity(event) === identity,
+  );
+};
+
+const verificationForOutcome = (
+  outcome: HarnessEvent | undefined,
+  events: readonly HarnessEvent[],
+) => {
+  if (!outcome) return undefined;
+  const nextAttempt = events.find(
+    (event) =>
+      event.sequence > outcome.sequence && event.kind === "action.attempted",
+  );
+  return events.find(
+    (event) =>
+      event.sequence > outcome.sequence &&
+      (nextAttempt == null || event.sequence < nextAttempt.sequence) &&
+      event.kind === "verification.completed",
+  );
 };
 
 const outcomeReason = (outcome: HarnessEvent) => {
@@ -165,7 +188,8 @@ const toolParts = (run: RunSnapshot) => {
   }
 
   return attempts.map((attempt, index) => {
-    const outcome = latestOutcome(attempt, run.events);
+    const outcome = outcomeForAttempt(attempt, run.events);
+    const verification = verificationForOutcome(outcome, run.events);
     const isPending = !outcome && index === attempts.length - 1;
     const approval = isPending ? run.pending_approval : null;
     const approvalId = safeString(approval?.approval_id);
@@ -184,6 +208,9 @@ const toolParts = (run: RunSnapshot) => {
           ? {
               status: "failed",
               error: outcomeReason(outcome) || "The computer input failed.",
+              attempt: safeNumber(attempt.data.attempt),
+              attempted_at: attempt.at,
+              completed_at: outcome.at,
             }
           : {
               status:
@@ -198,6 +225,17 @@ const toolParts = (run: RunSnapshot) => {
               world_version:
                 outcome.data.world_version ??
                 outcome.data.fresh_world_version,
+              attempt: safeNumber(attempt.data.attempt),
+              attempted_at: attempt.at,
+              completed_at: outcome.at,
+              verification: verification
+                ? {
+                    verdict:
+                      safeString(verification.data.verdict) || "verified",
+                    summary: safeString(verification.data.summary),
+                    observed_at: verification.at,
+                  }
+                : undefined,
             };
     const args =
       attempt.data.arguments &&

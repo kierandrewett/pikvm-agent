@@ -49,7 +49,76 @@ describe("messagesForRun", () => {
       type: "tool-call",
       toolName: "pikvm_run_burst",
       args: { actions: [{ type: "click", x: 400, y: 300 }] },
-      result: { status: "completed", frame_id: 12, world_version: 9 },
+      result: {
+        status: "completed",
+        frame_id: 12,
+        world_version: 9,
+        attempted_at: "2026-07-27T12:00:00Z",
+        completed_at: "2026-07-27T12:00:01Z",
+      },
+    });
+  });
+
+  it("attaches independent screen verification to the action it follows", () => {
+    const snapshot = run({
+      events: [
+        ...run().events,
+        {
+          sequence: 3,
+          at: "2026-07-27T12:00:02Z",
+          kind: "verification.completed",
+          data: {
+            verdict: "verified",
+            summary: "Calculator now shows 42.",
+          },
+        },
+      ],
+    });
+    const assistant = messagesForRun(snapshot).at(-1);
+    const tool = Array.isArray(assistant?.content)
+      ? assistant.content.find((part) => part.type === "tool-call")
+      : undefined;
+
+    expect(tool).toMatchObject({
+      result: {
+        verification: {
+          verdict: "verified",
+          summary: "Calculator now shows 42.",
+          observed_at: "2026-07-27T12:00:02Z",
+        },
+      },
+    });
+  });
+
+  it("does not attach a later verification after the next action starts", () => {
+    const snapshot = run({
+      events: [
+        ...run().events,
+        {
+          sequence: 3,
+          at: "2026-07-27T12:00:02Z",
+          kind: "action.attempted",
+          data: {
+            call_id: "call-2",
+            tool: "pikvm_key",
+            arguments: { actions: [{ type: "key", keys: ["ENTER"] }] },
+          },
+        },
+        {
+          sequence: 4,
+          at: "2026-07-27T12:00:03Z",
+          kind: "verification.completed",
+          data: { verdict: "verified", summary: "Second action verified." },
+        },
+      ],
+    });
+    const assistant = messagesForRun(snapshot).at(-1);
+    const tools = Array.isArray(assistant?.content)
+      ? assistant.content.filter((part) => part.type === "tool-call")
+      : [];
+
+    expect(tools[0]).toMatchObject({
+      result: { verification: undefined },
     });
   });
 

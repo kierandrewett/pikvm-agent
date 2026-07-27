@@ -1,4 +1,6 @@
 import {
+  createContext,
+  useContext,
   useEffect,
   useMemo,
   useState,
@@ -13,10 +15,12 @@ import {
   GripIcon,
   KeyboardIcon,
   LoaderCircleIcon,
+  MonitorIcon,
   MousePointer2Icon,
   MoveIcon,
   ScanSearchIcon,
   ScrollTextIcon,
+  ShieldAlertIcon,
   XIcon,
 } from "lucide-react";
 import {
@@ -30,6 +34,7 @@ import {
   ToolGroupRoot,
 } from "@/components/assistant-ui/tool-group";
 import type { ThreadGroupPart } from "@/components/assistant-ui/thread";
+import { Button } from "@/components/ui/button";
 import {
   Collapsible,
   CollapsibleContent,
@@ -38,6 +43,26 @@ import {
 import { cn } from "@/lib/utils";
 
 type JsonRecord = Record<string, unknown>;
+
+export type ComputerToolEnvironment = {
+  machineName?: string;
+  currentFrameId?: number;
+  onOpenComputer?: () => void;
+};
+
+const ComputerToolEnvironmentContext =
+  createContext<ComputerToolEnvironment>({});
+
+export function ComputerToolEnvironmentProvider({
+  value,
+  children,
+}: PropsWithChildren<{ value: ComputerToolEnvironment }>) {
+  return (
+    <ComputerToolEnvironmentContext.Provider value={value}>
+      {children}
+    </ComputerToolEnvironmentContext.Provider>
+  );
+}
 
 const record = (value: unknown): JsonRecord =>
   value && typeof value === "object" && !Array.isArray(value)
@@ -63,10 +88,10 @@ const actionIcon = (kind: string) => {
   return ScanSearchIcon;
 };
 
-const keyLabel = (action: JsonRecord) => {
-  const keys = Array.isArray(action.keys) ? action.keys : [];
-  return keys.map(String).join(" + ");
-};
+const keyValues = (action: JsonRecord) =>
+  (Array.isArray(action.keys) ? action.keys : []).map(String);
+
+const keyLabel = (action: JsonRecord) => keyValues(action).join(" + ");
 
 const actionLabel = (action: JsonRecord) => {
   const kind = actionName(action);
@@ -77,9 +102,9 @@ const actionLabel = (action: JsonRecord) => {
   }
   if (kind.includes("type")) {
     const value = text(action.text);
-    const preview = value.replace(/\s+/g, " ").slice(0, 42);
+    const preview = value.replace(/\s+/g, " ").slice(0, 54);
     return preview
-      ? `Type “${preview}${value.length > 42 ? "…" : ""}”`
+      ? `Type “${preview}${value.length > 54 ? "…" : ""}”`
       : "Type text";
   }
   if (kind === "key" || kind.includes("hotkey")) {
@@ -102,13 +127,23 @@ const actionLabel = (action: JsonRecord) => {
   return kind.replaceAll("_", " ");
 };
 
+const actionKindLabel = (action: JsonRecord) => {
+  const kind = actionName(action);
+  if (kind.includes("type")) return "Text input";
+  if (kind === "key" || kind.includes("hotkey")) return "Keyboard input";
+  if (kind.includes("click")) return "Pointer input";
+  if (kind.includes("scroll")) return "Scroll input";
+  if (kind.includes("drag")) return "Pointer drag";
+  if (kind.includes("move")) return "Pointer move";
+  if (kind.includes("observe") || kind.includes("screen")) return "Screen capture";
+  return kind.replaceAll("_", " ");
+};
+
 const actionSequence = (actions: readonly JsonRecord[]) =>
   actions.map((action) => actionLabel(action)).join(" → ");
 
 const summarize = (toolName: string, args: JsonRecord) => {
-  const actions = Array.isArray(args.actions)
-    ? args.actions.map(record)
-    : [];
+  const actions = Array.isArray(args.actions) ? args.actions.map(record) : [];
   if (actions.length === 1) {
     return {
       title: actionLabel(actions[0]!),
@@ -151,120 +186,286 @@ const statusMeta = (
   if (status?.type === "requires-action") {
     return {
       label: "Approval needed",
-      Icon: CircleAlertIcon,
-      tone: "text-amber-300",
+      Icon: ShieldAlertIcon,
+      tone: "border-amber-400/25 bg-amber-400/8 text-amber-200",
     };
   }
   if (status?.type === "running") {
     return {
-      label: "Running",
+      label: "Sending input",
       Icon: LoaderCircleIcon,
-      tone: "text-sky-300",
+      tone: "border-sky-400/20 bg-sky-400/8 text-sky-200",
     };
   }
   if (status?.type === "incomplete") {
     return {
       label: status.reason === "cancelled" ? "Cancelled" : "Failed",
       Icon: XIcon,
-      tone: "text-rose-300",
+      tone: "border-rose-400/25 bg-rose-400/8 text-rose-200",
     };
   }
-  const resultRecord = record(result);
-  if (text(resultRecord.status) === "refused") {
+  const value = record(result);
+  const resultStatus = text(value.status);
+  const verification = record(value.verification);
+  if (resultStatus === "refused") {
     return {
       label: "Refused safely",
       Icon: CircleAlertIcon,
-      tone: "text-amber-300",
+      tone: "border-amber-400/20 bg-amber-400/8 text-amber-200",
     };
   }
-  if (text(resultRecord.status) === "unverified") {
+  if (resultStatus === "unverified") {
     return {
       label: "Not verified",
       Icon: EyeIcon,
-      tone: "text-amber-300",
+      tone: "border-amber-400/20 bg-amber-400/8 text-amber-200",
+    };
+  }
+  if (text(verification.verdict) === "verified") {
+    return {
+      label: "Verified",
+      Icon: CheckIcon,
+      tone: "border-emerald-400/20 bg-emerald-400/8 text-emerald-200",
     };
   }
   return {
-    label: "Completed",
+    label: "Input complete",
     Icon: CheckIcon,
-    tone: "text-emerald-300",
+    tone: "border-border bg-muted/30 text-muted-foreground",
   };
 };
 
-const resultLabel = (result: unknown) => {
-  const value = record(result);
-  if (!Object.keys(value).length) return "";
-  const status = text(value.status);
-  if (status === "failed") return text(value.error) || "The action failed.";
-  if (status === "refused") {
-    const reason = text(value.reason);
-    return reason
-      ? `Input refused safely · ${reason}`
-      : "The action was refused before input.";
-  }
-  if (status === "unverified") {
-    const reason = text(value.reason);
-    return reason
-      ? `Input completed, result not verified · ${reason}`
-      : "Input completed, but the screen result was not verified.";
-  }
-  const details = [
-    number(value.frame_id) != null ? `frame ${value.frame_id}` : "",
-    number(value.world_version) != null
-      ? `world ${value.world_version}`
-      : "",
-  ].filter(Boolean);
-  return details.length
-    ? `Screen updated · ${details.join(" · ")}`
-    : "The computer action completed.";
-};
-
-const metadata = (args: JsonRecord, actions: readonly JsonRecord[]) => {
-  const characters = actions.reduce(
-    (total, action) => total + text(action.text).length,
-    0,
-  );
+const pointerDetail = (action: JsonRecord) => {
+  const x = number(action.x);
+  const y = number(action.y);
+  const button = text(action.button);
   return [
-    actions.length > 1 ? `${actions.length} inputs` : "",
-    characters ? `${characters} characters` : "",
-    number(args.based_on_world_version) != null
-      ? `world ${args.based_on_world_version}`
-      : "",
-    number(args.based_on_control_epoch) != null
-      ? `control ${args.based_on_control_epoch}`
-      : "",
-  ].filter(Boolean);
+    button ? `${button} button` : "",
+    x != null ? `x ${x}` : "",
+    y != null ? `y ${y}` : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
 };
 
-function ActionPath({ actions }: { actions: readonly JsonRecord[] }) {
-  if (actions.length < 2) return null;
+function ActionExactInput({ action }: { action: JsonRecord }) {
+  const kind = actionName(action);
+  if (kind.includes("type")) {
+    const value = text(action.text);
+    if (!value) return null;
+    return (
+      <pre
+        aria-label="Exact text input"
+        className="mt-2 max-h-36 overflow-auto rounded-md border border-border/70 bg-background/70 px-3 py-2 font-mono text-[11px] leading-relaxed text-foreground/90 whitespace-pre-wrap"
+      >
+        {value}
+      </pre>
+    );
+  }
+  if (kind === "key" || kind.includes("hotkey")) {
+    const keys = keyValues(action);
+    if (!keys.length) return null;
+    return (
+      <div
+        className="mt-2 flex flex-wrap items-center gap-1.5"
+        aria-label={`Exact key input: ${keys.join(" plus ")}`}
+      >
+        {keys.map((key, index) => (
+          <span key={`${key}:${index}`} className="contents">
+            {index > 0 ? (
+              <span className="text-muted-foreground text-[10px]">+</span>
+            ) : null}
+            <kbd className="min-w-7 rounded border border-border bg-background px-2 py-1 text-center font-mono text-[11px] font-medium text-foreground shadow-[inset_0_-1px_0_rgba(255,255,255,0.06)]">
+              {key}
+            </kbd>
+          </span>
+        ))}
+      </div>
+    );
+  }
+  const detail = pointerDetail(action);
+  return detail ? (
+    <p className="mt-1 font-mono text-[11px] text-muted-foreground">
+      {detail}
+    </p>
+  ) : null;
+}
+
+export function ComputerInputSequence({
+  actions,
+}: {
+  actions: readonly JsonRecord[];
+}) {
   return (
-    <ol
-      className="flex min-w-0 items-center gap-1 overflow-hidden"
-      aria-label="Computer input sequence"
-    >
-      {actions.slice(0, 4).map((action, index) => {
+    <ol className="mt-2" aria-label="Exact computer input sequence">
+      {actions.map((action, index) => {
         const Icon = actionIcon(actionName(action));
         return (
-          <li key={`${actionName(action)}:${index}`} className="contents">
-            {index > 0 ? (
-              <span className="text-border" aria-hidden="true">
-                /
-              </span>
+          <li
+            key={`${actionName(action)}:${index}`}
+            className="relative grid grid-cols-[2rem_minmax(0,1fr)] gap-2 pb-3 last:pb-0"
+          >
+            {index < actions.length - 1 ? (
+              <span
+                className="absolute top-8 bottom-0 left-[0.9375rem] w-px bg-border/80"
+                aria-hidden="true"
+              />
             ) : null}
-            <span className="text-muted-foreground flex min-w-0 items-center gap-1 text-xs">
-              <Icon className="size-3 shrink-0" aria-hidden="true" />
-              <span className="truncate">{actionLabel(action)}</span>
+            <span className="relative z-10 flex size-8 items-center justify-center rounded-md border border-border bg-muted/40 text-muted-foreground">
+              <Icon className="size-3.5" aria-hidden="true" />
             </span>
+            <div className="min-w-0 pt-0.5">
+              <div className="flex min-w-0 items-baseline gap-2">
+                <span className="text-[10px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
+                  {index + 1}
+                </span>
+                <p className="truncate text-sm font-medium">
+                  {actionKindLabel(action)}
+                </p>
+              </div>
+              <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+                {actionLabel(action)}
+              </p>
+              <ActionExactInput action={action} />
+            </div>
           </li>
         );
       })}
-      {actions.length > 4 ? (
-        <li className="text-muted-foreground shrink-0 text-xs">
-          +{actions.length - 4}
-        </li>
-      ) : null}
     </ol>
+  );
+}
+
+type EvidenceItem = {
+  label: string;
+  value: string;
+  detail?: string;
+  tone?: string;
+};
+
+function EvidenceStrip({
+  args,
+  result,
+  status,
+  environment,
+}: {
+  args: JsonRecord;
+  result: unknown;
+  status: ToolCallMessagePartProps["status"];
+  environment: ComputerToolEnvironment;
+}) {
+  const value = record(result);
+  const verification = record(value.verification);
+  const resultStatus = text(value.status);
+  const sourceWorld = number(args.based_on_world_version);
+  const sourceControl = number(args.based_on_control_epoch);
+  const frame = number(value.frame_id);
+  const observedWorld = number(value.world_version);
+  const verificationVerdict = text(verification.verdict);
+  const verificationSummary = text(verification.summary);
+
+  let delivery = "Waiting";
+  let deliveryDetail = "No input has been committed";
+  let deliveryTone = "text-muted-foreground";
+  if (status?.type === "requires-action") {
+    delivery = "Held for approval";
+    deliveryDetail = "The consequential input has not been sent";
+    deliveryTone = "text-amber-200";
+  } else if (status?.type === "running") {
+    delivery = "In progress";
+    deliveryDetail = "The harness is sending this bounded input";
+    deliveryTone = "text-sky-200";
+  } else if (resultStatus === "failed") {
+    delivery = "Failed";
+    deliveryDetail = text(value.error) || "The input did not complete";
+    deliveryTone = "text-rose-200";
+  } else if (resultStatus === "refused") {
+    delivery = "Refused";
+    deliveryDetail = text(value.reason) || "Stopped before input";
+    deliveryTone = "text-amber-200";
+  } else if (resultStatus) {
+    delivery = "Committed";
+    deliveryDetail = frame != null ? `Fresh post-input frame ${frame}` : "HID completed";
+    deliveryTone = "text-foreground";
+  }
+
+  const evidence: EvidenceItem[] = [
+    {
+      label: "Target",
+      value: environment.machineName || "Managed computer",
+      detail:
+        environment.currentFrameId != null
+          ? `current frame ${environment.currentFrameId}`
+          : "managed MCP session",
+    },
+    {
+      label: "Precondition",
+      value:
+        sourceWorld != null
+          ? `World ${sourceWorld}`
+          : "Freshness not supplied",
+      detail:
+        sourceControl != null
+          ? `control epoch ${sourceControl}`
+          : "no control epoch",
+    },
+    {
+      label: "Delivery",
+      value: delivery,
+      detail: deliveryDetail,
+      tone: deliveryTone,
+    },
+    {
+      label: "Screen check",
+      value:
+        verificationVerdict === "verified"
+          ? "Verified"
+          : resultStatus === "unverified"
+            ? "Not verified"
+            : frame != null
+              ? "Frame captured"
+              : "Pending",
+      detail:
+        verificationSummary ||
+        (frame != null
+          ? [`frame ${frame}`, observedWorld != null ? `world ${observedWorld}` : ""]
+              .filter(Boolean)
+              .join(" · ")
+          : "Awaiting post-input evidence"),
+      tone:
+        verificationVerdict === "verified"
+          ? "text-emerald-200"
+          : resultStatus === "unverified"
+            ? "text-amber-200"
+            : "text-muted-foreground",
+    },
+  ];
+
+  return (
+    <dl className="mt-4 grid border-y border-border/70 sm:grid-cols-2">
+      {evidence.map((item, index) => (
+        <div
+          key={item.label}
+          className={cn(
+            "min-w-0 py-2.5 sm:px-3",
+            index % 2 === 0 ? "sm:pl-0" : "sm:border-l",
+            index < evidence.length - 1 && "border-b",
+            index >= 2 && "sm:border-b-0",
+          )}
+        >
+          <dt className="text-[10px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
+            {item.label}
+          </dt>
+          <dd className={cn("mt-1 truncate text-xs font-medium", item.tone)}>
+            {item.value}
+          </dd>
+          {item.detail ? (
+            <dd className="mt-0.5 line-clamp-2 text-[11px] leading-relaxed text-muted-foreground">
+              {item.detail}
+            </dd>
+          ) : null}
+        </div>
+      ))}
+    </dl>
   );
 }
 
@@ -283,28 +484,29 @@ const ComputerToolCallImpl: ToolCallMessagePartComponent<
   approval,
   respondToApproval,
 }) => {
+  const environment = useContext(ComputerToolEnvironmentContext);
   const needsApproval = status?.type === "requires-action";
   const resultStatus = text(record(result).status);
-  const failed =
-    status?.type === "incomplete" || resultStatus === "failed";
+  const failed = status?.type === "incomplete" || resultStatus === "failed";
   const needsReview = resultStatus === "unverified";
-  const [open, setOpen] = useState(
-    needsApproval || failed || needsReview,
-  );
+  const [open, setOpen] = useState(needsApproval || failed || needsReview);
   const elapsed = useToolCallElapsed();
+  const callArgs = record(args);
   const summary = useMemo(
-    () => summarize(toolName, record(args)),
+    () => summarize(toolName, callArgs),
     [args, toolName],
   );
   const state = statusMeta(status, result);
   const StateIcon = state.Icon;
   const PrimaryIcon = actionIcon(actionName(summary.actions[0] ?? {}));
-  const facts = metadata(record(args), summary.actions);
-  const outcome = resultLabel(result);
   const approvalContext = approval?.options?.find(
     (option) =>
       option.kind === "allow-once" || option.kind === "allow-always",
   )?.description;
+  const characters = summary.actions.reduce(
+    (total, action) => total + text(action.text).length,
+    0,
+  );
 
   useEffect(() => {
     if (needsApproval || failed || needsReview) setOpen(true);
@@ -315,37 +517,43 @@ const ComputerToolCallImpl: ToolCallMessagePartComponent<
       open={open}
       onOpenChange={setOpen}
       className={cn(
-        "group/computer-tool border-l pl-3 transition-colors",
+        "group/computer-tool overflow-hidden rounded-lg border bg-muted/[0.08] transition-colors",
         needsApproval
-          ? "border-amber-400/60"
+          ? "border-amber-400/35 bg-amber-400/[0.035]"
           : needsReview
-            ? "border-amber-400/60"
-          : failed
-            ? "border-rose-400/60"
-            : "border-border/80",
+            ? "border-amber-400/25"
+            : failed
+              ? "border-rose-400/30"
+              : "border-border/80",
       )}
     >
-      <CollapsibleTrigger className="group/trigger hover:text-foreground flex w-full items-start gap-2 py-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/60">
-        <PrimaryIcon
-          className="text-muted-foreground mt-0.5 size-4 shrink-0"
-          aria-hidden="true"
-        />
+      <CollapsibleTrigger className="group/trigger flex w-full items-start gap-3 px-3 py-2.5 text-left outline-none hover:bg-muted/20 focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-inset">
+        <span
+          className={cn(
+            "mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md border",
+            needsApproval
+              ? "border-amber-400/25 bg-amber-400/10 text-amber-200"
+              : "border-border bg-muted/40 text-muted-foreground",
+          )}
+        >
+          <PrimaryIcon className="size-3.5" aria-hidden="true" />
+        </span>
         <span className="min-w-0 flex-1">
           <span className="flex min-w-0 items-center gap-2">
             <span className="truncate text-sm font-medium">{summary.title}</span>
             {durationLabel(elapsed) ? (
-              <span className="text-muted-foreground shrink-0 text-[11px] tabular-nums">
+              <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
                 {durationLabel(elapsed)}
               </span>
             ) : null}
           </span>
-          <span className="text-muted-foreground mt-0.5 block truncate text-xs">
+          <span className="mt-0.5 block truncate text-xs text-muted-foreground">
             {summary.detail}
           </span>
         </span>
         <span
           className={cn(
-            "flex shrink-0 items-center gap-1.5 text-xs",
+            "flex shrink-0 items-center gap-1.5 rounded-full border px-2 py-1 text-[11px] font-medium",
             state.tone,
           )}
         >
@@ -359,66 +567,77 @@ const ComputerToolCallImpl: ToolCallMessagePartComponent<
           {state.label}
         </span>
         <ChevronDownIcon
-          className="text-muted-foreground size-4 shrink-0 -rotate-90 transition-transform group-data-open/trigger:rotate-0 group-data-panel-open/trigger:rotate-0"
+          className="mt-1 size-4 shrink-0 -rotate-90 text-muted-foreground transition-transform group-data-open/trigger:rotate-0 group-data-panel-open/trigger:rotate-0"
           aria-hidden="true"
         />
       </CollapsibleTrigger>
 
       <CollapsibleContent className="data-closed:animate-collapsible-up data-open:animate-collapsible-down overflow-hidden">
-        <div className="ml-2 border-l border-border/60 py-2 pl-4">
-          <ActionPath actions={summary.actions} />
-
-          {facts.length ? (
-            <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
-              {facts.map((fact) => (
-                <span key={fact}>{fact}</span>
-              ))}
+        <div className="border-t border-border/60 px-3 pt-3 pb-3 sm:px-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
+                Exact input sequence
+              </p>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">
+                {summary.actions.length}{" "}
+                {summary.actions.length === 1 ? "input" : "inputs"}
+                {characters ? ` · ${characters} characters` : ""}
+              </p>
             </div>
-          ) : null}
+            {environment.onOpenComputer ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="h-7 shrink-0 px-2 text-xs"
+                onClick={environment.onOpenComputer}
+              >
+                <MonitorIcon data-icon="inline-start" />
+                Current screen
+              </Button>
+            ) : null}
+          </div>
+
+          <ComputerInputSequence actions={summary.actions} />
 
           {needsApproval ? (
-            <div className="mt-3 text-amber-100">
-              <p className="flex items-center gap-2 text-sm font-medium text-amber-100">
-                <CircleAlertIcon className="size-4" aria-hidden="true" />
-                Review before this input reaches the computer
-              </p>
-              <p className="mt-1 max-w-xl text-xs leading-relaxed text-amber-100/70">
-                {approvalContext ||
-                  "This may cause an external or difficult-to-reverse action. Exact input is available below."}
-              </p>
-              <ToolFallbackApproval
-                className="mt-2"
-                addResult={addResult}
-                resume={resume}
-                interrupt={interrupt}
-                approval={approval}
-                respondToApproval={respondToApproval}
-              />
+            <div className="mt-4 rounded-md border border-amber-400/25 bg-amber-400/[0.06] p-3">
+              <div className="flex items-start gap-2.5">
+                <ShieldAlertIcon
+                  className="mt-0.5 size-4 shrink-0 text-amber-200"
+                  aria-hidden="true"
+                />
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-amber-100">
+                    Held before a consequential input
+                  </p>
+                  <p className="mt-1 max-w-xl text-xs leading-relaxed text-amber-100/75">
+                    {approvalContext ||
+                      "This may cause an external or difficult-to-reverse action. Review the exact input and target state before allowing it once."}
+                  </p>
+                  <ToolFallbackApproval
+                    className="mt-3"
+                    addResult={addResult}
+                    resume={resume}
+                    interrupt={interrupt}
+                    approval={approval}
+                    respondToApproval={respondToApproval}
+                  />
+                </div>
+              </div>
             </div>
           ) : null}
 
-          {outcome ? (
-            <div
-              className={cn(
-                "mt-3 flex items-center gap-2 text-xs",
-                failed
-                  ? "text-rose-200"
-                  : "text-emerald-100/80",
-              )}
-            >
-              {failed ? (
-                <XIcon className="size-3.5 shrink-0" aria-hidden="true" />
-              ) : (
-                <CheckIcon className="size-3.5 shrink-0" aria-hidden="true" />
-              )}
-              {outcome}
-            </div>
-          ) : null}
+          <EvidenceStrip
+            args={callArgs}
+            result={result}
+            status={status}
+            environment={environment}
+          />
 
-          <Collapsible
-            className="group/arguments mt-3"
-          >
-            <CollapsibleTrigger className="text-muted-foreground flex w-full items-center justify-between py-1.5 text-xs hover:text-foreground">
+          <Collapsible className="group/arguments mt-2">
+            <CollapsibleTrigger className="flex w-full items-center justify-between rounded-md py-2 text-xs text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/60">
               <span>
                 Exact MCP arguments ·{" "}
                 <code className="font-mono">{toolName}</code>
@@ -426,7 +645,7 @@ const ComputerToolCallImpl: ToolCallMessagePartComponent<
               <ChevronDownIcon className="size-3.5 -rotate-90 transition-transform group-data-open/arguments:rotate-0 group-data-panel-open/arguments:rotate-0" />
             </CollapsibleTrigger>
             <CollapsibleContent className="data-closed:animate-collapsible-up data-open:animate-collapsible-down overflow-hidden">
-              <pre className="mt-1 max-h-72 overflow-auto border-l border-border/60 py-1 pl-3 font-mono text-[11px] leading-relaxed text-foreground/80 whitespace-pre-wrap">
+              <pre className="mt-1 max-h-72 overflow-auto rounded-md border border-border/70 bg-background/70 p-3 font-mono text-[11px] leading-relaxed text-foreground/80 whitespace-pre-wrap">
                 {argsText || JSON.stringify(args, null, 2)}
               </pre>
             </CollapsibleContent>
@@ -464,7 +683,7 @@ export function ComputerToolGroup({
       onOpenChange={setOpen}
       className="my-3 border-0 bg-transparent shadow-none"
     >
-      <CollapsibleTrigger className="group/trigger flex w-full items-center gap-2 py-2 text-left">
+      <CollapsibleTrigger className="group/trigger flex w-full items-center gap-2 rounded-md py-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/60">
         <span className={needsAttention ? "text-amber-300" : "text-sky-300"}>
           {needsAttention ? (
             <CircleAlertIcon className="size-4" />
@@ -478,15 +697,15 @@ export function ComputerToolGroup({
           <span className="shrink-0 text-sm font-medium">
             {count} computer {count === 1 ? "action" : "actions"}
           </span>
-          <span className="text-muted-foreground truncate text-xs">
+          <span className="truncate text-xs text-muted-foreground">
             {needsAttention
               ? "Approval is waiting inside"
               : active
                 ? "Input sequence is running"
-                : "Click to inspect each input and its evidence"}
+                : "Inspect exact inputs and screen evidence"}
           </span>
         </span>
-        <ChevronDownIcon className="text-muted-foreground size-4 -rotate-90 transition-transform group-data-open/trigger:rotate-0 group-data-panel-open/trigger:rotate-0" />
+        <ChevronDownIcon className="size-4 -rotate-90 text-muted-foreground transition-transform group-data-open/trigger:rotate-0 group-data-panel-open/trigger:rotate-0" />
       </CollapsibleTrigger>
       <ToolGroupContent className="[&>div]:gap-2">
         {children}

@@ -4,7 +4,10 @@ import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it } from "vitest";
 import type { ThreadGroupPart } from "@/components/assistant-ui/thread";
-import { ComputerToolGroup } from "./computer-tool-call";
+import {
+  ComputerInputSequence,
+  ComputerToolGroup,
+} from "./computer-tool-call";
 
 const group = (
   status: ThreadGroupPart["status"],
@@ -67,5 +70,40 @@ describe("ComputerToolGroup", () => {
     );
 
     expect(screen.queryByText("Exact completed input")).not.toBeNull();
+  });
+});
+
+describe("ComputerInputSequence", () => {
+  it("keeps long text and consequential keys independently inspectable", () => {
+    render(
+      <ComputerInputSequence
+        actions={[
+          {
+            type: "type_text",
+            text: "Quarterly figures are attached for your review.",
+          },
+          { type: "key", keys: ["CTRL", "ENTER"] },
+        ]}
+      />,
+    );
+
+    expect(
+      screen.getByLabelText("Exact text input").textContent,
+    ).toBe("Quarterly figures are attached for your review.");
+    expect(
+      screen.getByLabelText("Exact key input: CTRL plus ENTER"),
+    ).not.toBeNull();
+    expect(screen.getByText("CTRL").tagName).toBe("KBD");
+    expect(screen.getByText("ENTER").tagName).toBe("KBD");
+  });
+
+  it("shows exact pointer coordinates and button", () => {
+    render(
+      <ComputerInputSequence
+        actions={[{ type: "click", x: 1012, y: 642, button: "left" }]}
+      />,
+    );
+
+    expect(screen.getByText("left button · x 1012 · y 642")).not.toBeNull();
   });
 });

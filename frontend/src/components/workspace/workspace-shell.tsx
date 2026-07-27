@@ -26,6 +26,7 @@ import { AuthDialog } from "@/components/workspace/auth-dialog";
 import { ComputerSheet } from "@/components/workspace/computer-sheet";
 import {
   ComputerToolCall,
+  ComputerToolEnvironmentProvider,
   ComputerToolGroup,
 } from "@/components/workspace/computer-tool-call";
 import { DiagnosticsSheet } from "@/components/workspace/diagnostics-sheet";
@@ -43,6 +44,21 @@ export function WorkspaceShell() {
     () => messagesForRun(workspace.selectedRun),
     [workspace.selectedRun],
   );
+  const computerEnvironment = useMemo(() => {
+    const machine = workspace.selectedRun?.observation?.machine;
+    return {
+      machineName:
+        machine && typeof machine.alias === "string"
+          ? machine.alias
+          : "Managed computer",
+      currentFrameId:
+        workspace.selectedRun?.observation?.frame_id ?? undefined,
+      onOpenComputer: () => setComputerOpen(true),
+    };
+  }, [
+    workspace.selectedRun?.observation?.frame_id,
+    workspace.selectedRun?.observation?.machine,
+  ]);
   const threadList = useMemo<ExternalStoreThreadListAdapter>(
     () => ({
       threadId: workspace.selectedId ?? undefined,
@@ -162,13 +178,15 @@ export function WorkspaceShell() {
                 <AlertDescription>{workspace.error}</AlertDescription>
               </Alert>
             ) : null}
-            <Thread
-              components={{
-                ComposerToolbar,
-                ToolFallback: ComputerToolCall,
-                ToolGroup: ComputerToolGroup,
-              }}
-            />
+            <ComputerToolEnvironmentProvider value={computerEnvironment}>
+              <Thread
+                components={{
+                  ComposerToolbar,
+                  ToolFallback: ComputerToolCall,
+                  ToolGroup: ComputerToolGroup,
+                }}
+              />
+            </ComputerToolEnvironmentProvider>
           </section>
         </main>
       </div>
