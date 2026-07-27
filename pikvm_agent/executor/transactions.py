@@ -81,12 +81,7 @@ class GuardedTransactionExecutor:
                 await self.backend.keypress(a["keys"])
             elif kind == "type_text":
                 verification = await self._type_and_verify(a["text"], state, should_continue)
-                if not verification.verified and verification.status not in (
-                    "unverified_truncated",
-                    "unverified_ambiguous",
-                    "unverified_whitespace",
-                    "unverified_wrong_region",
-                ):
+                if not verification.verified:
                     executed.append(a)
                     return TransactionResult(
                         status="failed", executed_actions=executed, verification=verification,

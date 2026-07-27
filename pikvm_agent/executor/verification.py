@@ -131,8 +131,8 @@ def has_whitespace_only_difference(intended: str, observed: str) -> bool:
     if left == right:
         return False
     return (
-        re.sub(r"\s+", "", left).casefold()
-        == re.sub(r"\s+", "", right).casefold()
+        re.sub(r"\s+", "", left)
+        == re.sub(r"\s+", "", right)
         and re.findall(r"\s+", left) != re.findall(r"\s+", right)
     )
 
@@ -412,8 +412,12 @@ def verify_text(
         status = "verified_exact" if precise else "verified_safe_normalized"
         detail = "precise exact match" if precise else "safe normalized match"
     elif verdict == "contains":
-        status = "verified_with_warnings"
-        detail = "read-back contains the intended text plus extra"
+        if precise:
+            status = "unverified_wrong_region"
+            detail = "exact read-back contains surrounding or extra text"
+        else:
+            status = "verified_with_warnings"
+            detail = "read-back contains the intended text plus extra"
     elif verdict == "unverified":
         if has_whitespace_only_difference(intended, observed):
             status = "unverified_whitespace"

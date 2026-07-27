@@ -708,9 +708,9 @@ async def test_autolocate_uses_grounded_ocr_when_video_grid_misses_text() -> Non
 
     result = await typer.type_text(intended, code=True)
 
-    assert result.status == "verified_exact"
-    assert result.ok is True
-    assert result.field_text == intended
+    assert result.status == "unverified_wrong_region"
+    assert result.ok is True  # legacy: ambiguous, not a confirmed mismatch
+    assert result.field_text == f"existing text {intended}"
 
 
 async def test_fast_prose_autolocates_after_word_smartens_apostrophe() -> None:
@@ -969,7 +969,7 @@ async def test_low_confidence_ocr_cannot_trigger_destructive_retype() -> None:
     assert "Delete" not in pressed
 
 
-async def test_precise_field_read_can_use_an_exact_independent_ocr_candidate() -> None:
+async def test_precise_field_read_does_not_promote_an_intent_matching_candidate() -> None:
     intended = "https://docs.internal/runs/0040?view=screen&attempt=6"
     typer = WatchedTyper(FakeBackend(), AlternativeCandidateOCR(intended))
 
@@ -979,7 +979,7 @@ async def test_precise_field_read_can_use_an_exact_independent_ocr_candidate() -
         precise=True,
     )
 
-    assert observed == intended
+    assert observed == "https://docs. internal/runs/0040?view=screenkattempt=6"
 
 
 async def test_precise_field_read_uses_the_provider_precision_profile() -> None:
@@ -1013,6 +1013,14 @@ async def test_precise_field_read_prioritizes_visible_spacing_mismatch() -> None
     )
 
     assert observed == observed_with_extra_space
+
+
+def test_precise_readback_retains_duplicate_suffix_before_hashing() -> None:
+    assert WatchedTyper._typed_candidate(
+        "quarterly earningss",
+        "quarterly earnings",
+        True,
+    ) == "quarterly earningss"
 
 
 async def test_precise_ocr_noise_stops_without_destructive_retype() -> None:

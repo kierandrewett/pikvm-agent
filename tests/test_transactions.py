@@ -111,3 +111,38 @@ async def test_type_text_confident_mismatch_fails() -> None:
     res = await ex.execute(_tx([{"type": "type_text", "text": "ls | sort"}]), dict(_STATE))
     assert res.status == "failed" and res.verification is not None
     assert res.verification.status == "failed_keyboard_layout"
+
+
+async def test_whitespace_mismatch_stops_before_following_commit_action() -> None:
+    class WhitespaceMismatchTyper:
+        async def type_text(self, text: str, **_kwargs):
+            class Result:
+                status = "unverified_whitespace"
+                ok = False
+                field_text = "quarterly  earnings"
+                summary = "visible whitespace differs"
+
+            return Result()
+
+    backend = FakeBackend()
+    executor = GuardedTransactionExecutor(
+        backend,
+        PiKVMOcrProvider(backend),
+        typer=WhitespaceMismatchTyper(),
+    )
+
+    result = await executor.execute(
+        _tx(
+            [
+                {"type": "type_text", "text": "quarterly earnings"},
+                {"type": "keypress", "keys": ["Enter"]},
+            ]
+        ),
+        dict(_STATE),
+    )
+
+    assert result.status == "failed"
+    assert result.error == "typing verification: unverified_whitespace"
+    assert result.verification is not None
+    assert result.verification.status == "unverified_whitespace"
+    assert not any(method == "keypress" for method, _ in backend.calls)

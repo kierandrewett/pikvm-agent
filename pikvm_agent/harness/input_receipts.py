@@ -53,6 +53,8 @@ def public_input_receipts(
             "read_back_unavailable",
         },
         "proof_state": {
+            "exact_ocr_readback",
+            # Accepted for old daemon receipts; output is normalized below.
             "exact_readback",
             "normalized_readback",
             "partial_readback",
@@ -203,7 +205,7 @@ def _proof_state(
         )
         == receipt.get("readback_sha256")
     ):
-        return "exact_readback"
+        return "exact_ocr_readback"
     if (
         receipt.get("status") == "verified_safe_normalized"
         and receipt.get("verdict") in {"match", "contains"}

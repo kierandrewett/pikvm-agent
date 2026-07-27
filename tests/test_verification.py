@@ -105,6 +105,13 @@ def test_extra_visible_space_is_not_accepted_as_normalized_prose() -> None:
     assert result.safe_to_continue is False
 
 
+def test_case_and_spacing_difference_is_not_reclassified_as_whitespace_only() -> None:
+    result = verify_text("A B", "a  b", code=True)
+
+    assert result.status == "failed_case_mismatch"
+    assert result.safe_to_continue is False
+
+
 def test_visual_line_wrap_is_still_one_space() -> None:
     result = verify_text("wrapped prose remains exact", "wrapped prose\nremains exact")
 
@@ -157,6 +164,17 @@ def test_contains_is_warning() -> None:
     res = verify_text("hello", "well hello there friend")
     assert res.status == "verified_with_warnings"
     assert res.verified is True
+
+
+def test_precise_contains_is_not_exact_proof() -> None:
+    res = verify_text(
+        "quarterly earnings",
+        "quarterly earningss",
+        code=True,
+    )
+    assert res.status == "unverified_wrong_region"
+    assert res.verified is False
+    assert res.safe_to_continue is False
 
 
 def test_precise_match_is_exact() -> None:

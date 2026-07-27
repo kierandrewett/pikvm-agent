@@ -11,14 +11,6 @@ _LINE_BREAKS = re.compile(
 _LINE_BREAK_BOUNDARY = re.compile(
     r"[ \t]*(?:(?:\r\n|[\n\r\v\f\x1c-\x1e\x85\u2028\u2029])[ \t]*)+"
 )
-_LEADING_LINE_BREAK_BOUNDARY = re.compile(
-    r"^[ \t]*(?:\r\n|[\n\r\v\f\x1c-\x1e\x85\u2028\u2029])"
-)
-_TRAILING_LINE_BREAK_BOUNDARY = re.compile(
-    r"(?:\r\n|[\n\r\v\f\x1c-\x1e\x85\u2028\u2029])[ \t]*$"
-)
-
-
 def flatten_line_breaks(text: str) -> str:
     """Turn a line-break boundary into exactly one non-submitting space.
 
@@ -30,11 +22,4 @@ def flatten_line_breaks(text: str) -> str:
 
     if not _LINE_BREAKS.search(text):
         return text
-    starts_with_break = _LEADING_LINE_BREAK_BOUNDARY.search(text) is not None
-    ends_with_break = _TRAILING_LINE_BREAK_BOUNDARY.search(text) is not None
-    flattened = _LINE_BREAK_BOUNDARY.sub(" ", text)
-    if starts_with_break and flattened.startswith(" "):
-        flattened = flattened[1:]
-    if ends_with_break and flattened.endswith(" "):
-        flattened = flattened[:-1]
-    return flattened
+    return _LINE_BREAK_BOUNDARY.sub(" ", text)

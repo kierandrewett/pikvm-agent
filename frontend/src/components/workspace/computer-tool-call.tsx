@@ -520,6 +520,7 @@ const readbackMeta = (receipt: InputReceipt) => {
     };
   }
   if (
+    receipt.proof_state === "exact_ocr_readback" ||
     receipt.proof_state === "exact_readback" ||
     (!receipt.proof_state &&
       receipt.exact_readback_sha256_match === true)

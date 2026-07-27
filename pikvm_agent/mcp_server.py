@@ -219,9 +219,10 @@ async def pikvm_run_burst(session_id: str, actions: list[dict],
             next Enter can't run on a typo). USE THIS for search terms, commands, paths, anything a
             typo would ruin. The server rejects oversized text, command-shaped Base64 transfers,
             encoded shell commands, heredoc openers, and long nested shell payloads before HID.
-            Editor prose defaults to "verification":"exact": an independent exact OCR readback
-            and matching SHA-256 are required before the action can complete. Set "auto" only
-            when normalized whitespace is explicitly acceptable.
+            Visible watched typing defaults to "verification":"exact": the complete grounded
+            OCR field must match the canonical delivery SHA-256 before the action can complete.
+            This is screen evidence, not a guest-side acknowledgement. Set "auto" only when
+            normalized whitespace is explicitly acceptable.
             "method":"print" is only a transport hint: when watched typing is available it cannot
             bypass chunk guards or read-back.
       {"type":"click","x":840,"y":300,"button":"left"}   — raw coordinate click (WindMouse)
@@ -342,8 +343,9 @@ async def pikvm_type_text(
     method="print" requests the printer transport but cannot disable watched verification.
     Never submits — send a separate Enter. Set secret=true for credentials so the
     operator timeline records that input occurred without exposing its value. Set
-    exact=true (the default) requires an independent OCR readback to match the
-    delivery SHA-256 before this action can complete. Use exact=false only when
+    exact=true (the default) requires the complete grounded OCR field to match
+    the delivery SHA-256 before this action can complete. This is screen
+    evidence, not a guest-side acknowledgement. Use exact=false only when
     normalized whitespace is explicitly acceptable."""
     return await pikvm_run_burst(
         session_id,

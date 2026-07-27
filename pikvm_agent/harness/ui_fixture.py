@@ -479,7 +479,7 @@ def build_fixture_run(
                     "type": "type_text",
                     "status": "verified_exact",
                     "verdict": "match",
-                    "proof_state": "exact_readback",
+                    "proof_state": "exact_ocr_readback",
                     "observed_text": "Quarterly review draft",
                     "observed_text_redacted": False,
                     "issued_characters": 22,

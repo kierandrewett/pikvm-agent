@@ -76,7 +76,7 @@ def test_exact_ocr_readback_is_the_only_exact_target_text_proof() -> None:
         [{"type": "type_text", "text": intended}],
     )[0]
 
-    assert receipt["proof_state"] == "exact_readback"
+    assert receipt["proof_state"] == "exact_ocr_readback"
     assert receipt["exact_readback_sha256_match"] is True
 
 
@@ -114,7 +114,7 @@ def test_public_receipt_keeps_requested_and_delivery_hashes_distinct() -> None:
     assert receipt["requested_sha256"] == _sha256(requested)
     assert receipt["delivery_sha256"] == _sha256(delivered)
     assert receipt["delivery_transformed"] is True
-    assert receipt["proof_state"] == "exact_readback"
+    assert receipt["proof_state"] == "exact_ocr_readback"
 
 
 def test_exact_status_cannot_hide_an_incomplete_sender_prefix() -> None:

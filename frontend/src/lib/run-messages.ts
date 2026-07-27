@@ -437,7 +437,7 @@ const toolParts = (run: RunSnapshot) => {
                 : directEffectVerified
                   ? {
                       verdict: "verified",
-                      summary: "Exact target read-back matched.",
+          summary: "OCR read-back matched the delivery text exactly.",
                       observed_at: outcome.at,
                       provider: "",
                       model: "",

@@ -419,27 +419,13 @@ class WatchedTyper:
                     if alternative.evidence_kind == "spacing"
                 ]
                 for candidate in spacing_candidates:
-                    if compute_verdict(intended, candidate, True) in {
-                        "match",
-                        "contains",
-                    }:
-                        return candidate
-                for candidate in spacing_candidates:
                     if has_whitespace_only_difference(intended, candidate):
                         return candidate
-                for candidate in (
-                    result.text,
-                    *(
-                        alternative.text
-                        for alternative in result.alternatives
-                        if alternative.evidence_kind != "spacing"
-                    ),
-                ):
-                    if compute_verdict(intended, candidate, True) in {
-                        "match",
-                        "contains",
-                    }:
-                        return candidate
+                # Alternative OCR scales/engines are useful recheck evidence,
+                # but selecting whichever candidate equals the intended text
+                # would make the checksum circular. Exact completion uses the
+                # provider's canonical complete-field text. A spacing candidate
+                # may only veto it by exposing a visible whitespace mismatch.
             confidences = [
                 float(line.confidence)
                 for line in result.lines
@@ -604,17 +590,15 @@ class WatchedTyper:
 
     @staticmethod
     def _typed_candidate(read_back: str, intended: str, precise: bool) -> str:
-        """Extract the newest case-only occurrence from surrounding OCR text."""
-        if not precise or not intended:
-            return read_back
-        folded_read = read_back.casefold()
-        folded_intended = intended.casefold()
-        if len(folded_read) != len(read_back) or len(folded_intended) != len(intended):
-            return read_back
-        index = folded_read.rfind(folded_intended)
-        if index < 0:
-            return read_back
-        return read_back[index : index + len(intended)]
+        """Retain the complete OCR field used for exact comparison.
+
+        Earlier code carved an intended substring out of surrounding OCR. That
+        made a duplicate suffix disappear before hashing. Precise verification
+        must see every character returned for the grounded field, even when
+        that makes the result conservatively ambiguous.
+        """
+        del intended, precise
+        return read_back
 
     @staticmethod
     def _full_screen_prose_candidate(
@@ -770,6 +754,7 @@ class WatchedTyper:
         region: Region | None = None,
         code: bool = False,
         prose: bool = False,
+        exact: bool | None = None,
         secret: bool = False,
         should_continue: Callable[[], bool] | None = None,
     ) -> WatchedTypingResult:
@@ -781,13 +766,19 @@ class WatchedTyper:
         to completion. This makes a long ``type_text`` interruptible, not just the gaps
         between transactions."""
         delivery_text = flatten_line_breaks(text)
-        precise = code or (is_exact_text(delivery_text) and not prose)
+        precise = (
+            exact
+            if exact is not None
+            else code or (is_exact_text(delivery_text) and not prose)
+        )
         total = len(delivery_text)
 
         # FAST TRANSPORT: long, plain (non-exact, non-secret) prose uses the
         # server-side keymap printer, but remains chunked and visually guarded.
         # Caps-on disables it (the printer cannot compensate per letter);
-        # precise/short/secret text stays on the per-key transport.
+        # Commands/code, short text, and secrets stay on the per-key transport.
+        # Exact natural-language verification may still use guarded printer
+        # chunks: transport choice and OCR strictness are separate concerns.
         print_text = getattr(self.backend, "print_text", None)
         caps_on = self.backend.get_caps_lock()
         if should_continue is not None and not should_continue():
@@ -804,7 +795,8 @@ class WatchedTyper:
         if (
             callable(print_text)
             and not secret
-            and not precise
+            and not code
+            and (prose or not is_exact_text(delivery_text))
             and total > FAST_PRINT_MIN
             and caps_on is not True
         ):
@@ -1347,6 +1339,9 @@ class WatchedTyper:
 
         return WatchedTypingResult(
             verdict=verdict,
+            # ``ok`` remains the legacy "not a confirmed mismatch" signal.
+            # Callers that may continue a transaction must use ``status`` /
+            # VerificationResult.verified, never this compatibility field.
             ok=verdict != "mismatch",
             status=status,
             field_text=field_text,

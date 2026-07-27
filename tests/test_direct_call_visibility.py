@@ -243,7 +243,7 @@ async def test_direct_watched_typing_exposes_exact_readback_and_caller() -> None
             "exact_readback_sha256_match": True,
             "observed_text_redacted": False,
             "observed_text": "quarterly earnings",
-            "proof_state": "exact_readback",
+            "proof_state": "exact_ocr_readback",
         }
     ]
 

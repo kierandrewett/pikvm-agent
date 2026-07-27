@@ -432,6 +432,7 @@ class _StubTyper:
         self.used_fast_path = used_fast_path
         self.calls: list[str] = []
         self.modes: list[dict[str, bool]] = []
+        self.exact_modes: list[bool | None] = []
 
     async def type_text(
         self,
@@ -439,10 +440,12 @@ class _StubTyper:
         *,
         code=False,
         prose=False,
+        exact=None,
         secret=False,
         should_continue=None,
     ):
         self.calls.append(text)
+        self.exact_modes.append(exact)
         self.modes.append(
             {"code": bool(code), "prose": bool(prose), "secret": bool(secret)}
         )
@@ -485,6 +488,27 @@ async def test_editor_prose_can_explicitly_use_lenient_watched_mode() -> None:
 
     assert outcome.status == "completed"
     assert typer.modes == [{"code": False, "prose": True, "secret": False}]
+    assert typer.exact_modes == [False]
+
+
+async def test_ordinary_direct_typing_defaults_to_exact_ocr() -> None:
+    text = "quarterly earnings"
+    typer = _StubTyper(
+        "verified_exact",
+        field_text=text,
+        typed_characters=len(text),
+        intended_characters=len(text),
+    )
+
+    outcome = await run_burst(
+        [{"type": "type_text", "text": text}],
+        backend=FakeBackend(),
+        typer=typer,
+    )
+
+    assert outcome.status == "completed"
+    assert typer.exact_modes == [True]
+    assert outcome.action_receipts[0]["proof_state"] == "exact_ocr_readback"
 
 
 async def test_editor_prose_defaults_to_exact_readback() -> None:
@@ -507,8 +531,9 @@ async def test_editor_prose_defaults_to_exact_readback() -> None:
     )
 
     assert outcome.status == "completed"
-    assert typer.modes == [{"code": True, "prose": True, "secret": False}]
-    assert outcome.action_receipts[0]["proof_state"] == "exact_readback"
+    assert typer.modes == [{"code": False, "prose": True, "secret": False}]
+    assert typer.exact_modes == [True]
+    assert outcome.action_receipts[0]["proof_state"] == "exact_ocr_readback"
 
 
 async def test_editor_prose_can_require_exact_ocr_checksum_proof() -> None:
@@ -538,12 +563,13 @@ async def test_editor_prose_can_require_exact_ocr_checksum_proof() -> None:
     )
 
     assert outcome.status == "completed"
-    assert typer.modes == [{"code": True, "prose": True, "secret": False}]
+    assert typer.modes == [{"code": False, "prose": True, "secret": False}]
+    assert typer.exact_modes == [True]
     assert (
         outcome.action_receipts[0]["exact_readback_sha256_match"]
         is True
     )
-    assert outcome.action_receipts[0]["proof_state"] == "exact_readback"
+    assert outcome.action_receipts[0]["proof_state"] == "exact_ocr_readback"
 
 
 async def test_exact_receipt_hashes_the_canonical_delivery_payload() -> None:
@@ -582,7 +608,7 @@ async def test_exact_receipt_hashes_the_canonical_delivery_payload() -> None:
     assert receipt["delivery_transformed"] is True
     assert receipt["delivery_characters"] == len(delivered)
     assert receipt["exact_readback_sha256_match"] is True
-    assert receipt["proof_state"] == "exact_readback"
+    assert receipt["proof_state"] == "exact_ocr_readback"
 
 
 async def test_burst_rejects_unknown_text_verification_mode_before_hid() -> None:
@@ -667,7 +693,7 @@ async def test_burst_type_text_proceeds_when_verified() -> None:
             "summary": "stub",
             "edit_distance": 0,
             "focus_evidence": "read_back_verified",
-            "proof_state": "exact_readback",
+            "proof_state": "exact_ocr_readback",
                 "requested_sha256": hashlib.sha256(b"hi").hexdigest(),
                 "delivery_sha256": hashlib.sha256(b"hi").hexdigest(),
                 "issued_prefix_sha256": hashlib.sha256(b"hi").hexdigest(),

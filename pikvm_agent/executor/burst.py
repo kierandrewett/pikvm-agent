@@ -23,6 +23,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable
 
+from pikvm_agent.core.models import VERIFIED_STATUSES
 from pikvm_agent.executor.typing import chunk_text
 from pikvm_agent.executor.verification import (
     is_editor_prose,
@@ -640,7 +641,7 @@ def _typing_proof_state(
         and issued_characters == len(intended)
         and exact_readback_sha256_match
     ):
-        return "exact_readback"
+        return "exact_ocr_readback"
     if (
         status == "verified_safe_normalized"
         and verdict in {"match", "contains"}
@@ -729,7 +730,7 @@ async def _dispatch(
         requested_verification = str(a.get("verification") or "").lower()
         exact_verification = (
             requested_verification == "exact"
-            or (not requested_verification and editor_prose)
+            or not requested_verification
         )
         precise = (
             exact_verification
@@ -739,13 +740,17 @@ async def _dispatch(
         )
         fast = method in ("print", "hid_print", "pikvm_hid_print")
         if typer is not None and not secret:
+            transport_code = code or (
+                is_exact_text(str(text)) and not editor_prose
+            )
             # A caller may request the printer transport, but it cannot disable
             # watched delivery and read-back when the runtime has a typer. The
             # typer itself selects guarded printer chunks for eligible prose.
             res = await typer.type_text(
                 text,
-                code=precise,
+                code=transport_code,
                 prose=editor_prose,
+                exact=precise,
                 secret=secret,
                 should_continue=should_continue,
             )
@@ -766,7 +771,7 @@ async def _dispatch(
                     action_receipt=action_receipt,
                 )
             unverified = status.startswith("unverified_")
-            if status.startswith("failed_") or unverified:
+            if status not in VERIFIED_STATUSES:
                 raise TypingNotVerified(
                     f"typed {text!r} but read-back disagrees ({status}): "
                     f"{getattr(res, 'summary', '')}",

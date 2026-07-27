@@ -357,7 +357,7 @@ describe("ComputerInputSequence", () => {
             type: "type_text",
             status: "verified_exact",
             verdict: "match",
-            proof_state: "exact_readback",
+            proof_state: "exact_ocr_readback",
             observed_text: "hello world",
             observed_text_redacted: false,
             issued_characters: 11,

@@ -1885,7 +1885,7 @@ async def test_action_event_exposes_only_bounded_input_readback_receipts() -> No
             "issued_prefix_sha256": "a" * 64,
             "readback_sha256": "a" * 64,
             "exact_readback_sha256_match": True,
-            "proof_state": "exact_readback",
+            "proof_state": "exact_ocr_readback",
         }
     ]
     assert "private_path" not in repr(event.data["input_receipts"])

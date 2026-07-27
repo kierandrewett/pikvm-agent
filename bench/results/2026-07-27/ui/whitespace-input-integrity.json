@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "suite": "whitespace-input-integrity",
+  "created_at": "2026-07-27T17:25:00Z",
+  "scope": {
+    "computer_target_contacted": false,
+    "production_pikvm_contacted": false,
+    "live_replay_after_fix": false
+  },
+  "root_cause": {
+    "failure": "line-boundary normalization replaced a newline without consuming adjacent spaces",
+    "example_requested": "word \\n next",
+    "old_delivery_space_count_at_boundary": 3,
+    "fixed_delivery_space_count_at_boundary": 1
+  },
+  "integrity_chain": {
+    "requested_sha256": "hash of the caller payload before shaping",
+    "delivery_sha256": "hash of the canonical non-submitting payload",
+    "issued_prefix_sha256": "hash of the exact prefix handed to the input transport",
+    "readback_sha256": "hash of the complete grounded OCR field",
+    "exact_ocr_is_guest_acknowledgement": false,
+    "intent_matching_alternative_can_authorize_completion": false,
+    "saved_file_or_lab_observer_is_exact_oracle": true
+  },
+  "fail_closed_contracts": {
+    "whitespace_mismatch_stops_before_enter": true,
+    "case_plus_spacing_is_not_whitespace_only": true,
+    "duplicate_suffix_is_retained_before_hashing": true,
+    "precise_contains_is_unverified": true,
+    "all_unverified_typing_stops_active_followups": true,
+    "ordinary_visible_watched_typing_defaults_to_exact_ocr": true,
+    "explicit_auto_mode_can_accept_normalized_prose": true
+  },
+  "validation": {
+    "focused_python": {
+      "passed": 208,
+      "failed": 0,
+      "wall_seconds": 16.09
+    },
+    "full_python": {
+      "passed": 1175,
+      "skipped": 1,
+      "failed": 0,
+      "wall_seconds": 103.86
+    },
+    "frontend": {
+      "passed": 87,
+      "failed": 0,
+      "wall_seconds": 6.99
+    },
+    "production_build": {
+      "passed": true,
+      "javascript_bytes": 810500,
+      "javascript_gzip_bytes": 243690,
+      "css_bytes": 109100,
+      "css_gzip_bytes": 18320
+    }
+  },
+  "prior_live_evidence": {
+    "eight_case_observer_probe": "../live-vnc/typing-space-integrity-probe.json",
+    "exact_ocr_case": "../live-vnc/typing-exact-readback-case72.json",
+    "note": "These earlier disposable-VM diagnostics are retained for context; neither is presented as a post-fix replay."
+  },
+  "fresh_live_attempt": {
+    "attempted": true,
+    "result": "refused_before_vnc",
+    "reason": "the process-independent local target lease was already held",
+    "target_contacted": false,
+    "lease_bypassed": false
+  },
+  "release_limit": "The local integrity and stop-before-commit contracts pass. Generic OCR remains below its release gate, and the corrected path still needs a fresh disposable-VM replay."
+}

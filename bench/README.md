@@ -37,7 +37,7 @@ support a claim of generally reliable autonomous Windows operation.
 | Managed and direct assurance levels are unambiguous | The reference conversation is explicitly retained as 551/551 direct calls, not reclassified as a managed run. A 645×1070 real-browser audit labelled a direct trace `Guarded direct`, named its launcher-declared provider/model, removed managed model routing and the chat composer, loaded the marked click preview, and offered a separate `New managed task`; horizontal overflow was 0px | Passing target-free ownership/UI contract; live computer task pending |
 | Computer-use actions remain inspectable while a run is changing | A target-free Chromium fixture retained a 12-action audit while showing only the current live input; the completed trace returns on inspection. Completed clicks now lead with a marked 72×40 pre-action crop of the actual visual target instead of coordinates, while the coordinate, MCP tool, model, state, full Screen evidence, Details, Raw request, and exact input remain available progressively. At a rendered 645×1070 viewport all 12 previews loaded with zero horizontal overflow. A separate dangerous Enter fixture rendered the exact two-input sequence, 47-character count, external-side-effect reason, and Allow once/Deny controls inline without committing input | Passing browser/UI contract |
 | The operator can inspect the verifier's visual evidence | Authenticated API contracts return the labelled before/after bytes without exposing their local path; static UI contracts cover revision refresh, loading/error state, and blob revocation. A live disposable-Windows diagnostic exercised failed and uncertain visual verification without turning either into success | Passing local/browser contract; live task itself did not pass |
-| Long prose/code arrives exactly | Windows transport trials were exact 581/581 and 142/142 characters. A later seeded live boundary probe was 8/8 exact with 0 character errors and 0 duplicated spaces at 17–72 characters, although generic screen OCR was exact in 0/8. After crop correction, one explicit 72-character exact-readback diagnostic produced identical requested, issued-prefix, and known-intent OCR SHA-256 values, while the Windows helper independently measured an exact string and zero repeated spaces. The seven-trial physical loop still failed overall | Partial; transport diagnostics pass, generic OCR does not |
+| Long prose/code arrives exactly | Windows transport trials were exact 581/581 and 142/142 characters. A later seeded live boundary probe was 8/8 exact with 0 character errors and 0 duplicated spaces at 17–72 characters, although generic screen OCR was exact in 0/8. The repaired local path now canonicalizes each line-break boundary to one non-submitting space, retains extra suffixes before hashing, separates requested/delivery/issued/OCR SHA-256 values, and stops every uncertain typing result before Enter/click/more text; 208 focused, 1,175 full Python, and 87 frontend tests pass. One earlier 72-character diagnostic had matching OCR and independent helper hashes, but it predates this final fail-closed patch | Partial; local integrity contracts and earlier transport diagnostics pass, fresh live replay and generic OCR do not |
 | Raw HID avoids encoded/script transfer hacks | A seeded 1,000-payload corpus caught 800/800 unsafe shapes with 0/200 safe false positives; the public MCP integration also refuses encoded transfer before daemon contact | Passing local syntax gate; explicit byte-verified transfer channel pending |
 | Exact-byte virtual-media preparation works | 10/10 builder contracts plus 19/19 transaction/UI/adapter/surface contracts cover mode-0600 media, exact browser approval, rollback, cleanup uncertainty, identity, lease, stop, model-surface exclusion, and explicit unsupported VNC | Passing target-free contract; daemon bridge capability and live target result pending |
 | OCR can safely verify arbitrary desktop text | Tesseract is 56.9% selected and 61.4% expected-aware exact; its 800-case routine tier is 71.125% exact while the preserved 200-case confusable stress tier is 0%; PaddleOCR is 78.9% normalized exact; the retrospective known-intent candidate union is 82.7% overall, 97.0% routine, and 25.5% stress on the same 1,000 cases; no confidence threshold supports a 99% lower-bound claim | Failing release gate |
@@ -1098,7 +1098,7 @@ chat or tool route.
 ## Current headline
 
 <!-- pikvm-scorecard:start -->
-_Generated from checked JSON evidence as of 2026-07-27. Manifest `sha256:79121e6c3562`; run `pikvm-agent harness scorecard --check` to detect drift._
+_Generated from checked JSON evidence as of 2026-07-27. Manifest `sha256:5627d0e9239f`; run `pikvm-agent harness scorecard --check` to detect drift._
 
 | Suite | Route | Cases | Result | Median / p95 | Wall | Status | Evidence |
 | --- | --- | ---: | ---: | ---: | ---: | --- | --- |
@@ -1108,6 +1108,7 @@ _Generated from checked JSON evidence as of 2026-07-27. Manifest `sha256:79121e6
 | Virtual-media transaction | Target-free approval/rollback state machine | 19 contracts | 19/19; 11 durable states; daemon bridge exposed: no | — | — | Passing target-free transaction contract; physical bridge gated | [JSON](results/2026-07-25/safety/virtual-media-transaction-2026-07-26.json) · `sha256:7bd38797d675` |
 | Windows VNC physical-loop diagnostic | Deterministic MCP trials; no model | 7 trials | 581 prose + 142 code characters exact; overall failed | See per-trial JSON | 336.17s | Failing diagnostic | [JSON](results/2026-07-25/windows/live-vnc-observer-iteration.json) · `sha256:5c7bab3e4abd` |
 | Live exact input read-back | Disposable Windows VM via isolated MCP | 1 diagnostic / 72 characters | Requested = issued = OCR SHA: yes; helper exact: yes; 0 repeated spaces | Not isolated | 55s | Passing n=1 diagnostic; generic OCR still failing | [JSON](results/2026-07-27/live-vnc/typing-exact-readback-case72.json) · `sha256:b737a799b1d6` |
+| Whitespace input integrity | Canonical delivery → issued prefix → complete OCR field | 208 focused + 1,175 full Python + 87 frontend | All passed; newline boundary emits 1 space; OCR guest ACK: no | 243,690-byte gzip JavaScript | Target-free contract | Passing local fail-closed contract; fresh replay refused by an existing target lease | [JSON](results/2026-07-27/ui/whitespace-input-integrity.json) · `sha256:2437c5075342` |
 | Direct MCP visibility bridge | Guarded local SQLite/ASGI | 100 calls + 10 contracts | Contracts passed; 143.8 calls/s | 6.70ms / 7.54ms | 695ms | Local diagnostic | [JSON](results/2026-07-25/ui/direct-mcp-visibility-audit.json) · `sha256:aa923113856c` |
 | Managed/direct control separation | assistant-ui ownership + click evidence | 65 frontend + 1,108 Python; 551 audited reference calls | 65/65; 1,108 passed / 1 skipped; reference route 551 direct / 0 managed; 0px overflow | 314,500-byte gzip JavaScript | Target-free browser audit | Passing visible ownership contract; live computer task pending | [JSON](results/2026-07-27/ui/managed-direct-control-separation.json) · `sha256:69ffd36eeb26` |
 | Managed client launch | Codex + Claude + Gemini + OpenCode | 4 clients; 12 stdio cases | 65 local contracts passed; 7/12 stdio executed; 5 skipped | Not measured | 6.96s local selection | Generated stdio proven locally; authenticated task/restart pending | [JSON](results/2026-07-25/safety/managed-client-launch-2026-07-26.json) · `sha256:b464af4a60c8` |
@@ -1747,10 +1748,13 @@ act as checksums:
 - several visibly correct 20–55-character commands produced no usable OCR.
 
 Input receipts now keep separate SHA-256 values for the requested payload,
-sender-issued prefix, and screen read-back. They expose the proof state as
-`exact_readback`, `normalized_readback`, `partial_readback`,
+canonical delivery payload, sender-issued prefix, and OCR screen read-back.
+They expose the proof state as `exact_ocr_readback`,
+`normalized_readback`, `partial_readback`,
 `mismatched_readback`, `ambiguous_readback`, `issued_only`, or
-`not_retained`. Sender completion alone can only be `issued_only`.
+`not_retained`. Sender completion alone can only be `issued_only`, and an
+exact OCR hash is still screen evidence rather than a guest-side
+acknowledgement or saved-file oracle.
 
 An eight-case seeded live probe then exercised lengths around the
 16-character chunk seam and the earlier 71-character failure. The Windows
@@ -1772,6 +1776,11 @@ this one-case diagnostic does not promote the general OCR claim or prove
 arbitrary field-wide guest contents without an independent read channel.
 Machine-readable evidence is in
 [`typing-exact-readback-case72.json`](results/2026-07-27/live-vnc/typing-exact-readback-case72.json).
+
+A fresh post-fix identity/replay attempt was refused before opening VNC because
+the process-independent local target lease was already held. The harness did
+not bypass the lease. That failed attempt is retained in the whitespace
+integrity evidence and the post-fix live result remains pending.
 
 ## Exact Windows guest, foreground, and focus identity
 
