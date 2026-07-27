@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-07-27T04:56:03Z",
+  "source_commit": "335c32c",
+  "route": "authenticated provider catalog and health to chat-side Models sheet",
+  "machine_contacted": false,
+  "model_api_contacted": false,
+  "contracts": {
+    "frontend": {
+      "passed": 26,
+      "total": 26
+    },
+    "provider_api_config_and_ui": {
+      "passed": 83,
+      "total": 83
+    },
+    "production_build": "passed",
+    "diff_check": "passed",
+    "typescript_similarity": "no duplicate functions or types",
+    "optional_ruff": "unavailable in project virtual environment"
+  },
+  "provider_catalog": {
+    "adapters": 10,
+    "stable": 5,
+    "beta": 3,
+    "bridge": 2,
+    "canonical_source": "pikvm_agent.harness.provider_support.PROVIDER_SUPPORT",
+    "authenticated": true,
+    "contains_credential_values": false,
+    "contains_environment_variable_names": false,
+    "contains_endpoints": false,
+    "contains_credential_source_paths": false
+  },
+  "target_free_fixture_projection": {
+    "configured_accounts": 2,
+    "ready_accounts": 1,
+    "role_routes": [
+      "reasoner",
+      "controller",
+      "verifier"
+    ],
+    "primary_and_fallback_positions_visible": true,
+    "authentication_owner_visible": true,
+    "readiness_visible": true,
+    "coarse_activity_visible": true,
+    "conformance_state_visible": true,
+    "raw_readiness_error_rendered": false,
+    "raw_provider_error_rendered": false,
+    "credential_source_rendered": false
+  },
+  "operator_experience": {
+    "surface": "contextual Models sheet beside the chat",
+    "model_picker_remains_visible_at_send_time": true,
+    "automatic_route_explains_reasoning_acting_and_checking": true,
+    "available_adapters_progressively_disclosed": true,
+    "provider_secret_form_present": false,
+    "safe_setup_guidance_by_credential_owner": true,
+    "readiness_not_presented_as_live_conformance": true,
+    "older_server_catalog_404_keeps_workspace_usable": true
+  },
+  "resource_envelope": {
+    "total_raw_bytes": 1206165,
+    "javascript_raw_bytes": 1022916,
+    "javascript_gzip_bytes": 309038,
+    "css_raw_bytes": 106116,
+    "css_gzip_bytes": 17693,
+    "html_raw_bytes": 713,
+    "local_font_bytes": 76420
+  },
+  "browser_audit": {
+    "post_change_visual_review": false,
+    "blocker": "in-app browser URL policy blocked local navigation from its error page",
+    "alternate_browser_used": false
+  },
+  "status": "Provider catalog, ownership, routing, component, API, and build contracts pass; live provider use and post-change browser visual audit remain pending"
+}

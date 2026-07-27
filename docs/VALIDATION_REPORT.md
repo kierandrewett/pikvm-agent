@@ -177,6 +177,17 @@ popover distinguishes saved CLI login, API-key environment, bearer-token
 environment, and CLI bearer-token ownership, including `az` or `gcloud`,
 without exposing a credential value or environment-variable name.
 
+The chat workspace now has a first-party Models sheet backed by an
+authenticated canonical catalog rather than a hard-coded frontend list. It
+shows all ten maintained adapters, the configured reasoning/acting/checking
+route and fallback positions, readiness, authentication owner, coarse
+success/latency, and conformance state. The component never renders raw
+readiness/provider errors or credential source paths, and it offers no browser
+secret-entry form. A 404-only fallback keeps the workspace usable during a
+rolling update from an older server. Twenty-six frontend and 83
+provider/API/config/UI tests, the production build, and the TypeScript
+similarity scan pass. No provider or computer was contacted.
+
 The responsive provider popover was exercised in a real browser at 390×844.
 The document client and scroll widths were both 375 pixels; four 357-pixel
 provider rows fit a 359-pixel popover with no horizontal overflow or console
@@ -188,9 +199,9 @@ The returned model strings remain vendor CLI aliases because neither CLI
 exposed a resolved backend model. API-key adapters were exercised with mock
 transports only; this pass makes no live API-provider claim.
 
-The current production assistant-ui/shadcn workspace totals 1,194,164 raw
-bytes including local fonts (713 HTML, 1,012,353 JavaScript, 104,678 CSS, and
-76,420 fonts). JavaScript compresses to 306,345 bytes and CSS to 17,521 bytes.
+The current production assistant-ui/shadcn workspace totals 1,206,165 raw
+bytes including local fonts (713 HTML, 1,022,916 JavaScript, 106,116 CSS, and
+76,420 fonts). JavaScript compresses to 309,038 bytes and CSS to 17,693 bytes.
 Tests cap each asset at 1.1 MB, total assets at 1.25 MB, and gzip JavaScript/CSS
 at 320/24 KiB. This supersedes the obsolete 128 KiB hand-built-console
 envelope. Current provider/tool activity is stored outside the 500-event

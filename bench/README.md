@@ -126,6 +126,16 @@ command output. They separately show the configured model alias, last model
 reported by a successful call, and the latest blind provider-conformance
 exact/schema/median-latency result.
 
+The chat workspace now exposes this as a contextual Models sheet. Its
+authenticated catalog comes from the same canonical ten-adapter backend
+contract, while the configured-account view shows the reasoning, acting, and
+checking routes, primary/fallback position, readiness, authentication owner,
+coarse success/latency, and conformance state. It never renders raw
+readiness/provider errors or credential source paths and contains no browser
+secret-entry form. Twenty-six frontend and 83 provider/API/config/UI contracts
+pass; no provider or computer was contacted. See
+[`model-connections-and-routing.json`](results/2026-07-27/ui/model-connections-and-routing.json).
+
 ### Provider conformance boundary
 
 `harness provider-conformance` renders seeded 960×540 screens and submits the
@@ -210,10 +220,10 @@ approval reasons were ellipsized, and dialogs had no viewport-height scroll
 boundary. Two static regressions pass. This is a fix record, not a completed
 200% browser claim.
 
-The current production assistant-ui/shadcn workspace assets are **1,194,164
-bytes total** including local fonts: 713 bytes HTML, 1,012,353 bytes
-JavaScript, 104,678 bytes CSS, and 76,420 bytes of local fonts. Gzip output is
-306,345 bytes for JavaScript and 17,521 bytes for CSS. Release regressions cap
+The current production assistant-ui/shadcn workspace assets are **1,206,165
+bytes total** including local fonts: 713 bytes HTML, 1,022,916 bytes
+JavaScript, 106,116 bytes CSS, and 76,420 bytes of local fonts. Gzip output is
+309,038 bytes for JavaScript and 17,693 bytes for CSS. Release regressions cap
 every asset at 1.1 MB, the total at 1.25 MB, and gzip JavaScript/CSS at 320/24
 KiB. This is materially larger than the retired hand-built console and remains
 within the explicit current envelope; the old 128 KiB claim no longer
@@ -873,7 +883,7 @@ instrumentation check only, not an accuracy, average-token, or cost claim.
 ## Current headline
 
 <!-- pikvm-scorecard:start -->
-_Generated from checked JSON evidence as of 2026-07-27. Manifest `sha256:d3cc9e107058`; run `pikvm-agent harness scorecard --check` to detect drift._
+_Generated from checked JSON evidence as of 2026-07-27. Manifest `sha256:24a3d521c6ad`; run `pikvm-agent harness scorecard --check` to detect drift._
 
 | Suite | Route | Cases | Result | Median / p95 | Wall | Status | Evidence |
 | --- | --- | ---: | ---: | ---: | ---: | --- | --- |
@@ -890,6 +900,7 @@ _Generated from checked JSON evidence as of 2026-07-27. Manifest `sha256:d3cc9e1
 | Computer-action chat workspace | Target-free synthetic fixture | 14 frontend + 14 harness UI/fixture contracts | 14/14 + 14/14; production build passed | 303,420-byte gzip JavaScript | Target-free contract | Component/build passing; post-change browser visual audit pending | [JSON](results/2026-07-27/ui/computer-action-chat-workspace.json) · `sha256:6578fe3fc553` |
 | Live computer activity in chat | Authenticated fetch SSE → assistant-ui | 19 frontend + 53 harness/API contracts | 19/19 + 53/53; action 394 → verification 396 | 75ms snapshot coalescing; 305,613-byte gzip JavaScript | Target-free runtime | Authenticated live stream passing; browser visual audit pending | [JSON](results/2026-07-27/ui/computer-action-live-stream.json) · `sha256:5d61d446891f` |
 | Computer-action transaction receipt | assistant-ui tool disclosure → four-phase receipt | 22 frontend + 58 harness/API contracts | 22/22 + 58/58; 4-phase receipt / 8 focused tests | 306,345-byte gzip JavaScript | Target-free contract | Component/build passing; browser visual audit pending | [JSON](results/2026-07-27/ui/computer-action-receipt.json) · `sha256:739f8fde11de` |
+| Model connections and role routing | Authenticated provider catalog → chat Models sheet | 26 frontend + 83 provider/API contracts | 26/26 + 83/83; 10 adapters / 2 configured / 3 roles | 309,038-byte gzip JavaScript | Target-free contract | Catalog/routing UI passing; live providers and browser visual audit pending | [JSON](results/2026-07-27/ui/model-connections-and-routing.json) · `sha256:28d26d4baf28` |
 | Live-frame resource envelope | Target-free streamed preview adapter | 6 contracts | 6/6; 4,194,304-byte frame; 8 sessions / 33,554,432 bytes cached | 450ms minimum upstream interval | — | Passing transport resource contract; browser decode pending | [JSON](results/2026-07-25/ui/live-frame-resource-envelope-2026-07-26.json) · `sha256:345d2a92bda7` |
 | Normalized storage + bounded control | In-memory production contract | 100,000 events + 100 appends | 11,214.070× write-size reduction; 1,000 control events loaded | 0.086ms / 0.138ms append; 3.372ms / 4.539ms control | 214.978ms import | Serialization diagnostic; real SQLite pending | [JSON](results/2026-07-25/ui/normalized-storage-bounded-control-n100000-2026-07-26.json) · `sha256:9af680551989` |
 | Gemini CLI provider adapter | Gemini CLI 0.35.3 / `account-default` | 79 provider/config/UI cases | Adapter contracts passed; startup probe timeout; 228,904 KiB peak RSS | 60.01s startup probe | 60.01s | Adapter contract; live provider unproven | [JSON](results/gemini-cli-0.35.3-compatibility-2026-07-26.json) · `sha256:4beb22389eaa` |

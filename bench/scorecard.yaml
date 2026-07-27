@@ -201,6 +201,24 @@ rows:
     wall: "Target-free contract"
     status: "Component/build passing; browser visual audit pending"
 
+  - suite: "Model connections and role routing"
+    route: "Authenticated provider catalog → chat Models sheet"
+    source: "results/2026-07-27/ui/model-connections-and-routing.json"
+    fields:
+      frontend_passed: {path: "contracts.frontend.passed", format: "integer"}
+      frontend_total: {path: "contracts.frontend.total", format: "integer"}
+      provider_passed: {path: "contracts.provider_api_config_and_ui.passed", format: "integer"}
+      provider_total: {path: "contracts.provider_api_config_and_ui.total", format: "integer"}
+      adapters: {path: "provider_catalog.adapters", format: "integer"}
+      accounts: {path: "target_free_fixture_projection.configured_accounts", format: "integer"}
+      roles: {path: "target_free_fixture_projection.role_routes", format: "count"}
+      gzip_js: {path: "resource_envelope.javascript_gzip_bytes", format: "integer"}
+    cases: "{frontend_total} frontend + {provider_total} provider/API contracts"
+    result: "{frontend_passed}/{frontend_total} + {provider_passed}/{provider_total}; {adapters} adapters / {accounts} configured / {roles} roles"
+    latency: "{gzip_js}-byte gzip JavaScript"
+    wall: "Target-free contract"
+    status: "Catalog/routing UI passing; live providers and browser visual audit pending"
+
   - suite: "Live-frame resource envelope"
     route: "Target-free streamed preview adapter"
     source: "results/2026-07-25/ui/live-frame-resource-envelope-2026-07-26.json"
