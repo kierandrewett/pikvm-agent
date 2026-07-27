@@ -50,6 +50,9 @@ def build_harness_app(settings: HarnessSettings) -> FastAPI:
             max_actions_per_advance=settings.max_actions_per_advance,
             max_actions_per_burst=settings.max_actions_per_burst,
             max_total_actions=settings.max_total_actions,
+            max_ungrounded_navigation_replans=(
+                settings.max_ungrounded_navigation_replans
+            ),
             max_provider_attempts_per_run=(
                 settings.model_budget.max_provider_attempts_per_run
             ),

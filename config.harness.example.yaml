@@ -184,3 +184,4 @@ max_actions_per_advance: 4
 max_autonomous_resumes: 64
 max_actions_per_burst: 8
 max_total_actions: 100
+max_ungrounded_navigation_replans: 3

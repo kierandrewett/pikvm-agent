@@ -99,7 +99,9 @@ or search scope visibly changed. Try one semantically equivalent visible
 control or a different bounded navigation strategy, then replan or block
 instead of cycling. If ungrounded_navigation_replans is nonzero, do not repeat
 the same coordinate-only click: use a visibly grounded target, a safe keyboard
-navigation action, or request a replan."""
+navigation action, or request a replan. Treat ungrounded_navigation_history as
+explicitly refused pointer targets: do not revisit them or another blank/icon-
+only target that cannot be independently read."""
 
 _VERIFIER_SYSTEM = """\
 You are the independent verifier. Compare the plan, intended action, before
@@ -1057,23 +1059,30 @@ class AgentHarness:
                         event.kind == "action.ungrounded_refreshed"
                         for event in run.events
                     )
-                    if prior_recoveries:
+                    if (
+                        prior_recoveries
+                        >= self.config.max_ungrounded_navigation_replans
+                    ):
                         run.pending_action = None
                         run.pending_approval = None
                         run.observation = dismissed
                         run.plan = None
                         run.status = RunStatus.BLOCKED
                         run.error = (
-                            "click target could not be independently grounded "
-                            "after a fresh managed session"
+                            "click targets could not be independently grounded "
+                            "after the bounded navigation replan budget"
                         )
                         run.record(
-                            "action.ungrounded_repeated",
+                            "action.ungrounded_budget_exhausted",
                             approval_id=approval_id,
                             risk=approval_request.get("risk"),
                             reason=approval_request.get("reason"),
                             dismissal_status=dismissed.status,
                             recovery_count=prior_recoveries,
+                            recovery_limit=(
+                                self.config.max_ungrounded_navigation_replans
+                            ),
+                            error=run.error,
                             **tool_outcome,
                         )
                         await self.store.save(run)
@@ -1146,6 +1155,10 @@ class AgentHarness:
                         fresh_frame_id=reopened.frame_id,
                         fresh_world_version=reopened.world_version,
                         plan_preserved=run.plan is not None,
+                        recovery_count=prior_recoveries + 1,
+                        recovery_limit=(
+                            self.config.max_ungrounded_navigation_replans
+                        ),
                         **tool_outcome,
                     )
                     await self.store.save(run)
@@ -1441,14 +1454,17 @@ class AgentHarness:
             "last_ungrounded_navigation": (
                 AgentHarness._last_ungrounded_navigation(run)
             ),
+            "ungrounded_navigation_history": (
+                AgentHarness._ungrounded_navigation_history(run)
+            ),
         }
 
     @staticmethod
-    def _last_ungrounded_navigation(
+    def _ungrounded_navigation_history(
         run: RunSnapshot,
-    ) -> dict[str, Any] | None:
+    ) -> list[dict[str, Any]]:
         last_checkpointed_actions: list[dict[str, Any]] | None = None
-        last_rejection: dict[str, Any] | None = None
+        history: list[dict[str, Any]] = []
         for event in run.events:
             if event.kind == "action.checkpointed":
                 actions = event.data.get("actions")
@@ -1471,16 +1487,30 @@ class AgentHarness:
                         )
                     ]
             elif event.kind == "action.ungrounded_refreshed":
-                last_rejection = {
-                    "reason": (
-                        event.data.get("reason")
-                        or "coordinate click target could not be independently read"
-                    ),
-                    "rejected_actions": list(last_checkpointed_actions or []),
-                    "refused_frame_id": event.data.get("refused_frame_id"),
-                    "fresh_frame_id": event.data.get("fresh_frame_id"),
-                }
-        return last_rejection
+                history.append(
+                    {
+                        "reason": (
+                            event.data.get("reason")
+                            or (
+                                "coordinate click target could not be "
+                                "independently read"
+                            )
+                        ),
+                        "rejected_actions": list(
+                            last_checkpointed_actions or []
+                        ),
+                        "refused_frame_id": event.data.get("refused_frame_id"),
+                        "fresh_frame_id": event.data.get("fresh_frame_id"),
+                    }
+                )
+        return history[-16:]
+
+    @staticmethod
+    def _last_ungrounded_navigation(
+        run: RunSnapshot,
+    ) -> dict[str, Any] | None:
+        history = AgentHarness._ungrounded_navigation_history(run)
+        return history[-1] if history else None
 
     @staticmethod
     def _repeats_ungrounded_navigation(
@@ -1489,16 +1519,13 @@ class AgentHarness:
     ) -> bool:
         if controller.outcome != "act":
             return False
-        last_rejection = AgentHarness._last_ungrounded_navigation(run)
-        if last_rejection is None:
+        rejection_history = AgentHarness._ungrounded_navigation_history(run)
+        if not rejection_history:
             return False
-        rejected_actions = last_rejection.get("rejected_actions")
         proposed_actions = [
             action.model_dump(mode="json", exclude_none=True)
             for action in controller.actions
         ]
-        if not isinstance(rejected_actions, list):
-            return False
         navigation_action_types = {
             "click",
             "double_click",
@@ -1528,26 +1555,32 @@ class AgentHarness:
                 if action.get("type") in {"click", "double_click"}
             ]
 
-        rejected_clicks = click_signature(rejected_actions)
         proposed_clicks = click_signature(proposed_actions)
-        return bool(rejected_clicks) and len(rejected_clicks) == len(
-            proposed_clicks
-        ) and all(
-            rejected_type == proposed_type
-            and rejected_button == proposed_button
-            and abs(rejected_x - proposed_x) <= 4
-            and abs(rejected_y - proposed_y) <= 4
-            for (
-                rejected_type,
-                rejected_x,
-                rejected_y,
-                rejected_button,
-            ), (
-                proposed_type,
-                proposed_x,
-                proposed_y,
-                proposed_button,
-            ) in zip(rejected_clicks, proposed_clicks, strict=True)
+        return any(
+            isinstance(rejected_actions, list)
+            and bool(rejected_clicks := click_signature(rejected_actions))
+            and len(rejected_clicks) == len(proposed_clicks)
+            and all(
+                rejected_type == proposed_type
+                and rejected_button == proposed_button
+                and abs(rejected_x - proposed_x) <= 4
+                and abs(rejected_y - proposed_y) <= 4
+                for (
+                    rejected_type,
+                    rejected_x,
+                    rejected_y,
+                    rejected_button,
+                ), (
+                    proposed_type,
+                    proposed_x,
+                    proposed_y,
+                    proposed_button,
+                ) in zip(rejected_clicks, proposed_clicks, strict=True)
+            )
+            for rejected_actions in (
+                rejection.get("rejected_actions")
+                for rejection in rejection_history
+            )
         )
 
     @staticmethod

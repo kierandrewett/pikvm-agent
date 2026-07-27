@@ -42,6 +42,7 @@ const FAILED_OUTCOMES = new Set([
   "action.transport_uncertain",
   "action.ungrounded_refresh_failed",
   "action.ungrounded_repeated",
+  "action.ungrounded_budget_exhausted",
   "target.identity_changed",
 ]);
 

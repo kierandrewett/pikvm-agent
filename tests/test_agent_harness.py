@@ -302,6 +302,33 @@ class RepeatedUngroundedThenKeyboardProvider(ScriptedProvider):
         return await super().complete(request)
 
 
+class DistinctUngroundedThenKeyboardProvider(ScriptedProvider):
+    def __init__(self) -> None:
+        super().__init__()
+        self.controller_calls = 0
+
+    async def complete(self, request: ModelRequest) -> ModelResponse:
+        if request.role == "controller":
+            self.requests.append(request)
+            self.controller_calls += 1
+            actions_by_call = {
+                1: [{"type": "click", "x": 705, "y": 94}],
+                2: [{"type": "click", "x": 620, "y": 660}],
+                3: [{"type": "key", "keys": ["META", "M"]}],
+            }
+            return ModelResponse(
+                provider=self.name,
+                model="scripted-v1",
+                data={
+                    "outcome": "act",
+                    "intent": f"Bounded navigation {self.controller_calls}.",
+                    "actions": actions_by_call[self.controller_calls],
+                    "expected_evidence": ["Word is visible and unobstructed."],
+                },
+            )
+        return await super().complete(request)
+
+
 class KeyOnlyControllerProvider(ScriptedProvider):
     async def complete(self, request: ModelRequest) -> ModelResponse:
         if request.role == "controller":
@@ -1500,6 +1527,63 @@ async def test_repeated_ungrounded_click_is_repaired_before_more_hid() -> None:
         event.kind == "controller.ungrounded_repeat_rejected"
         for event in completed.events
     )
+
+
+@pytest.mark.asyncio
+async def test_distinct_ungrounded_targets_use_bounded_replan_budget() -> None:
+    provider = DistinctUngroundedThenKeyboardProvider()
+    computer = UngroundedThenKeyboardComputer()
+    harness = build_harness(provider, computer)
+
+    first = await harness.start("Reveal and focus Microsoft Word.")
+    second = await harness.continue_run(first.run_id)
+    completed = await harness.continue_run(second.run_id)
+
+    assert first.status is RunStatus.PAUSED
+    assert second.status is RunStatus.PAUSED
+    assert completed.status is RunStatus.COMPLETED
+    assert computer.opens == 3
+    assert [burst["actions"] for burst in computer.bursts] == [
+        [{"type": "click", "x": 705, "y": 94, "button": "left"}],
+        [{"type": "click", "x": 620, "y": 660, "button": "left"}],
+        [{"type": "key", "keys": ["META", "M"]}],
+    ]
+    controller_prompts = [
+        request.prompt
+        for request in provider.requests
+        if request.role == "controller"
+    ]
+    assert '"ungrounded_navigation_history": [' in controller_prompts[2]
+    assert '"x": 705' in controller_prompts[2]
+    assert '"x": 620' in controller_prompts[2]
+    assert sum(
+        event.kind == "action.ungrounded_refreshed"
+        for event in completed.events
+    ) == 2
+
+
+@pytest.mark.asyncio
+async def test_ungrounded_replan_budget_exhaustion_stays_fail_closed() -> None:
+    provider = DistinctUngroundedThenKeyboardProvider()
+    computer = UngroundedThenKeyboardComputer()
+    harness = build_harness(provider, computer)
+    harness.config = HarnessConfig(
+        max_actions_per_advance=1,
+        max_ungrounded_navigation_replans=1,
+    )
+
+    first = await harness.start("Reveal and focus Microsoft Word.")
+    blocked = await harness.continue_run(first.run_id)
+
+    assert first.status is RunStatus.PAUSED
+    assert blocked.status is RunStatus.BLOCKED
+    assert blocked.error == (
+        "click targets could not be independently grounded after the "
+        "bounded navigation replan budget"
+    )
+    assert computer.opens == 2
+    assert blocked.events[-1].kind == "action.ungrounded_budget_exhausted"
+    assert blocked.events[-1].data["recovery_limit"] == 1
 
 
 @pytest.mark.asyncio
