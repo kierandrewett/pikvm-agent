@@ -14,16 +14,13 @@ import {
 afterEach(cleanup);
 
 describe("RunControlModeBadge", () => {
-  it("labels a new or managed task as harness-owned", () => {
+  it("keeps the default managed mode out of the composer chrome", () => {
     const { rerender } = render(<RunControlModeBadge />);
 
-    expect(screen.getByText("Managed")).toHaveAttribute(
-      "title",
-      expect.stringContaining("plans, acts, verifies"),
-    );
+    expect(screen.queryByText("Managed")).toBeNull();
 
     rerender(<RunControlModeBadge origin="managed" />);
-    expect(screen.getByText("Managed")).toBeInTheDocument();
+    expect(screen.queryByText("Managed")).toBeNull();
   });
 
   it("does not present a direct client trace as managed", () => {

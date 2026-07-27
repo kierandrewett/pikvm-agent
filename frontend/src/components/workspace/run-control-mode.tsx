@@ -1,7 +1,4 @@
-import {
-  ShieldCheckIcon,
-  SquareTerminalIcon,
-} from "lucide-react";
+import { SquareTerminalIcon } from "lucide-react";
 import {
   Alert,
   AlertAction,
@@ -47,24 +44,14 @@ export const canComposeIntoRun = (
 ) => connected && usesManagedControlLoop(origin);
 
 export function RunControlModeBadge({ origin }: { origin?: RunOrigin }) {
-  if (origin === "direct_mcp") {
-    return (
-      <Badge
-        variant="caution"
-        title="The outer coding client chooses each raw input. The harness records, gates, and exposes the calls but does not own their plan or verification."
-      >
-        <SquareTerminalIcon data-icon="inline-start" aria-hidden="true" />
-        Guarded direct
-      </Badge>
-    );
-  }
+  if (origin !== "direct_mcp") return null;
   return (
     <Badge
-      variant="ghost"
-      title="The visible harness plans, acts, verifies, and owns approval boundaries."
+      variant="caution"
+      title="The outer coding client chooses each raw input. The harness records, gates, and exposes the calls but does not own their plan or verification."
     >
-      <ShieldCheckIcon data-icon="inline-start" aria-hidden="true" />
-        Managed
+      <SquareTerminalIcon data-icon="inline-start" aria-hidden="true" />
+      Guarded direct
     </Badge>
   );
 }
