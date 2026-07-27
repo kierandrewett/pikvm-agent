@@ -1,13 +1,15 @@
 from __future__ import annotations
 
 import io
+import json
 import stat
 import zipfile
 from decimal import Decimal
 from pathlib import Path
 
-from typer.testing import CliRunner
+import httpx
 import pytest
+from typer.testing import CliRunner
 
 from pikvm_agent.cli import app
 from pikvm_agent.harness import bootstrap_windows, office_runner
@@ -21,6 +23,7 @@ from pikvm_agent.harness.office_acceptance import (
     write_office_result,
 )
 from pikvm_agent.harness.office_runner import (
+    HttpManagedHarnessApi,
     _artifact_acceptance_result,
     _fresh_artifact_path,
     drive_managed_office_run,
@@ -188,6 +191,29 @@ def test_live_office_artifact_path_is_fresh_and_scoped_to_the_lab_workspace() ->
         "C:/PiKVM-Harness/workspace/"
         "quarterly-earnings-0123456789abcdef.xlsx"
     )
+
+
+async def test_live_office_run_stays_paused_until_artifact_visibility_exists() -> None:
+    requests: list[dict[str, object]] = []
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        requests.append(json.loads(request.content))
+        return httpx.Response(200, json={"run_id": "office-paused"})
+
+    async with httpx.AsyncClient(
+        base_url="http://harness.invalid",
+        transport=httpx.MockTransport(respond),
+    ) as client:
+        api = HttpManagedHarnessApi(client)
+        result = await api.create("Create the workbook.")
+
+    assert result == {"run_id": "office-paused"}
+    assert requests == [
+        {
+            "task": "Create the workbook.",
+            "auto_start": False,
+        }
+    ]
 
 
 async def test_skip_provision_reuses_installed_observer_with_fresh_path(

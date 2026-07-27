@@ -77,7 +77,10 @@ class HttpManagedHarnessApi:
         return await self._request(
             "POST",
             "/api/runs",
-            payload={"task": task, "auto_start": True},
+            # Publish the host-owned artifact contract before any provider can
+            # hold the run's model/control lock. The polling loop advances this
+            # initial paused checkpoint only after ``on_created`` succeeds.
+            payload={"task": task, "auto_start": False},
         )
 
     async def get(self, run_id: str) -> dict[str, Any]:
