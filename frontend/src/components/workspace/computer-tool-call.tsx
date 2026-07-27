@@ -8,6 +8,7 @@ import {
   type PropsWithChildren,
 } from "react";
 import {
+  ArrowRightIcon,
   CheckIcon,
   ChevronDownIcon,
   CircleAlertIcon,
@@ -17,6 +18,7 @@ import {
   GripIcon,
   KeyboardIcon,
   LoaderCircleIcon,
+  LockKeyholeIcon,
   MonitorIcon,
   MousePointer2Icon,
   MoveIcon,
@@ -36,6 +38,12 @@ import {
   ToolGroupRoot,
 } from "@/components/assistant-ui/tool-group";
 import type { ThreadGroupPart } from "@/components/assistant-ui/thread";
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Collapsible,
@@ -49,6 +57,8 @@ type JsonRecord = Record<string, unknown>;
 export type ComputerToolEnvironment = {
   machineName?: string;
   currentFrameId?: number;
+  screenWidth?: number;
+  screenHeight?: number;
   onOpenComputer?: () => void;
 };
 
@@ -77,6 +87,27 @@ const text = (value: unknown) => (typeof value === "string" ? value : "");
 const number = (value: unknown) =>
   typeof value === "number" && Number.isFinite(value) ? value : undefined;
 
+type ReceiptContext = {
+  intent: string;
+  expectedEvidence: string[];
+  attempt?: number;
+  latencyMs?: number;
+  idempotencyKey: string;
+};
+
+const receiptContext = (args: JsonRecord): ReceiptContext => {
+  const receipt = record(args.__receipt);
+  return {
+    intent: text(receipt.intent),
+    expectedEvidence: Array.isArray(receipt.expected_evidence)
+      ? receipt.expected_evidence.map(String)
+      : [],
+    attempt: number(receipt.attempt),
+    latencyMs: number(receipt.latency_ms),
+    idempotencyKey: text(receipt.idempotency_key),
+  };
+};
+
 const actionName = (action: JsonRecord) =>
   text(action.type) || text(action.action) || "action";
 
@@ -104,7 +135,10 @@ const actionLabel = (action: JsonRecord) => {
   const x = number(action.x);
   const y = number(action.y);
   if (kind.includes("click")) {
-    return x != null && y != null ? `Click at ${x} × ${y}` : "Click";
+    const click = kind.includes("double") ? "Double-click" : "Click";
+    const target = text(action.target_text);
+    if (target) return `${click} “${target}”`;
+    return x != null && y != null ? `${click} at ${x} × ${y}` : click;
   }
   if (kind.includes("type")) {
     const value = text(action.text);
@@ -117,10 +151,15 @@ const actionLabel = (action: JsonRecord) => {
     return keyLabel(action) ? `Press ${keyLabel(action)}` : "Press key";
   }
   if (kind.includes("scroll")) {
-    const amount = number(action.delta_y) ?? number(action.dy);
-    return amount == null
+    const direction = text(action.direction);
+    const steps = number(action.amount);
+    const delta = number(action.delta_y) ?? number(action.dy);
+    if (direction) {
+      return `Scroll ${direction}${steps != null ? ` ${steps} steps` : ""}`;
+    }
+    return delta == null
       ? "Scroll"
-      : `Scroll ${amount < 0 ? "up" : "down"} ${Math.abs(amount)} px`;
+      : `Scroll ${delta < 0 ? "up" : "down"} ${Math.abs(delta)} px`;
   }
   if (kind.includes("drag")) return "Drag pointer";
   if (kind.includes("move")) {
@@ -129,6 +168,15 @@ const actionLabel = (action: JsonRecord) => {
   if (kind === "wait") {
     const duration = number(action.ms) ?? number(action.duration_ms);
     return duration != null ? `Wait ${duration} ms` : "Wait";
+  }
+  if (kind === "wait_for_stable_screen") {
+    const stable = number(action.stable_ms);
+    const timeout = number(action.timeout_ms);
+    return `Wait for a stable screen${stable != null ? ` · ${stable} ms stable` : ""}${timeout != null ? ` · ${timeout} ms limit` : ""}`;
+  }
+  if (kind === "wait_for_change") {
+    const timeout = number(action.timeout_ms);
+    return `Wait for screen change${timeout != null ? ` · ${timeout} ms limit` : ""}`;
   }
   return kind.replaceAll("_", " ");
 };
@@ -154,7 +202,7 @@ const summarize = (toolName: string, args: JsonRecord) => {
   if (actions.length === 1) {
     return {
       title: actionLabel(actions[0]!),
-      detail: toolName.replaceAll("_", " "),
+      detail: actionKindLabel(actions[0]!),
       actions,
     };
   }
@@ -186,6 +234,13 @@ const durationLabel = (milliseconds: number | undefined) => {
   return `${Math.round(milliseconds / 1_000)}s`;
 };
 
+type ReceiptBadgeVariant =
+  | "outline"
+  | "evidence"
+  | "caution"
+  | "info"
+  | "destructive";
+
 const statusMeta = (
   status: ToolCallMessagePartProps["status"],
   result: unknown,
@@ -194,51 +249,66 @@ const statusMeta = (
     return {
       label: "Approval needed",
       Icon: ShieldAlertIcon,
-      tone: "text-amber-200",
+      variant: "caution" as ReceiptBadgeVariant,
+      iconClass: "bg-caution-soft text-caution-foreground",
     };
   }
   if (status?.type === "running") {
     return {
       label: "Sending input",
       Icon: LoaderCircleIcon,
-      tone: "text-sky-200",
+      variant: "info" as ReceiptBadgeVariant,
+      iconClass: "bg-info-soft text-info-foreground",
     };
   }
   if (status?.type === "incomplete") {
     return {
       label: status.reason === "cancelled" ? "Cancelled" : "Failed",
       Icon: XIcon,
-      tone: "text-rose-200",
+      variant: "destructive" as ReceiptBadgeVariant,
+      iconClass: "bg-destructive/10 text-destructive",
     };
   }
   const value = record(result);
   const resultStatus = text(value.status);
   const verification = record(value.verification);
+  if (resultStatus === "failed") {
+    return {
+      label: "Failed",
+      Icon: XIcon,
+      variant: "destructive" as ReceiptBadgeVariant,
+      iconClass: "bg-destructive/10 text-destructive",
+    };
+  }
   if (resultStatus === "refused") {
     return {
       label: "Refused safely",
       Icon: CircleAlertIcon,
-      tone: "text-amber-200",
+      variant: "caution" as ReceiptBadgeVariant,
+      iconClass: "bg-caution-soft text-caution-foreground",
     };
   }
   if (resultStatus === "unverified") {
     return {
       label: "Not verified",
       Icon: EyeIcon,
-      tone: "text-amber-200",
+      variant: "caution" as ReceiptBadgeVariant,
+      iconClass: "bg-caution-soft text-caution-foreground",
     };
   }
   if (text(verification.verdict) === "verified") {
     return {
       label: "Verified",
       Icon: CheckIcon,
-      tone: "text-emerald-200",
+      variant: "evidence" as ReceiptBadgeVariant,
+      iconClass: "bg-evidence-soft text-evidence-foreground",
     };
   }
   return {
     label: "Input complete",
     Icon: CheckIcon,
-    tone: "text-muted-foreground",
+    variant: "outline" as ReceiptBadgeVariant,
+    iconClass: "bg-muted text-muted-foreground",
   };
 };
 
@@ -255,7 +325,64 @@ const pointerDetail = (action: JsonRecord) => {
     .join(" · ");
 };
 
-function ActionExactInput({ action }: { action: JsonRecord }) {
+function PointerTargetMap({
+  action,
+  environment,
+}: {
+  action: JsonRecord;
+  environment: ComputerToolEnvironment;
+}) {
+  const x = number(action.x);
+  const y = number(action.y);
+  if (x == null || y == null) return null;
+  const width = environment.screenWidth;
+  const height = environment.screenHeight;
+  const left =
+    width && width > 0 ? Math.min(100, Math.max(0, (x / width) * 100)) : 50;
+  const top =
+    height && height > 0 ? Math.min(100, Math.max(0, (y / height) * 100)) : 50;
+  const coordinateLabel = `${x}, ${y}`;
+  const screenLabel =
+    width && height ? `${width} × ${height} screen` : "screen dimensions unknown";
+
+  return (
+    <figure
+      className="mt-2 flex flex-wrap items-center gap-3"
+      aria-label={`Pointer target ${coordinateLabel} on ${screenLabel}`}
+    >
+      <div className="relative aspect-video w-32 overflow-hidden rounded-md border border-border bg-background">
+        <div
+          className="absolute size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border border-info bg-info-soft"
+          style={{ left: `${left}%`, top: `${top}%` }}
+        >
+          <span className="absolute top-1/2 left-1/2 size-px -translate-x-1/2 -translate-y-1/2 bg-info-foreground" />
+        </div>
+        <span className="absolute inset-x-0 bottom-0 truncate border-t border-border bg-muted/80 px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground">
+          {screenLabel}
+        </span>
+      </div>
+      <figcaption className="flex min-w-0 flex-col gap-1">
+        <span className="text-xs font-medium">Target coordinate</span>
+        <span className="font-mono text-[11px] tabular-nums text-muted-foreground">
+          x {x} · y {y}
+        </span>
+        {width && height ? (
+          <span className="text-[11px] text-muted-foreground">
+            {left.toFixed(1)}% across · {top.toFixed(1)}% down
+          </span>
+        ) : null}
+      </figcaption>
+    </figure>
+  );
+}
+
+function ActionExactInput({
+  action,
+  environment,
+}: {
+  action: JsonRecord;
+  environment: ComputerToolEnvironment;
+}) {
   const kind = actionName(action);
   if (kind.includes("type")) {
     const value = text(action.text);
@@ -264,8 +391,8 @@ function ActionExactInput({ action }: { action: JsonRecord }) {
     return (
       <div className="mt-2 overflow-hidden rounded-md border border-border/70 bg-background/55">
         <div className="flex items-center justify-between gap-3 border-b border-border/60 px-3 py-1.5">
-          <span className="text-[10px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
-            Typed payload
+          <span className="text-xs font-medium text-muted-foreground">
+            Exact typed payload
           </span>
           <span className="shrink-0 font-mono text-[10px] tabular-nums text-muted-foreground">
             {value.length} chars · {lineCount}{" "}
@@ -304,30 +431,32 @@ function ActionExactInput({ action }: { action: JsonRecord }) {
   }
   const detail = pointerDetail(action);
   return detail ? (
-    <div
-      className="mt-2 flex flex-wrap items-center gap-1.5"
-      aria-label={`Exact pointer input: ${detail}`}
-    >
-      <CrosshairIcon
-        className="mr-0.5 size-3 text-muted-foreground"
-        aria-hidden="true"
-      />
-      {detail.split(" · ").map((part) => (
-        <code
-          key={part}
-          className="rounded border border-border/70 bg-background/60 px-1.5 py-0.5 font-mono text-[10px] text-foreground/85"
-        >
-          {part}
-        </code>
-      ))}
-    </div>
+    <>
+      <div
+        className="mt-2 flex flex-wrap items-center gap-1.5"
+        aria-label={`Exact pointer input: ${detail}`}
+      >
+        <CrosshairIcon className="mr-0.5 size-3" aria-hidden="true" />
+        {detail.split(" · ").map((part) => (
+          <code
+            key={part}
+            className="rounded border border-border bg-background px-1.5 py-0.5 font-mono text-[10px] text-foreground"
+          >
+            {part}
+          </code>
+        ))}
+      </div>
+      <PointerTargetMap action={action} environment={environment} />
+    </>
   ) : null;
 }
 
 export function ComputerInputSequence({
   actions,
+  environment = {},
 }: {
   actions: readonly JsonRecord[];
+  environment?: ComputerToolEnvironment;
 }) {
   return (
     <ol className="mt-2" aria-label="Exact computer input sequence">
@@ -344,22 +473,24 @@ export function ComputerInputSequence({
                 aria-hidden="true"
               />
             ) : null}
-            <span className="relative z-10 flex size-6 items-center justify-center bg-background text-muted-foreground">
+            <span className="relative flex size-6 items-center justify-center rounded-md bg-muted text-muted-foreground">
               <Icon className="size-3.5" aria-hidden="true" />
             </span>
             <div className="min-w-0">
               <div className="flex min-w-0 items-baseline gap-2">
-                <span className="text-[10px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
-                  {index + 1}
-                </span>
                 <p className="truncate text-sm font-medium">
                   {actionKindLabel(action)}
                 </p>
+                {actions.length > 1 ? (
+                  <span className="font-mono text-[10px] text-muted-foreground">
+                    {index + 1}/{actions.length}
+                  </span>
+                ) : null}
               </div>
               <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
                 {actionLabel(action)}
               </p>
-              <ActionExactInput action={action} />
+              <ActionExactInput action={action} environment={environment} />
             </div>
           </li>
         );
@@ -372,9 +503,36 @@ type EvidenceItem = {
   label: string;
   value: string;
   detail?: string;
-  tone?: string;
   Icon: ElementType;
+  iconClass: string;
 };
+
+function ReceiptNode({ item }: { item: EvidenceItem }) {
+  const Icon = item.Icon;
+  return (
+    <div className="flex min-w-0 flex-1 items-start gap-2.5">
+      <span
+        className={cn(
+          "flex size-7 shrink-0 items-center justify-center rounded-md",
+          item.iconClass,
+        )}
+      >
+        <Icon className="size-3.5" aria-hidden="true" />
+      </span>
+      <div className="min-w-0">
+        <dt className="text-[11px] font-medium text-muted-foreground">
+          {item.label}
+        </dt>
+        <dd className="mt-0.5 truncate text-xs font-semibold">{item.value}</dd>
+        {item.detail ? (
+          <dd className="mt-0.5 line-clamp-2 text-[11px] leading-relaxed text-muted-foreground">
+            {item.detail}
+          </dd>
+        ) : null}
+      </div>
+    </div>
+  );
+}
 
 export function ComputerActionReceipt({
   args,
@@ -401,36 +559,33 @@ export function ComputerActionReceipt({
   const observedWorld = number(value.world_version);
   const verificationVerdict = text(verification.verdict);
   const verificationSummary = text(verification.summary);
+  const receipt = receiptContext(args);
+  const state = statusMeta(status, result);
+  const StateIcon = state.Icon;
 
   let delivery = "Waiting";
   let deliveryDetail = "No input has been committed";
-  let deliveryTone = "text-muted-foreground";
   if (status?.type === "requires-action") {
     delivery = "Held for approval";
     deliveryDetail = "The consequential input has not been sent";
-    deliveryTone = "text-amber-200";
   } else if (status?.type === "running") {
     delivery = "In progress";
     deliveryDetail = "The harness is sending this bounded input";
-    deliveryTone = "text-sky-200";
   } else if (resultStatus === "failed") {
     delivery = "Failed";
-    deliveryDetail = text(value.error) || "The input did not complete";
-    deliveryTone = "text-rose-200";
+    deliveryDetail = "The input did not complete; details are in diagnostics";
   } else if (resultStatus === "refused") {
     delivery = "Refused";
     deliveryDetail = text(value.reason) || "Stopped before input";
-    deliveryTone = "text-amber-200";
   } else if (resultStatus) {
     delivery = "Committed";
     deliveryDetail =
       frame != null ? `Fresh post-input frame ${frame}` : "HID completed";
-    deliveryTone = "text-foreground";
   }
 
   const evidence: EvidenceItem[] = [
     {
-      label: "Source screen",
+      label: "Read from",
       value:
         sourceFrame != null
           ? `Frame ${sourceFrame}`
@@ -447,39 +602,33 @@ export function ComputerActionReceipt({
               .join(" · ") || "Freshness reference supplied"
           : "No freshness reference",
       Icon: EyeIcon,
+      iconClass: "bg-muted text-muted-foreground",
     },
     {
-      label: "Bounded input",
-      value: `${actionCount} ${actionCount === 1 ? "input" : "inputs"}`,
-      detail: characterCount
-        ? `${characterCount} exact characters`
-        : "Keyboard or pointer transaction",
-      Icon: KeyboardIcon,
-    },
-    {
-      label: "Delivery",
+      label: "Input boundary",
       value: delivery,
-      detail: deliveryDetail,
-      tone: deliveryTone,
-      Icon:
-        status?.type === "running"
-          ? LoaderCircleIcon
-          : status?.type === "requires-action"
-            ? ShieldAlertIcon
-            : resultStatus === "failed"
-              ? XIcon
-              : CheckIcon,
+      detail: [
+        `${actionCount} ${actionCount === 1 ? "input" : "inputs"}`,
+        characterCount ? `${characterCount} exact characters` : "",
+        deliveryDetail,
+      ]
+        .filter(Boolean)
+        .join(" · "),
+      Icon: state.Icon,
+      iconClass: state.iconClass,
     },
     {
-      label: "Screen check",
+      label: "Observed after",
       value:
         verificationVerdict === "verified"
-          ? "Verified"
+          ? frame != null
+            ? `Frame ${frame} · verified`
+            : "Screen verified"
           : resultStatus === "unverified"
             ? "Not verified"
             : frame != null
-              ? "Frame captured"
-              : "Pending",
+              ? `Frame ${frame}`
+              : "Awaiting screen",
       detail:
         verificationSummary ||
         (frame != null
@@ -490,98 +639,136 @@ export function ComputerActionReceipt({
               .filter(Boolean)
               .join(" · ")
           : "Awaiting post-input evidence"),
-      tone:
-        verificationVerdict === "verified"
-          ? "text-emerald-200"
-          : resultStatus === "unverified"
-            ? "text-amber-200"
-            : "text-muted-foreground",
       Icon:
         verificationVerdict === "verified"
           ? CheckIcon
           : resultStatus === "unverified"
             ? CircleAlertIcon
             : EyeIcon,
+      iconClass:
+        verificationVerdict === "verified"
+          ? "bg-evidence-soft text-evidence-foreground"
+          : resultStatus === "unverified"
+            ? "bg-caution-soft text-caution-foreground"
+            : "bg-muted text-muted-foreground",
     },
   ];
 
   return (
     <section
-      className="mt-4 border-y border-border/70 py-3"
+      className="mt-3 rounded-lg border border-border bg-background/45 p-3"
       aria-label="Computer action receipt"
     >
-      <div className="mb-3 flex min-w-0 items-center gap-2 text-xs">
-        <MonitorIcon
-          className="size-3.5 shrink-0 text-muted-foreground"
-          aria-hidden="true"
-        />
-        <span className="truncate font-medium">
-          {environment.machineName || "Managed computer"}
-        </span>
-        <span className="text-muted-foreground" aria-hidden="true">
-          ·
-        </span>
-        <span className="shrink-0 font-mono text-[11px] text-muted-foreground">
-          {environment.currentFrameId != null
-            ? `current frame ${environment.currentFrameId}`
-            : "managed MCP session"}
-        </span>
+      <div className="mb-3 flex min-w-0 items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2 text-xs">
+          <MonitorIcon
+            className="size-3.5 shrink-0 text-muted-foreground"
+            aria-hidden="true"
+          />
+          <span className="truncate font-medium">
+            {environment.machineName || "Managed computer"}
+          </span>
+          <span className="hidden font-mono text-[11px] text-muted-foreground sm:inline">
+            {[
+              environment.currentFrameId != null
+                ? `live frame ${environment.currentFrameId}`
+                : "",
+              environment.screenWidth && environment.screenHeight
+                ? `${environment.screenWidth}×${environment.screenHeight}`
+                : "",
+            ]
+              .filter(Boolean)
+              .join(" · ") || "managed MCP"}
+          </span>
+        </div>
+        <Badge variant={state.variant}>
+          <StateIcon
+            data-icon="inline-start"
+            className={cn(
+              status?.type === "running" &&
+                "animate-spin motion-reduce:animate-none",
+            )}
+            aria-hidden="true"
+          />
+          {state.label}
+        </Badge>
       </div>
-      <dl className="grid gap-0 sm:grid-cols-4">
-        {evidence.map((item, index) => {
-          const Icon = item.Icon;
-          return (
-            <div
-              key={item.label}
-              className="relative grid min-w-0 grid-cols-[1.75rem_minmax(0,1fr)] gap-2 pb-3 last:pb-0 sm:block sm:pb-0 sm:pr-3"
-            >
-              {index < evidence.length - 1 ? (
-                <>
-                  <span
-                    className="absolute top-7 bottom-0 left-[0.6875rem] w-px bg-border sm:hidden"
-                    aria-hidden="true"
-                  />
-                  <span
-                    className="absolute top-[0.6875rem] right-1 left-7 hidden h-px bg-border sm:block"
-                    aria-hidden="true"
-                  />
-                </>
-              ) : null}
-              <span
-                className={cn(
-                  "relative z-10 flex size-[1.375rem] items-center justify-center rounded-full border border-border bg-background text-muted-foreground",
-                  item.tone,
-                )}
-              >
-                <Icon
-                  className={cn(
-                    "size-3",
-                    status?.type === "running" &&
-                      item.label === "Delivery" &&
-                      "animate-spin motion-reduce:animate-none",
-                  )}
-                  aria-hidden="true"
-                />
-              </span>
-              <div className="min-w-0 sm:mt-2">
-                <dt className="text-[10px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
-                  {item.label}
-                </dt>
-                <dd
-                  className={cn("mt-1 truncate text-xs font-medium", item.tone)}
-                >
-                  {item.value}
-                </dd>
-                {item.detail ? (
-                  <dd className="mt-0.5 line-clamp-2 text-[11px] leading-relaxed text-muted-foreground">
-                    {item.detail}
-                  </dd>
-                ) : null}
-              </div>
-            </div>
-          );
-        })}
+      <dl className="flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-2">
+        {evidence.map((item, index) => (
+          <div key={item.label} className="contents">
+            <ReceiptNode item={item} />
+            {index < evidence.length - 1 ? (
+              <ArrowRightIcon
+                className="hidden size-3.5 shrink-0 self-center text-muted-foreground sm:block"
+                aria-hidden="true"
+              />
+            ) : null}
+          </div>
+        ))}
       </dl>
+      {receipt.attempt != null ||
+      receipt.latencyMs != null ||
+      receipt.idempotencyKey ? (
+        <div className="mt-3 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 border-t border-border pt-2 font-mono text-[10px] text-muted-foreground">
+          {receipt.attempt != null ? (
+            <span>attempt {receipt.attempt}</span>
+          ) : null}
+          {receipt.latencyMs != null ? (
+            <span>{receipt.latencyMs.toLocaleString()} ms transport</span>
+          ) : null}
+          {receipt.idempotencyKey ? (
+            <span
+              className="min-w-0 truncate"
+              title={receipt.idempotencyKey}
+            >
+              key {receipt.idempotencyKey}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function ActionIntent({ receipt }: { receipt: ReceiptContext }) {
+  if (!receipt.intent && !receipt.expectedEvidence.length) return null;
+  return (
+    <section
+      className="mt-3 rounded-lg bg-muted/35 px-3 py-2.5"
+      aria-label="Action intent and expected evidence"
+    >
+      {receipt.intent ? (
+        <div className="flex items-start gap-2">
+          <CrosshairIcon
+            className="mt-0.5 size-3.5 shrink-0 text-muted-foreground"
+            aria-hidden="true"
+          />
+          <div className="min-w-0">
+            <p className="text-[11px] font-medium text-muted-foreground">
+              Intended effect
+            </p>
+            <p className="mt-0.5 text-xs leading-relaxed">{receipt.intent}</p>
+          </div>
+        </div>
+      ) : null}
+      {receipt.expectedEvidence.length ? (
+        <div className={cn("flex items-start gap-2", receipt.intent && "mt-2.5")}>
+          <EyeIcon
+            className="mt-0.5 size-3.5 shrink-0 text-muted-foreground"
+            aria-hidden="true"
+          />
+          <div className="min-w-0">
+            <p className="text-[11px] font-medium text-muted-foreground">
+              Success should look like
+            </p>
+            <ul className="mt-0.5 flex flex-col gap-1 text-xs leading-relaxed">
+              {receipt.expectedEvidence.map((evidence, index) => (
+                <li key={`${evidence}:${index}`}>{evidence}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -603,12 +790,16 @@ const ComputerToolCallImpl: ToolCallMessagePartComponent<
 }) => {
   const environment = useContext(ComputerToolEnvironmentContext);
   const needsApproval = status?.type === "requires-action";
+  const running = status?.type === "running";
   const resultStatus = text(record(result).status);
   const failed = status?.type === "incomplete" || resultStatus === "failed";
   const needsReview = resultStatus === "unverified";
-  const [open, setOpen] = useState(needsApproval || failed || needsReview);
+  const [open, setOpen] = useState(
+    needsApproval || running || failed || needsReview,
+  );
   const elapsed = useToolCallElapsed();
   const callArgs = record(args);
+  const receipt = receiptContext(callArgs);
   const summary = useMemo(
     () => summarize(toolName, callArgs),
     [args, toolName],
@@ -623,80 +814,82 @@ const ComputerToolCallImpl: ToolCallMessagePartComponent<
     (total, action) => total + text(action.text).length,
     0,
   );
+  const visibleDuration = receipt.latencyMs ?? elapsed;
 
   useEffect(() => {
-    if (needsApproval || failed || needsReview) setOpen(true);
-  }, [failed, needsApproval, needsReview]);
+    if (needsApproval || running || failed || needsReview) setOpen(true);
+  }, [failed, needsApproval, needsReview, running]);
 
   return (
     <Collapsible
       open={open}
       onOpenChange={setOpen}
       className={cn(
-        "group/computer-tool border-l-2 pl-3 transition-colors motion-reduce:transition-none",
+        "group/computer-tool overflow-hidden rounded-lg border bg-card/35 transition-[border-color,background-color] duration-150 motion-reduce:transition-none",
         needsApproval
-          ? "border-amber-400/60"
+          ? "border-caution/35 bg-caution-soft/25"
           : needsReview
-            ? "border-amber-400/45"
+            ? "border-caution/30"
             : failed
-              ? "border-rose-400/50"
-              : "border-border/70",
+              ? "border-destructive/35"
+              : running
+                ? "border-info/30 bg-info-soft/15"
+                : "border-border/70",
       )}
     >
-      <CollapsibleTrigger className="group/trigger flex w-full items-start gap-2.5 py-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/60">
+      <CollapsibleTrigger className="group/trigger grid min-h-14 w-full grid-cols-[2rem_minmax(0,1fr)_auto] items-start gap-x-2.5 rounded-lg p-3 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50 sm:grid-cols-[2rem_minmax(0,1fr)_auto_auto]">
         <span
           className={cn(
-            "mt-0.5 flex size-5 shrink-0 items-center justify-center",
-            needsApproval ? "text-amber-200" : "text-muted-foreground",
+            "flex size-8 shrink-0 items-center justify-center rounded-md",
+            state.iconClass,
           )}
         >
-          <PrimaryIcon className="size-3.5" aria-hidden="true" />
+          <PrimaryIcon className="size-4" aria-hidden="true" />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="flex min-w-0 items-center gap-2">
-            <span className="truncate text-sm font-medium">
-              {summary.title}
-            </span>
-            {durationLabel(elapsed) ? (
-              <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
-                {durationLabel(elapsed)}
-              </span>
+          <span className="block truncate text-sm font-semibold">
+            {summary.title}
+          </span>
+          <span className="mt-1 flex min-w-0 items-center gap-1.5 text-[11px] text-muted-foreground">
+            <span className="truncate">{summary.detail}</span>
+            <span aria-hidden="true">·</span>
+            <code className="shrink-0 font-mono">
+              {toolName.replace(/^pikvm_/, "")}
+            </code>
+            {durationLabel(visibleDuration) ? (
+              <>
+                <span aria-hidden="true">·</span>
+                <span className="shrink-0 tabular-nums">
+                  {durationLabel(visibleDuration)}
+                </span>
+              </>
             ) : null}
           </span>
-          <span className="mt-0.5 block truncate text-xs text-muted-foreground">
-            {summary.detail}
-          </span>
         </span>
-        <span
-          className={cn(
-            "flex shrink-0 items-center gap-1.5 rounded-full border border-current/15 bg-current/5 px-2 py-1 text-[10px] font-semibold",
-            state.tone,
-          )}
+        <Badge
+          variant={state.variant}
+          className="col-start-2 row-start-2 mt-1 sm:col-start-3 sm:row-start-1 sm:mt-0.5"
         >
           <StateIcon
-            className={cn(
-              "size-3",
-              status?.type === "running" && "animate-spin",
-            )}
+            data-icon="inline-start"
+            className={cn(running && "animate-spin motion-reduce:animate-none")}
             aria-hidden="true"
           />
           {state.label}
-        </span>
+        </Badge>
         <ChevronDownIcon
-          className="mt-1 size-4 shrink-0 -rotate-90 text-muted-foreground transition-transform group-data-open/trigger:rotate-0 group-data-panel-open/trigger:rotate-0"
+          className="col-start-3 row-start-1 mt-1 size-4 shrink-0 -rotate-90 text-muted-foreground transition-transform duration-150 group-data-open/trigger:rotate-0 group-data-panel-open/trigger:rotate-0 motion-reduce:transition-none sm:col-start-4"
           aria-hidden="true"
         />
       </CollapsibleTrigger>
 
-      <CollapsibleContent className="data-closed:animate-collapsible-up data-open:animate-collapsible-down overflow-hidden">
-        <div className="border-t border-border/50 pt-3 pb-2">
+      <CollapsibleContent className="data-closed:animate-collapsible-up data-open:animate-collapsible-down overflow-hidden motion-reduce:animate-none">
+        <div className="border-t border-border/60 px-3 pt-3 pb-3">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-[10px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
-                Input transaction
-              </p>
-              <p className="mt-0.5 text-[11px] text-muted-foreground">
-                Inspect exactly what crossed the keyboard and pointer boundary.
+              <p className="text-xs font-semibold">Input transaction</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Screen context, exact input, delivery, and visual proof.
               </p>
             </div>
             {environment.onOpenComputer ? (
@@ -713,6 +906,8 @@ const ComputerToolCallImpl: ToolCallMessagePartComponent<
             ) : null}
           </div>
 
+          <ActionIntent receipt={receipt} />
+
           <ComputerActionReceipt
             args={callArgs}
             result={result}
@@ -722,55 +917,51 @@ const ComputerToolCallImpl: ToolCallMessagePartComponent<
             characterCount={characters}
           />
 
-          <div className="mt-4">
-            <p className="text-[10px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
+          <section className="mt-4" aria-labelledby="exact-input-title">
+            <p id="exact-input-title" className="text-xs font-semibold">
               Exact input sequence
             </p>
-            <p className="mt-0.5 text-[11px] text-muted-foreground">
+            <p className="mt-0.5 text-xs text-muted-foreground">
               {summary.actions.length}{" "}
               {summary.actions.length === 1 ? "input" : "inputs"}
               {characters ? ` · ${characters} characters` : ""}
             </p>
-          </div>
-          <ComputerInputSequence actions={summary.actions} />
+            <ComputerInputSequence
+              actions={summary.actions}
+              environment={environment}
+            />
+          </section>
 
           {needsApproval ? (
-            <div className="mt-4 border-l-2 border-amber-400/60 pl-3">
-              <div className="flex items-start gap-2.5">
-                <ShieldAlertIcon
-                  className="mt-0.5 size-4 shrink-0 text-amber-200"
-                  aria-hidden="true"
+            <Alert variant="caution" className="mt-4">
+              <ShieldAlertIcon aria-hidden="true" />
+              <AlertTitle>Held before a consequential input</AlertTitle>
+              <AlertDescription>
+                <p>
+                  {approvalContext ||
+                    "This may cause an external or difficult-to-reverse action. Review the exact input and target state before allowing it once."}
+                </p>
+                <ToolFallbackApproval
+                  className="mt-3"
+                  addResult={addResult}
+                  resume={resume}
+                  interrupt={interrupt}
+                  approval={approval}
+                  respondToApproval={respondToApproval}
                 />
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-amber-100">
-                    Held before a consequential input
-                  </p>
-                  <p className="mt-1 max-w-xl text-xs leading-relaxed text-amber-100/75">
-                    {approvalContext ||
-                      "This may cause an external or difficult-to-reverse action. Review the exact input and target state before allowing it once."}
-                  </p>
-                  <ToolFallbackApproval
-                    className="mt-3"
-                    addResult={addResult}
-                    resume={resume}
-                    interrupt={interrupt}
-                    approval={approval}
-                    respondToApproval={respondToApproval}
-                  />
-                </div>
-              </div>
-            </div>
+              </AlertDescription>
+            </Alert>
           ) : null}
 
           <Collapsible className="group/arguments mt-2">
-            <CollapsibleTrigger className="flex w-full items-center justify-between rounded-md py-2 text-xs text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/60">
+            <CollapsibleTrigger className="flex min-h-11 w-full items-center justify-between rounded-md text-xs text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50">
               <span>
                 Exact MCP arguments ·{" "}
                 <code className="font-mono">{toolName}</code>
               </span>
-              <ChevronDownIcon className="size-3.5 -rotate-90 transition-transform group-data-open/arguments:rotate-0 group-data-panel-open/arguments:rotate-0" />
+              <ChevronDownIcon className="size-3.5 -rotate-90 transition-transform duration-150 group-data-open/arguments:rotate-0 group-data-panel-open/arguments:rotate-0 motion-reduce:transition-none" />
             </CollapsibleTrigger>
-            <CollapsibleContent className="data-closed:animate-collapsible-up data-open:animate-collapsible-down overflow-hidden">
+            <CollapsibleContent className="data-closed:animate-collapsible-up data-open:animate-collapsible-down overflow-hidden motion-reduce:animate-none">
               <pre className="mt-1 max-h-72 overflow-auto rounded-md border border-border/70 bg-background/70 p-3 font-mono text-[11px] leading-relaxed text-foreground/80 whitespace-pre-wrap">
                 {argsText || JSON.stringify(args, null, 2)}
               </pre>
@@ -807,23 +998,32 @@ export function ComputerToolGroup({
       variant="ghost"
       open={open}
       onOpenChange={setOpen}
-      className="my-3 border-0 bg-transparent shadow-none"
+      className="my-3 overflow-hidden rounded-lg border border-border/60 bg-muted/15 px-2"
     >
-      <CollapsibleTrigger className="group/trigger flex w-full items-center gap-2 rounded-md py-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/60">
-        <span className={needsAttention ? "text-amber-300" : "text-sky-300"}>
+      <CollapsibleTrigger className="group/trigger flex min-h-11 w-full items-center gap-2 rounded-md text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
+        <span
+          className={cn(
+            "flex size-7 shrink-0 items-center justify-center rounded-md",
+            needsAttention
+              ? "bg-caution-soft text-caution-foreground"
+              : active
+                ? "bg-info-soft text-info-foreground"
+                : "bg-muted text-muted-foreground",
+          )}
+        >
           {needsAttention ? (
-            <CircleAlertIcon className="size-4" />
+            <LockKeyholeIcon className="size-3.5" />
           ) : active ? (
-            <LoaderCircleIcon className="size-4 animate-spin" />
+            <LoaderCircleIcon className="size-3.5 animate-spin motion-reduce:animate-none" />
           ) : (
-            <MousePointer2Icon className="size-4" />
+            <MousePointer2Icon className="size-3.5" />
           )}
         </span>
         <span className="flex min-w-0 flex-1 items-baseline gap-2">
-          <span className="shrink-0 text-sm font-medium">
+          <span className="shrink-0 text-sm font-semibold">
             {count} computer {count === 1 ? "action" : "actions"}
           </span>
-          <span className="truncate text-xs text-muted-foreground">
+          <span className="hidden truncate text-xs text-muted-foreground sm:block">
             {needsAttention
               ? "Approval is waiting inside"
               : active
@@ -831,9 +1031,16 @@ export function ComputerToolGroup({
                 : "Inspect exact inputs and screen evidence"}
           </span>
         </span>
-        <ChevronDownIcon className="size-4 -rotate-90 text-muted-foreground transition-transform group-data-open/trigger:rotate-0 group-data-panel-open/trigger:rotate-0" />
+        {needsAttention ? (
+          <Badge variant="caution">Approval waiting</Badge>
+        ) : active ? (
+          <Badge variant="info">Live</Badge>
+        ) : null}
+        <ChevronDownIcon className="size-4 -rotate-90 text-muted-foreground transition-transform duration-150 group-data-open/trigger:rotate-0 group-data-panel-open/trigger:rotate-0 motion-reduce:transition-none" />
       </CollapsibleTrigger>
-      <ToolGroupContent className="[&>div]:gap-2">{children}</ToolGroupContent>
+      <ToolGroupContent className="pb-2 [&>div]:gap-2">
+        {children}
+      </ToolGroupContent>
     </ToolGroupRoot>
   );
 }

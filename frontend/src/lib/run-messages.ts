@@ -72,6 +72,24 @@ const outcomeForAttempt = (
   );
 };
 
+const checkpointForAttempt = (
+  attempt: HarnessEvent,
+  events: readonly HarnessEvent[],
+) => {
+  const idempotencyKey = safeString(attempt.data.idempotency_key);
+  const index = safeNumber(attempt.data.index);
+  return [...events]
+    .reverse()
+    .find(
+      (event) =>
+        event.sequence < attempt.sequence &&
+        event.kind === "action.checkpointed" &&
+        (idempotencyKey
+          ? safeString(event.data.idempotency_key) === idempotencyKey
+          : safeNumber(event.data.index) === index),
+    );
+};
+
 const verificationForOutcome = (
   outcome: HarnessEvent | undefined,
   events: readonly HarnessEvent[],
@@ -180,6 +198,7 @@ const toolParts = (run: RunSnapshot) => {
   }
 
   return attempts.map((attempt, index) => {
+    const checkpoint = checkpointForAttempt(attempt, run.events);
     const outcome = outcomeForAttempt(attempt, run.events);
     const verification = verificationForOutcome(outcome, run.events);
     const isPending = !outcome && index === attempts.length - 1;
@@ -229,18 +248,32 @@ const toolParts = (run: RunSnapshot) => {
                   }
                 : undefined,
             };
-    const args =
+    const exactArgs: Record<string, unknown> =
       attempt.data.arguments &&
       typeof attempt.data.arguments === "object" &&
       !Array.isArray(attempt.data.arguments)
-        ? attempt.data.arguments
+        ? (attempt.data.arguments as Record<string, unknown>)
         : {};
+    const args = {
+      ...exactArgs,
+      __receipt: {
+        intent: safeString(checkpoint?.data.intent),
+        expected_evidence: Array.isArray(checkpoint?.data.expected_evidence)
+          ? checkpoint.data.expected_evidence.map(String)
+          : [],
+        attempt: safeNumber(attempt.data.attempt),
+        latency_ms: safeNumber(outcome?.data.latency_ms),
+        idempotency_key:
+          safeString(attempt.data.idempotency_key) ||
+          safeString(exactArgs.idempotency_key),
+      },
+    };
     return {
       type: "tool-call" as const,
       toolCallId: `${run.run_id}:${eventIdentity(attempt)}`,
       toolName: safeString(attempt.data.tool) || "MCP tool",
       args: args as never,
-      argsText: JSON.stringify(args, null, 2),
+      argsText: JSON.stringify(exactArgs, null, 2),
       result,
       isError: failed,
       approval: approvalId

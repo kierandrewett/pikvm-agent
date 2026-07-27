@@ -127,12 +127,13 @@ def test_workspace_uses_production_chat_and_component_libraries() -> None:
     ).read_text()
     assert "Exact MCP arguments" in computer_tool
     assert "Computer action receipt" in computer_tool
-    assert "Source screen" in computer_tool
-    assert "Bounded input" in computer_tool
+    assert "Read from" in computer_tool
+    assert "Input boundary" in computer_tool
     assert "Exact input sequence" in computer_tool
-    assert "Typed payload" in computer_tool
+    assert "Exact typed payload" in computer_tool
     assert "Held before a consequential input" in computer_tool
-    assert "Screen check" in computer_tool
+    assert "Observed after" in computer_tool
+    assert "Pointer target" in computer_tool
     assert "based_on_world_version" in computer_tool
     assert "ToolFallbackApproval" in computer_tool
 

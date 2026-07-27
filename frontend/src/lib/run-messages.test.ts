@@ -16,20 +16,42 @@ const run = (overrides: Partial<RunSnapshot> = {}): RunSnapshot => ({
   operator_guidance: [],
   events: [
     {
+      sequence: 0,
+      at: "2026-07-27T11:59:59Z",
+      kind: "action.checkpointed",
+      data: {
+        index: 1,
+        idempotency_key: "run-1:action:1:abc",
+        intent: "Activate the visible calculator button",
+        expected_evidence: ["The button shows its pressed state."],
+      },
+    },
+    {
       sequence: 1,
       at: "2026-07-27T12:00:00Z",
       kind: "action.attempted",
       data: {
         call_id: "call-1",
+        index: 1,
+        attempt: 2,
+        idempotency_key: "run-1:action:1:abc",
         tool: "pikvm_run_burst",
-        arguments: { actions: [{ type: "click", x: 400, y: 300 }] },
+        arguments: {
+          actions: [{ type: "click", x: 400, y: 300 }],
+          idempotency_key: "run-1:action:1:abc",
+        },
       },
     },
     {
       sequence: 2,
       at: "2026-07-27T12:00:01Z",
       kind: "action.completed",
-      data: { call_id: "call-1", frame_id: 12, world_version: 9 },
+      data: {
+        call_id: "call-1",
+        frame_id: 12,
+        world_version: 9,
+        latency_ms: 742,
+      },
     },
   ],
   events_truncated: false,
@@ -48,7 +70,16 @@ describe("messagesForRun", () => {
     expect(tool).toMatchObject({
       type: "tool-call",
       toolName: "pikvm_run_burst",
-      args: { actions: [{ type: "click", x: 400, y: 300 }] },
+      args: {
+        actions: [{ type: "click", x: 400, y: 300 }],
+        __receipt: {
+          intent: "Activate the visible calculator button",
+          expected_evidence: ["The button shows its pressed state."],
+          attempt: 2,
+          latency_ms: 742,
+          idempotency_key: "run-1:action:1:abc",
+        },
+      },
       result: {
         status: "completed",
         frame_id: 12,
@@ -56,6 +87,9 @@ describe("messagesForRun", () => {
         attempted_at: "2026-07-27T12:00:00Z",
         completed_at: "2026-07-27T12:00:01Z",
       },
+    });
+    expect(tool).toMatchObject({
+      argsText: expect.not.stringContaining("__receipt"),
     });
   });
 
@@ -125,9 +159,9 @@ describe("messagesForRun", () => {
   it("exposes a pending dangerous action as inline approval choices", () => {
     const pending = run({
       status: "needs_approval",
-      event_count: 1,
+      event_count: 2,
       event_cursor: 1,
-      events: run().events.slice(0, 1),
+      events: run().events.slice(0, 2),
       pending_approval: { approval_id: "approval-9" },
     });
     const assistant = messagesForRun(pending).at(-1);
@@ -226,7 +260,7 @@ describe("messagesForRun", () => {
   it("shows a stale-world refusal as safe recovery, not a running input", () => {
     const snapshot = run({
       events: [
-        run().events[0]!,
+        run().events[1]!,
         {
           sequence: 2,
           at: "2026-07-27T12:00:01Z",

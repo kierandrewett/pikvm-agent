@@ -58,11 +58,15 @@ export function WorkspaceShell() {
           ? machine.alias
           : "Managed computer",
       currentFrameId: workspace.selectedRun?.observation?.frame_id ?? undefined,
+      screenWidth: workspace.selectedRun?.observation?.width ?? undefined,
+      screenHeight: workspace.selectedRun?.observation?.height ?? undefined,
       onOpenComputer: () => setComputerOpen(true),
     };
   }, [
     workspace.selectedRun?.observation?.frame_id,
+    workspace.selectedRun?.observation?.height,
     workspace.selectedRun?.observation?.machine,
+    workspace.selectedRun?.observation?.width,
   ]);
   const threadList = useMemo<ExternalStoreThreadListAdapter>(
     () => ({
