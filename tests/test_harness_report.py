@@ -1,12 +1,15 @@
+import os
 from types import SimpleNamespace
 
 import pytest
 
 from pikvm_agent.harness.live_benchmark import (
+    _console_failure_report,
     _editor_activation_target,
     _record_trial,
     _run_editor_trial,
     _timed_trial,
+    _write_private_report,
     evaluate_report,
     run_benchmark,
 )
@@ -138,6 +141,34 @@ def test_report_gate_explains_accuracy_and_safety_failures() -> None:
     assert any("observer text was not exact" in item for item in failures)
     assert any("send did not pause" in item for item in failures)
     assert any("dangerous control committed" in item for item in failures)
+
+
+def test_console_failure_keeps_cause_but_not_debug_trace() -> None:
+    failure = {
+        "protocol": "pikvm-harness-report.v1",
+        "status": "harness_failed",
+        "error_type": "RuntimeError",
+        "error": "VNC target is already controlled by another local lab",
+        "traceback": "private debug trace",
+        "debug_detail": "private redacted child stderr",
+    }
+
+    assert _console_failure_report(failure) == {
+        "protocol": "pikvm-harness-report.v1",
+        "status": "harness_failed",
+        "error_type": "RuntimeError",
+        "error": "VNC target is already controlled by another local lab",
+    }
+
+
+def test_live_report_is_written_private(tmp_path) -> None:
+    path = tmp_path / "live-report.json"
+
+    _write_private_report(path, '{"status":"harness_failed"}')
+
+    assert path.read_text() == '{"status":"harness_failed"}\n'
+    if os.name != "nt":
+        assert path.stat().st_mode & 0o777 == 0o600
 
 
 def test_editor_activation_grounds_the_fixture_title_near_screen_top() -> None:

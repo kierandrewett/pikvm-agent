@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-07-27T19:07:51Z",
-  "source_commit_before_change": "a9e38a69a6699667df4ab31bf3afec152fd8d8e0",
+  "generated_at": "2026-07-27T19:30:33Z",
+  "source_commit_before_change": "078d43013604b3aa4e11f3e26489a0a4598e471d",
   "route": "isolated Electron chat workspace -> Claude CLI OAuth -> visible MCP research",
-  "cases_requested": 3,
-  "cases_passed": 3,
-  "provider_calls": 5,
+  "cases_requested": 4,
+  "cases_passed": 4,
+  "provider_calls": 8,
   "provider": {
     "alias": "claude-account",
     "model": "opus",
@@ -57,15 +57,47 @@
       ],
       "session_created": false,
       "computer_events": 0
+    },
+    {
+      "name": "official-source web research with full UI sampling",
+      "status": "completed",
+      "run_id": "bf6246f8-1831-4138-bdb7-0fdfa70133c0",
+      "run_wall_ms": 32984,
+      "first_visible_progress_ms": 112,
+      "first_visible_tool_ms": 9760,
+      "provider_calls": 3,
+      "tool_calls": [
+        "web.search_text",
+        "web.extract_content"
+      ],
+      "tool_state_sequence": [
+        "web.search_text: running",
+        "web.search_text: completed",
+        "web.search_text -> web.extract_content: running",
+        "web.search_text -> web.extract_content: completed"
+      ],
+      "maximum_simultaneous_progress_indicators": 1,
+      "maximum_assistant_message_roots": 1,
+      "maximum_branch_counters": 0,
+      "citation_hosts": [
+        "www.python.org"
+      ],
+      "answer": "Python 3.14.6",
+      "session_created": false,
+      "computer_events": 0
     }
   ],
   "tool_visibility": {
+    "active_group_default_open": false,
     "completed_group_default_open": false,
     "collapsed_label": "web.search_text -> web.extract_content",
     "collapsed_count": "2 tool calls",
-    "accessible_label": "web.search_text then web.extract_content, 2 tool calls",
+    "collapsed_state": "Done",
+    "accessible_label": "web.search_text then web.extract_content, 2 tool calls, completed",
     "exact_tool_names_visible_without_expansion": true,
-    "arguments_and_results_available_on_expansion": true
+    "arguments_and_results_available_on_expansion": true,
+    "approval_required_groups_open_automatically": true,
+    "running_failed_completed_states_covered": true
   },
   "browser_audit": {
     "surface": "isolated Electron over CDP",
@@ -78,19 +110,21 @@
       "width": 390,
       "height": 844,
       "horizontal_overflow_pixels": 0,
-      "tool_trigger_width": 322,
+      "tool_trigger_width": 344,
       "tool_label_truncated": false,
+      "tool_count_visible": false,
+      "tool_count_in_accessible_label": true,
       "branch_counters": 0
     }
   },
   "contracts": {
     "frontend_full_suite": {
-      "passed": 106,
-      "total": 106
+      "passed": 110,
+      "total": 110
     },
     "focused_tool_visibility": {
-      "passed": 5,
-      "total": 5
+      "passed": 9,
+      "total": 9
     },
     "production_build": "passed",
     "typescript_typecheck": "passed",
@@ -98,10 +132,10 @@
     "typescript_similarity": "no new source duplication concern"
   },
   "resource_envelope": {
-    "javascript_raw_bytes": 814042,
-    "javascript_gzip_9_bytes": 241584,
-    "css_raw_bytes": 109019,
-    "css_gzip_9_bytes": 18061
+    "javascript_raw_bytes": 815202,
+    "javascript_gzip_9_bytes": 241893,
+    "css_raw_bytes": 109080,
+    "css_gzip_9_bytes": 18075
   },
   "safety": {
     "computer_control": "disabled",
@@ -118,7 +152,7 @@
   "limitations": [
     "This proves the first-party chat workspace with one live OAuth provider, not the API-provider matrix.",
     "The server intentionally had no computer adapter, so this does not prove Windows, Office, OCR, or HID behavior.",
-    "The first research run was inspected after its initial tool phase; exact completed tool names and the full durable event trace were verified, while the separate ordinary-response case measured progress visibility from submission.",
+    "The first research run was inspected after its initial tool phase; a second research run was sampled from submission through both visible tool states.",
     "No screenshot was captured or retained."
   ]
 }

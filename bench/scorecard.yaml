@@ -107,6 +107,24 @@ rows:
     wall: "Target-free contract"
     status: "Passing local fail-closed contract; fresh replay refused by an existing target lease"
 
+  - suite: "Live VNC target contention"
+    route: "Runtime target → process lease → RFB"
+    source: "results/2026-07-27/safety/vnc-target-lease-live-refusal.json"
+    fields:
+      focused: {path: "validation.focused_python.passed", format: "integer"}
+      python: {path: "validation.full_python.passed", format: "integer"}
+      skipped: {path: "validation.full_python.skipped", format: "integer"}
+      wall: {path: "live_gate.wall_ms", format: "milliseconds", digits: 0}
+      second_connection: {path: "live_gate.second_vnc_connection_opened", format: "text"}
+      input_sent: {path: "live_gate.target_input_sent", format: "text"}
+      mode: {path: "live_gate.report_mode_octal", format: "text"}
+      endpoint: {path: "live_gate.report_contains_runtime_endpoint", format: "text"}
+    cases: "{focused} focused + {python} full Python / {skipped} skipped + 1 live contention gate"
+    result: "Second VNC connection: {second_connection}; input sent: {input_sent}; private report mode {mode}; endpoint retained: {endpoint}"
+    latency: "{wall}"
+    wall: "Authorized disposable-target refusal"
+    status: "Passing live fail-closed contention gate; observer identity still pending"
+
   - suite: "Direct MCP visibility bridge"
     route: "Guarded local SQLite/ASGI"
     source: "results/2026-07-25/ui/direct-mcp-visibility-audit.json"

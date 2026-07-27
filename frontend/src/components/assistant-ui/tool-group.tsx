@@ -8,7 +8,13 @@ import {
   type FC,
   type PropsWithChildren,
 } from "react";
-import { ChevronDownIcon, LoaderIcon } from "lucide-react";
+import {
+  CheckIcon,
+  ChevronDownIcon,
+  CircleAlertIcon,
+  LoaderIcon,
+  TriangleAlertIcon,
+} from "lucide-react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { useScrollLock } from "@assistant-ui/react";
 import {
@@ -92,15 +98,58 @@ function ToolGroupRoot({
   );
 }
 
+export type ToolGroupState =
+  | "running"
+  | "review"
+  | "failed"
+  | "complete";
+
+const TOOL_GROUP_STATE = {
+  running: {
+    label: "Running",
+    accessibleLabel: "running",
+    icon: LoaderIcon,
+    className: "text-muted-foreground",
+  },
+  review: {
+    label: "Review",
+    accessibleLabel: "review required",
+    icon: CircleAlertIcon,
+    className: "text-caution-foreground",
+  },
+  failed: {
+    label: "Failed",
+    accessibleLabel: "failed",
+    icon: TriangleAlertIcon,
+    className: "text-destructive",
+  },
+  complete: {
+    label: "Done",
+    accessibleLabel: "completed",
+    icon: CheckIcon,
+    className: "text-evidence-foreground",
+  },
+} satisfies Record<
+  ToolGroupState,
+  {
+    label: string;
+    accessibleLabel: string;
+    icon: typeof LoaderIcon;
+    className: string;
+  }
+>;
+
 function ToolGroupTrigger({
   count,
   active = false,
+  state = active ? "running" : "complete",
   toolNames = [],
   className,
   ...props
 }: React.ComponentProps<typeof CollapsibleTrigger> & {
   count: number;
   active?: boolean;
+  state?: ToolGroupState;
   toolNames?: readonly string[];
 }) {
   const countLabel = `${count} tool ${count === 1 ? "call" : "calls"}`;
@@ -112,9 +161,12 @@ function ToolGroupTrigger({
   ]
     .filter(Boolean)
     .join(" ");
+  const displayLabel = summary || countLabel;
+  const statePresentation = TOOL_GROUP_STATE[state];
+  const StateIcon = statePresentation.icon;
   const accessibleLabel = toolNames.length
-    ? `${toolNames.join(" then ")}, ${countLabel}`
-    : countLabel;
+    ? `${toolNames.join(" then ")}, ${countLabel}, ${statePresentation.accessibleLabel}`
+    : `${countLabel}, ${statePresentation.accessibleLabel}`;
 
   return (
     <CollapsibleTrigger
@@ -129,12 +181,16 @@ function ToolGroupTrigger({
       )}
       {...props}
     >
-      {active && (
-        <LoaderIcon
-          data-slot="tool-group-trigger-loader"
-          className="aui-tool-group-trigger-loader size-3 shrink-0 animate-spin [animation-duration:0.6s]"
-        />
-      )}
+      <StateIcon
+        data-slot="tool-group-trigger-state-icon"
+        className={cn(
+          "size-3 shrink-0",
+          state === "running" &&
+            "animate-spin [animation-duration:0.6s]",
+          statePresentation.className,
+        )}
+        aria-hidden="true"
+      />
       <span
         data-slot="tool-group-trigger-label"
         className={cn(
@@ -145,13 +201,13 @@ function ToolGroupTrigger({
         )}
       >
         <span
-          className="truncate font-mono text-[11px] text-foreground/80"
+          className="truncate font-mono text-xs text-foreground/80"
           title={summary || undefined}
         >
-          {summary || countLabel}
+          {displayLabel}
         </span>
         {summary ? (
-          <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">
+          <span className="hidden shrink-0 text-xs tabular-nums text-muted-foreground min-[480px]:inline">
             {countLabel}
           </span>
         ) : null}
@@ -159,11 +215,20 @@ function ToolGroupTrigger({
           <span
             aria-hidden
             data-slot="tool-group-trigger-shimmer"
-            className="aui-tool-group-trigger-shimmer shimmer pointer-events-none absolute inset-0 truncate font-mono text-[11px] motion-reduce:animate-none"
+            className="aui-tool-group-trigger-shimmer shimmer pointer-events-none absolute inset-0 truncate font-mono text-xs motion-reduce:animate-none"
           >
-            {summary || countLabel}
+            {displayLabel}
           </span>
         )}
+      </span>
+      <span
+        data-slot="tool-group-trigger-state"
+        className={cn(
+          "shrink-0 text-xs font-medium",
+          statePresentation.className,
+        )}
+      >
+        {statePresentation.label}
       </span>
       <ChevronDownIcon
         data-slot="tool-group-trigger-chevron"

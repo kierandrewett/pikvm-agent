@@ -18,6 +18,7 @@ import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import {
   ToolGroupContent,
   ToolGroupRoot,
+  type ToolGroupState,
   ToolGroupTrigger,
 } from "@/components/assistant-ui/tool-group";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
@@ -54,6 +55,8 @@ import {
 import {
   createContext,
   useContext,
+  useEffect,
+  useState,
   type ComponentType,
   type FC,
   type PropsWithChildren,
@@ -299,12 +302,32 @@ const DefaultToolGroup: FC<
     const part = content[index];
     return part?.type === "tool-call" ? [part.toolName] : [];
   });
+  const reviewRequired = group.status.type === "requires-action";
+  const failed =
+    group.status.type === "incomplete" ||
+    group.indices.some((index) => {
+      const part = content[index];
+      return part?.type === "tool-call" && part.isError;
+    });
+  const state: ToolGroupState = reviewRequired
+    ? "review"
+    : group.status.type === "running"
+      ? "running"
+      : failed
+        ? "failed"
+        : "complete";
+  const [open, setOpen] = useState(reviewRequired);
+
+  useEffect(() => {
+    setOpen(reviewRequired);
+  }, [reviewRequired]);
 
   return (
-    <ToolGroupRoot variant="ghost">
+    <ToolGroupRoot variant="ghost" open={open} onOpenChange={setOpen}>
       <ToolGroupTrigger
         count={group.indices.length}
         active={group.status.type === "running"}
+        state={state}
         toolNames={toolNames}
       />
       <ToolGroupContent>{children}</ToolGroupContent>

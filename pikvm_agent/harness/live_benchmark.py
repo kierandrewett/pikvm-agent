@@ -1440,24 +1440,64 @@ def main() -> None:
             )
         )
     except BaseException as exc:
-        failure = {
-            "protocol": "pikvm-harness-report.v1",
-            "status": "harness_failed",
-            "error_type": type(exc).__name__,
-            "error": str(exc),
-            "traceback": traceback.format_exc(),
-        }
+        failure = _failure_report(exc)
         rendered = json.dumps(failure, indent=2)
         if args.report:
-            args.report.write_text(rendered + "\n")
-        print(rendered, flush=True)
-        raise
+            _write_private_report(args.report, rendered)
+        print(
+            json.dumps(_console_failure_report(failure), indent=2),
+            flush=True,
+        )
+        raise SystemExit(1) from None
     rendered = json.dumps(report, indent=2)
     if args.report:
-        args.report.write_text(rendered + "\n")
+        _write_private_report(args.report, rendered)
     print(rendered)
     if report.get("status") != "passed":
         raise SystemExit(2)
+
+
+def _failure_report(exc: BaseException) -> dict[str, Any]:
+    failure = {
+        "protocol": "pikvm-harness-report.v1",
+        "status": "harness_failed",
+        "error_type": type(exc).__name__,
+        "error": str(exc),
+        "traceback": traceback.format_exc(),
+    }
+    debug_detail = getattr(exc, "debug_detail", "")
+    if isinstance(debug_detail, str) and debug_detail:
+        failure["debug_detail"] = debug_detail
+    return failure
+
+
+def _console_failure_report(
+    failure: dict[str, Any],
+) -> dict[str, Any]:
+    """Keep the terminal useful while the report retains the debug trace."""
+
+    return {
+        key: value
+        for key, value in failure.items()
+        if key not in {"traceback", "debug_detail"}
+    }
+
+
+def _write_private_report(path: Path, rendered: str) -> None:
+    flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
+    flags |= getattr(os, "O_CLOEXEC", 0)
+    flags |= getattr(os, "O_NOFOLLOW", 0)
+    descriptor = os.open(path, flags, 0o600)
+    try:
+        if hasattr(os, "fchmod"):
+            os.fchmod(descriptor, 0o600)
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            descriptor = -1
+            handle.write(rendered)
+            handle.write("\n")
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
 
 
 if __name__ == "__main__":

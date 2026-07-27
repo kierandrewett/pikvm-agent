@@ -124,6 +124,14 @@ class LabAssets:
     log_dir: Path
 
 
+class LabChildStartupError(RuntimeError):
+    """Safe operator cause plus a private, redacted diagnostic tail."""
+
+    def __init__(self, message: str, *, debug_detail: str = "") -> None:
+        super().__init__(message)
+        self.debug_detail = debug_detail
+
+
 class RunningLab:
     """Context-managed adapter + daemon pair for tests and benchmark runners."""
 
@@ -178,6 +186,8 @@ class RunningLab:
     def start(self) -> None:
         if self.adapter is not None:
             return
+        if not self.endpoint.strip():
+            raise ValueError("lab target endpoint must not be empty")
         self.ports.validate()
         _assert_port_available(self.ports.adapter)
         _assert_port_available(self.ports.daemon)
@@ -241,7 +251,8 @@ class RunningLab:
                 stdout=adapter_stdout,
                 stderr=adapter_stderr,
             )
-            _wait_ready(
+            self._wait_for_child(
+                "adapter",
                 f"http://127.0.0.1:{self.ports.adapter}/api/info",
                 self.adapter,
                 20,
@@ -268,7 +279,8 @@ class RunningLab:
                 stdout=daemon_stdout,
                 stderr=daemon_stderr,
             )
-            _wait_ready(
+            self._wait_for_child(
+                "daemon",
                 f"http://127.0.0.1:{self.ports.daemon}/healthz",
                 self.daemon,
                 30,
@@ -293,7 +305,8 @@ class RunningLab:
                     stdout=harness_stdout,
                     stderr=harness_stderr,
                 )
-                _wait_ready(
+                self._wait_for_child(
+                    "harness",
                     f"http://127.0.0.1:{self.ports.harness}/api/health",
                     self.harness,
                     30,
@@ -316,6 +329,86 @@ class RunningLab:
         stderr = (self.assets.log_dir / f"{name}.stderr.log").open("ab")
         self._log_handles.extend((stdout, stderr))
         return stdout, stderr
+
+    def _wait_for_child(
+        self,
+        name: str,
+        url: str,
+        child: subprocess.Popen[bytes],
+        timeout_s: float,
+    ) -> None:
+        try:
+            _wait_ready(url, child, timeout_s)
+        except RuntimeError as exc:
+            detail = self._redacted_child_stderr(name)
+            if detail in {
+                "VNC target is already controlled by another local lab",
+                "target endpoint must not be empty",
+            }:
+                message = f"{exc}; {name}: {detail}"
+            elif detail:
+                message = (
+                    f"{exc}; {name} startup diagnostics retained "
+                    "in the private report"
+                )
+            else:
+                message = str(exc)
+            raise LabChildStartupError(
+                message,
+                debug_detail=detail,
+            ) from exc
+
+    def _redacted_child_stderr(self, name: str) -> str:
+        """Return a bounded startup diagnostic without leaking runtime inputs."""
+
+        if not self.quiet or self.assets is None:
+            return ""
+        for handle in self._log_handles:
+            handle.flush()
+        path = self.assets.log_dir / f"{name}.stderr.log"
+        try:
+            raw = path.read_bytes()[-4_096:]
+        except OSError:
+            return ""
+        value = raw.decode("utf-8", errors="replace")
+        for secret in (
+            self.endpoint,
+            self.password or "",
+            self.username or "",
+        ):
+            if secret:
+                value = value.replace(secret, "[redacted]")
+        for key, secret in self.env.items():
+            normalized = key.casefold()
+            if (
+                secret
+                and any(
+                    marker in normalized
+                    for marker in (
+                        "api_key",
+                        "authorization",
+                        "password",
+                        "passcode",
+                        "secret",
+                        "token",
+                    )
+                )
+            ):
+                value = value.replace(secret, "[redacted]")
+        value = "".join(
+            character
+            for character in value
+            if character in "\n\t" or ord(character) >= 32
+        ).strip()
+        for known_failure in (
+            "VNC target is already controlled by another local lab",
+            "target endpoint must not be empty",
+        ):
+            if known_failure in value:
+                return known_failure
+        if len(value) > 2_000:
+            value = value[-2_000:]
+        return value
 
     def close(self) -> None:
         if self.harness is not None:

@@ -250,13 +250,16 @@ See the checked
 an isolated Electron/CDP replay sampled the changing fixture 30 times with one
 assistant message, at most one progress indicator, and no branch counters. It
 captured no screenshot and submitted no task through the real desktop app.
-Completed non-computer tool groups keep the conversation compact while naming
-the exact calls in order—for example
-`web.search_text → web.extract_content`—without requiring the disclosure to be
-opened. A live isolated Claude OAuth browser pass completed exact chat,
-official-source research, and ordinary knowledge cases 3/3; the fully sampled
-case showed progress within 136 ms with one assistant reply, one progress
-indicator, zero branch counters, and no computer session. See the checked
+Non-computer tool groups keep the conversation compact while naming the first
+calls in order and retaining the full count; a typical two-step research turn
+shows `web.search_text → web.extract_content` without opening the disclosure.
+The collapsed row also distinguishes Running, Review, Failed, and Done, and an
+approval request opens automatically. A live isolated Claude OAuth browser
+pass completed exact chat, ordinary knowledge, and two official-source
+research cases 4/4. The research run sampled from submission showed progress
+within 112 ms, its first named tool within 9.760 seconds, one assistant reply,
+at most one progress indicator, zero branch counters, and no computer session.
+See the checked
 [`live chat-workspace evidence`](bench/results/2026-07-27/ui/live-claude-chat-workspace-cdp.json).
 
 Normal assistant tools use the standard MCP Python SDK over persistent stdio or

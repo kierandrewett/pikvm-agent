@@ -23,6 +23,9 @@ or benchmark report. The same adapter can target Windows or Linux.
   A second lab selecting the same canonical endpoint fails closed even when the
   VNC server does not report the other client. The lease filename contains only
   a versioned endpoint digest, never the endpoint.
+- Quiet child startup failures retain a bounded, redacted diagnostic. Known
+  lease contention is shown as one actionable cause in the terminal; the full
+  debug trace is written only to the requested mode-0600 report.
 - Stopping `lab up` terminates the adapter, daemon, and operator harness.
 
 Install the harness extra and start an isolated lab:

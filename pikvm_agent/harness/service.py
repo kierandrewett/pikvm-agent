@@ -18,14 +18,26 @@ def _secret_from_env(name: str) -> str | None:
     return os.environ.get(name) or None
 
 
+def _nonempty_endpoint(value: str) -> str:
+    endpoint = value.strip()
+    if not endpoint:
+        raise argparse.ArgumentTypeError("target endpoint must not be empty")
+    return endpoint
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Expose an isolated computer through the PiKVM lab API."
     )
     target = parser.add_mutually_exclusive_group(required=True)
-    target.add_argument("--vnc", help="RFB endpoint: host:port")
+    target.add_argument(
+        "--vnc",
+        type=_nonempty_endpoint,
+        help="RFB endpoint: host:port",
+    )
     target.add_argument(
         "--in-guest",
+        type=_nonempty_endpoint,
         help="OSWorld-compatible in-guest HTTP endpoint supplied at runtime.",
     )
     parser.add_argument("--host", default="127.0.0.1")
@@ -49,7 +61,7 @@ def main() -> None:
             keymap=args.keymap,
             keyboard_profile=args.keyboard_profile,
         )
-        if args.vnc
+        if args.vnc is not None
         else InGuestComputerTransport(args.in_guest)
     )
     app = create_vnc_pikvm_app(transport, keymap=args.keymap)

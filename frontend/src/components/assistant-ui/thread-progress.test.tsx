@@ -1,7 +1,12 @@
 // @vitest-environment jsdom
 
 import "@testing-library/jest-dom/vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import {
   AssistantRuntimeProvider,
   ExportedMessageRepository,
@@ -21,6 +26,7 @@ beforeAll(() => {
     unobserve = vi.fn();
     disconnect = vi.fn();
   };
+  HTMLElement.prototype.scrollTo = vi.fn();
 });
 
 const messages: ThreadMessageLike[] = [
@@ -91,6 +97,112 @@ const toolMessages: ThreadMessageLike[] = [
   },
 ];
 
+const runningToolMessages: ThreadMessageLike[] = [
+  {
+    id: "user-running-tool",
+    role: "user",
+    content: "Search Python.org.",
+  },
+  {
+    id: "assistant-running-tool",
+    role: "assistant",
+    content: [
+      {
+        type: "tool-call",
+        toolCallId: "search-running",
+        toolName: "web.search_text",
+        args: { query: "site:python.org latest Python release" },
+        argsText:
+          '{"query":"site:python.org latest Python release"}',
+      },
+    ],
+    status: { type: "running" },
+  },
+];
+
+const approvalToolMessages: ThreadMessageLike[] = [
+  {
+    id: "user-approval-tool",
+    role: "user",
+    content: "Send the message.",
+  },
+  {
+    id: "assistant-approval-tool",
+    role: "assistant",
+    content: [
+      {
+        type: "tool-call",
+        toolCallId: "mail-approval",
+        toolName: "mail.send",
+        args: { to: "person@example.test", body: "Hello" },
+        argsText:
+          '{"to":"person@example.test","body":"Hello"}',
+        approval: {
+          id: "mail-approval",
+          options: [
+            {
+              id: "approve",
+              kind: "allow-once",
+              label: "Allow once",
+            },
+            {
+              id: "reject",
+              kind: "reject-once",
+              label: "Deny",
+            },
+          ],
+        },
+      },
+    ],
+    status: { type: "requires-action", reason: "tool-calls" },
+  },
+];
+
+const completedApprovalToolMessages: ThreadMessageLike[] = [
+  approvalToolMessages[0]!,
+  {
+    id: "assistant-approval-tool",
+    role: "assistant",
+    content: [
+      {
+        type: "tool-call",
+        toolCallId: "mail-approval",
+        toolName: "mail.send",
+        args: { to: "person@example.test", body: "Hello" },
+        argsText:
+          '{"to":"person@example.test","body":"Hello"}',
+        result: { status: "completed" },
+      },
+    ],
+    status: { type: "complete", reason: "stop" },
+  },
+];
+
+const failedToolMessages: ThreadMessageLike[] = [
+  {
+    id: "user-failed-tool",
+    role: "user",
+    content: "Search Python.org.",
+  },
+  {
+    id: "assistant-failed-tool",
+    role: "assistant",
+    content: [
+      {
+        type: "tool-call",
+        toolCallId: "search-failed",
+        toolName: "web.search_text",
+        args: { query: "site:python.org latest Python release" },
+        argsText:
+          '{"query":"site:python.org latest Python release"}',
+        result: { status: "failed", error: "Search unavailable." },
+        isError: true,
+      },
+    ],
+    status: { type: "complete", reason: "stop" },
+  },
+];
+
 function RunningThread() {
   const runtime = useExternalStoreRuntime({
     messages,
@@ -135,11 +247,17 @@ function RunningHandoffThread() {
   );
 }
 
-function CompletedToolThread() {
+function ToolThread({
+  messages,
+  isRunning = false,
+}: {
+  messages: ThreadMessageLike[];
+  isRunning?: boolean;
+}) {
   const runtime = useExternalStoreRuntime({
-    messages: toolMessages,
+    messages,
     convertMessage: (message) => message,
-    isRunning: false,
+    isRunning,
     onNew: async () => undefined,
   });
 
@@ -264,13 +382,71 @@ describe("Thread progress", () => {
   });
 
   it("names compacted tool calls without opening the group", () => {
-    render(<CompletedToolThread />);
+    render(<ToolThread messages={toolMessages} />);
 
     const trigger = screen.getByRole("button", {
-      name: "web.search_text then web.extract_content, 2 tool calls",
+      name:
+        "web.search_text then web.extract_content, 2 tool calls, completed",
     });
     expect(trigger).toHaveTextContent(
       "web.search_text → web.extract_content",
     );
+    expect(trigger).toHaveTextContent("Done");
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("shows the active tool and running state in the collapsed summary", () => {
+    render(<ToolThread messages={runningToolMessages} isRunning />);
+
+    const trigger = screen.getByRole("button", {
+      name: "web.search_text, 1 tool call, running",
+    });
+    expect(trigger).toHaveTextContent("web.search_text");
+    expect(trigger).toHaveTextContent("Running");
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("opens approval-required tool groups and labels the review state", () => {
+    render(<ToolThread messages={approvalToolMessages} isRunning />);
+
+    const trigger = screen.getByRole("button", {
+      name: "mail.send, 1 tool call, review required",
+    });
+    expect(trigger).toHaveTextContent("Review");
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByText("Allow once")).toBeVisible();
+  });
+
+  it("collapses the tool group after an approval-required turn resolves", async () => {
+    const view = render(
+      <ToolThread messages={approvalToolMessages} isRunning />,
+    );
+    expect(
+      screen.getByRole("button", {
+        name: "mail.send, 1 tool call, review required",
+      }),
+    ).toHaveAttribute("aria-expanded", "true");
+
+    view.rerender(
+      <ToolThread messages={completedApprovalToolMessages} />,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", {
+          name: "mail.send, 1 tool call, completed",
+        }),
+      ).toHaveAttribute("aria-expanded", "false");
+    });
+  });
+
+  it("shows a failed state on a collapsed tool group", () => {
+    render(<ToolThread messages={failedToolMessages} />);
+
+    const trigger = screen.getByRole("button", {
+      name: "web.search_text, 1 tool call, failed",
+    });
+    expect(trigger).toHaveTextContent("Failed");
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
   });
 });

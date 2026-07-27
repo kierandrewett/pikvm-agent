@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import argparse
 import json
 
+import pytest
 import yaml
 
 from pikvm_agent.harness.lab import (
+    LabChildStartupError,
     PRODUCTION_DAEMON_PORT,
     LabPorts,
     RunningLab,
@@ -14,6 +17,7 @@ from pikvm_agent.harness.lab import (
     isolated_benchmark_policy,
     write_lab_assets,
 )
+from pikvm_agent.harness.service import _nonempty_endpoint
 from pikvm_agent.policy.direct import classify_direct_burst
 
 
@@ -203,6 +207,39 @@ def test_visible_lab_refuses_missing_tokens_before_contacting_target(
     assert contacted is False
 
 
+def test_lab_refuses_empty_runtime_target_before_starting_child(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    contacted = False
+
+    def refuse_popen(*_args, **_kwargs):
+        nonlocal contacted
+        contacted = True
+        raise AssertionError("empty target must fail before child startup")
+
+    monkeypatch.setattr("pikvm_agent.harness.lab.subprocess.Popen", refuse_popen)
+    lab = RunningLab(
+        endpoint=" \t",
+        root=tmp_path,
+        ports=LabPorts(adapter=48175, daemon=48176, harness=48177),
+        executable="/opt/pikvm-agent/bin/pikvm-agent",
+        keymap="en-us",
+    )
+
+    with pytest.raises(ValueError, match="target endpoint must not be empty"):
+        lab.start()
+    assert contacted is False
+
+
+def test_adapter_cli_rejects_empty_runtime_target() -> None:
+    with pytest.raises(
+        argparse.ArgumentTypeError,
+        match="target endpoint must not be empty",
+    ):
+        _nonempty_endpoint(" \t")
+
+
 def test_visible_lab_supervises_adapter_daemon_and_managed_harness(
     tmp_path,
     monkeypatch,
@@ -270,6 +307,110 @@ def test_visible_lab_supervises_adapter_daemon_and_managed_harness(
         assert lab.harness_url == "http://127.0.0.1:48182"
     finally:
         lab.close()
+
+
+def test_quiet_lab_surfaces_redacted_child_startup_failure(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    endpoint = "runtime-only.invalid:5900"
+    password = "vnc-password-do-not-report"
+    username = "vnc-user-do-not-report"
+    lab = RunningLab(
+        endpoint=endpoint,
+        root=tmp_path,
+        ports=LabPorts(adapter=48190, daemon=48191, harness=48192),
+        executable="/opt/pikvm-agent/bin/pikvm-agent",
+        keymap="en-us",
+        password=password,
+        username=username,
+        quiet=True,
+    )
+    lab.assets = write_lab_assets(
+        tmp_path,
+        ports=lab.ports,
+        executable=lab.executable,
+    )
+    stderr = lab.assets.log_dir / "adapter.stderr.log"
+    stderr.write_text(
+        "target runtime-only.invalid:5900 refused for "
+        "vnc-user-do-not-report:vnc-password-do-not-report\n"
+        "VNC target is already controlled by another local lab\n"
+    )
+    monkeypatch.setattr(
+        "pikvm_agent.harness.lab._wait_ready",
+        lambda *_args: (_ for _ in ()).throw(
+            RuntimeError("lab child exited early with code 1")
+        ),
+    )
+
+    with pytest.raises(RuntimeError) as caught:
+        lab._wait_for_child(
+            "adapter",
+            "http://127.0.0.1:48190/api/info",
+            object(),
+            20,
+        )
+
+    message = str(caught.value)
+    assert isinstance(caught.value, LabChildStartupError)
+    assert "VNC target is already controlled by another local lab" in message
+    assert endpoint not in message
+    assert password not in message
+    assert username not in message
+    assert "Traceback" not in message
+    assert caught.value.debug_detail == (
+        "VNC target is already controlled by another local lab"
+    )
+
+
+def test_quiet_lab_redacts_runtime_inputs_from_unknown_child_failure(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    endpoint = "runtime-only.invalid:5900"
+    password = "vnc-password-do-not-report"
+    username = "vnc-user-do-not-report"
+    lab = RunningLab(
+        endpoint=endpoint,
+        root=tmp_path,
+        ports=LabPorts(adapter=48193, daemon=48194, harness=48195),
+        executable="/opt/pikvm-agent/bin/pikvm-agent",
+        keymap="en-us",
+        password=password,
+        username=username,
+        quiet=True,
+    )
+    lab.assets = write_lab_assets(
+        tmp_path,
+        ports=lab.ports,
+        executable=lab.executable,
+    )
+    (lab.assets.log_dir / "adapter.stderr.log").write_text(
+        f"could not connect to {endpoint} as {username} with {password}\n"
+    )
+    monkeypatch.setattr(
+        "pikvm_agent.harness.lab._wait_ready",
+        lambda *_args: (_ for _ in ()).throw(
+            RuntimeError("lab child exited early with code 1")
+        ),
+    )
+
+    with pytest.raises(RuntimeError) as caught:
+        lab._wait_for_child(
+            "adapter",
+            "http://127.0.0.1:48193/api/info",
+            object(),
+            20,
+        )
+
+    message = str(caught.value)
+    assert isinstance(caught.value, LabChildStartupError)
+    assert endpoint not in message
+    assert password not in message
+    assert username not in message
+    assert "diagnostics retained in the private report" in message
+    assert caught.value.debug_detail.count("[redacted]") == 3
 
 
 def test_isolated_benchmark_policy_allows_routine_navigation_but_not_danger() -> None:

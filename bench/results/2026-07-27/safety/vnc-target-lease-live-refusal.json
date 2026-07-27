@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-07-27T19:13:23Z",
+  "source_commit_before_change": "610ddf2fea1bfaa3114e1572d0bae7d961fdac58",
+  "suite": "vnc-target-lease-live-refusal",
+  "scope": {
+    "target_class": "authorized disposable VNC VM",
+    "runtime_endpoint_persisted": false,
+    "production_pikvm_contacted": false,
+    "production_windows_contacted": false
+  },
+  "live_gate": {
+    "status": "refused_before_rfb",
+    "error_code": "target_already_leased",
+    "child_exit_code": 3,
+    "target_lease_checked_before_rfb": true,
+    "second_vnc_connection_opened": false,
+    "target_input_sent": false,
+    "wall_ms": 1550,
+    "console_traceback_emitted": false,
+    "debug_trace_retained_in_private_report": true,
+    "report_mode_octal": "0600",
+    "report_contains_runtime_endpoint": false
+  },
+  "startup_diagnostics": {
+    "known_lease_failure_collapsed_to_concise_cause": true,
+    "unknown_child_stderr_bounded_characters": 2000,
+    "runtime_endpoint_redacted": true,
+    "runtime_username_redacted": true,
+    "runtime_password_redacted": true,
+    "empty_runtime_target_refused_before_child_start": true,
+    "adapter_cli_empty_target_refused_by_parser": true
+  },
+  "validation": {
+    "focused_python": {
+      "passed": 40,
+      "failed": 0,
+      "wall_seconds": 1.26
+    },
+    "full_python": {
+      "passed": 1199,
+      "skipped": 1,
+      "failed": 0,
+      "warnings": 4,
+      "wall_seconds": 117.15
+    },
+    "diff_check": "passed"
+  },
+  "result": "A deliberately competing adapter was refused by the process-independent target lease before RFB. The benchmark showed the actionable cause without a terminal traceback, retained the full debug trace in a mode-0600 report, and omitted the runtime endpoint.",
+  "remaining_gate": "Run the observer identity and exact typing matrix after the existing disposable-target owner releases its lease."
+}
