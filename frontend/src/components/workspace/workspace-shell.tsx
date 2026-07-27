@@ -235,6 +235,7 @@ export function WorkspaceShell() {
             <ComputerToolEnvironmentProvider value={computerEnvironment}>
               <div className="min-h-0 flex-1">
                 <Thread
+                  readOnly={!managedControl}
                   components={{
                     ComposerToolbar,
                     ToolFallback: ComputerToolCall,

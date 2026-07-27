@@ -161,6 +161,7 @@ def test_default_surface_is_chat_with_contextual_computer_and_diagnostics() -> N
     assert "<ComputerSheet" in shell
     assert "<ProviderConnectionsSheet" in shell
     assert "<DiagnosticsSheet" in shell
+    assert "readOnly={!managedControl}" in shell
     assert "open={computerOpen}" in shell
     assert "open={diagnosticsOpen}" in shell
     assert "workspace-rail" in shell
