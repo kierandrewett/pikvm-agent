@@ -165,6 +165,179 @@ async def test_direct_mcp_call_is_visible_before_hid_and_keeps_its_result(
     assert visible["observation"]["frame_id"] == 7
     assert visible["events"][-1]["kind"] == "action.completed"
     assert visible["events"][-1]["data"]["latency_ms"] == 412
+    assert visible["events"][-1]["data"]["effect_state"] == "not_applicable"
+    assert visible["events"][-1]["data"]["caller"]["model"] == "opus-4.8"
+
+
+@pytest.mark.asyncio
+async def test_direct_watched_typing_exposes_exact_readback_and_caller() -> None:
+    store = InMemoryRunStore()
+    direct_calls = DirectCallCoordinator(
+        store=store,
+        computer=RecordingComputer(),  # type: ignore[arg-type]
+    )
+    started = await direct_calls.begin(
+        DirectCallBegin(
+            call_id="typed-exactly",
+            tool="pikvm_type_text",
+            arguments={
+                "session_id": "session-typing",
+                "text": "quarterly earnings",
+                "secret": False,
+            },
+            caller={
+                "name": "claude-code",
+                "provider": "anthropic-oauth",
+                "model": "opus-4.8",
+            },
+        )
+    )
+
+    run = await direct_calls.finish(
+        DirectCallFinish(
+            call_id="typed-exactly",
+            run_id=started.run_id,
+            status="completed",
+            latency_ms=221,
+            result={
+                "session_id": "session-typing",
+                "status": "completed",
+                "action_receipts": [
+                    {
+                        "index": 0,
+                        "type": "type_text",
+                        "status": "verified_exact",
+                        "verdict": "match",
+                        "focus_evidence": "read_back_verified",
+                        "observed_text": "quarterly earnings",
+                        "observed_text_redacted": False,
+                        "typed_characters": 18,
+                        "intended_characters": 18,
+                        "intended_sha256": "a" * 64,
+                        "acknowledged_prefix_sha256": "a" * 64,
+                        "observed_sha256": "a" * 64,
+                        "exact_sha256_match": True,
+                    }
+                ],
+            },
+        )
+    )
+
+    outcome = run.events[-1]
+    assert outcome.kind == "action.completed"
+    assert outcome.data["effect_state"] == "verified"
+    assert outcome.data["caller"]["name"] == "claude-code"
+    assert outcome.data["input_receipts"] == [
+        {
+            "index": 0,
+            "type": "type_text",
+            "status": "verified_exact",
+            "verdict": "match",
+            "focus_evidence": "read_back_verified",
+            "typed_characters": 18,
+            "intended_characters": 18,
+            "intended_sha256": "a" * 64,
+            "acknowledged_prefix_sha256": "a" * 64,
+            "observed_sha256": "a" * 64,
+            "exact_sha256_match": True,
+            "observed_text_redacted": False,
+            "observed_text": "quarterly earnings",
+        }
+    ]
+
+
+@pytest.mark.asyncio
+async def test_direct_click_is_completed_but_never_claimed_verified() -> None:
+    store = InMemoryRunStore()
+    direct_calls = DirectCallCoordinator(
+        store=store,
+        computer=RecordingComputer(),  # type: ignore[arg-type]
+    )
+    started = await direct_calls.begin(
+        DirectCallBegin(
+            call_id="click-unverified",
+            tool="pikvm_click",
+            arguments={
+                "session_id": "session-click",
+                "x": 420,
+                "y": 240,
+            },
+        )
+    )
+
+    run = await direct_calls.finish(
+        DirectCallFinish(
+            call_id="click-unverified",
+            run_id=started.run_id,
+            status="completed",
+            result={
+                "session_id": "session-click",
+                "status": "completed",
+                "frame_id": 2,
+            },
+        )
+    )
+
+    assert run.events[-1].kind == "action.completed_unverified"
+    assert run.events[-1].data["effect_state"] == "unverified"
+
+
+@pytest.mark.asyncio
+async def test_direct_secret_typing_never_retains_or_claims_readback() -> None:
+    store = InMemoryRunStore()
+    direct_calls = DirectCallCoordinator(
+        store=store,
+        computer=RecordingComputer(),  # type: ignore[arg-type]
+    )
+    started = await direct_calls.begin(
+        DirectCallBegin(
+            call_id="typed-secret",
+            tool="pikvm_type_text",
+            arguments={
+                "session_id": "session-secret",
+                "text": "do-not-retain",
+                "secret": True,
+            },
+        )
+    )
+
+    run = await direct_calls.finish(
+        DirectCallFinish(
+            call_id="typed-secret",
+            run_id=started.run_id,
+            status="completed",
+            result={
+                "session_id": "session-secret",
+                "status": "completed",
+                "action_receipts": [
+                    {
+                        "index": 0,
+                        "type": "type_text",
+                        "status": "verified_exact",
+                        "verdict": "match",
+                        "focus_evidence": "read_back_verified",
+                        "observed_text": "do-not-retain",
+                        "observed_text_redacted": False,
+                        "typed_characters": 13,
+                        "intended_characters": 13,
+                        "intended_sha256": "a" * 64,
+                        "acknowledged_prefix_sha256": "a" * 64,
+                        "observed_sha256": "a" * 64,
+                        "exact_sha256_match": True,
+                    }
+                ],
+            },
+        )
+    )
+
+    outcome = run.events[-1]
+    assert outcome.kind == "action.completed_unverified"
+    assert outcome.data["effect_state"] == "unverified"
+    receipt = outcome.data["input_receipts"][0]
+    assert receipt["status"] == "delivered_unverified"
+    assert receipt["observed_text_redacted"] is True
+    assert "observed_text" not in receipt
+    assert "intended_sha256" not in receipt
 
 
 @pytest.mark.asyncio
@@ -534,6 +707,15 @@ async def test_direct_model_cannot_approve_its_own_consequential_action(
     assert operator_approval.status_code == 200
     assert operator_approval.json()["status"] == "running"
     assert operator_approval.json()["pending_approval"] is None
+    resolved = await store.get_control(opened["run_id"])
+    approved_outcomes = [
+        event
+        for event in resolved.events
+        if event.kind == "action.completed_unverified"
+    ]
+    assert len(approved_outcomes) == 1
+    assert approved_outcomes[0].data["call_id"] == "send"
+    assert approved_outcomes[0].data["effect_state"] == "unverified"
     assert computer.calls == [
         (
             "approval",

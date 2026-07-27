@@ -740,6 +740,33 @@ describe("ComputerActionReceipt", () => {
     expect(receipt.textContent).not.toContain("Frame 89 · verified");
   });
 
+  it("shows the exact outer caller for a direct MCP action", () => {
+    render(
+      <ComputerActionReceipt
+        args={{
+          __receipt: {
+            caller: {
+              name: "claude-code",
+              provider: "anthropic-oauth",
+              model: "opus-4.8",
+            },
+          },
+        }}
+        result={{ status: "unverified" }}
+        status={{ type: "complete" }}
+        environment={{ machineName: "Office lab" }}
+        actionCount={1}
+        characterCount={0}
+      />,
+    );
+
+    const receipt = screen.getByLabelText("Computer action receipt");
+    expect(receipt.textContent).toContain("Caller");
+    expect(receipt.textContent).toContain(
+      "claude-code · opus-4.8 via anthropic-oauth",
+    );
+  });
+
   it("shows the model handoff and authenticated before-after evidence", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(new Blob(["image"], { type: "image/png" }), {

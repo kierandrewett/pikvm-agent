@@ -29,6 +29,7 @@ from pikvm_agent.harness.agent_models import (
     VerificationImageArtifact,
 )
 from pikvm_agent.harness.agent_store import RunStore
+from pikvm_agent.harness.input_receipts import public_input_receipts
 from pikvm_agent.harness.model_budget import (
     DurableRunModelBudget,
     ModelBudgetExceeded,
@@ -134,7 +135,17 @@ ambiguity, unexpected focus, stale frames, missing characters,
 transition/hover styling, or an unexplained UI change. Never infer success from
 the controller's claim and never call a state-changing toggle failed merely
 because its colour has not settled when its geometry visibly changed to the
-intended state."""
+intended state.
+
+The summary is user-facing chat copy, not a verification log. For complete,
+answer the user's request directly in one to three short sentences by default.
+For verified, uncertain, or failed, state the current outcome in one concise
+sentence. Put frame IDs, control epochs, before/after mechanics, criterion
+accounting, pixel comparisons, and exhaustive evidence in evidence and criteria,
+never in summary unless the user explicitly asked for those diagnostics. Do not
+say "the verifier", "the comparison image", "success criteria", or "the pixels"
+in summary. Detailed writing explicitly requested by the user belongs in the
+target artifact; summary should still describe the result concisely."""
 
 
 class AgentHarness:
@@ -1943,124 +1954,7 @@ class AgentHarness:
         raw: dict[str, Any],
         actions: list[dict[str, Any]],
     ) -> list[dict[str, Any]]:
-        """Copy bounded watched-typing evidence across the public event boundary."""
-
-        candidates = raw.get("action_receipts")
-        if not isinstance(candidates, list):
-            return []
-        output: list[dict[str, Any]] = []
-        seen: set[int] = set()
-        allowed_strings = {
-            "status": {
-                "verified_exact",
-                "verified_safe_normalized",
-                "verified_with_warnings",
-                "unverified_ambiguous",
-                "unverified_wrong_region",
-                "unverified_truncated",
-                "failed_symbol_mismatch",
-                "failed_case_mismatch",
-                "failed_keyboard_layout",
-                "failed_focus_lost",
-                "failed_stale_frame",
-                "blocked_by_policy",
-                "needs_human",
-                "delivered_unverified",
-            },
-            "verdict": {"match", "contains", "mismatch", "unverified"},
-            "focus_evidence": {
-                "focus_lost",
-                "read_back_verified",
-                "read_back_unverified",
-                "read_back_mismatch",
-                "read_back_not_retained",
-                "read_back_unavailable",
-            },
-        }
-        integer_limits = {
-            "typed_characters": 480,
-            "intended_characters": 480,
-            "correction_count": 20,
-            "delivery_retries": 20,
-            "edit_distance": 960,
-        }
-        for candidate in candidates[:20]:
-            if not isinstance(candidate, dict):
-                continue
-            index = candidate.get("index")
-            if (
-                not isinstance(index, int)
-                or isinstance(index, bool)
-                or index < 0
-                or index >= len(actions)
-                or index in seen
-            ):
-                continue
-            action = actions[index]
-            if action.get("type") != "type_text":
-                continue
-            seen.add(index)
-            secret = action.get("secret") is True
-            redacted = secret or candidate.get("observed_text_redacted") is True
-            receipt: dict[str, Any] = {
-                "index": index,
-                "type": "type_text",
-            }
-            for key, allowed in allowed_strings.items():
-                value = candidate.get(key)
-                if isinstance(value, str) and value in allowed:
-                    receipt[key] = value
-            for key, limit in integer_limits.items():
-                value = candidate.get(key)
-                if (
-                    isinstance(value, int)
-                    and not isinstance(value, bool)
-                    and 0 <= value <= limit
-                ):
-                    receipt[key] = value
-            for key in ("used_fast_path",):
-                value = candidate.get(key)
-                if isinstance(value, bool):
-                    receipt[key] = value
-            for key in (
-                "intended_sha256",
-                "acknowledged_prefix_sha256",
-                "observed_sha256",
-            ):
-                value = candidate.get(key)
-                if (
-                    isinstance(value, str)
-                    and re.fullmatch(r"[0-9a-f]{64}", value)
-                ):
-                    receipt[key] = value
-            exact_sha256_match = candidate.get("exact_sha256_match")
-            if isinstance(exact_sha256_match, bool):
-                receipt["exact_sha256_match"] = exact_sha256_match
-            receipt["observed_text_redacted"] = redacted
-            if redacted:
-                for key in (
-                    "intended_sha256",
-                    "acknowledged_prefix_sha256",
-                    "observed_sha256",
-                    "exact_sha256_match",
-                ):
-                    receipt.pop(key, None)
-                receipt.update(
-                    {
-                        "status": "delivered_unverified",
-                        "verdict": "unverified",
-                        "focus_evidence": "read_back_not_retained",
-                    }
-                )
-            else:
-                observed_text = candidate.get("observed_text")
-                if isinstance(observed_text, str) and len(observed_text) <= 960:
-                    receipt["observed_text"] = observed_text
-                summary = candidate.get("summary")
-                if isinstance(summary, str) and 0 < len(summary) <= 320:
-                    receipt["summary"] = summary
-            output.append(receipt)
-        return output
+        return public_input_receipts(raw, actions)
 
     @staticmethod
     def _recoverable_failure(

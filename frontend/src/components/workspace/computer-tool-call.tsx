@@ -99,6 +99,7 @@ type ReceiptContext = {
   evidenceAfterFrame?: number;
   controller?: ModelReceipt;
   verifier?: ModelReceipt;
+  caller?: CallerReceipt;
   inputReceipts: InputReceipt[];
 };
 
@@ -106,6 +107,12 @@ type ModelReceipt = {
   provider: string;
   model: string;
   latencyMs?: number;
+};
+
+type CallerReceipt = {
+  identity: string;
+  provider: string;
+  model: string;
 };
 
 export type InputReceipt = {
@@ -168,6 +175,19 @@ const modelReceipt = (value: unknown): ModelReceipt | undefined => {
   };
 };
 
+const callerReceipt = (value: unknown): CallerReceipt | undefined => {
+  const item = record(value);
+  const identity = text(item.label) || text(item.name);
+  const provider = text(item.provider);
+  const model = text(item.model);
+  if (!identity && !provider && !model) return undefined;
+  return {
+    identity: identity || "External MCP client",
+    provider,
+    model,
+  };
+};
+
 const receiptContext = (args: JsonRecord): ReceiptContext => {
   const receipt = record(args.__receipt);
   return {
@@ -184,6 +204,7 @@ const receiptContext = (args: JsonRecord): ReceiptContext => {
     evidenceAfterFrame: number(receipt.evidence_after_frame_id),
     controller: modelReceipt(receipt.controller),
     verifier: modelReceipt(receipt.verifier),
+    caller: callerReceipt(receipt.caller),
     inputReceipts: Array.isArray(receipt.input_receipts)
       ? receipt.input_receipts.map(inputReceipt)
       : [],
@@ -820,6 +841,16 @@ const modelAuditSummary = (receipt: ReceiptContext) => {
   return [route, latency].filter(Boolean).join(" · ");
 };
 
+const callerAuditSummary = (caller?: CallerReceipt) => {
+  if (!caller) return "";
+  const route = caller.model
+    ? `${caller.model}${caller.provider ? ` via ${caller.provider}` : ""}`
+    : caller.provider
+      ? `model not reported · ${caller.provider}`
+      : "model not reported";
+  return `${caller.identity} · ${route}`;
+};
+
 function useHarnessImage(
   environment: ComputerToolEnvironment,
   path: string,
@@ -1097,6 +1128,7 @@ export function ComputerActionReceipt({
     .filter(Boolean)
     .join(" · ");
   const models = modelAuditSummary(receipt);
+  const caller = callerAuditSummary(receipt.caller);
   const outcome =
     verificationSummary && (!verified || !receipt.intent)
       ? verificationSummary
@@ -1120,6 +1152,7 @@ export function ComputerActionReceipt({
         {goal ? <AuditRow label="Goal" value={goal} /> : null}
         <AuditRow label="Input" value={input} />
         <AuditRow label="Trace" value={trace} />
+        {caller ? <AuditRow label="Caller" value={caller} /> : null}
         {models ? <AuditRow label="Models" value={models} /> : null}
         {outcome ? <AuditRow label="Result" value={outcome} /> : null}
       </dl>

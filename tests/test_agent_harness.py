@@ -2250,3 +2250,14 @@ def test_verification_schema_requires_per_criterion_assessments() -> None:
     schema = VerificationDecision.model_json_schema()
 
     assert "criteria" in schema["properties"]
+    assert schema["properties"]["summary"]["maxLength"] == 1_200
+
+
+def test_verification_summary_is_bounded_for_user_facing_chat() -> None:
+    with pytest.raises(ValidationError):
+        VerificationDecision(
+            verdict="complete",
+            summary="x" * 1_201,
+            evidence=[],
+            criteria=[],
+        )

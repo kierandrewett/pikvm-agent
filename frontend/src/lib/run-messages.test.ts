@@ -385,6 +385,121 @@ describe("messagesForRun", () => {
     });
   });
 
+  it("shows exact direct typing as verified with its per-action caller", () => {
+    const snapshot = run({
+      origin: "direct_mcp",
+      events: [
+        {
+          sequence: 1,
+          at: "2026-07-27T12:00:00Z",
+          kind: "action.attempted",
+          data: {
+            call_id: "direct-type",
+            tool: "pikvm_type_text",
+            arguments: { text: "quarterly earnings" },
+            caller: {
+              name: "claude-code",
+              provider: "anthropic-oauth",
+              model: "opus-4.8",
+            },
+          },
+        },
+        {
+          sequence: 2,
+          at: "2026-07-27T12:00:01Z",
+          kind: "action.completed",
+          data: {
+            call_id: "direct-type",
+            effect_state: "verified",
+            caller: {
+              name: "claude-code",
+              provider: "anthropic-oauth",
+              model: "opus-4.8",
+            },
+            input_receipts: [
+              {
+                index: 0,
+                type: "type_text",
+                status: "verified_exact",
+                verdict: "match",
+                exact_sha256_match: true,
+              },
+            ],
+          },
+        },
+      ],
+    });
+    const assistant = messagesForRun(snapshot).at(-1);
+    const tool = Array.isArray(assistant?.content)
+      ? assistant.content.find((part) => part.type === "tool-call")
+      : undefined;
+
+    expect(tool).toMatchObject({
+      args: {
+        __receipt: {
+          caller: {
+            name: "claude-code",
+            provider: "anthropic-oauth",
+            model: "opus-4.8",
+          },
+          input_receipts: [
+            {
+              status: "verified_exact",
+              exact_sha256_match: true,
+            },
+          ],
+        },
+      },
+      result: {
+        status: "completed",
+        verification: {
+          verdict: "verified",
+          summary: "Exact target read-back matched.",
+        },
+      },
+    });
+  });
+
+  it("does not mark direct observation calls as unverified input", () => {
+    const snapshot = run({
+      origin: "direct_mcp",
+      events: [
+        {
+          sequence: 1,
+          at: "2026-07-27T12:00:00Z",
+          kind: "action.attempted",
+          data: {
+            call_id: "direct-screen",
+            tool: "pikvm_screenshot",
+            arguments: { session_id: "session-1" },
+          },
+        },
+        {
+          sequence: 2,
+          at: "2026-07-27T12:00:01Z",
+          kind: "action.completed",
+          data: {
+            call_id: "direct-screen",
+            effect_state: "not_applicable",
+            frame_id: 22,
+          },
+        },
+      ],
+    });
+    const assistant = messagesForRun(snapshot).at(-1);
+    const tool = Array.isArray(assistant?.content)
+      ? assistant.content.find((part) => part.type === "tool-call")
+      : undefined;
+
+    expect(tool).toMatchObject({
+      result: {
+        status: "completed",
+        frame_id: 22,
+        verification: undefined,
+      },
+    });
+  });
+
   it("exposes a pending dangerous action as inline approval choices", () => {
     const pending = run({
       status: "needs_approval",

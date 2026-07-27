@@ -19,6 +19,7 @@ const eventIdentity = (event: HarnessEvent) =>
   String(safeNumber(event.data.index) ?? event.sequence);
 
 const SAFE_REFUSAL_OUTCOMES = new Set([
+  "action.refused_by_policy",
   "action.refused_by_operator",
   "action.refused_stale",
   "action.stale_world_refreshed",
@@ -163,6 +164,60 @@ const modelReceipt = (event: HarnessEvent | undefined) =>
         latency_ms: safeNumber(event.data.latency_ms),
       }
     : undefined;
+
+const callerReceipt = (value: unknown) => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return undefined;
+  }
+  const caller = value as Record<string, unknown>;
+  const receipt = {
+    label: safeString(caller.label),
+    name: safeString(caller.name),
+    version: safeString(caller.version),
+    provider: safeString(caller.provider),
+    model: safeString(caller.model),
+  };
+  return Object.values(receipt).some(Boolean) ? receipt : undefined;
+};
+
+const displayActionsForTool = (
+  tool: string,
+  arguments_: Record<string, unknown>,
+) => {
+  if (Array.isArray(arguments_.actions)) return arguments_.actions;
+  if (tool === "pikvm_type_text") {
+    return [
+      {
+        type: "type_text",
+        text: arguments_.text,
+        secret: arguments_.secret === true,
+      },
+    ];
+  }
+  if (tool === "pikvm_click") {
+    return [
+      {
+        type: "click",
+        x: arguments_.x,
+        y: arguments_.y,
+        button: arguments_.button,
+      },
+    ];
+  }
+  if (tool === "pikvm_key") {
+    return [{ type: "key", keys: arguments_.keys }];
+  }
+  if (tool === "pikvm_scroll") {
+    return [
+      {
+        type: "scroll",
+        direction: arguments_.direction,
+        amount: arguments_.amount,
+      },
+    ];
+  }
+  return undefined;
+};
 
 const inputReceipts = (value: unknown) =>
   (Array.isArray(value) ? value : [])
@@ -320,6 +375,16 @@ const toolParts = (run: RunSnapshot) => {
       .filter(Boolean)
       .join(": ");
     const failed = outcome ? FAILED_OUTCOMES.has(outcome.kind) : false;
+    const effectState = safeString(outcome?.data.effect_state);
+    const directEffectVerified =
+      run.origin === "direct_mcp" && effectState === "verified";
+    const directEffectNotApplicable =
+      run.origin === "direct_mcp" && effectState === "not_applicable";
+    const directLegacyUnverified =
+      run.origin === "direct_mcp" &&
+      !verification &&
+      !directEffectVerified &&
+      !directEffectNotApplicable;
     const result =
       outcome == null
         ? undefined
@@ -335,7 +400,8 @@ const toolParts = (run: RunSnapshot) => {
               status: SAFE_REFUSAL_OUTCOMES.has(outcome.kind)
                 ? "refused"
                 : outcome.kind === "action.completed_unverified" ||
-                    (run.origin === "direct_mcp" && !verification)
+                    effectState === "unverified" ||
+                    directLegacyUnverified
                   ? "unverified"
                   : "completed",
               reason: outcomeReason(outcome) || undefined,
@@ -354,7 +420,16 @@ const toolParts = (run: RunSnapshot) => {
                     model: safeString(verification.data.model),
                     latency_ms: safeNumber(verification.data.latency_ms),
                   }
-                : undefined,
+                : directEffectVerified
+                  ? {
+                      verdict: "verified",
+                      summary: "Exact target read-back matched.",
+                      observed_at: outcome.at,
+                      provider: "",
+                      model: "",
+                      latency_ms: undefined,
+                    }
+                  : undefined,
             };
     const exactArgs: Record<string, unknown> =
       attempt.data.arguments &&
@@ -362,8 +437,11 @@ const toolParts = (run: RunSnapshot) => {
       !Array.isArray(attempt.data.arguments)
         ? (attempt.data.arguments as Record<string, unknown>)
         : {};
+    const toolName = safeString(attempt.data.tool) || "MCP tool";
+    const displayActions = displayActionsForTool(toolName, exactArgs);
     const args = {
       ...exactArgs,
+      ...(displayActions ? { actions: displayActions } : {}),
       __receipt: {
         intent: safeString(checkpoint?.data.intent),
         expected_evidence: Array.isArray(checkpoint?.data.expected_evidence)
@@ -380,13 +458,16 @@ const toolParts = (run: RunSnapshot) => {
         evidence_after_frame_id: safeNumber(evidence?.data.after_frame_id),
         controller: modelReceipt(controller),
         verifier: modelReceipt(verification),
+        caller: callerReceipt(
+          outcome?.data.caller ?? attempt.data.caller,
+        ),
         input_receipts: inputReceipts(outcome?.data.input_receipts),
       },
     };
     return {
       type: "tool-call" as const,
       toolCallId: `${run.run_id}:${eventIdentity(attempt)}`,
-      toolName: safeString(attempt.data.tool) || "MCP tool",
+      toolName,
       args: args as never,
       argsText: JSON.stringify(exactArgs, null, 2),
       result,

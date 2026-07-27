@@ -23,6 +23,7 @@ from pikvm_agent.harness.agent_models import (
     VerificationImageArtifact,
 )
 from pikvm_agent.harness.agent_store import RunStore
+from pikvm_agent.harness.input_receipts import public_input_receipts
 from pikvm_agent.harness.redaction import redact_secrets
 
 
@@ -84,6 +85,22 @@ class DirectCallCoordinator:
         "pikvm_resolve_approval",
         "pikvm_autonomous_approve",
     }
+    _NO_EFFECT_VERIFICATION_TOOLS = {
+        "pikvm_open",
+        "pikvm_screenshot",
+        "pikvm_parse_screen",
+        "pikvm_ocr_region",
+        "pikvm_find_text",
+        "pikvm_export_memory_update",
+    }
+    _PASSIVE_ACTIONS = {
+        "wait",
+        "wait_for_change",
+        "wait_for_stable_screen",
+    }
+    _FAILURE_STATUSES = {"error", "failed", "interrupted", "stopped"}
+    _STALE_STATUSES = {"control_changed", "stale_world"}
+    _POLICY_REFUSED_STATUSES = {"blocked", "rejected"}
 
     def __init__(self, *, store: RunStore, computer: DirectComputer) -> None:
         self.store = store
@@ -103,7 +120,9 @@ class DirectCallCoordinator:
                     call_id=call.call_id,
                     tool=call.tool,
                     reason=reason,
+                    effect_state="not_applicable",
                     source="direct_mcp",
+                    caller=call.caller.model_dump(mode="json"),
                 )
                 await self.store.save(run)
                 return DirectCallDecision(
@@ -302,6 +321,14 @@ class DirectCallCoordinator:
                     observation.status,
                     tool=str(pending.get("tool") or ""),
                 )
+                self._record_effect_outcome(
+                    run,
+                    call_id=str(pending.get("call_id") or ""),
+                    tool=str(pending.get("tool") or ""),
+                    result=observation.raw,
+                    result_status=observation.status,
+                    observation=observation,
+                )
                 run.record(
                     "approval.approved",
                     approval_id=approval_id,
@@ -312,6 +339,14 @@ class DirectCallCoordinator:
                     RunStatus.REJECTED
                     if decision_type == "reject"
                     else RunStatus.ABORTED
+                )
+                run.record(
+                    "action.refused_by_operator",
+                    call_id=pending.get("call_id"),
+                    tool=pending.get("tool"),
+                    reason=decision.get("reason") or decision_type,
+                    effect_state="not_applicable",
+                    source="operator",
                 )
                 run.record(
                     "approval.not_approved",
@@ -406,7 +441,11 @@ class DirectCallCoordinator:
                     tool=tool,
                     error=run.error,
                     latency_ms=call.latency_ms,
+                    effect_state="failed",
                     source="direct_mcp",
+                    caller=self._attempt_for_call(
+                        run, call.call_id
+                    ).get("caller", {}),
                 )
                 await self.store.save(run)
                 return run
@@ -424,20 +463,16 @@ class DirectCallCoordinator:
                 if isinstance(result.get("approval_request"), dict)
                 else None
             )
-            run.record(
-                "action.completed",
-                call_id=call.call_id,
-                tool=tool,
-                latency_ms=call.latency_ms,
-                status=result_status,
-                frame_id=result.get("frame_id"),
-                world_version=result.get("world_version"),
-                control_epoch=result.get("control_epoch"),
-                image_sha256=result.get("image_sha256"),
-                screen_hash=result.get("screen_hash"),
-                machine=observation.machine,
-                source="direct_mcp",
-            )
+            if result_status != "needs_approval":
+                self._record_effect_outcome(
+                    run,
+                    call_id=call.call_id,
+                    tool=tool,
+                    result=result,
+                    result_status=result_status,
+                    observation=observation,
+                    latency_ms=call.latency_ms,
+                )
             previous_fingerprint = str(
                 previous_machine.get("fingerprint") or ""
             )
@@ -464,6 +499,7 @@ class DirectCallCoordinator:
                 )
             if run.pending_approval:
                 run.pending_approval.setdefault("tool", tool)
+                run.pending_approval.setdefault("call_id", call.call_id)
                 run.record(
                     "approval.required",
                     call_id=call.call_id,
@@ -503,7 +539,9 @@ class DirectCallCoordinator:
     ) -> RunSnapshot:
         run_id = self._session_runs.get(session_id) if session_id else None
         if run_id:
-            return await self.store.get_control(run_id)
+            run = await self.store.get_control(run_id)
+            run.caller = call.caller.model_dump(mode="json")
+            return run
         if session_id:
             for summary in await self.store.list_summaries(limit=500):
                 candidate = await self.store.get_state(summary.run_id)
@@ -512,6 +550,7 @@ class DirectCallCoordinator:
                     and candidate.session_id == session_id
                 ):
                     self._session_runs[session_id] = candidate.run_id
+                    candidate.caller = call.caller.model_dump(mode="json")
                     return candidate
         task = str(call.arguments.get("label") or "Direct MCP computer session")
         run = RunSnapshot(
@@ -633,6 +672,159 @@ class DirectCallCoordinator:
             ):
                 return str(event.data.get("tool") or "")
         return ""
+
+    @staticmethod
+    def _attempt_for_call(
+        run: RunSnapshot, call_id: str
+    ) -> dict[str, Any]:
+        for event in reversed(run.events):
+            if (
+                event.kind == "action.attempted"
+                and event.data.get("call_id") == call_id
+            ):
+                return event.data
+        return {}
+
+    @classmethod
+    def _actions_for_call(
+        cls,
+        tool: str,
+        arguments: dict[str, Any],
+    ) -> list[dict[str, Any]]:
+        if tool == "pikvm_run_burst":
+            actions = arguments.get("actions")
+            if isinstance(actions, list):
+                return [
+                    dict(action)
+                    for action in actions
+                    if isinstance(action, dict)
+                ]
+            return []
+        if tool == "pikvm_type_text":
+            return [
+                {
+                    "type": "type_text",
+                    "secret": arguments.get("secret") is True,
+                }
+            ]
+        if tool == "pikvm_click":
+            return [{"type": "click"}]
+        if tool == "pikvm_key":
+            return [{"type": "key"}]
+        if tool == "pikvm_scroll":
+            return [{"type": "scroll"}]
+        return []
+
+    @classmethod
+    def _exact_input_effect_verified(
+        cls,
+        actions: list[dict[str, Any]],
+        receipts: list[dict[str, Any]],
+    ) -> bool:
+        active = [
+            (index, str(action.get("type") or ""))
+            for index, action in enumerate(actions)
+            if str(action.get("type") or "") not in cls._PASSIVE_ACTIONS
+        ]
+        if not active or any(kind != "type_text" for _, kind in active):
+            return False
+        by_index = {
+            receipt.get("index"): receipt
+            for receipt in receipts
+            if isinstance(receipt.get("index"), int)
+        }
+        for index, _ in active:
+            receipt = by_index.get(index, {})
+            intended_hash = receipt.get("intended_sha256")
+            observed_hash = receipt.get("observed_sha256")
+            if not (
+                receipt.get("status") == "verified_exact"
+                and receipt.get("verdict") == "match"
+                and receipt.get("focus_evidence") == "read_back_verified"
+                and receipt.get("exact_sha256_match") is True
+                and isinstance(intended_hash, str)
+                and intended_hash
+                and intended_hash == observed_hash
+                and receipt.get("typed_characters")
+                == receipt.get("intended_characters")
+            ):
+                return False
+        return True
+
+    @classmethod
+    def _effect_outcome(
+        cls,
+        *,
+        tool: str,
+        result_status: str,
+        actions: list[dict[str, Any]],
+        receipts: list[dict[str, Any]],
+    ) -> tuple[str, str]:
+        if result_status in cls._FAILURE_STATUSES:
+            return "action.failed", "failed"
+        if result_status in cls._STALE_STATUSES:
+            return "action.refused_stale", "not_applicable"
+        if result_status in cls._POLICY_REFUSED_STATUSES:
+            return "action.refused_by_policy", "not_applicable"
+        if tool in cls._NO_EFFECT_VERIFICATION_TOOLS:
+            return "action.completed", "not_applicable"
+        if result_status == "unverified":
+            return "action.completed_unverified", "unverified"
+        if cls._exact_input_effect_verified(actions, receipts):
+            return "action.completed", "verified"
+        return "action.completed_unverified", "unverified"
+
+    def _record_effect_outcome(
+        self,
+        run: RunSnapshot,
+        *,
+        call_id: str,
+        tool: str,
+        result: dict[str, Any],
+        result_status: str,
+        observation: ComputerObservation,
+        latency_ms: int | None = None,
+    ) -> None:
+        attempt = self._attempt_for_call(run, call_id)
+        arguments = (
+            attempt.get("arguments")
+            if isinstance(attempt.get("arguments"), dict)
+            else {}
+        )
+        actions = self._actions_for_call(tool, arguments)
+        receipts = public_input_receipts(result, actions)
+        event_kind, effect_state = self._effect_outcome(
+            tool=tool,
+            result_status=result_status,
+            actions=actions,
+            receipts=receipts,
+        )
+        event_data: dict[str, Any] = {
+            "call_id": call_id,
+            "tool": tool,
+            "latency_ms": latency_ms,
+            "status": result_status,
+            "frame_id": result.get("frame_id"),
+            "world_version": result.get("world_version"),
+            "control_epoch": result.get("control_epoch"),
+            "image_sha256": result.get("image_sha256"),
+            "screen_hash": result.get("screen_hash"),
+            "machine": observation.machine,
+            "effect_state": effect_state,
+            "source": "direct_mcp",
+            "caller": (
+                attempt.get("caller")
+                if isinstance(attempt.get("caller"), dict)
+                else {}
+            ),
+        }
+        if receipts:
+            event_data["input_receipts"] = receipts
+        if event_kind == "action.failed":
+            event_data["error"] = self._safe_error(
+                str(result.get("error") or result_status)
+            )
+        run.record(event_kind, **event_data)
 
     @staticmethod
     def _safe_error(error: str) -> str:
