@@ -4,6 +4,8 @@ import "@testing-library/jest-dom/vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import {
   AssistantRuntimeProvider,
+  ExportedMessageRepository,
+  type ThreadMessage,
   type ThreadMessageLike,
   useExternalStoreRuntime,
 } from "@assistant-ui/react";
@@ -86,6 +88,49 @@ function SwitchingThread({ selected }: { selected: boolean }) {
   );
 }
 
+function BranchingThread() {
+  const repository = ExportedMessageRepository.fromBranchableArray(
+    [
+      {
+        message: {
+          id: "user-1",
+          role: "user",
+          content: "What is on the screen?",
+        },
+        parentId: null,
+      },
+      {
+        message: {
+          id: "assistant-old",
+          role: "assistant",
+          content: "Old transient reply.",
+        },
+        parentId: "user-1",
+      },
+      {
+        message: {
+          id: "assistant-current",
+          role: "assistant",
+          content: "Current reply.",
+        },
+        parentId: "user-1",
+      },
+    ],
+    { headId: "assistant-current" },
+  );
+  const runtime = useExternalStoreRuntime<ThreadMessage>({
+    messageRepository: repository,
+    isRunning: false,
+    onNew: async () => undefined,
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Thread />
+    </AssistantRuntimeProvider>
+  );
+}
+
 describe("Thread progress", () => {
   it("renders model progress even when the assistant has no content yet", () => {
     render(<RunningThread />);
@@ -102,5 +147,14 @@ describe("Thread progress", () => {
     expect(screen.getByRole("status")).toHaveTextContent(
       "Checking the result",
     );
+  });
+
+  it("does not present transient assistant reconciliation as reply versions", () => {
+    render(<BranchingThread />);
+
+    expect(screen.getByText("Current reply.")).toBeVisible();
+    expect(
+      document.querySelector("[data-slot='aui-branch-picker-root']"),
+    ).toBeNull();
   });
 });
