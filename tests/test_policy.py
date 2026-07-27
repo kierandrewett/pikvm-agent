@@ -223,6 +223,31 @@ def test_dangerous_type_text_escalates_to_human(engine: SafetyPolicyEngine) -> N
     assert result.status == "approval_required"
 
 
+def test_managed_policy_escalates_infrastructure_auto_approval(
+    engine: SafetyPolicyEngine,
+) -> None:
+    decision = _decision(
+        category="text_entry",
+        level="low",
+        actions=[
+            TypeTextAction(
+                type="type_text",
+                text="TF_AUTO_APPROVE=1 ./scripts/01-bootstrap-runner.sh",
+            )
+        ],
+    )
+
+    risk = engine.classify_local_risk(decision)
+    assert risk["category"] == "terminal_mutating"
+    assert risk["level"] == "high"
+    assert risk["requires_human"] is True
+    assert engine.policy_gate(
+        decision,
+        current_frame_id=1,
+        current_world_version=1,
+    ).status == "approval_required"
+
+
 def test_policy_gate_accepts_dict_decision(engine: SafetyPolicyEngine) -> None:
     decision = _decision(category="navigation").model_dump()
     result = engine.policy_gate(decision, current_frame_id=1, current_world_version=1)

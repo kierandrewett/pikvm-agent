@@ -38,6 +38,18 @@ DANGEROUS_COMMAND_RE: list[re.Pattern[str]] = [
     re.compile(r"\bgit\s+push\b.*--force|\bgit\s+push\s+-f\b", re.IGNORECASE),
     re.compile(r"\bgit\s+reset\s+--hard\b", re.IGNORECASE),
     re.compile(r"\bgit\s+clean\s+-[a-z]*f", re.IGNORECASE),
+    # Declarative infrastructure can make broad remote changes while looking
+    # like ordinary terminal text. Auto-approval is dangerous even when it is
+    # passed indirectly to a wrapper script through an environment variable.
+    re.compile(
+        r"(?:^|\s)(?:TF_AUTO_APPROVE\s*=\s*(?:1|true|yes)\b|--?auto-approve\b)",
+        re.IGNORECASE,
+    ),
+    re.compile(r"\b(?:terraform|tofu)\s+(?:apply|destroy)\b", re.IGNORECASE),
+    re.compile(
+        r"\boci\b[^|;&\n]*\b(?:delete|terminate)\b",
+        re.IGNORECASE,
+    ),
     re.compile(r"\b(format)\s+[a-z]:", re.IGNORECASE),  # format <drive>:
     re.compile(r"\bdrop\s+(table|database)\b", re.IGNORECASE),  # destructive SQL
     re.compile(r":\(\)\s*\{.*\};:"),  # fork bomb

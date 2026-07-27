@@ -28,6 +28,25 @@ def test_dangerous_command_requires_human_even_before_enter() -> None:
     assert verdict.category == "terminal_mutating"
 
 
+@pytest.mark.parametrize(
+    "command",
+    [
+        "TF_AUTO_APPROVE=1 ./scripts/01-bootstrap-runner.sh",
+        "terraform apply -auto-approve",
+        "terraform destroy --auto-approve",
+        "oci compute instance terminate --instance-id example --force",
+    ],
+)
+def test_infrastructure_auto_approval_requires_human_without_context_metadata(
+    command: str,
+) -> None:
+    verdict = _classify([{"type": "type_text", "text": command}])
+
+    assert verdict.status == "approval_required"
+    assert verdict.category == "terminal_mutating"
+    assert verdict.level == "high"
+
+
 def test_unknown_mutating_terminal_command_requires_human() -> None:
     verdict = _classify(
         [{"type": "type_text", "text": "Set-Content out.txt hello", "context": "terminal"}]
