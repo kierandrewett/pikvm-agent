@@ -143,7 +143,14 @@ class CropMissFullScreenOCR:
             self.crop_calls += 1
             return OCRResult()
         self.screen_calls += 1
-        words = self.intended.split()
+        noisy_read = self.intended.replace(
+            "Macbeth turns",
+            "Macbethturns",
+        ).replace(
+            "prophecy",
+            "prophecv",
+        )
+        words = noisy_read.split()
         one_third = len(words) // 3
         return OCRResult(
             lines=[
@@ -358,7 +365,8 @@ async def test_fast_editor_prose_falls_back_to_full_screen_readback() -> None:
 
     assert result.used_fast_path is True
     assert result.verdict == "match"
-    assert result.field_text == prose
+    assert result.field_text != prose
+    assert "Macbethturns" in result.field_text
     assert ocr.crop_calls >= 1
     assert ocr.screen_calls == 1
     _assert_no_enter(backend)

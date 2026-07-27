@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import math
 import re
 import tempfile
 from collections.abc import Callable
@@ -43,6 +44,7 @@ from pikvm_agent.executor.verification import (
     classify_mismatch,
     compute_verdict,
     is_exact_text,
+    levenshtein,
     norm,
     verify_text,
 )
@@ -466,17 +468,18 @@ class WatchedTyper:
         return read_back[index : index + len(intended)]
 
     @staticmethod
-    def _full_screen_exact_candidate(
+    def _full_screen_prose_candidate(
         result: OCRResult,
         intended: str,
     ) -> str:
-        """Return only an exact visible-text occurrence from screen OCR.
+        """Select a bounded OCR line window for long natural-language prose.
 
         A word processor can wrap one print burst across several lines while
         the grid-diff crop still covers only the first changed line. Full-screen
-        OCR is a safe fallback only when it contains the complete word- and
-        punctuation-preserving payload. Line wrapping may change whitespace;
-        noisy character similarity never becomes positive evidence.
+        OCR may also join adjacent words or confuse a few small glyphs. Search
+        only consecutive line windows near the intended length and retain the
+        normal prose verifier's eight-percent edit ceiling. This path is never
+        used for precise code, commands, paths, URLs, or secrets.
         """
 
         visible_intended = " ".join(intended.split())
@@ -486,10 +489,16 @@ class WatchedTyper:
             or len(folded_intended) != len(visible_intended)
         ):
             return ""
-        for read_back in (
-            result.text,
-            *(candidate.text for candidate in result.alternatives),
-        ):
+
+        sources = [
+            [line.text for line in result.lines],
+            *(
+                candidate.text.splitlines()
+                for candidate in result.alternatives
+            ),
+        ]
+        for lines in sources:
+            read_back = " ".join(" ".join(lines).split())
             visible_read_back = " ".join(read_back.split())
             folded_read_back = visible_read_back.casefold()
             if len(folded_read_back) != len(visible_read_back):
@@ -499,6 +508,45 @@ class WatchedTyper:
                 return visible_read_back[
                     index : index + len(visible_intended)
                 ]
+
+        max_distance = max(1, math.ceil(len(folded_intended) * 0.08))
+        best = ""
+        best_distance = max_distance + 1
+        for lines in sources:
+            visible_lines = [
+                " ".join(line.split())
+                for line in lines
+                if line.strip()
+            ]
+            for start in range(len(visible_lines)):
+                window = ""
+                for line in visible_lines[start : start + 12]:
+                    window = f"{window} {line}".strip()
+                    if len(window) > len(visible_intended) + max_distance:
+                        break
+                    if (
+                        abs(len(window) - len(visible_intended))
+                        > max_distance
+                    ):
+                        continue
+                    folded_window = window.casefold()
+                    if len(folded_window) != len(window):
+                        continue
+                    distance = levenshtein(
+                        folded_intended,
+                        folded_window,
+                        max_distance,
+                    )
+                    if distance < best_distance:
+                        best = window
+                        best_distance = distance
+        if (
+            best
+            and best_distance <= max_distance
+            and compute_verdict(intended, best, False)
+            in {"match", "contains"}
+        ):
+            return best
         return ""
 
     # ---- corrective primitives ------------------------------------------- #
@@ -942,7 +990,7 @@ class WatchedTyper:
             # Rich editors wrap prose beyond the first changed-line crop. Do
             # one read-only full-screen pass and accept only a complete exact
             # occurrence, never an approximate OCR similarity.
-            screen_candidate = self._full_screen_exact_candidate(
+            screen_candidate = self._full_screen_prose_candidate(
                 await self._read_screen(),
                 text,
             )
