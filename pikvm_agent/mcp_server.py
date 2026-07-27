@@ -528,8 +528,14 @@ async def pikvm_resolve_approval(
     session_id: str, approval_id: str, decision: dict
 ) -> dict:
     """Trusted host compatibility helper; not exposed to MCP clients."""
-    return await _run_or_abort(
-        session_id, _post(f"/sessions/{session_id}/approvals/{approval_id}", decision)
+    return await _screen_result(
+        await _run_or_abort(
+            session_id,
+            _post(
+                f"/sessions/{session_id}/approvals/{approval_id}",
+                decision,
+            ),
+        )
     )
 
 

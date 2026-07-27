@@ -48,8 +48,10 @@ _AUTONOMOUS_PAUSE_REASONS = {
     "verifier requires more work",
 }
 _AUTONOMOUS_PAUSE_EVENTS = {
+    "action.ungrounded_refreshed",
     "controller.requested_replan",
     "run.autonomous_resume",
+    "verification.failed",
 }
 
 
@@ -59,6 +61,11 @@ def _autonomous_resume_reason(run: RunSnapshot) -> str | None:
     if run.status is not RunStatus.PAUSED or not run.events:
         return None
     event = run.events[-1]
+    if (
+        event.kind == "action.stale_world_refreshed"
+        and event.data.get("status") == "stale_world"
+    ):
+        return event.kind
     if event.kind in _AUTONOMOUS_PAUSE_EVENTS:
         return event.kind
     if event.kind != "run.paused":
@@ -465,6 +472,37 @@ def create_harness_app(
             task.cancel()
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
+
+    async def guarded_managed_approval(
+        run_id: str,
+        approval_id: str,
+        decision: dict[str, Any],
+    ) -> tuple[RunSnapshot, bool]:
+        """Resolve and verify an approval while remaining operator-cancellable."""
+
+        task = asyncio.current_task()
+        if task is None:  # pragma: no cover - asyncio always has one here
+            raise RuntimeError("approval resolution has no asyncio task")
+        continuation_tasks.setdefault(run_id, set()).add(task)
+        try:
+            try:
+                async with lock_for(run_id):
+                    return (
+                        await harness.resolve_approval(
+                            run_id,
+                            approval_id,
+                            decision,
+                        ),
+                        False,
+                    )
+            except asyncio.CancelledError:
+                return await store.get_control(run_id), True
+        finally:
+            tasks = continuation_tasks.get(run_id)
+            if tasks is not None:
+                tasks.discard(task)
+                if not tasks:
+                    continuation_tasks.pop(run_id, None)
 
     def schedule(coro: Any) -> None:
         task = asyncio.create_task(coro)
@@ -939,42 +977,54 @@ def create_harness_app(
     async def resolve_approval(
         run_id: str, approval_id: str, body: ApprovalBody
     ) -> dict[str, Any]:
-        async with lock_for(run_id):
-            existing = await store.get_state(run_id)
-            decision = {"type": body.type, "reason": body.reason}
-            pending = existing.pending_approval or {}
-            if pending.get("kind") == "virtual_media_attach":
-                if media_transactions is None:
-                    raise HTTPException(
-                        503, "virtual-media transactions are not configured"
-                    )
-                try:
-                    run = await media_transactions.resolve_approval(
+        existing = await store.get_state(run_id)
+        decision = {"type": body.type, "reason": body.reason}
+        cancelled = False
+        if existing.origin == "managed" and (
+            existing.pending_approval or {}
+        ).get("kind") != "virtual_media_attach":
+            run, cancelled = await guarded_managed_approval(
+                run_id,
+                approval_id,
+                decision,
+            )
+        else:
+            async with lock_for(run_id):
+                existing = await store.get_state(run_id)
+                pending = existing.pending_approval or {}
+                if pending.get("kind") == "virtual_media_attach":
+                    if media_transactions is None:
+                        raise HTTPException(
+                            503, "virtual-media transactions are not configured"
+                        )
+                    try:
+                        run = await media_transactions.resolve_approval(
+                            run_id,
+                            approval_id,
+                            decision,
+                        )
+                    except ValueError as exc:
+                        raise HTTPException(409, str(exc)) from exc
+                elif existing.origin == "direct_mcp":
+                    if direct_calls is None:
+                        raise HTTPException(
+                            503, "direct-call visibility is not configured"
+                        )
+                    try:
+                        run = await direct_calls.resolve_approval(
+                            run_id, approval_id, decision
+                        )
+                    except ValueError as exc:
+                        raise HTTPException(409, str(exc)) from exc
+                else:  # pragma: no cover - managed handled above
+                    run = await harness.resolve_approval(
                         run_id,
                         approval_id,
                         decision,
                     )
-                except ValueError as exc:
-                    raise HTTPException(409, str(exc)) from exc
-            elif existing.origin == "direct_mcp":
-                if direct_calls is None:
-                    raise HTTPException(
-                        503, "direct-call visibility is not configured"
-                    )
-                try:
-                    run = await direct_calls.resolve_approval(
-                        run_id, approval_id, decision
-                    )
-                except ValueError as exc:
-                    raise HTTPException(409, str(exc)) from exc
-            else:
-                run = await harness.resolve_approval(
-                    run_id,
-                    approval_id,
-                    decision,
-                )
         if (
-            body.type == "approve"
+            not cancelled
+            and body.type == "approve"
             and _autonomous_resume_reason(run) is not None
         ):
             schedule(guarded_continue(run_id))

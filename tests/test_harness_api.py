@@ -1423,6 +1423,124 @@ async def test_auto_started_task_owns_safe_replanning_without_client_continue(
     ]
 
 
+class FailedVerificationHarness(StubHarness):
+    def __init__(self, store: InMemoryRunStore, frame: Path) -> None:
+        super().__init__(store, frame)
+        self.completed = asyncio.Event()
+
+    async def continue_run(self, run_id: str) -> RunSnapshot:
+        self.calls.append(("continue", run_id))
+        run = await self.store.get(run_id)
+        if len(self.calls) == 1:
+            run.status = RunStatus.PAUSED
+            run.error = "the harmless click produced no visible effect"
+            run.record(
+                "verification.failed",
+                summary=run.error,
+            )
+        else:
+            run.status = RunStatus.COMPLETED
+            run.error = None
+            run.record(
+                "run.completed",
+                summary="replanned after the harmless visual miss",
+            )
+            self.completed.set()
+        await self.store.save(run)
+        return run
+
+
+@pytest.mark.asyncio
+async def test_auto_started_task_replans_after_failed_visual_verification(
+    tmp_path: Path,
+) -> None:
+    frame = tmp_path / "frame.jpg"
+    frame.write_bytes(b"frame")
+    store = InMemoryRunStore()
+    harness = FailedVerificationHarness(store, frame)
+    app = create_harness_app(
+        harness=harness,  # type: ignore[arg-type]
+        store=store,
+        models=StubModels(),
+        access_token=TEST_ACCESS_TOKEN,
+        allowed_origins={"http://harness"},
+    )
+    transport = httpx.ASGITransport(app=app)
+
+    async with httpx.AsyncClient(
+        transport=transport,
+        base_url="http://harness",
+        headers={"authorization": f"Bearer {TEST_ACCESS_TOKEN}"},
+    ) as client:
+        await client.post(
+            "/api/runs",
+            json={"task": "Recover from a missed click", "auto_start": True},
+        )
+        await asyncio.wait_for(harness.completed.wait(), timeout=1)
+
+    assert harness.calls == [
+        ("continue", "run_1"),
+        ("continue", "run_1"),
+    ]
+
+
+class StaleWorldHarness(StubHarness):
+    def __init__(self, store: InMemoryRunStore, frame: Path) -> None:
+        super().__init__(store, frame)
+        self.completed = asyncio.Event()
+
+    async def continue_run(self, run_id: str) -> RunSnapshot:
+        self.calls.append(("continue", run_id))
+        run = await self.store.get(run_id)
+        if len(self.calls) == 1:
+            run.status = RunStatus.PAUSED
+            run.record(
+                "action.stale_world_refreshed",
+                status="stale_world",
+                fresh_controller_decision_required=True,
+            )
+        else:
+            run.status = RunStatus.COMPLETED
+            run.record("run.completed", summary="fresh plan completed")
+            self.completed.set()
+        await self.store.save(run)
+        return run
+
+
+@pytest.mark.asyncio
+async def test_auto_started_task_replans_after_stale_world_without_human_continue(
+    tmp_path: Path,
+) -> None:
+    frame = tmp_path / "frame.jpg"
+    frame.write_bytes(b"frame")
+    store = InMemoryRunStore()
+    harness = StaleWorldHarness(store, frame)
+    app = create_harness_app(
+        harness=harness,  # type: ignore[arg-type]
+        store=store,
+        models=StubModels(),
+        access_token=TEST_ACCESS_TOKEN,
+        allowed_origins={"http://harness"},
+    )
+    transport = httpx.ASGITransport(app=app)
+
+    async with httpx.AsyncClient(
+        transport=transport,
+        base_url="http://harness",
+        headers={"authorization": f"Bearer {TEST_ACCESS_TOKEN}"},
+    ) as client:
+        await client.post(
+            "/api/runs",
+            json={"task": "Act only on a fresh screen", "auto_start": True},
+        )
+        await asyncio.wait_for(harness.completed.wait(), timeout=1)
+
+    assert harness.calls == [
+        ("continue", "run_1"),
+        ("continue", "run_1"),
+    ]
+
+
 class LoopingReplanHarness(StubHarness):
     def __init__(self, store: InMemoryRunStore, frame: Path) -> None:
         super().__init__(store, frame)
@@ -1574,6 +1692,99 @@ async def test_exact_human_approval_releases_the_remaining_autonomous_task(
         ),
         ("continue", "run_1"),
     ]
+
+
+class BlockingApprovalHarness(StubHarness):
+    def __init__(self, store: InMemoryRunStore, frame: Path) -> None:
+        super().__init__(store, frame)
+        self.started = asyncio.Event()
+        self.cancelled = asyncio.Event()
+
+    async def create(
+        self,
+        task: str,
+        *,
+        caller: dict[str, Any] | None = None,
+        model_provider: str | None = None,
+    ) -> RunSnapshot:
+        run = await super().create(
+            task,
+            caller=caller,
+            model_provider=model_provider,
+        )
+        run.status = RunStatus.NEEDS_APPROVAL
+        run.pending_approval = {
+            "kind": "direct_burst",
+            "approval_id": "approval-blocking-1",
+            "risk": "unknown",
+        }
+        await self.store.save(run)
+        return run
+
+    async def resolve_approval(
+        self,
+        run_id: str,
+        approval_id: str,
+        decision: dict[str, Any],
+    ) -> RunSnapshot:
+        self.started.set()
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            self.cancelled.set()
+            raise
+        raise AssertionError("unreachable")
+
+
+@pytest.mark.asyncio
+async def test_operator_pause_cancels_slow_post_approval_verification(
+    tmp_path: Path,
+) -> None:
+    frame = tmp_path / "frame.jpg"
+    frame.write_bytes(b"frame")
+    store = InMemoryRunStore()
+    harness = BlockingApprovalHarness(store, frame)
+    app = create_harness_app(
+        harness=harness,  # type: ignore[arg-type]
+        store=store,
+        models=StubModels(),
+        access_token=TEST_ACCESS_TOKEN,
+        allowed_origins={"http://harness"},
+    )
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app),
+        base_url="http://harness",
+        headers={"authorization": f"Bearer {TEST_ACCESS_TOKEN}"},
+    ) as client:
+        await client.post(
+            "/api/runs",
+            json={"task": "Launch the selected app", "auto_start": False},
+        )
+        approval = asyncio.create_task(
+            client.post(
+                "/api/runs/run_1/approvals/approval-blocking-1",
+                json={"type": "approve", "reason": "reviewed"},
+                headers={
+                    "origin": "http://harness",
+                    "x-pikvm-approval-intent": "approval-blocking-1",
+                },
+            )
+        )
+        await asyncio.wait_for(harness.started.wait(), timeout=1)
+        paused = await asyncio.wait_for(
+            client.post(
+                "/api/runs/run_1/pause",
+                json={"reason": "operator stop"},
+            ),
+            timeout=1,
+        )
+        approval_response = await asyncio.wait_for(approval, timeout=1)
+
+    assert paused.status_code == 200
+    assert paused.json()["status"] == "paused"
+    assert approval_response.status_code == 200
+    assert harness.cancelled.is_set()
 
 
 class ConcurrentContinueHarness(StubHarness):

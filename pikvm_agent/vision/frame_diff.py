@@ -17,6 +17,11 @@ from PIL import Image
 FP_MOVE = 0.04        # above this, the screen is actively changing
 FP_SETTLE = 0.015     # below this, it has settled
 FP_MEANINGFUL = 0.05  # a settled frame must differ from baseline by >= this
+# Mean delta alone misses large dark-on-dark surfaces such as the Windows
+# Search panel. A change covering this much of the tiny fingerprint is also
+# meaningful even when its average luminance stays close to the wallpaper.
+FP_CELL_DELTA = 0.10
+FP_CELL_MEANINGFUL_FRACTION = 0.08
 BLANK_VARIANCE = 6.0  # std-dev (0..255) below this ⇒ blank / no-signal
 
 FP_SIZE = 16          # fingerprint is FP_SIZE x FP_SIZE
@@ -53,6 +58,35 @@ def fp_diff(a: np.ndarray | None, b: np.ndarray | None) -> float:
     a32 = a[:n].astype(np.int32)
     b32 = b[:n].astype(np.int32)
     return float(np.abs(a32 - b32).sum()) / n / 255.0
+
+
+def fp_meaningful_change(
+    a: np.ndarray | None,
+    b: np.ndarray | None,
+    *,
+    mean_threshold: float = FP_MEANINGFUL,
+    cell_delta: float = FP_CELL_DELTA,
+    cell_fraction: float = FP_CELL_MEANINGFUL_FRACTION,
+) -> bool:
+    """Detect either a large average change or a coherent changed surface.
+
+    The second signal prevents a modal, menu, or side panel with a similar
+    overall luminance from retaining a stale world version. Tiny cursor and
+    stream artefacts remain below the changed-cell fraction.
+    """
+
+    if a is None or b is None:
+        return True
+    n = min(len(a), len(b))
+    if n == 0:
+        return True
+    delta = np.abs(
+        a[:n].astype(np.int32) - b[:n].astype(np.int32)
+    ) / 255.0
+    return bool(
+        float(delta.mean()) > mean_threshold
+        or float((delta > cell_delta).mean()) > cell_fraction
+    )
 
 
 def fp_variance(a: np.ndarray) -> float:

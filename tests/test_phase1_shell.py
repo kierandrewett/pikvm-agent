@@ -203,10 +203,12 @@ async def test_mcp_facade_forwards_to_daemon(app_config: AppConfig,
         ))
         assert res["status"] == "needs_approval"
         assert res["approval_request"]["risk"] == "unknown"
-        approved = await mcp_server.pikvm_resolve_approval(
-            sid,
-            res["approval_request"]["approval_id"],
-            {"type": "approve"},
+        approved = _state(
+            await mcp_server.pikvm_resolve_approval(
+                sid,
+                res["approval_request"]["approval_id"],
+                {"type": "approve"},
+            )
         )
         assert approved["status"] == "completed"
         assert approved["completed_actions"] == 3

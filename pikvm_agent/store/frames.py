@@ -18,7 +18,12 @@ import numpy as np
 
 from pikvm_agent.core.models import FrameRecord, KeyboardState, Region
 from pikvm_agent.pikvm.client import PiKVMBackend
-from pikvm_agent.vision.frame_diff import FP_MEANINGFUL, fingerprint, screen_hash
+from pikvm_agent.vision.frame_diff import (
+    FP_MEANINGFUL,
+    fingerprint,
+    fp_meaningful_change,
+    screen_hash,
+)
 
 
 @dataclass
@@ -66,9 +71,11 @@ class FrameStore:
             # Fingerprint decodes + resizes the JPEG — offload so it doesn't block the loop.
             fp = await asyncio.to_thread(fingerprint, cf.data)
             kb_sig = (kb.layout, kb.caps_lock)
-            if self._last_fp is not None and float(
-                np.abs(self._last_fp.astype(np.int32) - fp.astype(np.int32)).sum()
-            ) / len(fp) / 255.0 > self.fp_meaningful:
+            if self._last_fp is not None and fp_meaningful_change(
+                self._last_fp,
+                fp,
+                mean_threshold=self.fp_meaningful,
+            ):
                 self._world_version += 1
             elif self._last_keyboard is not None and kb_sig != self._last_keyboard:
                 self._world_version += 1
@@ -123,4 +130,13 @@ class FrameStore:
         base = self._last_look.fp
         n = min(len(base), len(current_fp))
         delta = float(np.abs(base[:n].astype(np.int32) - current_fp[:n].astype(np.int32)).sum()) / n / 255.0
-        return {"has_baseline": True, "age_ms": age, "delta": delta, "changed": delta > self.fp_meaningful}
+        return {
+            "has_baseline": True,
+            "age_ms": age,
+            "delta": delta,
+            "changed": fp_meaningful_change(
+                base,
+                current_fp,
+                mean_threshold=self.fp_meaningful,
+            ),
+        }

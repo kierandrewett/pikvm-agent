@@ -488,6 +488,16 @@ class FakeComputer:
             image_path="/tmp/frame-after.jpg",
         )
 
+    async def refresh(self, *, session_id: str) -> ComputerObservation:
+        return ComputerObservation(
+            session_id=session_id,
+            status="paused",
+            frame_id=3,
+            world_version=9,
+            control_epoch=2,
+            image_path="/tmp/frame-refreshed.jpg",
+        )
+
     async def resolve_approval(
         self, *, session_id: str, approval_id: str, decision: dict[str, Any]
     ) -> ComputerObservation:
@@ -536,6 +546,59 @@ class ApprovalComputer(FakeComputer):
             control_epoch=2,
         )
 
+
+class UngroundedNavigationComputer(FakeComputer):
+    def __init__(self) -> None:
+        super().__init__()
+        self.resolutions: list[dict[str, Any]] = []
+        self.opens = 0
+
+    async def open(self, label: str) -> ComputerObservation:
+        self.opens += 1
+        observation = await super().open(label)
+        return observation.model_copy(
+            update={
+                "session_id": f"s_{self.opens}",
+                "frame_id": self.opens,
+                "world_version": 6 + self.opens,
+            }
+        )
+
+    async def burst(self, **kwargs: Any) -> ComputerObservation:
+        self.bursts.append(kwargs)
+        return ComputerObservation(
+            session_id=kwargs["session_id"],
+            status="needs_approval",
+            frame_id=2,
+            world_version=7,
+            control_epoch=2,
+            approval_request={
+                "kind": "direct_burst",
+                "approval_id": "unknown_click_1",
+                "risk": "unknown",
+                "reason": (
+                    "coordinate click target could not be independently read"
+                ),
+            },
+        )
+
+    async def resolve_approval(
+        self, *, session_id: str, approval_id: str, decision: dict[str, Any]
+    ) -> ComputerObservation:
+        self.resolutions.append(
+            {
+                "session_id": session_id,
+                "approval_id": approval_id,
+                "decision": decision,
+            }
+        )
+        return ComputerObservation(
+            session_id=session_id,
+            status="blocked",
+            frame_id=2,
+            world_version=7,
+            control_epoch=2,
+        )
 
 class StaleThenFreshComputer(FakeComputer):
     def __init__(self) -> None:
@@ -1252,6 +1315,47 @@ async def test_approval_escapes_the_model_loop_and_only_exact_human_resume_execu
         }
     ]
     assert [request.role for request in provider.requests][-1] == "verifier"
+    assert any(
+        event.kind == "verification.evidence_refreshed"
+        for event in completed.events
+    )
+    assert completed.observation is not None
+    assert completed.observation.image_path == "/tmp/frame-refreshed.jpg"
+
+
+@pytest.mark.asyncio
+async def test_ungrounded_navigation_is_rejected_and_replanned_not_approved() -> None:
+    provider = ScriptedProvider()
+    computer = UngroundedNavigationComputer()
+    harness = build_harness(provider, computer)
+
+    paused = await harness.start("Focus the visible search field.")
+
+    assert paused.status is RunStatus.PAUSED
+    assert paused.pending_action is None
+    assert paused.pending_approval is None
+    assert paused.observation is not None
+    assert paused.session_id == "s_2"
+    assert paused.observation.frame_id == 2
+    assert computer.opens == 2
+    assert computer.resolutions == [
+        {
+            "session_id": "s_1",
+            "approval_id": "unknown_click_1",
+            "decision": {
+                "type": "reject",
+                "reason": (
+                    "managed harness rejected an ungrounded navigation "
+                    "proposal"
+                ),
+            },
+        }
+    ]
+    assert paused.events[-1].kind == "action.ungrounded_refreshed"
+    assert not any(event.kind == "approval.required" for event in paused.events)
+    assert harness._trajectory_signals(paused)[
+        "ungrounded_navigation_replans"
+    ] == 1
 
 
 @pytest.mark.asyncio

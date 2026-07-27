@@ -131,6 +131,24 @@ def test_click_grounding_refuses_text_from_adjacent_rows() -> None:
     assert target == ""
 
 
+def test_click_grounding_does_not_let_an_adjacent_row_mask_the_target_row() -> None:
+    observed = OCRResult(
+        lines=[
+            OCRLine(text="Type here to search", bbox=[1, 30, 55, 58]),
+            OCRLine(text="Quick searches", bbox=[140, 62, 206, 90]),
+        ]
+    )
+
+    target = nearest_ocr_target_text(
+        observed,
+        click_x=250,
+        click_y=339,
+        region=Region(x=70, y=294, width=360, height=90),
+    )
+
+    assert target == "Type here to search"
+
+
 async def test_idempotency_replays_result_without_repeating_hid(runtime: Runtime) -> None:
     sid = (await runtime.start_session("direct"))["session_id"]
     shot = await runtime.get_session_summary(sid, capture=True)

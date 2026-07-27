@@ -7,7 +7,7 @@ import io
 from pathlib import Path
 
 import pytest
-from PIL import Image
+from PIL import Image, ImageDraw
 
 from pikvm_agent.core.models import (
     BBox,
@@ -24,6 +24,7 @@ from pikvm_agent.vision.frame_diff import (
     FP_MEANINGFUL,
     fingerprint,
     fp_diff,
+    fp_meaningful_change,
     grid,
     is_blank,
 )
@@ -67,6 +68,24 @@ def test_fingerprint_diff_thresholds() -> None:
     assert is_blank(fingerprint(_jpeg((0, 0, 0)))) is True
 
 
+def test_fingerprint_detects_a_large_dark_on_dark_panel() -> None:
+    before = Image.new("RGB", (1280, 800), (13, 28, 49))
+    after = before.copy()
+    panel = Image.new("RGB", (480, 450), (60, 60, 60))
+    after.paste(panel, (8, 310))
+
+    def encoded(image: Image.Image) -> bytes:
+        output = io.BytesIO()
+        image.save(output, format="JPEG", quality=90)
+        return output.getvalue()
+
+    before_fp = fingerprint(encoded(before))
+    after_fp = fingerprint(encoded(after))
+
+    assert fp_diff(before_fp, after_fp) < FP_MEANINGFUL
+    assert fp_meaningful_change(before_fp, after_fp) is True
+
+
 # ---- frame store world-versioning ----------------------------------------- #
 
 async def test_frame_store_world_versioning(tmp_path) -> None:
@@ -80,6 +99,30 @@ async def test_frame_store_world_versioning(tmp_path) -> None:
     assert (await fs.capture()).world_version == 2
     be.caps_lock = True  # keyboard change bumps world too
     assert (await fs.capture()).world_version == 3
+
+
+async def test_frame_store_invalidates_a_stale_dark_panel(tmp_path) -> None:
+    backend = FakeBackend(width=1280, height=800)
+    desktop = Image.new("RGB", (1280, 800), (13, 28, 49))
+    panel = desktop.copy()
+    ImageDraw.Draw(panel).rectangle(
+        (8, 310, 488, 760),
+        fill=(60, 60, 60),
+    )
+
+    def encoded(image: Image.Image) -> bytes:
+        output = io.BytesIO()
+        image.save(output, format="JPEG", quality=90)
+        return output.getvalue()
+
+    backend.set_frame_bytes(encoded(panel))
+    frames = FrameStore("dark-panel", tmp_path, backend)
+    first = await frames.capture()
+    backend.set_frame_bytes(encoded(desktop))
+    second = await frames.capture()
+
+    assert first.world_version == 1
+    assert second.world_version == 2
 
 
 # ---- OCR ------------------------------------------------------------------ #

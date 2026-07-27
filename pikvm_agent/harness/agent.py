@@ -95,7 +95,9 @@ Treat trajectory_signals as durable evidence. If the same exact search query
 already produced visible no results, do not repeat it unless the application
 or search scope visibly changed. Try one semantically equivalent visible
 control or a different bounded navigation strategy, then replan or block
-instead of cycling."""
+instead of cycling. If ungrounded_navigation_replans is nonzero, do not repeat
+the same coordinate-only click: use a visibly grounded target, a safe keyboard
+navigation action, or request a replan."""
 
 _VERIFIER_SYSTEM = """\
 You are the independent verifier. Compare the plan, intended action, before
@@ -669,6 +671,77 @@ class AgentHarness:
         action: PendingAction | None,
         before: ComputerObservation | None,
     ) -> None:
+        after = run.observation
+        after_image = Path(after.image_path) if after and after.image_path else None
+        if after_image is None:
+            try:
+                refreshed = await self.computer.refresh(
+                    session_id=run.session_id
+                    or (after.session_id if after is not None else "")
+                )
+            except Exception as exc:
+                run.status = RunStatus.PAUSED
+                run.error = (
+                    "computer action completed, but its verification image "
+                    f"could not be refreshed: {exc}"
+                )
+                run.record(
+                    "verification.evidence_unavailable",
+                    error=str(exc),
+                )
+                await self.store.save(run)
+                return
+            previous_fingerprint = str(
+                (after.machine if after is not None else {}).get(
+                    "fingerprint"
+                )
+                or ""
+            )
+            refreshed_fingerprint = str(
+                refreshed.machine.get("fingerprint") or ""
+            )
+            if (
+                previous_fingerprint
+                and refreshed_fingerprint
+                and previous_fingerprint != refreshed_fingerprint
+            ):
+                run.observation = refreshed
+                run.plan = None
+                run.status = RunStatus.BLOCKED
+                run.error = (
+                    "target identity changed while refreshing verification "
+                    "evidence"
+                )
+                run.record(
+                    "target.identity_changed",
+                    previous_fingerprint=previous_fingerprint,
+                    current_fingerprint=refreshed_fingerprint,
+                    source="harness_verification_refresh",
+                )
+                await self.store.save(run)
+                return
+            refreshed_image = (
+                Path(refreshed.image_path)
+                if refreshed.image_path
+                else None
+            )
+            if refreshed_image is None:
+                run.observation = refreshed
+                run.status = RunStatus.PAUSED
+                run.error = (
+                    "computer action completed, but no readable verification "
+                    "image was returned"
+                )
+                run.record("verification.evidence_unavailable")
+                await self.store.save(run)
+                return
+            run.observation = refreshed
+            run.record(
+                "verification.evidence_refreshed",
+                frame_id=refreshed.frame_id,
+                world_version=refreshed.world_version,
+            )
+            await self.store.save(run)
         comparison_image = self._verification_composite(
             before=before,
             after=run.observation,
@@ -887,7 +960,127 @@ class AgentHarness:
             await self.store.save(run)
             return False
         if observation.status == "needs_approval":
-            run.pending_approval = observation.approval_request or {}
+            approval_request = observation.approval_request or {}
+            if self._is_ungrounded_navigation(approval_request):
+                approval_id = str(
+                    approval_request.get("approval_id") or ""
+                )
+                try:
+                    dismissed = await self.computer.resolve_approval(
+                        session_id=run.session_id or observation.session_id,
+                        approval_id=approval_id,
+                        decision={
+                            "type": "reject",
+                            "reason": (
+                                "managed harness rejected an ungrounded "
+                                "navigation proposal"
+                            ),
+                        },
+                    )
+                except Exception:
+                    # If the exact daemon hold cannot be cleared, keep the
+                    # visible approval boundary rather than guessing that no
+                    # input can occur.
+                    pass
+                else:
+                    prior_recoveries = sum(
+                        event.kind == "action.ungrounded_refreshed"
+                        for event in run.events
+                    )
+                    if prior_recoveries:
+                        run.pending_action = None
+                        run.pending_approval = None
+                        run.observation = dismissed
+                        run.plan = None
+                        run.status = RunStatus.BLOCKED
+                        run.error = (
+                            "click target could not be independently grounded "
+                            "after a fresh managed session"
+                        )
+                        run.record(
+                            "action.ungrounded_repeated",
+                            approval_id=approval_id,
+                            risk=approval_request.get("risk"),
+                            reason=approval_request.get("reason"),
+                            dismissal_status=dismissed.status,
+                            recovery_count=prior_recoveries,
+                            **tool_outcome,
+                        )
+                        await self.store.save(run)
+                        return False
+                    try:
+                        reopened = await self.computer.open(run.task)
+                    except Exception as exc:
+                        run.pending_action = None
+                        run.pending_approval = None
+                        run.observation = dismissed
+                        run.status = RunStatus.PAUSED
+                        run.error = (
+                            "ungrounded navigation was rejected, but a fresh "
+                            f"managed session could not be opened: {exc}"
+                        )
+                        run.record(
+                            "action.ungrounded_refresh_failed",
+                            approval_id=approval_id,
+                            risk=approval_request.get("risk"),
+                            reason=approval_request.get("reason"),
+                            dismissal_status=dismissed.status,
+                            **tool_outcome,
+                        )
+                        await self.store.save(run)
+                        return False
+                    reopened_fingerprint = str(
+                        reopened.machine.get("fingerprint") or ""
+                    )
+                    if (
+                        previous_fingerprint
+                        and reopened_fingerprint
+                        and previous_fingerprint != reopened_fingerprint
+                    ):
+                        run.pending_action = None
+                        run.pending_approval = None
+                        run.plan = None
+                        run.observation = reopened
+                        run.status = RunStatus.BLOCKED
+                        run.error = (
+                            "target identity changed while rejecting "
+                            "ungrounded navigation"
+                        )
+                        run.record(
+                            "target.identity_changed",
+                            previous_fingerprint=previous_fingerprint,
+                            current_fingerprint=reopened_fingerprint,
+                            previous_alias=previous_machine.get("alias"),
+                            current_alias=reopened.machine.get("alias"),
+                            source="harness_ungrounded_refresh",
+                            **tool_outcome,
+                        )
+                        await self.store.save(run)
+                        return False
+                    previous_session_id = run.session_id
+                    run.session_id = reopened.session_id
+                    run.observation = reopened
+                    run.pending_action = None
+                    run.pending_approval = None
+                    run.last_controller = None
+                    run.status = RunStatus.PAUSED
+                    run.error = None
+                    run.record(
+                        "action.ungrounded_refreshed",
+                        approval_id=approval_id,
+                        risk=approval_request.get("risk"),
+                        reason=approval_request.get("reason"),
+                        refused_frame_id=observation.frame_id,
+                        previous_session_id=previous_session_id,
+                        fresh_session_id=reopened.session_id,
+                        fresh_frame_id=reopened.frame_id,
+                        fresh_world_version=reopened.world_version,
+                        plan_preserved=run.plan is not None,
+                        **tool_outcome,
+                    )
+                    await self.store.save(run)
+                    return False
+            run.pending_approval = approval_request
             run.status = RunStatus.NEEDS_APPROVAL
             run.record(
                 "approval.required",
@@ -1032,6 +1225,23 @@ class AgentHarness:
         await self._verify(run, action=action, before=before)
         return run.status is RunStatus.RUNNING
 
+    @staticmethod
+    def _is_ungrounded_navigation(
+        approval_request: dict[str, Any],
+    ) -> bool:
+        """Return whether managed mode should discard and replan a click.
+
+        The proposal is never executed. Direct mode still fails closed in the
+        daemon because an external controller may not own a recovery loop.
+        """
+
+        return (
+            approval_request.get("kind") == "direct_burst"
+            and approval_request.get("risk") == "unknown"
+            and approval_request.get("reason")
+            == "coordinate click target could not be independently read"
+        )
+
     def _pending_action(
         self,
         run: RunSnapshot,
@@ -1117,6 +1327,7 @@ class AgentHarness:
         verifier_verdict_counts: dict[str, int] = {}
         recoverable_failures = 0
         repeated_unsuccessful_text_stops = 0
+        ungrounded_navigation_replans = 0
         for event in run.events:
             data = event.data
             if event.kind == "action.checkpointed":
@@ -1140,11 +1351,14 @@ class AgentHarness:
                 recoverable_failures += 1
             elif event.kind == "controller.repeated_unsuccessful_text":
                 repeated_unsuccessful_text_stops += 1
+            elif event.kind == "action.ungrounded_refreshed":
+                ungrounded_navigation_replans += 1
         return {
             "action_type_counts": action_type_counts,
             "verifier_verdict_counts": verifier_verdict_counts,
             "recoverable_failures": recoverable_failures,
             "repeated_unsuccessful_text_stops": repeated_unsuccessful_text_stops,
+            "ungrounded_navigation_replans": ungrounded_navigation_replans,
         }
 
     @staticmethod

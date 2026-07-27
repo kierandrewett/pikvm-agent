@@ -10,10 +10,12 @@ region path.
 from __future__ import annotations
 
 import asyncio
+import io
 from pathlib import Path
 
 import numpy as np
 import pytest
+from PIL import Image, ImageDraw
 
 from pikvm_agent.core.models import OCRCandidate, OCRLine, OCRResult, Region
 from pikvm_agent.executor.typing import (
@@ -402,6 +404,71 @@ async def test_autolocate_uses_grounded_ocr_when_video_grid_misses_text() -> Non
     assert result.status == "verified_exact"
     assert result.ok is True
     assert result.field_text == intended
+
+
+async def test_autolocate_refines_dynamic_results_panel_to_typed_field() -> None:
+    intended = "Notepad"
+
+    class DynamicResultsBackend(FakeBackend):
+        async def type_text(
+            self,
+            text: str,
+            *,
+            code: bool = False,
+            secret: bool = False,
+        ) -> None:
+            await super().type_text(text, code=code, secret=secret)
+            image = Image.new("RGB", (1280, 720), (24, 28, 36))
+            draw = ImageDraw.Draw(image)
+            draw.rectangle((20, 80, 500, 370), fill=(56, 60, 68))
+            draw.text((40, 100), intended, fill=(240, 240, 240))
+            output = io.BytesIO()
+            image.save(output, "PNG")
+            self.set_frame_bytes(output.getvalue())
+
+    class DynamicResultsOCR:
+        def __init__(self) -> None:
+            self.regions: list[Region | None] = []
+
+        async def ocr(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            self.regions.append(region)
+            if region is None:
+                return OCRResult(
+                    lines=[
+                        OCRLine(
+                            text=intended,
+                            confidence=0.96,
+                            bbox=[40, 100, 105, 118],
+                        )
+                    ]
+                )
+            if region.height <= 50:
+                return OCRResult(
+                    lines=[OCRLine(text=intended, confidence=0.96)]
+                )
+            return OCRResult(
+                lines=[OCRLine(text="Typed.", confidence=0.94)]
+            )
+
+    backend = DynamicResultsBackend()
+    ocr = DynamicResultsOCR()
+    result = await WatchedTyper(backend, ocr).type_text(
+        intended,
+        code=True,
+    )
+
+    assert result.status == "verified_exact"
+    assert result.field_text == intended
+    assert None in ocr.regions
+    assert any(
+        region is not None and region.height <= 50
+        for region in ocr.regions
+    )
+    _assert_no_enter(backend)
 
 
 # --------------------------------------------------------------------------- #

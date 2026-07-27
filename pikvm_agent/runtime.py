@@ -193,8 +193,21 @@ def nearest_ocr_target_text(
         dy = max(y0 - point_y, 0.0, point_y - y1)
         candidates.append((dx * dx + 4 * dy * dy, dy, line.text.strip()))
     if candidates:
-        distance, vertical_gap, text = min(candidates, key=lambda item: item[0])
-        if text and vertical_gap <= 16 and distance <= 140**2:
+        # Discard other rows before ranking by distance.  Previously a label
+        # just beyond the vertical acceptance band could be geometrically
+        # closer than the text on the clicked row, win ``min()``, and then be
+        # rejected without considering the valid same-row candidate.
+        same_row = [
+            candidate
+            for candidate in candidates
+            if candidate[1] <= 16 and candidate[2]
+        ]
+        if not same_row:
+            return ""
+        distance, _vertical_gap, text = min(
+            same_row, key=lambda item: item[0]
+        )
+        if distance <= 140**2:
             return text
         return ""
     if len(observed.lines) == 1:
@@ -762,16 +775,10 @@ class Runtime:
                 replay = copy.deepcopy(prior["result"])
                 replay["idempotent_replay"] = True
                 return replay
-        try:
-            await self.backend.connect()
-        except Exception as exc:  # noqa: BLE001
-            log.warning("backend.connect failed: %s", exc)
-
         # FRESHNESS: the screen must still be the one the controller planned against.
         # The resettable benchmark profile can explicitly opt into a target-local
         # check for pointer-only bursts across unrelated animation.
         planned_frame = sr.frames.latest()
-        frame = await sr.frames.capture()
         if (
             based_on_world_version is None
             or based_on_control_epoch is None
@@ -788,14 +795,29 @@ class Runtime:
                     "based_on_world_version and based_on_control_epoch are "
                     "required before HID"
                 ),
-                "frame_id": frame.frame_id,
-                "world_version": frame.world_version,
+                "frame_id": (
+                    planned_frame.frame_id if planned_frame is not None else None
+                ),
+                "world_version": (
+                    planned_frame.world_version
+                    if planned_frame is not None
+                    else None
+                ),
                 "control_epoch": sr.control_epoch,
-                "screenshot_path": frame.image_path,
-                "width": frame.width,
-                "height": frame.height,
+                "screenshot_path": (
+                    planned_frame.image_path if planned_frame is not None else None
+                ),
+                "width": planned_frame.width if planned_frame is not None else None,
+                "height": (
+                    planned_frame.height if planned_frame is not None else None
+                ),
                 "machine": machine,
             }
+        try:
+            await self.backend.connect()
+        except Exception as exc:  # noqa: BLE001
+            log.warning("backend.connect failed: %s", exc)
+        frame = await sr.frames.capture()
         localized_freshness = False
         localized_freshness_delta: float | None = None
         local_freshness_enabled = _local_pointer_freshness_enabled(

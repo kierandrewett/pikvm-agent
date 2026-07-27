@@ -64,6 +64,8 @@ FAST_PRINT_MIN = 120      # above this, plain text takes the (bursty) fast print
                           # shorter text stays on the fully-humanized per-key path
 MIN_MISMATCH_OCR_CONFIDENCE = 0.78
 MIN_EXPECTED_AWARE_EXACT_CHARS = 8
+MAX_AUTODETECTED_FIELD_HEIGHT = 80
+MAX_AUTODETECTED_FIELD_HEIGHT_FRAC = 0.15
 
 # Pauses (seconds) — let a print / clear land and the video settle before reading.
 _PRINT_SETTLE_S = 0.45
@@ -757,6 +759,24 @@ class WatchedTyper:
             if not explicit_region and len(typed_so_far) >= LOCATE_MIN_CHARS:
                 loc = chunk_change
                 if loc is not None:
+                    # Search boxes and autocomplete fields can repaint a large
+                    # results panel after the first chunk. The grid delta then
+                    # describes the whole dynamic surface rather than the text
+                    # field, so a cropped read sees unrelated result text. If
+                    # full-screen OCR can locate the exact emitted text, narrow
+                    # this suspiciously tall delta to that line before read-back.
+                    max_field_height = max(
+                        MAX_AUTODETECTED_FIELD_HEIGHT,
+                        dims[1] * MAX_AUTODETECTED_FIELD_HEIGHT_FRAC,
+                    )
+                    if not secret and loc.height > max_field_height:
+                        ocr_loc = self._locate_ocr_candidate(
+                            await self._read_screen(),
+                            typed_so_far,
+                            dims,
+                        )
+                        if ocr_loc is not None:
+                            loc = ocr_loc
                     cur_region = union_region(cur_region, loc) if located else loc
                     located = True
                 elif not located and not secret and len(typed_so_far) >= ABORT_MIN_CHARS:
