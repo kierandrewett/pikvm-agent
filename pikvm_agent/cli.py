@@ -202,6 +202,65 @@ def harness_ui_fixture(
     )
 
 
+@harness_app.command("browser-audit")
+def harness_browser_audit(
+    browsers: str = typer.Option(
+        "chromium,firefox,webkit",
+        "--browsers",
+        help="Comma-separated Playwright engines to audit.",
+    ),
+    output: Path | None = typer.Option(
+        None,
+        "--output",
+        dir_okay=False,
+        help="Optional JSON evidence path.",
+    ),
+    timeout_ms: int = typer.Option(
+        30_000,
+        "--timeout-ms",
+        min=5_000,
+        max=120_000,
+        help="Per-browser Playwright action timeout.",
+    ),
+) -> None:
+    """Audit the authenticated chat/tool UI without a computer or model."""
+    import json
+
+    from pikvm_agent.harness.browser_matrix import (
+        BrowserAuditDependencyError,
+        parse_browser_names,
+        run_browser_matrix_audit,
+    )
+
+    try:
+        names = parse_browser_names(browsers)
+        report = run_browser_matrix_audit(names, timeout_ms=timeout_ms)
+    except (BrowserAuditDependencyError, ValueError) as exc:
+        typer.echo(f"Browser audit refused: {exc}", err=True)
+        raise typer.Exit(2)
+    if output is not None:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(
+            json.dumps(report, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        typer.echo(f"Evidence: {output}")
+    summary = report["summary"]
+    typer.echo(
+        "Target-free browser audit: "
+        f"{summary['passed']}/{summary['requested']} passed; "
+        "no VNC, PiKVM, model, or production daemon contact."
+    )
+    if not summary["release_gate_passed"]:
+        for name, result in report["browsers"].items():
+            if result["status"] != "passed":
+                typer.echo(
+                    f"{name}: {result.get('failure', 'failed')}",
+                    err=True,
+                )
+        raise typer.Exit(1)
+
+
 @harness_app.command("smoke-lab")
 def harness_smoke_lab(
     config: Path = typer.Option(
