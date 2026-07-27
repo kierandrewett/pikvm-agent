@@ -362,7 +362,12 @@ def _claude_child_environment(
         for name in _CLAUDE_ENV
         if source.get(name)
     }
-    child["NO_COLOR"] = "1"
+    child.update(
+        {
+            "CLAUDE_CODE_SKIP_PROMPT_HISTORY": "1",
+            "NO_COLOR": "1",
+        }
+    )
     child.update(
         {
             name: source[name]

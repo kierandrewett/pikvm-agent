@@ -1007,6 +1007,9 @@ def test_claude_task_keeps_cli_oauth_without_forwarding_ambient_secrets(
     assert child_env["HOME"] == "/home/operator"
     assert child_env["CLAUDE_CONFIG_DIR"] == "/home/operator/.claude"
     assert child_env["TEST_AGENT_TOKEN"] == "runtime-token"
+    assert child_env["CLAUDE_CODE_SKIP_PROMPT_HISTORY"] == "1"
+    assert "CLAUDE_CODE_SIMPLE" not in child_env
+    assert "CLAUDE_CODE_SUBPROCESS_ENV_SCRUB" not in child_env
     assert "ANTHROPIC_API_KEY" not in child_env
     assert "UNRELATED_SECRET" not in child_env
     assert captured["cwd"] != tmp_path.resolve()
