@@ -22,12 +22,19 @@ export type HarnessEvent = {
 export type LiveUpdateStatus =
   "idle" | "connecting" | "live" | "retrying" | "offline";
 
+export type ModelRole = "reasoner" | "controller" | "verifier";
+
+export type ModelPreferences = Partial<Record<ModelRole, string>>;
+
+export type RunModelRoute = Partial<Record<ModelRole, string[]>>;
+
 export type RunSummary = {
   run_id: string;
   task: string;
   status: RunStatus;
   origin: "managed" | "direct_mcp";
   model_provider?: string | null;
+  model_route?: RunModelRoute | null;
   caller?: Record<string, unknown>;
   session_id?: string | null;
   created_at: string;

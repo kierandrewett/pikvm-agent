@@ -2,12 +2,29 @@ import {
   BotIcon,
   CheckCircle2Icon,
   CircleDashedIcon,
+  LockKeyholeIcon,
   NetworkIcon,
+  RotateCcwIcon,
   ShieldCheckIcon,
   TriangleAlertIcon,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Sheet,
   SheetContent,
@@ -15,10 +32,18 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import {
+  effectiveRoleRoute,
+  MODEL_ROLES,
+  providerModelLabel,
+} from "@/lib/model-routes";
 import type {
+  ModelPreferences,
+  ModelRole,
   ProviderCatalogEntry,
   ProviderHealth,
   ProviderMap,
+  RunModelRoute,
 } from "@/types";
 
 type ProviderConnectionsSheetProps = {
@@ -26,13 +51,15 @@ type ProviderConnectionsSheetProps = {
   onOpenChange: (open: boolean) => void;
   providers: ProviderMap;
   catalog: ProviderCatalogEntry[];
+  preferences: ModelPreferences;
+  activeRoute?: RunModelRoute | null;
+  activeProvider?: string | null;
+  locked: boolean;
+  onPreferenceChange: (role: ModelRole, provider: string) => void;
+  onResetPreferences: () => void;
 };
 
-const ROUTE_ROLES = [
-  { key: "reasoner", label: "Reasoning", description: "Plans the task" },
-  { key: "controller", label: "Acting", description: "Chooses computer input" },
-  { key: "verifier", label: "Checking", description: "Verifies the screen" },
-] as const;
+const ROUTE_ROLES = MODEL_ROLES;
 
 const titleCase = (value: string) =>
   value
@@ -82,99 +109,160 @@ const conformanceLabel = (status: string | undefined) => {
   return "Conformance not run";
 };
 
-const providerRouteLabel = (
-  name: string,
-  health: ProviderHealth,
-  position: number,
-) => {
-  const model = health.configured_model || health.last_model;
-  return {
-    title: model || name,
-    detail: `${name} · ${position === 1 ? "primary" : `fallback ${position - 1}`}`,
-  };
-};
+function TaskRoute({
+  providers,
+  preferences,
+  activeRoute,
+  activeProvider,
+  locked,
+  onPreferenceChange,
+  onResetPreferences,
+}: Pick<
+  ProviderConnectionsSheetProps,
+  | "providers"
+  | "preferences"
+  | "activeRoute"
+  | "activeProvider"
+  | "locked"
+  | "onPreferenceChange"
+  | "onResetPreferences"
+>) {
+  const readyProviders = Object.entries(providers).filter(
+    ([, health]) => health.ready !== false,
+  );
+  const customized = Object.keys(preferences).length > 0;
 
-function AutomaticRoute({ providers }: { providers: ProviderMap }) {
   return (
-    <section aria-labelledby="automatic-route-title">
-      <div className="mb-2 flex items-center gap-2">
+    <section aria-labelledby="task-route-title">
+      <div className="flex items-start gap-2">
         <NetworkIcon
-          className="size-4 text-muted-foreground"
+          className="mt-0.5 size-4 text-muted-foreground"
           aria-hidden="true"
         />
-        <h3 id="automatic-route-title" className="text-sm font-semibold">
-          Automatic route
-        </h3>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 id="task-route-title" className="text-sm font-semibold">
+              Task route
+            </h3>
+            {locked ? (
+              <Badge variant="outline">
+                <LockKeyholeIcon data-icon="inline-start" aria-hidden="true" />
+                Locked for this run
+              </Badge>
+            ) : customized ? (
+              <Badge variant="secondary">Custom primaries</Badge>
+            ) : (
+              <Badge variant="outline">Automatic</Badge>
+            )}
+          </div>
+          <p className="mt-1 max-w-lg text-xs leading-relaxed text-muted-foreground">
+            Choose who plans, acts on the computer, and checks the result.
+            Fallbacks remain available if a primary model cannot respond.
+          </p>
+        </div>
+        {!locked && customized ? (
+          <Button
+            type="button"
+            size="xs"
+            variant="ghost"
+            onClick={onResetPreferences}
+          >
+            <RotateCcwIcon data-icon="inline-start" aria-hidden="true" />
+            Reset
+          </Button>
+        ) : null}
       </div>
-      <p className="mb-3 text-xs leading-relaxed text-muted-foreground">
-        The harness can use different configured accounts for planning, acting,
-        and checking.
-      </p>
-      <div className="border-y border-border/70">
+      <FieldGroup className="mt-4 gap-0 border-y border-border/70">
         {ROUTE_ROLES.map((role) => {
-          const routed = Object.entries(providers)
-            .flatMap(([name, health]) =>
-              (health.routes ?? [])
-                .filter((route) => route.role === role.key)
-                .map((route) => ({
-                  name,
-                  health,
-                  position: route.position ?? 99,
-                })),
-            )
-            .sort((left, right) => left.position - right.position);
+          const routed = effectiveRoleRoute({
+            providers,
+            preferences,
+            activeRoute,
+            activeProvider,
+            locked,
+            role: role.key,
+          });
+          const selected = locked
+            ? routed[0] || "auto"
+            : preferences[role.key] || "auto";
+          const items = [
+            {
+              value: "auto",
+              label: "Automatic route",
+            },
+            ...readyProviders.map(([name, health]) => ({
+              value: name,
+              label: `${providerModelLabel(name, health)} · ${name}`,
+            })),
+          ];
           return (
-            <div
+            <Field
               key={role.key}
-              className="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-3 border-b border-border/60 py-3 last:border-b-0"
+              orientation="responsive"
+              data-disabled={locked || undefined}
+              className="border-b border-border/60 py-3 last:border-b-0"
             >
-              <div>
-                <p className="text-xs font-medium">{role.label}</p>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
+              <div className="w-full @md/field-group:w-28">
+                <FieldLabel
+                  htmlFor={`model-route-${role.key}`}
+                  className="text-xs"
+                >
+                  {role.label}
+                </FieldLabel>
+                <FieldDescription className="mt-0.5 text-[11px]">
                   {role.description}
+                </FieldDescription>
+              </div>
+              <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                <Select
+                  items={items}
+                  value={selected}
+                  onValueChange={(next) =>
+                    onPreferenceChange(
+                      role.key,
+                      !next || next === "auto" ? "" : next,
+                    )
+                  }
+                  disabled={locked}
+                >
+                  <SelectTrigger
+                    id={`model-route-${role.key}`}
+                    size="sm"
+                    aria-label={`${role.label} model`}
+                    className="w-full"
+                  >
+                    <SelectValue placeholder="Choose model" />
+                  </SelectTrigger>
+                  <SelectContent alignItemWithTrigger={false} align="end">
+                    <SelectGroup>
+                      {items.map((item) => (
+                        <SelectItem key={item.value} value={item.value}>
+                          {item.label}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+                <p className="truncate text-[11px] text-muted-foreground">
+                  {routed.length
+                    ? routed
+                        .map(
+                          (name, index) =>
+                            `${index ? `fallback ${index}` : "primary"}: ${providerModelLabel(name, providers[name])}`,
+                        )
+                        .join(" → ")
+                    : "No ready provider configured"}
                 </p>
               </div>
-              <div className="flex min-w-0 flex-col gap-2">
-                {routed.length ? (
-                  routed.map(({ name, health, position }) => {
-                    const label = providerRouteLabel(name, health, position);
-                    return (
-                      <div
-                        key={`${role.key}:${name}:${position}`}
-                        className="flex min-w-0 items-center gap-2"
-                      >
-                        <span
-                          className={
-                            health.ready === false
-                              ? "size-1.5 shrink-0 rounded-full bg-amber-400"
-                              : "size-1.5 shrink-0 rounded-full bg-emerald-400"
-                          }
-                        >
-                          <span className="sr-only">
-                            {health.ready === false ? "Setup needed" : "Ready"}
-                          </span>
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-xs font-medium">
-                            {label.title}
-                          </span>
-                          <span className="block truncate text-[11px] text-muted-foreground">
-                            {label.detail}
-                          </span>
-                        </span>
-                      </div>
-                    );
-                  })
-                ) : (
-                  <p className="self-center text-xs text-muted-foreground">
-                    No provider configured
-                  </p>
-                )}
-              </div>
-            </div>
+            </Field>
           );
         })}
-      </div>
+      </FieldGroup>
+      <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
+        {locked
+          ? "This route was snapshotted when the task was sent. Start a new task to change it."
+          : "The effective route is snapshotted when a new task is sent; changing it never rewrites an active run."}
+      </p>
     </section>
   );
 }
@@ -340,6 +428,12 @@ export function ProviderConnectionsSheet({
   onOpenChange,
   providers,
   catalog,
+  preferences,
+  activeRoute,
+  activeProvider,
+  locked,
+  onPreferenceChange,
+  onResetPreferences,
 }: ProviderConnectionsSheetProps) {
   const entries = Object.entries(providers);
   const readyCount = entries.filter(
@@ -355,8 +449,8 @@ export function ProviderConnectionsSheet({
             Models
           </SheetTitle>
           <SheetDescription>
-            Configured accounts, automatic routing, and readiness. Provider
-            secret values never enter this UI.
+            Choose the models for this task and inspect configured account
+            readiness. Provider secret values never enter this UI.
           </SheetDescription>
           <div className="flex flex-wrap gap-2 pt-2">
             <Badge variant="secondary">
@@ -370,7 +464,15 @@ export function ProviderConnectionsSheet({
         </SheetHeader>
         <ScrollArea className="min-h-0 flex-1 px-4 pb-4">
           <div className="flex flex-col gap-6">
-            <AutomaticRoute providers={providers} />
+            <TaskRoute
+              providers={providers}
+              preferences={preferences}
+              activeRoute={activeRoute}
+              activeProvider={activeProvider}
+              locked={locked}
+              onPreferenceChange={onPreferenceChange}
+              onResetPreferences={onResetPreferences}
+            />
             <section aria-labelledby="configured-providers-title">
               <h3
                 id="configured-providers-title"
@@ -379,8 +481,8 @@ export function ProviderConnectionsSheet({
                 Configured accounts
               </h3>
               <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                Readiness is a local prerequisite check. Conformance evidence is
-                reported separately.
+                Readiness is a local prerequisite check. Tier ≠ live-tested
+                readiness; conformance evidence is reported separately.
               </p>
               <div className="mt-2">
                 {entries.length ? (

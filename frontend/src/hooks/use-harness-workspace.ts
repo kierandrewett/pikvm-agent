@@ -13,6 +13,8 @@ import {
 } from "@/lib/harness-api";
 import type {
   LiveUpdateStatus,
+  ModelPreferences,
+  ModelRole,
   ProviderCatalogEntry,
   ProviderMap,
   RunSnapshot,
@@ -35,6 +37,7 @@ const STREAM_RETRY_BASE_MS = 500;
 const STREAM_RETRY_MAX_MS = 5_000;
 const LIVE_RECONCILE_MS = 15_000;
 const DEGRADED_RECONCILE_MS = 1_500;
+const MODEL_ROLES: ModelRole[] = ["reasoner", "controller", "verifier"];
 
 export const loadProviderCatalog = async (accessToken: string) => {
   try {
@@ -47,6 +50,17 @@ export const loadProviderCatalog = async (accessToken: string) => {
     throw cause;
   }
 };
+
+export const createRunPayload = (
+  task: string,
+  preferences: ModelPreferences,
+) => ({
+  task,
+  auto_start: true,
+  model_preferences:
+    Object.keys(preferences).length > 0 ? preferences : null,
+  source_client: "chat-workspace",
+});
 
 const messageText = (message: AppendMessage) => {
   const text = message.content
@@ -74,7 +88,8 @@ export function useHarnessWorkspace() {
   const [providerCatalog, setProviderCatalog] = useState<
     ProviderCatalogEntry[]
   >([]);
-  const [selectedProvider, setSelectedProvider] = useState("");
+  const [modelPreferences, setModelPreferences] =
+    useState<ModelPreferences>({});
   const [error, setError] = useState("");
   const [liveUpdateStatus, setLiveUpdateStatus] =
     useState<LiveUpdateStatus>("idle");
@@ -103,6 +118,7 @@ export function useHarnessWorkspace() {
           status: run.status,
           origin: run.origin,
           model_provider: run.model_provider,
+          model_route: run.model_route,
           caller: run.caller,
           session_id: run.session_id,
           created_at: run.created_at,
@@ -136,16 +152,21 @@ export function useHarnessWorkspace() {
       setProviders(nextProviders);
       setProviderCatalog(nextCatalog);
       if (!runId) setSelectedRun(null);
-      if (
-        selectedProvider &&
-        (!nextProviders[selectedProvider] ||
-          nextProviders[selectedProvider]?.ready === false)
-      ) {
-        setSelectedProvider("");
-      }
+      setModelPreferences((current) =>
+        Object.fromEntries(
+          MODEL_ROLES.flatMap((role) => {
+            const provider = current[role];
+            return provider &&
+              nextProviders[provider] &&
+              nextProviders[provider]?.ready !== false
+              ? [[role, provider]]
+              : [];
+          }),
+        ),
+      );
       return nextRun;
     },
-    [loadRun, selectedId, selectedProvider, token],
+    [loadRun, selectedId, token],
   );
 
   const connect = useCallback(
@@ -357,12 +378,7 @@ export function useHarnessWorkspace() {
         } else {
           run = await harnessJson<RunSnapshot>(token, "/api/runs", {
             method: "POST",
-            body: JSON.stringify({
-              task,
-              auto_start: true,
-              model_provider: selectedProvider || null,
-              source_client: "chat-workspace",
-            }),
+            body: JSON.stringify(createRunPayload(task, modelPreferences)),
           });
           setSelectedId(run.run_id);
         }
@@ -375,7 +391,7 @@ export function useHarnessWorkspace() {
         throw cause;
       }
     },
-    [refresh, selectedProvider, selectedRun, token],
+    [modelPreferences, refresh, selectedRun, token],
   );
 
   const onCancel = useCallback(async () => {
@@ -432,6 +448,7 @@ export function useHarnessWorkspace() {
     setRuns([]);
     setProviders({});
     setProviderCatalog([]);
+    setModelPreferences({});
     setSelectedId(null);
     setSelectedRun(null);
     setError("");
@@ -445,6 +462,26 @@ export function useHarnessWorkspace() {
       selectedRun.status,
     ),
   );
+  const routeLocked = Boolean(
+    selectedRun && ACTIVE_OR_PAUSED.has(selectedRun.status),
+  );
+
+  const setModelPreference = useCallback(
+    (role: ModelRole, provider: string) => {
+      if (routeLocked) return;
+      setModelPreferences((current) => {
+        const next = { ...current };
+        if (provider) next[role] = provider;
+        else delete next[role];
+        return next;
+      });
+    },
+    [routeLocked],
+  );
+
+  const resetModelPreferences = useCallback(() => {
+    if (!routeLocked) setModelPreferences({});
+  }, [routeLocked]);
 
   return useMemo(
     () => ({
@@ -456,7 +493,8 @@ export function useHarnessWorkspace() {
       selectedRun,
       providers,
       providerCatalog,
-      selectedProvider,
+      modelPreferences,
+      routeLocked,
       error,
       liveUpdateStatus,
       lastLiveEventAt,
@@ -465,7 +503,8 @@ export function useHarnessWorkspace() {
       disconnect,
       selectRun,
       newThread,
-      setSelectedProvider,
+      setModelPreference,
+      resetModelPreferences,
       onNew,
       onCancel,
       continueRun,
@@ -481,7 +520,8 @@ export function useHarnessWorkspace() {
       selectedRun,
       providers,
       providerCatalog,
-      selectedProvider,
+      modelPreferences,
+      routeLocked,
       error,
       liveUpdateStatus,
       lastLiveEventAt,
@@ -490,6 +530,8 @@ export function useHarnessWorkspace() {
       disconnect,
       selectRun,
       newThread,
+      setModelPreference,
+      resetModelPreferences,
       onNew,
       onCancel,
       continueRun,

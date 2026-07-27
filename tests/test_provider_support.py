@@ -164,9 +164,9 @@ def test_operator_ui_explains_support_contract_without_overclaiming() -> None:
         / "provider-connections-sheet.tsx"
     ).read_text()
 
-    assert "health.support_tier" in model_picker
-    assert "health.credential_owner" in model_picker
-    assert "Tier ≠ live-tested" in model_picker
+    assert "providerModelLabel" in model_picker
+    assert "health.support_tier" in connections
+    assert "health.credential_owner" in connections
     assert "secret values never enter this UI" in connections
     assert "Readiness is a local prerequisite" in connections
     assert "Conformance not run" in connections

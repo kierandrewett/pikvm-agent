@@ -1,90 +1,75 @@
-import { BotIcon } from "lucide-react";
+import { BotIcon, LockKeyholeIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectSeparator,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import type { ProviderMap } from "@/types";
+  effectiveRolePrimary,
+  MODEL_ROLES,
+  providerModelLabel,
+} from "@/lib/model-routes";
+import type {
+  ModelPreferences,
+  ProviderMap,
+  RunModelRoute,
+} from "@/types";
 
 type ModelPickerProps = {
   providers: ProviderMap;
-  value: string;
-  onValueChange: (value: string) => void;
+  preferences: ModelPreferences;
+  activeRoute?: RunModelRoute | null;
+  activeProvider?: string | null;
+  locked: boolean;
+  onOpenModels: () => void;
 };
 
 export function ModelPicker({
   providers,
-  value,
-  onValueChange,
+  preferences,
+  activeRoute,
+  activeProvider,
+  locked,
+  onOpenModels,
 }: ModelPickerProps) {
-  const items = [
-    {
-      label: "Auto route",
-      value: "auto",
-      disabled: false,
-      support: "Choose the best ready provider for each role",
-    },
-    ...Object.entries(providers).map(([name, health]) => ({
-      label: `${health.configured_model || name} · ${name}`,
-      value: name,
-      disabled: health.ready === false,
-      support: [
-        health.support_tier
-          ? `${health.support_tier} support`
-          : "support unclassified",
-        health.credential_owner === "provider_cli"
-          ? "provider-owned login"
-          : health.credential_owner === "harness_environment"
-            ? "server credential"
-            : "",
-      ]
-        .filter(Boolean)
-        .join(" · "),
-    })),
-  ];
+  const primaries = MODEL_ROLES.map((role) => {
+    const provider = effectiveRolePrimary({
+      providers,
+      preferences,
+      activeRoute,
+      activeProvider,
+      locked,
+      role: role.key,
+    });
+    return {
+      ...role,
+      provider,
+      model: provider
+        ? providerModelLabel(provider, providers[provider])
+        : "No ready model",
+    };
+  });
+  const models = primaries.map(({ model }) => model);
+  const oneModel = new Set(models).size === 1;
+  const summary = oneModel ? `${models[0]} · all roles` : models.join(" / ");
+  const routeDescription = primaries
+    .map(({ label, model, provider }) =>
+      `${label}: ${model}${provider && model !== provider ? ` (${provider})` : ""}`,
+    )
+    .join(". ");
 
   return (
-    <Select
-      items={items}
-      value={value || "auto"}
-      onValueChange={(next) =>
-        onValueChange(!next || next === "auto" ? "" : next)
-      }
+    <Button
+      type="button"
+      size="sm"
+      variant="ghost"
+      className="max-w-[min(58vw,24rem)] justify-start px-1.5"
+      aria-label={`Configure model route. ${routeDescription}`}
+      title={`${routeDescription}.${locked ? " Locked for this run." : " Click to configure this task."}`}
+      onClick={onOpenModels}
     >
-      <SelectTrigger
-        size="sm"
-        aria-label="Model provider"
-        className="max-w-56 border-transparent bg-transparent px-1.5 shadow-none"
-      >
-        <BotIcon aria-hidden="true" />
-        <SelectValue placeholder="Choose model" />
-      </SelectTrigger>
-      <SelectContent alignItemWithTrigger={false} align="start">
-        <SelectGroup>
-          {items.map((item) => (
-            <SelectItem
-              key={item.value}
-              value={item.value}
-              disabled={item.disabled}
-            >
-              <span className="flex flex-col items-start gap-0">
-                <span>{item.label}</span>
-                <span className="text-muted-foreground text-[11px] font-normal">
-                  {item.support}
-                </span>
-              </span>
-            </SelectItem>
-          ))}
-          <SelectSeparator />
-          <p className="text-muted-foreground max-w-72 px-2 py-1.5 text-[11px] leading-relaxed">
-            Tier ≠ live-tested readiness. Unready providers cannot be selected.
-          </p>
-        </SelectGroup>
-      </SelectContent>
-    </Select>
+      {locked ? (
+        <LockKeyholeIcon data-icon="inline-start" />
+      ) : (
+        <BotIcon data-icon="inline-start" />
+      )}
+      <span className="truncate">{summary}</span>
+    </Button>
   );
 }

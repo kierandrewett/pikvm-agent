@@ -106,8 +106,11 @@ export function WorkspaceShell() {
     <div className="flex min-w-0 items-center gap-1">
       <ModelPicker
         providers={workspace.providers}
-        value={workspace.selectedProvider}
-        onValueChange={workspace.setSelectedProvider}
+        preferences={workspace.modelPreferences}
+        activeRoute={workspace.selectedRun?.model_route}
+        activeProvider={workspace.selectedRun?.model_provider}
+        locked={workspace.routeLocked}
+        onOpenModels={() => setModelsOpen(true)}
       />
       <Badge
         variant="ghost"
@@ -240,6 +243,12 @@ export function WorkspaceShell() {
         onOpenChange={setModelsOpen}
         providers={workspace.providers}
         catalog={workspace.providerCatalog}
+        preferences={workspace.modelPreferences}
+        activeRoute={workspace.selectedRun?.model_route}
+        activeProvider={workspace.selectedRun?.model_provider}
+        locked={workspace.routeLocked}
+        onPreferenceChange={workspace.setModelPreference}
+        onResetPreferences={workspace.resetModelPreferences}
       />
       <DiagnosticsSheet
         open={diagnosticsOpen}

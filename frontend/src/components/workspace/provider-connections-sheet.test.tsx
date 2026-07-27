@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 
 import { cleanup, render, screen, within } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import userEvent from "@testing-library/user-event";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ProviderCatalogEntry, ProviderMap } from "@/types";
 import { ProviderConnectionsSheet } from "./provider-connections-sheet";
 
@@ -80,16 +81,20 @@ describe("ProviderConnectionsSheet", () => {
         onOpenChange={() => undefined}
         providers={providers}
         catalog={catalog}
+        preferences={{}}
+        locked={false}
+        onPreferenceChange={() => undefined}
+        onResetPreferences={() => undefined}
       />,
     );
 
-    const route = screen.getByLabelText("Automatic route");
+    const route = screen.getByLabelText("Task route");
     expect(within(route).getByText("Reasoning")).not.toBeNull();
     expect(within(route).getByText("Acting")).not.toBeNull();
     expect(within(route).getByText("Checking")).not.toBeNull();
     expect(route.textContent).toContain("opus");
-    expect(route.textContent).toContain("gpt-fast");
     expect(route.textContent).toContain("primary");
+    expect(route.textContent).toContain("No ready provider configured");
 
     expect(screen.getByText("Provider-owned sign-in")).not.toBeNull();
     expect(screen.getAllByText("Harness environment").length).toBeGreaterThan(
@@ -112,6 +117,10 @@ describe("ProviderConnectionsSheet", () => {
         onOpenChange={() => undefined}
         providers={providers}
         catalog={catalog}
+        preferences={{}}
+        locked={false}
+        onPreferenceChange={() => undefined}
+        onResetPreferences={() => undefined}
       />,
     );
 
@@ -129,5 +138,82 @@ describe("ProviderConnectionsSheet", () => {
       screen.getByText(/CLI sign-in · Provider-owned sign-in/),
     ).not.toBeNull();
     expect(screen.getByText(/API key · Harness environment/)).not.toBeNull();
+  });
+
+  it("edits each computer-use role independently", async () => {
+    const user = userEvent.setup();
+    const onPreferenceChange = vi.fn();
+    const readyProviders = {
+      ...providers,
+      "fast-controller": {
+        ...providers["fast-controller"],
+        ready: true,
+      },
+    } as ProviderMap;
+
+    render(
+      <ProviderConnectionsSheet
+        open
+        onOpenChange={() => undefined}
+        providers={readyProviders}
+        catalog={catalog}
+        preferences={{ reasoner: "claude-account" }}
+        locked={false}
+        onPreferenceChange={onPreferenceChange}
+        onResetPreferences={() => undefined}
+      />,
+    );
+
+    expect(screen.getByText("Custom primaries")).not.toBeNull();
+    await user.click(screen.getByRole("combobox", { name: "Acting model" }));
+    await user.click(
+      screen.getByRole("option", {
+        name: "gpt-fast · fast-controller",
+      }),
+    );
+
+    expect(onPreferenceChange).toHaveBeenCalledWith(
+      "controller",
+      "fast-controller",
+    );
+  });
+
+  it("shows and disables the durable route while a run is active", () => {
+    render(
+      <ProviderConnectionsSheet
+        open
+        onOpenChange={() => undefined}
+        providers={{
+          ...providers,
+          "fast-controller": {
+            ...providers["fast-controller"],
+            ready: true,
+          },
+        }}
+        catalog={catalog}
+        preferences={{}}
+        activeRoute={{
+          reasoner: ["claude-account"],
+          controller: ["fast-controller", "claude-account"],
+          verifier: ["claude-account"],
+        }}
+        locked
+        onPreferenceChange={() => undefined}
+        onResetPreferences={() => undefined}
+      />,
+    );
+
+    expect(screen.getByText("Locked for this run")).not.toBeNull();
+    expect(
+      screen.getByText(
+        "This route was snapshotted when the task was sent. Start a new task to change it.",
+      ),
+    ).not.toBeNull();
+    expect(
+      screen
+        .getByRole("combobox", { name: "Acting model" })
+        .hasAttribute("disabled"),
+    ).toBe(true);
+    expect(screen.getByText(/fallback 1: opus/)).not.toBeNull();
   });
 });

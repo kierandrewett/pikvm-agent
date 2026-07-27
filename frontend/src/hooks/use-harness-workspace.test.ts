@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { loadProviderCatalog } from "@/hooks/use-harness-workspace";
+import {
+  createRunPayload,
+  loadProviderCatalog,
+} from "@/hooks/use-harness-workspace";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -51,5 +54,35 @@ describe("loadProviderCatalog", () => {
     );
 
     await expect(loadProviderCatalog("workspace-token")).resolves.toEqual([]);
+  });
+});
+
+describe("createRunPayload", () => {
+  it("keeps automatic routing explicit without using the legacy all-role pin", () => {
+    expect(createRunPayload("Open the report", {})).toEqual({
+      task: "Open the report",
+      auto_start: true,
+      model_preferences: null,
+      source_client: "chat-workspace",
+    });
+    expect(createRunPayload("Open the report", {})).not.toHaveProperty(
+      "model_provider",
+    );
+  });
+
+  it("sends independent role primaries", () => {
+    expect(
+      createRunPayload("Build the workbook", {
+        reasoner: "strong-reasoner",
+        controller: "fast-controller",
+        verifier: "strong-reasoner",
+      }),
+    ).toMatchObject({
+      model_preferences: {
+        reasoner: "strong-reasoner",
+        controller: "fast-controller",
+        verifier: "strong-reasoner",
+      },
+    });
   });
 });
