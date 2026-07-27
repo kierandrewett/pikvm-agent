@@ -383,6 +383,39 @@ def build_fixture_run(
     cycle = 0
     while run.event_cursor < prefill_events - 1:
         index = cycle % 127
+        fixture_actions = (
+            [
+                {
+                    "type": "type_text",
+                    "text": "Quarterly review draft",
+                    "context": "field",
+                }
+            ]
+            if cycle % 3 == 1
+            else [{"type": "click", "x": 840, "y": 420}]
+        )
+        input_receipts = (
+            [
+                {
+                    "index": 0,
+                    "type": "type_text",
+                    "status": "verified_exact",
+                    "verdict": "match",
+                    "observed_text": "Quarterly review draft",
+                    "observed_text_redacted": False,
+                    "typed_characters": 22,
+                    "intended_characters": 22,
+                    "correction_count": 0,
+                    "delivery_retries": 0,
+                    "used_fast_path": False,
+                    "summary": "Typed and verified the target field.",
+                    "edit_distance": 0,
+                    "focus_evidence": "read_back_verified",
+                }
+            ]
+            if cycle % 3 == 1
+            else []
+        )
         for kind, data in (
             (
                 "model.provider_started",
@@ -418,7 +451,7 @@ def build_fixture_run(
                 {
                     "index": index,
                     "intent": "Inspect the next bounded target",
-                    "actions": [{"type": "click", "x": 840, "y": 420}],
+                    "actions": fixture_actions,
                 },
             ),
             (
@@ -428,7 +461,7 @@ def build_fixture_run(
                     "attempt": 1,
                     "tool": "pikvm_run_burst",
                     "arguments": {
-                        "actions": [{"type": "click", "x": 840, "y": 420}],
+                        "actions": fixture_actions,
                         "based_on_world_version": cycle + 1,
                         "based_on_control_epoch": 1,
                     },
@@ -440,6 +473,11 @@ def build_fixture_run(
                     "index": index,
                     "frame_id": cycle + 2,
                     "world_version": cycle + 2,
+                    **(
+                        {"input_receipts": input_receipts}
+                        if input_receipts
+                        else {}
+                    ),
                 },
             ),
             (

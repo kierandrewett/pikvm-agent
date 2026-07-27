@@ -130,6 +130,8 @@ class WatchedTypingResult(BaseModel):
     summary: str
     typed_characters: int = 0
     intended_characters: int = 0
+    correction_count: int = 0
+    delivery_retries: int = 0
 
 
 # --------------------------------------------------------------------------- #
@@ -647,6 +649,8 @@ class WatchedTyper:
                     status="blocked_by_policy",
                     field_text=last_read,
                     corrected=corrections > 0,
+                    correction_count=corrections,
+                    delivery_retries=delivery_retries,
                     typed_characters=len(typed_so_far),
                     intended_characters=len(text),
                     used_fast_path=fast_print,
@@ -673,6 +677,8 @@ class WatchedTyper:
                         status="failed_focus_lost",
                         field_text=last_read,
                         corrected=corrections > 0,
+                        correction_count=corrections,
+                        delivery_retries=delivery_retries,
                         typed_characters=len(typed_so_far),
                         intended_characters=len(text),
                         used_fast_path=fast_print,
@@ -812,6 +818,8 @@ class WatchedTyper:
                                 status="failed_focus_lost",
                                 field_text="",
                                 corrected=False,
+                                correction_count=corrections,
+                                delivery_retries=delivery_retries,
                                 used_fast_path=fast_print,
                                 typed_characters=len(typed_so_far),
                                 intended_characters=len(text),
@@ -894,6 +902,8 @@ class WatchedTyper:
             corrected,
             used_fast_path=fast_print,
             precise=precise,
+            correction_count=corrections,
+            delivery_retries=delivery_retries,
         )
 
     # ---- result assembly -------------------------------------------------- #
@@ -916,6 +926,8 @@ class WatchedTyper:
         summary: str,
         typed_characters: int,
         intended_characters: int,
+        correction_count: int = 0,
+        delivery_retries: int = 0,
     ) -> WatchedTypingResult:
         return WatchedTypingResult(
             verdict="mismatch",
@@ -927,6 +939,8 @@ class WatchedTyper:
             summary=summary,
             typed_characters=typed_characters,
             intended_characters=intended_characters,
+            correction_count=correction_count,
+            delivery_retries=delivery_retries,
         )
 
     def _finalise(
@@ -938,6 +952,8 @@ class WatchedTyper:
         *,
         used_fast_path: bool,
         precise: bool,
+        correction_count: int,
+        delivery_retries: int,
     ) -> WatchedTypingResult:
         # Reuse the verifier for the authoritative status (the only thing allowed to
         # declare typed text verified or failed). Verdict drives the summary text.
@@ -972,4 +988,6 @@ class WatchedTyper:
             summary=summary,
             typed_characters=len(intended),
             intended_characters=len(intended),
+            correction_count=correction_count,
+            delivery_retries=delivery_retries,
         )

@@ -775,6 +775,47 @@ class UnverifiedTypingComputer(FakeComputer):
         )
 
 
+class InputReceiptComputer(FakeComputer):
+    async def burst(self, **kwargs: Any) -> ComputerObservation:
+        self.bursts.append(kwargs)
+        return ComputerObservation(
+            session_id=kwargs["session_id"],
+            status="completed",
+            frame_id=2,
+            world_version=8,
+            control_epoch=2,
+            image_path="/tmp/frame-after.jpg",
+            raw={
+                "action_receipts": [
+                    {
+                        "index": 0,
+                        "type": "type_text",
+                        "status": "verified_exact",
+                        "verdict": "match",
+                        "observed_text": "hello world",
+                        "observed_text_redacted": False,
+                        "typed_characters": 11,
+                        "intended_characters": 11,
+                        "correction_count": 1,
+                        "delivery_retries": 0,
+                        "used_fast_path": False,
+                        "summary": "Typed and verified.",
+                        "edit_distance": 0,
+                        "focus_evidence": "read_back_verified",
+                        "private_path": "/tmp/do-not-expose.png",
+                        "unknown": {"nested": "value"},
+                    },
+                    {
+                        "index": 99,
+                        "type": "type_text",
+                        "status": "verified_exact",
+                        "observed_text": "not a submitted action",
+                    },
+                ]
+            },
+        )
+
+
 class ImageComputer(FakeComputer):
     def __init__(self, before: Path, after: Path) -> None:
         super().__init__()
@@ -1754,6 +1795,72 @@ async def test_daemon_unverified_typing_cannot_be_overridden_by_model_verifier()
         for event in paused.events
     )
     assert not any(request.role == "verifier" for request in provider.requests)
+
+
+@pytest.mark.asyncio
+async def test_action_event_exposes_only_bounded_input_readback_receipts() -> None:
+    provider = ScriptedProvider()
+    harness = build_harness(provider, InputReceiptComputer())
+
+    completed = await harness.start("Type hello world in the open editor.")
+
+    event = next(
+        event for event in completed.events if event.kind == "action.completed"
+    )
+    assert event.data["input_receipts"] == [
+        {
+            "index": 0,
+            "type": "type_text",
+            "status": "verified_exact",
+            "verdict": "match",
+            "observed_text": "hello world",
+            "observed_text_redacted": False,
+            "typed_characters": 11,
+            "intended_characters": 11,
+            "correction_count": 1,
+            "delivery_retries": 0,
+            "used_fast_path": False,
+            "summary": "Typed and verified.",
+            "edit_distance": 0,
+            "focus_evidence": "read_back_verified",
+        }
+    ]
+    assert "private_path" not in repr(event.data["input_receipts"])
+    assert "unknown" not in repr(event.data["input_receipts"])
+
+
+def test_secret_input_receipt_is_redacted_again_at_harness_boundary() -> None:
+    receipts = AgentHarness._public_input_receipts(
+        {
+            "action_receipts": [
+                {
+                    "index": 0,
+                    "type": "type_text",
+                    "status": "verified_exact",
+                    "observed_text": "maliciously retained secret",
+                    "observed_text_redacted": False,
+                    "summary": "maliciously retained secret",
+                    "typed_characters": 27,
+                    "intended_characters": 27,
+                }
+            ]
+        },
+        [{"type": "type_text", "text": "password", "secret": True}],
+    )
+
+    assert receipts == [
+        {
+            "index": 0,
+            "type": "type_text",
+            "status": "delivered_unverified",
+            "verdict": "unverified",
+            "focus_evidence": "read_back_not_retained",
+            "observed_text_redacted": True,
+            "typed_characters": 27,
+            "intended_characters": 27,
+        }
+    ]
+    assert "secret" not in repr(receipts)
 
 
 @pytest.mark.asyncio

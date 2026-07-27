@@ -337,12 +337,22 @@ class _StubTyper:
         self,
         status: str,
         *,
+        verdict: str = "match",
+        field_text: str = "",
         typed_characters: int = 0,
         intended_characters: int = 0,
+        correction_count: int = 0,
+        delivery_retries: int = 0,
+        used_fast_path: bool = False,
     ) -> None:
         self.status = status
+        self.verdict = verdict
+        self.field_text = field_text
         self.typed_characters = typed_characters
         self.intended_characters = intended_characters
+        self.correction_count = correction_count
+        self.delivery_retries = delivery_retries
+        self.used_fast_path = used_fast_path
         self.calls: list[str] = []
 
     async def type_text(self, text, *, code=False, secret=False, should_continue=None):
@@ -351,10 +361,15 @@ class _StubTyper:
             pass
         r = _R()
         r.status = self.status
+        r.verdict = self.verdict
         r.ok = not self.status.startswith("failed_")
         r.summary = "stub"
+        r.field_text = self.field_text
         r.typed_characters = self.typed_characters
         r.intended_characters = self.intended_characters
+        r.correction_count = self.correction_count
+        r.delivery_retries = self.delivery_retries
+        r.used_fast_path = self.used_fast_path
         return r
 
 
@@ -372,12 +387,102 @@ async def test_burst_type_text_verifies_and_stops_on_mismatch() -> None:
 
 async def test_burst_type_text_proceeds_when_verified() -> None:
     be = FakeBackend()
-    typer = _StubTyper("verified_exact")
+    typer = _StubTyper(
+        "verified_exact",
+        field_text="hi",
+        typed_characters=2,
+        intended_characters=2,
+        correction_count=1,
+        delivery_retries=1,
+    )
     out = await run_burst(
         [{"type": "type_text", "text": "hi"}, {"type": "key", "keys": ["ENTER"]}],
         backend=be, typer=typer)
     assert out.status == "completed"
     assert any(m == "keypress" for m, _ in be.calls)
+    assert out.action_receipts == [
+        {
+            "index": 0,
+            "type": "type_text",
+            "status": "verified_exact",
+            "verdict": "match",
+            "observed_text": "hi",
+            "observed_text_redacted": False,
+            "typed_characters": 2,
+            "intended_characters": 2,
+            "correction_count": 1,
+            "delivery_retries": 1,
+            "used_fast_path": False,
+            "summary": "stub",
+            "edit_distance": 0,
+            "focus_evidence": "read_back_verified",
+        }
+    ]
+
+
+async def test_burst_retains_watched_readback_when_typing_fails() -> None:
+    be = FakeBackend()
+    typer = _StubTyper(
+        "failed_focus_lost",
+        verdict="mismatch",
+        field_text="wrong",
+        typed_characters=5,
+        intended_characters=8,
+    )
+
+    out = await run_burst(
+        [{"type": "type_text", "text": "intended"}],
+        backend=be,
+        typer=typer,
+    )
+
+    assert out.status == "failed"
+    assert out.action_receipts == [
+        {
+            "index": 0,
+            "type": "type_text",
+            "status": "failed_focus_lost",
+            "verdict": "mismatch",
+            "observed_text": "wrong",
+            "observed_text_redacted": False,
+            "typed_characters": 5,
+            "intended_characters": 8,
+            "correction_count": 0,
+            "delivery_retries": 0,
+            "used_fast_path": False,
+            "summary": "stub",
+            "edit_distance": 7,
+            "focus_evidence": "focus_lost",
+        }
+    ]
+
+
+async def test_burst_secret_receipt_never_retains_secret_text() -> None:
+    be = FakeBackend()
+
+    out = await run_burst(
+        [{"type": "type_text", "text": "super-secret", "secret": True}],
+        backend=be,
+        typer=_StubTyper("verified_exact", field_text="super-secret"),
+    )
+
+    assert out.status == "completed"
+    assert out.action_receipts == [
+        {
+            "index": 0,
+            "type": "type_text",
+            "status": "delivered_unverified",
+            "verdict": "unverified",
+            "observed_text_redacted": True,
+            "typed_characters": 12,
+            "intended_characters": 12,
+            "correction_count": 0,
+            "delivery_retries": 0,
+            "used_fast_path": False,
+            "focus_evidence": "read_back_not_retained",
+        }
+    ]
+    assert "super-secret" not in repr(out.action_receipts)
 
 
 async def test_burst_precise_text_stops_on_ambiguous_ocr_before_enter() -> None:

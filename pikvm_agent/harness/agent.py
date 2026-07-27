@@ -1021,6 +1021,15 @@ class AgentHarness:
             }.items()
             if value is not None
         }
+        input_receipts = self._public_input_receipts(
+            observation.raw,
+            action.actions if action is not None else [],
+        )
+        receipt_outcome = (
+            {"input_receipts": input_receipts}
+            if input_receipts
+            else {}
+        )
         continuity_before = before or run.observation
         previous_machine = (
             continuity_before.machine
@@ -1052,6 +1061,7 @@ class AgentHarness:
                 current_alias=observation.machine.get("alias"),
                 source="harness",
                 status=observation.status,
+                **receipt_outcome,
                 **tool_outcome,
             )
             await self.store.save(run)
@@ -1282,6 +1292,7 @@ class AgentHarness:
                 world_version=observation.world_version,
                 reason=observation.raw.get("reason"),
                 status=observation.status,
+                **receipt_outcome,
                 **tool_outcome,
             )
             await self.store.save(run)
@@ -1303,6 +1314,7 @@ class AgentHarness:
                     status=observation.status,
                     reason=observation.raw.get("reason"),
                     error=run.error,
+                    **receipt_outcome,
                     **tool_outcome,
                 )
             else:
@@ -1312,6 +1324,7 @@ class AgentHarness:
                     index=action.index if action else None,
                     status=observation.status,
                     error=run.error,
+                    **receipt_outcome,
                     **tool_outcome,
                 )
             await self.store.save(run)
@@ -1327,6 +1340,7 @@ class AgentHarness:
             frame_id=observation.frame_id,
             world_version=observation.world_version,
             status=observation.status,
+            **receipt_outcome,
             **tool_outcome,
         )
         await self.store.save(run)
@@ -1844,6 +1858,109 @@ class AgentHarness:
     @staticmethod
     def _visible_actions(actions: list[dict[str, Any]]) -> list[dict[str, Any]]:
         return redact_secrets(actions)
+
+    @staticmethod
+    def _public_input_receipts(
+        raw: dict[str, Any],
+        actions: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        """Copy bounded watched-typing evidence across the public event boundary."""
+
+        candidates = raw.get("action_receipts")
+        if not isinstance(candidates, list):
+            return []
+        output: list[dict[str, Any]] = []
+        seen: set[int] = set()
+        allowed_strings = {
+            "status": {
+                "verified_exact",
+                "verified_safe_normalized",
+                "verified_with_warnings",
+                "unverified_ambiguous",
+                "unverified_wrong_region",
+                "unverified_truncated",
+                "failed_symbol_mismatch",
+                "failed_case_mismatch",
+                "failed_keyboard_layout",
+                "failed_focus_lost",
+                "failed_stale_frame",
+                "blocked_by_policy",
+                "needs_human",
+                "delivered_unverified",
+            },
+            "verdict": {"match", "contains", "mismatch", "unverified"},
+            "focus_evidence": {
+                "focus_lost",
+                "read_back_verified",
+                "read_back_unverified",
+                "read_back_mismatch",
+                "read_back_not_retained",
+                "read_back_unavailable",
+            },
+        }
+        integer_limits = {
+            "typed_characters": 480,
+            "intended_characters": 480,
+            "correction_count": 20,
+            "delivery_retries": 20,
+            "edit_distance": 960,
+        }
+        for candidate in candidates[:20]:
+            if not isinstance(candidate, dict):
+                continue
+            index = candidate.get("index")
+            if (
+                not isinstance(index, int)
+                or isinstance(index, bool)
+                or index < 0
+                or index >= len(actions)
+                or index in seen
+            ):
+                continue
+            action = actions[index]
+            if action.get("type") != "type_text":
+                continue
+            seen.add(index)
+            secret = action.get("secret") is True
+            redacted = secret or candidate.get("observed_text_redacted") is True
+            receipt: dict[str, Any] = {
+                "index": index,
+                "type": "type_text",
+            }
+            for key, allowed in allowed_strings.items():
+                value = candidate.get(key)
+                if isinstance(value, str) and value in allowed:
+                    receipt[key] = value
+            for key, limit in integer_limits.items():
+                value = candidate.get(key)
+                if (
+                    isinstance(value, int)
+                    and not isinstance(value, bool)
+                    and 0 <= value <= limit
+                ):
+                    receipt[key] = value
+            for key in ("used_fast_path",):
+                value = candidate.get(key)
+                if isinstance(value, bool):
+                    receipt[key] = value
+            receipt["observed_text_redacted"] = redacted
+            if redacted:
+                receipt.update(
+                    {
+                        "status": "delivered_unverified",
+                        "verdict": "unverified",
+                        "focus_evidence": "read_back_not_retained",
+                    }
+                )
+            else:
+                observed_text = candidate.get("observed_text")
+                if isinstance(observed_text, str) and len(observed_text) <= 960:
+                    receipt["observed_text"] = observed_text
+                summary = candidate.get("summary")
+                if isinstance(summary, str) and 0 < len(summary) <= 320:
+                    receipt["summary"] = summary
+            output.append(receipt)
+        return output
 
     @staticmethod
     def _recoverable_failure(

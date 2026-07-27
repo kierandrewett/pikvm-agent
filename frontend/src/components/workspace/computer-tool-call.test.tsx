@@ -97,6 +97,106 @@ describe("ComputerInputSequence", () => {
     expect(screen.getByText("ENTER").tagName).toBe("KBD");
   });
 
+  it("keeps typed text and its exact read-back together", () => {
+    render(
+      <ComputerInputSequence
+        actions={[{ type: "type_text", text: "hello world" }]}
+        inputReceipts={[
+          {
+            index: 0,
+            type: "type_text",
+            status: "verified_exact",
+            verdict: "match",
+            observed_text: "hello world",
+            observed_text_redacted: false,
+            typed_characters: 11,
+            intended_characters: 11,
+            correction_count: 1,
+            delivery_retries: 0,
+            used_fast_path: false,
+            summary: "Typed and verified.",
+            edit_distance: 0,
+            focus_evidence: "read_back_verified",
+          },
+        ]}
+      />,
+    );
+
+    const readBack = screen.getByLabelText("Typing read-back for action 1");
+    expect(readBack.textContent).toContain("Read-back matches");
+    expect(readBack.textContent).toContain("hello world");
+    expect(readBack.textContent).toContain("11 / 11 chars");
+    expect(readBack.textContent).toContain("0 edits");
+    expect(readBack.textContent).toContain("1 correction");
+  });
+
+  it("shows focus loss without treating transport as success", () => {
+    render(
+      <ComputerInputSequence
+        actions={[{ type: "type_text", text: "hello world" }]}
+        inputReceipts={[
+          {
+            index: 0,
+            type: "type_text",
+            status: "failed_focus_lost",
+            verdict: "mismatch",
+            observed_text: "",
+            observed_text_redacted: false,
+            typed_characters: 5,
+            intended_characters: 11,
+            correction_count: 0,
+            delivery_retries: 0,
+            used_fast_path: false,
+            edit_distance: 11,
+            focus_evidence: "focus_lost",
+          },
+        ]}
+      />,
+    );
+
+    const readBack = screen.getByLabelText("Typing read-back for action 1");
+    expect(readBack.textContent).toContain("Focus lost");
+    expect(readBack.textContent).toContain("5 / 11 chars");
+    expect(readBack.textContent).not.toContain("Read-back matches");
+  });
+
+  it("never renders retained read-back for a secret input", () => {
+    render(
+      <ComputerInputSequence
+        actions={[
+          {
+            type: "type_text",
+            text: "••••••••",
+            secret: true,
+            redacted: true,
+          },
+        ]}
+        inputReceipts={[
+          {
+            index: 0,
+            type: "type_text",
+            status: "delivered_unverified",
+            verdict: "unverified",
+            observed_text: "must not render",
+            observed_text_redacted: true,
+            typed_characters: 14,
+            intended_characters: 14,
+            correction_count: 0,
+            delivery_retries: 0,
+            used_fast_path: false,
+            focus_evidence: "read_back_not_retained",
+          },
+        ]}
+      />,
+    );
+
+    const readBack = screen.getByLabelText("Typing read-back for action 1");
+    expect(readBack.textContent).toContain(
+      "No read-back text retained for secret input",
+    );
+    expect(readBack.textContent).not.toContain("must not render");
+  });
+
   it("shows exact pointer coordinates and button", () => {
     render(
       <ComputerInputSequence

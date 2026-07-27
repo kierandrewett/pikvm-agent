@@ -23,7 +23,11 @@ from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable
 
 from pikvm_agent.executor.typing import chunk_text
-from pikvm_agent.executor.verification import is_exact_text
+from pikvm_agent.executor.verification import (
+    is_exact_text,
+    levenshtein,
+    norm,
+)
 from pikvm_agent.vision.frame_diff import FP_MEANINGFUL, grid
 
 # --- key-name normalisation ------------------------------------------------ #
@@ -81,6 +85,7 @@ class BurstOutcome:
     error: str = ""
     executed: list[str] = field(default_factory=list)  # action types that ran
     partial_action: dict[str, Any] | None = None
+    action_receipts: list[dict[str, Any]] = field(default_factory=list)
 
     @property
     def remaining(self) -> int:
@@ -98,17 +103,30 @@ class TypingNotVerified(Exception):
     ambiguous OCR cannot turn an uncertain draft into an irreversible submit.
     """
 
-    def __init__(self, message: str, *, ambiguous: bool = False) -> None:
+    def __init__(
+        self,
+        message: str,
+        *,
+        ambiguous: bool = False,
+        action_receipt: dict[str, Any] | None = None,
+    ) -> None:
         super().__init__(message)
         self.ambiguous = ambiguous
+        self.action_receipt = action_receipt
 
 
 class BurstInterrupted(Exception):
     """The active micro-action observed a stop/deadline gate and halted part-way."""
 
-    def __init__(self, partial_action: dict[str, Any] | None = None) -> None:
+    def __init__(
+        self,
+        partial_action: dict[str, Any] | None = None,
+        *,
+        action_receipt: dict[str, Any] | None = None,
+    ) -> None:
         super().__init__("active micro-action interrupted")
         self.partial_action = partial_action
+        self.action_receipt = action_receipt
 
 
 def _positive_int_env(name: str, default: int) -> int:
@@ -325,6 +343,7 @@ async def run_burst(
     validate_actions(actions)
     total = len(actions)
     executed: list[str] = []
+    action_receipts: list[dict[str, Any]] = []
 
     def _stop() -> tuple[str, str] | None:
         if should_continue is not None and not should_continue():
@@ -343,20 +362,31 @@ async def run_burst(
         stop = _stop()
         if stop is not None:
             await _release_all_quietly(backend)
-            return BurstOutcome(stop[0], i, total, reason=stop[1], executed=executed)
+            return BurstOutcome(
+                stop[0],
+                i,
+                total,
+                reason=stop[1],
+                executed=executed,
+                action_receipts=action_receipts,
+            )
         a = raw if isinstance(raw, dict) else dict(raw)
         kind = a.get("type")
         try:
-            await _dispatch(
+            action_receipt = await _dispatch(
                 a,
                 kind,
                 backend=backend,
                 typer=typer,
                 should_continue=lambda: _stop() is None,
             )
+            if action_receipt is not None:
+                action_receipts.append({"index": i, **action_receipt})
         except BurstError:
             raise
         except BurstInterrupted as exc:
+            if exc.action_receipt is not None:
+                action_receipts.append({"index": i, **exc.action_receipt})
             await _release_all_quietly(backend)
             return BurstOutcome(
                 "interrupted",
@@ -365,8 +395,11 @@ async def run_burst(
                 reason=(_stop() or ("interrupted", "control_changed"))[1],
                 executed=executed,
                 partial_action=exc.partial_action,
+                action_receipts=action_receipts,
             )
         except TypingNotVerified as exc:
+            if exc.action_receipt is not None:
+                action_receipts.append({"index": i, **exc.action_receipt})
             remaining_are_passive = all(
                 (item if isinstance(item, dict) else dict(item)).get("type")
                 in passive_evidence_actions
@@ -382,11 +415,25 @@ async def run_burst(
                 continue
             # Confirmed wrong text, lost focus, or any following active action:
             # stop BEFORE the next action (especially Enter).
-            return BurstOutcome("failed", i, total, reason="type_unverified",
-                                error=str(exc), executed=executed)
+            return BurstOutcome(
+                "failed",
+                i,
+                total,
+                reason="type_unverified",
+                error=str(exc),
+                executed=executed,
+                action_receipts=action_receipts,
+            )
         except Exception as exc:  # noqa: BLE001 - a backend failure ends the burst, not the daemon
-            return BurstOutcome("failed", i, total, reason="action_error",
-                                error=f"{kind}: {exc}", executed=executed)
+            return BurstOutcome(
+                "failed",
+                i,
+                total,
+                reason="action_error",
+                error=f"{kind}: {exc}",
+                executed=executed,
+                action_receipts=action_receipts,
+            )
         executed.append(str(kind))
 
     if unverified_error:
@@ -397,8 +444,15 @@ async def run_burst(
             reason="type_unverified",
             error=unverified_error,
             executed=executed,
+            action_receipts=action_receipts,
         )
-    return BurstOutcome("completed", total, total, executed=executed)
+    return BurstOutcome(
+        "completed",
+        total,
+        total,
+        executed=executed,
+        action_receipts=action_receipts,
+    )
 
 
 async def _release_all_quietly(backend: Any) -> None:
@@ -410,8 +464,93 @@ async def _release_all_quietly(backend: Any) -> None:
             pass
 
 
-async def _dispatch(a: dict[str, Any], kind: str | None, *, backend: Any, typer: Any,
-                    should_continue: ShouldContinue | None) -> None:
+def _typing_receipt(
+    action: dict[str, Any],
+    result: Any,
+    *,
+    precise: bool,
+) -> dict[str, Any]:
+    intended = str(action.get("text", ""))
+    observed = str(getattr(result, "field_text", "") or "")
+    status = str(getattr(result, "status", "") or "unverified")
+    verdict = str(getattr(result, "verdict", "") or "unverified")
+    receipt: dict[str, Any] = {
+        "type": "type_text",
+        "status": status,
+        "verdict": verdict,
+        "observed_text": observed,
+        "observed_text_redacted": False,
+        "typed_characters": int(
+            getattr(result, "typed_characters", len(intended)) or 0
+        ),
+        "intended_characters": int(
+            getattr(result, "intended_characters", len(intended))
+            or len(intended)
+        ),
+        "correction_count": int(
+            getattr(result, "correction_count", 0) or 0
+        ),
+        "delivery_retries": int(
+            getattr(result, "delivery_retries", 0) or 0
+        ),
+        "used_fast_path": bool(getattr(result, "used_fast_path", False)),
+    }
+    summary = str(getattr(result, "summary", "") or "")
+    if summary:
+        receipt["summary"] = summary
+    intended_norm = norm(intended, precise)
+    observed_norm = norm(observed, precise)
+    receipt["edit_distance"] = levenshtein(
+        intended_norm,
+        observed_norm,
+        max(len(intended_norm), len(observed_norm)),
+    )
+    if status == "failed_focus_lost":
+        receipt["focus_evidence"] = "focus_lost"
+    elif status.startswith("verified_") or verdict in {"match", "contains"}:
+        receipt["focus_evidence"] = "read_back_verified"
+    elif status.startswith("unverified_"):
+        receipt["focus_evidence"] = "read_back_unverified"
+    else:
+        receipt["focus_evidence"] = "read_back_mismatch"
+    return receipt
+
+
+def _unwatched_typing_receipt(
+    text: str,
+    *,
+    secret: bool,
+    typed_characters: int | None = None,
+) -> dict[str, Any]:
+    intended_characters = len(text)
+    return {
+        "type": "type_text",
+        "status": "delivered_unverified",
+        "verdict": "unverified",
+        "observed_text_redacted": secret,
+        "typed_characters": (
+            intended_characters
+            if typed_characters is None
+            else max(0, typed_characters)
+        ),
+        "intended_characters": intended_characters,
+        "correction_count": 0,
+        "delivery_retries": 0,
+        "used_fast_path": False,
+        "focus_evidence": (
+            "read_back_not_retained" if secret else "read_back_unavailable"
+        ),
+    }
+
+
+async def _dispatch(
+    a: dict[str, Any],
+    kind: str | None,
+    *,
+    backend: Any,
+    typer: Any,
+    should_continue: ShouldContinue | None,
+) -> dict[str, Any] | None:
     if kind == "key":
         keys = normalize_keys(a.get("keys") or ([a["key"]] if a.get("key") else []))
         if not keys:
@@ -433,6 +572,7 @@ async def _dispatch(a: dict[str, Any], kind: str | None, *, backend: Any, typer:
             # typer itself selects guarded printer chunks for eligible prose.
             res = await typer.type_text(text, code=precise, secret=secret,
                                         should_continue=should_continue)
+            action_receipt = _typing_receipt(a, res, precise=precise)
             status = str(getattr(res, "status", "") or "")
             if status == "blocked_by_policy":
                 raise BurstInterrupted(
@@ -445,7 +585,8 @@ async def _dispatch(a: dict[str, Any], kind: str | None, *, backend: Any, typer:
                             getattr(res, "intended_characters", len(text))
                             or len(text)
                         ),
-                    }
+                    },
+                    action_receipt=action_receipt,
                 )
             unverified = status.startswith("unverified_")
             if status.startswith("failed_") or unverified:
@@ -453,16 +594,34 @@ async def _dispatch(a: dict[str, Any], kind: str | None, *, backend: Any, typer:
                     f"typed {text!r} but read-back disagrees ({status}): "
                     f"{getattr(res, 'summary', '')}",
                     ambiguous=unverified,
+                    action_receipt=action_receipt,
                 )
+            return action_receipt
         elif fast and hasattr(backend, "print_text"):
             # Bootstrap/fake runtimes without a watched typer retain a bounded raw
             # printer transport. Production runtimes inject a typer above.
+            typed_characters = 0
             for chunk in chunk_text(str(text)):
                 if should_continue is not None and not should_continue():
-                    raise BurstInterrupted
+                    receipt = _unwatched_typing_receipt(
+                        str(text),
+                        secret=secret,
+                        typed_characters=typed_characters,
+                    )
+                    raise BurstInterrupted(
+                        {
+                            "type": "type_text",
+                            "typed_characters": typed_characters,
+                            "intended_characters": len(str(text)),
+                        },
+                        action_receipt=receipt,
+                    )
                 await backend.print_text(chunk)
+                typed_characters += len(chunk)
+            return _unwatched_typing_receipt(str(text), secret=secret)
         else:
             await backend.type_text(text, code=code, secret=secret)
+            return _unwatched_typing_receipt(str(text), secret=secret)
     elif kind in ("click", "double_click"):
         x, y = int(a["x"]), int(a["y"])
         button = a.get("button", "left")

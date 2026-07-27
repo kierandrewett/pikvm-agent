@@ -124,6 +124,59 @@ describe("messagesForRun", () => {
     });
   });
 
+  it("binds daemon typing read-back to the exact computer action", () => {
+    const snapshot = run({
+      events: [
+        run().events[0]!,
+        run().events[1]!,
+        {
+          ...run().events[2]!,
+          data: {
+            ...run().events[2]!.data,
+            input_receipts: [
+              {
+                index: 0,
+                type: "type_text",
+                status: "verified_exact",
+                verdict: "match",
+                observed_text: "hello world",
+                observed_text_redacted: false,
+                typed_characters: 11,
+                intended_characters: 11,
+                correction_count: 1,
+                delivery_retries: 0,
+                used_fast_path: false,
+                summary: "Typed and verified.",
+                edit_distance: 0,
+                focus_evidence: "read_back_verified",
+              },
+            ],
+          },
+        },
+      ],
+    });
+    const assistant = messagesForRun(snapshot).at(-1);
+    const tool = Array.isArray(assistant?.content)
+      ? assistant.content.find((part) => part.type === "tool-call")
+      : undefined;
+
+    expect(tool).toMatchObject({
+      args: {
+        __receipt: {
+          input_receipts: [
+            {
+              index: 0,
+              observed_text: "hello world",
+              edit_distance: 0,
+              focus_evidence: "read_back_verified",
+            },
+          ],
+        },
+      },
+      argsText: expect.not.stringContaining("hello world"),
+    });
+  });
+
   it("binds production model and before-after evidence events to the action receipt", () => {
     const snapshot = run({
       events: [

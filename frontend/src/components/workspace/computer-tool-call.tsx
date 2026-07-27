@@ -98,12 +98,50 @@ type ReceiptContext = {
   evidenceAfterFrame?: number;
   controller?: ModelReceipt;
   verifier?: ModelReceipt;
+  inputReceipts: InputReceipt[];
 };
 
 type ModelReceipt = {
   provider: string;
   model: string;
   latencyMs?: number;
+};
+
+export type InputReceipt = {
+  index?: number;
+  type: string;
+  status: string;
+  verdict: string;
+  observed_text: string;
+  observed_text_redacted: boolean;
+  typed_characters?: number;
+  intended_characters?: number;
+  correction_count?: number;
+  delivery_retries?: number;
+  used_fast_path: boolean;
+  summary?: string;
+  edit_distance?: number;
+  focus_evidence: string;
+};
+
+const inputReceipt = (value: unknown): InputReceipt => {
+  const item = record(value);
+  return {
+    index: number(item.index),
+    type: text(item.type),
+    status: text(item.status),
+    verdict: text(item.verdict),
+    observed_text: text(item.observed_text),
+    observed_text_redacted: item.observed_text_redacted === true,
+    typed_characters: number(item.typed_characters),
+    intended_characters: number(item.intended_characters),
+    correction_count: number(item.correction_count),
+    delivery_retries: number(item.delivery_retries),
+    used_fast_path: item.used_fast_path === true,
+    summary: text(item.summary),
+    edit_distance: number(item.edit_distance),
+    focus_evidence: text(item.focus_evidence),
+  };
 };
 
 const modelReceipt = (value: unknown): ModelReceipt | undefined => {
@@ -133,6 +171,9 @@ const receiptContext = (args: JsonRecord): ReceiptContext => {
     evidenceAfterFrame: number(receipt.evidence_after_frame_id),
     controller: modelReceipt(receipt.controller),
     verifier: modelReceipt(receipt.verifier),
+    inputReceipts: Array.isArray(receipt.input_receipts)
+      ? receipt.input_receipts.map(inputReceipt)
+      : [],
   };
 };
 
@@ -402,18 +443,146 @@ function PointerTargetMap({
   );
 }
 
+const readbackMeta = (receipt: InputReceipt) => {
+  if (
+    receipt.focus_evidence === "focus_lost" ||
+    receipt.status === "failed_focus_lost"
+  ) {
+    return {
+      label: "Focus lost",
+      Icon: CrosshairIcon,
+      variant: "destructive" as ReceiptBadgeVariant,
+    };
+  }
+  if (receipt.observed_text_redacted) {
+    return {
+      label: "Text not retained",
+      Icon: LockKeyholeIcon,
+      variant: "outline" as ReceiptBadgeVariant,
+    };
+  }
+  if (
+    receipt.status.startsWith("verified_") ||
+    receipt.verdict === "match" ||
+    receipt.verdict === "contains"
+  ) {
+    return {
+      label: "Read-back matches",
+      Icon: CheckIcon,
+      variant: "evidence" as ReceiptBadgeVariant,
+    };
+  }
+  if (
+    receipt.verdict === "mismatch" ||
+    receipt.status.startsWith("failed_")
+  ) {
+    return {
+      label: "Read-back differs",
+      Icon: XIcon,
+      variant: "destructive" as ReceiptBadgeVariant,
+    };
+  }
+  return {
+    label:
+      receipt.status === "delivered_unverified"
+        ? "Delivery only"
+        : "Read-back uncertain",
+    Icon: EyeIcon,
+    variant: "caution" as ReceiptBadgeVariant,
+  };
+};
+
+function TypingReadback({
+  receipt,
+  actionIndex,
+}: {
+  receipt?: InputReceipt;
+  actionIndex: number;
+}) {
+  if (!receipt) return null;
+  const meta = readbackMeta(receipt);
+  const MetaIcon = meta.Icon;
+  const metrics = [
+    receipt.typed_characters != null &&
+    receipt.intended_characters != null
+      ? `${receipt.typed_characters} / ${receipt.intended_characters} chars`
+      : "",
+    receipt.edit_distance != null
+      ? `${receipt.edit_distance} ${receipt.edit_distance === 1 ? "edit" : "edits"}`
+      : "",
+    receipt.correction_count
+      ? `${receipt.correction_count} ${
+          receipt.correction_count === 1 ? "correction" : "corrections"
+        }`
+      : "",
+    receipt.delivery_retries
+      ? `${receipt.delivery_retries} ${
+          receipt.delivery_retries === 1 ? "delivery retry" : "delivery retries"
+        }`
+      : "",
+    receipt.used_fast_path ? "guarded fast transport" : "",
+  ].filter(Boolean);
+
+  return (
+    <section
+      className="border-t border-border/60 bg-muted/20 px-3 py-2.5"
+      aria-label={`Typing read-back for action ${actionIndex + 1}`}
+    >
+      <div className="flex min-w-0 items-center justify-between gap-3">
+        <span className="flex min-w-0 items-center gap-2 text-xs font-medium text-muted-foreground">
+          <EyeIcon className="size-3.5 shrink-0" aria-hidden="true" />
+          <span className="truncate">Read-back from the target field</span>
+        </span>
+        <Badge variant={meta.variant}>
+          <MetaIcon data-icon="inline-start" aria-hidden="true" />
+          {meta.label}
+        </Badge>
+      </div>
+      {receipt.observed_text_redacted ? (
+        <p className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+          <LockKeyholeIcon className="size-3.5 shrink-0" aria-hidden="true" />
+          No read-back text retained for secret input
+        </p>
+      ) : receipt.observed_text ? (
+        <pre className="mt-2 max-h-40 overflow-auto font-mono text-[11px] leading-relaxed text-foreground/90 whitespace-pre-wrap">
+          {receipt.observed_text}
+        </pre>
+      ) : (
+        <p className="mt-2 text-xs text-muted-foreground">
+          {meta.label === "Focus lost"
+            ? "No reliable field text was observed before input stopped."
+            : "OCR did not return reliable field text."}
+        </p>
+      )}
+      {metrics.length ? (
+        <p className="mt-2 flex flex-wrap gap-x-3 gap-y-1 font-mono text-[10px] tabular-nums text-muted-foreground">
+          {metrics.map((metric) => (
+            <span key={metric}>{metric}</span>
+          ))}
+        </p>
+      ) : null}
+    </section>
+  );
+}
+
 function ActionExactInput({
   action,
   environment,
+  inputReceipt,
+  actionIndex,
 }: {
   action: JsonRecord;
   environment: ComputerToolEnvironment;
+  inputReceipt?: InputReceipt;
+  actionIndex: number;
 }) {
   const kind = actionName(action);
   if (kind.includes("type")) {
     const value = text(action.text);
     if (!value) return null;
+    const secret = action.secret === true || action.redacted === true;
     const lineCount = value.split(/\r\n|\r|\n/).length;
+    const characterCount = inputReceipt?.intended_characters ?? value.length;
     return (
       <div className="mt-2 overflow-hidden rounded-md border border-border/70 bg-background/55">
         <div className="flex items-center justify-between gap-3 border-b border-border/60 px-3 py-1.5">
@@ -421,16 +590,27 @@ function ActionExactInput({
             Exact typed payload
           </span>
           <span className="shrink-0 font-mono text-[10px] tabular-nums text-muted-foreground">
-            {value.length} chars · {lineCount}{" "}
+            {characterCount} chars · {lineCount}{" "}
             {lineCount === 1 ? "line" : "lines"}
           </span>
         </div>
-        <pre
-          aria-label="Exact text input"
-          className="max-h-40 overflow-auto px-3 py-2.5 font-mono text-[11px] leading-relaxed text-foreground/90 whitespace-pre-wrap"
-        >
-          {value}
-        </pre>
+        {secret ? (
+          <p
+            aria-label="Exact text input"
+            className="flex items-center gap-2 px-3 py-2.5 text-xs text-muted-foreground"
+          >
+            <LockKeyholeIcon className="size-3.5 shrink-0" aria-hidden="true" />
+            Secret payload redacted before it entered the run record
+          </p>
+        ) : (
+          <pre
+            aria-label="Exact text input"
+            className="max-h-40 overflow-auto px-3 py-2.5 font-mono text-[11px] leading-relaxed text-foreground/90 whitespace-pre-wrap"
+          >
+            {value}
+          </pre>
+        )}
+        <TypingReadback receipt={inputReceipt} actionIndex={actionIndex} />
       </div>
     );
   }
@@ -480,9 +660,11 @@ function ActionExactInput({
 export function ComputerInputSequence({
   actions,
   environment = {},
+  inputReceipts = [],
 }: {
   actions: readonly JsonRecord[];
   environment?: ComputerToolEnvironment;
+  inputReceipts?: readonly InputReceipt[];
 }) {
   return (
     <ol className="mt-2" aria-label="Exact computer input sequence">
@@ -516,7 +698,14 @@ export function ComputerInputSequence({
               <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
                 {actionLabel(action)}
               </p>
-              <ActionExactInput action={action} environment={environment} />
+              <ActionExactInput
+                action={action}
+                environment={environment}
+                inputReceipt={inputReceipts.find(
+                  (receipt) => receipt.index === index,
+                )}
+                actionIndex={index}
+              />
             </div>
           </li>
         );
@@ -1132,6 +1321,7 @@ const ComputerToolCallImpl: ToolCallMessagePartComponent<
             <ComputerInputSequence
               actions={summary.actions}
               environment={environment}
+              inputReceipts={receipt.inputReceipts}
             />
           </section>
 

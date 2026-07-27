@@ -52,6 +52,23 @@ def test_ui_fixture_alternates_visible_model_and_exact_tool_activity() -> None:
     assert run.event_cursor > 64
 
 
+def test_ui_fixture_includes_production_shaped_typing_readback() -> None:
+    run = build_fixture_run(96)
+
+    completion = next(
+        event
+        for event in run.events
+        if event.kind == "action.completed"
+        and event.data.get("input_receipts")
+    )
+    receipt = completion.data["input_receipts"][0]
+
+    assert receipt["type"] == "type_text"
+    assert receipt["observed_text"] == "Quarterly review draft"
+    assert receipt["focus_evidence"] == "read_back_verified"
+    assert receipt["edit_distance"] == 0
+
+
 async def test_ui_fixture_exposes_and_resolves_a_synthetic_send_approval() -> None:
     store = InMemoryRunStore()
     harness = FixtureHarness(store)

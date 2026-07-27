@@ -1105,6 +1105,7 @@ class Runtime:
             "machine": machine,
             "completed_actions": outcome.completed, "remaining_actions": outcome.remaining,
             "partial_action": outcome.partial_action,
+            "action_receipts": outcome.action_receipts,
             "reason": effective_reason or None,
             "error": (
                 sr.error if sr.stopped else evidence_error or outcome.error

@@ -162,6 +162,30 @@ const modelReceipt = (event: HarnessEvent | undefined) =>
       }
     : undefined;
 
+const inputReceipts = (value: unknown) =>
+  (Array.isArray(value) ? value : [])
+    .filter(
+      (item): item is Record<string, unknown> =>
+        Boolean(item) && typeof item === "object" && !Array.isArray(item),
+    )
+    .slice(0, 20)
+    .map((item) => ({
+      index: safeNumber(item.index),
+      type: safeString(item.type),
+      status: safeString(item.status),
+      verdict: safeString(item.verdict),
+      observed_text: safeString(item.observed_text),
+      observed_text_redacted: item.observed_text_redacted === true,
+      typed_characters: safeNumber(item.typed_characters),
+      intended_characters: safeNumber(item.intended_characters),
+      correction_count: safeNumber(item.correction_count),
+      delivery_retries: safeNumber(item.delivery_retries),
+      used_fast_path: item.used_fast_path === true,
+      summary: safeString(item.summary),
+      edit_distance: safeNumber(item.edit_distance),
+      focus_evidence: safeString(item.focus_evidence),
+    }));
+
 const verificationVerdict = (event: HarnessEvent) => {
   const verdict = safeString(event.data.verdict) || "verified";
   return verdict === "complete" ? "verified" : verdict;
@@ -323,6 +347,7 @@ const toolParts = (run: RunSnapshot) => {
         evidence_after_frame_id: safeNumber(evidence?.data.after_frame_id),
         controller: modelReceipt(controller),
         verifier: modelReceipt(verification),
+        input_receipts: inputReceipts(outcome?.data.input_receipts),
       },
     };
     return {

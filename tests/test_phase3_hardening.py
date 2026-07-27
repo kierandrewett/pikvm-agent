@@ -356,3 +356,34 @@ async def test_run_burst_executes_and_returns_screenshot(runtime: Runtime) -> No
     assert os.path.exists(res["screenshot_path"])
     assert any(m == "keypress" for m, _ in runtime.backend.calls)
     assert any(m == "click" for m, _ in runtime.backend.calls)
+
+
+async def test_runtime_returns_secret_safe_input_receipt(runtime: Runtime) -> None:
+    sid = (await runtime.start_session("direct"))["session_id"]
+    shot = await runtime.get_session_summary(sid, capture=True)
+
+    res = await runtime.run_burst(
+        sid,
+        [{"type": "type_text", "text": "super-secret", "secret": True}],
+        based_on_world_version=shot["world_version"],
+        based_on_control_epoch=shot["control_epoch"],
+        idempotency_key="secret-safe-input-receipt",
+    )
+
+    assert res["status"] == "completed"
+    assert res["action_receipts"] == [
+        {
+            "index": 0,
+            "type": "type_text",
+            "status": "delivered_unverified",
+            "verdict": "unverified",
+            "observed_text_redacted": True,
+            "typed_characters": 12,
+            "intended_characters": 12,
+            "correction_count": 0,
+            "delivery_retries": 0,
+            "used_fast_path": False,
+            "focus_evidence": "read_back_not_retained",
+        }
+    ]
+    assert "super-secret" not in repr(res["action_receipts"])
