@@ -441,6 +441,25 @@ rows:
     wall: "{wall}"
     status: "Failing diagnostic; approved rerun blocked before launch"
 
+  - suite: "Live provider conformance"
+    route: "Codex account-default + Claude Opus"
+    source: "results/2026-07-27/providers/live-codex-claude-provider-conformance.json"
+    fields:
+      providers: {path: "providers_selected", format: "integer"}
+      attempts: {path: "calls_attempted", format: "integer"}
+      exact: {path: "calls_exact", format: "integer"}
+      failures: {path: "calls_failed", format: "integer"}
+      codex_median: {path: "providers.0.median_latency_ms", format: "seconds_from_ms", digits: 2}
+      codex_p95: {path: "providers.0.p95_latency_ms", format: "seconds_from_ms", digits: 2}
+      claude_median: {path: "providers.1.median_latency_ms", format: "seconds_from_ms", digits: 2}
+      claude_p95: {path: "providers.1.p95_latency_ms", format: "seconds_from_ms", digits: 2}
+      wall: {path: "evaluation_wall_ms", format: "seconds_from_ms", digits: 2}
+    cases: "{providers} providers / {attempts} calls"
+    result: "{exact}/{attempts} exact; {failures} failures"
+    latency: "Claude {claude_median} / {claude_p95}; Codex {codex_median} / {codex_p95}"
+    wall: "{wall}"
+    status: "Passing target-free n=3/provider; neither route is fast-controller eligible"
+
   - suite: "ScreenSpot-Pro, single pass"
     route: "Codex CLI / `gpt-5.6-sol`"
     source: "results/2026-07-25/screenspot-pro/codex-gpt-5.6-sol-seed104729-n100.json"

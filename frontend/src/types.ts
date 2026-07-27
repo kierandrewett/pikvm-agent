@@ -125,10 +125,16 @@ export type ProviderHealth = {
   cooldown_until?: string | null;
   conformance_status?: string;
   conformance_created_at?: string;
+  conformance_cases_requested?: number;
   conformance_calls_attempted?: number;
   conformance_schema_valid?: number;
   conformance_exact?: number;
+  conformance_normalized_exact?: number;
+  conformance_exact_accuracy?: number;
+  conformance_normalized_exact_accuracy?: number;
   conformance_median_latency_ms?: number;
+  conformance_p95_latency_ms?: number;
+  conformance_failure_counts?: Record<string, number>;
 };
 
 export type ProviderMap = Record<string, ProviderHealth>;

@@ -2,6 +2,7 @@ import {
   BotIcon,
   CheckCircle2Icon,
   CircleDashedIcon,
+  GaugeIcon,
   LockKeyholeIcon,
   NetworkIcon,
   RotateCcwIcon,
@@ -69,8 +70,11 @@ const titleCase = (value: string) =>
 const latencyLabel = (milliseconds: number | null | undefined) => {
   if (milliseconds == null) return "No latency yet";
   if (milliseconds < 1_000) return `${milliseconds} ms`;
-  return `${(milliseconds / 1_000).toFixed(milliseconds < 10_000 ? 1 : 0)} s`;
+  const seconds = milliseconds / 1_000;
+  return `${seconds.toFixed(seconds < 100 ? 1 : 0)} s`;
 };
+
+const FAST_ACTION_PATH_MEDIAN_MS = 5_000;
 
 const authOwnerLabel = (owner: string | undefined) => {
   if (owner === "provider_cli") return "Provider-owned sign-in";
@@ -109,6 +113,23 @@ const conformanceLabel = (status: string | undefined) => {
   return "Conformance not run";
 };
 
+const conformanceEvidence = (health: ProviderHealth) =>
+  [
+    conformanceLabel(health.conformance_status),
+    health.conformance_calls_attempted != null &&
+    health.conformance_exact != null
+      ? `${health.conformance_exact}/${health.conformance_calls_attempted} exact`
+      : "",
+    health.conformance_median_latency_ms != null
+      ? `median ${latencyLabel(health.conformance_median_latency_ms)}`
+      : "",
+    health.conformance_p95_latency_ms != null
+      ? `p95 ${latencyLabel(health.conformance_p95_latency_ms)}`
+      : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
 function TaskRoute({
   providers,
   preferences,
@@ -131,6 +152,32 @@ function TaskRoute({
     ([, health]) => health.ready !== false,
   );
   const customized = Object.keys(preferences).length > 0;
+  const actingPrimary = effectiveRoleRoute({
+    providers,
+    preferences,
+    activeRoute,
+    activeProvider,
+    locked,
+    role: "controller",
+  })[0];
+  const actingHealth = actingPrimary
+    ? providers[actingPrimary]
+    : undefined;
+  const actingMeasured =
+    actingHealth?.conformance_calls_attempted != null &&
+    actingHealth.conformance_calls_attempted >= 3 &&
+    actingHealth.conformance_exact != null;
+  const actingAccurate =
+    actingMeasured &&
+    actingHealth?.conformance_status === "passed" &&
+    actingHealth.conformance_exact ===
+      actingHealth.conformance_calls_attempted;
+  const inexactActingPrimary = actingMeasured && !actingAccurate;
+  const slowActingPrimary =
+    actingAccurate &&
+    actingHealth?.conformance_median_latency_ms != null &&
+    actingHealth.conformance_median_latency_ms >
+      FAST_ACTION_PATH_MEDIAN_MS;
 
   return (
     <section aria-labelledby="task-route-title">
@@ -258,6 +305,32 @@ function TaskRoute({
           );
         })}
       </FieldGroup>
+      {(inexactActingPrimary || slowActingPrimary) &&
+      actingPrimary &&
+      actingHealth ? (
+        <p className="mt-3 flex items-start gap-2 text-[11px] leading-relaxed text-caution-foreground">
+          <GaugeIcon
+            className="mt-0.5 size-3.5 shrink-0"
+            aria-hidden="true"
+          />
+          {inexactActingPrimary ? (
+            <span>
+              Acting path is not exact:{" "}
+              {providerModelLabel(actingPrimary, actingHealth)} scored{" "}
+              {actingHealth.conformance_exact}/
+              {actingHealth.conformance_calls_attempted} in blind-screen
+              conformance. Keep it out of the primary route until it passes.
+            </span>
+          ) : (
+            <span>
+              Acting path is accurate but slow:{" "}
+              {providerModelLabel(actingPrimary, actingHealth)} measured{" "}
+              {latencyLabel(actingHealth.conformance_median_latency_ms)} median.
+              Use a sub-5 s API model as the primary controller.
+            </span>
+          )}
+        </p>
+      ) : null}
       <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
         {locked
           ? "This route was snapshotted when the task was sent. Start a new task to change it."
@@ -349,7 +422,7 @@ function ProviderRow({
                 Evidence
               </dt>
               <dd className="mt-1 text-xs font-medium">
-                {conformanceLabel(health.conformance_status)}
+                {conformanceEvidence(health)}
               </dd>
             </div>
           </dl>

@@ -41,11 +41,21 @@ describe("ComputerToolGroup", () => {
   it("keeps active computer inputs expanded during live event updates", () => {
     render(
       <ComputerToolGroup group={group({ type: "running" })}>
+        <span>Earlier completed input</span>
         <span>Exact live input</span>
       </ComputerToolGroup>,
     );
 
     expect(screen.queryByText("Exact live input")).not.toBeNull();
+    expect(screen.queryByText("Earlier completed input")).toBeNull();
+    expect(
+      screen
+        .getByText("Exact live input")
+        .closest('[data-slot="tool-group-content"]')
+        ?.className,
+    ).toContain(
+      "[&>div>.computer-action-step:not(:last-child)]:hidden",
+    );
     expect(
       screen
         .getByRole("button", { name: /2 computer actions/i })
@@ -63,17 +73,36 @@ describe("ComputerToolGroup", () => {
     const user = userEvent.setup();
     render(
       <ComputerToolGroup group={group({ type: "complete" })}>
+        <span>Earlier completed input</span>
         <span>Exact completed input</span>
       </ComputerToolGroup>,
     );
 
     expect(screen.queryByText("Exact completed input")).toBeNull();
+    expect(screen.queryByText("Earlier completed input")).toBeNull();
 
     await user.click(
       screen.getByRole("button", { name: /2 computer actions/i }),
     );
 
     expect(screen.queryByText("Exact completed input")).not.toBeNull();
+    expect(screen.queryByText("Earlier completed input")).not.toBeNull();
+  });
+
+  it("focuses a review on the consequential input awaiting approval", () => {
+    render(
+      <ComputerToolGroup
+        group={group({ type: "requires-action", reason: "interrupt" })}
+      >
+        <span>Earlier safe input</span>
+        <span>Consequential input awaiting approval</span>
+      </ComputerToolGroup>,
+    );
+
+    expect(
+      screen.queryByText("Consequential input awaiting approval"),
+    ).not.toBeNull();
+    expect(screen.queryByText("Earlier safe input")).toBeNull();
   });
 });
 

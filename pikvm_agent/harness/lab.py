@@ -402,8 +402,8 @@ def build_lab_harness_settings(
             },
             "routes": {
                 "reasoner": ["claude-account", "codex-account"],
-                "controller": ["codex-account", "claude-account"],
-                "verifier": ["codex-account", "claude-account"],
+                "controller": ["claude-account", "codex-account"],
+                "verifier": ["claude-account", "codex-account"],
             },
         }
     else:

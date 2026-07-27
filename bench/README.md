@@ -34,7 +34,7 @@ support a claim of generally reliable autonomous Windows operation.
 | A coding client can submit once while the dedicated harness owns progression | The referenced Claude session used 551 direct PiKVM calls; 21 API contracts prove the replacement managed loop crosses action slices, safe replans and verifier-more-work checkpoints, resumes after exact human approval, recovers internal yields after restart, reconstructs its automatic-resume ceiling from durable history, and refuses overlapping Continue bypass. Operator steering is durable, forces a fresh managed plan, and cannot discard unsettled HID or take control from direct/external drivers. Exact generated configs initialize over real stdio for all four clients and preserve their validated client identity | Passing control-loop and generated-stdio inventory contracts; authenticated task/restart pending |
 | Effective client config cannot silently retain a second PiKVM tool surface | Fail-closed audit supports native Codex resolved inventory, Codex TOML/shared project JSON, Claude/Gemini JSON, and legacy/V2 OpenCode JSON/JSONC. Native read-only Codex inventory found one raw PiKVM registration and no managed registration. A session-only Codex override produced exactly one managed PiKVM surface while retaining unrelated MCPs; Claude's installed strict-MCP flags produced one explicit managed surface. OpenCode 1.14.44 resolved one managed surface under `--pure`, exact default-deny permissions, ephemeral writable state, and client-owned OAuth linked without copying it. Gemini 0.35.3 loaded the temporary system catalog natively and resolved one allowlisted managed surface from an empty dedicated profile; the exact admin-policy path/content and extension-disable argv are configured but not enforcement-tested. These paths modify no persisted registration and passed 54 launcher/audit/package contracts | Codex/Claude/OpenCode native isolation dry-runs pass; Gemini settings audit passes; no authenticated coding-client task or Gemini policy-enforcement call was run |
 | Managed and direct assurance levels are unambiguous | Real browser showed persistent managed/direct control contracts; 390×844 check had no horizontal overflow | Passing UI contract |
-| Computer-use actions remain inspectable while a run is changing | A 1440×980 real Chromium fixture retained a numbered 12-action timeline while frames changed; each row exposed semantic action, MCP tool, model and state, while expansion separated Screen before → Computer input → Screen after. At 390×844 the conversation measured 341px client/scroll width with zero horizontal overflow and kept both model route and Managed MCP visible. A separate dangerous Enter fixture rendered the exact two-input sequence, 47-character count, external-side-effect reason, and Allow once/Deny controls inline without committing input | Passing browser/UI contract |
+| Computer-use actions remain inspectable while a run is changing | A target-free Chromium fixture retained a 12-action audit while showing only the current live input; the completed trace returns on inspection. Each quiet row retains semantic action, MCP tool, model and state, while Screen, Audit, and raw request remain progressively disclosed. At 390×844 the conversation measured 341px client/scroll width with zero horizontal overflow and kept both model route and Managed MCP visible. A separate dangerous Enter fixture rendered the exact two-input sequence, 47-character count, external-side-effect reason, and Allow once/Deny controls inline without committing input | Passing browser/UI contract |
 | The operator can inspect the verifier's visual evidence | Authenticated API contracts return the labelled before/after bytes without exposing their local path; static UI contracts cover revision refresh, loading/error state, and blob revocation. A live disposable-Windows diagnostic exercised failed and uncertain visual verification without turning either into success | Passing local/browser contract; live task itself did not pass |
 | Long prose/code arrives exactly | Windows transport trials were exact 581/581 and 142/142 characters, but the seven-trial physical loop still failed overall | Partial; not a release claim |
 | Raw HID avoids encoded/script transfer hacks | A seeded 1,000-payload corpus caught 800/800 unsafe shapes with 0/200 safe false positives; the public MCP integration also refuses encoded transfer before daemon contact | Passing local syntax gate; explicit byte-verified transfer channel pending |
@@ -156,16 +156,21 @@ as launcher-declared; the UI does not pretend it independently identified
 them. Managed actions and opt-in guarded direct calls are committed to SQLite
 before HID execution. Labelled before/after images and quiet adapter/daemon logs
 are retained with managed runs. The latest labelled comparison is also fetched
-through an authenticated, no-store, path-free endpoint and shown inside the
-Verification transaction block. The JSON files linked below are derived from
-those durable records; the UI is not a separate, less-auditable execution path.
+through an authenticated, no-store, path-free endpoint and shown as the primary
+Screen change evidence. Goal, exact input, frame trace, and model route sit in
+one compact Audit disclosure; the raw MCP request stays closed until requested.
+The JSON files linked below are derived from those durable records; the UI is
+not a separate, less-auditable execution path.
 
 Provider rows distinguish saved CLI login, API-key environment, bearer-token
 environment, and CLI bearer-token ownership. Command-backed routes name only
 the executable (`az` or `gcloud`), never the credential, token environment, or
 command output. They separately show the configured model alias, last model
-reported by a successful call, and the latest blind provider-conformance
-exact/schema/median-latency result.
+reported by a successful call, and the latest blind provider-conformance exact
+count plus median/p95 latency. If an accurate acting primary still exceeds the
+five-second fast-path budget, the Models sheet says so explicitly and directs
+the operator toward a low-latency API route. If a low-latency route is not
+character-exact, it is explicitly marked unsuitable for primary computer input.
 
 The chat workspace now exposes this as a contextual Models sheet. Its
 authenticated catalog comes from the same canonical ten-adapter backend
@@ -197,17 +202,30 @@ paths, and credentials cannot enter the UI shape. Seven focused contract tests
 currently pass, including failure-denominator and invalid-report privacy
 checks.
 
-The first live two-provider attempt is retained rather than discarded:
-Codex failed before its model call in 145ms because the CLI's SQLite state
-landed in a read-only location; Claude reached the 90.113-second runner
-timeout. Codex now receives a writable ephemeral `sqlite_home` in a sibling
-directory outside the empty model workspace while authentication remains
-CLI-owned. Three focused regressions and the 76-case
-provider/config/routing selection pass. A post-fix target-free probe made both
-adapters reach the restricted 15-second outbound boundary. The requested
-approved-access rerun was denied before process launch, so there is still no
-current accuracy score or routing recommendation. The failure-inclusive
-diagnostic is in
+The first failed two-provider attempt remains published rather than being
+discarded: Codex failed before its model call in 145ms because the CLI's SQLite
+state landed in a read-only location, while Claude reached the 90.113-second
+runner timeout. The adapter fix moved Codex runtime state into a writable
+ephemeral sibling directory while leaving authentication CLI-owned.
+
+The approved target-free rerun now provides a current same-input comparison.
+With seed `20260727`, Codex account-default and Claude Opus each returned strict
+schema-valid, character-exact text for all three blind screens: 6/6 total,
+zero failures. Claude measured 15.693s median / 16.461s p95; Codex measured
+105.739s median / 114.879s p95. Claude was therefore 6.7× faster on this
+vision/schema task, though even its latency is far above the five-second
+fast-controller budget. The provisional two-CLI route puts Claude before Codex
+for acting and checking, keeps Codex as fallback, and continues to put
+low-latency API/gateway providers ahead of both when configured. This benchmark
+does not rank general reasoning quality and is not presented as proof that
+Claude is the best reasoner. The scheduler now permits cross-provider
+concurrency while limiting each provider to one in-flight case, preventing
+self-contention from distorting comparisons. The six calls used only generated
+PNGs and contacted no daemon, VNC server, PiKVM, HID device, or computer.
+
+See the current
+[`live-codex-claude-provider-conformance.json`](results/2026-07-27/providers/live-codex-claude-provider-conformance.json)
+and the retained historical
 [`provider-conformance-attempt-2026-07-26.json`](results/2026-07-26/providers/provider-conformance-attempt-2026-07-26.json).
 
 The target-free managed smoke lab now exercises the production coordinator and
@@ -287,35 +305,27 @@ remains pending because the in-app browser blocked local navigation from its
 error page; no alternate browser was used. See
 [`computer-action-live-stream.json`](results/2026-07-27/ui/computer-action-live-stream.json).
 
-Computer actions now expand into a four-phase transaction receipt: source
-screen, bounded input, delivery, and independent screen check. Typed payloads
-show their exact body plus character and line counts; key chords use keycaps;
-pointer button and coordinates use separate tokens. A held approval says the
-input has not been sent, and a linked verifier event remains the only route to
-green Verified state. Twenty-two frontend tests, including eight focused
-receipt tests, 58 harness/API/fixture/provider tests, the production build, and
-the TypeScript similarity scan pass. This was target-free component evidence,
-not a browser visual or live-machine pass. See
+The original computer-action receipt proved source screen, bounded input,
+delivery, and independent screen-check lineage. It has since been distilled:
+a completed action is one quiet row; opening it shows the authenticated
+before/after image; Audit contains only goal, input, frame trace, and model
+route; raw JSON is another closed disclosure. Typed payload/read-back,
+approval, failure, and uncertainty still expand because they require attention.
+During a long live sequence, earlier completed actions remain in the durable
+trace but only the current input is rendered; the full history returns when the
+sequence finishes or is later inspected.
+The original target-free contract evidence remains in
 [`computer-action-receipt.json`](results/2026-07-27/ui/computer-action-receipt.json).
 
-The tailored computer-use pass makes the receipt action-specific instead of
-generic. Pointer input includes a normalized target map against the current
-screen dimensions; typing retains the exact payload and counts; keys use
-individual keycaps; and scrolling names its direction and step count. The
-expanded receipt carries the intended effect, expected visual evidence,
-source/input/observed transition, attempt, transport latency, and idempotency
-key. Running, held, committed, verified, unverified, safely refused, failed,
-and cancelled states all have text and icon treatment, not colour alone. Raw
-transport errors stay in diagnostics. This exact commit passed 36/36 frontend
-tests, including 12 focused action-presentation tests, and 161/161
-provider/agent/API/store/fixture/static-UI tests in a detached worktree. The
-1,217,335-byte bundle remains below the enforced 1.25 MB cap. See
+The tailored computer-use pass remains action-specific. Typing retains its
+exact payload, read-back, focus state, edit distance, retries, and input
+fingerprint; keys use individual keycaps; scrolling names direction and step
+count. Single successful pointer actions no longer repeat their coordinates in
+a miniature map after the header already stated them. Running, held,
+committed, verified, unverified, safely refused, failed, and cancelled states
+still have text and icon treatment, not colour alone. Raw transport errors stay
+in diagnostics. Historical contract evidence is in
 [`computer-use-chat-controls.json`](results/2026-07-27/ui/computer-use-chat-controls.json).
-The subsequent branch-wide target-free run found one stale playbook test that
-omitted the now-required caller-stable idempotency key; the test was repaired
-without weakening the runtime gate. The follow-up is clean: 1,052 passed, one
-environment-dependent case skipped, 36/36 frontend tests passed, and the
-production scorecard/build/similarity checks remain current.
 
 The next receipt pass fixed a production/fixture contract mismatch rather than
 adding presentation around synthetic data. Real verifier results arrive as
@@ -1049,7 +1059,7 @@ production daemon, or any computer target.
 ## Current headline
 
 <!-- pikvm-scorecard:start -->
-_Generated from checked JSON evidence as of 2026-07-27. Manifest `sha256:7fe420257746`; run `pikvm-agent harness scorecard --check` to detect drift._
+_Generated from checked JSON evidence as of 2026-07-27. Manifest `sha256:5eb7045294b8`; run `pikvm-agent harness scorecard --check` to detect drift._
 
 | Suite | Route | Cases | Result | Median / p95 | Wall | Status | Evidence |
 | --- | --- | ---: | ---: | ---: | ---: | --- | --- |
@@ -1080,6 +1090,7 @@ _Generated from checked JSON evidence as of 2026-07-27. Manifest `sha256:7fe4202
 | Normalized storage + bounded control | In-memory production contract | 100,000 events + 100 appends | 11,214.070× write-size reduction; 1,000 control events loaded | 0.086ms / 0.138ms append; 3.372ms / 4.539ms control | 214.978ms import | Serialization diagnostic; real SQLite pending | [JSON](results/2026-07-25/ui/normalized-storage-bounded-control-n100000-2026-07-26.json) · `sha256:9af680551989` |
 | Gemini CLI provider adapter | Gemini CLI 0.35.3 / `account-default` | 79 provider/config/UI cases | Adapter contracts passed; startup probe timeout; 228,904 KiB peak RSS | 60.01s startup probe | 60.01s | Adapter contract; live provider unproven | [JSON](results/gemini-cli-0.35.3-compatibility-2026-07-26.json) · `sha256:4beb22389eaa` |
 | Provider conformance attempt | Codex CLI + Claude Code | 2 providers / 2 calls | 0/2 exact; 2 failures; Codex adapter fixed afterward | 0.145s / 90.113s | 90.258s | Failing diagnostic; approved rerun blocked before launch | [JSON](results/2026-07-26/providers/provider-conformance-attempt-2026-07-26.json) · `sha256:abff0e7407a7` |
+| Live provider conformance | Codex account-default + Claude Opus | 2 providers / 6 calls | 6/6 exact; 0 failures | Claude 15.69s / 16.46s; Codex 105.74s / 114.88s | 318.70s | Passing target-free n=3/provider; neither route is fast-controller eligible | [JSON](results/2026-07-27/providers/live-codex-claude-provider-conformance.json) · `sha256:ff1537c29a09` |
 | ScreenSpot-Pro, single pass | Codex CLI / `gpt-5.6-sol` | 100 | 73/100, 73.0% | 7.63s / 13.29s | 218.53s | Current seeded sample | [JSON](results/2026-07-25/screenspot-pro/codex-gpt-5.6-sol-seed104729-n100.json) · `sha256:dc21a201b455` |
 | Blind OCR | Local Tesseract structured ensemble | 1,000 | 56.9% selected; 61.4% expected-aware exact; 2.08% CER | 156ms / 215ms | 40.20s | Failing release gate | [JSON](results/2026-07-25/ocr/tesseract-structured-candidates-seed104729-n1000.json) · `sha256:68da9a6bdb5e` |
 | Blind OCR | PaddleOCR v6 medium CPU | 1,000 | 78.9% normalized exact; 1.06% CER | 874ms / 2.54s | 1,078.82s | Failing gate; crop adapter fixed afterward | [JSON](results/2026-07-25/ocr/ocr-seed104729-n1000-comparison.json) · `sha256:dbbce9299995` |

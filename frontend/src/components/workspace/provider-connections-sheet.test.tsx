@@ -22,6 +22,10 @@ const providers = {
     failures: 1,
     last_latency_ms: 12_400,
     conformance_status: "passed",
+    conformance_calls_attempted: 3,
+    conformance_exact: 3,
+    conformance_median_latency_ms: 15_693,
+    conformance_p95_latency_ms: 16_461,
     credential_source: "/home/operator/.claude",
     last_error: "raw provider failure with secret=do-not-render",
   },
@@ -100,7 +104,11 @@ describe("ProviderConnectionsSheet", () => {
     expect(screen.getAllByText("Harness environment").length).toBeGreaterThan(
       0,
     );
-    expect(screen.getByText("Conformance passed")).not.toBeNull();
+    expect(
+      screen.getByText(
+        "Conformance passed · 3/3 exact · median 15.7 s · p95 16.5 s",
+      ),
+    ).not.toBeNull();
     expect(screen.getByText("Conformance not run")).not.toBeNull();
 
     const body = document.body.textContent || "";
@@ -176,6 +184,67 @@ describe("ProviderConnectionsSheet", () => {
       "controller",
       "fast-controller",
     );
+  });
+
+  it("warns when the accurate acting primary is not a fast-path model", () => {
+    render(
+      <ProviderConnectionsSheet
+        open
+        onOpenChange={() => undefined}
+        providers={{
+          ...providers,
+          "claude-account": {
+            ...providers["claude-account"],
+            routes: [
+              ...(providers["claude-account"].routes ?? []),
+              { role: "controller", position: 1 },
+            ],
+          },
+        }}
+        catalog={catalog}
+        preferences={{}}
+        locked={false}
+        onPreferenceChange={() => undefined}
+        onResetPreferences={() => undefined}
+      />,
+    );
+
+    expect(
+      screen.getByText(
+        "Acting path is accurate but slow: opus measured 15.7 s median. Use a sub-5 s API model as the primary controller.",
+      ),
+    ).not.toBeNull();
+  });
+
+  it("warns when a fast acting primary misses exact conformance", () => {
+    render(
+      <ProviderConnectionsSheet
+        open
+        onOpenChange={() => undefined}
+        providers={{
+          ...providers,
+          "fast-controller": {
+            ...providers["fast-controller"],
+            ready: true,
+            conformance_status: "degraded",
+            conformance_calls_attempted: 5,
+            conformance_exact: 4,
+            conformance_median_latency_ms: 690,
+          },
+        }}
+        catalog={catalog}
+        preferences={{}}
+        locked={false}
+        onPreferenceChange={() => undefined}
+        onResetPreferences={() => undefined}
+      />,
+    );
+
+    expect(
+      screen.getByText(
+        "Acting path is not exact: gpt-fast scored 4/5 in blind-screen conformance. Keep it out of the primary route until it passes.",
+      ),
+    ).not.toBeNull();
   });
 
   it("shows and disables the durable route while a run is active", () => {

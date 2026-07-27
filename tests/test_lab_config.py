@@ -38,7 +38,11 @@ def test_lab_assets_point_only_at_isolated_adapter_and_daemon(tmp_path) -> None:
     assert harness["daemon_url_env"] == "PIKVM_LAB_DAEMON_URL"
     assert harness["state_path"].startswith(str(tmp_path))
     assert harness["artifact_dir"].startswith(str(tmp_path))
-    assert harness["routes"]["controller"]
+    assert harness["routes"] == {
+        "reasoner": ["claude-account", "codex-account"],
+        "controller": ["claude-account", "codex-account"],
+        "verifier": ["claude-account", "codex-account"],
+    }
     assert harness["model_budget"]["max_provider_attempts_per_run"] == 500
     assert "vnc" not in assets.harness_config.read_text().lower()
 

@@ -378,71 +378,74 @@ async def run_provider_conformance(
         for index, expected in enumerate(expectations)
     ]
     semaphore = asyncio.Semaphore(concurrency)
+    provider_semaphores = {name: asyncio.Semaphore(1) for name in selected}
 
     async def run_one(
         provider_name: str,
         provider: ConformanceProvider,
         case: ProviderConformanceCase,
     ) -> ProviderConformanceCaseResult:
-        async with semaphore:
-            started = time.monotonic()
-            try:
-                response = await provider.complete(
-                    ModelRequest(
-                        role="verifier",
-                        prompt=case.prompt,
-                        output_schema=(
-                            ProviderConformanceDecision.model_json_schema()
-                        ),
-                        image_path=str(case.image_path),
-                        run_id=case.run_id,
-                        metadata=case.metadata,
+        async with provider_semaphores[provider_name]:
+            async with semaphore:
+                started = time.monotonic()
+                try:
+                    response = await provider.complete(
+                        ModelRequest(
+                            role="verifier",
+                            prompt=case.prompt,
+                            output_schema=(
+                                ProviderConformanceDecision.model_json_schema()
+                            ),
+                            image_path=str(case.image_path),
+                            run_id=case.run_id,
+                            metadata=case.metadata,
+                        )
                     )
-                )
-                latency_ms = (
-                    response.latency_ms
-                    if response.latency_ms is not None
-                    else round((time.monotonic() - started) * 1_000)
-                )
-                observed = ProviderConformanceDecision.model_validate(
-                    response.data
-                )
-                expected_values = case.expected.model_dump()
-                observed_values = observed.model_dump()
-                fields_exact = sum(
-                    observed_values[name] == value
-                    for name, value in expected_values.items()
-                )
-                fields_normalized = sum(
-                    _normalized(observed_values[name]) == _normalized(value)
-                    for name, value in expected_values.items()
-                )
-                return ProviderConformanceCaseResult(
-                    case_index=case.index,
-                    provider=provider_name,
-                    model=response.model,
-                    schema_valid=True,
-                    exact=fields_exact == 3,
-                    normalized_exact=fields_normalized == 3,
-                    fields_exact=fields_exact,
-                    fields_normalized_exact=fields_normalized,
-                    latency_ms=latency_ms,
-                    expected=case.expected,
-                    observed=observed,
-                    usage=_normalized_usage(response.usage),
-                )
-            except Exception as exc:
-                return ProviderConformanceCaseResult(
-                    case_index=case.index,
-                    provider=provider_name,
-                    schema_valid=False,
-                    exact=False,
-                    normalized_exact=False,
-                    latency_ms=round(
-                        (time.monotonic() - started) * 1_000
-                    ),
-                    error_class=_safe_failure_class(exc),
-                )
+                    latency_ms = (
+                        response.latency_ms
+                        if response.latency_ms is not None
+                        else round((time.monotonic() - started) * 1_000)
+                    )
+                    observed = ProviderConformanceDecision.model_validate(
+                        response.data
+                    )
+                    expected_values = case.expected.model_dump()
+                    observed_values = observed.model_dump()
+                    fields_exact = sum(
+                        observed_values[name] == value
+                        for name, value in expected_values.items()
+                    )
+                    fields_normalized = sum(
+                        _normalized(observed_values[name])
+                        == _normalized(value)
+                        for name, value in expected_values.items()
+                    )
+                    return ProviderConformanceCaseResult(
+                        case_index=case.index,
+                        provider=provider_name,
+                        model=response.model,
+                        schema_valid=True,
+                        exact=fields_exact == 3,
+                        normalized_exact=fields_normalized == 3,
+                        fields_exact=fields_exact,
+                        fields_normalized_exact=fields_normalized,
+                        latency_ms=latency_ms,
+                        expected=case.expected,
+                        observed=observed,
+                        usage=_normalized_usage(response.usage),
+                    )
+                except Exception as exc:
+                    return ProviderConformanceCaseResult(
+                        case_index=case.index,
+                        provider=provider_name,
+                        schema_valid=False,
+                        exact=False,
+                        normalized_exact=False,
+                        latency_ms=round(
+                            (time.monotonic() - started) * 1_000
+                        ),
+                        error_class=_safe_failure_class(exc),
+                    )
 
     started = time.monotonic()
     tasks: list[asyncio.Task[ProviderConformanceCaseResult]] = []

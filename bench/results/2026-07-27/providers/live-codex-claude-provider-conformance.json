@@ -1,0 +1,262 @@
+{
+  "calls_attempted": 6,
+  "calls_exact": 6,
+  "calls_failed": 0,
+  "calls_normalized_exact": 6,
+  "calls_schema_valid": 6,
+  "cases_per_provider": 3,
+  "computer_target_contacted": false,
+  "concurrency": 2,
+  "created_at": "2026-07-27T10:01:04.922453+00:00",
+  "evaluation_wall_ms": 318701,
+  "exact_accuracy": 1.0,
+  "normalized_exact_accuracy": 1.0,
+  "providers": [
+    {
+      "auth_mode": "saved_cli_login",
+      "calls_attempted": 3,
+      "cases_requested": 3,
+      "configured_model": "account-default",
+      "credential_owner": "provider_cli",
+      "exact": 3,
+      "exact_accuracy": 1.0,
+      "exercised": true,
+      "failure_counts": {},
+      "implementation_contract": "first_party",
+      "interface": "Codex exec",
+      "kind": "codex_cli",
+      "median_latency_ms": 105739.0,
+      "name": "codex-account",
+      "normalized_exact": 3,
+      "normalized_exact_accuracy": 1.0,
+      "p95_latency_ms": 114879.0,
+      "pixel_input": "Native image attachment",
+      "readiness_error": null,
+      "ready": true,
+      "results": [
+        {
+          "case_index": 0,
+          "error_class": null,
+          "exact": true,
+          "expected": {
+            "primary_button_label": "Inspect results",
+            "screen_title": "Signal Review",
+            "verification_code": "ZC5FZ-N4KT9"
+          },
+          "fields_exact": 3,
+          "fields_normalized_exact": 3,
+          "latency_ms": 98051,
+          "model": "account-default",
+          "normalized_exact": true,
+          "observed": {
+            "primary_button_label": "Inspect results",
+            "screen_title": "Signal Review",
+            "verification_code": "ZC5FZ-N4KT9"
+          },
+          "provider": "codex-account",
+          "schema_valid": true,
+          "usage": {
+            "cached_input_tokens": 0,
+            "input_tokens": 19586,
+            "output_tokens": 37,
+            "reasoning_tokens": 0
+          }
+        },
+        {
+          "case_index": 1,
+          "error_class": null,
+          "exact": true,
+          "expected": {
+            "primary_button_label": "Inspect results",
+            "screen_title": "Incident Ledger",
+            "verification_code": "483AL-U9M2T"
+          },
+          "fields_exact": 3,
+          "fields_normalized_exact": 3,
+          "latency_ms": 114879,
+          "model": "account-default",
+          "normalized_exact": true,
+          "observed": {
+            "primary_button_label": "Inspect results",
+            "screen_title": "Incident Ledger",
+            "verification_code": "483AL-U9M2T"
+          },
+          "provider": "codex-account",
+          "schema_valid": true,
+          "usage": {
+            "cached_input_tokens": 0,
+            "input_tokens": 19584,
+            "output_tokens": 35,
+            "reasoning_tokens": 0
+          }
+        },
+        {
+          "case_index": 2,
+          "error_class": null,
+          "exact": true,
+          "expected": {
+            "primary_button_label": "Open report",
+            "screen_title": "Release Console",
+            "verification_code": "SCSGJ-V5R76"
+          },
+          "fields_exact": 3,
+          "fields_normalized_exact": 3,
+          "latency_ms": 105739,
+          "model": "account-default",
+          "normalized_exact": true,
+          "observed": {
+            "primary_button_label": "Open report",
+            "screen_title": "Release Console",
+            "verification_code": "SCSGJ-V5R76"
+          },
+          "provider": "codex-account",
+          "schema_valid": true,
+          "usage": {
+            "cached_input_tokens": 0,
+            "input_tokens": 19582,
+            "output_tokens": 36,
+            "reasoning_tokens": 0
+          }
+        }
+      ],
+      "returned_models": [
+        "account-default"
+      ],
+      "schema_valid": 3,
+      "structured_output": "Strict JSON Schema",
+      "support_tier": "stable",
+      "usage_totals": {
+        "cached_input_tokens": 0,
+        "input_tokens": 58752,
+        "output_tokens": 108,
+        "reasoning_tokens": 0
+      }
+    },
+    {
+      "auth_mode": "saved_cli_login",
+      "calls_attempted": 3,
+      "cases_requested": 3,
+      "configured_model": "opus",
+      "credential_owner": "provider_cli",
+      "exact": 3,
+      "exact_accuracy": 1.0,
+      "exercised": true,
+      "failure_counts": {},
+      "implementation_contract": "first_party",
+      "interface": "Claude print mode",
+      "kind": "claude_cli",
+      "median_latency_ms": 15693.0,
+      "name": "claude-account",
+      "normalized_exact": 3,
+      "normalized_exact_accuracy": 1.0,
+      "p95_latency_ms": 16461.0,
+      "pixel_input": "Isolated Read artifact",
+      "readiness_error": null,
+      "ready": true,
+      "results": [
+        {
+          "case_index": 0,
+          "error_class": null,
+          "exact": true,
+          "expected": {
+            "primary_button_label": "Inspect results",
+            "screen_title": "Signal Review",
+            "verification_code": "ZC5FZ-N4KT9"
+          },
+          "fields_exact": 3,
+          "fields_normalized_exact": 3,
+          "latency_ms": 15693,
+          "model": "opus",
+          "normalized_exact": true,
+          "observed": {
+            "primary_button_label": "Inspect results",
+            "screen_title": "Signal Review",
+            "verification_code": "ZC5FZ-N4KT9"
+          },
+          "provider": "claude-account",
+          "schema_valid": true,
+          "usage": {
+            "cache_creation_input_tokens": 3564,
+            "cache_read_input_tokens": 5611,
+            "input_tokens": 4,
+            "output_tokens": 877
+          }
+        },
+        {
+          "case_index": 1,
+          "error_class": null,
+          "exact": true,
+          "expected": {
+            "primary_button_label": "Inspect results",
+            "screen_title": "Incident Ledger",
+            "verification_code": "483AL-U9M2T"
+          },
+          "fields_exact": 3,
+          "fields_normalized_exact": 3,
+          "latency_ms": 16461,
+          "model": "opus",
+          "normalized_exact": true,
+          "observed": {
+            "primary_button_label": "Inspect results",
+            "screen_title": "Incident Ledger",
+            "verification_code": "483AL-U9M2T"
+          },
+          "provider": "claude-account",
+          "schema_valid": true,
+          "usage": {
+            "cache_creation_input_tokens": 3511,
+            "cache_read_input_tokens": 5609,
+            "input_tokens": 4,
+            "output_tokens": 689
+          }
+        },
+        {
+          "case_index": 2,
+          "error_class": null,
+          "exact": true,
+          "expected": {
+            "primary_button_label": "Open report",
+            "screen_title": "Release Console",
+            "verification_code": "SCSGJ-V5R76"
+          },
+          "fields_exact": 3,
+          "fields_normalized_exact": 3,
+          "latency_ms": 14242,
+          "model": "opus",
+          "normalized_exact": true,
+          "observed": {
+            "primary_button_label": "Open report",
+            "screen_title": "Release Console",
+            "verification_code": "SCSGJ-V5R76"
+          },
+          "provider": "claude-account",
+          "schema_valid": true,
+          "usage": {
+            "cache_creation_input_tokens": 3491,
+            "cache_read_input_tokens": 5610,
+            "input_tokens": 4,
+            "output_tokens": 778
+          }
+        }
+      ],
+      "returned_models": [
+        "opus"
+      ],
+      "schema_valid": 3,
+      "structured_output": "Strict JSON Schema",
+      "support_tier": "stable",
+      "usage_totals": {
+        "cache_creation_input_tokens": 10566,
+        "cache_read_input_tokens": 16830,
+        "input_tokens": 12,
+        "output_tokens": 2344
+      }
+    }
+  ],
+  "providers_exercised": 2,
+  "providers_selected": 2,
+  "providers_unavailable": 0,
+  "schema_version": 1,
+  "seed": 20260727,
+  "suite": "provider-conformance"
+}

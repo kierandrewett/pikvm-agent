@@ -115,6 +115,18 @@ def test_oauth_cli_selection_accepts_combinations_and_preserves_both_alias() -> 
 
     assert list(combined.providers) == ["codex-account", "gemini-account"]
     assert list(legacy.providers) == ["codex-account", "claude-account"]
+    assert legacy.routes.reasoner == [
+        "claude-account",
+        "codex-account",
+    ]
+    assert legacy.routes.controller == [
+        "claude-account",
+        "codex-account",
+    ]
+    assert legacy.routes.verifier == [
+        "claude-account",
+        "codex-account",
+    ]
 
 
 def test_onboarding_adds_azure_cli_owned_oauth_without_a_token_value() -> None:

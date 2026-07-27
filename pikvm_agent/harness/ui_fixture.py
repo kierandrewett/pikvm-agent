@@ -128,6 +128,7 @@ class FixtureModels:
                 "conformance_schema_valid": 5,
                 "conformance_exact": 5,
                 "conformance_median_latency_ms": 12_120,
+                "conformance_p95_latency_ms": 13_480,
             },
             "fast-controller": {
                 "kind": "openai_responses",
@@ -151,6 +152,7 @@ class FixtureModels:
                 "conformance_schema_valid": 5,
                 "conformance_exact": 4,
                 "conformance_median_latency_ms": 690,
+                "conformance_p95_latency_ms": 820,
             },
         }
 

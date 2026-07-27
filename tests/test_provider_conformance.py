@@ -181,7 +181,8 @@ async def test_conformance_report_is_failure_inclusive_and_schema_valid(
     assert by_name["failing"].failure_counts == {"rate-limited": 2}
     assert by_name["unavailable"].exercised is False
     assert by_name["unavailable"].readiness_error == "executable-not-found"
-    assert exact.max_active <= 2
+    assert exact.max_active == 1
+    assert inexact.max_active == 1
     assert all(
         request.output_schema
         == ProviderConformanceDecision.model_json_schema()

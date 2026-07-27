@@ -1,4 +1,5 @@
 import {
+  Children,
   createContext,
   useContext,
   useEffect,
@@ -1297,6 +1298,10 @@ export function ComputerToolGroup({
   const active = group.status.type === "running";
   const needsAttention = group.status.type === "requires-action";
   const [open, setOpen] = useState(needsAttention || active);
+  const visibleChildren =
+    needsAttention || active
+      ? Children.toArray(children).slice(-1)
+      : children;
 
   useEffect(() => {
     if (needsAttention || active) setOpen(true);
@@ -1369,8 +1374,14 @@ export function ComputerToolGroup({
         ) : null}
         <ChevronDownIcon className="size-4 -rotate-90 text-muted-foreground transition-transform duration-150 group-data-open/trigger:rotate-0 group-data-panel-open/trigger:rotate-0 motion-reduce:transition-none" />
       </CollapsibleTrigger>
-      <ToolGroupContent className="computer-action-list pb-2 [&>div]:gap-1">
-        {children}
+      <ToolGroupContent
+        className={cn(
+          "computer-action-list pb-2 [&>div]:gap-1",
+          (needsAttention || active) &&
+            "[&>div>.computer-action-step:not(:last-child)]:hidden",
+        )}
+      >
+        {visibleChildren}
       </ToolGroupContent>
     </ToolGroupRoot>
   );
