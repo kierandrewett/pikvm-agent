@@ -1,4 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import {
   AssistantRuntimeProvider,
   type ExternalStoreThreadListAdapter,
@@ -23,17 +29,15 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { Skeleton } from "@/components/ui/skeleton";
 import { AuthDialog } from "@/components/workspace/auth-dialog";
-import { ComputerSheet } from "@/components/workspace/computer-sheet";
+import { ComputerToolEnvironmentProvider } from "@/components/workspace/computer-tool-environment";
 import {
-  ComputerToolCall,
-  ComputerToolEnvironmentProvider,
-  ComputerToolGroup,
-} from "@/components/workspace/computer-tool-call";
-import { DiagnosticsSheet } from "@/components/workspace/diagnostics-sheet";
+  DeferredComputerToolCall as ComputerToolCall,
+  DeferredComputerToolGroup as ComputerToolGroup,
+} from "@/components/workspace/deferred-computer-tools";
 import { LiveUpdateBadge } from "@/components/workspace/live-update-badge";
 import { ModelPicker } from "@/components/workspace/model-picker";
-import { ProviderConnectionsSheet } from "@/components/workspace/provider-connections-sheet";
 import {
   canComposeIntoRun,
   DirectRunBanner,
@@ -44,12 +48,74 @@ import { RunProvenance } from "@/components/workspace/run-provenance";
 import { useHarnessWorkspace } from "@/hooks/use-harness-workspace";
 import { messagesForRun } from "@/lib/run-messages";
 
+const ComputerSheet = lazy(async () => {
+  const module = await import("@/components/workspace/computer-sheet");
+  return { default: module.ComputerSheet };
+});
+
+const DiagnosticsSheet = lazy(async () => {
+  const module = await import("@/components/workspace/diagnostics-sheet");
+  return { default: module.DiagnosticsSheet };
+});
+
+const ProviderConnectionsSheet = lazy(async () => {
+  const module = await import(
+    "@/components/workspace/provider-connections-sheet"
+  );
+  return { default: module.ProviderConnectionsSheet };
+});
+
+const useDeferredMount = (open: boolean) => {
+  const [mounted, setMounted] = useState(open);
+  useEffect(() => {
+    if (open) setMounted(true);
+  }, [open]);
+  return mounted || open;
+};
+
+function SheetLoading({
+  open,
+  onOpenChange,
+  title,
+  side = "right",
+  className,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: string;
+  side?: "left" | "right";
+  className?: string;
+}) {
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side={side} className={className}>
+        <SheetHeader>
+          <SheetTitle>{title}</SheetTitle>
+          <SheetDescription>Loading…</SheetDescription>
+        </SheetHeader>
+        <div
+          className="flex flex-1 flex-col gap-3 px-4"
+          role="status"
+          aria-label={`Loading ${title.toLowerCase()}`}
+        >
+          <Skeleton className="h-4 w-2/3" />
+          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-24 w-full" />
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
 export function WorkspaceShell() {
   const workspace = useHarnessWorkspace();
   const [computerOpen, setComputerOpen] = useState(false);
   const [modelsOpen, setModelsOpen] = useState(false);
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
   const [tasksOpen, setTasksOpen] = useState(false);
+  const computerMounted = useDeferredMount(computerOpen);
+  const modelsMounted = useDeferredMount(modelsOpen);
+  const diagnosticsMounted = useDeferredMount(diagnosticsOpen);
   const managedControl = usesManagedControlLoop(
     workspace.selectedRun?.origin,
   );
@@ -266,35 +332,70 @@ export function WorkspaceShell() {
         </SheetContent>
       </Sheet>
 
-      <ComputerSheet
-        open={computerOpen}
-        onOpenChange={setComputerOpen}
-        token={workspace.token}
-        run={workspace.selectedRun}
-        onPause={workspace.onCancel}
-        onContinue={workspace.continueRun}
-      />
-      {managedControl ? (
-        <ProviderConnectionsSheet
-          open={modelsOpen}
-          onOpenChange={setModelsOpen}
-          providers={workspace.providers}
-          catalog={workspace.providerCatalog}
-          preferences={workspace.modelPreferences}
-          activeRoute={workspace.selectedRun?.model_route}
-          activeProvider={workspace.selectedRun?.model_provider}
-          locked={workspace.routeLocked}
-          onPreferenceChange={workspace.setModelPreference}
-          onResetPreferences={workspace.resetModelPreferences}
-          connectingProvider={workspace.connectingProvider}
-          onConnectProvider={workspace.connectProvider}
-        />
+      {computerMounted ? (
+        <Suspense
+          fallback={
+            <SheetLoading
+              open={computerOpen}
+              onOpenChange={setComputerOpen}
+              title="Computer"
+              className="computer-sheet"
+            />
+          }
+        >
+          <ComputerSheet
+            open={computerOpen}
+            onOpenChange={setComputerOpen}
+            token={workspace.token}
+            run={workspace.selectedRun}
+            onPause={workspace.onCancel}
+            onContinue={workspace.continueRun}
+          />
+        </Suspense>
       ) : null}
-      <DiagnosticsSheet
-        open={diagnosticsOpen}
-        onOpenChange={setDiagnosticsOpen}
-        run={workspace.selectedRun}
-      />
+      {managedControl && modelsMounted ? (
+        <Suspense
+          fallback={
+            <SheetLoading
+              open={modelsOpen}
+              onOpenChange={setModelsOpen}
+              title="Models"
+            />
+          }
+        >
+          <ProviderConnectionsSheet
+            open={modelsOpen}
+            onOpenChange={setModelsOpen}
+            providers={workspace.providers}
+            catalog={workspace.providerCatalog}
+            preferences={workspace.modelPreferences}
+            activeRoute={workspace.selectedRun?.model_route}
+            activeProvider={workspace.selectedRun?.model_provider}
+            locked={workspace.routeLocked}
+            onPreferenceChange={workspace.setModelPreference}
+            onResetPreferences={workspace.resetModelPreferences}
+            connectingProvider={workspace.connectingProvider}
+            onConnectProvider={workspace.connectProvider}
+          />
+        </Suspense>
+      ) : null}
+      {diagnosticsMounted ? (
+        <Suspense
+          fallback={
+            <SheetLoading
+              open={diagnosticsOpen}
+              onOpenChange={setDiagnosticsOpen}
+              title="Diagnostics"
+            />
+          }
+        >
+          <DiagnosticsSheet
+            open={diagnosticsOpen}
+            onOpenChange={setDiagnosticsOpen}
+            run={workspace.selectedRun}
+          />
+        </Suspense>
+      ) : null}
       <AuthDialog
         open={!workspace.connected}
         loading={workspace.loading}

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import gzip
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -65,6 +66,13 @@ async def test_harness_serves_the_compiled_authenticated_chat_workspace() -> Non
         font = await client.get(
             "/app/assets/geist-latin-wght-normal.woff2"
         )
+        computer_chunk_path = next(
+            path
+            for path in UI_DIR.glob("assets/computer-tool-call-*.js")
+        )
+        computer_chunk = await client.get(
+            f"/app/assets/{computer_chunk_path.name}"
+        )
 
     assert root.status_code in {302, 307}
     assert root.headers["location"] == "/app/"
@@ -73,6 +81,8 @@ async def test_harness_serves_the_compiled_authenticated_chat_workspace() -> Non
     assert styles.status_code == 200
     assert font.status_code == 200
     assert font.headers["content-type"].startswith("font/woff2")
+    assert computer_chunk.status_code == 200
+    assert "javascript" in computer_chunk.headers["content-type"]
 
     assert '<div id="root"></div>' in page.text
     assert 'src="/app/app.js"' in page.text
@@ -131,7 +141,7 @@ def test_workspace_uses_production_chat_and_component_libraries() -> None:
     assert "Computer action receipt" in computer_tool
     assert "Screen change" in computer_tool
     assert "Action audit summary" in computer_tool
-    assert "Exact typed payload" in computer_tool
+    assert "Requested payload" in computer_tool
     assert "Held before a consequential input" in computer_tool
     assert "Pointer target" in computer_tool
     assert "Input live" in computer_tool
@@ -173,13 +183,35 @@ def test_compiled_workspace_has_no_remote_assets_and_a_bounded_bundle() -> None:
     javascript = (UI_DIR / "app.js").read_bytes()
     styles = (UI_DIR / "styles.css").read_bytes()
     assets = [path for path in UI_DIR.rglob("*") if path.is_file()]
+    deferred_chunks = {
+        path.name
+        for path in (UI_DIR / "assets").glob("*.js")
+    }
+    initial_javascript = [
+        UI_DIR / match
+        for match in re.findall(
+            r'(?:src|href)="/app/([^"]+\.js)"',
+            html,
+        )
+    ]
 
     assert "https://" not in html
     assert "http://" not in html
     assert html.count("<script") == 1
+    assert any(name.startswith("computer-tool-call-") for name in deferred_chunks)
+    assert any(name.startswith("computer-sheet-") for name in deferred_chunks)
+    assert any(name.startswith("diagnostics-sheet-") for name in deferred_chunks)
+    assert any(
+        name.startswith("provider-connections-sheet-")
+        for name in deferred_chunks
+    )
     assert all(path.stat().st_size <= 1_100_000 for path in assets)
     assert sum(path.stat().st_size for path in assets) <= 1_250_000
-    assert len(gzip.compress(javascript)) <= 320 * 1024
+    assert len(gzip.compress(javascript)) <= 250 * 1024
+    assert (
+        sum(len(gzip.compress(path.read_bytes())) for path in initial_javascript)
+        <= 300 * 1024
+    )
     assert len(gzip.compress(styles)) <= 24 * 1024
 
 

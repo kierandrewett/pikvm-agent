@@ -7,10 +7,10 @@ import type { ThreadGroupPart } from "@/components/assistant-ui/thread";
 import {
   ComputerActionReceipt,
   ComputerInputSequence,
-  ComputerToolEnvironmentProvider,
   ComputerToolCall,
   ComputerToolGroup,
 } from "./computer-tool-call";
+import { ComputerToolEnvironmentProvider } from "./computer-tool-environment";
 
 const group = (status: ThreadGroupPart["status"], count = 2): ThreadGroupPart =>
   ({

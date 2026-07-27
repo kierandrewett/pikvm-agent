@@ -1,7 +1,5 @@
 import {
   Children,
-  createContext,
-  useContext,
   useEffect,
   useMemo,
   useRef,
@@ -47,35 +45,14 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  type ComputerToolEnvironment,
+  useComputerToolEnvironment,
+} from "@/components/workspace/computer-tool-environment";
 import { harnessBlob } from "@/lib/harness-api";
 import { cn } from "@/lib/utils";
 
 type JsonRecord = Record<string, unknown>;
-
-export type ComputerToolEnvironment = {
-  token?: string;
-  runId?: string;
-  machineName?: string;
-  currentFrameId?: number;
-  screenWidth?: number;
-  screenHeight?: number;
-  onOpenComputer?: () => void;
-};
-
-const ComputerToolEnvironmentContext = createContext<ComputerToolEnvironment>(
-  {},
-);
-
-export function ComputerToolEnvironmentProvider({
-  value,
-  children,
-}: PropsWithChildren<{ value: ComputerToolEnvironment }>) {
-  return (
-    <ComputerToolEnvironmentContext.Provider value={value}>
-      {children}
-    </ComputerToolEnvironmentContext.Provider>
-  );
-}
 
 const record = (value: unknown): JsonRecord =>
   value && typeof value === "object" && !Array.isArray(value)
@@ -1213,7 +1190,7 @@ const ComputerToolCallImpl: ToolCallMessagePartComponent<
   approval,
   respondToApproval,
 }) => {
-  const environment = useContext(ComputerToolEnvironmentContext);
+  const environment = useComputerToolEnvironment();
   const needsApproval = status?.type === "requires-action";
   const running = status?.type === "running";
   const resultStatus = text(record(result).status);
