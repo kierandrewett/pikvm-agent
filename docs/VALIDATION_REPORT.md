@@ -1190,7 +1190,7 @@ identity. Evidence:
   observed read-back. This is target-free evidence. The in-app browser URL
   policy blocked post-change visual/reflow inspection, and no alternate browser
   was used.
-- Cross-browser chat-workspace checkpoint: at clean source commit `a68441e`,
+- Cross-browser chat-workspace checkpoint: at clean source commit `b27070a`,
   Playwright 1.61 ran the authenticated 1,200-event fixture in Chromium 149,
   Firefox 151, and WebKit 26.5. All three engines expanded 12/12 computer
   actions, loaded 20 action-bound previews, retained exact MCP/model identity,
@@ -1199,7 +1199,7 @@ identity. Evidence:
   Document, conversation, and action overflow were zero at 1440×900 and
   390×844. Page errors, console errors, external requests, approval submissions,
   and computer inputs were all zero. Chromium, Firefox, and WebKit completed in
-  8.219s, 13.136s, and 17.328s. WebKit used Playwright's official Noble image
+  3.631s, 7.833s, and 5.336s. WebKit used Playwright's official Noble image
   because the Fedora host lacks its Ubuntu-linked ABI. The audit found and
   fixed a real visibility defect: direct mode's badge had lived in the composer
   toolbar even though direct runs hide the composer. This is target-free browser

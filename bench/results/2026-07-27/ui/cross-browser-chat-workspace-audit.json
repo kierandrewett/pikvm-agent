@@ -37,7 +37,7 @@
         "guarded_direct_visible": true,
         "managed_assurance_hidden": true
       },
-      "duration_ms": 8219,
+      "duration_ms": 3631,
       "external_requests": [],
       "models": {
         "api_provider_visible": true,
@@ -98,7 +98,7 @@
         "guarded_direct_visible": true,
         "managed_assurance_hidden": true
       },
-      "duration_ms": 13136,
+      "duration_ms": 7833,
       "external_requests": [],
       "models": {
         "api_provider_visible": true,
@@ -159,7 +159,7 @@
         "guarded_direct_visible": true,
         "managed_assurance_hidden": true
       },
-      "duration_ms": 17328,
+      "duration_ms": 5336,
       "external_requests": [],
       "models": {
         "api_provider_visible": true,
@@ -185,7 +185,7 @@
     }
   },
   "environment": "ephemeral-loopback-target-free-fixture",
-  "recorded_at": "2026-07-27T21:54:30.806981+00:00",
+  "recorded_at": "2026-07-27T22:30:04.003304+00:00",
   "requested_browsers": [
     "chromium",
     "firefox",
@@ -201,7 +201,7 @@
     "vnc_contacted": false
   },
   "schema_version": 1,
-  "source_commit": "a68441eef0c569caf5c3e9cf68d0c99d0253c375",
+  "source_commit": "b27070a7a25c8bf029b0327b4f6e79efa830b87e",
   "source_worktree_clean": true,
   "suite": "cross-browser-chat-workspace-audit",
   "summary": {
