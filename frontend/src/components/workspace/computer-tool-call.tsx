@@ -306,6 +306,17 @@ const durationLabel = (milliseconds: number | undefined) => {
 type ReceiptBadgeVariant =
   "outline" | "evidence" | "caution" | "info" | "destructive";
 
+const statusTextClass = (variant: ReceiptBadgeVariant) =>
+  variant === "destructive"
+    ? "text-destructive"
+    : variant === "caution"
+      ? "text-caution-foreground"
+      : variant === "info"
+        ? "text-info-foreground"
+        : variant === "evidence"
+          ? "text-evidence-foreground"
+          : "text-muted-foreground";
+
 const statusMeta = (
   status: ToolCallMessagePartProps["status"],
   result: unknown,
@@ -525,7 +536,7 @@ function TypingReadback({
 
   return (
     <section
-      className="border-t border-border/60 bg-muted/20 px-3 py-2.5"
+      className="mt-3 border-t border-border/60 pt-2.5"
       aria-label={`Typing read-back for action ${actionIndex + 1}`}
     >
       <div className="flex min-w-0 items-center justify-between gap-3">
@@ -584,8 +595,8 @@ function ActionExactInput({
     const lineCount = value.split(/\r\n|\r|\n/).length;
     const characterCount = inputReceipt?.intended_characters ?? value.length;
     return (
-      <div className="mt-2 overflow-hidden rounded-md border border-border/70 bg-background/55">
-        <div className="flex items-center justify-between gap-3 border-b border-border/60 px-3 py-1.5">
+      <div className="mt-2">
+        <div className="flex items-center justify-between gap-3">
           <span className="text-xs font-medium text-muted-foreground">
             Exact typed payload
           </span>
@@ -597,7 +608,7 @@ function ActionExactInput({
         {secret ? (
           <p
             aria-label="Exact text input"
-            className="flex items-center gap-2 px-3 py-2.5 text-xs text-muted-foreground"
+            className="mt-2 flex items-center gap-2 border-l-2 border-border pl-3 text-xs text-muted-foreground"
           >
             <LockKeyholeIcon className="size-3.5 shrink-0" aria-hidden="true" />
             Secret payload redacted before it entered the run record
@@ -605,7 +616,7 @@ function ActionExactInput({
         ) : (
           <pre
             aria-label="Exact text input"
-            className="max-h-40 overflow-auto px-3 py-2.5 font-mono text-[11px] leading-relaxed text-foreground/90 whitespace-pre-wrap"
+            className="mt-2 max-h-40 overflow-auto border-l-2 border-border py-1 pl-3 font-mono text-[11px] leading-relaxed text-foreground/90 whitespace-pre-wrap"
           >
             {value}
           </pre>
@@ -646,7 +657,7 @@ function ActionExactInput({
         {detail.split(" · ").map((part) => (
           <code
             key={part}
-            className="rounded border border-border bg-background px-1.5 py-0.5 font-mono text-[10px] text-foreground"
+            className="font-mono text-[10px] text-foreground"
           >
             {part}
           </code>
@@ -728,7 +739,7 @@ function ReceiptNode({ item }: { item: EvidenceItem }) {
     <div className="flex min-w-0 flex-1 items-start gap-2.5">
       <span
         className={cn(
-          "flex size-7 shrink-0 items-center justify-center rounded-md",
+          "flex size-5 shrink-0 items-center justify-center",
           item.iconClass,
         )}
       >
@@ -975,7 +986,7 @@ export function ComputerActionReceipt({
               .join(" · ") || "Freshness reference supplied"
           : "No freshness reference",
       Icon: EyeIcon,
-      iconClass: "bg-muted text-muted-foreground",
+      iconClass: "text-muted-foreground",
     },
     {
       label: "Input boundary",
@@ -988,7 +999,7 @@ export function ComputerActionReceipt({
         .filter(Boolean)
         .join(" · "),
       Icon: state.Icon,
-      iconClass: state.iconClass,
+      iconClass: statusTextClass(state.variant),
     },
     {
       label: "Observed after",
@@ -1020,16 +1031,16 @@ export function ComputerActionReceipt({
             : EyeIcon,
       iconClass:
         verificationVerdict === "verified"
-          ? "bg-evidence-soft text-evidence-foreground"
+          ? "text-evidence-foreground"
           : resultStatus === "unverified"
-            ? "bg-caution-soft text-caution-foreground"
-            : "bg-muted text-muted-foreground",
+            ? "text-caution-foreground"
+            : "text-muted-foreground",
     },
   ];
 
   return (
     <section
-      className="mt-3 rounded-lg border border-border bg-background/45 p-3"
+      className="mt-3 border-y border-border/70 py-3"
       aria-label="Computer action receipt"
     >
       <div className="mb-3 flex min-w-0 items-center justify-between gap-3">
@@ -1054,17 +1065,22 @@ export function ComputerActionReceipt({
               .join(" · ") || "managed MCP"}
           </span>
         </div>
-        <Badge variant={state.variant}>
+        <span
+          className={cn(
+            "flex shrink-0 items-center gap-1.5 text-xs font-medium",
+            statusTextClass(state.variant),
+          )}
+        >
           <StateIcon
-            data-icon="inline-start"
             className={cn(
+              "size-3.5",
               status?.type === "running" &&
                 "animate-spin motion-reduce:animate-none",
             )}
             aria-hidden="true"
           />
           {state.label}
-        </Badge>
+        </span>
       </div>
       <dl className="flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-2">
         {evidence.map((item, index) => (
@@ -1111,7 +1127,7 @@ function ActionIntent({ receipt }: { receipt: ReceiptContext }) {
   if (!receipt.intent && !receipt.expectedEvidence.length) return null;
   return (
     <section
-      className="mt-3 rounded-lg bg-muted/35 px-3 py-2.5"
+      className="mt-3 grid gap-3 border-b border-border/60 pb-3 sm:grid-cols-2"
       aria-label="Action intent and expected evidence"
     >
       {receipt.intent ? (
@@ -1129,9 +1145,7 @@ function ActionIntent({ receipt }: { receipt: ReceiptContext }) {
         </div>
       ) : null}
       {receipt.expectedEvidence.length ? (
-        <div
-          className={cn("flex items-start gap-2", receipt.intent && "mt-2.5")}
-        >
+        <div className="flex items-start gap-2">
           <EyeIcon
             className="mt-0.5 size-3.5 shrink-0 text-muted-foreground"
             aria-hidden="true"
@@ -1204,23 +1218,23 @@ const ComputerToolCallImpl: ToolCallMessagePartComponent<
       open={open}
       onOpenChange={setOpen}
       className={cn(
-        "group/computer-tool overflow-hidden rounded-lg border bg-card/35 transition-[border-color,background-color] duration-150 motion-reduce:transition-none",
+        "group/computer-tool border-l-2 pl-3 transition-[border-color] duration-150 motion-reduce:transition-none",
         needsApproval
-          ? "border-caution/35 bg-caution-soft/25"
+          ? "border-caution"
           : needsReview
-            ? "border-caution/30"
+            ? "border-caution"
             : failed
-              ? "border-destructive/35"
+              ? "border-destructive"
               : running
-                ? "border-info/30 bg-info-soft/15"
-                : "border-border/70",
+                ? "border-info"
+                : "border-border",
       )}
     >
-      <CollapsibleTrigger className="group/trigger grid min-h-14 w-full grid-cols-[2rem_minmax(0,1fr)_auto] items-start gap-x-2.5 rounded-lg p-3 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50 sm:grid-cols-[2rem_minmax(0,1fr)_auto_auto]">
+      <CollapsibleTrigger className="group/trigger grid min-h-11 w-full grid-cols-[1.25rem_minmax(0,1fr)_auto] items-start gap-x-2.5 py-1 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50 sm:grid-cols-[1.25rem_minmax(0,1fr)_auto_auto]">
         <span
           className={cn(
-            "flex size-8 shrink-0 items-center justify-center rounded-md",
-            state.iconClass,
+            "mt-0.5 flex size-5 shrink-0 items-center justify-center text-muted-foreground",
+            statusTextClass(state.variant),
           )}
         >
           <PrimaryIcon className="size-4" aria-hidden="true" />
@@ -1258,17 +1272,21 @@ const ComputerToolCallImpl: ToolCallMessagePartComponent<
             ) : null}
           </span>
         </span>
-        <Badge
-          variant={state.variant}
-          className="col-start-2 row-start-2 mt-1 sm:col-start-3 sm:row-start-1 sm:mt-0.5"
+        <span
+          className={cn(
+            "col-start-2 row-start-2 mt-1 flex items-center gap-1.5 text-xs font-medium sm:col-start-3 sm:row-start-1 sm:mt-0.5",
+            statusTextClass(state.variant),
+          )}
         >
           <StateIcon
-            data-icon="inline-start"
-            className={cn(running && "animate-spin motion-reduce:animate-none")}
+            className={cn(
+              "size-3.5",
+              running && "animate-spin motion-reduce:animate-none",
+            )}
             aria-hidden="true"
           />
           {state.label}
-        </Badge>
+        </span>
         <ChevronDownIcon
           className="col-start-3 row-start-1 mt-1 size-4 shrink-0 -rotate-90 text-muted-foreground transition-transform duration-150 group-data-open/trigger:rotate-0 group-data-panel-open/trigger:rotate-0 motion-reduce:transition-none sm:col-start-4"
           aria-hidden="true"
@@ -1276,7 +1294,7 @@ const ComputerToolCallImpl: ToolCallMessagePartComponent<
       </CollapsibleTrigger>
 
       <CollapsibleContent className="data-closed:animate-collapsible-up data-open:animate-collapsible-down overflow-hidden motion-reduce:animate-none">
-        <div className="border-t border-border/60 px-3 pt-3 pb-3">
+        <div className="mt-2 border-t border-border/60 pt-3 pb-1">
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-xs font-semibold">Input transaction</p>
@@ -1391,7 +1409,7 @@ export function ComputerToolGroup({
       variant="ghost"
       open={open}
       onOpenChange={setOpen}
-      className="my-3 overflow-hidden rounded-lg border border-border/60 bg-muted/15 px-2"
+      className="my-3 border-l-2 border-border pl-3"
     >
       <CollapsibleTrigger className="group/trigger flex min-h-11 w-full items-center gap-2 rounded-md text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
         <span
