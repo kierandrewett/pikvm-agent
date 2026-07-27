@@ -125,6 +125,47 @@ async def test_visual_trial_oracle_pages_only_through_driver_screenshots() -> No
     assert "F12" in driver.actions[-1][0][0]["keys"]
 
 
+async def test_visual_trial_oracle_retries_a_transient_non_matrix_frame() -> None:
+    payload = (
+        b'{"protocol":"pikvm-observer.v1","sequence":9,"text":"'
+        + b"x" * 5000
+        + b'","events":[],"dangerous_commits":[]}'
+    )
+    frames = [
+        render_page(packet, jpeg_quality=84)
+        for packet in encode_pages(payload, snapshot_id=9, compress=False)
+    ]
+    blank = io.BytesIO()
+    Image.new("RGB", (1280, 800), "black").save(blank, "JPEG")
+
+    class Driver:
+        def __init__(self) -> None:
+            self.index = 0
+            self.last_image = None
+            self.corrupt_frame_sent = False
+
+        async def screenshot(self):
+            if self.index == 1 and not self.corrupt_frame_sent:
+                self.last_image = blank.getvalue()
+                self.corrupt_frame_sent = True
+            else:
+                self.last_image = frames[self.index]
+            return {"status": "completed"}
+
+        async def burst(self, actions, *, key):
+            keys = actions[0]["keys"]
+            if "F8" in keys:
+                self.index += 1
+            return {"status": "completed"}
+
+    snapshot = await VisualTrialOracle()._collect(
+        Driver(),
+        key="oracle-transient-frame",
+    )
+
+    assert snapshot.text == "x" * 5000
+
+
 async def test_visual_trial_oracle_recovers_when_one_next_page_input_is_duplicated() -> None:
     payload = (
         b'{"protocol":"pikvm-observer.v1","sequence":9,"text":"'

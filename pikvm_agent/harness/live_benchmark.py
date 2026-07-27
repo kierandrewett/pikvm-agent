@@ -570,10 +570,29 @@ class VisualTrialOracle:
         page_count: int | None = None
         try:
             for action_index in range(1024):
-                await driver.screenshot()
-                if driver.last_image is None:
-                    raise VisualOracleError("MCP screenshot contained no image")
-                page = decode_page(driver.last_image)
+                page = None
+                for frame_attempt in range(4):
+                    await driver.screenshot()
+                    if driver.last_image is None:
+                        raise VisualOracleError(
+                            "MCP screenshot contained no image"
+                        )
+                    try:
+                        page = decode_page(driver.last_image)
+                        break
+                    except VisualOracleError as exc:
+                        if frame_attempt == 3:
+                            raise
+                        print(
+                            "benchmark oracle: transient non-matrix frame, "
+                            f"retrying ({frame_attempt + 1}/3): {exc}",
+                            flush=True,
+                        )
+                        await asyncio.sleep(0.15)
+                if page is None:
+                    raise VisualOracleError(
+                        "visual oracle frame retry returned no page"
+                    )
                 print(
                     f"benchmark oracle: page {page.page_index + 1}/"
                     f"{page.page_count}",
