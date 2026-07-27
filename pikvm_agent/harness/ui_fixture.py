@@ -760,6 +760,7 @@ def build_direct_fixture_run(
         "action.attempted",
         call_id="fixture-direct-click",
         tool="pikvm_run_burst",
+        caller=run.caller,
         arguments={
             "actions": [
                 {
@@ -775,9 +776,12 @@ def build_direct_fixture_run(
         },
     )
     run.record(
-        "action.completed",
+        "action.completed_unverified",
         call_id="fixture-direct-click",
+        tool="pikvm_run_burst",
         status="completed",
+        effect_state="unverified",
+        caller=run.caller,
         latency_ms=84,
         frame_id=2,
         world_version=2,

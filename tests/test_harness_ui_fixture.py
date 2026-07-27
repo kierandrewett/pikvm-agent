@@ -99,9 +99,14 @@ def test_ui_fixture_includes_an_honestly_labelled_direct_client_trace(
         "run.created",
         "action.pre_action_evidence_captured",
         "action.attempted",
-        "action.completed",
+        "action.completed_unverified",
         "run.paused",
     ]
+    attempted = run.events[2]
+    completed = run.events[3]
+    assert attempted.data["caller"] == run.caller
+    assert completed.data["caller"] == run.caller
+    assert completed.data["effect_state"] == "unverified"
 
 
 async def test_ui_fixture_exposes_and_resolves_a_synthetic_send_approval() -> None:
