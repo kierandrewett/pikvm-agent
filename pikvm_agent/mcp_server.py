@@ -198,7 +198,7 @@ async def pikvm_screenshot(session_id: str) -> dict:
 @mcp.tool(
     annotations=ToolAnnotations(
         readOnlyHint=False,
-        destructiveHint=False,
+        destructiveHint=True,
         idempotentHint=False,
         openWorldHint=True,
     )
@@ -259,7 +259,7 @@ async def pikvm_run_burst(session_id: str, actions: list[dict],
 @mcp.tool(
     annotations=ToolAnnotations(
         readOnlyHint=False,
-        destructiveHint=False,
+        destructiveHint=True,
         idempotentHint=False,
         openWorldHint=True,
     )
@@ -294,7 +294,7 @@ async def pikvm_run_playbook(
 @mcp.tool(
     annotations=ToolAnnotations(
         readOnlyHint=False,
-        destructiveHint=False,
+        destructiveHint=True,
         idempotentHint=False,
         openWorldHint=True,
     )
@@ -319,7 +319,7 @@ async def pikvm_key(
 @mcp.tool(
     annotations=ToolAnnotations(
         readOnlyHint=False,
-        destructiveHint=False,
+        destructiveHint=True,
         idempotentHint=False,
         openWorldHint=True,
     )
@@ -357,7 +357,7 @@ async def pikvm_type_text(
 @mcp.tool(
     annotations=ToolAnnotations(
         readOnlyHint=False,
-        destructiveHint=False,
+        destructiveHint=True,
         idempotentHint=False,
         openWorldHint=True,
     )
@@ -384,7 +384,7 @@ async def pikvm_click(
 @mcp.tool(
     annotations=ToolAnnotations(
         readOnlyHint=False,
-        destructiveHint=False,
+        destructiveHint=True,
         idempotentHint=False,
         openWorldHint=True,
     )
@@ -506,7 +506,7 @@ async def pikvm_autonomous_start(task: str, policy: dict | None = None,
 @mcp.tool(
     annotations=ToolAnnotations(
         readOnlyHint=False,
-        destructiveHint=False,
+        destructiveHint=True,
         idempotentHint=False,
         openWorldHint=True,
     )
@@ -578,7 +578,14 @@ async def pikvm_export_memory_update(session_id: str) -> dict:
 
 
 if os.environ.get("PIKVM_AGENT_ENABLE_DEBUG_HID") == "1":  # pragma: no cover
-    @mcp.tool()
+    @mcp.tool(
+        annotations=ToolAnnotations(
+            readOnlyHint=False,
+            destructiveHint=True,
+            idempotentHint=False,
+            openWorldHint=True,
+        )
+    )
     async def debug_pikvm_raw(session_id: str, action: dict) -> dict:
         """DEBUG-ONLY raw HID passthrough (disabled unless explicitly enabled)."""
         return await _post(f"/sessions/{session_id}/debug/hid", action)

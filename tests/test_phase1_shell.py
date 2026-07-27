@@ -63,6 +63,17 @@ async def test_model_facing_raw_mcp_excludes_approval_tools_and_declares_risk() 
     assert tools["pikvm_screenshot"].annotations.readOnlyHint is True
     assert tools["pikvm_parse_screen"].annotations.readOnlyHint is True
     assert tools["pikvm_run_burst"].annotations.readOnlyHint is False
+    potentially_consequential = {
+        "pikvm_run_burst",
+        "pikvm_run_playbook",
+        "pikvm_key",
+        "pikvm_type_text",
+        "pikvm_click",
+        "pikvm_scroll",
+        "pikvm_autonomous_continue",
+    }
+    for name in potentially_consequential:
+        assert tools[name].annotations.destructiveHint is True
     assert tools["pikvm_abort"].annotations.destructiveHint is True
     assert tools["pikvm_panic_stop"].annotations.destructiveHint is True
     freshness_fields = {

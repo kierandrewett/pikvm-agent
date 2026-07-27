@@ -125,7 +125,11 @@ evidence is released when the operator switches runs or closes the page.
 For this mode, Pause gates subsequent direct calls; it cannot cancel an MCP
 request already executing in a separate coding client. Stop is the active-call
 control: it aborts the daemon session, releases HID, and latches the direct-run
-gate.
+gate. Every raw action-bearing MCP tool advertises
+`destructiveHint=true` because its arguments can produce an external side
+effect. This metadata lets a host apply its own conservative prompt policy, but
+it never replaces the daemon's argument-, screen-, and freshness-aware approval
+hold.
 
 ## Invariants
 
