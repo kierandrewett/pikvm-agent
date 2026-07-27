@@ -183,7 +183,9 @@ async def test_read_only_tool_is_visible_and_old_result_is_not_replayed_next_tur
                 "outcome": "tool",
                 "tool_call": {
                     "name": "search.lookup",
-                    "arguments": {"query": "quarterly earnings"},
+                    "arguments_json": (
+                        '{"query":"quarterly earnings"}'
+                    ),
                 },
             },
             {
@@ -210,6 +212,10 @@ async def test_read_only_tool_is_visible_and_old_result_is_not_replayed_next_tur
     assert "tool.started" in event_kinds
     assert "tool.completed" in event_kinds
     assert "https://example.test" not in provider.requests[-1].prompt
+    provider_schema = provider.requests[0].output_schema
+    wire_tool = provider_schema["$defs"]["_ProviderAssistantToolCall"]
+    assert wire_tool["additionalProperties"] is False
+    assert set(wire_tool["properties"]) == {"name", "arguments_json"}
 
 
 @pytest.mark.asyncio
@@ -232,10 +238,9 @@ async def test_side_effect_tool_waits_for_exact_human_approval() -> None:
                 "outcome": "tool",
                 "tool_call": {
                     "name": "mail.send",
-                    "arguments": {
-                        "to": "recipient@example.test",
-                        "body": "Hello",
-                    },
+                    "arguments_json": (
+                        '{"to":"recipient@example.test","body":"Hello"}'
+                    ),
                 },
             },
             {
@@ -303,14 +308,14 @@ async def test_tool_round_limit_stops_before_an_extra_external_call() -> None:
                 "outcome": "tool",
                 "tool_call": {
                     "name": "search.lookup",
-                    "arguments": {"query": "first"},
+                    "arguments_json": '{"query":"first"}',
                 },
             },
             {
                 "outcome": "tool",
                 "tool_call": {
                     "name": "search.lookup",
-                    "arguments": {"query": "must-not-run"},
+                    "arguments_json": '{"query":"must-not-run"}',
                 },
             },
         ]

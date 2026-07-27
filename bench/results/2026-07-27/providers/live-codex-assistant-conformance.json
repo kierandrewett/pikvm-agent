@@ -1,0 +1,77 @@
+{
+  "suite": "assistant-harness-live-v1",
+  "created_at": "2026-07-27T17:12:56.965307Z",
+  "provider": "codex-account",
+  "computer_target_contacted": false,
+  "cases_requested": 4,
+  "cases_passed": 4,
+  "cases_failed": 0,
+  "provider_calls": 5,
+  "tool_calls": 1,
+  "evaluation_wall_ms": 549453,
+  "assistant_tools_available": 3,
+  "tool_servers_ready": 1,
+  "tool_servers_total": 1,
+  "results": [
+    {
+      "case_id": "greeting",
+      "expectation": "reply",
+      "passed": true,
+      "final_status": "completed",
+      "final_mode": "assistant",
+      "wall_ms": 110838,
+      "first_activity_ms": 2,
+      "provider_calls": 1,
+      "tool_calls": [],
+      "reply_characters": 31,
+      "citation_hosts": [],
+      "failure_class": null
+    },
+    {
+      "case_id": "general-question",
+      "expectation": "reply",
+      "passed": true,
+      "final_status": "completed",
+      "final_mode": "assistant",
+      "wall_ms": 97566,
+      "first_activity_ms": 1,
+      "provider_calls": 1,
+      "tool_calls": [],
+      "reply_characters": 38,
+      "citation_hosts": [],
+      "failure_class": null
+    },
+    {
+      "case_id": "web-research",
+      "expectation": "research",
+      "passed": true,
+      "final_status": "completed",
+      "final_mode": "assistant",
+      "wall_ms": 230868,
+      "first_activity_ms": 1,
+      "provider_calls": 2,
+      "tool_calls": [
+        "web.search_text"
+      ],
+      "reply_characters": 144,
+      "citation_hosts": [
+        "www.python.org"
+      ],
+      "failure_class": null
+    },
+    {
+      "case_id": "computer-handoff",
+      "expectation": "computer_handoff",
+      "passed": true,
+      "final_status": "completed",
+      "final_mode": "computer",
+      "wall_ms": 110181,
+      "first_activity_ms": 1,
+      "provider_calls": 1,
+      "tool_calls": [],
+      "reply_characters": 0,
+      "citation_hosts": [],
+      "failure_class": null
+    }
+  ]
+}

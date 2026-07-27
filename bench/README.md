@@ -30,7 +30,7 @@ support a claim of generally reliable autonomous Windows operation.
 
 | Product claim | Current evidence | Verdict |
 | --- | --- | --- |
-| Normal chat and research do not silently become computer actions | Target-free contracts cover durable multi-turn chat, ordinary replies without a computer session, one-at-a-time visible MCP tools, local read-only authority, exact approval for all other tools, explicit computer hand-off, per-turn tool attribution, and stable streamed reply identity. Packaged web research is enabled by secret-free onboarding and can be disabled explicitly | Passing local contract; post-change live UI trace pending |
+| Normal chat and research do not silently become computer actions | Target-free contracts cover durable multi-turn chat, ordinary replies without a computer session, one-at-a-time visible MCP tools, local read-only authority, exact approval for all other tools, explicit computer hand-off, per-turn tool attribution, and stable streamed reply identity. Live Claude and Codex OAuth acceptances both passed greeting, general question, sourced research, and computer hand-off 4/4; each hand-off sink contacted no target and every case emitted visible activity within 1–2ms. Codex required a strict-schema repair and remained 10.3× slower end to end than Claude. Packaged web research is enabled by secret-free onboarding and can be disabled explicitly | Passing live target-free OAuth routes; API routes and post-change browser trace pending |
 | Direct Claude/Codex/OpenCode calls are visible and operator-controllable | Actual MCP `ClientSession` dispatch test, exact redacted arguments plus durable outcome/latency, path/raw-payload exclusion, fail-closed missing-visibility tests, scoped observer credential, required frame/control/idempotency fields on every HID tool, real browser, 100-call audit at 6.70ms median / 7.54ms p95 | Passing local contract |
 | A coding client can submit once while the dedicated harness owns progression | The referenced Claude session used 551 direct PiKVM calls; 21 API contracts prove the replacement managed loop crosses action slices, safe replans and verifier-more-work checkpoints, resumes after exact human approval, recovers internal yields after restart, reconstructs its automatic-resume ceiling from durable history, and refuses overlapping Continue bypass. Operator steering is durable, forces a fresh managed plan, and cannot discard unsettled HID or take control from direct/external drivers. Exact generated configs initialize over real stdio for all four clients and preserve their validated client identity | Passing control-loop and generated-stdio inventory contracts; authenticated task/restart pending |
 | Effective client config cannot silently retain a second PiKVM tool surface | Fail-closed audit supports native Codex resolved inventory, Codex TOML/shared project JSON, Claude/Gemini JSON, and legacy/V2 OpenCode JSON/JSONC. Native read-only Codex inventory found one raw PiKVM registration and no managed registration. A session-only Codex override produced exactly one managed PiKVM surface while retaining unrelated MCPs; Claude's installed strict-MCP flags produced one explicit managed surface. OpenCode 1.14.44 resolved one managed surface under `--pure`, exact default-deny permissions, ephemeral writable state, and client-owned OAuth linked without copying it. Gemini 0.35.3 loaded the temporary system catalog natively and resolved one allowlisted managed surface from an empty dedicated profile; the exact admin-policy path/content and extension-disable argv are configured but not enforcement-tested. These paths modify no persisted registration and passed 54 launcher/audit/package contracts | Codex/Claude/OpenCode native isolation dry-runs pass; Gemini settings audit passes; no authenticated coding-client task or Gemini policy-enforcement call was run |
@@ -1071,10 +1071,34 @@ controller, reserve stronger reasoning/checking models for the steps that need
 them, and retain explicit fallbacks. Neither result contacted VNC, PiKVM, the
 production daemon, or any computer target.
 
+The chat-first assistant now has its own live-provider acceptance rather than
+borrowing a vision-schema benchmark. Claude OAuth passed all four fixed tasks
+in 53.575 seconds. Greeting and ordinary question replies took 6.587 and 6.857
+seconds without a tool or computer session. Sourced research used the visible
+`web.search_text` and `web.extract_content` MCP calls, cited
+`www.python.org`, and completed in 33.586 seconds. The explicit screen request
+became a computer hand-off in 6.546 seconds, but terminated at the runner's
+recording sink with `computer_target_contacted: false`. The first durable
+activity event appeared within 1–2ms on every case, independently of the
+provider's response time. The mode-0600 report stores no prompt, reply, result
+body, credential, or computer endpoint.
+
+The first Codex OAuth attempt is also retained because it exposed a real
+cross-provider defect: Codex's strict output-schema transport rejected the
+assistant tool call's open-ended argument object. The provider wire format now
+uses a closed object whose `arguments_json` field is decoded and validated at
+the host boundary. The corrected Codex run passed the same four cases 4/4, but
+took 549.453 seconds: 110.838 seconds for the greeting, 97.566 seconds for the
+ordinary question, 230.868 seconds for one visible `web.search_text` research
+call, and 110.181 seconds for the target-free computer hand-off. That is 10.3×
+Claude's total wall time on this fixed contract. It proves compatibility after
+the schema repair; it does not make Codex suitable as the default interactive
+chat or tool route.
+
 ## Current headline
 
 <!-- pikvm-scorecard:start -->
-_Generated from checked JSON evidence as of 2026-07-27. Manifest `sha256:820b48b22744`; run `pikvm-agent harness scorecard --check` to detect drift._
+_Generated from checked JSON evidence as of 2026-07-27. Manifest `sha256:79121e6c3562`; run `pikvm-agent harness scorecard --check` to detect drift._
 
 | Suite | Route | Cases | Result | Median / p95 | Wall | Status | Evidence |
 | --- | --- | ---: | ---: | ---: | ---: | --- | --- |
@@ -1108,6 +1132,8 @@ _Generated from checked JSON evidence as of 2026-07-27. Manifest `sha256:820b48b
 | Gemini CLI provider adapter | Gemini CLI 0.35.3 / `account-default` | 79 provider/config/UI cases | Adapter contracts passed; startup probe timeout; 228,904 KiB peak RSS | 60.01s startup probe | 60.01s | Adapter contract; live provider unproven | [JSON](results/gemini-cli-0.35.3-compatibility-2026-07-26.json) · `sha256:4beb22389eaa` |
 | Provider conformance attempt | Codex CLI + Claude Code | 2 providers / 2 calls | 0/2 exact; 2 failures; Codex adapter fixed afterward | 0.145s / 90.113s | 90.258s | Failing diagnostic; approved rerun blocked before launch | [JSON](results/2026-07-26/providers/provider-conformance-attempt-2026-07-26.json) · `sha256:abff0e7407a7` |
 | Live provider conformance | Codex account-default + Claude Opus | 2 providers / 6 calls | 6/6 exact; 0 failures | Claude 15.69s / 16.46s; Codex 105.74s / 114.88s | 318.70s | Passing target-free n=3/provider; neither route is fast-controller eligible | [JSON](results/2026-07-27/providers/live-codex-claude-provider-conformance.json) · `sha256:ff1537c29a09` |
+| Live chat-first assistant | Claude OAuth → assistant → web MCP / computer hand-off | 4 live tasks | 4/4; 6 model / 2 tool calls; 3 tools / 1 server ready | Greeting 6.59s; question 6.86s; research 33.59s; hand-off 6.55s | 53.58s | Passing target-free live assistant; first activity 2ms | [JSON](results/2026-07-27/providers/live-claude-assistant-conformance.json) · `sha256:6feb24667e6b` |
+| Live chat-first assistant | Codex OAuth → assistant → web MCP / computer hand-off | 4 live tasks | 4/4; 5 model / 1 tool calls; 3 tools / 1 server ready | Greeting 110.84s; question 97.57s; research 230.87s; hand-off 110.18s | 549.45s | Passing after strict-schema fix; too slow for default interactive route | [JSON](results/2026-07-27/providers/live-codex-assistant-conformance.json) · `sha256:3c6a8af4e33c` |
 | ScreenSpot-Pro, single pass | Codex CLI / `gpt-5.6-sol` | 100 | 73/100, 73.0% | 7.63s / 13.29s | 218.53s | Current seeded sample | [JSON](results/2026-07-25/screenspot-pro/codex-gpt-5.6-sol-seed104729-n100.json) · `sha256:dc21a201b455` |
 | Blind OCR | Local Tesseract structured ensemble | 1,000 | 56.9% selected; 61.4% expected-aware exact; 2.08% CER | 156ms / 215ms | 40.20s | Failing release gate | [JSON](results/2026-07-25/ocr/tesseract-structured-candidates-seed104729-n1000.json) · `sha256:68da9a6bdb5e` |
 | Blind OCR | PaddleOCR v6 medium CPU | 1,000 | 78.9% normalized exact; 1.06% CER | 874ms / 2.54s | 1,078.82s | Failing gate; crop adapter fixed afterward | [JSON](results/2026-07-25/ocr/ocr-seed104729-n1000-comparison.json) · `sha256:dbbce9299995` |

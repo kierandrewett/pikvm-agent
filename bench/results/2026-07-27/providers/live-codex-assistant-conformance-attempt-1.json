@@ -1,0 +1,73 @@
+{
+  "suite": "assistant-harness-live-v1",
+  "created_at": "2026-07-27T17:00:47.965614Z",
+  "provider": "codex-account",
+  "computer_target_contacted": false,
+  "cases_requested": 4,
+  "cases_passed": 0,
+  "cases_failed": 4,
+  "provider_calls": 1,
+  "tool_calls": 0,
+  "evaluation_wall_ms": 113514,
+  "assistant_tools_available": 3,
+  "tool_servers_ready": 1,
+  "tool_servers_total": 1,
+  "results": [
+    {
+      "case_id": "greeting",
+      "expectation": "reply",
+      "passed": false,
+      "final_status": "paused",
+      "final_mode": "assistant",
+      "wall_ms": 113511,
+      "first_activity_ms": 2,
+      "provider_calls": 1,
+      "tool_calls": [],
+      "reply_characters": 0,
+      "citation_hosts": [],
+      "failure_class": "unexpected-paused"
+    },
+    {
+      "case_id": "general-question",
+      "expectation": "reply",
+      "passed": false,
+      "final_status": "paused",
+      "final_mode": "assistant",
+      "wall_ms": 1,
+      "first_activity_ms": 1,
+      "provider_calls": 0,
+      "tool_calls": [],
+      "reply_characters": 0,
+      "citation_hosts": [],
+      "failure_class": "unexpected-paused"
+    },
+    {
+      "case_id": "web-research",
+      "expectation": "research",
+      "passed": false,
+      "final_status": "paused",
+      "final_mode": "assistant",
+      "wall_ms": 1,
+      "first_activity_ms": 1,
+      "provider_calls": 0,
+      "tool_calls": [],
+      "reply_characters": 0,
+      "citation_hosts": [],
+      "failure_class": "unexpected-paused"
+    },
+    {
+      "case_id": "computer-handoff",
+      "expectation": "computer_handoff",
+      "passed": false,
+      "final_status": "paused",
+      "final_mode": "assistant",
+      "wall_ms": 1,
+      "first_activity_ms": 1,
+      "provider_calls": 0,
+      "tool_calls": [],
+      "reply_characters": 0,
+      "citation_hosts": [],
+      "failure_class": "unexpected-paused"
+    }
+  ]
+}

@@ -1343,6 +1343,154 @@ def harness_provider_conformance(
     )
 
 
+@harness_app.command("assistant-conformance")
+def harness_assistant_conformance(
+    config: Path = typer.Option(
+        ...,
+        "--config",
+        envvar="PIKVM_HARNESS_CONFIG",
+        exists=True,
+        dir_okay=False,
+        readable=True,
+        help="Harness YAML containing the provider and assistant MCP tools.",
+    ),
+    provider: str = typer.Option(
+        ...,
+        "--provider",
+        help="One configured OAuth or API provider to exercise.",
+    ),
+    output: Path = typer.Option(
+        ...,
+        "--out",
+        dir_okay=False,
+        help="New mode-0600 JSON report; existing files are never overwritten.",
+    ),
+    allow_provider_calls: bool = typer.Option(
+        False,
+        "--allow-provider-calls",
+        help="Explicitly permit billable or subscription-backed model calls.",
+    ),
+) -> None:
+    """Prove normal chat, research, and hand-off without a target."""
+    import asyncio
+    import json
+
+    from pikvm_agent.harness.assistant_conformance import (
+        AssistantAcceptanceReport,
+        run_assistant_acceptance,
+        write_assistant_acceptance_report,
+    )
+    from pikvm_agent.harness.config import (
+        build_model_budget_policy,
+        build_model_pool,
+        check_provider_prerequisites,
+        load_harness_settings,
+    )
+    from pikvm_agent.harness.general_tools import (
+        McpServerConnection,
+        McpToolBroker,
+    )
+
+    if not allow_provider_calls:
+        typer.echo(
+            "Assistant conformance refused: add --allow-provider-calls to "
+            "explicitly permit model-provider and public research traffic.",
+            err=True,
+        )
+        raise typer.Exit(2)
+    if output.exists():
+        typer.echo(
+            "Assistant conformance refused: --out already exists.",
+            err=True,
+        )
+        raise typer.Exit(2)
+
+    settings = load_harness_settings(config)
+    readiness = check_provider_prerequisites(settings)
+    if provider not in readiness:
+        typer.echo(
+            f"Assistant conformance refused: unknown provider: {provider}.",
+            err=True,
+        )
+        raise typer.Exit(2)
+    if not readiness[provider]["ready"]:
+        typer.echo(
+            "Assistant conformance refused: provider is not ready: "
+            f"{readiness[provider].get('error', 'unknown')}.",
+            err=True,
+        )
+        raise typer.Exit(2)
+
+    pool = build_model_pool(settings)
+    tools = McpToolBroker(
+        [
+            McpServerConnection(
+                name=name,
+                transport=spec.transport,
+                command=spec.command,
+                args=tuple(spec.args),
+                cwd=spec.cwd,
+                inherited_env=tuple(spec.inherited_env),
+                url=spec.url,
+                header_env=dict(spec.header_env),
+                allowed_tools=frozenset(spec.allowed_tools),
+                read_only_tools=frozenset(spec.read_only_tools),
+                timeout_s=spec.timeout_s,
+            )
+            for name, spec in settings.assistant_tools.items()
+        ]
+    )
+
+    async def run() -> AssistantAcceptanceReport:
+        await tools.start()
+        try:
+            return await run_assistant_acceptance(
+                models=pool,
+                tools=tools,
+                provider=provider,
+                budget_policy=build_model_budget_policy(settings),
+            )
+        finally:
+            await tools.close()
+            closed: set[int] = set()
+            for configured_provider in pool.providers.values():
+                if id(configured_provider) in closed:
+                    continue
+                closed.add(id(configured_provider))
+                close = getattr(configured_provider, "aclose", None)
+                if close is not None:
+                    await close()
+
+    try:
+        report = asyncio.run(run())
+        write_assistant_acceptance_report(output, report)
+    except Exception as exc:
+        typer.echo(
+            f"Assistant conformance failed: {type(exc).__name__}.",
+            err=True,
+        )
+        raise typer.Exit(2)
+
+    typer.echo(
+        json.dumps(
+            {
+                "suite": report.suite,
+                "provider": report.provider,
+                "computer_target_contacted": report.computer_target_contacted,
+                "cases_passed": report.cases_passed,
+                "cases_requested": report.cases_requested,
+                "provider_calls": report.provider_calls,
+                "tool_calls": report.tool_calls,
+                "evaluation_wall_ms": report.evaluation_wall_ms,
+                "report": str(output.expanduser().resolve()),
+            },
+            indent=2,
+        )
+    )
+    if not report.passed:
+        raise typer.Exit(1)
+
+
 @harness_app.command("analyze-transcript")
 def harness_analyze_transcript(
     transcript: Path = typer.Argument(

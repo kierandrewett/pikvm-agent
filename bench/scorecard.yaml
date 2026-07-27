@@ -495,6 +495,50 @@ rows:
     wall: "{wall}"
     status: "Passing target-free n=3/provider; neither route is fast-controller eligible"
 
+  - suite: "Live chat-first assistant"
+    route: "Claude OAuth → assistant → web MCP / computer hand-off"
+    source: "results/2026-07-27/providers/live-claude-assistant-conformance.json"
+    fields:
+      cases: {path: "cases_requested", format: "integer"}
+      passed: {path: "cases_passed", format: "integer"}
+      provider_calls: {path: "provider_calls", format: "integer"}
+      tool_calls: {path: "tool_calls", format: "integer"}
+      tools: {path: "assistant_tools_available", format: "integer"}
+      ready: {path: "tool_servers_ready", format: "integer"}
+      greeting: {path: "results.0.wall_ms", format: "seconds_from_ms", digits: 2}
+      question: {path: "results.1.wall_ms", format: "seconds_from_ms", digits: 2}
+      research: {path: "results.2.wall_ms", format: "seconds_from_ms", digits: 2}
+      handoff: {path: "results.3.wall_ms", format: "seconds_from_ms", digits: 2}
+      first_activity: {path: "results.0.first_activity_ms", format: "milliseconds", digits: 0}
+      wall: {path: "evaluation_wall_ms", format: "seconds_from_ms", digits: 2}
+    cases: "{cases} live tasks"
+    result: "{passed}/{cases}; {provider_calls} model / {tool_calls} tool calls; {tools} tools / {ready} server ready"
+    latency: "Greeting {greeting}; question {question}; research {research}; hand-off {handoff}"
+    wall: "{wall}"
+    status: "Passing target-free live assistant; first activity {first_activity}"
+
+  - suite: "Live chat-first assistant"
+    route: "Codex OAuth → assistant → web MCP / computer hand-off"
+    source: "results/2026-07-27/providers/live-codex-assistant-conformance.json"
+    fields:
+      cases: {path: "cases_requested", format: "integer"}
+      passed: {path: "cases_passed", format: "integer"}
+      provider_calls: {path: "provider_calls", format: "integer"}
+      tool_calls: {path: "tool_calls", format: "integer"}
+      tools: {path: "assistant_tools_available", format: "integer"}
+      ready: {path: "tool_servers_ready", format: "integer"}
+      greeting: {path: "results.0.wall_ms", format: "seconds_from_ms", digits: 2}
+      question: {path: "results.1.wall_ms", format: "seconds_from_ms", digits: 2}
+      research: {path: "results.2.wall_ms", format: "seconds_from_ms", digits: 2}
+      handoff: {path: "results.3.wall_ms", format: "seconds_from_ms", digits: 2}
+      first_activity: {path: "results.0.first_activity_ms", format: "milliseconds", digits: 0}
+      wall: {path: "evaluation_wall_ms", format: "seconds_from_ms", digits: 2}
+    cases: "{cases} live tasks"
+    result: "{passed}/{cases}; {provider_calls} model / {tool_calls} tool calls; {tools} tools / {ready} server ready"
+    latency: "Greeting {greeting}; question {question}; research {research}; hand-off {handoff}"
+    wall: "{wall}"
+    status: "Passing after strict-schema fix; too slow for default interactive route"
+
   - suite: "ScreenSpot-Pro, single pass"
     route: "Codex CLI / `gpt-5.6-sol`"
     source: "results/2026-07-25/screenspot-pro/codex-gpt-5.6-sol-seed104729-n100.json"

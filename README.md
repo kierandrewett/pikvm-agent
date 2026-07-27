@@ -270,6 +270,24 @@ fields for review. The UI receives no prompt, synthetic ground truth,
 image/file path, raw response, or provider error body. Existing reports are
 never overwritten.
 
+Prove the complete chat-first route with one live provider before giving it a
+computer target:
+
+```bash
+pikvm-agent harness assistant-conformance \
+  --config config.harness.yaml \
+  --provider claude-account \
+  --out bench-local/assistant-claude.json \
+  --allow-provider-calls
+```
+
+The fixed four-case contract covers a greeting, an ordinary question, sourced
+research through the configured web MCP, and an explicit computer hand-off.
+The last case terminates at a recording sink: this command has no daemon, VNC,
+or PiKVM dependency and reports `computer_target_contacted: false`. The
+mode-0600, no-overwrite report keeps only bounded outcome, tool name, citation
+host, latency, and provider-call counts; it stores neither prompts nor replies.
+
 For repeatable responsive/stream audits without any computer target:
 
 ```bash
