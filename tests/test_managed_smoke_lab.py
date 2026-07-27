@@ -4,6 +4,7 @@ from pathlib import Path
 
 import httpx
 import pytest
+from click.testing import Result
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
@@ -14,6 +15,56 @@ from pikvm_agent.harness.smoke_lab import build_managed_smoke_app
 
 OPERATOR_TOKEN = "smoke-operator-token-0123456789abcdef"
 AGENT_TOKEN = "smoke-agent-token-0123456789abcdef00"
+
+
+def _write_smoke_config(tmp_path: Path) -> Path:
+    config = tmp_path / "smoke.yaml"
+    config.write_text(
+        "\n".join(
+            [
+                'listen: "127.0.0.1:47777"',
+                'state_path: "state.sqlite3"',
+                'artifact_dir: "artifacts"',
+                "providers:",
+                "  account:",
+                '    kind: "codex_cli"',
+                '    model: "account-default"',
+                "routes:",
+                '  reasoner: ["account"]',
+                '  controller: ["account"]',
+                '  verifier: ["account"]',
+            ]
+        )
+    )
+    return config
+
+
+def _invoke_smoke_lab(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    *extra: str,
+) -> tuple[Result, dict[str, object]]:
+    monkeypatch.setenv("PIKVM_HARNESS_TOKEN", OPERATOR_TOKEN)
+    monkeypatch.setenv("PIKVM_HARNESS_AGENT_TOKEN", AGENT_TOKEN)
+    launched: dict[str, object] = {}
+
+    def record_run(target: object, **kwargs: object) -> None:
+        launched.update({"target": target, "kwargs": kwargs})
+
+    monkeypatch.setattr("uvicorn.run", record_run)
+    result = CliRunner().invoke(
+        app,
+        [
+            "harness",
+            "smoke-lab",
+            "--config",
+            str(_write_smoke_config(tmp_path)),
+            "--root",
+            str(tmp_path / "runtime"),
+            *extra,
+        ],
+    )
+    return result, launched
 
 
 @pytest.mark.asyncio
@@ -94,62 +145,15 @@ def test_smoke_lab_cli_starts_only_the_loopback_managed_surface(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    config = tmp_path / "smoke.yaml"
-    config.write_text(
-        "\n".join(
-            [
-                'listen: "127.0.0.1:47777"',
-                'state_path: "state.sqlite3"',
-                'artifact_dir: "artifacts"',
-                "providers:",
-                "  unused:",
-                '    kind: "codex_cli"',
-                '    model: "account-default"',
-                "routes:",
-                '  reasoner: ["unused"]',
-                '  controller: ["unused"]',
-                '  verifier: ["unused"]',
-            ]
-        )
-    )
-    monkeypatch.setenv("PIKVM_HARNESS_TOKEN", OPERATOR_TOKEN)
-    monkeypatch.setenv("PIKVM_HARNESS_AGENT_TOKEN", AGENT_TOKEN)
-    launched: dict[str, object] = {}
-
-    def record_run(
-        target: object,
-        *,
-        host: str,
-        port: int,
-        **kwargs: object,
-    ) -> None:
-        launched.update(
-            {
-                "target": target,
-                "host": host,
-                "port": port,
-                "kwargs": kwargs,
-            }
-        )
-
-    monkeypatch.setattr("uvicorn.run", record_run)
-    result = CliRunner().invoke(
-        app,
-        [
-            "harness",
-            "smoke-lab",
-            "--config",
-            str(config),
-            "--root",
-            str(tmp_path / "runtime"),
-        ],
-    )
+    result, launched = _invoke_smoke_lab(monkeypatch, tmp_path)
 
     assert result.exit_code == 0
     assert "Target-free managed smoke lab" in result.stdout
     assert "http://127.0.0.1:47777/app/" in result.stdout
-    assert launched["host"] == "127.0.0.1"
-    assert launched["port"] == 47777
+    launch_kwargs = launched["kwargs"]
+    assert isinstance(launch_kwargs, dict)
+    assert launch_kwargs["host"] == "127.0.0.1"
+    assert launch_kwargs["port"] == 47777
     assert getattr(launched["target"], "state").synthetic_smoke_lab is True
     assert isinstance(
         getattr(launched["target"], "state").harness_store,
@@ -161,41 +165,14 @@ def test_smoke_lab_refuses_live_providers_without_explicit_call_consent(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    config = tmp_path / "smoke.yaml"
-    config.write_text(
-        "\n".join(
-            [
-                'listen: "127.0.0.1:47777"',
-                'state_path: "state.sqlite3"',
-                'artifact_dir: "artifacts"',
-                "providers:",
-                "  account:",
-                '    kind: "codex_cli"',
-                '    model: "account-default"',
-                "routes:",
-                '  reasoner: ["account"]',
-                '  controller: ["account"]',
-                '  verifier: ["account"]',
-            ]
-        )
-    )
-    monkeypatch.setenv("PIKVM_HARNESS_TOKEN", OPERATOR_TOKEN)
-    monkeypatch.setenv("PIKVM_HARNESS_AGENT_TOKEN", AGENT_TOKEN)
-
-    result = CliRunner().invoke(
-        app,
-        [
-            "harness",
-            "smoke-lab",
-            "--config",
-            str(config),
-            "--root",
-            str(tmp_path / "runtime"),
-            "--live-providers",
-        ],
+    result, launched = _invoke_smoke_lab(
+        monkeypatch,
+        tmp_path,
+        "--live-providers",
     )
 
     assert result.exit_code == 2
+    assert launched == {}
     assert (
         "Live provider calls require --allow-provider-calls"
         in result.stdout
@@ -206,44 +183,11 @@ def test_smoke_lab_uses_configured_routes_when_live_calls_are_authorized(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    config = tmp_path / "smoke.yaml"
-    config.write_text(
-        "\n".join(
-            [
-                'listen: "127.0.0.1:47777"',
-                'state_path: "state.sqlite3"',
-                'artifact_dir: "artifacts"',
-                "providers:",
-                "  account:",
-                '    kind: "codex_cli"',
-                '    model: "account-default"',
-                "routes:",
-                '  reasoner: ["account"]',
-                '  controller: ["account"]',
-                '  verifier: ["account"]',
-            ]
-        )
-    )
-    monkeypatch.setenv("PIKVM_HARNESS_TOKEN", OPERATOR_TOKEN)
-    monkeypatch.setenv("PIKVM_HARNESS_AGENT_TOKEN", AGENT_TOKEN)
-    launched: dict[str, object] = {}
-
-    def record_run(target: object, **kwargs: object) -> None:
-        launched.update({"target": target, "kwargs": kwargs})
-
-    monkeypatch.setattr("uvicorn.run", record_run)
-    result = CliRunner().invoke(
-        app,
-        [
-            "harness",
-            "smoke-lab",
-            "--config",
-            str(config),
-            "--root",
-            str(tmp_path / "runtime"),
-            "--live-providers",
-            "--allow-provider-calls",
-        ],
+    result, launched = _invoke_smoke_lab(
+        monkeypatch,
+        tmp_path,
+        "--live-providers",
+        "--allow-provider-calls",
     )
 
     assert result.exit_code == 0
