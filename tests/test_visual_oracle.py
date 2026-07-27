@@ -125,6 +125,45 @@ async def test_visual_trial_oracle_pages_only_through_driver_screenshots() -> No
     assert "F12" in driver.actions[-1][0][0]["keys"]
 
 
+async def test_visual_trial_oracle_recovers_when_one_next_page_input_is_duplicated() -> None:
+    payload = (
+        b'{"protocol":"pikvm-observer.v1","sequence":9,"text":"'
+        + b"x" * 5000
+        + b'","events":[],"dangerous_commits":[]}'
+    )
+    frames = [
+        render_page(packet, jpeg_quality=84)
+        for packet in encode_pages(payload, snapshot_id=9, compress=False)
+    ]
+
+    class Driver:
+        def __init__(self) -> None:
+            self.index = 0
+            self.last_image = None
+            self.duplicated_once = False
+
+        async def screenshot(self):
+            self.last_image = frames[self.index]
+            return {"status": "completed"}
+
+        async def burst(self, actions, *, key):
+            keys = actions[0]["keys"]
+            if "F8" in keys:
+                distance = 2 if not self.duplicated_once else 1
+                self.duplicated_once = True
+                self.index = min(len(frames) - 1, self.index + distance)
+            elif "F7" in keys:
+                self.index = max(0, self.index - 1)
+            return {"status": "completed"}
+
+    snapshot = await VisualTrialOracle()._collect(
+        Driver(),
+        key="oracle-duplicate-navigation",
+    )
+
+    assert snapshot.text == "x" * 5000
+
+
 async def test_visual_trial_oracle_republishes_after_corrupt_pixels() -> None:
     class Driver:
         def __init__(self) -> None:

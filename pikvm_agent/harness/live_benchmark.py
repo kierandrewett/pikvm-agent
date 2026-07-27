@@ -566,10 +566,10 @@ class VisualTrialOracle:
         return uuid.uuid4().hex
 
     async def _collect(self, driver: McpDriver, *, key: str) -> OracleSnapshot:
-        pages = []
+        pages: dict[int, Any] = {}
         page_count: int | None = None
         try:
-            for page_index in range(256):
+            for action_index in range(1024):
                 await driver.screenshot()
                 if driver.last_image is None:
                     raise VisualOracleError("MCP screenshot contained no image")
@@ -579,25 +579,51 @@ class VisualTrialOracle:
                     f"{page.page_count}",
                     flush=True,
                 )
-                if page.page_index != page_index:
+                if page_count is not None and page.page_count != page_count:
                     raise VisualOracleError(
-                        f"expected visual page {page_index}, got {page.page_index}"
+                        "visual oracle page count changed during collection"
                     )
-                pages.append(page)
                 page_count = page.page_count
-                if page_index + 1 >= page_count:
+                previous = pages.get(page.page_index)
+                if previous is not None and previous != page:
+                    raise VisualOracleError(
+                        "visual oracle page changed during collection"
+                    )
+                pages[page.page_index] = page
+                if len(pages) >= page_count:
                     break
+                missing = [
+                    index
+                    for index in range(page_count)
+                    if index not in pages
+                ]
+                target = min(
+                    missing,
+                    key=lambda index: (
+                        abs(index - page.page_index),
+                        index,
+                    ),
+                )
+                direction = "F8" if target > page.page_index else "F7"
                 advanced = await driver.burst(
-                    [{"type": "key", "keys": ["CTRL", "SHIFT", "F8"]}],
-                    key=f"{key}-page-{page_index + 1}",
+                    [
+                        {
+                            "type": "key",
+                            "keys": ["CTRL", "SHIFT", direction],
+                        }
+                    ],
+                    key=f"{key}-page-action-{action_index + 1}",
                 )
                 if advanced.get("status") != "completed":
                     raise VisualOracleError(
-                        f"could not advance visual oracle: {advanced.get('status')}"
+                        "could not navigate visual oracle: "
+                        f"{advanced.get('status')}"
                     )
             if page_count is None or len(pages) != page_count:
                 raise VisualOracleError("visual oracle exceeded page collection limit")
-            payload = assemble_pages(pages)
+            payload = assemble_pages(
+                [pages[index] for index in range(page_count)]
+            )
             return OracleSnapshot.model_validate_json(payload)
         finally:
             # F12 closes the matrix and returns focus to the helper editor.
