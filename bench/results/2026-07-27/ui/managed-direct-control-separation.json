@@ -1,18 +1,18 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-07-27T12:30:00Z",
-  "source_commit": "3c4ffb0e8e32268cf429e047b916c74f7aaad60e",
+  "generated_at": "2026-07-27T18:26:41Z",
+  "source_commit": "3cf6d4e9d6181047f1fc66fb6fb746265a4d0f86",
   "route": "assistant-ui managed run and guarded-direct trace ownership",
   "machine_contacted": false,
   "model_api_contacted": false,
   "contracts": {
     "frontend": {
-      "passed": 65,
-      "total": 65
+      "passed": 93,
+      "total": 93
     },
     "python": {
-      "passed": 1108,
-      "total": 1108,
+      "passed": 1191,
+      "total": 1191,
       "skipped": 1
     },
     "production_build": "passed",
@@ -46,6 +46,8 @@
     "managed_model_route_visible_on_direct_trace": false,
     "new_managed_task_control_visible": true,
     "direct_trace_claims_independent_verification": false,
+    "per_action_caller_visible": true,
+    "per_action_caller": "claude-cli · opus via anthropic-oauth",
     "click_preview": {
       "source": "retained pre-action screen evidence",
       "exact_marker_visible": true,
@@ -54,29 +56,49 @@
     }
   },
   "browser_audit": {
-    "browser": "Codex in-app Chromium",
+    "browser": "Electron 39.8.10 / Chromium 142",
+    "control": "Chrome DevTools Protocol",
     "target_free_fixture": true,
     "selected_trace_origin": "direct_mcp",
-    "rendered_viewport_width": 645,
-    "rendered_viewport_height": 1070,
-    "document_client_width": 645,
-    "document_scroll_width": 645,
+    "rendered_viewport_width": 916,
+    "rendered_viewport_height": 540,
+    "document_client_width": 916,
+    "document_scroll_width": 916,
     "horizontal_overflow_pixels": 0,
     "managed_route_buttons_on_direct_trace": 0,
     "chat_send_present": false,
+    "branch_counters_present": 0,
+    "declared_caller_provider_model_visible": true,
+    "per_action_caller_visible": true,
+    "unverified_outcome_visible": true,
     "direct_owner_banner_visible": true,
     "direct_owner_banner_overlaps_first_action": false,
     "new_managed_task_control_visible": true,
     "click_preview_image_loaded": true,
+    "click_preview_natural_width": 1280,
+    "click_preview_natural_height": 720,
+    "effective_200_percent_reflow": {
+      "viewport_width": 458,
+      "viewport_height": 270,
+      "horizontal_overflow_pixels": 0,
+      "direct_owner_banner_visible": true,
+      "direct_owner_banner_overlaps_first_action": false,
+      "managed_route_buttons_on_direct_trace": 0,
+      "chat_send_present": false,
+      "declared_caller_provider_model_visible": true,
+      "per_action_caller_visible": true,
+      "unverified_outcome_visible": true,
+      "branch_counters_present": 0
+    },
     "visual_review_passed": true,
     "screenshots_persisted": false
   },
   "resource_envelope": {
-    "html_raw_bytes": 713,
-    "javascript_raw_bytes": 1046230,
-    "javascript_gzip_9_bytes": 314500,
-    "css_raw_bytes": 108948,
-    "css_gzip_9_bytes": 18042
+    "html_raw_bytes": 1227,
+    "javascript_raw_bytes": 808481,
+    "javascript_gzip_9_bytes": 239916,
+    "css_raw_bytes": 108973,
+    "css_gzip_9_bytes": 18054
   },
   "safety": {
     "vnc_contact": false,
@@ -89,6 +111,6 @@
     "This proves the visible ownership and click-evidence contract, not that a real computer action succeeded.",
     "The direct fixture is synthetic; the historical routing counts come from privacy-preserving conversation audits.",
     "No managed live Office, OSWorld, or Windows Agent Arena result is created by this UI audit.",
-    "The browser screenshot was inspected during the run but was not retained in the repository."
+    "The audit used DOM, accessibility, image-load, and layout evidence over CDP; no screenshot was captured or retained."
   ]
 }

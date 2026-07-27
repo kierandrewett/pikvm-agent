@@ -134,9 +134,10 @@ rows:
       direct_calls: {path: "historical_route_audit.reference_conversation.direct_calls", format: "integer"}
       managed_calls: {path: "historical_route_audit.reference_conversation.current_managed_facade_calls", format: "integer"}
       overflow: {path: "browser_audit.horizontal_overflow_pixels", format: "integer"}
+      zoom_overflow: {path: "browser_audit.effective_200_percent_reflow.horizontal_overflow_pixels", format: "integer"}
       gzip_js: {path: "resource_envelope.javascript_gzip_9_bytes", format: "integer"}
     cases: "{frontend_total} frontend + {python_passed} Python; {direct_calls} audited reference calls"
-    result: "{frontend_passed}/{frontend_total}; {python_passed} passed / {python_skipped} skipped; reference route {direct_calls} direct / {managed_calls} managed; {overflow}px overflow"
+    result: "{frontend_passed}/{frontend_total}; {python_passed} passed / {python_skipped} skipped; reference route {direct_calls} direct / {managed_calls} managed; {overflow}px normal / {zoom_overflow}px 200% overflow"
     latency: "{gzip_js}-byte gzip JavaScript"
     wall: "Target-free browser audit"
     status: "Passing visible ownership contract; live computer task pending"

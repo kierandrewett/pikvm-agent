@@ -199,6 +199,12 @@ was contacted. See
 [`provider-connections-and-click-targets.json`](results/2026-07-27/ui/provider-connections-and-click-targets.json).
 The corresponding ownership and direct-click audit is
 [`managed-direct-control-separation.json`](results/2026-07-27/ui/managed-direct-control-separation.json).
+Its refreshed Electron/CDP pass names the outer client, provider, and model in
+the header and per-action audit; keeps the click result explicitly unverified;
+loads the retained 1280×720 pre-action image; removes managed model routing,
+the writable composer, and branch counters from the direct trace; and retains
+zero horizontal overflow at normal width and effective 200% reflow. No VNC,
+PiKVM, production daemon, or model API was contacted.
 
 ### Provider conformance boundary
 
@@ -1105,7 +1111,7 @@ messaging integration.
 ## Current headline
 
 <!-- pikvm-scorecard:start -->
-_Generated from checked JSON evidence as of 2026-07-27. Manifest `sha256:13c868e813a5`; run `pikvm-agent harness scorecard --check` to detect drift._
+_Generated from checked JSON evidence as of 2026-07-27. Manifest `sha256:367f32aba764`; run `pikvm-agent harness scorecard --check` to detect drift._
 
 | Suite | Route | Cases | Result | Median / p95 | Wall | Status | Evidence |
 | --- | --- | ---: | ---: | ---: | ---: | --- | --- |
@@ -1117,7 +1123,7 @@ _Generated from checked JSON evidence as of 2026-07-27. Manifest `sha256:13c868e
 | Live exact input read-back | Disposable Windows VM via isolated MCP | 1 diagnostic / 72 characters | Requested = issued = OCR SHA: yes; helper exact: yes; 0 repeated spaces | Not isolated | 55s | Passing n=1 diagnostic; generic OCR still failing | [JSON](results/2026-07-27/live-vnc/typing-exact-readback-case72.json) · `sha256:b737a799b1d6` |
 | Whitespace input integrity | Canonical delivery → issued prefix → complete OCR field | 208 focused + 1,175 full Python + 87 frontend | All passed; newline boundary emits 1 space; OCR guest ACK: no | 243,690-byte gzip JavaScript | Target-free contract | Passing local fail-closed contract; fresh replay refused by an existing target lease | [JSON](results/2026-07-27/ui/whitespace-input-integrity.json) · `sha256:2437c5075342` |
 | Direct MCP visibility bridge | Guarded local SQLite/ASGI | 100 calls + 10 contracts | Contracts passed; 143.8 calls/s | 6.70ms / 7.54ms | 695ms | Local diagnostic | [JSON](results/2026-07-25/ui/direct-mcp-visibility-audit.json) · `sha256:aa923113856c` |
-| Managed/direct control separation | assistant-ui ownership + click evidence | 65 frontend + 1,108 Python; 551 audited reference calls | 65/65; 1,108 passed / 1 skipped; reference route 551 direct / 0 managed; 0px overflow | 314,500-byte gzip JavaScript | Target-free browser audit | Passing visible ownership contract; live computer task pending | [JSON](results/2026-07-27/ui/managed-direct-control-separation.json) · `sha256:69ffd36eeb26` |
+| Managed/direct control separation | assistant-ui ownership + click evidence | 93 frontend + 1,191 Python; 551 audited reference calls | 93/93; 1,191 passed / 1 skipped; reference route 551 direct / 0 managed; 0px normal / 0px 200% overflow | 239,916-byte gzip JavaScript | Target-free browser audit | Passing visible ownership contract; live computer task pending | [JSON](results/2026-07-27/ui/managed-direct-control-separation.json) · `sha256:650cf26af2f5` |
 | Managed client launch | Codex + Claude + Gemini + OpenCode | 4 clients; 12 stdio cases | 65 local contracts passed; 7/12 stdio executed; 5 skipped | Not measured | 6.96s local selection | Generated stdio proven locally; authenticated task/restart pending | [JSON](results/2026-07-25/safety/managed-client-launch-2026-07-26.json) · `sha256:b464af4a60c8` |
 | Isolated managed client launch | Codex + Claude + OpenCode; Gemini policy contract | 4 installed clients / 54 contracts | 3 native dry-runs; 1 settings-only audit; raw Codex baseline shadowed without persistence | Not measured | Dry-run | Three native isolation dry-runs plus Gemini settings audit; enforcement and tasks pending | [JSON](results/2026-07-26/safety/isolated-managed-client-launch.json) · `sha256:82c085f02a53` |
 | Managed smoke lab contract | Target-free app + stdin client task | 24 contracts | 24/24; 44 focused gates | Not measured | Target-free contract | Passing contract; live task rejected-before-process-creation | [JSON](results/2026-07-26/harness/managed-smoke-lab-contract.json) · `sha256:c7bb759ff96b` |
