@@ -14,6 +14,7 @@ from typing import Any
 
 from pikvm_agent.config import AppConfig
 from pikvm_agent.core.ports import OCRProvider, ScreenElementProvider
+from pikvm_agent.vision.hybrid_ocr import HybridOcrProvider
 from pikvm_agent.vision.omniparser_client import (
     NullElementProvider,
     OmniParserClient,
@@ -37,8 +38,54 @@ def build_element_provider(config: AppConfig) -> ScreenElementProvider:
     return NullElementProvider()
 
 
+def _tesseract_provider(config: AppConfig) -> TesseractOcrProvider:
+    return TesseractOcrProvider(
+        lang="eng" if config.ocr.lang in ("en", "eng") else config.ocr.lang,
+        psm=config.ocr.psm,
+        upscale=config.ocr.upscale,
+        ensemble=config.ocr.ensemble,
+        syntax_aware_selection=config.ocr.syntax_aware_selection,
+    )
+
+
 def build_ocr_provider(config: AppConfig, backend: Any) -> OCRProvider:
     provider = config.ocr.provider
+    if provider == "hybrid":
+        has_tesseract = tesseract_available()
+        has_paddle = paddleocr_available()
+        if has_tesseract and has_paddle:
+            from pikvm_agent.vision.paddleocr_client import PaddleOCRProvider
+
+            return HybridOcrProvider(
+                _tesseract_provider(config),
+                PaddleOCRProvider(
+                    lang=config.ocr.lang,
+                    device=config.ocr.device,
+                ),
+                secondary_timeout_s=config.ocr.hybrid_secondary_timeout_s,
+            )
+        if has_paddle:
+            from pikvm_agent.vision.paddleocr_client import PaddleOCRProvider
+
+            log.warning(
+                "ocr.provider=hybrid but tesseract is unavailable; "
+                "using PaddleOCR alone"
+            )
+            return PaddleOCRProvider(
+                lang=config.ocr.lang,
+                device=config.ocr.device,
+            )
+        if has_tesseract:
+            log.warning(
+                "ocr.provider=hybrid but PaddleOCR is unavailable; "
+                "using Tesseract alone"
+            )
+            return _tesseract_provider(config)
+        log.warning(
+            "ocr.provider=hybrid but neither local engine is available; "
+            "falling back to live PiKVM OCR"
+        )
+        return PiKVMOcrProvider(backend)
     if provider == "paddleocr":
         if paddleocr_available():
             from pikvm_agent.vision.paddleocr_client import PaddleOCRProvider
@@ -49,10 +96,18 @@ def build_ocr_provider(config: AppConfig, backend: Any) -> OCRProvider:
         return PiKVMOcrProvider(backend)
 
     if tesseract_available():
-        return TesseractOcrProvider(lang="eng" if config.ocr.lang in ("en", "eng") else config.ocr.lang)
+        return _tesseract_provider(config)
     log.warning("no local OCR engine available; falling back to live PiKVM OCR (text-only)")
     return PiKVMOcrProvider(backend)
 
 
-def build_screen_parser(config: AppConfig, backend: Any) -> CompositeScreenParser:
-    return CompositeScreenParser(build_element_provider(config), build_ocr_provider(config, backend))
+def build_screen_parser(
+    config: AppConfig,
+    backend: Any,
+    *,
+    ocr_provider: OCRProvider | None = None,
+) -> CompositeScreenParser:
+    return CompositeScreenParser(
+        build_element_provider(config),
+        ocr_provider or build_ocr_provider(config, backend),
+    )

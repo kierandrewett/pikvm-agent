@@ -1,0 +1,186 @@
+# Provider-neutral operator harness.
+#
+# Secrets and the selected machine stay out of this file:
+#   export PIKVM_AGENT_DAEMON=http://127.0.0.1:<isolated-daemon-port>
+#   export PIKVM_HARNESS_TOKEN="$(openssl rand -hex 32)"
+#   export PIKVM_HARNESS_AGENT_TOKEN="$(openssl rand -hex 32)"
+#   export PIKVM_HARNESS_OBSERVER_TOKEN="$(openssl rand -hex 32)"
+# `harness client-config` defaults to the managed loop and forwards only the
+# agent-token env name. Optional labels below apply only to
+# `--control-mode direct`, where the coding client remains the planner:
+#   export PIKVM_HARNESS_OBSERVER_URL=http://127.0.0.1:47616
+#   export PIKVM_HARNESS_OBSERVER_MODE=guarded
+#   export PIKVM_MCP_CALLER_LABEL=codex-cli
+#   export PIKVM_MCP_PROVIDER=openai-oauth
+#   export PIKVM_MCP_MODEL=<actual-model-string>
+#   export MODEL_GATEWAY_KEY=...
+#   export OPENAI_API_KEY=...
+#   export AZURE_OPENAI_API_KEY=...
+#   export AZURE_OPENAI_AUTH_TOKEN=...
+#   export GOOGLE_CLOUD_ACCESS_TOKEN=...
+#   export ANTHROPIC_API_KEY=...
+#   export GEMINI_API_KEY=...
+#   export PIKVM_GEMINI_CLI_HOME=/absolute/path/to/dedicated/profile-root
+#
+# The raw VNC/PiKVM endpoint belongs to the separately selected daemon/lab
+# config. The harness has no VNC address and no implicit computer target.
+
+listen: "127.0.0.1:47616"
+daemon_url_env: "PIKVM_AGENT_DAEMON"
+access_token_env: "PIKVM_HARNESS_TOKEN"
+agent_token_env: "PIKVM_HARNESS_AGENT_TOKEN"
+observer_token_env: "PIKVM_HARNESS_OBSERVER_TOKEN"
+state_path: ".pikvm-harness/state.sqlite3"
+artifact_dir: ".pikvm-harness/artifacts"
+# The provider-conformance CLI writes here by default. The running console
+# polls only safe aggregate fields from this report; it never exposes prompts,
+# screenshots, raw provider output, or image paths.
+provider_conformance_path: ".pikvm-harness/provider-conformance.json"
+
+providers:
+  # Uses the existing Codex CLI login (ChatGPT OAuth or API-key login).
+  # The adapter starts an ephemeral, empty, read-only Codex run, disables
+  # inherited config/rules/MCP, places only Codex's SQLite runtime state in a
+  # separate writable temporary directory, attaches the screenshot with -i,
+  # and requests schema-constrained output. It never reads Codex's cached
+  # token. The account-default alias is shown as-is unless Codex reports a
+  # resolved model.
+  codex-account:
+    kind: "codex_cli"
+    model: "account-default"
+    failure_cooldown_s: 15
+    billing:
+      mode: "subscription"
+
+  # Uses the existing Claude Code login. The adapter enables only Read inside
+  # an ephemeral directory containing the current screenshot, turns on safe
+  # mode, ignores MCP/config customisations, and requests validated structured
+  # output. It never reads Claude Code's cached token. The opus alias is shown
+  # as-is unless Claude Code reports a resolved model.
+  claude-account:
+    kind: "claude_cli"
+    model: "opus"
+    failure_cooldown_s: 15
+    billing:
+      mode: "subscription"
+
+  # Uses a dedicated Gemini CLI Google login without reading or copying its
+  # OAuth token. Create a profile exclusively for the harness by setting
+  # GEMINI_CLI_HOME to the path held in PIKVM_GEMINI_CLI_HOME when logging in.
+  # Per-call system settings empty the MCP catalogue/allow-list and disable
+  # skills, hooks, and ambient context. The launcher adds `--extensions none`
+  # and a supplemental deny-all admin policy. The temporary workspace contains
+  # only the current screen. Gemini CLI frames output as JSON, while the harness
+  # remains the authoritative schema validator.
+  gemini-account:
+    kind: "gemini_cli"
+    model: "account-default"
+    profile_home_env: "PIKVM_GEMINI_CLI_HOME"
+    failure_cooldown_s: 15
+    billing:
+      mode: "subscription"
+
+  model-gateway-fast:
+    kind: "openai_compatible"
+    model: "your-fast-vision-model"
+    base_url: "https://your-gateway.example/v1"
+    api_key_env: "MODEL_GATEWAY_KEY"
+    failure_cooldown_s: 15
+
+  # Native OpenAI Responses API with image input and strict structured output.
+  openai-native:
+    kind: "openai_responses"
+    model: "your-openai-model"
+    api_key_env: "OPENAI_API_KEY"
+    reasoning_effort: "low"
+    max_tokens: 4096
+
+  # Azure OpenAI uses the same structured Responses contract with an explicit
+  # authentication owner. For an API key use:
+  #
+  # azure-openai:
+  #   kind: "azure_openai_responses"
+  #   model: "your-deployment-name"
+  #   base_url: "https://YOUR-RESOURCE.openai.azure.com/openai/v1"
+  #   auth_mode: "api_key"
+  #   credential_env: "AZURE_OPENAI_API_KEY"
+  #
+  # For a renewable Entra credential owned by Azure CLI, replace the last two
+  # lines with the following. The exact no-shell command receives no task,
+  # screenshot, or output schema and inherits only these named variables:
+  #
+  #   auth_mode: "bearer_command"
+  #   credential_argv:
+  #     - "az"
+  #     - "account"
+  #     - "get-access-token"
+  #     - "--resource"
+  #     - "https://cognitiveservices.azure.com"
+  #     - "--query"
+  #     - "accessToken"
+  #     - "-o"
+  #     - "tsv"
+  #   inherited_env: ["PATH", "HOME", "AZURE_CONFIG_DIR"]
+  #
+  # A separately refreshed AZURE_OPENAI_AUTH_TOKEN is also supported with
+  # auth_mode: "bearer_env" and credential_env naming that variable.
+
+  anthropic:
+    kind: "anthropic_api"
+    model: "your-claude-model"
+    api_key_env: "ANTHROPIC_API_KEY"
+
+  gemini:
+    # Direct Gemini API route. Keep the key in this environment variable; the
+    # harness sends the frame through generateContent directly.
+    kind: "gemini_api"
+    model: "your-gemini-model"
+    api_key_env: "GEMINI_API_KEY"
+
+  # Vertex AI uses the same controlled Gemini JSON contract with a full
+  # publisher base URL and a renewable bearer credential:
+  #
+  # vertex-gemini:
+  #   kind: "vertex_gemini"
+  #   model: "your-gemini-model"
+  #   base_url: "https://aiplatform.googleapis.com/v1/projects/YOUR-PROJECT/locations/global/publishers/google"
+  #   auth_mode: "bearer_command"
+  #   credential_argv: ["gcloud", "auth", "print-access-token"]
+  #   inherited_env: ["PATH", "HOME", "CLOUDSDK_CONFIG"]
+  #
+  # An externally refreshed token is also supported with auth_mode:
+  # "bearer_env" and credential_env: "GOOGLE_CLOUD_ACCESS_TOKEN".
+
+routes:
+  # Ordered fallback chains. A fallback can occur only before an action has
+  # been accepted. Ambiguous HID calls retry the same durable idempotency key.
+  reasoner: ["claude-account", "codex-account", "gemini-account", "anthropic"]
+  controller: ["model-gateway-fast", "openai-native", "gemini", "gemini-account", "codex-account"]
+  verifier: ["gemini", "openai-native", "anthropic", "gemini-account", "codex-account"]
+
+# Every real provider attempt, including fallback and schema repair, consumes
+# this durable run budget before the provider is called.
+model_budget:
+  max_provider_attempts_per_run: 500
+  # A cost cap is opt-in because the harness never invents or silently updates
+  # prices. Enabling it requires a versioned customer price table and a billing
+  # block on every routed provider. Subscription providers use the mode shown
+  # above. A metered provider uses explicit provider response paths:
+  #
+  # max_cost_usd_per_run: "1.00"
+  # pricing_version: "customer-price-table-YYYY-MM-DD"
+  #
+  # billing:
+  #   mode: "metered"
+  #   reservation_usd: "0.10"
+  #   usage_usd_per_million:
+  #     input_tokens: "YOUR_INPUT_TOKEN_PRICE"
+  #     output_tokens: "YOUR_OUTPUT_TOKEN_PRICE"
+
+max_actions_per_advance: 4
+# Internal four-action slices are invisible to task submitters. The harness
+# crosses them automatically until completion, approval, a meaningful safety
+# pause, or this separate supervisor ceiling.
+max_autonomous_resumes: 64
+max_actions_per_burst: 8
+max_total_actions: 100

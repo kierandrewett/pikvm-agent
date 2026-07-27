@@ -2,13 +2,22 @@
 
 from __future__ import annotations
 
+import asyncio
 import io
 from pathlib import Path
 
 import pytest
 from PIL import Image
 
-from pikvm_agent.core.models import BBox, ElementMap, OCRLine, OCRResult, Region, VisualElement
+from pikvm_agent.core.models import (
+    BBox,
+    ElementMap,
+    OCRCandidate,
+    OCRLine,
+    OCRResult,
+    Region,
+    VisualElement,
+)
 from pikvm_agent.pikvm.fake import FakeBackend
 from pikvm_agent.store.frames import FrameStore
 from pikvm_agent.vision.frame_diff import (
@@ -18,6 +27,7 @@ from pikvm_agent.vision.frame_diff import (
     grid,
     is_blank,
 )
+from pikvm_agent.vision.hybrid_ocr import HybridOcrProvider
 from pikvm_agent.vision.omniparser_client import (
     NullElementProvider,
     OmniParserClient,
@@ -25,9 +35,12 @@ from pikvm_agent.vision.omniparser_client import (
     bbox_to_pixels,
     classify_kind,
 )
+from pikvm_agent.vision.paddleocr_client import PaddleOCRProvider
 from pikvm_agent.vision.screen_parser import CompositeScreenParser, bbox_from_ocr, iou
 from pikvm_agent.vision.tesseract_ocr import (
     TesseractOcrProvider,
+    _choose_ocr_candidate,
+    _parse_tsv,
     render_text_image,
     tesseract_available,
 )
@@ -79,6 +92,593 @@ async def test_tesseract_ocr_reads_text_with_boxes(tmp_path) -> None:
     assert "readme" in res.text.lower()
     assert all(len(ln.bbox) == 4 for ln in res.lines)
     assert res.lines[0].confidence and res.lines[0].confidence > 0.5
+
+
+async def test_tesseract_retains_a_secondary_scale_for_exact_intended_text(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    image_path = tmp_path / "screen.png"
+    Image.new("RGB", (100, 50), "white").save(image_path)
+    observed_sizes: list[tuple[int, int]] = []
+
+    async def fake_tesseract(src, *, lang, psm):
+        del lang, psm
+        size = Image.open(src).size
+        observed_sizes.append(size)
+        text, confidence = {
+            (100, 50): ("raw-read", 70),
+            (150, 75): ("secondary-exact", 80),
+            (200, 100): ("primary-read", 95),
+        }[size]
+        return (
+            "level\tpage_num\tblock_num\tpar_num\tline_num\tword_num"
+            "\tleft\ttop\twidth\theight\tconf\ttext\n"
+            f"5\t1\t1\t1\t1\t1\t1\t1\t80\t20\t{confidence}\t{text}\n"
+        ).encode()
+
+    monkeypatch.setattr(
+        "pikvm_agent.vision.tesseract_ocr._run_tesseract",
+        fake_tesseract,
+    )
+
+    result = await TesseractOcrProvider(
+        upscale=2.0,
+        alternative_upscales=(1.5,),
+    ).ocr(image_path)
+
+    assert sorted(observed_sizes) == [(100, 50), (150, 75), (200, 100)]
+    assert result.text == "primary-read"
+    assert {candidate.text for candidate in result.alternatives} == {
+        "raw-read",
+        "secondary-exact",
+    }
+
+
+async def test_tesseract_general_profile_keeps_the_two_read_latency_budget(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    image_path = tmp_path / "screen.png"
+    Image.new("RGB", (100, 50), "white").save(image_path)
+    observed_sizes: list[tuple[int, int]] = []
+
+    async def fake_tesseract(src, *, lang, psm):
+        del lang, psm
+        size = Image.open(src).size
+        observed_sizes.append(size)
+        return (
+            "level\tpage_num\tblock_num\tpar_num\tline_num\tword_num"
+            "\tleft\ttop\twidth\theight\tconf\ttext\n"
+            "5\t1\t1\t1\t1\t1\t1\t1\t80\t20\t95\tread\n"
+        ).encode()
+
+    monkeypatch.setattr(
+        "pikvm_agent.vision.tesseract_ocr._run_tesseract",
+        fake_tesseract,
+    )
+
+    await TesseractOcrProvider(upscale=2.0).ocr(image_path)
+
+    assert sorted(observed_sizes) == [(100, 50), (200, 100)]
+
+
+def test_paddleocr_crops_the_requested_region_before_inference(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    image_path = tmp_path / "screen.png"
+    image = Image.new("RGB", (120, 80), "white")
+    for x in range(20, 50):
+        for y in range(30, 50):
+            image.putpixel((x, y), (15, 80, 170))
+    image.save(image_path)
+    provider = PaddleOCRProvider()
+    captured: dict[str, object] = {}
+
+    def fake_predict(path: Path) -> OCRResult:
+        captured["path"] = path
+        with Image.open(path) as crop:
+            captured["size"] = crop.size
+            captured["pixel"] = crop.getpixel((0, 0))
+        return OCRResult(lines=[OCRLine(text="field", confidence=0.99)])
+
+    monkeypatch.setattr(provider, "_predict", fake_predict)
+
+    result = provider._predict_region(
+        image_path,
+        Region(x=20, y=30, width=30, height=20),
+    )
+
+    assert result.text == "field"
+    assert captured["size"] == (30, 20)
+    assert captured["pixel"] == (15, 80, 170)
+    assert not Path(captured["path"]).exists()
+
+
+def test_paddleocr_removes_region_crop_after_inference_failure(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    image_path = tmp_path / "screen.png"
+    Image.new("RGB", (80, 60), "white").save(image_path)
+    provider = PaddleOCRProvider()
+    captured: dict[str, Path] = {}
+
+    def fail_predict(path: Path) -> OCRResult:
+        captured["path"] = path
+        assert path.exists()
+        raise RuntimeError("synthetic inference failure")
+
+    monkeypatch.setattr(provider, "_predict", fail_predict)
+
+    with pytest.raises(RuntimeError, match="synthetic inference failure"):
+        provider._predict_region(
+            image_path,
+            Region(x=10, y=12, width=30, height=20),
+        )
+
+    assert not captured["path"].exists()
+
+
+async def test_paddleocr_public_ocr_forwards_region_to_worker(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    image_path = tmp_path / "screen.png"
+    Image.new("RGB", (80, 60), "white").save(image_path)
+    provider = PaddleOCRProvider()
+    region = Region(x=10, y=12, width=30, height=20)
+
+    async def fake_worker_request(
+        path: Path,
+        selected: Region | None,
+    ) -> OCRResult:
+        assert path == image_path
+        assert selected == region
+        return OCRResult(lines=[OCRLine(text="field", confidence=0.99)])
+
+    monkeypatch.setattr(provider, "_request_worker", fake_worker_request)
+
+    result = await provider.ocr(image_path, region=region)
+
+    assert result.text == "field"
+
+
+async def test_paddleocr_timeout_does_not_start_overlapping_inference(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    image_path = tmp_path / "screen.png"
+    Image.new("RGB", (80, 60), "white").save(image_path)
+    provider = PaddleOCRProvider()
+    release = asyncio.Event()
+    background: set[asyncio.Task[OCRResult]] = set()
+    calls = 0
+    active = 0
+    max_active = 0
+
+    async def stubborn_worker_request(
+        path: Path,
+        selected: Region | None,
+    ) -> OCRResult:
+        nonlocal calls, active, max_active
+        assert path == image_path
+        assert selected is None
+
+        async def work() -> OCRResult:
+            nonlocal calls, active, max_active
+            calls += 1
+            active += 1
+            max_active = max(max_active, active)
+            try:
+                await release.wait()
+                return OCRResult(
+                    lines=[OCRLine(text="field", confidence=0.99)]
+                )
+            finally:
+                active -= 1
+
+        task = asyncio.create_task(work())
+        background.add(task)
+        task.add_done_callback(background.discard)
+        return await asyncio.shield(task)
+
+    monkeypatch.setattr(
+        provider,
+        "_request_worker",
+        stubborn_worker_request,
+    )
+
+    for _ in range(2):
+        with pytest.raises(TimeoutError):
+            await asyncio.wait_for(provider.ocr(image_path), timeout=0.01)
+
+    release.set()
+    await asyncio.sleep(0)
+
+    assert calls == 1
+    assert max_active == 1
+
+
+async def test_paddleocr_close_cancels_and_cleans_active_worker_request(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    image_path = tmp_path / "screen.png"
+    Image.new("RGB", (80, 60), "white").save(image_path)
+    provider = PaddleOCRProvider()
+    started = asyncio.Event()
+    stopped = 0
+
+    async def blocked_worker_request(
+        path: Path,
+        selected: Region | None,
+    ) -> OCRResult:
+        assert path == image_path
+        assert selected is None
+        started.set()
+        await asyncio.Event().wait()
+        raise AssertionError("unreachable")
+
+    async def record_stop() -> None:
+        nonlocal stopped
+        stopped += 1
+
+    monkeypatch.setattr(provider, "_request_worker", blocked_worker_request)
+    monkeypatch.setattr(provider, "_stop_worker", record_stop)
+
+    caller = asyncio.create_task(provider.ocr(image_path))
+    await started.wait()
+    await provider.aclose()
+    with pytest.raises(asyncio.CancelledError):
+        await caller
+
+    assert caller.cancelled()
+    assert stopped >= 1
+
+
+class _ScriptedOcrProvider:
+    def __init__(
+        self,
+        ordinary: OCRResult,
+        *,
+        precise: OCRResult | None = None,
+        failure: BaseException | None = None,
+    ) -> None:
+        self.ordinary = ordinary
+        self.precise = precise
+        self.failure = failure
+        self.calls: list[tuple[str, Path, Region | None]] = []
+
+    async def ocr(
+        self,
+        image_path: Path,
+        region: Region | None = None,
+    ) -> OCRResult:
+        self.calls.append(("ocr", image_path, region))
+        if self.failure is not None:
+            raise self.failure
+        return self.ordinary
+
+    async def ocr_precise(
+        self,
+        image_path: Path,
+        region: Region | None = None,
+    ) -> OCRResult:
+        self.calls.append(("precise", image_path, region))
+        if self.failure is not None:
+            raise self.failure
+        return self.precise or self.ordinary
+
+
+async def test_hybrid_ocr_keeps_general_reads_on_the_fast_primary_path(
+    tmp_path,
+) -> None:
+    image_path = tmp_path / "screen.png"
+    image_path.write_bytes(b"fixture")
+    primary = _ScriptedOcrProvider(
+        OCRResult(lines=[OCRLine(text="fast primary", confidence=0.81)])
+    )
+    secondary = _ScriptedOcrProvider(
+        OCRResult(lines=[OCRLine(text="slow secondary", confidence=0.99)])
+    )
+
+    result = await HybridOcrProvider(primary, secondary).ocr(image_path)
+
+    assert result.text == "fast primary"
+    assert primary.calls == [("ocr", image_path, None)]
+    assert secondary.calls == []
+
+
+async def test_hybrid_precise_read_retains_unique_secondary_evidence(
+    tmp_path,
+) -> None:
+    image_path = tmp_path / "screen.png"
+    image_path.write_bytes(b"fixture")
+    region = Region(x=1, y=2, width=30, height=12)
+    primary = _ScriptedOcrProvider(
+        OCRResult(lines=[OCRLine(text="ordinary")]),
+        precise=OCRResult(
+            lines=[OCRLine(text="primary selected", confidence=0.91)],
+            alternatives=[
+                OCRCandidate(text="primary alternate", mean_confidence=0.8)
+            ],
+        ),
+    )
+    secondary = _ScriptedOcrProvider(
+        OCRResult(
+            lines=[OCRLine(text="secondary exact", confidence=0.97)],
+            alternatives=[
+                OCRCandidate(text="primary alternate", mean_confidence=0.7),
+                OCRCandidate(text="secondary alternate", mean_confidence=0.6),
+            ],
+        )
+    )
+
+    provider = HybridOcrProvider(primary, secondary)
+    result = await provider.ocr_precise(
+        image_path,
+        region=region,
+    )
+
+    assert result.text == "primary selected"
+    assert [candidate.text for candidate in result.alternatives] == [
+        "primary alternate",
+        "secondary exact",
+        "secondary alternate",
+    ]
+    assert primary.calls == [("precise", image_path, region)]
+    assert secondary.calls == [("ocr", image_path, region)]
+    assert provider.diagnostics() == {
+        "precise_calls": 1,
+        "secondary_attempted": 1,
+        "secondary_completed": 1,
+        "secondary_skipped_busy": 0,
+        "secondary_failed_or_timed_out": 0,
+    }
+
+
+async def test_hybrid_precise_read_skips_a_busy_secondary(
+    tmp_path,
+) -> None:
+    image_path = tmp_path / "screen.png"
+    image_path.write_bytes(b"fixture")
+    primary = _ScriptedOcrProvider(
+        OCRResult(lines=[OCRLine(text="primary without delay")])
+    )
+
+    class BusySecondary:
+        def busy(self) -> bool:
+            return True
+
+        async def ocr(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path, region
+            raise AssertionError("busy secondary must not be called")
+
+    provider = HybridOcrProvider(primary, BusySecondary())
+
+    result = await provider.ocr_precise(image_path)
+
+    assert result.text == "primary without delay"
+    assert provider.diagnostics() == {
+        "precise_calls": 1,
+        "secondary_attempted": 0,
+        "secondary_completed": 0,
+        "secondary_skipped_busy": 1,
+        "secondary_failed_or_timed_out": 0,
+    }
+
+
+async def test_hybrid_precise_read_degrades_to_primary_when_secondary_fails(
+    tmp_path,
+) -> None:
+    image_path = tmp_path / "screen.png"
+    image_path.write_bytes(b"fixture")
+    primary = _ScriptedOcrProvider(
+        OCRResult(lines=[OCRLine(text="primary survives")])
+    )
+    secondary = _ScriptedOcrProvider(
+        OCRResult(),
+        failure=RuntimeError("synthetic secondary outage"),
+    )
+
+    result = await HybridOcrProvider(primary, secondary).ocr_precise(image_path)
+
+    assert result.text == "primary survives"
+    assert result.alternatives == []
+
+
+async def test_hybrid_precise_read_propagates_secondary_cancellation(
+    tmp_path,
+) -> None:
+    image_path = tmp_path / "screen.png"
+    image_path.write_bytes(b"fixture")
+    primary = _ScriptedOcrProvider(
+        OCRResult(lines=[OCRLine(text="primary")])
+    )
+    secondary = _ScriptedOcrProvider(
+        OCRResult(),
+        failure=asyncio.CancelledError(),
+    )
+
+    with pytest.raises(asyncio.CancelledError):
+        await HybridOcrProvider(primary, secondary).ocr_precise(image_path)
+
+
+async def test_hybrid_precise_read_bounds_secondary_latency(
+    tmp_path,
+) -> None:
+    image_path = tmp_path / "screen.png"
+    image_path.write_bytes(b"fixture")
+    primary = _ScriptedOcrProvider(
+        OCRResult(lines=[OCRLine(text="primary survives")])
+    )
+
+    class SlowSecondary:
+        async def ocr(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path, region
+            await asyncio.sleep(10)
+            return OCRResult(lines=[OCRLine(text="too late")])
+
+    provider = HybridOcrProvider(
+        primary,
+        SlowSecondary(),
+        secondary_timeout_s=0.01,
+    )
+
+    result = await asyncio.wait_for(
+        provider.ocr_precise(image_path),
+        timeout=0.5,
+    )
+
+    assert result.text == "primary survives"
+    assert result.alternatives == []
+
+
+def test_tesseract_toolbar_line_is_split_into_compact_grounding_boxes() -> None:
+    tsv = "\n".join(
+        [
+            "level\tpage_num\tblock_num\tpar_num\tline_num\tword_num\tleft\ttop\twidth\theight\tconf\ttext",
+            "5\t1\t1\t1\t1\t1\t100\t40\t35\t14\t92\tCopy",
+            "5\t1\t1\t1\t1\t2\t140\t40\t70\t14\t94\tsnapshot",
+            "5\t1\t1\t1\t1\t3\t270\t40\t72\t14\t90\tDANGEROUS",
+            "5\t1\t1\t1\t1\t4\t348\t40\t34\t14\t95\tSend",
+        ]
+    )
+
+    lines = _parse_tsv(tsv)
+
+    assert [line.text for line in lines] == ["Copy snapshot", "DANGEROUS Send"]
+    assert lines[0].bbox == [100, 40, 210, 54]
+    assert lines[1].bbox == [270, 40, 382, 54]
+
+
+def test_tesseract_button_borders_split_adjacent_controls() -> None:
+    tsv = "\n".join(
+        [
+            "level\tpage_num\tblock_num\tpar_num\tline_num\tword_num\tleft\ttop\twidth\theight\tconf\ttext",
+            "5\t1\t1\t1\t1\t1\t160\t499\t29\t9\t93\tCopy",
+            "5\t1\t1\t1\t1\t2\t194\t499\t55\t9\t92\tsnapshot",
+            "5\t1\t1\t1\t1\t3\t252\t492\t2\t22\t35\t|",
+            "5\t1\t1\t1\t1\t4\t260\t499\t29\t9\t94\tCopy",
+            "5\t1\t1\t1\t1\t5\t294\t499\t24\t9\t91\tfile",
+            "5\t1\t1\t1\t1\t6\t323\t499\t55\t9\t90\tsnapshot",
+        ]
+    )
+
+    lines = _parse_tsv(tsv)
+
+    assert [line.text for line in lines] == ["Copy snapshot", "Copy file snapshot"]
+    assert lines[0].bbox[2] < lines[1].bbox[0]
+
+
+def test_tesseract_rejoins_machine_tokens_without_merging_prose() -> None:
+    tsv = "\n".join(
+        [
+            "level\tpage_num\tblock_num\tpar_num\tline_num\tword_num\tleft\ttop\twidth\theight\tconf\ttext",
+            "5\t1\t1\t1\t1\t1\t16\t10\t84\t20\t90\thttps:",
+            "5\t1\t1\t1\t1\t2\t108\t10\t280\t20\t90\t//api.sandbox.test/#evi",
+            "5\t1\t1\t1\t1\t3\t395\t10\t65\t20\t90\tdence",
+            "5\t1\t1\t1\t2\t1\t16\t40\t30\t20\t96\tThe",
+            "5\t1\t1\t1\t2\t2\t53\t40\t53\t20\t96\treview",
+            "5\t1\t1\t1\t2\t3\t113\t40\t90\t20\t96\tcheckpoint",
+            "5\t1\t1\t1\t3\t1\t16\t70\t24\t20\t90\t<>",
+            "5\t1\t1\t1\t3\t2\t47\t70\t8\t20\t90\t|",
+            "5\t1\t1\t1\t3\t3\t62\t70\t8\t20\t90\t&",
+            "5\t1\t1\t1\t4\t1\t14\t100\t317\t20\t92\tOAuthURLParser0348",
+            "5\t1\t1\t1\t4\t2\t341\t100\t76\t20\t93\tkeeps",
+            "5\t1\t1\t1\t4\t3\t424\t100\t297\t20\t89\tApiID_0348-AUGAU",
+            "5\t1\t1\t1\t4\t4\t730\t100\t86\t20\t93\tbeside",
+            "5\t1\t1\t1\t4\t5\t825\t100\t177\t20\t92\thTtP2Frame",
+        ]
+    )
+
+    lines = _parse_tsv(tsv)
+
+    assert [line.text for line in lines] == [
+        "https://api.sandbox.test/#evidence",
+        "The review checkpoint",
+        "<> | &",
+        "OAuthURLParser0348 keeps ApiID_0348-AUGAU beside hTtP2Frame",
+    ]
+
+
+def test_tesseract_prefers_intact_machine_syntax_over_misleading_confidence() -> None:
+    def candidate(text: str, confidence: float) -> list[OCRLine]:
+        return [OCRLine(text=text, confidence=confidence, bbox=[0, 0, 500, 20])]
+
+    intact_url = candidate(
+        "https://api.sandbox.test/runs/0009?view=screen&attempt=9",
+        0.47,
+    )
+    broken_url = candidate(
+        "https://api.sandbox. test/runs/0009?view=screen&attempt=9",
+        0.87,
+    )
+    assert _choose_ocr_candidate(broken_url, intact_url) == intact_url
+    assert (
+        _choose_ocr_candidate(
+            broken_url,
+            intact_url,
+            syntax_aware=False,
+        )
+        == broken_url
+    )
+
+    intact_query = candidate(
+        "https://docs.internal/runs/0040?view=screen&attempt=6",
+        0.42,
+    )
+    broken_query = candidate(
+        "https://docs. internal/runs/0040?view=screenkattempt=6",
+        0.60,
+    )
+    assert _choose_ocr_candidate(intact_query, broken_query) == intact_query
+
+    intact_unc = candidate(
+        r"\\fileserver\validation\2026\case-0018\result.json",
+        0.59,
+    )
+    broken_unc = candidate(
+        r"\\ fileserver\validation\2026\case-0018\result.json",
+        0.60,
+    )
+    assert _choose_ocr_candidate(broken_unc, intact_unc) == intact_unc
+
+    broken_unc_prefix = candidate(
+        r"| \fiteserver\validation\2026\case-0647\result.json",
+        0.81,
+    )
+    assert (
+        _choose_ocr_candidate(broken_unc_prefix, intact_unc)
+        == intact_unc
+    )
+
+    intact_digest = candidate(
+        "sha256:7dc041e1d1557957ad501d7379f8615c",
+        0.41,
+    )
+    broken_digest = candidate(
+        "sha256:7de041e1d155795/7ad501d7379T8615c",
+        0.62,
+    )
+    assert _choose_ocr_candidate(broken_digest, intact_digest) == intact_digest
+
+    intact_identifier = candidate("run_0948_xat9e_frame_000948", 0.51)
+    broken_identifier = candidate("run_0948 xat9e_frame_000948", 0.87)
+    assert (
+        _choose_ocr_candidate(broken_identifier, intact_identifier)
+        == intact_identifier
+    )
 
 
 # ---- OmniParser ----------------------------------------------------------- #

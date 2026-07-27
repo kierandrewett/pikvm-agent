@@ -1,0 +1,122 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-07-26T23:00:13Z",
+  "suite": "isolated-managed-client-launch",
+  "cases": 4,
+  "passed": 4,
+  "native_isolation_dry_runs_passed": 3,
+  "settings_only_audits_passed": 1,
+  "failed": 0,
+  "baseline": {
+    "client": "codex",
+    "effective_inventory_safe": false,
+    "managed_count": 0,
+    "active_pikvm_classification": "raw"
+  },
+  "results": [
+    {
+      "client": "codex",
+      "version": "codex-cli 0.144.4",
+      "isolation_mode": "effective-inventory-override",
+      "native_effective_inventory_executed": true,
+      "safe": true,
+      "managed_count": 1,
+      "competing_pikvm_count": 0,
+      "preserve_unrelated_mcp": true,
+      "modifies_persisted_config": false,
+      "launch_argv_sha256": "1e9b69f2d7e438a0a6e098f633c79464ff56642185f9d2c1b39dde1bc3e61abf"
+    },
+    {
+      "client": "claude",
+      "version": "2.1.220 (Claude Code)",
+      "isolation_mode": "strict-explicit-config",
+      "native_strict_flags_verified": [
+        "--mcp-config",
+        "--strict-mcp-config"
+      ],
+      "safe": true,
+      "managed_count": 1,
+      "competing_pikvm_count": 0,
+      "preserve_unrelated_mcp": false,
+      "modifies_persisted_config": false,
+      "launch_argv_sha256": "387e647eeed6a166b68e4d41e048cdc377c9a3d5f3c6fef41e1c28e7323f2096"
+    },
+    {
+      "client": "opencode",
+      "version": "1.14.44",
+      "isolation_mode": "pure-inline-config",
+      "native_resolved_config_executed": true,
+      "pure_mode": true,
+      "default_deny_permissions_verified": true,
+      "ephemeral_home_and_writable_state": true,
+      "client_owned_oauth_linked_without_copy": true,
+      "safe": true,
+      "managed_count": 1,
+      "competing_pikvm_count": 0,
+      "preserve_unrelated_mcp": false,
+      "modifies_persisted_config": false,
+      "launch_argv_sha256": "0003923ae85d7f49e2e8f9392f7055e797008db961843116e2ce6b1be968a944"
+    },
+    {
+      "client": "gemini",
+      "version": "0.35.3",
+      "isolation_mode": "system-policy-allowlist",
+      "native_effective_settings_loader_executed": true,
+      "dedicated_profile_required": true,
+      "authenticated_profile_used": false,
+      "system_mcp_catalog_and_allowlist_verified": true,
+      "cli_mcp_allowlist_configured": true,
+      "extensions_none_configured": true,
+      "admin_policy_path_and_content_verified": true,
+      "admin_policy_enforcement_executed": false,
+      "safe": true,
+      "managed_count": 1,
+      "competing_pikvm_count": 0,
+      "preserve_unrelated_mcp": false,
+      "modifies_persisted_config": false,
+      "launch_argv_sha256": "915ea635c0e95398146c261a3a531c93ac84a34f07a0dbd09c2589facca1827a"
+    }
+  ],
+  "contract_tests": {
+    "passed": 54,
+    "failed": 0,
+    "files": [
+      "tests/test_managed_client_launcher.py",
+      "tests/test_client_config_audit.py",
+      "tests/test_harness_package_acceptance.py"
+    ]
+  },
+  "gemini_provider_sandbox_regression": {
+    "version": "0.35.3",
+    "native_effective_settings_loader_executed": true,
+    "file_admin_controls_ignored_by_installed_client": true,
+    "replacement_settings_verified": {
+      "mcp_allowed_count": 0,
+      "mcp_server_count": 0,
+      "skills_enabled": false,
+      "hooks_enabled": false,
+      "disable_yolo": true,
+      "disable_always_allow": true
+    },
+    "extensions_none_configured": true,
+    "deny_all_admin_policy_content_verified": true,
+    "policy_enforcement_executed": false,
+    "focused_contracts_passed": 7,
+    "model_called": false
+  },
+  "safety": {
+    "computer_target_contacted": false,
+    "mcp_server_launched": false,
+    "model_called": false,
+    "coding_client_task_run": false,
+    "persisted_client_config_modified": false,
+    "production_registration_modified": false,
+    "credential_value_persisted_or_reported": false
+  },
+  "limitations": [
+    "These were isolation dry-runs, not coding-client task executions.",
+    "The Gemini dry-run used an empty dedicated profile and did not prove OAuth login, model startup, extension suppression at runtime, or policy enforcement on a tool call.",
+    "Codex, Claude, Gemini, and OpenCode task execution remains pending a reachable managed harness.",
+    "The managed harness readiness and task loop were not contacted in this suite."
+  ]
+}

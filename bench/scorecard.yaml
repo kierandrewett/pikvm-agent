@@ -1,0 +1,361 @@
+schema_version: 1
+as_of: "2026-07-27"
+rows:
+  - suite: "Independent emergency stop"
+    route: "Explicit CLI → isolated daemon"
+    source: "results/2026-07-25/safety/emergency-stop-audit.json"
+    fields:
+      contracts: {path: "contracts", format: "count"}
+      sessions_halted: {path: "live_trial.sessions_halted", format: "integer"}
+      elapsed: {path: "live_trial.cli_elapsed_s", format: "number", digits: 2}
+    cases: "{contracts} contracts + 1 live stop"
+    result: "All contracts passed; {sessions_halted}/1 session halted"
+    latency: "{elapsed}s end-to-end"
+    wall: "{elapsed}s"
+    status: "Passing local safety contract"
+
+  - suite: "HID payload-shape gate"
+    route: "Raw burst + MCP preflight"
+    source: "results/2026-07-25/safety/hid-payload-shape-gate-2026-07-26.json"
+    fields:
+      total: {path: "counts.total", format: "integer"}
+      passed: {path: "counts.passed", format: "integer"}
+      rejected: {path: "counts.expected_reject", format: "integer"}
+      allowed: {path: "counts.expected_allow", format: "integer"}
+      tests: {path: "counts.test_nodes", format: "integer"}
+    cases: "{total} payloads / {tests} test nodes"
+    result: "{passed}/{total}; {rejected} unsafe refused; {allowed} ordinary allowed"
+    latency: "Pre-HID"
+    wall: "—"
+    status: "Passing local syntax gate; explicit transfer pending"
+
+  - suite: "Read-only media builder"
+    route: "Target-free exact-byte ISO"
+    source: "results/2026-07-25/safety/msd-media-builder-2026-07-26.json"
+    fields:
+      contracts: {path: "contracts.total", format: "integer"}
+      passed: {path: "contracts.passed", format: "integer"}
+      files: {path: "verified.source_files_extracted_exactly", format: "integer"}
+      unsafe_names: {path: "verified.unsafe_or_ambiguous_names_refused", format: "integer"}
+      max_bytes: {path: "resource_envelope.max_total_bytes", format: "integer"}
+    cases: "{contracts} contracts"
+    result: "{passed}/{contracts}; {files}/2 files exact; {unsafe_names} unsafe names refused"
+    latency: "—"
+    wall: "—"
+    status: "Passing target-free builder; attach transaction pending"
+
+  - suite: "Virtual-media transaction"
+    route: "Target-free approval/rollback state machine"
+    source: "results/2026-07-25/safety/virtual-media-transaction-2026-07-26.json"
+    fields:
+      contracts: {path: "contracts.total", format: "integer"}
+      passed: {path: "contracts.passed", format: "integer"}
+      states: {path: "state_visibility", format: "count"}
+      bridge: {path: "safety_boundary.daemon_mutation_bridge_exposed", format: "text"}
+    cases: "{contracts} contracts"
+    result: "{passed}/{contracts}; {states} durable states; daemon bridge exposed: {bridge}"
+    latency: "—"
+    wall: "—"
+    status: "Passing target-free transaction contract; physical bridge gated"
+
+  - suite: "Windows VNC physical-loop diagnostic"
+    route: "Deterministic MCP trials; no model"
+    source: "results/2026-07-25/windows/live-vnc-observer-iteration.json"
+    fields:
+      trials: {path: "post_fix_full_run.trials", format: "count"}
+      status: {path: "post_fix_full_run.status", format: "text"}
+      prose_chars: {path: "post_fix_full_run.trials.long_prose.intended_characters", format: "integer"}
+      code_chars: {path: "post_fix_full_run.trials.code.intended_characters", format: "integer"}
+      wall: {path: "post_fix_full_run.wall_ms", format: "seconds_from_ms", digits: 2}
+    cases: "{trials} trials"
+    result: "{prose_chars} prose + {code_chars} code characters exact; overall {status}"
+    latency: "See per-trial JSON"
+    wall: "{wall}"
+    status: "Failing diagnostic"
+
+  - suite: "Direct MCP visibility bridge"
+    route: "Guarded local SQLite/ASGI"
+    source: "results/2026-07-25/ui/direct-mcp-visibility-audit.json"
+    fields:
+      cases: {path: "microbenchmark.cases", format: "integer"}
+      contracts: {path: "behavior.integration_tests", format: "integer"}
+      throughput: {path: "microbenchmark.guarded_visibility.calls_per_second", format: "number", digits: 1}
+      median: {path: "microbenchmark.guarded_visibility.median_ms", format: "milliseconds", digits: 2}
+      p95: {path: "microbenchmark.guarded_visibility.p95_ms", format: "milliseconds", digits: 2}
+      wall: {path: "microbenchmark.guarded_visibility.wall_ms", format: "milliseconds", digits: 0}
+    cases: "{cases} calls + {contracts} contracts"
+    result: "Contracts passed; {throughput} calls/s"
+    latency: "{median} / {p95}"
+    wall: "{wall}"
+    status: "Local diagnostic"
+
+  - suite: "Managed client launch"
+    route: "Codex + Claude + Gemini + OpenCode"
+    source: "results/2026-07-25/safety/managed-client-launch-2026-07-26.json"
+    fields:
+      clients: {path: "scope.clients", format: "count"}
+      passed: {path: "focused_selection.passed", format: "integer"}
+      defined: {path: "stdio_acceptance.defined_cases", format: "integer"}
+      executed: {path: "stdio_acceptance.executed_cases", format: "integer"}
+      skipped: {path: "stdio_acceptance.skipped_cases", format: "integer"}
+      wall: {path: "focused_selection.elapsed_seconds", format: "number", digits: 2}
+    cases: "{clients} clients; {defined} stdio cases"
+    result: "{passed} local contracts passed; {executed}/{defined} stdio executed; {skipped} skipped"
+    latency: "Not measured"
+    wall: "{wall}s local selection"
+    status: "Generated stdio proven locally; authenticated task/restart pending"
+
+  - suite: "Isolated managed client launch"
+    route: "Codex + Claude + OpenCode; Gemini policy contract"
+    source: "results/2026-07-26/safety/isolated-managed-client-launch.json"
+    fields:
+      cases: {path: "cases", format: "integer"}
+      native: {path: "native_isolation_dry_runs_passed", format: "integer"}
+      settings: {path: "settings_only_audits_passed", format: "integer"}
+      contracts: {path: "contract_tests.passed", format: "integer"}
+      baseline: {path: "baseline.active_pikvm_classification", format: "text"}
+    cases: "{cases} installed clients / {contracts} contracts"
+    result: "{native} native dry-runs; {settings} settings-only audit; {baseline} Codex baseline shadowed without persistence"
+    latency: "Not measured"
+    wall: "Dry-run"
+    status: "Three native isolation dry-runs plus Gemini settings audit; enforcement and tasks pending"
+
+  - suite: "Managed smoke lab contract"
+    route: "Target-free app + stdin client task"
+    source: "results/2026-07-26/harness/managed-smoke-lab-contract.json"
+    fields:
+      contracts: {path: "contracts.total", format: "integer"}
+      passed: {path: "contracts.passed", format: "integer"}
+      smoke: {path: "slices.managed_smoke_lab.tests", format: "integer"}
+      launcher: {path: "slices.isolated_client_task.tests", format: "integer"}
+      focused: {path: "validation.focused_acceptance.passed", format: "integer"}
+      broker: {path: "live_attempt.broker_decision", format: "text"}
+    cases: "{contracts} contracts"
+    result: "{passed}/{contracts}; {focused} focused gates"
+    latency: "Not measured"
+    wall: "Target-free contract"
+    status: "Passing contract; live task {broker}"
+
+  - suite: "Operator steering"
+    route: "Authenticated UI → managed replan"
+    source: "results/2026-07-25/ui/operator-steering-2026-07-26.json"
+    fields:
+      passed: {path: "focused_selection.passed", format: "integer"}
+      total: {path: "contracts", format: "count"}
+      bytes: {path: "ui_resource_envelope.total_bytes", format: "integer"}
+      wall: {path: "focused_selection.elapsed_seconds", format: "number", digits: 2}
+    cases: "{passed} tests / {total} contracts"
+    result: "Operator-only durable replan; {bytes}-byte UI"
+    latency: "—"
+    wall: "{wall}s"
+    status: "Passing local contract and browser interaction"
+
+  - suite: "Live-frame resource envelope"
+    route: "Target-free streamed preview adapter"
+    source: "results/2026-07-25/ui/live-frame-resource-envelope-2026-07-26.json"
+    fields:
+      contracts: {path: "contracts.total", format: "integer"}
+      passed: {path: "contracts.passed", format: "integer"}
+      frame_bytes: {path: "resource_envelope.max_frame_bytes", format: "integer"}
+      sessions: {path: "resource_envelope.max_cached_sessions", format: "integer"}
+      cache_bytes: {path: "resource_envelope.max_cached_payload_bytes", format: "integer"}
+      interval: {path: "resource_envelope.minimum_upstream_interval_ms", format: "milliseconds", digits: 0}
+    cases: "{contracts} contracts"
+    result: "{passed}/{contracts}; {frame_bytes}-byte frame; {sessions} sessions / {cache_bytes} bytes cached"
+    latency: "{interval} minimum upstream interval"
+    wall: "—"
+    status: "Passing transport resource contract; browser decode pending"
+
+  - suite: "Normalized storage + bounded control"
+    route: "In-memory production contract"
+    source: "results/2026-07-25/ui/normalized-storage-bounded-control-n100000-2026-07-26.json"
+    fields:
+      events: {path: "parameters.events_before_repetitions", format: "integer"}
+      appends: {path: "parameters.append_repetitions", format: "integer"}
+      reduction: {path: "results.checkpoint_write_reduction_ratio", format: "number", digits: 3}
+      control_events: {path: "results.bounded_control_event_count.min", format: "integer"}
+      append_median: {path: "results.append_checkpoint_latency.median_ms", format: "milliseconds", digits: 3}
+      append_p95: {path: "results.append_checkpoint_latency.p95_ms", format: "milliseconds", digits: 3}
+      control_median: {path: "results.bounded_1000_event_control_load_latency.median_ms", format: "milliseconds", digits: 3}
+      control_p95: {path: "results.bounded_1000_event_control_load_latency.p95_ms", format: "milliseconds", digits: 3}
+      import_wall: {path: "results.initial_history_import_ms", format: "milliseconds", digits: 3}
+    cases: "{events} events + {appends} appends"
+    result: "{reduction}× write-size reduction; {control_events} control events loaded"
+    latency: "{append_median} / {append_p95} append; {control_median} / {control_p95} control"
+    wall: "{import_wall} import"
+    status: "Serialization diagnostic; real SQLite pending"
+
+  - suite: "Gemini CLI provider adapter"
+    route: "Gemini CLI 0.35.3 / `account-default`"
+    source: "results/gemini-cli-0.35.3-compatibility-2026-07-26.json"
+    fields:
+      cases: {path: "regression_evidence.focused_provider_config_onboarding_support_package_ui.passed", format: "integer"}
+      outcome: {path: "startup_probe.outcome", format: "text"}
+      elapsed: {path: "startup_probe.elapsed_seconds", format: "number", digits: 2}
+      rss: {path: "startup_probe.max_rss_kib", format: "integer"}
+    cases: "{cases} provider/config/UI cases"
+    result: "Adapter contracts passed; startup probe {outcome}; {rss} KiB peak RSS"
+    latency: "{elapsed}s startup probe"
+    wall: "{elapsed}s"
+    status: "Adapter contract; live provider unproven"
+
+  - suite: "Provider conformance attempt"
+    route: "Codex CLI + Claude Code"
+    source: "results/2026-07-26/providers/provider-conformance-attempt-2026-07-26.json"
+    fields:
+      providers: {path: "initial_conformance_attempt.providers_selected", format: "integer"}
+      attempts: {path: "initial_conformance_attempt.calls_attempted", format: "integer"}
+      exact: {path: "initial_conformance_attempt.calls_exact", format: "integer"}
+      failures: {path: "initial_conformance_attempt.calls_failed", format: "integer"}
+      codex: {path: "initial_conformance_attempt.providers.0.latency_ms", format: "seconds_from_ms", digits: 3}
+      claude: {path: "initial_conformance_attempt.providers.1.latency_ms", format: "seconds_from_ms", digits: 3}
+      wall: {path: "initial_conformance_attempt.evaluation_wall_ms", format: "seconds_from_ms", digits: 3}
+    cases: "{providers} providers / {attempts} calls"
+    result: "{exact}/{attempts} exact; {failures} failures; Codex adapter fixed afterward"
+    latency: "{codex} / {claude}"
+    wall: "{wall}"
+    status: "Failing diagnostic; approved rerun blocked before launch"
+
+  - suite: "ScreenSpot-Pro, single pass"
+    route: "Codex CLI / `gpt-5.6-sol`"
+    source: "results/2026-07-25/screenspot-pro/codex-gpt-5.6-sol-seed104729-n100.json"
+    fields:
+      cases: {path: "cases_evaluated", format: "integer"}
+      correct: {path: "correct", format: "integer"}
+      accuracy: {path: "accuracy", format: "percent", digits: 1}
+      median: {path: "median_latency_ms", format: "seconds_from_ms", digits: 2}
+      p95: {path: "p95_latency_ms", format: "seconds_from_ms", digits: 2}
+      wall: {path: "evaluation_wall_ms", format: "seconds_from_ms", digits: 2}
+    cases: "{cases}"
+    result: "{correct}/{cases}, {accuracy}"
+    latency: "{median} / {p95}"
+    wall: "{wall}"
+    status: "Current seeded sample"
+
+  - suite: "Blind OCR"
+    route: "Local Tesseract structured ensemble"
+    source: "results/2026-07-25/ocr/tesseract-structured-candidates-seed104729-n1000.json"
+    fields:
+      cases: {path: "corpus.cases", format: "integer"}
+      exact: {path: "selected_accuracy.normalized_exact_rate", format: "percent", digits: 1}
+      expected: {path: "expected_aware_exact_verification.normalized_exact_rate", format: "percent", digits: 1}
+      cer: {path: "selected_accuracy.mean_character_error_rate", format: "percent", digits: 2}
+      median: {path: "performance.median_latency_ms", format: "milliseconds", digits: 0}
+      p95: {path: "performance.p95_latency_ms", format: "milliseconds", digits: 0}
+      wall: {path: "performance.evaluation_wall_ms", format: "seconds_from_ms", digits: 2}
+    cases: "{cases}"
+    result: "{exact} selected; {expected} expected-aware exact; {cer} CER"
+    latency: "{median} / {p95}"
+    wall: "{wall}"
+    status: "Failing release gate"
+
+  - suite: "Blind OCR"
+    route: "PaddleOCR v6 medium CPU"
+    source: "results/2026-07-25/ocr/ocr-seed104729-n1000-comparison.json"
+    fields:
+      cases: {path: "corpus.cases", format: "integer"}
+      exact: {path: "paddleocr.normalized_exact_rate", format: "percent", digits: 1}
+      cer: {path: "paddleocr.mean_character_error_rate", format: "percent", digits: 2}
+      median: {path: "paddleocr.median_latency_ms", format: "milliseconds", digits: 0}
+      p95: {path: "paddleocr.p95_latency_ms", format: "seconds_from_ms", digits: 2}
+      wall: {path: "paddleocr.evaluation_wall_ms", format: "seconds_from_ms", digits: 2}
+    cases: "{cases}"
+    result: "{exact} normalized exact; {cer} CER"
+    latency: "{median} / {p95}"
+    wall: "{wall}"
+    status: "Failing gate; crop adapter fixed afterward"
+
+  - suite: "Blind OCR known-intent candidate union"
+    route: "Tesseract precise + PaddleOCR evidence"
+    source: "results/2026-07-26/ocr/hybrid-known-intent-candidate-union-n1000.json"
+    fields:
+      cases: {path: "known_intent_candidate_union.cases", format: "integer"}
+      matches: {path: "known_intent_candidate_union.matches", format: "integer"}
+      rate: {path: "known_intent_candidate_union.rate", format: "percent", digits: 1}
+      routine_cases: {path: "known_intent_candidate_union.by_tier.routine.cases", format: "integer"}
+      routine_matches: {path: "known_intent_candidate_union.by_tier.routine.matches", format: "integer"}
+      routine_rate: {path: "known_intent_candidate_union.by_tier.routine.rate", format: "percent", digits: 1}
+      stress_cases: {path: "known_intent_candidate_union.by_tier.stress.cases", format: "integer"}
+      stress_matches: {path: "known_intent_candidate_union.by_tier.stress.matches", format: "integer"}
+      stress_rate: {path: "known_intent_candidate_union.by_tier.stress.rate", format: "percent", digits: 1}
+    cases: "{cases} paired cases"
+    result: "{matches}/{cases}, {rate}; routine {routine_matches}/{routine_cases}, {routine_rate}; stress {stress_matches}/{stress_cases}, {stress_rate}"
+    latency: "Not measured"
+    wall: "Retrospective paired analysis"
+    status: "Failing gate; runtime hybrid pass not run"
+
+  - suite: "Hybrid OCR worker lifecycle"
+    route: "Tesseract precise + killable Paddle worker"
+    source: "results/2026-07-26/ocr/hybrid-worker-shutdown-smoke-2026-07-27.json"
+    fields:
+      cases: {path: "scope.cases", format: "integer"}
+      contracts: {path: "contracts.focused_tests", format: "integer"}
+      passed: {path: "contracts.focused_tests_passed", format: "integer"}
+      before_timeout: {path: "before.hard_timeout_triggered", format: "text"}
+      after_timeout: {path: "after.hard_timeout_triggered", format: "text"}
+      median: {path: "after.median_latency_ms", format: "milliseconds", digits: 0}
+      p95: {path: "after.p95_latency_ms", format: "milliseconds", digits: 0}
+      wall: {path: "after.evaluation_wall_ms", format: "seconds_from_ms", digits: 2}
+    cases: "{cases} lifecycle cases + {contracts} contracts"
+    result: "{passed}/{contracts}; hard timeout before {before_timeout}, after {after_timeout}"
+    latency: "{median} / {p95}"
+    wall: "{wall}"
+    status: "Process lifecycle fixed; diagnostic only, n=5"
+
+  - suite: "OSWorld-Verified tracer"
+    route: "Codex, Claude, and mixed role routes"
+    source: "results/2026-07-25/osworld/summary.json"
+    fields:
+      cases: {path: "current_nine_task_diagnostic.cases", format: "integer"}
+      passes: {path: "current_nine_task_diagnostic.official_passes", format: "integer"}
+      attempts: {path: "all_scored_attempts.attempts", format: "integer"}
+      all_passes: {path: "all_scored_attempts.harness_completed_and_official_passed", format: "integer"}
+      unscored: {path: "unscored_attempts.count", format: "integer"}
+      median: {path: "current_nine_task_diagnostic.wall_clock_ms_median", format: "seconds_from_ms", digits: 2}
+      p95: {path: "current_nine_task_diagnostic.wall_clock_ms_p95", format: "seconds_from_ms", digits: 2}
+      wall: {path: "current_nine_task_diagnostic.wall_clock_ms_total", format: "seconds_from_ms", digits: 2}
+    cases: "{cases} current; {attempts} scored + {unscored} unscored attempts"
+    result: "{passes}/{cases} current; {all_passes}/{attempts} all scored attempts"
+    latency: "{median} / {p95}"
+    wall: "{wall} current set"
+    status: "Diagnostic; three current failures"
+
+  - suite: "Windows Agent Arena"
+    route: "—"
+    source: "results/2026-07-24/inventories/windows-agent-arena.json"
+    fields:
+      tasks: {path: "tasks_discovered", format: "integer"}
+    cases: "{tasks} tasks discovered"
+    result: "Not run"
+    latency: "—"
+    wall: "—"
+    status: "Blocked by missing official image"
+
+  - suite: "Historical PiKVM incident audit"
+    route: "Claude Code + Codex + OpenCode histories"
+    source: "historical_pikvm_incidents.json"
+    fields:
+      sessions: {path: "scope.sessions", format: "integer"}
+      calls: {path: "scope.pikvm_tool_calls", format: "integer"}
+      incidents: {path: "incident_summary.total", format: "integer"}
+      critical: {path: "incident_summary.severity.critical", format: "integer"}
+      high: {path: "incident_summary.severity.high", format: "integer"}
+    cases: "{sessions} conversations; {calls} PiKVM calls"
+    result: "{incidents} incidents: {critical} critical, {high} high"
+    latency: "—"
+    wall: "—"
+    status: "Available local histories audited"
+
+  - suite: "Historical critical/high regression coverage"
+    route: "Checked local control ledger"
+    source: "historical_pikvm_coverage.json"
+    fields:
+      incidents: {path: "scope.incident_count", format: "integer"}
+      covered: {path: "status_counts.covered_local", format: "integer"}
+      partial: {path: "status_counts.partial", format: "integer"}
+      open: {path: "status_counts.open", format: "integer"}
+    cases: "{incidents} critical/high incidents"
+    result: "{covered} locally covered; {partial} partial; {open} open"
+    latency: "—"
+    wall: "—"
+    status: "Coverage ledger; most incidents remain partial"

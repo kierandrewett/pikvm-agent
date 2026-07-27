@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-07-27T01:35:00+01:00",
+  "purpose": "Diagnose and verify bounded shutdown of the precise hybrid OCR path",
+  "scope": {
+    "provider": "hybrid",
+    "cases": 5,
+    "corpus_seed": 104729,
+    "evaluation_seed": 65537,
+    "jobs": 4,
+    "diagnostic_only": true,
+    "accuracy_claim": false
+  },
+  "before": {
+    "implementation": "in-process PaddleOCR through asyncio.to_thread",
+    "cases_scored": 5,
+    "evaluation_wall_ms": 25109,
+    "hard_timeout_s": 180,
+    "hard_timeout_triggered": true,
+    "process_exit_code": 124,
+    "failure": "native inference prevented the default executor from shutting down"
+  },
+  "after": {
+    "implementation": "single persistent killable PaddleOCR subprocess",
+    "cases_scored": 5,
+    "exact_matches": 1,
+    "normalized_exact_matches": 2,
+    "expected_aware_normalized_exact_matches": 3,
+    "mean_character_error_rate": 0.016404040404040404,
+    "median_latency_ms": 5025.0,
+    "p95_latency_ms": 5061.6,
+    "evaluation_wall_ms": 5068,
+    "hard_timeout_s": 90,
+    "hard_timeout_triggered": false,
+    "process_exit_code": 0,
+    "provider_errors": 0,
+    "throughput_images_per_second": 0.9865824782951855,
+    "provider_diagnostics": {
+      "precise_calls": 5,
+      "secondary_attempted": 4,
+      "secondary_completed": 1,
+      "secondary_skipped_busy": 1,
+      "secondary_failed_or_timed_out": 3
+    }
+  },
+  "contracts": {
+    "focused_tests": 19,
+    "focused_tests_passed": 19,
+    "timeout_returns_while_worker_remains_bounded": true,
+    "close_terminates_active_worker": true,
+    "worker_failure_detail_redacted": true,
+    "one_shared_runtime_ocr_provider": true
+  },
+  "limitations": [
+    "Five cases are a lifecycle diagnostic, not an OCR accuracy sample.",
+    "The 1,000-case fresh hybrid release benchmark remains outstanding.",
+    "A timed-out secondary result is evidence only and cannot authorize a computer action."
+  ]
+}

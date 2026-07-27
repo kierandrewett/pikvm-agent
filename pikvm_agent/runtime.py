@@ -10,29 +10,38 @@ the next approval interrupt or completion; ``submit_approval`` resumes it.
 from __future__ import annotations
 
 import asyncio
+import copy
+import hashlib
+import json
 import logging
 import os
+import tempfile
 import time
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 from langgraph.types import Command
+from PIL import Image, ImageChops, ImageStat
 
-from pikvm_agent.config import AppConfig, load_config
+from pikvm_agent.config import AppConfig, PolicyConfig, load_config
 from pikvm_agent.core.errors import SessionNotFoundError
+from pikvm_agent.core.models import OCRResult, Region
 from pikvm_agent.debuglog import DEBUG
 from pikvm_agent.executor import burst as _burst
 from pikvm_agent.executor.recovery import Recovery
 from pikvm_agent.executor.transactions import GuardedTransactionExecutor
 from pikvm_agent.graph.checkpoints import build_checkpointer, close_checkpointer
 from pikvm_agent.graph.deps import GraphDeps
+from pikvm_agent.operator.routing import OperatorModelRouter
 from pikvm_agent.graph.graph import build_graph
 from pikvm_agent.operator.fake import FakeOperator
 from pikvm_agent.pikvm.client import PiKVMBackend
 from pikvm_agent.pikvm.fake import FakeBackend
 from pikvm_agent.policy.safety import SafetyPolicyEngine
+from pikvm_agent.policy.direct import classify_direct_burst
 from pikvm_agent.store.frames import FrameStore
 from pikvm_agent.store.sqlite import SessionStore
 from pikvm_agent.store.trace import TraceLog
@@ -44,6 +53,153 @@ from pikvm_agent.vision.tesseract_ocr import tesseract_available
 log = logging.getLogger("pikvm_agent.runtime")
 
 DEFAULT_MAX_STEPS = 12
+PANIC_QUIESCE_TIMEOUT_S = 5.0
+LOCAL_POINTER_FRESHNESS_RADIUS_PX = 48
+LOCAL_POINTER_FRESHNESS_MAX_DELTA = 0.035
+
+
+@dataclass(frozen=True)
+class RuntimeCapabilities:
+    """Construction-time capabilities that ordinary daemon config cannot grant."""
+
+    isolated_benchmark_pointer_freshness: bool = False
+
+
+def _local_pointer_freshness_enabled(
+    policy: PolicyConfig,
+    capabilities: RuntimeCapabilities,
+) -> bool:
+    """Limit relaxed pointer freshness to the resettable benchmark profile."""
+
+    return (
+        capabilities.isolated_benchmark_pointer_freshness
+        and policy.allow_local_pointer_freshness
+        and policy.default_profile == "isolated_benchmark"
+    )
+
+
+def _localized_pointer_freshness(
+    actions: list[dict[str, Any]],
+    *,
+    planned_image_path: str,
+    current_image_path: str,
+    radius_px: int = LOCAL_POINTER_FRESHNESS_RADIUS_PX,
+    max_delta: float = LOCAL_POINTER_FRESHNESS_MAX_DELTA,
+) -> tuple[bool, float | None]:
+    """Check target-local stability for an explicitly opted-in pointer burst.
+
+    Full-frame world versions remain the production default. The isolated
+    benchmark profile may use this narrower check for continuously changing,
+    unrelated content such as a playing video. Keyboard, typing, and scrolling
+    actions can never receive the exemption.
+    """
+
+    pointer_kinds = {"click", "double_click", "move"}
+    passive_kinds = {"wait", "wait_for_stable_screen", "wait_for_change"}
+    kinds = {str(action.get("type", "")) for action in actions}
+    if not kinds or not kinds.issubset(pointer_kinds | passive_kinds):
+        return False, None
+    pointer_actions = [
+        action for action in actions if action.get("type") in pointer_kinds
+    ]
+    if not pointer_actions:
+        return False, None
+
+    try:
+        with (
+            Image.open(planned_image_path) as planned_source,
+            Image.open(current_image_path) as current_source,
+        ):
+            planned = planned_source.convert("RGB")
+            current = current_source.convert("RGB")
+            if planned.size != current.size:
+                return False, None
+            width, height = planned.size
+            largest_delta = 0.0
+            for action in pointer_actions:
+                x, y = int(action["x"]), int(action["y"])
+                if not (0 <= x < width and 0 <= y < height):
+                    return False, None
+                box = (
+                    max(0, x - radius_px),
+                    max(0, y - radius_px),
+                    min(width, x + radius_px + 1),
+                    min(height, y + radius_px + 1),
+                )
+                difference = ImageChops.difference(
+                    planned.crop(box),
+                    current.crop(box),
+                )
+                channel_means = ImageStat.Stat(difference).mean
+                delta = sum(channel_means) / max(1, len(channel_means)) / 255.0
+                largest_delta = max(largest_delta, delta)
+                if delta > max_delta:
+                    return False, largest_delta
+            return True, largest_delta
+    except (OSError, TypeError, ValueError, KeyError):
+        return False, None
+
+
+def nearest_ocr_target_text(
+    observed: OCRResult,
+    *,
+    click_x: int,
+    click_y: int,
+    region: Region,
+) -> str:
+    """Return only the OCR line geometrically nearest the click.
+
+    A broad OCR crop is useful for reading icon-adjacent labels, but feeding all
+    text in that crop to the safety classifier lets a dangerous word on a
+    neighboring row misclassify a routine target. Boxes may be relative to the
+    requested crop (local Tesseract) or full-frame (remote OCR).
+    """
+
+    candidates: list[tuple[float, float, str]] = []
+    for line in observed.lines:
+        box = line.bbox
+        if not box:
+            continue
+        if (
+            len(box) == 4
+            and all(isinstance(value, (int, float)) for value in box)
+        ):
+            x0, y0, x1, y1 = (float(value) for value in box)
+        elif all(isinstance(point, list) and len(point) >= 2 for point in box):
+            points = [
+                (float(point[0]), float(point[1]))
+                for point in box
+                if isinstance(point, list) and len(point) >= 2
+            ]
+            if not points:
+                continue
+            x0, x1 = min(point[0] for point in points), max(
+                point[0] for point in points
+            )
+            y0, y1 = min(point[1] for point in points), max(
+                point[1] for point in points
+            )
+        else:
+            continue
+        crop_relative = (
+            0 <= x0 <= region.width
+            and 0 <= x1 <= region.width + 2
+            and 0 <= y0 <= region.height
+            and 0 <= y1 <= region.height + 2
+        )
+        point_x = click_x - region.x if crop_relative else click_x
+        point_y = click_y - region.y if crop_relative else click_y
+        dx = max(x0 - point_x, 0.0, point_x - x1)
+        dy = max(y0 - point_y, 0.0, point_y - y1)
+        candidates.append((dx * dx + 4 * dy * dy, dy, line.text.strip()))
+    if candidates:
+        distance, vertical_gap, text = min(candidates, key=lambda item: item[0])
+        if text and vertical_gap <= 16 and distance <= 140**2:
+            return text
+        return ""
+    if len(observed.lines) == 1:
+        return observed.lines[0].text.strip()
+    return ""
 
 
 def build_backend(config: AppConfig) -> Any:
@@ -76,6 +232,7 @@ def build_operator(config: AppConfig, backend: Any) -> Any:
 class SessionRuntime:
     session_id: str
     task: str
+    machine: dict[str, Any]
     frames: FrameStore
     trace: TraceLog
     deps: GraphDeps
@@ -90,14 +247,25 @@ class SessionRuntime:
     # in-flight decision but a re-planned loop re-stamps the new epoch and would pass;
     # this latch makes the stop survive re-planning AND blocks resume of a paused session.
     stopped: bool = False
+    # Caller-stable direct-control operations. A response retry must never type
+    # or click twice; a key may only be reused for the identical burst.
+    burst_idempotency: dict[str, dict[str, Any]] = field(default_factory=dict)
+    # A manual input report or newly detected machine client invalidates model
+    # authority established under an earlier control epoch.
+    last_human_input_at: float | None = None
+    observed_control_epoch: int = 0
+    other_client_block_active: bool = False
 
 
 class Runtime:
     def __init__(self, config: AppConfig, store: SessionStore, backend: Any, *,
                  screen_parser: Any, operator: Any, policy: SafetyPolicyEngine,
                  graph: Any, checkpointer: Any, executor: Any, recovery: Any,
-                 omniparser: OmniParserManager | None = None) -> None:
+                 ocr_provider: Any,
+                 omniparser: OmniParserManager | None = None,
+                 capabilities: RuntimeCapabilities | None = None) -> None:
         self.config = config
+        self.capabilities = capabilities or RuntimeCapabilities()
         self.store = store
         self.backend = backend
         self._screen_parser = screen_parser
@@ -107,15 +275,26 @@ class Runtime:
         self._checkpointer = checkpointer
         self._executor = executor
         self._recovery = recovery
+        self._ocr_provider = ocr_provider
         self._omniparser = omniparser
         self._omniparser_started = False  # lazy: spawned on first perception/autonomous use
         self._sessions: dict[str, SessionRuntime] = {}
+        # Tasks that crossed the last safety gate and may currently emit HID.
+        # Panic-stop cannot report success until all of them have exited.
+        self._active_hid_tasks: set[asyncio.Task[Any]] = set()
+        self._hid_idle = asyncio.Event()
+        self._hid_idle.set()
         # /status is polled constantly by the readiness UI; cache it so each poll doesn't
         # re-run the (network) health probes and contend with real work.
         self._status_cache: tuple[float, dict[str, Any]] | None = None
 
     @classmethod
-    async def from_config(cls, config: AppConfig | None = None) -> "Runtime":
+    async def from_config(
+        cls,
+        config: AppConfig | None = None,
+        *,
+        capabilities: RuntimeCapabilities | None = None,
+    ) -> "Runtime":
         config = config or load_config()
         # Wire the ultimate debug log first so startup itself is captured.
         DEBUG.configure(config.daemon.debug_log_path, session_dir=config.daemon.session_dir,
@@ -123,10 +302,14 @@ class Runtime:
         store = SessionStore(config.daemon.sqlite_path)
         await store.connect()
         backend = build_backend(config)
-        screen_parser = build_screen_parser(config, backend)
+        ocr = build_ocr_provider(config, backend)
+        screen_parser = build_screen_parser(
+            config,
+            backend,
+            ocr_provider=ocr,
+        )
         operator = build_operator(config, backend)
         policy = SafetyPolicyEngine(config.policy)
-        ocr = build_ocr_provider(config, backend)
         from pikvm_agent.executor.typing import WatchedTyper
 
         typer = WatchedTyper(backend, ocr)
@@ -146,14 +329,20 @@ class Runtime:
         graph = build_graph(checkpointer)
         return cls(config, store, backend, screen_parser=screen_parser, operator=operator,
                    policy=policy, graph=graph, checkpointer=checkpointer,
-                   executor=executor, recovery=recovery, omniparser=omniparser)
+                   executor=executor, recovery=recovery, ocr_provider=ocr,
+                   omniparser=omniparser,
+                   capabilities=capabilities)
 
     async def aclose(self) -> None:
         try:
             await self.backend.aclose()
         finally:
             # Close pooled HTTP clients on the operator / element parser if present.
-            for owner in (self._operator, getattr(self._screen_parser, "elements", None)):
+            for owner in (
+                self._operator,
+                getattr(self._screen_parser, "elements", None),
+                self._ocr_provider,
+            ):
                 closer = getattr(owner, "aclose", None)
                 if closer is not None:
                     try:
@@ -179,13 +368,78 @@ class Runtime:
         getter = getattr(self.backend, "cursor", None)
         return getter() if callable(getter) else None
 
+    def _other_client_count(self) -> int:
+        getter = getattr(self.backend, "other_clients", None)
+        return max(0, int(getter())) if callable(getter) else 0
+
+    @staticmethod
+    def _revoke_control_for_human(
+        sr: SessionRuntime,
+        *,
+        event_kind: str,
+        source: str,
+        **details: Any,
+    ) -> None:
+        sr.control_epoch += 1
+        sr.last_human_input_at = time.time()
+        sr.trace.append(
+            event_kind,
+            source=source,
+            control_epoch=sr.control_epoch,
+            **details,
+        )
+
+    def machine_identity(self) -> dict[str, str]:
+        """Return a safe, stable identity for the configured computer target.
+
+        This is configuration continuity, not hardware attestation.  The raw
+        endpoint and optional explicit id are never returned.
+        """
+
+        cfg = self.config.pikvm
+        explicit = os.environ.get(cfg.machine_id_env, "").strip()
+        if explicit:
+            source = "explicit_machine_id"
+            material = f"explicit\0{explicit}"
+        else:
+            parsed = urlsplit(cfg.base_url)
+            host = (parsed.hostname or "").lower()
+            port = f":{parsed.port}" if parsed.port is not None else ""
+            path = parsed.path.rstrip("/")
+            canonical_endpoint = f"{parsed.scheme.lower()}://{host}{port}{path}"
+            source = "configured_endpoint"
+            material = f"endpoint\0{canonical_endpoint}"
+        digest = hashlib.sha256(
+            f"pikvm-agent-target-v1\0{material}".encode()
+        ).hexdigest()[:16]
+        return {
+            "alias": cfg.machine_alias.strip() or "Unlabelled target",
+            "fingerprint": f"target:{digest}",
+            "identity_source": source,
+            "desktop_layer": cfg.desktop_layer.strip() or "Physical console",
+            "attestation": "configured_target",
+        }
+
     def report_external_cursor(self, nx: float, ny: float) -> dict[str, Any]:
         """The desktop live-view reports where the USER just moved the cursor (norm ±32767),
         so the daemon's tracked position stays current with manual moves kvmd won't report."""
         setter = getattr(self.backend, "set_cursor_from_norm", None)
         if callable(setter):
             setter(nx, ny)
-        return self._cursor_state() or {}
+        invalidated: list[str] = []
+        for sr in self._sessions.values():
+            if sr.stopped:
+                continue
+            self._revoke_control_for_human(
+                sr,
+                event_kind="human_input",
+                source="external_cursor",
+            )
+            invalidated.append(sr.session_id)
+        return {
+            **(self._cursor_state() or {}),
+            "invalidated_sessions": invalidated,
+        }
 
     async def _ensure_omniparser(self) -> None:
         """Spawn + warm OmniParser the first time perception/autonomous mode actually needs
@@ -205,22 +459,42 @@ class Runtime:
         frames = FrameStore(session_id, self.config.daemon.session_dir, self.backend,
                             fp_meaningful=self.config.watchers.fp_meaningful)
         trace = TraceLog(session_id, self.config.daemon.session_dir)
-        trace.append("session_start", task=task, policy=policy or {}, operator=operator or {})
+        machine = self.machine_identity()
+        trace.append(
+            "session_start",
+            task=task,
+            policy=policy or {},
+            operator=operator or {},
+            machine=machine,
+        )
         deps = GraphDeps(
             backend=self.backend, frames=frames, trace=trace,
             screen_parser=self._screen_parser, operator=self._operator, policy=self._policy,
             execute=self._executor.execute, recovery=self._recovery,
+            model_router=OperatorModelRouter(self.config.operator.routing),
             max_steps=DEFAULT_MAX_STEPS,
         )
-        sr = SessionRuntime(session_id=session_id, task=task, frames=frames, trace=trace, deps=deps)
+        sr = SessionRuntime(
+            session_id=session_id,
+            task=task,
+            machine=machine,
+            frames=frames,
+            trace=trace,
+            deps=deps,
+        )
         # The executor reads the session's LIVE epoch + stop latch through deps; bumping
         # the epoch (steer) invalidates an in-flight decision, and the latch (abort / panic)
         # refuses every subsequent action even after a re-plan.
         deps.control_epoch_getter = lambda: sr.control_epoch
         deps.stop_getter = lambda: sr.stopped
         self._sessions[session_id] = sr
-        return {"session_id": session_id, "status": row["status"], "task": task,
-                "created_at": row["created_at"]}
+        return {
+            "session_id": session_id,
+            "status": row["status"],
+            "task": task,
+            "created_at": row["created_at"],
+            "machine": machine,
+        }
 
     async def get_session_summary(self, session_id: str, capture: bool = True) -> dict[str, Any]:
         """Report the session's status + frame metadata.
@@ -239,13 +513,26 @@ class Runtime:
             frame = await sr.frames.capture()
             sr.trace.append("observe", frame_id=frame.frame_id, world_version=frame.world_version,
                             screenshot_path=frame.image_path)
+            sr.observed_control_epoch = sr.control_epoch
         else:
             frame = sr.frames.latest()
         row = await self.store.get_session(session_id)
         status = row["status"] if row else sr.status
-        base = {"session_id": session_id, "status": status, "task": sr.task,
-                "control_epoch": sr.control_epoch, "cursor": self._cursor_state(),
-                "events": sr.events[-20:], "error": sr.error}
+        base = {
+            "session_id": session_id,
+            "status": status,
+            "task": sr.task,
+            "machine": sr.machine,
+            "control_epoch": sr.control_epoch,
+            "cursor": self._cursor_state(),
+            "human_input_since_observation": (
+                sr.last_human_input_at is not None
+                and sr.control_epoch != sr.observed_control_epoch
+            ),
+            "last_human_input_at": sr.last_human_input_at,
+            "events": sr.events[-20:],
+            "error": sr.error,
+        }
         if frame is None:  # read-only poll before the first capture
             return {**base, "frame_id": None, "world_version": None, "screenshot_path": None,
                     "width": None, "height": None, "keyboard_state": None}
@@ -255,6 +542,21 @@ class Runtime:
             "screenshot_path": frame.image_path, "width": frame.width, "height": frame.height,
             "keyboard_state": frame.keyboard_state.model_dump(),
         }
+
+    async def preview_frame(self, session_id: str) -> Any:
+        """Capture a UI-only frame without changing controller freshness state.
+
+        Operator visibility must not manufacture ``frame_id`` values, bump
+        ``world_version``, mark a model look, or append trace events.  The next
+        guarded action still performs its own fresh capture before HID.
+        """
+
+        self._get(session_id)
+        try:
+            await self.backend.connect()
+        except Exception as exc:  # noqa: BLE001
+            log.warning("backend.connect failed: %s", exc)
+        return await self.backend.screenshot()
 
     async def abort_session(self, session_id: str, reason: str = "") -> dict[str, Any]:
         sr = self._get(session_id)
@@ -269,13 +571,8 @@ class Runtime:
     async def panic_stop(self) -> dict[str, Any]:
         """Emergency brake — independent of any agent/MCP. Bumps every session's
         control epoch (so any in-flight transaction is refused before it executes) and
-        marks active sessions failed. The currently-executing micro-action may finish,
-        but no further action runs without a fresh decision under the new epoch."""
-        # Drop any held keys/mouse buttons first (a hotkey or drag in flight).
-        try:
-            await self.backend.release_all()
-        except Exception as exc:  # noqa: BLE001
-            log.warning("panic_stop release_all failed: %s", exc)
+        marks active sessions failed. It reports ``ok=true`` only after every HID task
+        that had already started has observed the brake and exited."""
         stopped: list[str] = []
         for sid, sr in list(self._sessions.items()):
             sr.control_epoch += 1
@@ -291,8 +588,42 @@ class Runtime:
                 except Exception as exc:  # noqa: BLE001 - best-effort persistence
                     log.warning("panic_stop persist failed for %s: %s", sid, exc)
                 stopped.append(sid)
-        log.warning("PANIC STOP — halted %d session(s): %s", len(stopped), stopped)
-        return {"ok": True, "stopped": stopped}
+
+        # Drop held modifiers/buttons immediately, then wait for any already-started
+        # bounded micro-action to return. A timeout is explicitly NOT success.
+        try:
+            await self.backend.release_all()
+        except Exception as exc:  # noqa: BLE001
+            log.warning("panic_stop release_all failed: %s", exc)
+        try:
+            await asyncio.wait_for(
+                self._hid_idle.wait(),
+                timeout=PANIC_QUIESCE_TIMEOUT_S,
+            )
+            quiesced = True
+        except TimeoutError:
+            quiesced = False
+        try:
+            await self.backend.release_all()
+        except Exception as exc:  # noqa: BLE001
+            log.warning("panic_stop final release_all failed: %s", exc)
+
+        in_flight = sum(not task.done() for task in self._active_hid_tasks)
+        quiesced = quiesced and in_flight == 0
+        log.warning(
+            "PANIC STOP — halted %d session(s), quiesced=%s, in_flight=%d: %s",
+            len(stopped),
+            quiesced,
+            in_flight,
+            stopped,
+        )
+        return {
+            "ok": quiesced,
+            "quiesced": quiesced,
+            "in_flight_actions": in_flight,
+            "stopped": stopped,
+            "machine": self.machine_identity(),
+        }
 
     # ---- operator loop (LangGraph) --------------------------------------- #
 
@@ -351,69 +682,472 @@ class Runtime:
     async def run_burst(self, session_id: str, actions: list[dict[str, Any]], *,
                         based_on_world_version: int | None = None,
                         based_on_control_epoch: int | None = None,
-                        max_runtime_ms: int = 4000,
-                        return_screenshot: bool = True) -> dict[str, Any]:
+                        max_runtime_ms: int | None = None,
+                        return_screenshot: bool = True,
+                        idempotency_key: str | None = None,
+                        _approved_digest: str | None = None) -> dict[str, Any]:
         """Execute a controller-authored HID burst LOCALLY in one shot (no perception
         loop). Gates first on freshness (world_version) + control epoch, runs the burst
         with a live abort/panic/deadline gate, then returns one screenshot so the
         controller can decide the next burst."""
         DEBUG.set_session(session_id)
         sr = self._get(session_id)
+        machine = sr.machine
         if sr.stopped:
-            return {"session_id": session_id, "status": "stopped", "error": sr.error or "stopped"}
+            return {
+                "session_id": session_id,
+                "status": "stopped",
+                "error": sr.error or "stopped",
+                "machine": machine,
+            }
+        try:
+            _burst.validate_actions(actions)
+        except _burst.BurstError as exc:
+            sr.status = "paused"
+            return {
+                "session_id": session_id,
+                "status": "failed",
+                "error": f"bad burst: {exc}",
+                "control_epoch": sr.control_epoch,
+                "machine": machine,
+            }
+
+        runtime_budget_source = "explicit" if max_runtime_ms is not None else "auto"
+        effective_runtime_ms = (
+            int(max_runtime_ms)
+            if max_runtime_ms is not None
+            else _burst.recommended_runtime_ms(actions)
+        )
+        digest = hashlib.sha256(
+            json.dumps(
+                {
+                    "actions": actions,
+                    "max_runtime_ms": effective_runtime_ms,
+                    "return_screenshot": return_screenshot,
+                    "session_id": session_id,
+                    "machine_fingerprint": machine["fingerprint"],
+                },
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode()
+        ).hexdigest()
+        key = (idempotency_key or "").strip()
+        if not key:
+            return {
+                "session_id": session_id,
+                "status": "failed",
+                "error": "non-blank idempotency_key is required before HID",
+                "control_epoch": sr.control_epoch,
+                "machine": machine,
+            }
+        if key and len(key) > 160:
+            return {
+                "session_id": session_id,
+                "status": "failed",
+                "error": "idempotency_key exceeds 160 characters",
+                "control_epoch": sr.control_epoch,
+                "machine": machine,
+            }
+        prior = sr.burst_idempotency.get(key) if key else None
+        if prior is not None:
+            if prior["digest"] != digest:
+                return {
+                    "session_id": session_id,
+                    "status": "idempotency_conflict",
+                    "error": "idempotency_key was already used for a different burst",
+                    "control_epoch": sr.control_epoch,
+                    "machine": machine,
+                }
+            if _approved_digest != digest:
+                replay = copy.deepcopy(prior["result"])
+                replay["idempotent_replay"] = True
+                return replay
         try:
             await self.backend.connect()
         except Exception as exc:  # noqa: BLE001
             log.warning("backend.connect failed: %s", exc)
 
         # FRESHNESS: the screen must still be the one the controller planned against.
+        # The resettable benchmark profile can explicitly opt into a target-local
+        # check for pointer-only bursts across unrelated animation.
+        planned_frame = sr.frames.latest()
         frame = await sr.frames.capture()
+        if (
+            based_on_world_version is None
+            or based_on_control_epoch is None
+        ):
+            sr.trace.append(
+                "burst_freshness_required",
+                supplied_world_version=based_on_world_version,
+                supplied_control_epoch=based_on_control_epoch,
+            )
+            return {
+                "session_id": session_id,
+                "status": "freshness_required",
+                "error": (
+                    "based_on_world_version and based_on_control_epoch are "
+                    "required before HID"
+                ),
+                "frame_id": frame.frame_id,
+                "world_version": frame.world_version,
+                "control_epoch": sr.control_epoch,
+                "screenshot_path": frame.image_path,
+                "width": frame.width,
+                "height": frame.height,
+                "machine": machine,
+            }
+        localized_freshness = False
+        localized_freshness_delta: float | None = None
+        local_freshness_enabled = _local_pointer_freshness_enabled(
+            self.config.policy,
+            self.capabilities,
+        )
         if based_on_world_version is not None and frame.world_version != based_on_world_version:
-            sr.trace.append("burst_stale", planned=based_on_world_version,
-                            current=frame.world_version)
-            return {"session_id": session_id, "status": "stale_world",
-                    "frame_id": frame.frame_id, "world_version": frame.world_version,
-                    "control_epoch": sr.control_epoch, "screenshot_path": frame.image_path,
-                    "width": frame.width, "height": frame.height}
-        planned_epoch = based_on_control_epoch if based_on_control_epoch is not None else sr.control_epoch
+            if (
+                local_freshness_enabled
+                and planned_frame is not None
+                and planned_frame.world_version == based_on_world_version
+            ):
+                (
+                    localized_freshness,
+                    localized_freshness_delta,
+                ) = await asyncio.to_thread(
+                    _localized_pointer_freshness,
+                    actions,
+                    planned_image_path=planned_frame.image_path,
+                    current_image_path=frame.image_path,
+                )
+            if localized_freshness:
+                sr.trace.append(
+                    "burst_local_freshness_accepted",
+                    planned=based_on_world_version,
+                    current=frame.world_version,
+                    target_delta=localized_freshness_delta,
+                    radius_px=LOCAL_POINTER_FRESHNESS_RADIUS_PX,
+                    max_delta=LOCAL_POINTER_FRESHNESS_MAX_DELTA,
+                    policy_profile=self.config.policy.default_profile,
+                )
+            else:
+                sr.trace.append(
+                    "burst_stale",
+                    planned=based_on_world_version,
+                    current=frame.world_version,
+                    target_delta=localized_freshness_delta,
+                    local_check_enabled=local_freshness_enabled,
+                )
+                return {
+                    "session_id": session_id,
+                    "status": "stale_world",
+                    "frame_id": frame.frame_id,
+                    "world_version": frame.world_version,
+                    "control_epoch": sr.control_epoch,
+                    "screenshot_path": frame.image_path,
+                    "width": frame.width,
+                    "height": frame.height,
+                    "localized_freshness": False,
+                    "localized_freshness_delta": localized_freshness_delta,
+                    "machine": machine,
+                }
+        planned_epoch = based_on_control_epoch
         if sr.control_epoch != planned_epoch:
-            return {"session_id": session_id, "status": "control_changed",
-                    "control_epoch": sr.control_epoch}
+            return {
+                "session_id": session_id,
+                "status": "control_changed",
+                "control_epoch": sr.control_epoch,
+                "machine": machine,
+            }
+
+        other_clients = self._other_client_count()
+        if other_clients:
+            if not sr.other_client_block_active:
+                self._revoke_control_for_human(
+                    sr,
+                    event_kind="human_concurrency",
+                    source="machine_client",
+                    other_clients=other_clients,
+                )
+                sr.other_client_block_active = True
+            return {
+                "session_id": session_id,
+                "status": "control_changed",
+                "reason": "another machine client is connected",
+                "control_epoch": sr.control_epoch,
+                "human_concurrency": {"other_clients": other_clients},
+                "machine": machine,
+                "frame_id": frame.frame_id,
+                "world_version": frame.world_version,
+                "screenshot_path": frame.image_path,
+                "width": frame.width,
+                "height": frame.height,
+            }
+        sr.other_client_block_active = False
+
+        grounded_actions = await self._ground_click_targets(actions, frame)
+        verdict = classify_direct_burst(grounded_actions, self.config.policy)
+        if verdict.status == "blocked":
+            return {
+                "session_id": session_id,
+                "status": "blocked",
+                "risk": verdict.category,
+                "reason": verdict.reason,
+                "control_epoch": sr.control_epoch,
+                "frame_id": frame.frame_id,
+                "world_version": frame.world_version,
+                "screenshot_path": frame.image_path,
+                "width": frame.width,
+                "height": frame.height,
+                "machine": machine,
+            }
+        if verdict.status == "approval_required" and _approved_digest != digest:
+            approval_id = str(uuid.uuid4())
+            request = {
+                "kind": "direct_burst",
+                "approval_id": approval_id,
+                "session_id": session_id,
+                "frame_id": frame.frame_id,
+                "world_version": frame.world_version,
+                "control_epoch": planned_epoch,
+                "machine": machine,
+                "risk": verdict.category,
+                "reason": verdict.reason,
+                "proposed_action": {
+                    "actions": actions,
+                    "grounded_actions": grounded_actions,
+                    "max_runtime_ms": effective_runtime_ms,
+                    "runtime_budget_source": runtime_budget_source,
+                    "return_screenshot": return_screenshot,
+                    "idempotency_key": key or None,
+                    "digest": digest,
+                },
+                "screenshot_path": frame.image_path,
+                "allowed_decisions": ["approve", "reject", "take_over"],
+            }
+            await self.store.save_approval(approval_id, session_id, request)
+            sr.status = "needs_approval"
+            await self.store.update_session(
+                session_id,
+                status="needs_approval",
+            )
+            result = {
+                "session_id": session_id,
+                "status": "needs_approval",
+                "approval_request": request,
+                "control_epoch": sr.control_epoch,
+                "frame_id": frame.frame_id,
+                "world_version": frame.world_version,
+                "screenshot_path": frame.image_path,
+                "width": frame.width,
+                "height": frame.height,
+                "machine": machine,
+            }
+            if key:
+                sr.burst_idempotency[key] = {
+                    "digest": digest,
+                    "status": "approval_pending",
+                    "result": copy.deepcopy(result),
+                }
+            return result
 
         def gate() -> bool:
-            return (not sr.stopped) and sr.control_epoch == planned_epoch
+            current_other_clients = self._other_client_count()
+            if current_other_clients and not sr.other_client_block_active:
+                self._revoke_control_for_human(
+                    sr,
+                    event_kind="human_concurrency",
+                    source="machine_client",
+                    other_clients=current_other_clients,
+                )
+                sr.other_client_block_active = True
+            return (
+                (not sr.stopped)
+                and sr.control_epoch == planned_epoch
+                and current_other_clients == 0
+            )
 
-        deadline = (time.monotonic() * 1000 + max_runtime_ms) if max_runtime_ms else None
+        deadline = (
+            time.monotonic() * 1000 + effective_runtime_ms
+            if effective_runtime_ms
+            else None
+        )
         sr.status = "running"
+        await self.store.update_session(session_id, status="running")
         try:
             # The watched typer can't read back a synthetic FakeBackend screen, so skip it
             # under the fake (the verify path is unit-tested directly in test_burst.py).
             typer = None if os.environ.get("PIKVM_AGENT_FAKE") else getattr(self._executor, "typer", None)
-            with DEBUG.span("burst.run", actions=len(actions)) as result:
-                outcome = await _burst.run_burst(
-                    actions, backend=self.backend, should_continue=gate,
-                    deadline_ms=deadline, typer=typer)
-                result(status=outcome.status, completed=outcome.completed, reason=outcome.reason)
+            current_task = asyncio.current_task()
+            if current_task is not None:
+                self._active_hid_tasks.add(current_task)
+                self._hid_idle.clear()
+            try:
+                with DEBUG.span("burst.run", actions=len(actions)) as result:
+                    outcome = await _burst.run_burst(
+                        actions,
+                        backend=self.backend,
+                        should_continue=gate,
+                        deadline_ms=deadline,
+                        typer=typer,
+                    )
+                    result(
+                        status=outcome.status,
+                        completed=outcome.completed,
+                        reason=outcome.reason,
+                    )
+            finally:
+                if current_task is not None:
+                    self._active_hid_tasks.discard(current_task)
+                    if not self._active_hid_tasks:
+                        self._hid_idle.set()
         except _burst.BurstError as exc:
             sr.status = "paused"
-            return {"session_id": session_id, "status": "failed",
-                    "error": f"bad burst: {exc}", "control_epoch": sr.control_epoch}
+            return {
+                "session_id": session_id,
+                "status": "failed",
+                "error": f"bad burst: {exc}",
+                "control_epoch": sr.control_epoch,
+                "machine": machine,
+            }
+
+        post_settle_applied = False
+        post_settle_stable: bool | None = None
+        if (
+            return_screenshot
+            and outcome.status == "completed"
+            and outcome.completed
+            and _burst.needs_post_action_settle(actions)
+            and not isinstance(self.backend, FakeBackend)
+            and gate()
+        ):
+            post_settle_applied = True
+            remaining_ms = (
+                max(0, round(deadline - time.monotonic() * 1000))
+                if deadline is not None
+                else 1_200
+            )
+            grace_ms = min(250, remaining_ms)
+            if grace_ms:
+                await asyncio.sleep(grace_ms / 1000)
+            remaining_ms = (
+                max(0, round(deadline - time.monotonic() * 1000))
+                if deadline is not None
+                else 1_200
+            )
+            if remaining_ms and gate():
+                post_settle_stable = await _burst.wait_for_stable_screen(
+                    self.backend,
+                    stable_ms=min(300, remaining_ms),
+                    timeout_ms=min(1_200, remaining_ms),
+                    should_continue=gate,
+                )
 
         sr.trace.append("burst", status=outcome.status, completed=outcome.completed,
-                        total=outcome.total, reason=outcome.reason, actions=outcome.executed)
-        final = await sr.frames.capture() if return_screenshot else sr.frames.latest()
-        sr.status = "paused"  # idle, awaiting the controller's next burst
+                        total=outcome.total, reason=outcome.reason, actions=outcome.executed,
+                        post_settle_applied=post_settle_applied,
+                        post_settle_stable=post_settle_stable)
+        evidence_error = ""
+        if return_screenshot:
+            try:
+                final = await sr.frames.capture()
+            except Exception as exc:  # noqa: BLE001 - preserve the HID outcome
+                final = None
+                evidence_error = f"{type(exc).__name__}: {exc}"
+                sr.trace.append(
+                    "post_action_evidence_failed",
+                    action_status=outcome.status,
+                    completed=outcome.completed,
+                    total=outcome.total,
+                    error=evidence_error,
+                )
+        else:
+            final = sr.frames.latest()
+        # A concurrent abort/panic owns the terminal state. Never let the request that
+        # was in flight overwrite that sticky brake with a resumable "paused" status.
+        effective_status = outcome.status
+        effective_reason = outcome.reason
+        if sr.stopped:
+            sr.status = "failed"
+            effective_status = "stopped"
+            effective_reason = sr.error or outcome.reason or "stopped"
+        else:
+            sr.status = "paused"  # idle, awaiting the controller's next burst
+            if evidence_error:
+                effective_status = "failed"
+                effective_reason = "post_action_evidence_failed"
+        await self.store.update_session(
+            session_id,
+            status=sr.status,
+            error=sr.error,
+        )
         out: dict[str, Any] = {
-            "session_id": session_id, "status": outcome.status,
+            "session_id": session_id, "status": effective_status,
+            "machine": machine,
             "completed_actions": outcome.completed, "remaining_actions": outcome.remaining,
-            "reason": outcome.reason or None, "error": outcome.error or None,
+            "partial_action": outcome.partial_action,
+            "reason": effective_reason or None,
+            "error": (
+                sr.error if sr.stopped else evidence_error or outcome.error
+            ) or None,
+            "action_status": outcome.status,
             "control_epoch": sr.control_epoch, "cursor": self._cursor_state(),
+            "post_action_settle": {
+                "applied": post_settle_applied,
+                "stable": post_settle_stable,
+            },
+            "runtime_budget_ms": effective_runtime_ms,
+            "runtime_budget_source": runtime_budget_source,
+            "localized_freshness": localized_freshness,
+            "localized_freshness_delta": localized_freshness_delta,
         }
+        current_other_clients = self._other_client_count()
+        if current_other_clients:
+            out["human_concurrency"] = {
+                "other_clients": current_other_clients
+            }
         if final is not None:
             out.update({"frame_id": final.frame_id, "world_version": final.world_version,
                         "screenshot_path": final.image_path,
                         "width": final.width, "height": final.height})
+        if key:
+            sr.burst_idempotency[key] = {
+                "digest": digest,
+                "status": "completed",
+                "result": copy.deepcopy(out),
+            }
         return out
+
+    async def _ground_click_targets(
+        self, actions: list[dict[str, Any]], frame: Any
+    ) -> list[dict[str, Any]]:
+        """Read text around coordinate clicks so safety does not trust the caller alone."""
+        grounded = copy.deepcopy(actions)
+        ocr = getattr(self._screen_parser, "ocr", None)
+        if ocr is None:
+            return grounded
+        for action in grounded:
+            if action.get("type") not in ("click", "double_click"):
+                continue
+            try:
+                x, y = int(action["x"]), int(action["y"])
+                left, top = max(0, x - 180), max(0, y - 45)
+                right, bottom = min(frame.width, x + 180), min(frame.height, y + 45)
+                region = Region(
+                    x=left,
+                    y=top,
+                    width=max(1, right - left),
+                    height=max(1, bottom - top),
+                )
+                observed = await ocr.ocr(Path(frame.image_path), region=region)
+                target_text = nearest_ocr_target_text(
+                    observed,
+                    click_x=x,
+                    click_y=y,
+                    region=region,
+                )
+                if target_text:
+                    action["observed_target_text"] = target_text
+            except Exception as exc:  # noqa: BLE001 - missing OCR must not break navigation
+                log.debug("click target OCR failed: %s", exc)
+        return grounded
 
     # ---- on-demand perception (Layer 2 — OFF the hot path, opt-in) ------- #
 
@@ -446,10 +1180,9 @@ class Runtime:
                 "ocr_text": em.ocr_text}
 
     async def ocr_region(self, session_id: str, x: int, y: int, w: int, h: int) -> dict[str, Any]:
-        """OCR a single rectangular region of the current screen (cheap vs full-frame)."""
-        from pathlib import Path as _Path
-
+        """OCR a native-resolution crop and return confidence-bearing evidence."""
         from pikvm_agent.core.models import Region
+        from pikvm_agent.vision.pikvm_ocr import PiKVMOcrProvider
 
         DEBUG.set_session(session_id)
         sr = self._get(session_id)
@@ -460,10 +1193,33 @@ class Runtime:
         frame = await sr.frames.capture()
         region = Region(x=x, y=y, width=w, height=h)
         with DEBUG.span("perception.ocr_region"):
-            res = await self._screen_parser.ocr.ocr(_Path(frame.image_path), region=region)
+            provider = self._screen_parser.ocr
+            if isinstance(provider, PiKVMOcrProvider):
+                res = await provider.ocr(None, region=region)
+            else:
+                crop = await self.backend.screenshot(region)
+                handle = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)
+                path = Path(handle.name)
+                try:
+                    handle.write(crop.data)
+                    handle.close()
+                    res = await provider.ocr(path)
+                finally:
+                    if not handle.closed:
+                        handle.close()
+                    path.unlink(missing_ok=True)
+        confidences = [
+            float(line.confidence)
+            for line in res.lines
+            if line.confidence is not None
+        ]
         return {"session_id": session_id, "frame_id": frame.frame_id,
                 "world_version": frame.world_version, "control_epoch": sr.control_epoch,
-                "region": {"x": x, "y": y, "w": w, "h": h}, "text": res.text}
+                "region": {"x": x, "y": y, "w": w, "h": h}, "text": res.text,
+                "confidence": (
+                    sum(confidences) / len(confidences) if confidences else None
+                ),
+                "lines": [line.model_dump() for line in res.lines]}
 
     async def find_text(self, session_id: str, text: str) -> dict[str, Any]:
         """Locate on-screen text: parse the screen and return the elements whose label
@@ -493,6 +1249,48 @@ class Runtime:
         if appr is None or appr.get("session_id") != session_id or appr.get("status") != "pending":
             return {"session_id": session_id, "approval_id": approval_id, "status": "error",
                     "error": "unknown or already-resolved approval_id for this session"}
+        request = appr.get("request") or {}
+        if request.get("kind") == "direct_burst":
+            response_type = str(decision.get("type", ""))
+            proposed = request.get("proposed_action") or {}
+            key = str(proposed.get("idempotency_key") or "")
+            if response_type != "approve":
+                status_word = "rejected" if response_type == "reject" else "resolved"
+                await self.store.resolve_approval(approval_id, decision, status_word)
+                result = {
+                    "session_id": session_id,
+                    "approval_id": approval_id,
+                    "status": "blocked",
+                    "reason": decision.get("reason") or f"human {response_type or 'resolved'}",
+                    "control_epoch": sr.control_epoch,
+                    "machine": sr.machine,
+                }
+                if key and key in sr.burst_idempotency:
+                    sr.burst_idempotency[key]["status"] = status_word
+                    sr.burst_idempotency[key]["result"] = copy.deepcopy(result)
+                sr.status = "paused"
+                await self.store.update_session(session_id, status="paused")
+                return result
+
+            result = await self.run_burst(
+                session_id,
+                proposed.get("actions") or [],
+                based_on_world_version=request.get("world_version"),
+                based_on_control_epoch=request.get("control_epoch"),
+                max_runtime_ms=(
+                    None
+                    if proposed.get("runtime_budget_source") == "auto"
+                    else int(proposed.get("max_runtime_ms", 4000))
+                ),
+                return_screenshot=bool(proposed.get("return_screenshot", True)),
+                idempotency_key=key or None,
+                _approved_digest=str(proposed.get("digest") or ""),
+            )
+            resolved_status = (
+                "approved" if result.get("status") == "completed" else "approved_not_executed"
+            )
+            await self.store.resolve_approval(approval_id, decision, resolved_status)
+            return result
         result = await self._graph.ainvoke(Command(resume=decision), self._graph_config(sr))
         status_word = "approved" if decision.get("type") == "approve" else decision.get("type", "resolved")
         try:
@@ -504,6 +1302,7 @@ class Runtime:
     async def _after_run(self, sr: SessionRuntime, result: dict[str, Any]) -> dict[str, Any]:
         base = {
             "session_id": sr.session_id, "task": sr.task,
+            "machine": sr.machine,
             "frame_id": result.get("frame_id"), "world_version": result.get("world_version"),
             "screenshot_path": result.get("frame_path"), "step": result.get("step", 0),
         }
@@ -587,6 +1386,7 @@ class Runtime:
         operator = {
             "provider": op.provider,
             "configured": op.provider == "fake" or op.api_key is not None,
+            "routing": op.routing.model_dump(),
         }
 
         ocr_provider = cfg.ocr.provider
@@ -598,7 +1398,7 @@ class Runtime:
             ocr_available = True
 
         deps: dict[str, Any] = {
-            "pikvm": {"base_url": cfg.pikvm.base_url, "reachable": pikvm_ok},
+            "pikvm": {"reachable": pikvm_ok},
             "omniparser": {
                 "enabled": cfg.omniparser.enabled,
                 "required": cfg.omniparser.required,
@@ -615,7 +1415,11 @@ class Runtime:
         deps["operator"]["needed_for"] = "autonomous mode only"
         deps["omniparser"]["needed_for"] = "on-demand perception / autonomous mode only"
         ready = pikvm_ok
-        result = {"ok": ready, "dependencies": deps}
+        result = {
+            "ok": ready,
+            "machine": self.machine_identity(),
+            "dependencies": deps,
+        }
         self._status_cache = (time.monotonic(), result)
         return result
 
