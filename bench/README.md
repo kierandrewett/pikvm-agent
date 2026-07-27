@@ -171,6 +171,17 @@ separate disclosures and stay closed for routine verified actions.
 The JSON files linked below are derived from those durable records; the UI is
 not a separate, less-auditable execution path.
 
+The managed composer also names its authenticated, configured machine before
+send. The identity is independent of selected-run observations, so starting a
+new task cannot replace it with a historical alias. `configured` stays visible
+at effective 200% reflow, while the accessible description states that
+reachability is checked only when computer work begins. The Computer sheet
+names both the MCP connection and machine with no active session, and computer
+receipts retain the full `pikvm_*` tool name. An isolated 458×270 Electron/CDP
+audit measured zero document/composer overflow and zero branch counters, with
+no screenshot, model, VNC, PiKVM, production daemon, or HID contact. See
+[`composer-connection-visibility.json`](results/2026-07-27/ui/composer-connection-visibility.json).
+
 Provider rows distinguish saved CLI login, API-key environment, bearer-token
 environment, and CLI bearer-token ownership. Command-backed routes name only
 the executable (`az` or `gcloud`), never the credential, token environment, or
@@ -314,10 +325,10 @@ the composer send remained disabled and no approval was submitted. No VNC,
 PiKVM, production daemon, or model API was contacted. See
 [`computer-action-timeline-visual-audit.json`](results/2026-07-27/ui/computer-action-timeline-visual-audit.json).
 
-The current production assistant-ui/shadcn workspace assets are **1,231,904
-bytes total** including local fonts: 1,227 bytes HTML, 1,075,510 bytes
-JavaScript, 109,255 bytes CSS, and 45,912 bytes of local fonts. Gzip-9 output
-summed per file is 333,122 bytes for JavaScript and 18,223 bytes for CSS.
+The current production assistant-ui/shadcn workspace assets are **1,235,197
+bytes total** including local fonts: 1,227 bytes HTML, 1,078,642 bytes
+JavaScript, 109,416 bytes CSS, and 45,912 bytes of local fonts. Gzip-9 output
+summed per file is 327,565 bytes for JavaScript and 18,121 bytes for CSS.
 Release regressions cap
 every asset at 1.1 MB, the total at 1.25 MB, the initial app gzip at 250 KiB,
 the initial static JavaScript imports at 300 KiB, and CSS gzip at 24 KiB. This
@@ -1124,7 +1135,7 @@ messaging integration.
 ## Current headline
 
 <!-- pikvm-scorecard:start -->
-_Generated from checked JSON evidence as of 2026-07-27. Manifest `sha256:852331631212`; run `pikvm-agent harness scorecard --check` to detect drift._
+_Generated from checked JSON evidence as of 2026-07-27. Manifest `sha256:7518c2cd1fe4`; run `pikvm-agent harness scorecard --check` to detect drift._
 
 | Suite | Route | Cases | Result | Median / p95 | Wall | Status | Evidence |
 | --- | --- | ---: | ---: | ---: | ---: | --- | --- |
@@ -1163,6 +1174,7 @@ _Generated from checked JSON evidence as of 2026-07-27. Manifest `sha256:8523316
 | Live provider conformance | Codex account-default + Claude Opus | 2 providers / 6 calls | 6/6 exact; 0 failures | Claude 15.69s / 16.46s; Codex 105.74s / 114.88s | 318.70s | Passing target-free n=3/provider; neither route is fast-controller eligible | [JSON](results/2026-07-27/providers/live-codex-claude-provider-conformance.json) · `sha256:ff1537c29a09` |
 | Live chat-first assistant | Claude OAuth → chat / web MCP / hand-off / approval | 5 live tasks | 5/5; 2 requested / 1 called; consequential executed 0 | Greeting 9.30s; question 5.44s; research 15.91s; hand-off 5.19s; approval 6.97s | 42.80s | Passing target-free; canary needs_approval; first activity 2ms | [JSON](results/2026-07-27/providers/live-claude-assistant-conformance-v2.json) · `sha256:f95b16a8c174` |
 | Live Claude chat workspace | Electron/CDP → Claude OAuth → visible web MCP | 4/4; 8 live provider calls; 2 visible web tools | First progress 136ms; max 1 progress / 0 branches; 0 computer events | Research 35.23s | Isolated Electron/CDP | Passing live OAuth chat UI; API-provider browser matrix pending | [JSON](results/2026-07-27/ui/live-claude-chat-workspace-cdp.json) · `sha256:147542dedce0` |
+| Composer connection visibility | Authenticated workspace config → composer and Computer sheet | 128 frontend + 1,214 Python / 1 skipped | Configured MCP/machine visible before send; 0 branch counters; 0px document / 0px composer overflow | 243,306-byte initial JS gzip-9; 18,121-byte CSS gzip-9 | Target-free Electron/CDP at effective 200% | Passing truthful configured-state UI; live reachability remains checked at task start | [JSON](results/2026-07-27/ui/composer-connection-visibility.json) · `sha256:6e22341b6c56` |
 | Live chat-only server | Claude OAuth → operator API with no computer adapter | 1 live server task | 1/1; exact reply yes; 1 model / 0 computer events | 7.69s process start + task | 7.69s | Passing chat-only server; target configured no; session created no | [JSON](results/2026-07-27/providers/live-claude-target-free-server-v1.json) · `sha256:7471b6ef215d` |
 | Live API assistant canary | Anthropic Messages API / `claude-sonnet-5` | 1 live canary | 0/1; 1 model / 0 requested / 0 tool calls; consequential 0 | 596ms | 596ms | Failing credential compatibility: authentication-failed; computer contacted no | [JSON](results/2026-07-27/providers/live-anthropic-api-assistant-approval-conformance-v2.json) · `sha256:5b93b49696a0` |
 | Live chat-first assistant | Codex OAuth → assistant → web MCP / computer hand-off | 4 live tasks | 4/4; 5 model / 1 tool calls; 3 tools / 1 server ready | Greeting 110.84s; question 97.57s; research 230.87s; hand-off 110.18s | 549.45s | Passing after strict-schema fix; too slow for default interactive route | [JSON](results/2026-07-27/providers/live-codex-assistant-conformance.json) · `sha256:3c6a8af4e33c` |

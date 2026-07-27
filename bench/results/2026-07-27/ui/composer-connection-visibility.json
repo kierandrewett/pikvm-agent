@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "suite": "composer-connection-visibility",
+  "recorded_at": "2026-07-27T21:12:00Z",
+  "source_commit": "50db43df04350527e9304978b4bcee58cb868084",
+  "environment": "local-target-free-electron-fixture",
+  "product_contract": {
+    "conversation_first": true,
+    "selected_model_visible_at_send": true,
+    "managed_computer_visible_at_send": true,
+    "configured_is_not_reported_as_reachable": true,
+    "research_tools_are_not_reported_as_computer_activity": true,
+    "full_mcp_tool_name_visible": true
+  },
+  "electron_cdp_audit": {
+    "surface": "isolated Electron over CDP",
+    "browser_profile": "temporary",
+    "viewport": {
+      "width": 458,
+      "height": 270,
+      "effective_scale": "200 percent"
+    },
+    "managed_computer_label": "Synthetic audit target",
+    "managed_computer_state": "configured",
+    "managed_computer_accessible_name": "Open managed computer. Synthetic audit target. Managed PiKVM MCP is configured. Target reachability is checked when computer work begins.",
+    "empty_task_computer_sheet": [
+      "Managed PiKVM MCP · no active session",
+      "Managed PiKVM MCP is configured",
+      "A live screen appears here when a task starts using the computer."
+    ],
+    "document_horizontal_overflow_pixels": 0,
+    "composer_horizontal_overflow_pixels": 0,
+    "branch_counters": 0,
+    "configured_state_display": "block",
+    "generic_tool_count_hidden_at_effective_200_percent": true,
+    "screenshots_captured": 0
+  },
+  "contracts": {
+    "focused_frontend": {
+      "passed": 47,
+      "total": 47
+    },
+    "frontend_full_suite": {
+      "passed": 128,
+      "total": 128
+    },
+    "packaged_ui_python": {
+      "passed": 8,
+      "total": 8
+    },
+    "python_full_suite": {
+      "passed": 1214,
+      "skipped": 1,
+      "failed": 0
+    },
+    "ocr_smoke_runtime_fallback": "passed",
+    "production_build": "passed",
+    "typescript_typecheck": "passed",
+    "diff_check": "passed"
+  },
+  "resource_envelope": {
+    "initial_javascript_bytes": 820600,
+    "initial_javascript_gzip_9_bytes": 243306,
+    "css_bytes": 109416,
+    "css_gzip_9_bytes": 18121,
+    "html_bytes": 1227,
+    "all_javascript_bytes": 1078642,
+    "all_javascript_gzip_9_bytes": 327565,
+    "total_ui_bytes": 1235197
+  },
+  "safety": {
+    "vnc_contact": false,
+    "pikvm_contact": false,
+    "production_daemon_contact": false,
+    "external_model_called": false,
+    "computer_session_created": false,
+    "hid_submitted": false,
+    "approval_submitted": false
+  },
+  "limitations": [
+    "This proves composer and drawer visibility in the target-free first-party UI, not computer reachability.",
+    "The configured computer label came from a synthetic fixture rather than a VNC or PiKVM endpoint.",
+    "The audit did not submit a chat prompt or create a computer session.",
+    "No screenshot was captured or retained."
+  ]
+}

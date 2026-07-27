@@ -600,6 +600,24 @@ rows:
     wall: "Isolated Electron/CDP"
     status: "Passing live OAuth chat UI; API-provider browser matrix pending"
 
+  - suite: "Composer connection visibility"
+    route: "Authenticated workspace config → composer and Computer sheet"
+    source: "results/2026-07-27/ui/composer-connection-visibility.json"
+    fields:
+      frontend: {path: "contracts.frontend_full_suite.passed", format: "integer"}
+      python: {path: "contracts.python_full_suite.passed", format: "integer"}
+      skipped: {path: "contracts.python_full_suite.skipped", format: "integer"}
+      branches: {path: "electron_cdp_audit.branch_counters", format: "integer"}
+      document_overflow: {path: "electron_cdp_audit.document_horizontal_overflow_pixels", format: "integer"}
+      composer_overflow: {path: "electron_cdp_audit.composer_horizontal_overflow_pixels", format: "integer"}
+      js_gzip: {path: "resource_envelope.initial_javascript_gzip_9_bytes", format: "integer"}
+      css_gzip: {path: "resource_envelope.css_gzip_9_bytes", format: "integer"}
+    cases: "{frontend} frontend + {python} Python / {skipped} skipped"
+    result: "Configured MCP/machine visible before send; {branches} branch counters; {document_overflow}px document / {composer_overflow}px composer overflow"
+    latency: "{js_gzip}-byte initial JS gzip-9; {css_gzip}-byte CSS gzip-9"
+    wall: "Target-free Electron/CDP at effective 200%"
+    status: "Passing truthful configured-state UI; live reachability remains checked at task start"
+
   - suite: "Live chat-only server"
     route: "Claude OAuth → operator API with no computer adapter"
     source: "results/2026-07-27/providers/live-claude-target-free-server-v1.json"

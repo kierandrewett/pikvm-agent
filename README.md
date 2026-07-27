@@ -268,6 +268,18 @@ at most one progress indicator, zero branch counters, and no computer session.
 See the checked
 [`live chat-workspace evidence`](bench/results/2026-07-27/ui/live-claude-chat-workspace-cdp.json).
 
+Before send, the composer now names the configured managed computer beside the
+selected model and keeps `configured` visibly present at effective 200%
+reflow. That identity comes from the authenticated workspace configuration,
+not a selected or historical run. It deliberately does not claim the machine
+is reachable: target reachability is checked only when computer work begins.
+Opening the control shows the managed MCP name and configured machine even
+when no computer session exists. Exact computer rows retain the full
+`pikvm_*` MCP tool name. The target-free Electron/CDP audit had zero branch
+counters and zero document or composer overflow and captured no screenshot.
+See the checked
+[`composer connection evidence`](bench/results/2026-07-27/ui/composer-connection-visibility.json).
+
 Normal assistant tools use the standard MCP Python SDK over persistent stdio or
 Streamable HTTP sessions. Tools are namespaced as `<server>.<tool>`, must be on
 an explicit local allow-list, and never inherit auto-execution authority from a
