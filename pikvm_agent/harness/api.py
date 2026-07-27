@@ -814,7 +814,11 @@ def create_harness_app(
         create_options: dict[str, Any] = {}
         if body.source_client:
             create_options["caller"] = {
-                "interface": "managed_mcp",
+                "interface": (
+                    "chat_workspace"
+                    if body.source_client == "chat-workspace"
+                    else "managed_mcp"
+                ),
                 "label": body.source_client,
             }
         if body.model_provider:

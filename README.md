@@ -238,6 +238,19 @@ labelled launcher-declared because MCP does not provide an independently
 verifiable model identity. “Prerequisites present” is deliberately not
 presented as proof of working authentication.
 
+The first-party workspace reduces contiguous SSE events directly instead of
+refetching the complete run after every update. Model work is visible as
+queued, provider selected, request sent, output received, validating, schema
+repair, or failover. A schema-valid controller action is durably checkpointed
+and rendered with its exact text, keys, or coordinates before dispatch; chat
+workspace runs reserve a 300 ms local preview window before HID. Consequential
+actions remain held for explicit approval rather than relying on that preview.
+See the checked
+[`live provider/action visibility evidence`](bench/results/2026-07-27/ui/live-provider-action-visibility.json);
+an isolated Electron/CDP replay sampled the changing fixture 30 times with one
+assistant message, at most one progress indicator, and no branch counters. It
+captured no screenshot and submitted no task through the real desktop app.
+
 Normal assistant tools use the standard MCP Python SDK over persistent stdio or
 Streamable HTTP sessions. Tools are namespaced as `<server>.<tool>`, must be on
 an explicit local allow-list, and never inherit auto-execution authority from a

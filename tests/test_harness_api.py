@@ -309,6 +309,10 @@ async def test_chat_workspace_creates_assistant_run_without_opening_computer(
     assert created.status_code == 200
     assert created.json()["mode"] == "assistant"
     assert created.json()["session_id"] is None
+    assert created.json()["caller"] == {
+        "interface": "chat_workspace",
+        "label": "chat-workspace",
+    }
     assert assistant.calls == [("create", "hi")]
     assert tools.json()[0]["name"] == "web.search_text"
     assert tool_servers.json() == {

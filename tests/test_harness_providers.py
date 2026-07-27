@@ -270,10 +270,13 @@ async def test_model_pool_downgrades_text_plus_commit_to_a_visible_safe_draft() 
     ]
     assert [kind for kind, _data in events] == [
         "provider_started",
+        "provider_request_sent",
+        "provider_output_received",
+        "provider_validating",
         "provider_schema_safety_downgrade",
         "provider_completed",
     ]
-    assert events[1][1] == {
+    assert events[4][1] == {
         "provider": provider.name,
         "route_index": 0,
         "attempt": 1,
@@ -329,20 +332,31 @@ async def test_model_pool_streams_each_attempt_repair_and_fallback() -> None:
 
     assert [kind for kind, _data in events] == [
         "provider_started",
+        "provider_request_sent",
+        "provider_output_received",
+        "provider_validating",
         "provider_schema_repair",
         "provider_started",
+        "provider_request_sent",
+        "provider_output_received",
+        "provider_validating",
         "provider_failed",
+        "provider_failover",
         "provider_started",
+        "provider_request_sent",
+        "provider_output_received",
+        "provider_validating",
         "provider_completed",
     ]
     assert events[0][1] == {
         "provider": "invalid",
+        "model": "",
         "route_index": 0,
         "attempt": 1,
         "repair": False,
     }
-    assert events[4][1]["provider"] == "valid"
-    assert events[4][1]["route_index"] == 1
+    assert events[11][1]["provider"] == "valid"
+    assert events[11][1]["route_index"] == 1
 
 
 @pytest.mark.asyncio

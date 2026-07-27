@@ -1142,11 +1142,50 @@ async def test_model_phase_is_durable_while_provider_is_still_running() -> None:
 
     assert summary.active_activity is not None
     assert summary.active_activity.kind == "model"
+    assert summary.active_activity.phase == "request_sent"
     assert summary.active_activity.role == "reasoner"
     assert summary.active_activity.provider == provider.name
 
     release.set()
     await asyncio.wait_for(continuation, timeout=1)
+
+
+@pytest.mark.asyncio
+async def test_chat_workspace_previews_exact_checkpoint_before_hid(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    provider = ScriptedProvider()
+    computer = FakeComputer()
+    harness = build_harness(provider, computer)
+    harness.config = HarnessConfig(
+        max_actions_per_advance=1,
+        interactive_action_preview_ms=300,
+    )
+    delays: list[float] = []
+
+    async def record_delay(seconds: float) -> None:
+        assert computer.bursts == []
+        delays.append(seconds)
+
+    monkeypatch.setattr(
+        "pikvm_agent.harness.agent.asyncio.sleep",
+        record_delay,
+    )
+    created = await harness.create(
+        "Type hello world in the open editor.",
+        caller={"interface": "chat_workspace", "label": "chat-workspace"},
+    )
+    result = await harness.continue_run(created.run_id)
+
+    assert delays == [0.3]
+    kinds = [event.kind for event in result.events]
+    assert kinds.index("action.checkpointed") < kinds.index(
+        "action.preview_window_opened"
+    )
+    assert kinds.index("action.preview_window_opened") < kinds.index(
+        "action.attempted"
+    )
+    assert computer.bursts
 
 
 @pytest.mark.asyncio

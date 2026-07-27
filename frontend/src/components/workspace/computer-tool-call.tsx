@@ -65,6 +65,7 @@ const number = (value: unknown) =>
   typeof value === "number" && Number.isFinite(value) ? value : undefined;
 
 type ReceiptContext = {
+  phase: "checkpointed" | "attempted" | "";
   intent: string;
   expectedEvidence: string[];
   attempt?: number;
@@ -186,6 +187,10 @@ const callerReceipt = (value: unknown): CallerReceipt | undefined => {
 const receiptContext = (args: JsonRecord): ReceiptContext => {
   const receipt = record(args.__receipt);
   return {
+    phase:
+      receipt.phase === "checkpointed" || receipt.phase === "attempted"
+        ? receipt.phase
+        : "",
     intent: text(receipt.intent),
     expectedEvidence: Array.isArray(receipt.expected_evidence)
       ? receipt.expected_evidence.map(String)
@@ -1230,11 +1235,20 @@ const ComputerToolCallImpl: ToolCallMessagePartComponent<
   const elapsed = useToolCallElapsed();
   const callArgs = record(args);
   const receipt = receiptContext(callArgs);
+  const checkpointed = receipt.phase === "checkpointed";
+  const sendingInput = running && !checkpointed;
   const summary = useMemo(
     () => summarize(toolName, callArgs),
     [args, toolName],
   );
-  const state = statusMeta(status, result);
+  const state = checkpointed
+    ? {
+        label: "Ready to send",
+        Icon: EyeIcon,
+        variant: "info" as ReceiptBadgeVariant,
+        iconClass: "bg-info-soft text-info-foreground",
+      }
+    : statusMeta(status, result);
   const StateIcon = state.Icon;
   const primaryAction = summary.actions[0] ?? {};
   const primaryKind = actionName(primaryAction);
@@ -1246,7 +1260,9 @@ const ComputerToolCallImpl: ToolCallMessagePartComponent<
     (total, action) => total + text(action.text).length,
     0,
   );
-  const visibleDuration = receipt.latencyMs ?? elapsed;
+  const visibleDuration = checkpointed
+    ? undefined
+    : receipt.latencyMs ?? elapsed;
   const resultValue = record(result);
   const beforeFrame =
     number(callArgs.based_on_frame_id) ?? receipt.evidenceBeforeFrame;
@@ -1269,7 +1285,8 @@ const ComputerToolCallImpl: ToolCallMessagePartComponent<
         ? "Double-click target"
         : "Click target"
       : summary.title;
-  const showPrimaryInput = needsApproval || failed || needsReview;
+  const showPrimaryInput =
+    checkpointed || needsApproval || failed || needsReview;
   const hasInputDisclosure =
     !showPrimaryInput &&
     (summary.actions.length > 1 ||
@@ -1280,13 +1297,13 @@ const ComputerToolCallImpl: ToolCallMessagePartComponent<
 
   useEffect(() => {
     const inputJustFinished = wasRunning.current && !running;
-    if (needsApproval || running || failed || needsReview) {
+    if (checkpointed || needsApproval || running || failed || needsReview) {
       setOpen(true);
     } else if (inputJustFinished) {
       setOpen(false);
     }
     wasRunning.current = running;
-  }, [failed, needsApproval, needsReview, running]);
+  }, [checkpointed, failed, needsApproval, needsReview, running]);
 
   return (
     <Collapsible
@@ -1295,13 +1312,15 @@ const ComputerToolCallImpl: ToolCallMessagePartComponent<
       data-computer-state={
         needsApproval
           ? "approval"
-          : needsReview
-            ? "review"
-            : failed
-              ? "failed"
-              : running
-                ? "running"
-                : "complete"
+          : checkpointed
+            ? "checkpointed"
+            : needsReview
+              ? "review"
+              : failed
+                ? "failed"
+                : running
+                  ? "running"
+                  : "complete"
       }
       className={cn(
         "computer-action-step group/computer-tool relative",
@@ -1316,7 +1335,7 @@ const ComputerToolCallImpl: ToolCallMessagePartComponent<
                 ? "text-caution-foreground"
                 : failed
                   ? "text-destructive"
-                  : running
+                : sendingInput
                     ? "text-info-foreground"
                     : state.variant === "evidence"
                       ? "text-evidence-foreground"
@@ -1354,7 +1373,7 @@ const ComputerToolCallImpl: ToolCallMessagePartComponent<
           <StateIcon
             className={cn(
               "size-3.5",
-              running && "animate-spin motion-reduce:animate-none",
+              sendingInput && "animate-spin motion-reduce:animate-none",
             )}
             aria-hidden="true"
           />

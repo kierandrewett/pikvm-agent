@@ -160,8 +160,71 @@ def test_model_activity_is_visible_before_provider_startup() -> None:
 
     assert run.active_activity is not None
     assert run.active_activity.kind == "model"
+    assert run.active_activity.phase == "queued"
     assert run.active_activity.role == "reasoner"
     assert run.active_activity.provider is None
+
+
+def test_model_activity_tracks_provider_lifecycle_without_exposing_output() -> None:
+    run = RunSnapshot(
+        run_id="model-lifecycle",
+        task="Show each provider boundary",
+        status=RunStatus.PLANNING,
+    )
+    run.record(
+        "model.provider_started",
+        role="controller",
+        provider="fast-controller",
+        model="flash",
+        attempt=1,
+    )
+    started_at = run.active_activity.started_at if run.active_activity else None
+
+    run.record(
+        "model.provider_request_sent",
+        role="controller",
+        provider="fast-controller",
+        model="flash",
+        attempt=1,
+    )
+    assert run.active_activity is not None
+    assert run.active_activity.phase == "request_sent"
+    assert run.active_activity.started_at == started_at
+
+    run.record(
+        "model.provider_output_received",
+        role="controller",
+        provider="fast-controller",
+        model="flash",
+        attempt=1,
+        response={"must": "not be retained"},
+    )
+    assert run.active_activity is not None
+    assert run.active_activity.phase == "output_received"
+    assert "response" not in run.active_activity.model_dump()
+
+    run.record(
+        "model.provider_validating",
+        role="controller",
+        provider="fast-controller",
+        model="flash",
+        attempt=1,
+    )
+    assert run.active_activity is not None
+    assert run.active_activity.phase == "validating"
+
+    run.record(
+        "model.provider_failover",
+        role="controller",
+        from_provider="fast-controller",
+        to_provider="strong-controller",
+        provider="strong-controller",
+        attempt=1,
+    )
+    assert run.active_activity is not None
+    assert run.active_activity.phase == "failover"
+    assert run.active_activity.provider == "strong-controller"
+    assert run.active_activity.model is None
 
 
 @pytest.mark.parametrize(

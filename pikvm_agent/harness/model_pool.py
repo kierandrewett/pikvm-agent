@@ -471,6 +471,15 @@ class ModelPool:
                     await emit(
                         "provider_started",
                         provider=name,
+                        model=health.configured_model or "",
+                        route_index=route_index,
+                        attempt=attempt + 1,
+                        repair=bool(attempt),
+                    )
+                    await emit(
+                        "provider_request_sent",
+                        provider=name,
+                        model=health.configured_model or "",
                         route_index=route_index,
                         attempt=attempt + 1,
                         repair=bool(attempt),
@@ -503,6 +512,23 @@ class ModelPool:
                                 reason="settlement",
                             )
                             raise
+                    await emit(
+                        "provider_output_received",
+                        provider=name,
+                        model=response.model,
+                        route_index=route_index,
+                        attempt=attempt + 1,
+                        repair=bool(attempt),
+                        latency_ms=response.latency_ms,
+                    )
+                    await emit(
+                        "provider_validating",
+                        provider=name,
+                        model=response.model,
+                        route_index=route_index,
+                        attempt=attempt + 1,
+                        repair=bool(attempt),
+                    )
                     try:
                         output = output_type.model_validate(response.data)
                         break
@@ -598,6 +624,21 @@ class ModelPool:
                     error=failure_class,
                     cooldown_until=health.cooldown_until or "",
                 )
+                next_provider = (
+                    provider_names[route_index + 1]
+                    if route_index + 1 < len(provider_names)
+                    else None
+                )
+                if next_provider is not None:
+                    await emit(
+                        "provider_failover",
+                        provider=next_provider,
+                        from_provider=name,
+                        to_provider=next_provider,
+                        route_index=route_index + 1,
+                        attempt=1,
+                        reason=failure_class,
+                    )
         raise ModelPoolError(
             f"all providers unavailable for {request.role}: "
             + " | ".join(errors)

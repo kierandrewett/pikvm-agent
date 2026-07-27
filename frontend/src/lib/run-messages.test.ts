@@ -62,6 +62,107 @@ const run = (overrides: Partial<RunSnapshot> = {}): RunSnapshot => ({
 });
 
 describe("messagesForRun", () => {
+  it("shows the exact checkpointed input before HID dispatch starts", () => {
+    const assistant = messagesForRun(
+      run({
+        event_count: 1,
+        event_cursor: 1,
+        events: [
+          {
+            sequence: 1,
+            at: "2026-07-27T12:00:00Z",
+            kind: "action.checkpointed",
+            data: {
+              index: 0,
+              idempotency_key: "run-1:action:0:exact",
+              intent: "Type the requested words exactly.",
+              actions: [
+                {
+                  type: "type_text",
+                  text: "exactly one space",
+                },
+              ],
+              expected_evidence: [
+                "The target field contains exactly one space.",
+              ],
+            },
+          },
+        ],
+      }),
+    ).at(-1);
+    const tool = Array.isArray(assistant?.content)
+      ? assistant.content.find((part) => part.type === "tool-call")
+      : undefined;
+
+    expect(tool).toMatchObject({
+      toolName: "pikvm_run_burst",
+      args: {
+        actions: [
+          {
+            type: "type_text",
+            text: "exactly one space",
+          },
+        ],
+        __receipt: {
+          phase: "checkpointed",
+          intent: "Type the requested words exactly.",
+        },
+      },
+      result: undefined,
+    });
+  });
+
+  it("keeps the tool identity when a checkpointed action starts dispatching", () => {
+    const checkpoint = {
+      sequence: 1,
+      at: "2026-07-27T12:00:00Z",
+      kind: "action.checkpointed",
+      data: {
+        index: 0,
+        idempotency_key: "run-1:action:0:exact",
+        intent: "Type the requested words exactly.",
+        actions: [{ type: "type_text", text: "exactly one space" }],
+        expected_evidence: ["The target field contains exactly one space."],
+      },
+    };
+    const before = run({
+      event_count: 1,
+      event_cursor: 1,
+      events: [checkpoint],
+    });
+    const after = run({
+      event_count: 2,
+      event_cursor: 2,
+      events: [
+        checkpoint,
+        {
+          sequence: 2,
+          at: "2026-07-27T12:00:01Z",
+          kind: "action.attempted",
+          data: {
+            index: 0,
+            attempt: 1,
+            idempotency_key: "run-1:action:0:exact",
+            call_id: "run-1:action:0:exact:attempt:1",
+            tool: "pikvm_run_burst",
+            arguments: {
+              actions: [{ type: "type_text", text: "exactly one space" }],
+            },
+          },
+        },
+      ],
+    });
+    const toolCallId = (snapshot: RunSnapshot) => {
+      const assistant = messagesForRun(snapshot).at(-1);
+      return Array.isArray(assistant?.content)
+        ? assistant.content.find((part) => part.type === "tool-call")
+            ?.toolCallId
+        : undefined;
+    };
+
+    expect(toolCallId(after)).toBe(toolCallId(before));
+  });
+
   it("renders durable assistant conversation turns instead of treating chat as one computer task", () => {
     const messages = messagesForRun(
       run({
@@ -317,6 +418,94 @@ describe("messagesForRun", () => {
     expect(messagesForRun(after).at(-1)?.id).toBe(
       messagesForRun(before).at(-1)?.id,
     );
+  });
+
+  it("keeps the reply identity when an in-progress assistant turn becomes durable", () => {
+    const user = {
+      message_id: "user-turn-1",
+      role: "user" as const,
+      content: "what is on the screen",
+      created_at: "2026-07-27T12:00:00Z",
+      event_cursor: 0,
+    };
+    const before = run({
+      task: user.content,
+      mode: "assistant",
+      status: "running",
+      conversation: [user],
+      events: [],
+      event_count: 1,
+      event_cursor: 1,
+    });
+    const after = run({
+      ...before,
+      status: "completed",
+      conversation: [
+        user,
+        {
+          message_id: "server-generated-assistant-id",
+          role: "assistant",
+          content: "Here is what I can see.",
+          created_at: "2026-07-27T12:00:01Z",
+          event_cursor: 2,
+        },
+      ],
+      event_count: 3,
+      event_cursor: 3,
+    });
+
+    expect(messagesForRun(after).at(-1)?.id).toBe(
+      messagesForRun(before).at(-1)?.id,
+    );
+  });
+
+  it("keeps the hand-off reply identity when computer progress is appended", () => {
+    const user = {
+      message_id: "user-turn-1",
+      role: "user" as const,
+      content: "what is on the screen",
+      created_at: "2026-07-27T12:00:00Z",
+      event_cursor: 0,
+    };
+    const before = run({
+      task: user.content,
+      mode: "assistant",
+      status: "running",
+      conversation: [user],
+      events: [],
+      event_count: 1,
+      event_cursor: 1,
+    });
+    const after = run({
+      ...before,
+      mode: "computer",
+      status: "planning",
+      conversation: [
+        user,
+        {
+          message_id: "server-generated-handoff-id",
+          role: "assistant",
+          content: "Let me take a look at the screen.",
+          created_at: "2026-07-27T12:00:01Z",
+          event_cursor: 2,
+        },
+      ],
+      events: [
+        {
+          sequence: 2,
+          at: "2026-07-27T12:00:01Z",
+          kind: "assistant.computer_handoff",
+          data: { task: "Inspect the connected screen." },
+        },
+      ],
+      event_count: 2,
+      event_cursor: 2,
+    });
+
+    const beforeReply = messagesForRun(before).at(-1);
+    const afterMessages = messagesForRun(after);
+    expect(afterMessages.at(-2)?.id).toBe(beforeReply?.id);
+    expect(afterMessages.at(-1)?.id).not.toBe(beforeReply?.id);
   });
 
   it("shows a paused assistant turn as incomplete instead of a blank success", () => {

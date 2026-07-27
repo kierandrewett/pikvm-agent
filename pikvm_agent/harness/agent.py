@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import re
@@ -763,8 +764,24 @@ class AgentHarness:
                 actions=self._visible_actions(actions),
                 expected_evidence=controller.expected_evidence,
             )
-            # Critical ordering: the durable pending action exists before HID.
+            preview_ms = (
+                self.config.interactive_action_preview_ms
+                if run.caller.get("interface") == "chat_workspace"
+                else 0
+            )
+            if preview_ms:
+                run.record(
+                    "action.preview_window_opened",
+                    index=run.pending_action.index,
+                    idempotency_key=run.pending_action.idempotency_key,
+                    duration_ms=preview_ms,
+                )
+            # Critical ordering: the durable pending action and first-party UI
+            # preview exist before HID. Headless clients keep benchmark speed;
+            # the chat workspace gets one bounded local render window.
             await self.store.save(run)
+            if preview_ms:
+                await asyncio.sleep(preview_ms / 1_000)
 
         run.status = RunStatus.PAUSED
         run.record("run.paused", reason="per-call action budget reached")

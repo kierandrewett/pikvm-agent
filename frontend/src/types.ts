@@ -104,6 +104,15 @@ export type RunSnapshot = RunSummary & {
   active_activity?: {
     kind: "model" | "tool";
     started_at: string;
+    phase?:
+      | "queued"
+      | "provider_selected"
+      | "request_sent"
+      | "output_received"
+      | "validating"
+      | "schema_repair"
+      | "failover"
+      | null;
     role?: string | null;
     provider?: string | null;
     model?: string | null;

@@ -22,6 +22,15 @@ from pydantic import (
 
 ModelRole = Literal["reasoner", "controller", "verifier"]
 RunMode = Literal["assistant", "computer"]
+ModelActivityPhase = Literal[
+    "queued",
+    "provider_selected",
+    "request_sent",
+    "output_received",
+    "validating",
+    "schema_repair",
+    "failover",
+]
 ProviderAlias = Annotated[
     str,
     Field(pattern=r"^[A-Za-z0-9_.:-]{1,128}$"),
@@ -170,6 +179,11 @@ class HarnessConfig(BaseModel):
     max_total_actions: int = Field(default=100, ge=1)
     max_ungrounded_navigation_replans: int = Field(default=3, ge=1, le=16)
     max_provider_attempts_per_run: int = Field(default=500, ge=1, le=100_000)
+    interactive_action_preview_ms: int = Field(
+        default=300,
+        ge=0,
+        le=2_000,
+    )
 
 
 class RunModelBudgetState(BaseModel):
@@ -509,6 +523,7 @@ class CurrentActivity(BaseModel):
 
     kind: Literal["model", "tool"]
     started_at: datetime = Field(default_factory=utc_now)
+    phase: ModelActivityPhase | None = None
     role: str | None = None
     provider: str | None = None
     model: str | None = None
@@ -620,16 +635,73 @@ class RunSnapshot(BaseModel):
             self.active_activity = CurrentActivity(
                 kind="model",
                 started_at=event.at,
+                phase="queued",
                 role=str(data.get("role") or "") or None,
             )
         elif kind == "model.provider_started":
             self.active_activity = CurrentActivity(
                 kind="model",
                 started_at=event.at,
+                phase="provider_selected",
                 role=str(data.get("role") or "") or None,
                 provider=str(data.get("provider") or "") or None,
                 model=str(data.get("model") or "") or None,
                 attempt=self._optional_int(data.get("attempt")),
+            )
+        elif kind in {
+            "model.provider_request_sent",
+            "model.provider_output_received",
+            "model.provider_validating",
+            "model.provider_schema_repair",
+            "model.provider_failover",
+        }:
+            phase_by_kind: dict[str, ModelActivityPhase] = {
+                "model.provider_request_sent": "request_sent",
+                "model.provider_output_received": "output_received",
+                "model.provider_validating": "validating",
+                "model.provider_schema_repair": "schema_repair",
+                "model.provider_failover": "failover",
+            }
+            previous = self.active_activity
+            previous_model = (
+                previous
+                if previous is not None and previous.kind == "model"
+                else None
+            )
+            event_attempt = self._optional_int(data.get("attempt"))
+            self.active_activity = CurrentActivity(
+                kind="model",
+                started_at=(
+                    previous_model.started_at
+                    if previous_model is not None
+                    else event.at
+                ),
+                phase=phase_by_kind[kind],
+                role=(
+                    str(data.get("role") or "")
+                    or (previous_model.role if previous_model else None)
+                ),
+                provider=(
+                    str(
+                        data.get("provider")
+                        or data.get("to_provider")
+                        or ""
+                    )
+                    or (previous_model.provider if previous_model else None)
+                ),
+                model=(
+                    str(data.get("model") or "")
+                    or (
+                        previous_model.model
+                        if previous_model and kind != "model.provider_failover"
+                        else None
+                    )
+                ),
+                attempt=(
+                    event_attempt
+                    if event_attempt is not None
+                    else (previous_model.attempt if previous_model else None)
+                ),
             )
         elif kind == "action.attempted":
             self.active_activity = CurrentActivity(

@@ -11,7 +11,7 @@ import {
 afterEach(cleanup);
 
 describe("RunActivity", () => {
-  it("presents the current stage without leaking a timer or provider label", () => {
+  it("presents the current stage and active model without a noisy timer", () => {
     render(
       <RunActivity
         working
@@ -27,7 +27,7 @@ describe("RunActivity", () => {
 
     const status = screen.getByRole("status");
     expect(status).toHaveTextContent("Choosing the next action");
-    expect(status).not.toHaveTextContent("opus");
+    expect(status).toHaveTextContent("opus");
     expect(status).not.toHaveTextContent("claude-account");
     expect(status).not.toHaveTextContent(/\d+s/);
     expect(status).toHaveAttribute(
@@ -47,7 +47,42 @@ describe("RunActivity", () => {
     ).toMatchObject({
       label: "Checking the result",
       model: "",
+      route: "claude-account",
     });
+  });
+
+  it("shows schema validation and failover as distinct live phases", () => {
+    const { rerender } = render(
+      <RunActivity
+        working
+        activity={{
+          kind: "model",
+          started_at: "2026-07-27T12:00:00Z",
+          phase: "validating",
+          role: "controller",
+          provider: "fast-provider",
+          model: "flash",
+        }}
+      />,
+    );
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Checking the model response",
+    );
+    rerender(
+      <RunActivity
+        working
+        activity={{
+          kind: "model",
+          started_at: "2026-07-27T12:00:00Z",
+          phase: "failover",
+          role: "controller",
+          provider: "strong-provider",
+        }}
+      />,
+    );
+    expect(screen.getByRole("status")).toHaveTextContent("Switching models");
+    expect(screen.getByRole("status")).toHaveTextContent("strong-provider");
   });
 
   it("does not duplicate a running tool call", () => {

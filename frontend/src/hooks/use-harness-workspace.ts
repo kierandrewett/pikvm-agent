@@ -11,6 +11,13 @@ import {
   readStoredToken,
   storeToken,
 } from "@/lib/harness-api";
+import {
+  eventNeedsSnapshotReconciliation,
+  isHarnessEvent,
+  preferNewestRunRevision,
+  reduceRunEvent,
+  reduceRunState,
+} from "@/lib/live-run-reducer";
 import type {
   AssistantTool,
   AssistantToolServerMap,
@@ -37,7 +44,6 @@ const ACTIVE_OR_PAUSED = new Set<RunStatus>([
   "needs_approval",
 ]);
 
-const STREAM_REFRESH_DEBOUNCE_MS = 75;
 const STREAM_RETRY_BASE_MS = 500;
 const STREAM_RETRY_MAX_MS = 5_000;
 const LIVE_RECONCILE_MS = 15_000;
@@ -118,6 +124,23 @@ const messageText = (message: AppendMessage) => {
   return text;
 };
 
+const summaryForRun = (run: RunSnapshot): RunSummary => ({
+  run_id: run.run_id,
+  task: run.task,
+  status: run.status,
+  mode: run.mode,
+  origin: run.origin,
+  model_provider: run.model_provider,
+  model_route: run.model_route,
+  caller: run.caller,
+  session_id: run.session_id,
+  created_at: run.created_at,
+  updated_at: run.updated_at,
+  event_count: run.event_count,
+  event_cursor: run.event_cursor,
+  error: run.error,
+});
+
 export function useHarnessWorkspace() {
   const [token, setToken] = useState("");
   const [connected, setConnected] = useState(false);
@@ -154,28 +177,13 @@ export function useHarnessWorkspace() {
       `/api/runs/${encodeURIComponent(runId)}`,
     );
     if (mounted.current) {
-      setSelectedRun(run);
+      setSelectedRun((current) => preferNewestRunRevision(current, run));
       setRuns((current) => {
         const index = current.findIndex((item) => item.run_id === run.run_id);
-        const summary: RunSummary = {
-          run_id: run.run_id,
-          task: run.task,
-          status: run.status,
-          mode: run.mode,
-          origin: run.origin,
-          model_provider: run.model_provider,
-          model_route: run.model_route,
-          caller: run.caller,
-          session_id: run.session_id,
-          created_at: run.created_at,
-          updated_at: run.updated_at,
-          event_count: run.event_count,
-          event_cursor: run.event_cursor,
-          error: run.error,
-        };
+        const summary = summaryForRun(run);
         if (index < 0) return [summary, ...current];
         const next = [...current];
-        next[index] = summary;
+        next[index] = preferNewestRunRevision(next[index], summary);
         return next;
       });
     }
@@ -203,7 +211,14 @@ export function useHarnessWorkspace() {
         ],
       );
       if (!mounted.current) return;
-      setRuns(nextRuns);
+      setRuns((current) =>
+        nextRuns.map((run) =>
+          preferNewestRunRevision(
+            current.find((candidate) => candidate.run_id === run.run_id),
+            run,
+          ),
+        ),
+      );
       setProviders(nextProviders);
       setProviderCatalog(nextCatalog);
       setTools(nextTools);
@@ -306,21 +321,46 @@ export function useHarnessWorkspace() {
 
     let active = true;
     let cursor = selectedRun?.event_cursor ?? 0;
+    let liveRun = selectedRun;
     let failures = 0;
-    let refreshTimer: number | undefined;
+    let reconciliation: Promise<RunSnapshot | null> | null = null;
     const streamController = new AbortController();
     const delayController = new AbortController();
 
-    const scheduleSnapshotRefresh = () => {
-      if (refreshTimer != null) return;
-      refreshTimer = window.setTimeout(() => {
-        refreshTimer = undefined;
-        void loadRun(token, selectedId).catch((cause) => {
+    const publishLiveRun = (run: RunSnapshot) => {
+      liveRun = run;
+      cursor = run.event_cursor;
+      setSelectedRun(run);
+      setRuns((current) => {
+        const summary = summaryForRun(run);
+        const index = current.findIndex((item) => item.run_id === run.run_id);
+        if (index < 0) return [summary, ...current];
+        const next = [...current];
+        next[index] = summary;
+        return next;
+      });
+    };
+
+    const reconcileSnapshot = () => {
+      if (reconciliation) return reconciliation;
+      reconciliation = loadRun(token, selectedId)
+        .then((run) => {
+          if (active && run) {
+            liveRun = preferNewestRunRevision(liveRun, run);
+            cursor = liveRun.event_cursor;
+          }
+          return run;
+        })
+        .catch((cause) => {
           if (active && mounted.current && cause instanceof Error) {
             setError(cause.message);
           }
+          return null;
+        })
+        .finally(() => {
+          reconciliation = null;
         });
-      }, STREAM_REFRESH_DEBOUNCE_MS);
+      return reconciliation;
     };
 
     const waitForRetry = (delay: number) =>
@@ -356,28 +396,28 @@ export function useHarnessWorkspace() {
               signal: streamController.signal,
               onMessage: (message) => {
                 if (!active || !mounted.current) return;
-                const nextCursor = Number(message.id);
-                if (Number.isSafeInteger(nextCursor) && nextCursor > cursor) {
-                  cursor = nextCursor;
-                } else if (
-                  message.data &&
-                  typeof message.data === "object" &&
-                  "cursor" in message.data
-                ) {
-                  const announced = Number(message.data.cursor);
-                  if (Number.isSafeInteger(announced) && announced > cursor) {
-                    cursor = announced;
+                if (message.event === "run.event") {
+                  if (!liveRun || !isHarnessEvent(message.data)) {
+                    void reconcileSnapshot();
+                    return;
                   }
+                  const reduction = reduceRunEvent(liveRun, message.data);
+                  if (reduction.gap) {
+                    void reconcileSnapshot();
+                    return;
+                  }
+                  if (reduction.changed) {
+                    publishLiveRun(reduction.run);
+                    if (eventNeedsSnapshotReconciliation(message.data)) {
+                      void reconcileSnapshot();
+                    }
+                  }
+                } else if (message.event === "run.state" && liveRun) {
+                  publishLiveRun(reduceRunState(liveRun, message.data));
                 }
                 failures = 0;
                 setLiveUpdateStatus("live");
                 setLastLiveEventAt(new Date().toISOString());
-                if (
-                  message.event === "run.event" ||
-                  message.event === "run.state"
-                ) {
-                  scheduleSnapshotRefresh();
-                }
               },
             },
           );
@@ -394,6 +434,7 @@ export function useHarnessWorkspace() {
             STREAM_RETRY_BASE_MS * 2 ** Math.min(failures - 1, 4),
           );
           await waitForRetry(delay);
+          if (active) await reconcileSnapshot();
         }
       }
     };
@@ -403,7 +444,6 @@ export function useHarnessWorkspace() {
       active = false;
       streamController.abort();
       delayController.abort();
-      if (refreshTimer != null) window.clearTimeout(refreshTimer);
     };
   }, [connected, loadRun, selectedId, streamRunId, token]);
 

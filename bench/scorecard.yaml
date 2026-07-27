@@ -142,6 +142,26 @@ rows:
     wall: "Target-free browser audit"
     status: "Passing visible ownership contract; live computer task pending"
 
+  - suite: "Live provider and pre-HID action visibility"
+    route: "SSE lifecycle → exact checkpoint → guarded HID"
+    source: "results/2026-07-27/ui/live-provider-action-visibility.json"
+    fields:
+      frontend: {path: "contracts.frontend_full_suite.passed", format: "integer"}
+      python: {path: "contracts.python_full_suite.passed", format: "integer"}
+      skipped: {path: "contracts.python_full_suite.skipped", format: "integer"}
+      phases: {path: "provider_lifecycle.durable_phases", format: "count"}
+      preview: {path: "action_visibility.chat_workspace_preview_ms", format: "milliseconds", digits: 0}
+      streamed: {path: "stream_contract.streamed_events_in_hook_acceptance", format: "integer"}
+      refetches: {path: "stream_contract.per_event_detail_snapshot_reads", format: "integer"}
+      samples: {path: "browser_audit.live_samples", format: "integer"}
+      progress: {path: "browser_audit.maximum_simultaneous_progress_indicators", format: "integer"}
+      gzip_js: {path: "resource_envelope.javascript_gzip_bytes", format: "integer"}
+    cases: "{frontend} frontend + {python} full Python / {skipped} skipped; {phases} provider phases"
+    result: "{streamed} streamed events / {refetches} per-event refetches; exact action held {preview} before HID; {samples} browser samples / {progress} simultaneous progress"
+    latency: "{gzip_js}-byte gzip JavaScript"
+    wall: "Target-free event/build/Electron contract"
+    status: "Passing isolated Electron/CDP contract; live computer pending"
+
   - suite: "Managed client launch"
     route: "Codex + Claude + Gemini + OpenCode"
     source: "results/2026-07-25/safety/managed-client-launch-2026-07-26.json"

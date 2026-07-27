@@ -73,7 +73,8 @@ const checkpointForAttempt = (
     .reverse()
     .find(
       (event) =>
-        event.sequence < attempt.sequence &&
+        (event.sequence < attempt.sequence ||
+          attempt.data.checkpoint_only === true) &&
         event.kind === "action.checkpointed" &&
         (idempotencyKey
           ? safeString(event.data.idempotency_key) === idempotencyKey
@@ -351,9 +352,36 @@ const completionMarkdown = (run: RunSnapshot) => {
 };
 
 const toolParts = (run: RunSnapshot) => {
-  const attempts = run.events
-    .filter((event) => event.kind === "action.attempted")
-    .slice(-12);
+  const attempts = run.events.filter(
+    (event) => event.kind === "action.attempted",
+  );
+  const attemptedKeys = new Set(
+    attempts.map((event) => safeString(event.data.idempotency_key)),
+  );
+  for (const checkpoint of run.events.filter(
+    (event) => event.kind === "action.checkpointed",
+  )) {
+    const idempotencyKey = safeString(checkpoint.data.idempotency_key);
+    if (!idempotencyKey || attemptedKeys.has(idempotencyKey)) continue;
+    attempts.push({
+      sequence: checkpoint.sequence,
+      at: checkpoint.at,
+      kind: "action.attempted",
+      data: {
+        index: checkpoint.data.index,
+        attempt: 1,
+        idempotency_key: idempotencyKey,
+        call_id: `${idempotencyKey}:attempt:1`,
+        tool: "pikvm_run_burst",
+        checkpoint_only: true,
+        arguments: {
+          actions: checkpoint.data.actions,
+          idempotency_key: idempotencyKey,
+        },
+      },
+    });
+  }
+  attempts.sort((left, right) => left.sequence - right.sequence);
   const activeCallId = safeString(run.active_activity?.call_id);
   const activeAlreadyRepresented = activeCallId
     ? attempts.some((event) => safeString(event.data.call_id) === activeCallId)
@@ -371,6 +399,7 @@ const toolParts = (run: RunSnapshot) => {
       },
     });
   }
+  attempts.splice(0, Math.max(0, attempts.length - 12));
 
   return attempts.map((attempt, index) => {
     const checkpoint = checkpointForAttempt(attempt, run.events);
@@ -457,6 +486,10 @@ const toolParts = (run: RunSnapshot) => {
       ...exactArgs,
       ...(displayActions ? { actions: displayActions } : {}),
       __receipt: {
+        phase:
+          attempt.data.checkpoint_only === true
+            ? "checkpointed"
+            : "attempted",
         intent: safeString(checkpoint?.data.intent),
         expected_evidence: Array.isArray(checkpoint?.data.expected_evidence)
           ? checkpoint.data.expected_evidence.map(String)
@@ -630,6 +663,7 @@ export function messagesForRun(run: RunSnapshot | null): ThreadMessageLike[] {
   if ((run.conversation?.length ?? 0) > 0) {
     const messages: ThreadMessageLike[] = [];
     let precedingCursor = 0;
+    let precedingUserMessageId = "";
     for (const message of run.conversation!) {
       const messageCursor = message.event_cursor ?? precedingCursor;
       if (message.role === "user") {
@@ -639,6 +673,7 @@ export function messagesForRun(run: RunSnapshot | null): ThreadMessageLike[] {
           content: message.content,
           createdAt: new Date(message.created_at),
         });
+        precedingUserMessageId = message.message_id;
         precedingCursor = messageCursor;
         continue;
       }
@@ -649,7 +684,9 @@ export function messagesForRun(run: RunSnapshot | null): ThreadMessageLike[] {
       );
       const tools = assistantToolParts(run, turnEvents);
       messages.push({
-        id: `${run.run_id}:${message.message_id}`,
+        id: precedingUserMessageId
+          ? `${run.run_id}:assistant:reply-to:${precedingUserMessageId}`
+          : `${run.run_id}:${message.message_id}`,
         role: "assistant",
         content:
           tools.length > 0

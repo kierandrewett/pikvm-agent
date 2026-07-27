@@ -1,0 +1,112 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-07-27T18:48:13Z",
+  "source_commit_before_change": "e4dadb5cebb9b2a650ece845ec1f73b8d0221d5e",
+  "route": "managed chat workspace -> durable provider lifecycle -> exact action checkpoint -> guarded HID",
+  "machine_contacted": false,
+  "model_api_contacted": false,
+  "contracts": {
+    "frontend_full_suite": {
+      "passed": 105,
+      "total": 105
+    },
+    "python_affected_suites": {
+      "passed": 178,
+      "total": 178
+    },
+    "python_full_suite": {
+      "passed": 1193,
+      "total": 1193,
+      "skipped": 1,
+      "warnings": 4
+    },
+    "production_build": "passed",
+    "typescript_typecheck": "passed",
+    "diff_check": "passed"
+  },
+  "provider_lifecycle": {
+    "durable_phases": [
+      "queued",
+      "provider_selected",
+      "request_sent",
+      "output_received",
+      "validating",
+      "schema_repair",
+      "failover"
+    ],
+    "provider_and_model_visible": true,
+    "provider_output_retained_in_activity": false,
+    "schema_validated_before_action_checkpoint": true,
+    "fallback_happens_before_hid": true
+  },
+  "action_visibility": {
+    "checkpoint_contains_exact_visible_actions": true,
+    "checkpoint_is_saved_before_hid": true,
+    "chat_workspace_preview_ms": 300,
+    "preview_event_precedes_action_attempt": true,
+    "headless_benchmark_preview_ms": 0,
+    "pending_label": "Ready to send",
+    "exact_text_and_coordinates_expand_before_dispatch": true
+  },
+  "stream_contract": {
+    "transport": "authenticated server-sent events",
+    "streamed_events_in_hook_acceptance": 2,
+    "initial_detail_snapshot_reads": 1,
+    "per_event_detail_snapshot_reads": 0,
+    "gap_reconciliation": "full snapshot",
+    "reconnect_reconciliation": "full snapshot",
+    "steady_state_reconciliation_ms": 15000,
+    "event_tail_limit": 500
+  },
+  "message_identity": {
+    "in_progress_reply_id_survives_durable_commit": true,
+    "in_progress_reply_id_survives_computer_handoff": true,
+    "older_snapshots_cannot_replace_newer_streamed_state": true
+  },
+  "resource_envelope": {
+    "javascript_raw_bytes": 813448,
+    "javascript_gzip_bytes": 241373,
+    "css_raw_bytes": 109019,
+    "css_gzip_bytes": 18061,
+    "computer_tool_chunk_raw_bytes": 32319,
+    "computer_tool_chunk_gzip_bytes": 9584
+  },
+  "browser_audit": {
+    "attempted": true,
+    "passed": true,
+    "surface": "isolated Electron 39.8.10 fixture over CDP",
+    "computer_target": "none",
+    "external_model": "none",
+    "screenshots_captured": 0,
+    "live_samples": 30,
+    "sample_interval_ms": 100,
+    "samples_with_visible_progress": 13,
+    "maximum_simultaneous_progress_indicators": 1,
+    "maximum_branch_counters": 0,
+    "assistant_message_root_counts": [
+      1
+    ],
+    "observed_progress_labels": [
+      "Choosing the next action - fast-controller"
+    ],
+    "real_desktop_app_read_only_check": {
+      "composer_value": "",
+      "branch_counters": 0,
+      "task_submitted": false
+    }
+  },
+  "safety": {
+    "vnc_contact": false,
+    "pikvm_contact": false,
+    "production_daemon_contact": false,
+    "external_model_called": false,
+    "hid_submitted": false,
+    "approval_submitted": false
+  },
+  "limitations": [
+    "The 300 ms preview guarantee applies to tasks created by the first-party chat workspace; headless and benchmark routes keep zero added delay.",
+    "This proves event ordering, rendering contracts, and production build integrity, not a successful action on the disposable Windows target.",
+    "The browser pass used the isolated synthetic Electron profile; the real desktop app was inspected read-only and received no test task.",
+    "Provider adapters currently report complete-response receipt rather than token-level first-byte streaming."
+  ]
+}

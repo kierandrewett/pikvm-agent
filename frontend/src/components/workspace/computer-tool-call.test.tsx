@@ -133,6 +133,37 @@ describe("ComputerToolCall", () => {
     respondToApproval: vi.fn(),
   };
 
+  it("opens a checkpointed action and labels it before input is sent", () => {
+    render(
+      <ComputerToolCall
+        {...baseProps}
+        args={{
+          actions: [
+            {
+              type: "type_text",
+              text: "exactly one space",
+            },
+          ],
+          __receipt: {
+            phase: "checkpointed",
+            intent: "Type the requested words exactly.",
+          },
+        }}
+        result={undefined}
+        status={{ type: "running" }}
+      />,
+    );
+
+    expect(screen.getByText("Ready to send")).not.toBeNull();
+    expect(screen.queryByText("Sending input")).toBeNull();
+    expect(
+      screen.getByLabelText("Exact computer input sequence"),
+    ).not.toBeNull();
+    expect(screen.getByLabelText("Exact text input").textContent).toContain(
+      "exactly one space",
+    );
+  });
+
   it("renders a routine completed action as one compact inspectable row", async () => {
     const user = userEvent.setup();
     render(<ComputerToolCall {...baseProps} />);
