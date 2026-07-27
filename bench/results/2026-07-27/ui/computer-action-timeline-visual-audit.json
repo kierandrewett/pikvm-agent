@@ -110,7 +110,7 @@
       "total": 24
     },
     "full_python": {
-      "passed": 1203,
+      "passed": 1204,
       "skipped": 1,
       "failed": 0
     },
@@ -124,9 +124,9 @@
   "resource_envelope": {
     "total_ui_bytes": 1231684,
     "javascript_bytes": 1075290,
-    "javascript_gzip_9_bytes": 332102,
+    "javascript_gzip_9_bytes": 333078,
     "css_bytes": 109255,
-    "css_gzip_9_bytes": 18220,
+    "css_gzip_9_bytes": 18223,
     "remote_assets": 0
   },
   "safety": {
