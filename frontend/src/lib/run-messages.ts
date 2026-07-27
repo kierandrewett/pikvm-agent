@@ -244,12 +244,20 @@ const inputReceipts = (value: unknown) =>
       requested_characters: safeNumber(
         item.requested_characters ?? item.intended_characters,
       ),
+      delivery_characters: safeNumber(item.delivery_characters),
+      delivery_transformed: item.delivery_transformed === true,
       issued_characters: safeNumber(
         item.issued_characters ?? item.typed_characters,
       ),
       observed_characters: safeNumber(item.observed_characters),
       correction_count: safeNumber(item.correction_count),
       delivery_retries: safeNumber(item.delivery_retries),
+      emitted_characters: safeNumber(item.emitted_characters),
+      emitted_sha256: safeString(item.emitted_sha256),
+      emitted_exactly_once:
+        typeof item.emitted_exactly_once === "boolean"
+          ? item.emitted_exactly_once
+          : undefined,
       used_fast_path: item.used_fast_path === true,
       summary: safeString(item.summary),
       edit_distance: safeNumber(item.edit_distance),
@@ -257,10 +265,12 @@ const inputReceipts = (value: unknown) =>
       requested_sha256: safeString(
         item.requested_sha256 || item.intended_sha256,
       ),
+      delivery_sha256: safeString(item.delivery_sha256),
       issued_prefix_sha256: safeString(
         item.issued_prefix_sha256 || item.acknowledged_prefix_sha256,
       ),
       readback_sha256: safeString(item.readback_sha256 || item.observed_sha256),
+      readback_frame_sha256: safeString(item.readback_frame_sha256),
       exact_readback_sha256_match:
         typeof (item.exact_readback_sha256_match ?? item.exact_sha256_match) ===
         "boolean"

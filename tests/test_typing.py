@@ -10,7 +10,9 @@ region path.
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import io
+import random
 from pathlib import Path
 
 import numpy as np
@@ -901,7 +903,7 @@ async def test_precise_prefix_gets_second_bounded_settled_reread() -> None:
     _assert_no_enter(backend)
 
 
-async def test_dropped_final_chunk_is_retried_once_after_no_pixel_change() -> None:
+async def test_dropped_final_chunk_is_not_replayed_after_no_pixel_change() -> None:
     intended = "ffprobe -hide_banner /home/user/video.mp4"
 
     class DroppedTailBackend(FakeBackend):
@@ -950,12 +952,149 @@ async def test_dropped_final_chunk_is_retried_once_after_no_pixel_change() -> No
         code=True,
     )
 
-    assert backend.tail_attempts == 2
-    assert backend.visible == intended
-    assert result.field_text == intended
-    assert result.status == "verified_exact"
-    assert result.corrected is True
+    assert backend.tail_attempts == 1
+    assert backend.visible == intended.removesuffix(".mp4")
+    assert result.field_text == intended.removesuffix(".mp4")
+    assert result.status == "unverified_truncated"
+    assert result.corrected is False
+    assert result.delivery_retries == 0
     _assert_no_enter(backend)
+
+
+async def test_ambiguous_partial_chunk_is_never_replayed_after_its_space_lands() -> None:
+    """A stale read must not turn one chunk-boundary space into two."""
+
+    intended = "alpha command beta gamma delta"
+    chunks = chunk_text(intended)
+    assert chunks == ["alpha command", " beta gamma delta"]
+
+    class PartialBoundaryBackend(FakeBackend):
+        def __init__(self) -> None:
+            super().__init__()
+            self.visible = ""
+            self.second_chunk_attempts = 0
+
+        async def type_text(
+            self,
+            text: str,
+            *,
+            code: bool = False,
+            secret: bool = False,
+        ) -> None:
+            await super().type_text(text, code=code, secret=secret)
+            if text == chunks[1]:
+                self.second_chunk_attempts += 1
+                if self.second_chunk_attempts == 1:
+                    self.visible += text[0]
+                    return
+            self.visible += text
+
+    class TrailingSpaceBlindOCR:
+        def __init__(self, backend: PartialBoundaryBackend) -> None:
+            self.backend = backend
+
+        async def ocr(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path, region
+            visible = self.backend.visible.rstrip(" ")
+            return OCRResult(
+                lines=[OCRLine(text=visible)] if visible else [],
+                spacing_evidence="verified",
+            )
+
+    backend = PartialBoundaryBackend()
+    typer = WatchedTyper(backend, TrailingSpaceBlindOCR(backend))
+
+    result = await typer.type_text(
+        intended,
+        region=Region(x=10, y=10, width=600, height=60),
+        code=True,
+    )
+
+    assert backend.second_chunk_attempts == 1
+    assert backend.visible == "alpha command "
+    assert "  " not in backend.visible
+    assert result.delivery_retries == 0
+    assert result.status == "unverified_truncated"
+    assert result.emitted_characters == len(intended)
+    assert result.emitted_sha256 == hashlib.sha256(intended.encode()).hexdigest()
+    assert result.emitted_exactly_once is True
+    assert len(result.readback_frame_sha256) == 64
+    _assert_no_enter(backend)
+
+
+async def test_at_most_once_emission_across_1000_stale_readbacks(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Stale OCR may block typing, but must never duplicate its payload."""
+
+    async def no_sleep(_seconds: float) -> None:
+        return None
+
+    monkeypatch.setattr(asyncio, "sleep", no_sleep)
+    rng = random.Random(20_260_727)
+    vocabulary = (
+        "agent",
+        "checks",
+        "desktop",
+        "evidence",
+        "field",
+        "input",
+        "remote",
+        "screen",
+        "text",
+        "typing",
+        "visible",
+    )
+
+    for case_index in range(1_000):
+        words = [rng.choice(vocabulary) for _ in range(rng.randint(5, 14))]
+        words[-1] = f"{words[-1]}-{case_index:04d}"
+        intended = " ".join(words)
+        chunks = chunk_text(intended)
+        assert len(chunks) >= 2
+
+        backend = FakeBackend()
+        typer = WatchedTyper(backend, ScriptedOCR(""))
+        flat = _flat_grid()
+
+        async def unchanged_grid() -> np.ndarray:
+            return flat
+
+        async def stale_prefix(
+            region: Region,
+            *,
+            intended: str | None = None,
+            precise: bool = False,
+        ) -> str:
+            del region, intended, precise
+            return chunks[0]
+
+        typer._grid = unchanged_grid  # type: ignore[method-assign]
+        typer._read_field = stale_prefix  # type: ignore[method-assign]
+
+        result = await typer.type_text(
+            intended,
+            region=Region(x=10, y=10, width=600, height=60),
+            code=True,
+        )
+        emitted = "".join(
+            call["text"]
+            for method, call in backend.calls
+            if method == "type_text"
+        )
+
+        assert emitted == intended
+        assert "  " not in emitted
+        assert result.emitted_characters == len(intended)
+        assert result.emitted_sha256 == hashlib.sha256(
+            intended.encode()
+        ).hexdigest()
+        assert result.emitted_exactly_once is True
+        assert result.delivery_retries == 0
 
 
 async def test_low_confidence_ocr_cannot_trigger_destructive_retype() -> None:

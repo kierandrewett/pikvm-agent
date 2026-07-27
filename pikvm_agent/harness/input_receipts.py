@@ -54,6 +54,7 @@ def public_input_receipts(
         },
         "proof_state": {
             "exact_ocr_readback",
+            "exact_visual_readback",
             # Accepted for old daemon receipts; output is normalized below.
             "exact_readback",
             "normalized_readback",
@@ -71,6 +72,7 @@ def public_input_receipts(
         "observed_characters": 960,
         "correction_count": 20,
         "delivery_retries": 20,
+        "emitted_characters": 1_920,
         "edit_distance": 960,
     }
     for candidate in candidates[:20]:
@@ -123,7 +125,9 @@ def public_input_receipts(
             ("requested_sha256", "intended_sha256"),
             ("delivery_sha256", ""),
             ("issued_prefix_sha256", "acknowledged_prefix_sha256"),
+            ("emitted_sha256", ""),
             ("readback_sha256", "observed_sha256"),
+            ("readback_frame_sha256", ""),
         ):
             value = candidate.get(key)
             if value is None and legacy_key:
@@ -135,14 +139,20 @@ def public_input_receipts(
             exact_sha256_match = candidate.get("exact_sha256_match")
         if isinstance(exact_sha256_match, bool):
             receipt["exact_readback_sha256_match"] = exact_sha256_match
+        emitted_exactly_once = candidate.get("emitted_exactly_once")
+        if isinstance(emitted_exactly_once, bool):
+            receipt["emitted_exactly_once"] = emitted_exactly_once
         receipt["observed_text_redacted"] = redacted
         if redacted:
             for key in (
                 "requested_sha256",
                 "delivery_sha256",
                 "issued_prefix_sha256",
+                "emitted_sha256",
                 "readback_sha256",
+                "readback_frame_sha256",
                 "exact_readback_sha256_match",
+                "emitted_exactly_once",
             ):
                 receipt.pop(key, None)
             receipt.update(
@@ -205,6 +215,11 @@ def _proof_state(
         )
         == receipt.get("readback_sha256")
     ):
+        if re.fullmatch(
+            r"[0-9a-f]{64}",
+            str(receipt.get("readback_frame_sha256") or ""),
+        ):
+            return "exact_visual_readback"
         return "exact_ocr_readback"
     if (
         receipt.get("status") == "verified_safe_normalized"

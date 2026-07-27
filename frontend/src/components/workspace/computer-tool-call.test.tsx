@@ -388,7 +388,7 @@ describe("ComputerInputSequence", () => {
             type: "type_text",
             status: "verified_exact",
             verdict: "match",
-            proof_state: "exact_ocr_readback",
+            proof_state: "exact_visual_readback",
             observed_text: "hello world",
             observed_text_redacted: false,
             issued_characters: 11,
@@ -396,6 +396,10 @@ describe("ComputerInputSequence", () => {
             observed_characters: 11,
             correction_count: 1,
             delivery_retries: 0,
+            emitted_characters: 11,
+            emitted_sha256:
+              "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9",
+            emitted_exactly_once: true,
             used_fast_path: false,
             summary: "Typed and verified.",
             edit_distance: 0,
@@ -406,6 +410,8 @@ describe("ComputerInputSequence", () => {
               "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9",
             readback_sha256:
               "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9",
+            readback_frame_sha256:
+              "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
             exact_readback_sha256_match: true,
           },
         ]}
@@ -413,14 +419,16 @@ describe("ComputerInputSequence", () => {
     );
 
     const readBack = screen.getByLabelText("Typing read-back for action 1");
-    expect(readBack.textContent).toContain("Exact OCR read-back");
+    expect(readBack.textContent).toContain("Exact visual read-back");
     expect(readBack.textContent).toContain("hello world");
     expect(readBack.textContent).toContain("11 / 11 issued");
     expect(readBack.textContent).toContain("11 read back");
     expect(readBack.textContent).toContain("0 edits");
     expect(readBack.textContent).toContain("1 correction");
-    expect(readBack.textContent).toContain("OCR read-back SHA-256");
+    expect(readBack.textContent).toContain("at-most-once emission");
+    expect(readBack.textContent).toContain("Payload/OCR SHA-256");
     expect(readBack.textContent).toContain("b94d27b9934d");
+    expect(readBack.textContent).toContain("frame cccccccccccc");
   });
 
   it("shows focus loss without treating transport as success", () => {

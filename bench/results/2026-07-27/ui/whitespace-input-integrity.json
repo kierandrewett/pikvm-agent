@@ -1,7 +1,7 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "suite": "whitespace-input-integrity",
-  "created_at": "2026-07-27T17:25:00Z",
+  "created_at": "2026-07-27T22:16:05Z",
   "scope": {
     "computer_target_contacted": false,
     "production_pikvm_contacted": false,
@@ -13,11 +13,22 @@
     "old_delivery_space_count_at_boundary": 3,
     "fixed_delivery_space_count_at_boundary": 1
   },
+  "at_most_once_root_cause": {
+    "failure": "an ambiguous word-boundary chunk was replayed after its leading space reached the guest but stale video and OCR still matched the pre-chunk prefix",
+    "reproduced_visible_text": "alpha command  beta gamma delta",
+    "expected_visible_text": "alpha command beta gamma delta",
+    "unsafe_delivery_retries": 1,
+    "fixed_delivery_retries": 0,
+    "policy": "ambiguous text delivery stops unverified and is never replayed"
+  },
   "integrity_chain": {
     "requested_sha256": "hash of the caller payload before shaping",
     "delivery_sha256": "hash of the canonical non-submitting payload",
-    "issued_prefix_sha256": "hash of the exact prefix handed to the input transport",
+    "issued_prefix_sha256": "hash of the logical canonical prefix submitted by the watched typer",
+    "emitted_sha256": "hash of every ordered text payload actually handed to the transport",
     "readback_sha256": "hash of the complete grounded OCR field",
+    "readback_frame_sha256": "hash of the exact captured frame evaluated by OCR",
+    "strongest_screen_proof_state": "exact_visual_readback",
     "exact_ocr_is_guest_acknowledgement": false,
     "intent_matching_alternative_can_authorize_completion": false,
     "saved_file_or_lab_observer_is_exact_oracle": true
@@ -31,29 +42,39 @@
     "ordinary_visible_watched_typing_defaults_to_exact_ocr": true,
     "explicit_auto_mode_can_accept_normalized_prose": true
   },
+  "at_most_once_validation": {
+    "seed": 20260727,
+    "cases": 1000,
+    "stale_readbacks": 1000,
+    "payloads_emitted_exactly_once": 1000,
+    "introduced_doubled_spaces": 0,
+    "delivery_retries": 0,
+    "computer_target_contacted": false
+  },
   "validation": {
     "focused_python": {
-      "passed": 208,
+      "passed": 98,
       "failed": 0,
-      "wall_seconds": 16.09
+      "wall_seconds": 16.48
     },
     "full_python": {
-      "passed": 1175,
+      "passed": 1220,
       "skipped": 1,
       "failed": 0,
-      "wall_seconds": 103.86
+      "wall_seconds": 121.68
     },
     "frontend": {
-      "passed": 87,
+      "passed": 130,
       "failed": 0,
-      "wall_seconds": 6.99
+      "wall_seconds": 6.84
     },
     "production_build": {
       "passed": true,
-      "javascript_bytes": 810500,
-      "javascript_gzip_bytes": 243690,
-      "css_bytes": 109100,
-      "css_gzip_bytes": 18320
+      "javascript_bytes": 821217,
+      "javascript_gzip_bytes": 243429,
+      "css_bytes": 109790,
+      "css_gzip_bytes": 18165,
+      "complete_workspace_bytes": 1236964
     }
   },
   "prior_live_evidence": {
@@ -68,5 +89,5 @@
     "target_contacted": false,
     "lease_bypassed": false
   },
-  "release_limit": "The local integrity and stop-before-commit contracts pass. Generic OCR remains below its release gate, and the corrected path still needs a fresh disposable-VM replay."
+  "release_limit": "The sender-side at-most-once and stop-before-commit contracts pass. Generic OCR remains below its release gate, and the corrected path still needs a fresh disposable-VM replay."
 }

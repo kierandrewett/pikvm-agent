@@ -80,6 +80,47 @@ def test_exact_ocr_readback_is_the_only_exact_target_text_proof() -> None:
     assert receipt["exact_readback_sha256_match"] is True
 
 
+def test_visual_readback_preserves_the_full_checksum_chain() -> None:
+    intended = "one space"
+    intended_sha256 = _sha256(intended)
+    frame_sha256 = _sha256("captured pixels")
+    raw = {
+        "action_receipts": [
+            {
+                "index": 0,
+                "type": "type_text",
+                "status": "verified_exact",
+                "verdict": "match",
+                "focus_evidence": "read_back_verified",
+                "requested_characters": len(intended),
+                "delivery_characters": len(intended),
+                "issued_characters": len(intended),
+                "emitted_characters": len(intended),
+                "requested_sha256": intended_sha256,
+                "delivery_sha256": intended_sha256,
+                "issued_prefix_sha256": intended_sha256,
+                "emitted_sha256": intended_sha256,
+                "emitted_exactly_once": True,
+                "observed_text": intended,
+                "observed_text_redacted": False,
+                "readback_sha256": intended_sha256,
+                "readback_frame_sha256": frame_sha256,
+                "exact_readback_sha256_match": True,
+            }
+        ]
+    }
+
+    receipt = public_input_receipts(
+        raw,
+        [{"type": "type_text", "text": intended}],
+    )[0]
+
+    assert receipt["proof_state"] == "exact_visual_readback"
+    assert receipt["emitted_sha256"] == intended_sha256
+    assert receipt["readback_frame_sha256"] == frame_sha256
+    assert receipt["emitted_exactly_once"] is True
+
+
 def test_public_receipt_keeps_requested_and_delivery_hashes_distinct() -> None:
     requested = "one \n space"
     delivered = "one space"

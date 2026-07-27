@@ -106,6 +106,9 @@ export type InputReceipt = {
   observed_characters?: number;
   correction_count?: number;
   delivery_retries?: number;
+  emitted_characters?: number;
+  emitted_sha256?: string;
+  emitted_exactly_once?: boolean;
   used_fast_path: boolean;
   summary?: string;
   edit_distance?: number;
@@ -114,6 +117,7 @@ export type InputReceipt = {
   delivery_sha256?: string;
   issued_prefix_sha256?: string;
   readback_sha256?: string;
+  readback_frame_sha256?: string;
   exact_readback_sha256_match?: boolean;
 };
 
@@ -136,6 +140,12 @@ const inputReceipt = (value: unknown): InputReceipt => {
     observed_characters: number(item.observed_characters),
     correction_count: number(item.correction_count),
     delivery_retries: number(item.delivery_retries),
+    emitted_characters: number(item.emitted_characters),
+    emitted_sha256: text(item.emitted_sha256),
+    emitted_exactly_once:
+      typeof item.emitted_exactly_once === "boolean"
+        ? item.emitted_exactly_once
+        : undefined,
     used_fast_path: item.used_fast_path === true,
     summary: text(item.summary),
     edit_distance: number(item.edit_distance),
@@ -146,6 +156,7 @@ const inputReceipt = (value: unknown): InputReceipt => {
       item.issued_prefix_sha256 || item.acknowledged_prefix_sha256,
     ),
     readback_sha256: text(item.readback_sha256 || item.observed_sha256),
+    readback_frame_sha256: text(item.readback_frame_sha256),
     exact_readback_sha256_match:
       typeof (
         item.exact_readback_sha256_match ?? item.exact_sha256_match
@@ -510,6 +521,13 @@ const readbackMeta = (receipt: InputReceipt) => {
       variant: "destructive" as ReceiptBadgeVariant,
     };
   }
+  if (receipt.proof_state === "exact_visual_readback") {
+    return {
+      label: "Exact visual read-back",
+      Icon: CheckIcon,
+      variant: "evidence" as ReceiptBadgeVariant,
+    };
+  }
   if (
     receipt.proof_state === "exact_ocr_readback" ||
     receipt.proof_state === "exact_readback" ||
@@ -585,18 +603,36 @@ function TypingReadback({
   const MetaIcon = meta.Icon;
   const deliveryFingerprint =
     receipt.delivery_sha256 || receipt.requested_sha256;
+  const exactVisualChain =
+    receipt.proof_state === "exact_visual_readback" &&
+    deliveryFingerprint &&
+    receipt.emitted_sha256 === deliveryFingerprint &&
+    receipt.readback_sha256 === deliveryFingerprint &&
+    receipt.readback_frame_sha256;
   const fingerprint =
-    receipt.exact_readback_sha256_match &&
-    deliveryFingerprint
-      ? `OCR read-back SHA-256 ${deliveryFingerprint.slice(0, 12)}`
-      : deliveryFingerprint && receipt.readback_sha256
+    exactVisualChain
+      ? `Payload/OCR SHA-256 ${deliveryFingerprint.slice(
+          0,
+          12,
+        )} · frame ${receipt.readback_frame_sha256?.slice(0, 12)}`
+      : receipt.emitted_sha256 &&
+          deliveryFingerprint &&
+          receipt.emitted_sha256 !== deliveryFingerprint
         ? `Delivery ${deliveryFingerprint.slice(
             0,
             12,
-          )} ≠ OCR ${receipt.readback_sha256.slice(0, 12)}`
-        : receipt.issued_prefix_sha256
-          ? `Issued SHA-256 ${receipt.issued_prefix_sha256.slice(0, 12)} · no exact read-back`
-          : "";
+          )} ≠ emitted ${receipt.emitted_sha256.slice(0, 12)}`
+        : receipt.exact_readback_sha256_match &&
+    deliveryFingerprint
+          ? `OCR read-back SHA-256 ${deliveryFingerprint.slice(0, 12)}`
+          : deliveryFingerprint && receipt.readback_sha256
+            ? `Delivery ${deliveryFingerprint.slice(
+                0,
+                12,
+              )} ≠ OCR ${receipt.readback_sha256.slice(0, 12)}`
+            : receipt.issued_prefix_sha256
+              ? `Issued SHA-256 ${receipt.issued_prefix_sha256.slice(0, 12)} · no exact read-back`
+              : "";
   const metrics = [
     receipt.issued_characters != null &&
     (receipt.delivery_characters ?? receipt.requested_characters) != null
@@ -624,6 +660,10 @@ function TypingReadback({
       ? `${receipt.delivery_retries} ${
           receipt.delivery_retries === 1 ? "delivery retry" : "delivery retries"
         }`
+      : "",
+    receipt.emitted_exactly_once === true ? "at-most-once emission" : "",
+    receipt.emitted_exactly_once === false
+      ? `${receipt.emitted_characters ?? "multiple"} emitted characters`
       : "",
     receipt.used_fast_path ? "guarded fast transport" : "",
     fingerprint,

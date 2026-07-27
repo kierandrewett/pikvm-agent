@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import hashlib
 import math
 import re
 import tempfile
@@ -138,6 +139,10 @@ class WatchedTypingResult(BaseModel):
     intended_characters: int = 0
     correction_count: int = 0
     delivery_retries: int = 0
+    emitted_characters: int = 0
+    emitted_sha256: str = ""
+    emitted_exactly_once: bool = False
+    readback_frame_sha256: str = ""
 
 
 # --------------------------------------------------------------------------- #
@@ -358,6 +363,7 @@ class WatchedTyper:
     def __init__(self, backend: TypingBackend, ocr: TypingOCR) -> None:
         self.backend = backend
         self.ocr = ocr
+        self._last_readback_frame_sha256 = ""
 
     # ---- capture/read helpers -------------------------------------------- #
 
@@ -396,6 +402,12 @@ class WatchedTyper:
             return ""
         if not frame or not frame.data:
             return ""
+        frame_sha256 = str(frame.sha256 or "").lower()
+        self._last_readback_frame_sha256 = (
+            frame_sha256
+            if re.fullmatch(r"[0-9a-f]{64}", frame_sha256)
+            else hashlib.sha256(frame.data).hexdigest()
+        )
         tmp: Path | None = None
         try:
             fd = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
@@ -773,6 +785,7 @@ class WatchedTyper:
         to completion. This makes a long ``type_text`` interruptible, not just the gaps
         between transactions."""
         delivery_text = flatten_line_breaks(text)
+        self._last_readback_frame_sha256 = ""
         precise = (
             exact
             if exact is not None
@@ -798,6 +811,7 @@ class WatchedTyper:
                 intended_characters=len(delivery_text),
                 used_fast_path=False,
                 summary=INTERRUPTED_SUMMARY,
+                intended_text=delivery_text,
             )
         if (
             callable(print_text)
@@ -851,8 +865,10 @@ class WatchedTyper:
         last_read = ""
         verified_clean = False
         can_vision = not secret and total > 4
+        emitted_parts: list[str] = []
 
         async def emit_text(value: str) -> None:
+            emitted_parts.append(value)
             if fast_print:
                 printer = getattr(self.backend, "print_text", None)
                 if not callable(printer):
@@ -930,7 +946,7 @@ class WatchedTyper:
                 await self.backend.press_key("CapsLock")
             await self._clear_recent_input(len(typed_so_far))
             await asyncio.sleep(_CLEAR_SETTLE_S)
-            await self.backend.type_text(typed_so_far, code=code, secret=secret)
+            await emit_text(typed_so_far)
 
         grid_prev = await self._grid()
 
@@ -950,6 +966,9 @@ class WatchedTyper:
                     intended_characters=len(text),
                     used_fast_path=fast_print,
                     summary=INTERRUPTED_SUMMARY,
+                    intended_text=text,
+                    emitted_text="".join(emitted_parts),
+                    readback_frame_sha256=self._last_readback_frame_sha256,
                 )
             if (
                 i > 0
@@ -1023,6 +1042,9 @@ class WatchedTyper:
                             intended_characters=len(text),
                             used_fast_path=fast_print,
                             summary=FOCUS_CHANGED_SUMMARY,
+                            intended_text=text,
+                            emitted_text="".join(emitted_parts),
+                            readback_frame_sha256=self._last_readback_frame_sha256,
                         )
                 if preflight_grid is not None:
                     grid_prev = preflight_grid
@@ -1035,70 +1057,11 @@ class WatchedTyper:
                 else None
             )
 
-            # A transport can acknowledge a chunk whose final key events never
-            # reached the guest. Once the field is already grounded, no
-            # meaningful pixel change is stronger evidence than OCR alone that
-            # this exact chunk did not land. Retry that chunk once, never the
-            # whole field, and never emit a commit key.
-            if (
-                (located or explicit_region)
-                and i > 0
-                and chunk_change is None
-                and len(chunk.strip()) >= 2
-                and precise
-                and not secret
-            ):
-                await asyncio.sleep(_VIDEO_RETRY_SETTLE_S)
-                settled_grid = await self._grid()
-                settled_change = (
-                    locate_changed_bbox(grid_prev, settled_grid, dims)
-                    if grid_prev is not None and settled_grid is not None
-                    else None
-                )
-                delivery_read = (
-                    self._typed_candidate(
-                        await self._read_field(
-                            current_readback_region(),
-                            intended=typed_so_far,
-                            precise=precise,
-                        ),
-                        typed_so_far,
-                        precise,
-                    )
-                    if settled_change is None and cur_region is not None
-                    else ""
-                )
-                previous_text = typed_so_far[: -len(chunk)]
-                if (
-                    settled_change is None
-                    and compute_verdict(
-                        previous_text,
-                        delivery_read,
-                        precise,
-                    )
-                    == "match"
-                    and compute_verdict(
-                        typed_so_far,
-                        delivery_read,
-                        precise,
-                    )
-                    == "unverified"
-                    and (
-                        should_continue is None
-                        or should_continue()
-                    )
-                ):
-                    await emit_text(chunk)
-                    delivery_retries += 1
-                    grid_now = await self._grid()
-                    chunk_change = (
-                        locate_changed_bbox(grid_prev, grid_now, dims)
-                        if grid_prev is not None and grid_now is not None
-                        else None
-                    )
-                elif settled_grid is not None:
-                    grid_now = settled_grid
-                    chunk_change = settled_change
+            # Keyboard input is not idempotent. A stale frame cannot distinguish
+            # "nothing landed" from "the boundary space landed but the glyphs
+            # have not painted yet", so replaying this chunk can duplicate text.
+            # Keep the original emission at-most-once and let the settled
+            # read-back below stop the transaction as unverified if it is short.
 
             # Auto-locate the field from the changed pixels (skipped if the caller
             # gave an explicit region); grow the box each chunk so it spans the line.
@@ -1175,6 +1138,9 @@ class WatchedTyper:
                             typed_characters=len(typed_so_far),
                             intended_characters=len(text),
                             summary=NO_FOCUS_SUMMARY,
+                            intended_text=text,
+                            emitted_text="".join(emitted_parts),
+                            readback_frame_sha256=self._last_readback_frame_sha256,
                         )
             if grid_now is not None:
                 grid_prev = grid_now
@@ -1270,6 +1236,7 @@ class WatchedTyper:
             precise=precise,
             correction_count=corrections,
             delivery_retries=delivery_retries,
+            emitted_text="".join(emitted_parts),
         )
 
     # ---- result assembly -------------------------------------------------- #
@@ -1294,6 +1261,9 @@ class WatchedTyper:
         intended_characters: int,
         correction_count: int = 0,
         delivery_retries: int = 0,
+        intended_text: str = "",
+        emitted_text: str = "",
+        readback_frame_sha256: str = "",
     ) -> WatchedTypingResult:
         return WatchedTypingResult(
             verdict="mismatch",
@@ -1307,6 +1277,18 @@ class WatchedTyper:
             intended_characters=intended_characters,
             correction_count=correction_count,
             delivery_retries=delivery_retries,
+            emitted_characters=len(emitted_text),
+            emitted_sha256=(
+                hashlib.sha256(emitted_text.encode("utf-8")).hexdigest()
+                if emitted_text
+                else ""
+            ),
+            emitted_exactly_once=bool(
+                emitted_text
+                and intended_text
+                and emitted_text == intended_text
+            ),
+            readback_frame_sha256=readback_frame_sha256,
         )
 
     def _finalise(
@@ -1320,6 +1302,7 @@ class WatchedTyper:
         precise: bool,
         correction_count: int,
         delivery_retries: int,
+        emitted_text: str,
     ) -> WatchedTypingResult:
         # Reuse the verifier for the authoritative status (the only thing allowed to
         # declare typed text verified or failed). Verdict drives the summary text.
@@ -1359,4 +1342,10 @@ class WatchedTyper:
             intended_characters=len(intended),
             correction_count=correction_count,
             delivery_retries=delivery_retries,
+            emitted_characters=len(emitted_text),
+            emitted_sha256=hashlib.sha256(
+                emitted_text.encode("utf-8")
+            ).hexdigest(),
+            emitted_exactly_once=emitted_text == intended,
+            readback_frame_sha256=self._last_readback_frame_sha256,
         )

@@ -421,6 +421,10 @@ class _StubTyper:
         correction_count: int = 0,
         delivery_retries: int = 0,
         used_fast_path: bool = False,
+        emitted_characters: int | None = None,
+        emitted_sha256: str = "",
+        emitted_exactly_once: bool | None = None,
+        readback_frame_sha256: str = "",
     ) -> None:
         self.status = status
         self.verdict = verdict
@@ -430,6 +434,10 @@ class _StubTyper:
         self.correction_count = correction_count
         self.delivery_retries = delivery_retries
         self.used_fast_path = used_fast_path
+        self.emitted_characters = emitted_characters
+        self.emitted_sha256 = emitted_sha256
+        self.emitted_exactly_once = emitted_exactly_once
+        self.readback_frame_sha256 = readback_frame_sha256
         self.calls: list[str] = []
         self.modes: list[dict[str, bool]] = []
         self.exact_modes: list[bool | None] = []
@@ -462,6 +470,14 @@ class _StubTyper:
         r.correction_count = self.correction_count
         r.delivery_retries = self.delivery_retries
         r.used_fast_path = self.used_fast_path
+        if self.emitted_characters is not None:
+            r.emitted_characters = self.emitted_characters
+        if self.emitted_sha256:
+            r.emitted_sha256 = self.emitted_sha256
+        if self.emitted_exactly_once is not None:
+            r.emitted_exactly_once = self.emitted_exactly_once
+        if self.readback_frame_sha256:
+            r.readback_frame_sha256 = self.readback_frame_sha256
         return r
 
 
@@ -570,6 +586,45 @@ async def test_editor_prose_can_require_exact_ocr_checksum_proof() -> None:
         is True
     )
     assert outcome.action_receipts[0]["proof_state"] == "exact_ocr_readback"
+
+
+async def test_exact_receipt_binds_delivery_emission_ocr_and_screen_frame() -> None:
+    text = "exactly one space"
+    digest = hashlib.sha256(text.encode()).hexdigest()
+    frame_digest = hashlib.sha256(b"captured screen pixels").hexdigest()
+    typer = _StubTyper(
+        "verified_exact",
+        field_text=text,
+        typed_characters=len(text),
+        intended_characters=len(text),
+        emitted_characters=len(text),
+        emitted_sha256=digest,
+        emitted_exactly_once=True,
+        readback_frame_sha256=frame_digest,
+    )
+
+    outcome = await run_burst(
+        [
+            {
+                "type": "type_text",
+                "text": text,
+                "context": "editor",
+                "verification": "exact",
+            }
+        ],
+        backend=FakeBackend(),
+        typer=typer,
+    )
+
+    receipt = outcome.action_receipts[0]
+    assert receipt["delivery_sha256"] == digest
+    assert receipt["emitted_sha256"] == digest
+    assert receipt["readback_sha256"] == digest
+    assert receipt["readback_frame_sha256"] == frame_digest
+    assert receipt["emitted_characters"] == len(text)
+    assert receipt["emitted_exactly_once"] is True
+    assert receipt["exact_readback_sha256_match"] is True
+    assert receipt["proof_state"] == "exact_visual_readback"
 
 
 async def test_exact_receipt_hashes_the_canonical_delivery_payload() -> None:

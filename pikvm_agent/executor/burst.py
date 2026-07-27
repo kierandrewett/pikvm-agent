@@ -603,6 +603,22 @@ def _typing_receipt(
             ),
         }
     )
+    emitted_characters = getattr(result, "emitted_characters", None)
+    emitted_sha256 = str(getattr(result, "emitted_sha256", "") or "")
+    emitted_exactly_once = getattr(result, "emitted_exactly_once", None)
+    readback_frame_sha256 = str(
+        getattr(result, "readback_frame_sha256", "") or ""
+    )
+    if isinstance(emitted_characters, int) and not isinstance(
+        emitted_characters, bool
+    ):
+        receipt["emitted_characters"] = max(0, emitted_characters)
+    if re.fullmatch(r"[0-9a-f]{64}", emitted_sha256):
+        receipt["emitted_sha256"] = emitted_sha256
+    if isinstance(emitted_exactly_once, bool):
+        receipt["emitted_exactly_once"] = emitted_exactly_once
+    if re.fullmatch(r"[0-9a-f]{64}", readback_frame_sha256):
+        receipt["readback_frame_sha256"] = readback_frame_sha256
     receipt["proof_state"] = _typing_proof_state(
         status=status,
         verdict=verdict,
@@ -612,6 +628,7 @@ def _typing_receipt(
         exact_readback_sha256_match=bool(
             receipt["exact_readback_sha256_match"]
         ),
+        readback_frame_sha256=readback_frame_sha256,
     )
     if status == "failed_focus_lost":
         receipt["focus_evidence"] = "focus_lost"
@@ -632,6 +649,7 @@ def _typing_proof_state(
     observed: str,
     issued_characters: int,
     exact_readback_sha256_match: bool,
+    readback_frame_sha256: str = "",
 ) -> str:
     """Describe target evidence without treating sender completion as an ACK."""
 
@@ -641,6 +659,8 @@ def _typing_proof_state(
         and issued_characters == len(intended)
         and exact_readback_sha256_match
     ):
+        if re.fullmatch(r"[0-9a-f]{64}", readback_frame_sha256):
+            return "exact_visual_readback"
         return "exact_ocr_readback"
     if (
         status == "verified_safe_normalized"
