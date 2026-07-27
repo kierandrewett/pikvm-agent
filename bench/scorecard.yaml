@@ -184,6 +184,23 @@ rows:
     wall: "Target-free runtime"
     status: "Authenticated live stream passing; browser visual audit pending"
 
+  - suite: "Computer-action transaction receipt"
+    route: "assistant-ui tool disclosure → four-phase receipt"
+    source: "results/2026-07-27/ui/computer-action-receipt.json"
+    fields:
+      frontend_passed: {path: "contracts.frontend.passed", format: "integer"}
+      frontend_total: {path: "contracts.frontend.total", format: "integer"}
+      harness_passed: {path: "contracts.harness_api_fixture_and_provider.passed", format: "integer"}
+      harness_total: {path: "contracts.harness_api_fixture_and_provider.total", format: "integer"}
+      phases: {path: "computer_action_receipt.ordered_phases", format: "count"}
+      receipt_tests: {path: "contracts.focused_receipt_component.total", format: "integer"}
+      gzip_js: {path: "resource_envelope.javascript_gzip_bytes", format: "integer"}
+    cases: "{frontend_total} frontend + {harness_total} harness/API contracts"
+    result: "{frontend_passed}/{frontend_total} + {harness_passed}/{harness_total}; {phases}-phase receipt / {receipt_tests} focused tests"
+    latency: "{gzip_js}-byte gzip JavaScript"
+    wall: "Target-free contract"
+    status: "Component/build passing; browser visual audit pending"
+
   - suite: "Live-frame resource envelope"
     route: "Target-free streamed preview adapter"
     source: "results/2026-07-25/ui/live-frame-resource-envelope-2026-07-26.json"

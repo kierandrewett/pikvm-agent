@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-07-27T04:45:08Z",
+  "source_commit": "1929caf",
+  "route": "assistant-ui computer tool disclosure to target-free action receipt",
+  "machine_contacted": false,
+  "model_api_contacted": false,
+  "contracts": {
+    "frontend": {
+      "passed": 22,
+      "total": 22
+    },
+    "focused_receipt_component": {
+      "passed": 8,
+      "total": 8
+    },
+    "harness_api_fixture_and_provider": {
+      "passed": 58,
+      "total": 58
+    },
+    "production_build": "passed",
+    "diff_check": "passed",
+    "typescript_similarity": "no duplicate functions or types"
+  },
+  "computer_action_receipt": {
+    "ordered_phases": [
+      "source screen",
+      "bounded input",
+      "delivery",
+      "screen check"
+    ],
+    "target_identity_visible": true,
+    "current_frame_visible": true,
+    "source_freshness_visible": true,
+    "delivery_distinct_from_verification": true,
+    "linked_verification_required_for_verified_state": true,
+    "held_action_states_input_not_sent": true,
+    "routine_completed_calls_collapsed_by_default": true,
+    "attention_states_open_automatically": [
+      "approval needed",
+      "failed",
+      "not verified"
+    ]
+  },
+  "exact_input_presentation": {
+    "typed_payload": {
+      "exact_body_visible": true,
+      "character_count_visible": true,
+      "line_count_visible": true,
+      "bounded_scroll_region": true
+    },
+    "keyboard": {
+      "individual_keycaps": true,
+      "keypress_alias_classified": true
+    },
+    "pointer": {
+      "button_visible": true,
+      "x_coordinate_visible": true,
+      "y_coordinate_visible": true,
+      "structured_coordinate_tokens": true
+    },
+    "raw_non_secret_mcp_arguments_remain_disclosed": true
+  },
+  "responsive_component_contract": {
+    "narrow_layout": "stacked receipt with vertical progress rail",
+    "wide_layout": "four-phase receipt with horizontal progress rail",
+    "reduced_motion_spinner_disabled": true,
+    "status_never_relies_on_colour_alone": true
+  },
+  "resource_envelope": {
+    "total_raw_bytes": 1194164,
+    "javascript_raw_bytes": 1012353,
+    "javascript_gzip_bytes": 306345,
+    "css_raw_bytes": 104678,
+    "css_gzip_bytes": 17521,
+    "html_raw_bytes": 713,
+    "local_font_bytes": 76420
+  },
+  "browser_audit": {
+    "post_change_visual_review": false,
+    "blocker": "in-app browser URL policy blocked local navigation from its error page",
+    "alternate_browser_used": false
+  },
+  "status": "Receipt semantics, component behavior, production build, and static harness contracts pass; browser visual and reflow audit remains pending"
+}
