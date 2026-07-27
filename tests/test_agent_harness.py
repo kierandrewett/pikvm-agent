@@ -802,6 +802,10 @@ class InputReceiptComputer(FakeComputer):
                         "summary": "Typed and verified.",
                         "edit_distance": 0,
                         "focus_evidence": "read_back_verified",
+                        "intended_sha256": "a" * 64,
+                        "acknowledged_prefix_sha256": "a" * 64,
+                        "observed_sha256": "a" * 64,
+                        "exact_sha256_match": True,
                         "private_path": "/tmp/do-not-expose.png",
                         "unknown": {"nested": "value"},
                     },
@@ -1823,6 +1827,10 @@ async def test_action_event_exposes_only_bounded_input_readback_receipts() -> No
             "summary": "Typed and verified.",
             "edit_distance": 0,
             "focus_evidence": "read_back_verified",
+            "intended_sha256": "a" * 64,
+            "acknowledged_prefix_sha256": "a" * 64,
+            "observed_sha256": "a" * 64,
+            "exact_sha256_match": True,
         }
     ]
     assert "private_path" not in repr(event.data["input_receipts"])
@@ -1842,6 +1850,10 @@ def test_secret_input_receipt_is_redacted_again_at_harness_boundary() -> None:
                     "summary": "maliciously retained secret",
                     "typed_characters": 27,
                     "intended_characters": 27,
+                    "intended_sha256": "b" * 64,
+                    "acknowledged_prefix_sha256": "b" * 64,
+                    "observed_sha256": "b" * 64,
+                    "exact_sha256_match": True,
                 }
             ]
         },

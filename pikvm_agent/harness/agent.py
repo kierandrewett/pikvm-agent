@@ -1943,8 +1943,29 @@ class AgentHarness:
                 value = candidate.get(key)
                 if isinstance(value, bool):
                     receipt[key] = value
+            for key in (
+                "intended_sha256",
+                "acknowledged_prefix_sha256",
+                "observed_sha256",
+            ):
+                value = candidate.get(key)
+                if (
+                    isinstance(value, str)
+                    and re.fullmatch(r"[0-9a-f]{64}", value)
+                ):
+                    receipt[key] = value
+            exact_sha256_match = candidate.get("exact_sha256_match")
+            if isinstance(exact_sha256_match, bool):
+                receipt["exact_sha256_match"] = exact_sha256_match
             receipt["observed_text_redacted"] = redacted
             if redacted:
+                for key in (
+                    "intended_sha256",
+                    "acknowledged_prefix_sha256",
+                    "observed_sha256",
+                    "exact_sha256_match",
+                ):
+                    receipt.pop(key, None)
                 receipt.update(
                     {
                         "status": "delivered_unverified",

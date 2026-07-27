@@ -123,6 +123,10 @@ export type InputReceipt = {
   summary?: string;
   edit_distance?: number;
   focus_evidence: string;
+  intended_sha256?: string;
+  acknowledged_prefix_sha256?: string;
+  observed_sha256?: string;
+  exact_sha256_match?: boolean;
 };
 
 const inputReceipt = (value: unknown): InputReceipt => {
@@ -142,6 +146,13 @@ const inputReceipt = (value: unknown): InputReceipt => {
     summary: text(item.summary),
     edit_distance: number(item.edit_distance),
     focus_evidence: text(item.focus_evidence),
+    intended_sha256: text(item.intended_sha256),
+    acknowledged_prefix_sha256: text(item.acknowledged_prefix_sha256),
+    observed_sha256: text(item.observed_sha256),
+    exact_sha256_match:
+      typeof item.exact_sha256_match === "boolean"
+        ? item.exact_sha256_match
+        : undefined,
   };
 };
 
@@ -473,6 +484,23 @@ const readbackMeta = (receipt: InputReceipt) => {
       variant: "outline" as ReceiptBadgeVariant,
     };
   }
+  if (receipt.exact_sha256_match === true) {
+    return {
+      label: "Exact read-back",
+      Icon: CheckIcon,
+      variant: "evidence" as ReceiptBadgeVariant,
+    };
+  }
+  if (
+    receipt.status === "verified_safe_normalized" &&
+    receipt.exact_sha256_match === false
+  ) {
+    return {
+      label: "Normalized only",
+      Icon: EyeIcon,
+      variant: "caution" as ReceiptBadgeVariant,
+    };
+  }
   if (
     receipt.status.startsWith("verified_") ||
     receipt.verdict === "match" ||
@@ -514,6 +542,14 @@ function TypingReadback({
   if (!receipt) return null;
   const meta = readbackMeta(receipt);
   const MetaIcon = meta.Icon;
+  const fingerprint =
+    receipt.exact_sha256_match && receipt.intended_sha256
+      ? `Exact SHA-256 ${receipt.intended_sha256.slice(0, 12)}`
+      : receipt.intended_sha256 && receipt.observed_sha256
+        ? `SHA-256 ${receipt.intended_sha256.slice(0, 12)} ≠ ${receipt.observed_sha256.slice(0, 12)}`
+        : receipt.intended_sha256
+          ? `Payload SHA-256 ${receipt.intended_sha256.slice(0, 12)}`
+          : "";
   const metrics = [
     receipt.typed_characters != null &&
     receipt.intended_characters != null
@@ -533,6 +569,7 @@ function TypingReadback({
         }`
       : "",
     receipt.used_fast_path ? "guarded fast transport" : "",
+    fingerprint,
   ].filter(Boolean);
 
   return (

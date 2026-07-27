@@ -184,6 +184,15 @@ const inputReceipts = (value: unknown) =>
       summary: safeString(item.summary),
       edit_distance: safeNumber(item.edit_distance),
       focus_evidence: safeString(item.focus_evidence),
+      intended_sha256: safeString(item.intended_sha256),
+      acknowledged_prefix_sha256: safeString(
+        item.acknowledged_prefix_sha256,
+      ),
+      observed_sha256: safeString(item.observed_sha256),
+      exact_sha256_match:
+        typeof item.exact_sha256_match === "boolean"
+          ? item.exact_sha256_match
+          : undefined,
     }));
 
 const verificationVerdict = (event: HarnessEvent) => {

@@ -16,6 +16,7 @@ backend (WindMouse, humanized typing) as everything else.
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import os
 import re
 import time
@@ -568,6 +569,26 @@ def _typing_receipt(
         intended_norm,
         observed_norm,
         max(len(intended_norm), len(observed_norm)),
+    )
+    typed_characters = min(
+        len(intended),
+        max(0, int(receipt["typed_characters"])),
+    )
+    intended_sha256 = hashlib.sha256(intended.encode("utf-8")).hexdigest()
+    acknowledged_prefix_sha256 = hashlib.sha256(
+        intended[:typed_characters].encode("utf-8")
+    ).hexdigest()
+    observed_sha256 = hashlib.sha256(observed.encode("utf-8")).hexdigest()
+    receipt.update(
+        {
+            "intended_sha256": intended_sha256,
+            "acknowledged_prefix_sha256": acknowledged_prefix_sha256,
+            "observed_sha256": observed_sha256,
+            "exact_sha256_match": (
+                typed_characters == len(intended)
+                and intended_sha256 == observed_sha256
+            ),
+        }
     )
     if status == "failed_focus_lost":
         receipt["focus_evidence"] = "focus_lost"

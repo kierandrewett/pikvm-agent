@@ -123,17 +123,26 @@ describe("ComputerInputSequence", () => {
             summary: "Typed and verified.",
             edit_distance: 0,
             focus_evidence: "read_back_verified",
+            intended_sha256:
+              "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9",
+            acknowledged_prefix_sha256:
+              "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9",
+            observed_sha256:
+              "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9",
+            exact_sha256_match: true,
           },
         ]}
       />,
     );
 
     const readBack = screen.getByLabelText("Typing read-back for action 1");
-    expect(readBack.textContent).toContain("Read-back matches");
+    expect(readBack.textContent).toContain("Exact read-back");
     expect(readBack.textContent).toContain("hello world");
     expect(readBack.textContent).toContain("11 / 11 chars");
     expect(readBack.textContent).toContain("0 edits");
     expect(readBack.textContent).toContain("1 correction");
+    expect(readBack.textContent).toContain("Exact SHA-256");
+    expect(readBack.textContent).toContain("b94d27b9934d");
   });
 
   it("shows focus loss without treating transport as success", () => {
@@ -164,6 +173,40 @@ describe("ComputerInputSequence", () => {
     expect(readBack.textContent).toContain("Focus lost");
     expect(readBack.textContent).toContain("5 / 11 chars");
     expect(readBack.textContent).not.toContain("Read-back matches");
+  });
+
+  it("does not present a normalized OCR match as exact", () => {
+    render(
+      <ComputerInputSequence
+        actions={[{ type: "type_text", text: "one space" }]}
+        inputReceipts={[
+          {
+            index: 0,
+            type: "type_text",
+            status: "verified_safe_normalized",
+            verdict: "match",
+            observed_text: "one  space",
+            observed_text_redacted: false,
+            typed_characters: 9,
+            intended_characters: 9,
+            correction_count: 0,
+            delivery_retries: 0,
+            used_fast_path: false,
+            edit_distance: 0,
+            focus_evidence: "read_back_verified",
+            intended_sha256: "a".repeat(64),
+            acknowledged_prefix_sha256: "a".repeat(64),
+            observed_sha256: "b".repeat(64),
+            exact_sha256_match: false,
+          },
+        ]}
+      />,
+    );
+
+    const readBack = screen.getByLabelText("Typing read-back for action 1");
+    expect(readBack.textContent).toContain("Normalized only");
+    expect(readBack.textContent).toContain("aaaaaaaaaaaa ≠ bbbbbbbbbbbb");
+    expect(readBack.textContent).not.toContain("Exact read-back");
   });
 
   it("never renders retained read-back for a secret input", () => {
@@ -285,21 +328,19 @@ describe("ComputerActionReceipt", () => {
 
     const receipt = screen.getByLabelText("Computer action receipt");
     expect(receipt.textContent).toContain("Office lab");
-    expect(receipt.textContent).toContain("1920×1080");
-    expect(receipt.textContent).toContain("Screen before");
-    expect(receipt.textContent).toContain("Frame 41");
-    expect(receipt.textContent).toContain("world 9 · control 3");
-    expect(receipt.textContent).toContain("Computer input");
-    expect(receipt.textContent).toContain("Committed");
-    expect(receipt.textContent).toContain("84 exact characters");
-    expect(receipt.textContent).toContain("Screen after");
-    expect(receipt.textContent).toContain("Frame 42 · verified");
+    expect(receipt.textContent).toContain("Trace");
+    expect(receipt.textContent).toContain(
+      "Office lab · 1920×1080 · frame 41 → 42 · world 9 → 10 · control 3",
+    );
+    expect(receipt.textContent).toContain("Transport");
+    expect(receipt.textContent).toContain(
+      "Committed · 2 inputs · 84 chars · attempt 2 · 742 ms",
+    );
+    expect(receipt.textContent).toContain("Result");
     expect(receipt.textContent).toContain(
       "The Save dialog closed and the document remained open.",
     );
-    expect(receipt.textContent).toContain("attempt 2");
-    expect(receipt.textContent).toContain("742 ms transport");
-    expect(receipt.textContent).toContain("run:action:4:abc123");
+    expect(receipt.textContent).not.toContain("run:action:4:abc123");
   });
 
   it("makes a held action visibly distinct from a committed action", () => {
@@ -316,10 +357,8 @@ describe("ComputerActionReceipt", () => {
 
     const receipt = screen.getByLabelText("Computer action receipt");
     expect(receipt.textContent).toContain("Held for approval");
-    expect(receipt.textContent).toContain(
-      "The consequential input has not been sent",
-    );
-    expect(receipt.textContent).toContain("Awaiting screen");
+    expect(receipt.textContent).toContain("Held for approval · 1 input");
+    expect(receipt.textContent).toContain("world 9");
   });
 
   it("shows a live bounded input without claiming it reached the computer", () => {
@@ -343,9 +382,7 @@ describe("ComputerActionReceipt", () => {
     const receipt = screen.getByLabelText("Computer action receipt");
     expect(receipt.textContent).toContain("Sending input");
     expect(receipt.textContent).toContain("In progress");
-    expect(receipt.textContent).toContain(
-      "The harness is sending this bounded input",
-    );
+    expect(receipt.textContent).toContain("In progress · 1 input · 32 chars");
     expect(receipt.textContent).not.toContain("Committed");
     expect(receipt.textContent).not.toContain("Verified");
   });
@@ -444,10 +481,10 @@ describe("ComputerActionReceipt", () => {
     );
 
     const receipt = screen.getByLabelText("Computer action receipt");
-    expect(receipt.textContent).toContain("Action selected by");
-    expect(receipt.textContent).toContain("gemini-3-flash");
-    expect(receipt.textContent).toContain("Screen checked by");
-    expect(receipt.textContent).toContain("claude-opus-4-8");
+    expect(receipt.textContent).toContain("Models");
+    expect(receipt.textContent).toContain(
+      "gemini-3-flash → claude-opus-4-8",
+    );
     expect(receipt.textContent).not.toContain("local-workspace-token");
 
     await waitFor(() =>

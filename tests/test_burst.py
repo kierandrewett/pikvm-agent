@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+
 import pytest
 
 from pikvm_agent.executor.burst import (
@@ -531,6 +533,10 @@ async def test_burst_type_text_proceeds_when_verified() -> None:
             "summary": "stub",
             "edit_distance": 0,
             "focus_evidence": "read_back_verified",
+            "intended_sha256": hashlib.sha256(b"hi").hexdigest(),
+            "acknowledged_prefix_sha256": hashlib.sha256(b"hi").hexdigest(),
+            "observed_sha256": hashlib.sha256(b"hi").hexdigest(),
+            "exact_sha256_match": True,
         }
     ]
 
@@ -568,6 +574,10 @@ async def test_burst_retains_watched_readback_when_typing_fails() -> None:
             "summary": "stub",
             "edit_distance": 7,
             "focus_evidence": "focus_lost",
+            "intended_sha256": hashlib.sha256(b"intended").hexdigest(),
+            "acknowledged_prefix_sha256": hashlib.sha256(b"inten").hexdigest(),
+            "observed_sha256": hashlib.sha256(b"wrong").hexdigest(),
+            "exact_sha256_match": False,
         }
     ]
 
@@ -598,6 +608,27 @@ async def test_burst_secret_receipt_never_retains_secret_text() -> None:
         }
     ]
     assert "super-secret" not in repr(out.action_receipts)
+    assert "sha256" not in repr(out.action_receipts)
+
+
+async def test_burst_receipt_hashes_preserve_repeated_space_differences() -> None:
+    backend = FakeBackend()
+    typer = _StubTyper(
+        "verified_safe_normalized",
+        field_text="one  space",
+        typed_characters=9,
+        intended_characters=9,
+    )
+
+    outcome = await run_burst(
+        [{"type": "type_text", "text": "one space"}],
+        backend=backend,
+        typer=typer,
+    )
+
+    receipt = outcome.action_receipts[0]
+    assert receipt["intended_sha256"] != receipt["observed_sha256"]
+    assert receipt["exact_sha256_match"] is False
 
 
 async def test_burst_precise_text_stops_on_ambiguous_ocr_before_enter() -> None:
