@@ -4,6 +4,7 @@ import asyncio
 import io
 import json
 import socket
+import subprocess
 from types import SimpleNamespace
 
 import httpx
@@ -16,11 +17,16 @@ from pikvm_agent.cli import app
 from pikvm_agent.harness.agent_models import RunStatus
 from pikvm_agent.harness.in_guest_transport import InGuestComputerTransport
 from pikvm_agent.harness.osworld_runner import (
+    DockerCommandError,
+    _docker,
     _run_bounded_harness,
+    _start_osworld_container,
+    docker_guest_endpoint,
     apply_official_postconfig,
     apply_official_setup,
     docker_run_args,
     evaluate_official_exact_match,
+    is_docker_publish_failure,
     run_osworld_case,
     update_stagnant_cycle_count,
     validate_osworld_task_compatibility,
@@ -761,6 +767,132 @@ def test_osworld_software_emulation_forwards_the_guest_api_explicitly(
     assert "KVM=N" in arguments
     assert "/dev/kvm" not in arguments
     assert arguments[-1] == "image@sha256:digest"
+
+
+def test_osworld_direct_bridge_fallback_avoids_docker_port_publishing(
+    tmp_path,
+) -> None:
+    arguments = docker_run_args(
+        container_name="case",
+        qcow=tmp_path / "Ubuntu.qcow2",
+        docker_image="image@sha256:digest",
+        kvm_available=True,
+        publish_guest_port=False,
+    )
+
+    assert "USER_PORTS=5000" in arguments
+    assert "-p" not in arguments
+    assert "--device" in arguments
+    assert "/dev/kvm" in arguments
+
+
+def test_osworld_recognizes_only_docker_publish_network_failures() -> None:
+    publish_failure = DockerCommandError(
+        ("run", "-p", "127.0.0.1::5000", "image"),
+        returncode=125,
+        stdout="",
+        stderr=(
+            "failed to set up container networking: Unable to enable DNAT "
+            "rule: iptables: No chain/target/match by that name"
+        ),
+    )
+    unrelated_failure = DockerCommandError(
+        ("run", "image"),
+        returncode=125,
+        stdout="",
+        stderr="invalid mount config for type bind",
+    )
+
+    assert is_docker_publish_failure(publish_failure) is True
+    assert is_docker_publish_failure(unrelated_failure) is False
+    assert "Unable to enable DNAT rule" in str(publish_failure)
+
+
+def test_osworld_resolves_direct_bridge_guest_endpoint(monkeypatch) -> None:
+    commands: list[tuple[str, ...]] = []
+
+    def fake_docker(*args: str, timeout: float = 600) -> str:
+        commands.append(args)
+        return "172.17.0.9"
+
+    monkeypatch.setattr(
+        "pikvm_agent.harness.osworld_runner._docker",
+        fake_docker,
+    )
+
+    endpoint = docker_guest_endpoint(
+        "container-id",
+        access="direct_bridge",
+    )
+
+    assert endpoint == "http://172.17.0.9:5000"
+    assert commands == [
+        (
+            "inspect",
+            "container-id",
+            "--format",
+            "{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}",
+        )
+    ]
+
+
+def test_osworld_retries_publish_failure_on_private_bridge(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    commands: list[tuple[str, ...]] = []
+
+    def fake_docker(*args: str, timeout: float = 600) -> str:
+        commands.append(args)
+        if len(commands) == 1:
+            raise DockerCommandError(
+                args,
+                returncode=125,
+                stdout="",
+                stderr=(
+                    "failed to set up container networking: Unable to enable "
+                    "DNAT rule: iptables: No chain/target/match by that name"
+                ),
+            )
+        return "container-id"
+
+    monkeypatch.setattr(
+        "pikvm_agent.harness.osworld_runner._docker",
+        fake_docker,
+    )
+
+    container_id, access, reason = _start_osworld_container(
+        container_name="case",
+        qcow=tmp_path / "Ubuntu.qcow2",
+        docker_image="image@sha256:digest",
+        kvm_available=True,
+        timeout_s=30,
+    )
+
+    assert container_id == "container-id"
+    assert access == "direct_bridge"
+    assert reason is not None and "Unable to enable DNAT rule" in reason
+    assert "-p" in commands[0]
+    assert "-p" not in commands[1]
+
+
+def test_osworld_docker_error_preserves_stderr(monkeypatch) -> None:
+    def fail(*args, **kwargs):
+        raise subprocess.CalledProcessError(
+            125,
+            args[0],
+            output="",
+            stderr="precise Docker failure",
+        )
+
+    monkeypatch.setattr(subprocess, "run", fail)
+
+    with pytest.raises(DockerCommandError) as captured:
+        _docker("run", "image")
+
+    assert captured.value.returncode == 125
+    assert captured.value.stderr == "precise Docker failure"
+    assert "precise Docker failure" in str(captured.value)
 
 
 async def test_osworld_model_wall_budget_aborts_durable_run() -> None:

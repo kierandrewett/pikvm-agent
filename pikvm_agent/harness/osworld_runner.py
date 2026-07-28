@@ -18,7 +18,7 @@ import time
 import uuid
 from collections.abc import Awaitable, Callable, Mapping
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import httpx
 from PIL import Image
@@ -75,7 +75,7 @@ ApprovalWaiter = Callable[[Any], Awaitable[Any]]
 class OSWorldCaseReport(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    schema_version: int = 3
+    schema_version: int = 4
     suite: str = "osworld-verified"
     suite_revision: str
     task_id: str
@@ -84,6 +84,8 @@ class OSWorldCaseReport(BaseModel):
     docker_image: str
     docker_image_id: str
     vm_image_sha256: str
+    container_access: Literal["published_port", "direct_bridge"]
+    container_publish_fallback_reason: str | None = None
     control_plane: str = "agent-harness -> MCP stdio -> isolated daemon"
     target_adapter: str = "official in-guest server through PiKVM-shaped lab"
     policy_profile: str = "isolated_benchmark"
@@ -98,6 +100,28 @@ class OSWorldCaseReport(BaseModel):
     run_state_path: Path
     artifact_dir: Path
     report_path: Path
+
+
+class DockerCommandError(RuntimeError):
+    """Docker failure with stderr preserved for durable benchmark evidence."""
+
+    def __init__(
+        self,
+        command: tuple[str, ...],
+        *,
+        returncode: int,
+        stdout: str,
+        stderr: str,
+    ) -> None:
+        self.command = command
+        self.returncode = returncode
+        self.stdout = stdout
+        self.stderr = stderr
+        detail = (stderr or stdout or "no command output").strip()[:4000]
+        summary = " ".join(command[:3])
+        super().__init__(
+            f"docker {summary} failed with exit {returncode}: {detail}"
+        )
 
 
 def _replace_placeholders(value: Any, replacements: Mapping[str, str]) -> Any:
@@ -398,14 +422,37 @@ def _validate_vm_command_line(result: dict[str, Any]) -> None:
 
 
 def _docker(*args: str, timeout: float = 600) -> str:
-    completed = subprocess.run(
-        ["docker", *args],
-        check=True,
-        capture_output=True,
-        text=True,
-        timeout=timeout,
-    )
+    try:
+        completed = subprocess.run(
+            ["docker", *args],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+    except subprocess.CalledProcessError as exc:
+        raise DockerCommandError(
+            tuple(args),
+            returncode=exc.returncode,
+            stdout=exc.stdout or "",
+            stderr=exc.stderr or "",
+        ) from exc
     return completed.stdout.strip()
+
+
+def is_docker_publish_failure(error: DockerCommandError) -> bool:
+    """Recognize a failed Docker published-port setup safe to retry privately."""
+    detail = f"{error.stderr}\n{error.stdout}".lower()
+    has_publish_failure = (
+        "failed to set up container networking" in detail
+        or "unable to enable dnat rule" in detail
+    )
+    has_nat_detail = (
+        "iptables" in detail
+        or "dnat" in detail
+        or "no chain/target/match" in detail
+    )
+    return error.returncode == 125 and has_publish_failure and has_nat_detail
 
 
 def docker_run_args(
@@ -414,6 +461,7 @@ def docker_run_args(
     qcow: Path,
     docker_image: str,
     kvm_available: bool,
+    publish_guest_port: bool = True,
 ) -> list[str]:
     """Build the official container launch while preserving port 5000 fallback."""
     arguments = [
@@ -437,15 +485,77 @@ def docker_run_args(
         "USER_PORTS=5000",
         "-v",
         f"{qcow}:/System.qcow2:ro",
-        "-p",
-        "127.0.0.1::5000",
     ]
+    if publish_guest_port:
+        arguments.extend(["-p", "127.0.0.1::5000"])
     if kvm_available:
         arguments.extend(["--device", "/dev/kvm"])
     else:
         arguments.extend(["-e", "KVM=N"])
     arguments.append(docker_image)
     return arguments
+
+
+def _start_osworld_container(
+    *,
+    container_name: str,
+    qcow: Path,
+    docker_image: str,
+    kvm_available: bool,
+    timeout_s: float,
+) -> tuple[str, Literal["published_port", "direct_bridge"], str | None]:
+    try:
+        container_id = _docker(
+            *docker_run_args(
+                container_name=container_name,
+                qcow=qcow,
+                docker_image=docker_image,
+                kvm_available=kvm_available,
+            ),
+            timeout=timeout_s,
+        )
+        return container_id, "published_port", None
+    except DockerCommandError as error:
+        if not is_docker_publish_failure(error):
+            raise
+        container_id = _docker(
+            *docker_run_args(
+                container_name=container_name,
+                qcow=qcow,
+                docker_image=docker_image,
+                kvm_available=kvm_available,
+                publish_guest_port=False,
+            ),
+            timeout=timeout_s,
+        )
+        return container_id, "direct_bridge", str(error)
+
+
+def docker_guest_endpoint(
+    container_id: str,
+    *,
+    access: Literal["published_port", "direct_bridge"],
+) -> str:
+    if access == "published_port":
+        port_output = _docker("port", container_id, "5000/tcp")
+        guest_port = int(port_output.rsplit(":", 1)[-1])
+        return f"http://127.0.0.1:{guest_port}"
+    if access == "direct_bridge":
+        address = _docker(
+            "inspect",
+            container_id,
+            "--format",
+            "{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}",
+        ).strip()
+        if not address or any(
+            character not in "0123456789abcdefABCDEF:." for character in address
+        ):
+            raise RuntimeError(
+                "Docker did not expose a usable private bridge address"
+            )
+        host = f"[{address}]" if ":" in address else address
+        return f"http://{host}:5000"
+    raise ValueError(f"unsupported Docker guest access mode: {access}")
 
 
 def _sha256(path: Path) -> str:
@@ -719,6 +829,10 @@ async def run_osworld_case(
 
     container_name = f"pikvm-osworld-{uuid.uuid4().hex[:12]}"
     container_id = ""
+    container_access: Literal["published_port", "direct_bridge"] = (
+        "published_port"
+    )
+    container_publish_fallback_reason: str | None = None
     report_path = output_dir / "report.json"
     state_path = output_dir / "harness.sqlite3"
     artifacts = output_dir / "artifacts"
@@ -733,18 +847,21 @@ async def run_osworld_case(
             pass
     try:
         stage = "container_start"
-        container_id = _docker(
-            *docker_run_args(
-                container_name=container_name,
-                qcow=qcow,
-                docker_image=docker_image,
-                kvm_available=Path("/dev/kvm").exists(),
-            ),
-            timeout=startup_timeout_s,
+        (
+            container_id,
+            container_access,
+            container_publish_fallback_reason,
+        ) = _start_osworld_container(
+            container_name=container_name,
+            qcow=qcow,
+            docker_image=docker_image,
+            kvm_available=Path("/dev/kvm").exists(),
+            timeout_s=startup_timeout_s,
         )
-        port_output = _docker("port", container_id, "5000/tcp")
-        guest_port = int(port_output.rsplit(":", 1)[-1])
-        guest_endpoint = f"http://127.0.0.1:{guest_port}"
+        guest_endpoint = docker_guest_endpoint(
+            container_id,
+            access=container_access,
+        )
         stage = "guest_startup"
         width, height = await _wait_guest(guest_endpoint, startup_timeout_s)
 
@@ -881,6 +998,10 @@ async def run_osworld_case(
             docker_image=docker_image,
             docker_image_id=image_id,
             vm_image_sha256=_sha256(qcow),
+            container_access=container_access,
+            container_publish_fallback_reason=(
+                container_publish_fallback_reason
+            ),
             harness_status=run.status.value,
             official_score=official_score,
             evaluator=evaluator,
