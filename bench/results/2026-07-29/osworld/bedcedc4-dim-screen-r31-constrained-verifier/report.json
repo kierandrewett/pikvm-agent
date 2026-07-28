@@ -1,0 +1,119 @@
+{
+  "schema_version": 4,
+  "suite": "osworld-verified",
+  "suite_revision": "b7db4d8c85d9e95e0b1db44de5bec954cf37f0cf",
+  "task_id": "bedcedc4-4d72-425e-ad62-21960b11fe0d",
+  "domain": "os",
+  "instruction": "Could you set the 'Dim screen when inactive' to off in setting?",
+  "docker_image": "happysixd/osworld-docker:latest",
+  "docker_image_id": "sha256:0e6497a9295647cf05bf2b2af522fdd79bdeba2737595259cab310a3bcf6baa9",
+  "vm_image_sha256": "6bf667a852b3c307f61d9f09c42559351f45e0607e428b4997becf534cf4d313",
+  "container_access": "direct_bridge",
+  "container_publish_fallback_reason": "docker run -d --rm failed with exit 125: docker: Error response from daemon: failed to set up container networking: driver failed programming external connectivity on endpoint pikvm-osworld-c883a7073976 (cffd224e88327a1c50794acd047f8022e38b75cfe3b3718b1b935bdf3c1c4ba2): Unable to enable DNAT rule:  (iptables failed: iptables --wait -t nat -A DOCKER -p tcp -d 127.0.0.1 --dport 32839 -j DNAT --to-destination 172.17.0.2:5000 ! -i docker0: iptables: No chain/target/match by that name.\n (exit status 1))\n\nRun 'docker run --help' for more information",
+  "control_plane": "agent-harness -> MCP stdio -> isolated daemon",
+  "target_adapter": "official in-guest server through PiKVM-shaped lab",
+  "policy_profile": "isolated_benchmark",
+  "harness_status": "blocked",
+  "official_score": 1.0,
+  "evaluator": "or(2 x exact_match(vm_command_line, rule))",
+  "approvals_required": 0,
+  "cycles": 10,
+  "model_run_budget_s": 900.0,
+  "model_run_timed_out": false,
+  "performance": {
+    "run_id": "fc7d127d-33be-46e8-aa77-0a1030e987fb",
+    "status": "blocked",
+    "wall_clock_ms": 693271,
+    "model_active_ms": 691274,
+    "model_lanes": [
+      {
+        "role": "controller",
+        "provider": "claude-sonnet-low",
+        "model": "sonnet",
+        "latency": {
+          "samples": 31,
+          "min_ms": 7546.0,
+          "median_ms": 10611.0,
+          "p95_ms": 14424.0,
+          "max_ms": 15463.0,
+          "mean_ms": 10945.483870967742
+        }
+      },
+      {
+        "role": "reasoner",
+        "provider": "claude-opus-low",
+        "model": "opus",
+        "latency": {
+          "samples": 9,
+          "min_ms": 12307.0,
+          "median_ms": 15898.0,
+          "p95_ms": 21452.8,
+          "max_ms": 22154.0,
+          "mean_ms": 16566.777777777777
+        }
+      },
+      {
+        "role": "verifier",
+        "provider": "claude-sonnet-low",
+        "model": "sonnet",
+        "latency": {
+          "samples": 16,
+          "min_ms": 9658.0,
+          "median_ms": 10986.0,
+          "p95_ms": 19769.75,
+          "max_ms": 38330.0,
+          "mean_ms": 12678.9375
+        }
+      }
+    ],
+    "model_failures": 0,
+    "actions_checkpointed": 18,
+    "actions_attempted": 18,
+    "actions_completed": 16,
+    "progress_actions_completed": 16,
+    "observation_only_actions_completed": 0,
+    "action_recoverable_failures": 0,
+    "action_stale_retries": 0,
+    "pointer_noops_rejected": 0,
+    "repeated_actions_stopped": 0,
+    "non_idempotent_retries_stopped": 0,
+    "autonomous_resumes": 0,
+    "autonomy_stops": 0,
+    "provider_attempts": 58,
+    "provider_failures": 0,
+    "provider_fallbacks": 0,
+    "provider_schema_repairs": 2,
+    "provider_safety_downgrades": 2,
+    "action_latency": {
+      "samples": 18,
+      "min_ms": 1550.279,
+      "median_ms": 3005.635,
+      "p95_ms": 20618.177199999995,
+      "max_ms": 24197.057999999997,
+      "mean_ms": 6485.720499999999
+    },
+    "completion_efficiency": 0.8888888888888888,
+    "progress_action_ratio": 1.0,
+    "critical_path": {
+      "startup_ms": 1877,
+      "provider_wait_ms": 569224,
+      "provider_serial_equivalent_ms": 713587,
+      "provider_overlap_ms": 144363,
+      "max_concurrent_provider_calls": 2,
+      "action_execution_ms": 116743,
+      "evidence_capture_ms": 2708,
+      "unclassified_overhead_ms": 2719,
+      "overlap_ms": 0,
+      "provider_wait_share": 0.8210699711945256,
+      "action_execution_share": 0.16839446623326232,
+      "provider_calls": 58,
+      "reasoner_calls": 9,
+      "controller_calls": 33,
+      "verifier_calls": 16
+    },
+    "human_comparison": null
+  },
+  "run_state_path": "/home/kieran/dev/pikvm-agent/bench/results/2026-07-29/osworld/bedcedc4-dim-screen-r31-constrained-verifier/harness.sqlite3",
+  "artifact_dir": "/home/kieran/dev/pikvm-agent/bench/results/2026-07-29/osworld/bedcedc4-dim-screen-r31-constrained-verifier/artifacts",
+  "report_path": "/home/kieran/dev/pikvm-agent/bench/results/2026-07-29/osworld/bedcedc4-dim-screen-r31-constrained-verifier/report.json"
+}

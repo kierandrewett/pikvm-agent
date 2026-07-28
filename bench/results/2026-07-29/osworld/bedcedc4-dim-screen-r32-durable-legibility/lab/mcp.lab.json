@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "pikvm-lab": {
+      "type": "stdio",
+      "command": "/home/kieran/dev/pikvm-agent/.venv/bin/python3",
+      "args": [
+        "-m",
+        "pikvm_agent.cli",
+        "harness",
+        "managed-runtime-mcp",
+        "--runtime",
+        "/home/kieran/dev/pikvm-agent/bench/results/2026-07-29/osworld/bedcedc4-dim-screen-r32-durable-legibility/lab/managed-client-runtime.json",
+        "--caller-label",
+        "claude-cli"
+      ],
+      "env": {}
+    }
+  }
+}

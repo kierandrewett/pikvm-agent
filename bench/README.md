@@ -1631,24 +1631,24 @@ representative 369-task OSWorld score.
 | Set volume to maximum | 1 | 2/2 | 5 | 33.73s | 40.16s | official `1.0`, completed |
 | Enable automatic screen lock | 11 | 9/10 | 31 | 295.30s | 369.63s | official `1.0`, completed |
 | Rename `todo_list_Jan_1` to `todo_list_Jan_2` | 2 | 5/5 | 12 | 98.29s | 128.56s | official `1.0`, completed |
-| Disable inactive-screen dimming | 4 | 9/10 | 23 | 270.24s | 275.27s | official `1.0`, completed |
+| Disable inactive-screen dimming | 5 | 9/10 | 24 | 258.38s | 284.70s | official `1.0`, completed |
 | Set timezone to UTC+0 | 11 | 18/23 | 50 | 491.19s | 602.09s | official `1.0`, completed |
 | Restore deleted poster from Trash | 1 | 3/3 | 7 | 66.68s | 82.01s | official `1.0`, completed |
 | Repair conda environment | 1 | 2/3 | 6 | 54.59s | 61.44s | official `0.0`, approval required |
 | Extract and remove video subtitles | 12 | 13/19 | 46 | 833.08s | 1,071.89s | official `0.0`, blocked |
 
-Across the current nine-task set: 185 model completions from 196 provider
-attempts, eight structured-output repairs, one deterministic safe-draft
-downgrade, three provider failures, one approval, 63/77 completed actions,
-2,183.69 seconds of summed model-active time, and 2,678.21 seconds wall time.
+Across the current nine-task set: 186 model completions from 198 provider
+attempts, nine structured-output repairs, two deterministic safe-draft
+downgrades, three provider failures, one approval, 63/77 completed actions,
+2,171.83 seconds of summed model-active time, and 2,687.64 seconds wall time.
 End-to-end median/p95 were 128.56/883.97 seconds. Auto-lock, UTC, and inactive
 screen dimming remain accurate but too slow; the latest subtitle run
 regressed into ambiguous terminal OCR and repeated focus actions before
 reaching an approval boundary.
 
-The iteration history is intentionally less flattering. Forty-two attempts
-reached the official evaluator: twelve achieved the goal state, while only
-eleven
+The iteration history is intentionally less flattering. Forty-five attempts
+reached the official evaluator: fifteen achieved the goal state, while only
+thirteen
 also had a truthful harness `completed` state. Twelve more attempts ended before
 evaluation because of infrastructure, provider, process-lifecycle, or
 controller/setup failures. The current 7/9 set is therefore shown beside—not
@@ -1657,8 +1657,8 @@ instead of—the all-attempt history:
 | Denominator | Result |
 | --- | ---: |
 | Current latest-run task set | 7/9 official + harness success |
-| All officially scored attempts | 12/42 official goal-state success |
-| All scored attempts requiring official + harness success | 11/42 |
+| All officially scored attempts | 15/45 official goal-state success |
+| All scored attempts requiring official + harness success | 13/45 |
 | Unscored attempts retained as failures | 12 |
 
 Durable evidence:
@@ -1739,6 +1739,31 @@ Durable evidence:
   speculative controller did not repeat the completed action. The result is
   therefore evidence for the complete post-fix route, not a causal attribution
   of all 47.04 seconds to that one guard.
+- [`bedcedc4 R30`](results/2026-07-29/osworld/bedcedc4-dim-screen-r30-safe-plan-preserved/report.json)
+  live-exercised harmless once-only navigation-plan preservation. The initial
+  short search returned `type_unverified`; the harness retained the existing
+  plan, did not replay text, and still completed with official score `1.0` in
+  290.44 seconds. A separate verifier response later described a successful
+  command commit but omitted its required action-assessment array, forcing a
+  safe replan. This led to per-request exact verifier-array constraints.
+- [`bedcedc4 R31`](results/2026-07-29/osworld/bedcedc4-dim-screen-r31-constrained-verifier/report.json)
+  is the retained false negative. The official evaluator scored `1.0`, but the
+  harness blocked after 693.27 seconds, 18 actions, and 58 provider attempts.
+  OCR recovery pushed the original verified terminal-width action out of the
+  eight-item prompt-memory window; local legibility policy incorrectly reused
+  that bounded view, rejected a valid retype, and stopped on stagnation. The
+  report remains a scored harness failure even though the OS goal state was
+  correct.
+- [`bedcedc4 R32`](results/2026-07-29/osworld/bedcedc4-dim-screen-r32-durable-legibility/report.json)
+  separates bounded model context from all-run local policy evidence. It again
+  live-exercised safe navigation-plan preservation, retained exact once-only
+  readback for the 68- and 62-character native-print drafts, used only two
+  Opus plans, completed 9/10 actions, required no approval, and received
+  official score `1.0` with truthful harness `completed` in 284.70 seconds.
+  Across strict R29/R30/R32 passes, median/p95 are 284.70/289.87 seconds.
+  R32 is 179.62 seconds faster than R25 (38.68%, or 1.63x throughput), but
+  9.43 seconds slower than the fastest R29 sample. Human-relative speed is
+  still unproven because no controlled human baseline has been captured.
 - [`b6781586-utc-r2/report.json`](results/2026-07-25/osworld/b6781586-utc-r2/report.json)
   is the passing UTC+0 run, including its 602.09-second wall time and five
   recoverable typing failures.
