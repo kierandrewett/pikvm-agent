@@ -141,6 +141,11 @@ key in one burst and verify the final displayed result; do not make legibility
 of tiny expression-history text a required intermediate checkpoint unless the
 user specifically asked for it. Never use this guidance to combine
 consequential commit actions with their preparation.
+Before typing a long exact terminal draft, require a separate verified maximize,
+widen, or zoom action that makes the whole line directly legible. Do not combine
+that legibility action with the text entry. If recent_verified_actions does not
+prove the terminal was made legible after it was opened, propose the non-text
+legibility action first.
 For a short rectangular table in a spreadsheet application, and only after
 the verifier established a verified active spreadsheet cell, use one
 spreadsheet_grid action instead of one model turn per cell. It accepts 1 to 8
@@ -802,6 +807,63 @@ class AgentHarness:
                     )
                     run.record(
                         "controller.unverified_terminal_correction_failed",
+                        action_types=[
+                            str(action.get("type") or "")
+                            for action in proposed_actions
+                        ],
+                    )
+                    await self.store.save(run)
+                    return run
+            if self._long_terminal_draft_needs_legibility_step(
+                run,
+                proposed_actions,
+            ):
+                run.record(
+                    "controller.long_terminal_draft_rejected",
+                    action_types=[
+                        str(action.get("type") or "")
+                        for action in proposed_actions
+                    ],
+                    reason=(
+                        "long exact terminal text requires a separately "
+                        "verified legibility action before HID"
+                    ),
+                )
+                await self.store.save(run)
+                controller = await self._control(
+                    run,
+                    controller_feedback={
+                        "reason": (
+                            "The proposed exact terminal draft is too long to "
+                            "type before the current terminal width and text "
+                            "legibility have been independently verified."
+                        ),
+                        "instruction": (
+                            "Do not type any text yet. Propose one non-text, "
+                            "reversible action that makes the terminal visibly "
+                            "wide and legible on this OS (for example maximize, "
+                            "widen, or zoom out), then let the verifier check it."
+                        ),
+                    },
+                )
+                if controller is None:
+                    return run
+                proposed_actions = [
+                    action.model_dump(mode="json", exclude_none=True)
+                    for action in controller.actions
+                ]
+                if self._long_terminal_draft_needs_legibility_step(
+                    run,
+                    proposed_actions,
+                ):
+                    run.plan = None
+                    run.status = RunStatus.PAUSED
+                    run.error = (
+                        "controller repeated a long exact terminal draft "
+                        "before a verified legibility action"
+                    )
+                    run.record(
+                        "controller.long_terminal_legibility_correction_failed",
                         action_types=[
                             str(action.get("type") or "")
                             for action in proposed_actions
@@ -2223,6 +2285,54 @@ class AgentHarness:
             )
             for action in proposed_actions
         )
+
+    @staticmethod
+    def _long_terminal_draft_needs_legibility_step(
+        run: RunSnapshot,
+        proposed_actions: list[dict[str, Any]],
+    ) -> bool:
+        """Refuse a long exact terminal draft until its surface is legible."""
+
+        has_long_terminal_draft = any(
+            action.get("type") == "type_text"
+            and action.get("context") == "terminal"
+            and (
+                bool(action.get("code"))
+                or action.get("verification") == "exact"
+            )
+            and len(str(action.get("text") or "")) > 48
+            for action in proposed_actions
+        )
+        if not has_long_terminal_draft:
+            return False
+
+        terminal_opened_at = -1
+        legibility_verified_at = -1
+        for item in AgentHarness._recent_verified_actions(run):
+            action_index = item.get("action_index")
+            if not isinstance(action_index, int):
+                continue
+            evidence = " ".join(
+                str(item.get(key) or "")
+                for key in ("intent", "summary")
+            ).casefold()
+            terminal_named = "terminal" in evidence
+            if terminal_named and re.search(
+                r"\b(?:open|opened|launch|launched|start|started)\b",
+                evidence,
+            ):
+                terminal_opened_at = max(terminal_opened_at, action_index)
+            if terminal_named and re.search(
+                r"\b(?:maximi[sz](?:e|ed)|widen(?:ed)?|"
+                r"zoom(?:ed)?(?:\s+out)?|full[- ]width)\b",
+                evidence,
+            ):
+                legibility_verified_at = max(
+                    legibility_verified_at,
+                    action_index,
+                )
+
+        return legibility_verified_at <= terminal_opened_at
 
     @staticmethod
     def _verification_composite(

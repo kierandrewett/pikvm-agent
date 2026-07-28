@@ -1102,6 +1102,8 @@ async def test_controller_handles_an_unverified_terminal_draft_without_guessing(
     assert "do not press Enter" in normalized
     assert "cancel the draft with Ctrl+C" in normalized
     assert "visibly clean prompt" in normalized
+    assert "long exact terminal draft" in normalized
+    assert "separate verified maximize, widen, or zoom action" in normalized
 
 
 def test_controller_separates_spreadsheet_focus_from_grid_entry() -> None:
@@ -2406,6 +2408,187 @@ def test_unverified_terminal_draft_blocks_suffixes_and_execution_until_cancelled
             }
         ],
     )
+
+
+def test_long_terminal_draft_requires_a_verified_legibility_step() -> None:
+    run = RunSnapshot(
+        run_id="long-terminal-legibility",
+        task="Disable the dim-screen setting",
+        status=RunStatus.PAUSED,
+    )
+    proposed = [
+        {
+            "type": "type_text",
+            "text": (
+                "gsettings set "
+                "org.gnome.settings-daemon.plugins.power idle-dim false"
+            ),
+            "code": True,
+            "context": "terminal",
+        }
+    ]
+
+    assert AgentHarness._long_terminal_draft_needs_legibility_step(
+        run,
+        proposed,
+    )
+    assert not AgentHarness._long_terminal_draft_needs_legibility_step(
+        run,
+        [
+            {
+                "type": "type_text",
+                "text": "gsettings list-schemas",
+                "code": True,
+                "context": "terminal",
+            }
+        ],
+    )
+
+    run.record(
+        "action.checkpointed",
+        index=4,
+        intent="Maximize the terminal before entering the exact command.",
+        actions=[{"type": "key", "keys": ["META", "UP"]}],
+    )
+    run.record(
+        "model.completed",
+        role="verifier",
+        verdict="verified",
+        summary="The terminal is visibly maximized and the clean prompt is legible.",
+    )
+
+    assert not AgentHarness._long_terminal_draft_needs_legibility_step(
+        run,
+        proposed,
+    )
+
+    run.record(
+        "action.checkpointed",
+        index=5,
+        intent="Open a new terminal window.",
+        actions=[{"type": "key", "keys": ["CTRL", "ALT", "T"]}],
+    )
+    run.record(
+        "model.completed",
+        role="verifier",
+        verdict="verified",
+        summary="A new terminal opened at its default narrow width.",
+    )
+
+    assert AgentHarness._long_terminal_draft_needs_legibility_step(
+        run,
+        proposed,
+    )
+
+
+@pytest.mark.asyncio
+async def test_long_terminal_draft_is_replaced_with_legibility_action_before_hid() -> None:
+    class LegibilityProvider(ScriptedProvider):
+        def __init__(self) -> None:
+            super().__init__()
+            self.controller_calls = 0
+
+        async def complete(self, request: ModelRequest) -> ModelResponse:
+            if request.role == "controller":
+                self.requests.append(request)
+                self.controller_calls += 1
+                actions = (
+                    [
+                        {
+                            "type": "type_text",
+                            "text": (
+                                "gsettings set "
+                                "org.gnome.settings-daemon.plugins.power "
+                                "idle-dim false"
+                            ),
+                            "code": True,
+                            "context": "terminal",
+                            "verification": "exact",
+                        }
+                    ]
+                    if self.controller_calls == 1
+                    else [{"type": "key", "keys": ["META", "UP"]}]
+                )
+                return ModelResponse(
+                    provider=self.name,
+                    model="scripted-v1",
+                    data={
+                        "outcome": "act",
+                        "intent": (
+                            "Type the exact setting command."
+                            if self.controller_calls == 1
+                            else "Maximize the terminal before typing."
+                        ),
+                        "actions": actions,
+                        "expected_evidence": [
+                            "The terminal is visibly maximized and legible."
+                        ],
+                    },
+                )
+            if request.role == "verifier":
+                self.requests.append(request)
+                return ModelResponse(
+                    provider=self.name,
+                    model="scripted-v1",
+                    data={
+                        "verdict": "verified",
+                        "summary": (
+                            "The terminal is visibly maximized and the prompt "
+                            "is legible."
+                        ),
+                        "evidence": ["The terminal now fills the screen width."],
+                    },
+                )
+            return await super().complete(request)
+
+    provider = LegibilityProvider()
+    computer = FakeComputer()
+    store = InMemoryRunStore()
+    pool = ModelPool(
+        providers={provider.name: provider},
+        routes={
+            role: RoleRoute(providers=[provider.name])
+            for role in ("reasoner", "controller", "verifier")
+        },
+    )
+    harness = AgentHarness(
+        computer=computer,
+        models=pool,
+        store=store,
+        config=HarnessConfig(max_actions_per_advance=1),
+    )
+    run = RunSnapshot(
+        run_id="guard-long-terminal-draft",
+        task="Disable the dim-screen setting",
+        status=RunStatus.PAUSED,
+        session_id="s_1",
+        observation=await computer.open("legibility-test"),
+        plan=PlanDecision(
+            summary="Disable the requested setting.",
+            steps=["Enter the exact local setting command."],
+            success_criteria=["The dim-screen setting is off."],
+            constraints=["Preserve unrelated settings."],
+        ),
+    )
+    await store.save(run)
+
+    result = await harness.continue_run(run.run_id)
+
+    assert provider.controller_calls == 2
+    assert [burst["actions"] for burst in computer.bursts] == [
+        [{"type": "key", "keys": ["META", "UP"]}]
+    ], [(event.kind, event.data) for event in result.events[-8:]]
+    assert any(
+        event.kind == "controller.long_terminal_draft_rejected"
+        for event in result.events
+    )
+    controller_prompts = [
+        request.prompt
+        for request in provider.requests
+        if request.role == "controller"
+    ]
+    assert '"controller_feedback": {' in controller_prompts[1]
+    assert "Do not type any text yet" in controller_prompts[1]
 
 
 @pytest.mark.asyncio
