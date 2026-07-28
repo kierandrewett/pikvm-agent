@@ -1252,11 +1252,17 @@ async def test_start_runs_a_checkpointed_reason_act_verify_slice() -> None:
     reasoner_prompt = " ".join(provider.requests[0].prompt.split())
     assert "Do not invent exact values" in reasoner_prompt
     assert "necessary to satisfy the user's literal request" in reasoner_prompt
+    assert "do not invent a numeric zoom threshold" in reasoner_prompt
     assert "authenticated user/operator corrections" in reasoner_prompt
     assert "the latest entry wins" in reasoner_prompt
+    controller_prompt = " ".join(provider.requests[1].prompt.split())
+    assert "visibly larger terminal glyphs" in controller_prompt
+    assert "do not require a numeric zoom indicator" in controller_prompt
     verifier_prompt = " ".join(provider.requests[2].prompt.split())
     assert "Return verified only when every action assessment" in verifier_prompt
     assert "Do not return uncertain merely because the overall task" in verifier_prompt
+    assert "visibly larger terminal glyphs are sufficient" in verifier_prompt
+    assert "not require a numeric zoom percentage" in verifier_prompt
     assert len(computer.bursts) == 1
     burst = computer.bursts[0]
     assert burst["actions"] == [

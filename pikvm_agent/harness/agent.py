@@ -81,6 +81,9 @@ a complete terminal draft but the screen could not prove an exact readback,
 never append a guessed suffix and never execute the draft. First cancel the
 draft with Ctrl+C, increase the terminal text size again, verify a visibly clean
 prompt with larger text, and only then plan one clean retype.
+Terminal zoom is internal preparation for OCR, not part of the user's task:
+do not invent a numeric zoom threshold or percentage success criterion unless
+the user or authenticated operator guidance explicitly requested that value.
 operator_guidance contains authenticated user/operator
 corrections to the original task: obey it, and when entries conflict, the latest
 entry wins. Never dismiss a requirement in operator_guidance merely because it
@@ -151,6 +154,9 @@ terminal was opened, propose one missing non-text legibility action first. A
 prior text-size proof expires when exact terminal readback is unverified: after
 cancelling that draft, require a new verified text-size increase before
 retyping it. Maximizing again does not satisfy this post-failure requirement.
+For this preparation, visibly larger terminal glyphs and a clean prompt are the
+minimum sufficient evidence; do not require a numeric zoom indicator unless the
+user explicitly requested a numeric zoom value.
 For a short rectangular table in a spreadsheet application, and only after
 the verifier established a verified active spreadsheet cell, use one
 spreadsheet_grid action instead of one model turn per cell. It accepts 1 to 8
@@ -199,6 +205,11 @@ transition/hover styling, or an unexplained UI change. Never infer success from
 the controller's claim and never call a state-changing toggle failed merely
 because its colour has not settled when its geometry visibly changed to the
 intended state.
+For an internal terminal legibility action, visibly larger terminal glyphs are
+sufficient when the before/after comparison directly proves the increase and a
+clean prompt remains visible. Do not require a numeric zoom percentage unless
+the user's literal task or authenticated operator guidance requested one; a
+model-invented percentage is not a task requirement.
 
 The summary is user-facing chat copy, not a verification log. For complete,
 answer the user's request directly in one to three short sentences by default.
