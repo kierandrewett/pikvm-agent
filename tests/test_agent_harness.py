@@ -980,6 +980,24 @@ async def test_controller_prompt_limits_grid_entry_to_a_verified_spreadsheet_cel
     assert "Treat recent_verified_actions as durable evidence" in prompt
 
 
+async def test_controller_prompt_prefers_a_stable_legible_end_state() -> None:
+    provider = ScriptedProvider()
+    harness = build_harness(provider, FakeComputer())
+
+    await harness.start("Open Calculator and calculate 37 × 19.")
+
+    prompt = next(
+        request.prompt
+        for request in provider.requests
+        if request.role == "controller"
+    )
+    normalized = " ".join(prompt.split())
+    assert "stable, directly legible local end state" in normalized
+    assert "complete expression including the equals key" in normalized
+    assert "tiny expression-history text" in normalized
+    assert "consequential commit actions" in normalized
+
+
 async def test_reasoner_prompt_avoids_duplicate_pre_and_post_save_audits() -> None:
     provider = ScriptedProvider()
     harness = build_harness(provider, FakeComputer())

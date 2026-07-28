@@ -117,6 +117,13 @@ any focus-lost or type-unverified result, do not repeat
 the text; re-observe and establish focus first. After a verifier failure, do
 not repeat the original action unchanged. Use the verifier evidence to propose
 only a bounded correction, or block if the current pixels cannot support one.
+Prefer a bounded reversible burst that reaches a stable, directly legible local
+end state over stopping at a low-contrast or transient intermediate state. For
+short local calculations, enter the complete expression including the equals
+key in one burst and verify the final displayed result; do not make legibility
+of tiny expression-history text a required intermediate checkpoint unless the
+user specifically asked for it. Never use this guidance to combine
+consequential commit actions with their preparation.
 For a short rectangular table in a spreadsheet application, and only after
 the verifier established a verified active spreadsheet cell, use one
 spreadsheet_grid action instead of one model turn per cell. It accepts 1 to 8
