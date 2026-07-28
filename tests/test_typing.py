@@ -517,6 +517,55 @@ def test_ocr_localization_folds_smart_quotes_for_prose_only() -> None:
     assert precise_region is None
 
 
+@pytest.mark.parametrize(
+    ("leading", "suffix", "should_match"),
+    [
+        pytest.param("", "", True, id="exact-wrapped-command"),
+        pytest.param("4 ", "", False, id="wrapped-leading-artifact"),
+        pytest.param("", "x", False, id="wrapped-extra-suffix"),
+    ],
+)
+def test_full_screen_exact_candidate_reconstructs_adjacent_terminal_rows(
+    leading: str,
+    suffix: str,
+    should_match: bool,
+) -> None:
+    intended = "gsettings set org.gnome.settings-daemon.plugins.power idle-dim false"
+    result = OCRResult(
+        lines=[
+            OCRLine(
+                text=(
+                    "J user@vm:~$ "
+                    "gsettings set org.gnome.settings-daemon.p"
+                ),
+                confidence=0.72,
+                bbox=[9, 120, 1259, 154],
+            ),
+            OCRLine(
+                text=f"{leading}lugins.power idle-dim false{suffix}",
+                confidence=0.71,
+                bbox=[10, 154, 533, 194],
+            ),
+        ]
+    )
+
+    candidate = WatchedTyper(
+        FakeBackend(),
+        ScriptedOCR(),
+    )._full_screen_exact_line_candidate(
+        result,
+        intended,
+        (1280, 720),
+        allow_semantic_spacing=True,
+    )
+
+    assert (candidate is not None) is should_match
+    if candidate is not None:
+        assert candidate[0] == intended
+        assert candidate[1].y <= 120
+        assert candidate[1].y + candidate[1].height >= 194
+
+
 # --------------------------------------------------------------------------- #
 # fast print path
 # --------------------------------------------------------------------------- #
@@ -1163,19 +1212,35 @@ async def test_terminal_prefix_normalization_cannot_verify_a_stale_final_read(
 
 
 @pytest.mark.parametrize(
-    ("line_bbox", "line_suffix", "poison_readback", "expected_status"),
+    (
+        "line_bbox",
+        "line_suffix",
+        "poison_readback",
+        "full_screen_misses",
+        "expected_status",
+    ),
     [
         pytest.param(
             [20, 72, 1040, 100],
             "",
             False,
+            0,
             "verified_exact",
             id="grounded-complete-line",
         ),
         pytest.param(
             [20, 72, 1040, 100],
             "",
+            False,
+            1,
+            "verified_exact",
+            id="delayed-full-screen-frame",
+        ),
+        pytest.param(
+            [20, 72, 1040, 100],
+            "",
             True,
+            0,
             "verified_exact",
             id="causal-delta-recovers-poisoned-crop",
         ),
@@ -1183,6 +1248,7 @@ async def test_terminal_prefix_normalization_cannot_verify_a_stale_final_read(
             [20, 400, 1040, 428],
             "",
             False,
+            0,
             "unverified_ambiguous",
             id="matching-text-elsewhere",
         ),
@@ -1190,6 +1256,7 @@ async def test_terminal_prefix_normalization_cannot_verify_a_stale_final_read(
             [20, 72, 1040, 100],
             "x",
             False,
+            0,
             "unverified_ambiguous",
             id="extra-suffix",
         ),
@@ -1200,6 +1267,7 @@ async def test_terminal_exact_readback_recovers_only_from_grounded_complete_line
     line_bbox: list[int],
     line_suffix: str,
     poison_readback: bool,
+    full_screen_misses: int,
     expected_status: str,
 ) -> None:
     """A fresh grounded full-screen line can rescue a bad inferred OCR crop."""
@@ -1260,6 +1328,8 @@ async def test_terminal_exact_readback_recovers_only_from_grounded_complete_line
             if region is not None:
                 return OCRResult()
             self.full_screen_precise_calls += 1
+            if self.full_screen_precise_calls <= full_screen_misses:
+                return OCRResult()
             return OCRResult(
                 lines=[
                     OCRLine(
@@ -1289,7 +1359,119 @@ async def test_terminal_exact_readback_recovers_only_from_grounded_complete_line
     )
     assert result.emitted_exactly_once is True
     assert len(result.readback_frame_sha256) == 64
-    assert ocr.full_screen_precise_calls == 1
+    expected_calls = (
+        full_screen_misses + 1
+        if expected_status == "verified_exact"
+        else 3
+    )
+    assert ocr.full_screen_precise_calls == expected_calls
+    _assert_no_enter(backend)
+
+
+async def test_terminal_wrapped_readback_reocrs_the_causal_rows(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def no_sleep(_seconds: float) -> None:
+        return None
+
+    monkeypatch.setattr(asyncio, "sleep", no_sleep)
+    monkeypatch.setattr(
+        "pikvm_agent.executor.typing.readback_region",
+        lambda *_args, **_kwargs: Region(
+            x=560,
+            y=290,
+            width=80,
+            height=24,
+        ),
+    )
+    intended = "gsettings set org.gnome.settings-daemon.plugins.power idle-dim false"
+
+    class WrappedTerminalBackend(FakeBackend):
+        def __init__(self) -> None:
+            super().__init__()
+            self.visible = ""
+
+        async def type_text(
+            self,
+            text: str,
+            *,
+            code: bool = False,
+            secret: bool = False,
+        ) -> None:
+            await super().type_text(text, code=code, secret=secret)
+            self.visible += text
+            self.set_screen(self.visible)
+
+    class WrappedTerminalOCR:
+        def __init__(self) -> None:
+            self.full_screen_calls = 0
+            self.grounded_crop_calls = 0
+
+        async def ocr(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path, region
+            return OCRResult()
+
+        async def ocr_precise(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path
+            if region is None:
+                self.full_screen_calls += 1
+                return OCRResult(
+                    lines=[
+                        OCRLine(
+                            text=(
+                                "J user@vm:~$ "
+                                "gsettings set org.gnome.settings-daemon.p"
+                            ),
+                            confidence=0.72,
+                            bbox=[9, 72, 1259, 100],
+                        ),
+                        OCRLine(
+                            text="4 lugins.power idle-dim falseI",
+                            confidence=0.71,
+                            bbox=[10, 100, 533, 128],
+                        ),
+                    ]
+                )
+            if region.y >= 200:
+                return OCRResult()
+            self.grounded_crop_calls += 1
+            return OCRResult(
+                lines=[
+                    OCRLine(
+                        text=(
+                            "user@vm:~$ "
+                            "gsettings set org.gnome.settings-daemon.p"
+                        ),
+                        confidence=0.89,
+                    ),
+                    OCRLine(
+                        text="lugins.power idle-dim false",
+                        confidence=0.60,
+                    ),
+                ]
+            )
+
+    backend = WrappedTerminalBackend()
+    ocr = WrappedTerminalOCR()
+    result = await WatchedTyper(backend, ocr).type_text(
+        intended,
+        code=True,
+        context="terminal",
+    )
+
+    assert result.status == "verified_exact"
+    assert result.field_text == intended
+    assert result.emitted_exactly_once is True
+    assert ocr.full_screen_calls == 1
+    assert ocr.grounded_crop_calls == 1
     _assert_no_enter(backend)
 
 

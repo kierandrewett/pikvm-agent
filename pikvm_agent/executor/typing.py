@@ -72,6 +72,7 @@ MAX_BACKSPACES = 400      # safety cap on a correction's clear
 FAST_PRINT_MIN = 120      # above this, plain text takes the (bursty) fast print path;
                           # shorter text stays on the fully-humanized per-key path
 MIN_MISMATCH_OCR_CONFIDENCE = 0.78
+MIN_GROUNDED_EXACT_OCR_CONFIDENCE = 0.55
 MAX_AUTODETECTED_FIELD_HEIGHT = 80
 MAX_AUTODETECTED_FIELD_HEIGHT_FRAC = 0.15
 MAX_PROSE_EDGE_CONTEXT_CHARS = 96
@@ -87,6 +88,7 @@ _PRINT_SETTLE_S = 0.45
 _CLEAR_SETTLE_S = 0.15
 _VIDEO_RETRY_SETTLE_S = 0.20
 _PRECISE_READBACK_SETTLES_S = (0.45, 0.90, 1.80)
+_PRECISE_FULL_SCREEN_SETTLES_S = (0.0, 0.45, 0.90)
 
 _SIMPLE_TERMINAL_ARGV = re.compile(
     r"[A-Za-z0-9_./:@=+-]+(?: [A-Za-z0-9_./:@=+-]+)*"
@@ -218,6 +220,17 @@ def ocr_line_region(
         y=y,
         width=max(1, min(width, x1 + pad) - x),
         height=max(1, min(height, y1 + pad) - y),
+    )
+
+
+def vertically_adjacent_rows(previous: Region, current: Region) -> bool:
+    """Whether two OCR boxes plausibly form consecutive wrapped text rows."""
+
+    vertical_gap = current.y - previous.y - previous.height
+    return vertical_gap <= max(
+        12,
+        previous.height,
+        current.height,
     )
 
 
@@ -574,6 +587,7 @@ class WatchedTyper:
         intended: str | None = None,
         precise: bool = False,
         allow_semantic_spacing: bool = False,
+        minimum_confidence: float = MIN_MISMATCH_OCR_CONFIDENCE,
     ) -> str:
         """OCR the field. Capture the FULL frame and pass the region to the OCR
         provider so it reads the field crop on every backend: file OCR
@@ -648,7 +662,7 @@ class WatchedTyper:
             if (
                 confidences
                 and sum(confidences) / len(confidences)
-                < MIN_MISMATCH_OCR_CONFIDENCE
+                < minimum_confidence
             ):
                 # Low-confidence OCR may still be useful to a human, but it is
                 # not strong enough evidence to clear/retype a field or stop a
@@ -742,38 +756,157 @@ class WatchedTyper:
         *,
         allow_semantic_spacing: bool,
     ) -> tuple[str, Region, bool] | None:
-        """Return one grounded complete line matching exact terminal input.
+        """Return grounded complete terminal input from one or more OCR rows.
 
         This is deliberately narrower than substring localization: the
-        prompt-stripped OCR line itself must be the complete emitted command.
-        Its geometry is retained so callers can require overlap with the
-        changed-pixel field instead of accepting matching task text elsewhere.
+        prompt-stripped OCR text itself must reconstruct the complete emitted
+        command. Up to three vertically adjacent rows are considered because a
+        terminal can hard-wrap inside a token. Its union geometry is retained
+        so callers can require overlap with the changed-pixel field instead of
+        accepting matching task text elsewhere.
         """
 
         width, height = dims
         target = intended.strip()
         if not target or width <= 0 or height <= 0:
             return None
-        for line in result.lines:
+        prefix = target[: min(20, len(target))]
+        for start in range(len(result.lines) - 1, -1, -1):
+            line = result.lines[start]
+            region = ocr_line_region(line, dims)
+            confidence = (
+                float(line.confidence)
+                if line.confidence is not None
+                else 1.0
+            )
+            prefix_index = line.text.find(prefix)
             if (
-                line.confidence is not None
-                and float(line.confidence) < MIN_MISMATCH_OCR_CONFIDENCE
+                region is None
+                or confidence < MIN_GROUNDED_EXACT_OCR_CONFIDENCE
+                or prefix_index < 0
             ):
                 continue
-            region = ocr_line_region(line, dims)
-            if region is None:
+            observed = line.text[prefix_index:].strip()
+            if observed == target:
+                return (observed, region, False)
+            if (
+                confidence >= MIN_MISMATCH_OCR_CONFIDENCE
+                and allow_semantic_spacing
+                and _SIMPLE_TERMINAL_ARGV.fullmatch(target) is not None
+                and norm(observed, True) == norm(target, True)
+            ):
+                return (observed, region, True)
+            if not target.startswith(observed):
                 continue
-            observed = strip_prompt(line.text).strip()
-            spacing_normalized = False
-            if observed != target:
-                spacing_normalized = (
-                    allow_semantic_spacing
-                    and _SIMPLE_TERMINAL_ARGV.fullmatch(target) is not None
-                    and norm(observed, True) == norm(target, True)
+
+            combined = observed
+            combined_region = region
+            previous_region = region
+            for continuation in result.lines[start + 1 : start + 3]:
+                continuation_region = ocr_line_region(continuation, dims)
+                continuation_confidence = (
+                    float(continuation.confidence)
+                    if continuation.confidence is not None
+                    else 1.0
                 )
-                if not spacing_normalized:
-                    continue
-            return (observed, region, spacing_normalized)
+                if (
+                    continuation_region is None
+                    or continuation_confidence
+                    < MIN_GROUNDED_EXACT_OCR_CONFIDENCE
+                ):
+                    break
+                if not vertically_adjacent_rows(
+                    previous_region,
+                    continuation_region,
+                ):
+                    break
+
+                next_combined = ""
+                continuation_text = continuation.text.strip()
+                for separator in ("", " "):
+                    candidate = combined + separator + continuation_text
+                    if target.startswith(candidate):
+                        next_combined = candidate
+                        break
+                if not next_combined:
+                    break
+                combined = next_combined
+                combined_region = union_region(
+                    combined_region,
+                    continuation_region,
+                )
+                previous_region = continuation_region
+                if combined == target:
+                    return (combined, combined_region, False)
+        return None
+
+    @staticmethod
+    def _full_screen_exact_prefix_region(
+        result: OCRResult,
+        intended: str,
+        dims: tuple[int, int],
+    ) -> Region | None:
+        """Locate wrapped terminal rows by an exact command prefix for re-OCR."""
+
+        width, height = dims
+        target = intended.strip()
+        if not target or width <= 0 or height <= 0:
+            return None
+        prefix = target[: min(20, len(target))]
+        for start in range(len(result.lines) - 1, -1, -1):
+            line = result.lines[start]
+            line_region = ocr_line_region(line, dims)
+            confidence = (
+                float(line.confidence)
+                if line.confidence is not None
+                else 1.0
+            )
+            if (
+                line_region is None
+                or confidence < MIN_GROUNDED_EXACT_OCR_CONFIDENCE
+                or prefix not in line.text
+            ):
+                continue
+            region = line_region
+            previous_region = line_region
+            for continuation in result.lines[start + 1 : start + 3]:
+                continuation_region = ocr_line_region(continuation, dims)
+                continuation_confidence = (
+                    float(continuation.confidence)
+                    if continuation.confidence is not None
+                    else 1.0
+                )
+                if (
+                    continuation_region is None
+                    or continuation_confidence
+                    < MIN_GROUNDED_EXACT_OCR_CONFIDENCE
+                    or not vertically_adjacent_rows(
+                        previous_region,
+                        continuation_region,
+                    )
+                ):
+                    break
+                region = union_region(region, continuation_region)
+                previous_region = continuation_region
+
+            # Full-screen PSM can merge the desktop's left-edge dock glyphs
+            # into a terminal row. Re-OCR just the grounded rows with a small
+            # screen-edge inset; the command itself begins after its prompt.
+            x2 = min(width, math.ceil(region.x + region.width))
+            inset_x = max(int(region.x), round(width * 0.03))
+            return Region(
+                x=inset_x,
+                y=max(0, int(region.y)),
+                width=max(1, x2 - inset_x),
+                height=max(
+                    1,
+                    min(
+                        height,
+                        math.ceil(region.y + region.height),
+                    )
+                    - max(0, int(region.y)),
+                ),
+            )
         return None
 
     def _locate_wrapped_prose_tail(
@@ -1518,39 +1651,103 @@ class WatchedTyper:
             # full-frame read and accept only a complete prompt-stripped line
             # whose bbox overlaps the field changed by this exact emission.
             # This is read-only; Enter remains a separate guarded action.
-            full_screen_result = await self._read_screen(precise=True)
-            full_screen_frame = self._last_read_screen_frame
-            full_screen_match = self._full_screen_exact_line_candidate(
-                full_screen_result,
-                text,
-                dims,
-                allow_semantic_spacing=allow_semantic_spacing,
-            )
-            capture_change = await asyncio.to_thread(
-                locate_capture_change,
-                emission_start_grid,
-                emission_start_frame,
-                full_screen_frame,
-                dims,
-            )
-            if (
-                full_screen_match is not None
-                and (
-                    regions_overlap(
-                        full_screen_match[1],
-                        current_readback_region(),
-                    )
-                    or (
-                        capture_change is not None
-                        and regions_overlap(
-                            full_screen_match[1],
-                            capture_change,
+            for settle_s in _PRECISE_FULL_SCREEN_SETTLES_S:
+                if settle_s:
+                    await asyncio.sleep(settle_s)
+                full_screen_result = await self._read_screen(precise=True)
+                full_screen_frame = self._last_read_screen_frame
+                full_screen_match = self._full_screen_exact_line_candidate(
+                    full_screen_result,
+                    text,
+                    dims,
+                    allow_semantic_spacing=allow_semantic_spacing,
+                )
+                capture_change = await asyncio.to_thread(
+                    locate_capture_change,
+                    emission_start_grid,
+                    emission_start_frame,
+                    full_screen_frame,
+                    dims,
+                )
+
+                def grounded(candidate_region: Region) -> bool:
+                    return (
+                        regions_overlap(
+                            candidate_region,
+                            current_readback_region(),
+                        )
+                        or (
+                            capture_change is not None
+                            and regions_overlap(
+                                candidate_region,
+                                capture_change,
+                            )
                         )
                     )
+
+                if (
+                    full_screen_match is not None
+                    and grounded(full_screen_match[1])
+                ):
+                    last_read = full_screen_match[0]
+                    self._semantic_spacing_normalized = (
+                        full_screen_match[2]
+                    )
+                    break
+
+                prefix_region = self._full_screen_exact_prefix_region(
+                    full_screen_result,
+                    text,
+                    dims,
                 )
-            ):
-                last_read = full_screen_match[0]
-                self._semantic_spacing_normalized = full_screen_match[2]
+                if prefix_region is None or not grounded(prefix_region):
+                    continue
+                cropped_read = await self._read_field(
+                    prefix_region,
+                    precise=True,
+                    minimum_confidence=(
+                        MIN_GROUNDED_EXACT_OCR_CONFIDENCE
+                    ),
+                )
+                cropped_lines = cropped_read.splitlines()
+                if not cropped_lines:
+                    continue
+                row_height = max(
+                    1,
+                    round(prefix_region.height / len(cropped_lines)),
+                )
+                cropped_result = OCRResult(
+                    lines=[
+                        OCRLine(
+                            text=line,
+                            confidence=1.0,
+                            bbox=[
+                                int(prefix_region.x),
+                                int(prefix_region.y) + index * row_height,
+                                int(
+                                    prefix_region.x
+                                    + prefix_region.width
+                                ),
+                                min(
+                                    dims[1],
+                                    int(prefix_region.y)
+                                    + (index + 1) * row_height,
+                                ),
+                            ],
+                        )
+                        for index, line in enumerate(cropped_lines)
+                    ]
+                )
+                cropped_match = self._full_screen_exact_line_candidate(
+                    cropped_result,
+                    text,
+                    dims,
+                    allow_semantic_spacing=allow_semantic_spacing,
+                )
+                if cropped_match is not None:
+                    last_read = cropped_match[0]
+                    self._semantic_spacing_normalized = cropped_match[2]
+                    break
 
         if (
             fast_print
