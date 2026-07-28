@@ -2541,6 +2541,37 @@ def test_long_terminal_draft_requires_a_verified_legibility_step() -> None:
     run.record(
         "action.checkpointed",
         index=8,
+        intent="Cancel the unread terminal draft with Ctrl+C.",
+        actions=[{"type": "key", "keys": ["CTRL", "C"]}],
+    )
+
+    assert AgentHarness._long_terminal_draft_needs_legibility_step(
+        run,
+        proposed,
+    )
+
+    run.record("action.completed", index=8)
+
+    assert AgentHarness._long_terminal_draft_needs_legibility_step(
+        run,
+        proposed,
+    )
+
+    run.record(
+        "model.completed",
+        role="verifier",
+        verdict="verified",
+        summary="Ctrl+C cleared the draft and a clean empty prompt is visible.",
+    )
+
+    assert not AgentHarness._long_terminal_draft_needs_legibility_step(
+        run,
+        proposed,
+    )
+
+    run.record(
+        "action.checkpointed",
+        index=9,
         intent="Increase the terminal text size after the unreadable draft.",
         actions=[{"type": "key", "keys": ["CTRL", "SHIFT", "EQUAL"]}],
     )
@@ -2558,7 +2589,7 @@ def test_long_terminal_draft_requires_a_verified_legibility_step() -> None:
 
     run.record(
         "action.checkpointed",
-        index=9,
+        index=10,
         intent="Open a new terminal window.",
         actions=[{"type": "key", "keys": ["CTRL", "ALT", "T"]}],
     )

@@ -2518,12 +2518,32 @@ class AgentHarness:
         text_size_verified_at = -1
         long_terminal_checkpoints: set[int] = set()
         unverified_terminal_at = -1
+        verified_draft_cancellation_at = -1
+        cancellation_checkpoints: set[int] = set()
+        completed_cancellations: set[int] = set()
+        current_action_index = -1
         for event in run.events:
             action_index = event.data.get("index")
-            if not isinstance(action_index, int):
-                continue
             if event.kind == "action.checkpointed":
+                if not isinstance(action_index, int):
+                    current_action_index = -1
+                    continue
+                current_action_index = action_index
                 actions = event.data.get("actions")
+                if isinstance(actions, list) and any(
+                    action.get("type") == "key"
+                    and {
+                        token
+                        for key in action.get("keys", [])
+                        if isinstance(key, str)
+                        for token in re.split(r"[+\s]+", key.upper())
+                        if token
+                    }
+                    == {"CTRL", "C"}
+                    for action in actions
+                    if isinstance(action, dict)
+                ):
+                    cancellation_checkpoints.add(action_index)
                 if isinstance(actions, list) and any(
                     is_long_terminal_draft(action)
                     for action in actions
@@ -2532,7 +2552,15 @@ class AgentHarness:
                     long_terminal_checkpoints.add(action_index)
                 continue
             if (
-                action_index in long_terminal_checkpoints
+                event.kind == "action.completed"
+                and isinstance(action_index, int)
+                and action_index in cancellation_checkpoints
+            ):
+                completed_cancellations.add(action_index)
+                continue
+            if (
+                isinstance(action_index, int)
+                and action_index in long_terminal_checkpoints
                 and event.kind
                 in {
                     "action.completed_unverified",
@@ -2543,6 +2571,17 @@ class AgentHarness:
                 unverified_terminal_at = max(
                     unverified_terminal_at,
                     action_index,
+                )
+                continue
+            if (
+                event.kind == "model.completed"
+                and event.data.get("role") == "verifier"
+                and event.data.get("verdict") in {"verified", "complete"}
+                and current_action_index in completed_cancellations
+            ):
+                verified_draft_cancellation_at = max(
+                    verified_draft_cancellation_at,
+                    current_action_index,
                 )
 
         for item in AgentHarness._recent_verified_actions(run):
@@ -2594,10 +2633,15 @@ class AgentHarness:
                     action_index,
                 )
 
+        active_unverified_terminal_at = (
+            unverified_terminal_at
+            if verified_draft_cancellation_at <= unverified_terminal_at
+            else -1
+        )
         return (
             width_verified_at <= terminal_opened_at
             or text_size_verified_at
-            <= max(terminal_opened_at, unverified_terminal_at)
+            <= max(terminal_opened_at, active_unverified_terminal_at)
         )
 
     @staticmethod
