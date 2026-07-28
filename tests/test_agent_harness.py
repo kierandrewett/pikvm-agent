@@ -2388,7 +2388,7 @@ def test_unverified_terminal_draft_blocks_suffixes_and_execution_until_cancelled
     run.record(
         "action.checkpointed",
         index=6,
-        actions=[{"type": "key", "keys": ["CTRL", "C"]}],
+        actions=[{"type": "key", "keys": ["ctrl+c"]}],
     )
     run.record("action.completed", index=6)
 

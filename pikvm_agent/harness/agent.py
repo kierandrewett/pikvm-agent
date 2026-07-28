@@ -2193,9 +2193,11 @@ class AgentHarness:
             if event.kind == "action.completed" and any(
                 action.get("type") == "key"
                 and {
-                    str(key).upper()
+                    token
                     for key in action.get("keys", [])
                     if isinstance(key, str)
+                    for token in re.split(r"[+\s]+", key.upper())
+                    if token
                 }
                 == {"CTRL", "C"}
                 for action in checkpointed
