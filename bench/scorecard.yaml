@@ -972,7 +972,7 @@ rows:
 
   - suite: "OSWorld-Verified tracer"
     route: "Codex, Claude, and mixed role routes"
-    source: "results/2026-07-25/osworld/summary.json"
+    source: "results/2026-07-28/osworld/summary.json"
     fields:
       cases: {path: "current_nine_task_diagnostic.cases", format: "integer"}
       passes: {path: "current_nine_task_diagnostic.official_passes", format: "integer"}
@@ -986,7 +986,26 @@ rows:
     result: "{passes}/{cases} current; {all_passes}/{attempts} all scored attempts"
     latency: "{median} / {p95}"
     wall: "{wall} current set"
-    status: "Diagnostic; three current failures"
+    status: "Diagnostic; two current failures; {all_passes}/{attempts} full-attempt success"
+
+  - suite: "OSWorld exact-input remediation"
+    route: "Opus reasoner → Sonnet controller/verifier"
+    source: "results/2026-07-28/osworld/summary.json"
+    fields:
+      attempts: {path: "latest_remediation_iteration.attempts", format: "integer"}
+      passes: {path: "latest_remediation_iteration.harness_completed_and_official_passed", format: "integer"}
+      actions_completed: {path: "latest_remediation_iteration.actions_completed", format: "integer"}
+      actions_attempted: {path: "latest_remediation_iteration.actions_attempted", format: "integer"}
+      efficiency: {path: "latest_remediation_iteration.completion_efficiency", format: "percent", digits: 1}
+      drafts: {path: "latest_remediation_iteration.latest_success.exact_terminal_drafts", format: "count"}
+      controller_median: {path: "latest_remediation_iteration.latest_success.controller_latency.median_ms", format: "seconds_from_ms", digits: 2}
+      controller_p95: {path: "latest_remediation_iteration.latest_success.controller_latency.p95_ms", format: "seconds_from_ms", digits: 2}
+      wall: {path: "latest_remediation_iteration.latest_success.wall_clock_ms", format: "seconds_from_ms", digits: 2}
+    cases: "{attempts} scored attempts"
+    result: "{passes}/{attempts}; {actions_completed}/{actions_attempted} actions, {efficiency}; {drafts} exact long drafts before separate commits"
+    latency: "{controller_median} / {controller_p95} controller"
+    wall: "{wall} latest pass"
+    status: "First official pass after three scored failures; latency failing product target"
 
   - suite: "Windows Agent Arena"
     route: "—"

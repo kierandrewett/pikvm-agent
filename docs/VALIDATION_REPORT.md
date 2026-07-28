@@ -329,15 +329,15 @@ send stayed disabled, and no approval was submitted. The fixture refuses the
 production daemon port and opened no VNC, PiKVM, or model API.
 
 The public headline scorecard is no longer hand-maintained. The checked
-`bench/scorecard.yaml` manifest resolves measured fields from ten durable JSON
+`bench/scorecard.yaml` manifest resolves measured fields from durable JSON
 evidence rows, formats denominators and latency consistently, and embeds a
 short SHA-256 for the manifest and every linked report. Both
 `pikvm-agent harness scorecard --check` and pytest fail on report, digest, or
 Markdown drift. The first generation pass caught two real ambiguities: the
-then-current 54.1% Tesseract result belonged to the token-rejoin report rather than the older
-comparison artifact, and OSWorld's seven official goal-state passes reduce to
-six when the stricter harness-completed-plus-official-passed definition is
-applied. The published headline uses the latter 6/33 end-to-end denominator.
+then-current 54.1% Tesseract result belonged to the token-rejoin report rather
+than the older comparison artifact, and one earlier OSWorld official pass was a
+harness false negative. The latest failure-inclusive OSWorld headline is 7/37
+when the stricter harness-completed-plus-official-passed definition is applied.
 
 The local operator now has an offline `harness support-bundle` command. It
 creates a new mode-0600 JSON file and refuses overwrite. The bundle reports
@@ -827,10 +827,10 @@ No VNC, PiKVM, HID, or computer target was contacted by either grounding run.
 The official OSWorld repository was pinned at
 `b7db4d8c85d9e95e0b1db44de5bec954cf37f0cf`. Nine tasks were scored in resettable
 official Ubuntu VMs through harness → MCP → isolated daemon, with setup and
-official evaluation kept outside the model boundary. Six reached both
-`harness_status=completed` and official score `1.0`; inactive-screen dimming,
-conda repair, and subtitle extraction scored `0.0`. A tenth compatible task
-was exercised but remained unscored.
+official evaluation kept outside the model boundary. Seven reached both
+`harness_status=completed` and official score `1.0`; conda repair and subtitle
+extraction scored `0.0`. A tenth compatible task was exercised but remained
+unscored.
 
 | Task | Actions completed / attempted | Model-active | Wall | Result |
 | --- | ---: | ---: | ---: | --- |
@@ -838,29 +838,32 @@ was exercised but remained unscored.
 | Set volume to maximum | 2/2 | 33.73 s | 40.16 s | official `1.0`, completed |
 | Enable automatic screen lock | 9/10 | 295.30 s | 369.63 s | official `1.0`, completed |
 | Rename `todo_list_Jan_1` to `todo_list_Jan_2` | 5/5 | 98.29 s | 128.56 s | official `1.0`, completed |
-| Disable inactive-screen dimming | 5/7 | 147.87 s | 181.05 s | official `0.0`, blocked |
+| Disable inactive-screen dimming | 10/11 | 325.40 s | 469.70 s | official `1.0`, completed |
 | Set timezone to UTC+0 | 18/23 | 491.19 s | 602.09 s | official `1.0`, completed |
 | Restore deleted poster from Trash | 3/3 | 66.68 s | 82.01 s | official `1.0`, completed |
 | Repair conda environment | 2/3 | 54.59 s | 61.44 s | official `0.0`, approval required |
 | Extract and remove video subtitles | 13/19 | 833.08 s | 1,071.89 s | official `0.0`, blocked |
 
-The current nine-task diagnostic is 6/9, with a Wilson 95% interval of
-35.4–87.9%. It consumed 2,061.32 seconds of summed model-active time and
-2,583.98 seconds wall time; end-to-end median/p95 were 128.56/883.97 seconds.
+The current nine-task diagnostic is 7/9, with a Wilson 95% interval of
+45.3–93.7%. It consumed 2,238.85 seconds of summed model-active time and
+2,872.64 seconds wall time; end-to-end median/p95 were 128.56/883.97 seconds.
 This is a tracer, not a representative score over the discovered 369 tasks.
 
-All attempts remain in the denominator history. Thirty-three reached the official
-evaluator: 7/33 achieved the official goal state, while 6/33 also had a
+All attempts remain in the denominator history. Thirty-seven reached the
+official evaluator: 8/37 achieved the official goal state, while 7/37 also had a
 truthful harness-completed state. Eleven additional attempts ended before
 evaluation and remain explicit unscored engineering failures.
 
 The live loop exposed and fixed typing-budget truncation, fuzzy verification
 of exact fields, provider child-process leakage after timeout, and repeated
 paused-state resumption without action progress. The inactive-screen-dimming
-task remains an honest failure: the visible settings page did not expose the
-requested control, and the controller blocked rather than changing Screen
-Blank or Automatic Suspend. The UTC run passed, but its 602-second latency and
-five recoverable typing failures are release-blocking efficiency debt.
+task required three further scored failures before its first pass: lost
+terminal-legibility proof, an invented numeric zoom criterion, and failure to
+use two independent exact OCR reconstructions of one wrapped draft. R23 fixed
+that last boundary, verified 68- and 62-character terminal drafts exactly
+before separate Return commits, and scored `1.0`; its 469.70-second wall time
+is still release-blocking efficiency debt. The UTC run passed, but its
+602-second latency and five recoverable typing failures remain release-blocking.
 The first restore-from-Trash attempt also exposed late compatibility checking:
 the tracer booted a VM before rejecting the official `download` setup. Setup
 and evaluator shapes now preflight before startup, official HTTP(S) task files
@@ -868,7 +871,7 @@ are uploaded outside the model boundary, and the corrected task passed 3/3
 actions in 82.01 seconds.
 
 The machine-readable denominator and links to every current report are in
-[`../bench/results/2026-07-25/osworld/summary.json`](../bench/results/2026-07-25/osworld/summary.json).
+[`../bench/results/2026-07-28/osworld/summary.json`](../bench/results/2026-07-28/osworld/summary.json).
 The selected all-Codex, all-Claude, and mixed-role subtitle attempts are in
 [`../bench/results/2026-07-25/osworld/model-comparison.json`](../bench/results/2026-07-25/osworld/model-comparison.json);
 none passed. One mixed run cut controller median latency to 8.31 seconds but
@@ -892,8 +895,7 @@ and live-proved three same-idempotency stale retries, but never reached an
 approval: ambiguous terminal OCR, a wrong-window double-click, repeated focus
 actions, and a duplicate pointer-activation burst consumed 1,071.89 seconds
 before stagnation stopped the run. Duplicate pointer activations within one
-burst are now rejected before checkpoint or HID; the follow-up live run is
-blocked by the current local Docker/sandbox approval state.
+burst are now rejected before checkpoint or HID.
 The production PiKVM target was not configured or contacted.
 
 Preflight coverage was subsequently widened against the pinned upstream setup

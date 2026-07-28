@@ -1,0 +1,101 @@
+{
+  "schema_version": 4,
+  "suite": "osworld-verified",
+  "suite_revision": "b7db4d8c85d9e95e0b1db44de5bec954cf37f0cf",
+  "task_id": "bedcedc4-4d72-425e-ad62-21960b11fe0d",
+  "domain": "os",
+  "instruction": "Could you set the 'Dim screen when inactive' to off in setting?",
+  "docker_image": "happysixd/osworld-docker:latest",
+  "docker_image_id": "sha256:0e6497a9295647cf05bf2b2af522fdd79bdeba2737595259cab310a3bcf6baa9",
+  "vm_image_sha256": "6bf667a852b3c307f61d9f09c42559351f45e0607e428b4997becf534cf4d313",
+  "container_access": "direct_bridge",
+  "container_publish_fallback_reason": "docker run -d --rm failed with exit 125: docker: Error response from daemon: failed to set up container networking: driver failed programming external connectivity on endpoint pikvm-osworld-9721bd6b43e6 (fd1268027ff9cd56e669c33c026ff2805b10e778b737ca7e1444409e983c7edb): Unable to enable DNAT rule:  (iptables failed: iptables --wait -t nat -A DOCKER -p tcp -d 127.0.0.1 --dport 32830 -j DNAT --to-destination 172.17.0.2:5000 ! -i docker0: iptables: No chain/target/match by that name.\n (exit status 1))\n\nRun 'docker run --help' for more information",
+  "control_plane": "agent-harness -> MCP stdio -> isolated daemon",
+  "target_adapter": "official in-guest server through PiKVM-shaped lab",
+  "policy_profile": "isolated_benchmark",
+  "harness_status": "blocked",
+  "official_score": 0.0,
+  "evaluator": "or(2 x exact_match(vm_command_line, rule))",
+  "approvals_required": 0,
+  "cycles": 6,
+  "model_run_budget_s": 900.0,
+  "model_run_timed_out": false,
+  "performance": {
+    "run_id": "6d4cfdfe-d4ec-4145-b409-a3eee766ab2b",
+    "status": "blocked",
+    "wall_clock_ms": 467888,
+    "model_active_ms": 345775,
+    "model_lanes": [
+      {
+        "role": "controller",
+        "provider": "claude-sonnet-low",
+        "model": "sonnet",
+        "latency": {
+          "samples": 13,
+          "min_ms": 9798.0,
+          "median_ms": 11937.0,
+          "p95_ms": 18709.199999999997,
+          "max_ms": 20406.0,
+          "mean_ms": 12696.076923076924
+        }
+      },
+      {
+        "role": "reasoner",
+        "provider": "claude-opus-low",
+        "model": "opus",
+        "latency": {
+          "samples": 6,
+          "min_ms": 13262.0,
+          "median_ms": 16472.5,
+          "p95_ms": 21435.75,
+          "max_ms": 21794.0,
+          "mean_ms": 17424.0
+        }
+      },
+      {
+        "role": "verifier",
+        "provider": "claude-sonnet-low",
+        "model": "sonnet",
+        "latency": {
+          "samples": 6,
+          "min_ms": 10234.0,
+          "median_ms": 11195.0,
+          "p95_ms": 18577.25,
+          "max_ms": 20581.0,
+          "mean_ms": 12697.0
+        }
+      }
+    ],
+    "model_failures": 0,
+    "actions_checkpointed": 9,
+    "actions_attempted": 9,
+    "actions_completed": 6,
+    "progress_actions_completed": 6,
+    "observation_only_actions_completed": 0,
+    "action_recoverable_failures": 0,
+    "action_stale_retries": 0,
+    "pointer_noops_rejected": 0,
+    "repeated_actions_stopped": 0,
+    "non_idempotent_retries_stopped": 0,
+    "autonomous_resumes": 0,
+    "autonomy_stops": 0,
+    "provider_attempts": 25,
+    "provider_failures": 0,
+    "provider_fallbacks": 0,
+    "provider_schema_repairs": 0,
+    "provider_safety_downgrades": 0,
+    "action_latency": {
+      "samples": 6,
+      "min_ms": 2138.341,
+      "median_ms": 5523.0895,
+      "p95_ms": 8822.528,
+      "max_ms": 9397.91,
+      "mean_ms": 5455.041833333334
+    },
+    "completion_efficiency": 0.6666666666666666,
+    "progress_action_ratio": 1.0
+  },
+  "run_state_path": "/home/kieran/dev/pikvm-agent/bench/results/2026-07-28/osworld/bedcedc4-dim-screen-r22-relevant-legibility/harness.sqlite3",
+  "artifact_dir": "/home/kieran/dev/pikvm-agent/bench/results/2026-07-28/osworld/bedcedc4-dim-screen-r22-relevant-legibility/artifacts",
+  "report_path": "/home/kieran/dev/pikvm-agent/bench/results/2026-07-28/osworld/bedcedc4-dim-screen-r22-relevant-legibility/report.json"
+}

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 import re
@@ -653,6 +654,168 @@ def test_current_osworld_scorecard_extends_prior_denominators_honestly() -> None
         prior["unscored_attempts"]["count"] + len(unscored["new_evidence"])
     )
     assert all((result_root / path).is_file() for path in unscored["new_evidence"])
+
+
+def test_latest_osworld_scorecard_retains_failed_remediation_attempts() -> None:
+    repo = Path(__file__).parents[1]
+    result_root = repo / "bench" / "results" / "2026-07-28" / "osworld"
+    summary = json.loads((result_root / "summary.json").read_text())
+    current = summary["current_nine_task_diagnostic"]
+    current_reports = [
+        json.loads((result_root / relative).resolve().read_text())
+        for relative in current["reports"]
+    ]
+
+    assert current["cases"] == len(current_reports) == 9
+    assert current["official_passes"] == sum(
+        report["official_score"] == 1.0 for report in current_reports
+    ) == 7
+    assert current["harness_completed_and_official_passed"] == sum(
+        report["official_score"] == 1.0
+        and report["harness_status"] == "completed"
+        for report in current_reports
+    ) == 7
+    assert current["wall_clock_ms_total"] == sum(
+        report["performance"]["wall_clock_ms"] for report in current_reports
+    )
+    assert current["model_active_ms_total"] == sum(
+        report["performance"]["model_active_ms"] for report in current_reports
+    )
+    assert current["model_completions"] == sum(
+        lane["latency"]["samples"]
+        for report in current_reports
+        for lane in report["performance"]["model_lanes"]
+    )
+    assert current["provider_attempts"] == sum(
+        report["performance"].get("provider_attempts")
+        or sum(
+            lane["latency"]["samples"]
+            for lane in report["performance"]["model_lanes"]
+        )
+        for report in current_reports
+    )
+    assert current["actions_attempted"] == sum(
+        report["performance"]["actions_attempted"] for report in current_reports
+    )
+    assert current["actions_completed"] == sum(
+        report["performance"]["actions_completed"] for report in current_reports
+    )
+
+    passing_reports = [
+        report
+        for report in current_reports
+        if report["official_score"] == 1.0
+        and report["harness_status"] == "completed"
+    ]
+    passing = summary["passing_subset"]
+    assert passing["cases"] == len(passing_reports) == 7
+    assert passing["wall_clock_ms_total"] == sum(
+        report["performance"]["wall_clock_ms"] for report in passing_reports
+    )
+    assert passing["model_active_ms_total"] == sum(
+        report["performance"]["model_active_ms"] for report in passing_reports
+    )
+    assert passing["actions_attempted"] == sum(
+        report["performance"]["actions_attempted"] for report in passing_reports
+    )
+    assert passing["actions_completed"] == sum(
+        report["performance"]["actions_completed"] for report in passing_reports
+    )
+
+    prior = json.loads(
+        (
+            repo
+            / "bench"
+            / "results"
+            / "2026-07-25"
+            / "osworld"
+            / "summary.json"
+        ).read_text()
+    )
+    scored = summary["all_scored_attempts"]
+    new_scored = [
+        json.loads((result_root / item["path"]).read_text())
+        for item in scored["new_reports"]
+    ]
+    assert scored["attempts"] == (
+        prior["all_scored_attempts"]["attempts"] + len(new_scored)
+    ) == 37
+    assert scored["official_goal_state_passes"] == (
+        prior["all_scored_attempts"]["official_goal_state_passes"]
+        + sum(report["official_score"] == 1.0 for report in new_scored)
+    ) == 8
+    assert scored["harness_completed_and_official_passed"] == (
+        prior["all_scored_attempts"]["harness_completed_and_official_passed"]
+        + sum(
+            report["official_score"] == 1.0
+            and report["harness_status"] == "completed"
+            for report in new_scored
+        )
+    ) == 7
+
+    iteration = summary["latest_remediation_iteration"]
+    retained_reports = []
+    for item in iteration["reports"]:
+        report_path = result_root / item["path"]
+        report = json.loads(report_path.read_text())
+        retained_reports.append(report)
+        assert hashlib.sha256(report_path.read_bytes()).hexdigest() == item["sha256"]
+        assert item["harness_status"] == report["harness_status"]
+        assert item["official_score"] == report["official_score"]
+        assert item["wall_clock_ms"] == report["performance"]["wall_clock_ms"]
+        assert item["model_active_ms"] == report["performance"]["model_active_ms"]
+        assert item["actions_attempted"] == report["performance"][
+            "actions_attempted"
+        ]
+        assert item["actions_completed"] == report["performance"][
+            "actions_completed"
+        ]
+    assert iteration["attempts"] == len(retained_reports) == 4
+    assert iteration["harness_completed_and_official_passed"] == 1
+    assert iteration["wall_clock_ms_total"] == sum(
+        report["performance"]["wall_clock_ms"] for report in retained_reports
+    )
+    assert iteration["model_active_ms_total"] == sum(
+        report["performance"]["model_active_ms"] for report in retained_reports
+    )
+    assert iteration["provider_attempts"] == sum(
+        report["performance"]["provider_attempts"] for report in retained_reports
+    )
+    assert iteration["actions_attempted"] == sum(
+        report["performance"]["actions_attempted"] for report in retained_reports
+    )
+    assert iteration["actions_completed"] == sum(
+        report["performance"]["actions_completed"] for report in retained_reports
+    )
+
+    latest = iteration["latest_success"]
+    assert latest["official_score"] == 1.0
+    assert latest["harness_status"] == "completed"
+    assert latest["separate_return_commits"] == 2
+    assert latest["source_state_sha256"] == (
+        "200493a762739058d9bc357890a6da3773aeeaf7fae9b1a209537439b5482045"
+    )
+    assert latest["source_state_retained_locally"] is True
+    assert [
+        (
+            receipt["source_event_sequence"],
+            receipt["requested_characters"],
+            receipt["issued_characters"],
+            receipt["observed_characters"],
+            receipt["status"],
+            receipt["proof_state"],
+            receipt["exact_readback_sha256_match"],
+            receipt["emitted_exactly_once"],
+        )
+        for receipt in latest["exact_terminal_drafts"]
+    ] == [
+        (150, 68, 68, 68, "verified_exact", "exact_visual_readback", True, True),
+        (197, 62, 62, 62, "verified_exact", "exact_visual_readback", True, True),
+    ]
+
+    unscored = summary["unscored_attempts"]
+    assert unscored["count"] == prior["unscored_attempts"]["count"] == 11
+    assert unscored["new_evidence"] == []
 
 
 def test_osworld_model_comparison_is_traceable_to_live_reports() -> None:
