@@ -17,6 +17,7 @@ from pikvm_agent.harness.agent_models import RunSnapshot, RunStatus
 from pikvm_agent.harness.office_acceptance import (
     CellExpectation,
     OfficeAcceptanceSuite,
+    _values_match,
     build_office_run_result,
     load_office_suite,
     verify_office_artifact,
@@ -663,6 +664,21 @@ def test_xlsx_task_verifies_exact_cells_and_formulas_semantically() -> None:
         "cell:quarterly-earnings!b4",
         "formula:quarterly-earnings!b8",
     }
+
+
+def test_xlsx_numeric_match_accepts_excel_float_serialization_only() -> None:
+    assert _values_match(
+        Decimal("20.4"),
+        Decimal("20.399999999999999"),
+    )
+    assert not _values_match(
+        Decimal("20.4"),
+        Decimal("20.40000000000001"),
+    )
+    assert not _values_match(
+        9_007_199_254_740_993,
+        Decimal("9007199254740992"),
+    )
 
 
 def test_xlsx_cell_expectation_accepts_formula_only_but_not_an_empty_check() -> None:

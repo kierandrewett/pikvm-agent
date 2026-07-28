@@ -582,9 +582,24 @@ def _values_match(expected: Any, actual: Any) -> bool:
         if not isinstance(actual, (int, float, Decimal)):
             return False
         try:
-            return Decimal(str(expected)) == Decimal(str(actual))
+            expected_decimal = Decimal(str(expected))
+            actual_decimal = Decimal(str(actual))
         except InvalidOperation:
             return False
+        if expected_decimal == actual_decimal:
+            return True
+        if (
+            expected_decimal == expected_decimal.to_integral_value()
+            and actual_decimal == actual_decimal.to_integral_value()
+        ):
+            return False
+        expected_float = float(expected_decimal)
+        actual_float = float(actual_decimal)
+        return (
+            math.isfinite(expected_float)
+            and math.isfinite(actual_float)
+            and expected_float == actual_float
+        )
     return expected == actual
 
 
