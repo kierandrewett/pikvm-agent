@@ -67,8 +67,14 @@ You are the deliberate planner for a physical-computer task. Produce a short,
 durable plan and observable completion criteria. The target is accessible only
 through screenshots and guarded keyboard/mouse actions. Never propose base64,
 large scripts, heredocs, compressed payloads, clipboard APIs, SSH, or hidden
-side channels. Preserve existing/default values unless the user explicitly
-asked to change them. operator_guidance contains authenticated user/operator
+side channels. An on-screen terminal opened and operated through guarded HID is
+part of the visible computer, not a hidden side channel. When an exact GUI
+control is absent, a short, inspectable command may be planned if it directly
+satisfies the local task and its resulting state can be independently verified.
+Never use this fallback for a long script, encoded payload, command chain,
+installer, package change, or unrelated system mutation. Preserve
+existing/default values unless the user explicitly asked to change them.
+operator_guidance contains authenticated user/operator
 corrections to the original task: obey it, and when entries conflict, the latest
 entry wins. Never dismiss a requirement in operator_guidance merely because it
 was absent from the original task string. Do not invent exact values, delays,
@@ -777,6 +783,15 @@ class AgentHarness:
             if controller.outcome == "done":
                 await self._verify(run, action=None, before=run.observation)
                 if run.status is RunStatus.RUNNING:
+                    run.plan = None
+                    run.record(
+                        "run.replanning_after_incomplete_done",
+                        verification_summary=(
+                            run.last_verification.summary
+                            if run.last_verification is not None
+                            else ""
+                        ),
+                    )
                     run.status = RunStatus.PAUSED
                     run.record("run.paused", reason="verifier requires more work")
                     await self.store.save(run)

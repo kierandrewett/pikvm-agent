@@ -529,6 +529,49 @@ class ContradictoryCompletionProvider(ScriptedProvider):
         return await super().complete(request)
 
 
+class RejectedDoneProvider(ScriptedProvider):
+    async def complete(self, request: ModelRequest) -> ModelResponse:
+        self.requests.append(request)
+        if request.role == "reasoner":
+            return ModelResponse(
+                provider=self.name,
+                model="scripted-v1",
+                data={
+                    "summary": "Disable the requested setting.",
+                    "steps": ["Inspect the setting", "Disable it"],
+                    "success_criteria": ["The requested setting is off."],
+                    "constraints": ["Preserve unrelated settings."],
+                },
+            )
+        if request.role == "controller":
+            return ModelResponse(
+                provider=self.name,
+                model="scripted-v1",
+                data={
+                    "outcome": "done",
+                    "intent": "The visible GUI has no matching control.",
+                    "actions": [],
+                    "expected_evidence": [],
+                },
+            )
+        return ModelResponse(
+            provider=self.name,
+            model="scripted-v1",
+            data={
+                "verdict": "complete",
+                "summary": "The requested setting is still on.",
+                "evidence": ["No matching GUI control is visible."],
+                "criteria": [
+                    {
+                        "criterion_index": 0,
+                        "satisfied": False,
+                        "evidence": "The setting has not been disabled.",
+                    }
+                ],
+            },
+        )
+
+
 class FakeComputer:
     def __init__(self) -> None:
         self.bursts: list[dict[str, Any]] = []
@@ -1019,6 +1062,25 @@ async def test_reasoner_prompt_avoids_duplicate_pre_and_post_save_audits() -> No
     assert "simultaneously legible in one frame" in prompt
     assert "do not cancel an already-open Save As dialog solely to resume an audit" in prompt
     assert "Treat recent_verified_actions as durable evidence" in prompt
+
+
+async def test_reasoner_can_plan_a_short_visible_terminal_fallback() -> None:
+    provider = ScriptedProvider()
+    harness = build_harness(provider, FakeComputer())
+
+    await harness.start("Disable the local dim-screen setting.")
+
+    prompt = next(
+        request.prompt
+        for request in provider.requests
+        if request.role == "reasoner"
+    )
+    normalized = " ".join(prompt.split())
+    assert "on-screen terminal" in normalized
+    assert "short, inspectable command" in normalized
+    assert "exact GUI control is absent" in normalized
+    assert "not a hidden side channel" in normalized
+    assert "Never use this fallback for a long script" in normalized
 
 
 def test_controller_separates_spreadsheet_focus_from_grid_entry() -> None:
@@ -2649,6 +2711,31 @@ async def test_contradictory_complete_verdict_cannot_end_the_task() -> None:
     assert len(rejected) == 1
     assert "criterion 0" in rejected[0].data["reason"]
     assert len(computer.bursts) == 1
+
+
+@pytest.mark.asyncio
+async def test_rejected_done_decision_forces_a_fresh_plan() -> None:
+    provider = RejectedDoneProvider()
+    harness = build_harness(provider, FakeComputer())
+
+    paused = await harness.start("Disable the requested setting.")
+
+    assert paused.status is RunStatus.PAUSED
+    assert paused.plan is None
+    assert [
+        event.kind for event in paused.events
+    ][-3:] == [
+        "verification.complete_rejected",
+        "run.replanning_after_incomplete_done",
+        "run.paused",
+    ]
+
+    paused_again = await harness.continue_run(paused.run_id)
+
+    assert paused_again.status is RunStatus.PAUSED
+    assert sum(
+        request.role == "reasoner" for request in provider.requests
+    ) == 2
 
 
 def test_verification_schema_requires_per_criterion_assessments() -> None:
