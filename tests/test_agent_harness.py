@@ -1147,7 +1147,7 @@ async def test_start_runs_a_checkpointed_reason_act_verify_slice() -> None:
     assert "authenticated user/operator corrections" in reasoner_prompt
     assert "the latest entry wins" in reasoner_prompt
     verifier_prompt = " ".join(provider.requests[2].prompt.split())
-    assert "Return verified when the intended action" in verifier_prompt
+    assert "Return verified only when every action assessment" in verifier_prompt
     assert "Do not return uncertain merely because the overall task" in verifier_prompt
     assert len(computer.bursts) == 1
     burst = computer.bursts[0]
@@ -2369,6 +2369,11 @@ async def test_exact_repeated_action_is_stopped_before_duplicate_hid() -> None:
     first_checkpoint = await harness.start("Type hello world in the open editor.")
     paused = await harness.continue_run(first_checkpoint.run_id)
 
+    assert first_checkpoint.status is RunStatus.PAUSED
+    assert any(
+        event.kind == "verification.action_rejected"
+        for event in first_checkpoint.events
+    )
     assert paused.status is RunStatus.PAUSED
     assert paused.error == "controller repeated the previous action unchanged"
     assert paused.next_action_index == 1
@@ -2612,7 +2617,69 @@ def test_verification_schema_requires_per_criterion_assessments() -> None:
     schema = VerificationDecision.model_json_schema()
 
     assert "criteria" in schema["properties"]
+    assert "action_criteria" in schema["properties"]
     assert schema["properties"]["summary"]["maxLength"] == 1_200
+
+
+def test_verified_action_requires_every_expected_evidence_item() -> None:
+    action = PendingAction(
+        index=3,
+        intent="Inspect B8's stored formula.",
+        actions=[{"type": "click", "x": 75, "y": 243}],
+        expected_evidence=[
+            "The Name Box reads B8.",
+            "The formula bar shows =SUM(B4:B7).",
+        ],
+        based_on_world_version=4,
+        based_on_control_epoch=0,
+        idempotency_key="run:action:3",
+    )
+    verified = VerificationDecision(
+        verdict="verified",
+        summary="B8 and its formula are visibly confirmed.",
+        evidence=["B8 is selected and the formula bar is legible."],
+        criteria=[],
+        action_criteria=[
+            {
+                "criterion_index": 0,
+                "satisfied": True,
+                "evidence": "The Name Box visibly reads B8.",
+            },
+            {
+                "criterion_index": 1,
+                "satisfied": True,
+                "evidence": "The formula bar visibly reads =SUM(B4:B7).",
+            },
+        ],
+    )
+
+    assert (
+        AgentHarness._verified_action_rejection_reason(action, verified)
+        is None
+    )
+    assert "expected indexes 0..1" in (
+        AgentHarness._verified_action_rejection_reason(
+            action,
+            verified.model_copy(update={"action_criteria": []}),
+        )
+        or ""
+    )
+    assert "expected evidence 1" in (
+        AgentHarness._verified_action_rejection_reason(
+            action,
+            verified.model_copy(
+                update={
+                    "action_criteria": [
+                        verified.action_criteria[0],
+                        verified.action_criteria[1].model_copy(
+                            update={"satisfied": False}
+                        ),
+                    ]
+                }
+            ),
+        )
+        or ""
+    )
 
 
 def test_verification_summary_is_bounded_for_user_facing_chat() -> None:

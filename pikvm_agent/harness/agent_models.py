@@ -445,7 +445,7 @@ class ControllerDecision(StrictModelDecision):
     outcome: Literal["act", "done", "replan", "blocked"]
     intent: str
     actions: list[ComputerAction] = Field(default_factory=list)
-    expected_evidence: list[str] = Field(default_factory=list)
+    expected_evidence: list[str] = Field(default_factory=list, max_length=20)
     reason: str = ""
 
     @model_validator(mode="after")
@@ -530,13 +530,17 @@ class VerificationDecision(StrictModelDecision):
     )
     evidence: list[str] = Field(default_factory=list)
     criteria: list[CriterionAssessment] = Field(default_factory=list, max_length=20)
+    action_criteria: list[CriterionAssessment] = Field(
+        default_factory=list,
+        max_length=20,
+    )
 
 
 class PendingAction(BaseModel):
     index: int
     intent: str
     actions: list[dict[str, Any]]
-    expected_evidence: list[str] = Field(default_factory=list)
+    expected_evidence: list[str] = Field(default_factory=list, max_length=20)
     based_on_world_version: int | None
     based_on_control_epoch: int | None
     idempotency_key: str

@@ -150,8 +150,10 @@ selection, text, enabled/disabled shape, and position); never assume that a
 particular accent colour is required. Return complete only when visible
 evidence proves every success criterion. Return one criteria assessment for
 every zero-based success-criterion index; complete requires every assessment
-to be satisfied by specific visible evidence. Return verified when the intended
-action and its expected evidence are visibly proven but more task steps remain.
+to be satisfied by specific visible evidence. For every verdict, return one
+action_criteria assessment for every zero-based expected-evidence item on the
+intended action. Return verified only when every action assessment is satisfied
+by specific visible evidence and more task steps remain.
 Do not return uncertain merely because the overall task is not complete. Return
 uncertain only when the intended action result itself is ambiguous: OCR
 ambiguity, unexpected focus, stale frames, missing characters,
@@ -1125,8 +1127,14 @@ class AgentHarness:
             return
         reported_verdict = verdict.verdict
         completion_rejection = self._completion_rejection_reason(run, verdict)
+        action_rejection = self._verified_action_rejection_reason(
+            action,
+            verdict,
+        )
         if completion_rejection is not None:
             verdict = verdict.model_copy(update={"verdict": "verified"})
+        elif action_rejection is not None:
+            verdict = verdict.model_copy(update={"verdict": "uncertain"})
         run.last_verification = verdict
         run.record(
             "model.completed",
@@ -1139,11 +1147,21 @@ class AgentHarness:
             usage=response.usage,
             summary=verdict.summary,
             evidence=verdict.evidence,
+            action_criteria=[
+                item.model_dump(mode="json")
+                for item in verdict.action_criteria
+            ],
         )
         if completion_rejection is not None:
             run.record(
                 "verification.complete_rejected",
                 reason=completion_rejection,
+                summary=verdict.summary,
+            )
+        if action_rejection is not None:
+            run.record(
+                "verification.action_rejected",
+                reason=action_rejection,
                 summary=verdict.summary,
             )
         if verdict.verdict == "complete":
@@ -2137,6 +2155,34 @@ class AgentHarness:
                 "complete verdict contradicts its own evidence near "
                 f"{contradiction.group(0)!r}"
             )
+        return None
+
+    @staticmethod
+    def _verified_action_rejection_reason(
+        action: PendingAction | None,
+        verdict: VerificationDecision,
+    ) -> str | None:
+        if (
+            action is None
+            or verdict.verdict != "verified"
+            or not action.expected_evidence
+        ):
+            return None
+        expected = len(action.expected_evidence)
+        assessments = {
+            item.criterion_index: item
+            for item in verdict.action_criteria
+        }
+        if set(assessments) != set(range(expected)):
+            return (
+                "verified verdict did not assess every expected-evidence item "
+                f"(expected indexes 0..{expected - 1})"
+            )
+        for index in range(expected):
+            if not assessments[index].satisfied:
+                return f"expected evidence {index} was explicitly unsatisfied"
+            if not assessments[index].evidence.strip():
+                return f"expected evidence {index} has no specific visible evidence"
         return None
 
     async def _model_failed(
