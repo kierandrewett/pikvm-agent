@@ -27,6 +27,7 @@ def test_auto_onboarding_combines_available_oauth_and_selected_api_routes() -> N
     ]
     assert settings.providers["codex-account"].kind == "codex_cli"
     assert settings.providers["codex-account"].billing is None
+    assert settings.providers["codex-account"].timeout_s == 180.0
     assert settings.model_budget.max_provider_attempts_per_run == 500
     assert settings.providers["openai-api"].api_key_env == "OPENAI_API_KEY"
     assert list(settings.assistant_tools) == ["web"]

@@ -79,6 +79,19 @@ managed registration. Nothing was rewritten, no installed desktop was
 restarted, and no computer target was contacted. Evidence:
 [`effective-client-route-audit.json`](../bench/results/2026-07-28/safety/effective-client-route-audit.json).
 
+A fresh target-free provider repeat then exercised normal chat rather than
+computer control. Claude OAuth passed greeting, ordinary knowledge, cited
+research through visible `web.search_text`, explicit computer hand-off, and a
+consequential send-message approval canary 5/5 in 55.517 seconds; first
+activity appeared in 1–2ms and the simulated send executed zero times. Codex
+timed out at the generated route's former 90-second deadline. Since the
+existing live latency distribution already had a p95 above that value,
+onboarding now gives only `codex_cli` a bounded 180-second deadline and keeps it
+behind the faster routes. The exact repeat passed in 136.220 seconds with first
+activity in 2ms. Both the failed and passing attempts are retained, and all
+three reports attest zero computer contact. This confirms compatibility while
+also confirming that Codex is not the current interactive default.
+
 ## Current verification boundary
 
 The completed post-change selection is recorded in

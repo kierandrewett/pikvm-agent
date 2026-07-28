@@ -89,6 +89,11 @@ def build_initial_harness_settings(
         providers["codex-account"] = {
             "kind": "codex_cli",
             "model": "account-default",
+            # Current Codex OAuth calls routinely exceed the generic 90 s
+            # provider deadline even for a greeting. Keep it behind the
+            # faster routes, but do not turn ordinary slow completions into
+            # false transport failures.
+            "timeout_s": 180.0,
         }
     if include_claude:
         providers["claude-account"] = {
