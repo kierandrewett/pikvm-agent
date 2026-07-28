@@ -134,4 +134,8 @@ describe("reconcileIntervalMs", () => {
     expect(reconcileIntervalMs("retrying")).toBe(1_500);
     expect(reconcileIntervalMs("offline")).toBe(1_500);
   });
+
+  it("discovers externally delegated work promptly from an empty workspace", () => {
+    expect(reconcileIntervalMs("idle", true)).toBe(1_500);
+  });
 });

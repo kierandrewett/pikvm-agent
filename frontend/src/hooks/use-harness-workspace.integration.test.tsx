@@ -17,6 +17,225 @@ const jsonResponse = (body: unknown, status = 200) =>
   });
 
 describe("useHarnessWorkspace authentication boundary", () => {
+  it("starts a fresh run when New task and send happen in the same render", async () => {
+    sessionStorage.setItem("pikvm-harness-token", "desktop-managed");
+    const existingRun = {
+      run_id: "existing-run",
+      task: "what is on the screen",
+      status: "completed",
+      mode: "assistant",
+      origin: "managed",
+      caller: { interface: "managed_mcp", label: "chat-workspace" },
+      created_at: "2026-07-28T08:00:00Z",
+      updated_at: "2026-07-28T08:00:01Z",
+      event_count: 0,
+      event_cursor: 0,
+      operator_guidance: [],
+      conversation: [
+        {
+          message_id: "existing-user",
+          role: "user",
+          content: "what is on the screen",
+          created_at: "2026-07-28T08:00:00Z",
+          event_cursor: 0,
+        },
+        {
+          message_id: "existing-assistant",
+          role: "assistant",
+          content: "The screen shows Calculator.",
+          created_at: "2026-07-28T08:00:01Z",
+          event_cursor: 0,
+        },
+      ],
+      events: [],
+      events_truncated: false,
+    };
+    const freshRun = {
+      ...existingRun,
+      run_id: "fresh-run",
+      task: "Find the latest stable Python release",
+      status: "planning",
+      conversation: [],
+    };
+    const requests: Array<{ url: string; method: string }> = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((path: string | URL | Request, init?: RequestInit) => {
+        const url = String(path);
+        const method = init?.method ?? "GET";
+        requests.push({ url, method });
+        if (url === "/api/runs" && method === "GET") {
+          return Promise.resolve(jsonResponse([existingRun]));
+        }
+        if (url === "/api/runs" && method === "POST") {
+          return Promise.resolve(jsonResponse(freshRun));
+        }
+        if (url === "/api/runs/existing-run") {
+          return Promise.resolve(jsonResponse(existingRun));
+        }
+        if (url === "/api/runs/fresh-run") {
+          return Promise.resolve(jsonResponse(freshRun));
+        }
+        if (url.includes("/stream?")) return new Promise<Response>(() => {});
+        if (
+          url === "/api/providers" ||
+          url === "/api/provider-catalog" ||
+          url === "/api/tools" ||
+          url === "/api/tool-servers"
+        ) {
+          return Promise.resolve(
+            jsonResponse(
+              url === "/api/providers" || url === "/api/tool-servers"
+                ? {}
+                : [],
+            ),
+          );
+        }
+        if (url === "/api/health") {
+          return Promise.resolve(
+            jsonResponse({ status: "ok", computer_control: "enabled" }),
+          );
+        }
+        if (url === "/api/computer-connection") {
+          return Promise.resolve(
+            jsonResponse({
+              enabled: true,
+              mcp_server_name: "Managed PiKVM MCP",
+              machine_name: "Disposable Windows VM",
+            }),
+          );
+        }
+        throw new Error(`Unexpected request: ${method} ${url}`);
+      }),
+    );
+
+    const { result } = renderHook(() => useHarnessWorkspace());
+    await waitFor(() =>
+      expect(result.current.selectedRun?.run_id).toBe("existing-run"),
+    );
+
+    const sendFromExistingRender = result.current.onNew;
+    act(() => result.current.newThread());
+    await act(async () => {
+      await sendFromExistingRender({
+        role: "user",
+        metadata: { custom: {} },
+        createdAt: new Date("2026-07-28T09:00:00Z"),
+        parentId: null,
+        sourceId: null,
+        runConfig: undefined,
+        content: [
+          {
+            type: "text",
+            text: "Find the latest stable Python release",
+          },
+        ],
+      });
+    });
+
+    expect(
+      requests.some(
+        ({ url, method }) =>
+          url === "/api/runs/existing-run/steer" && method === "POST",
+      ),
+    ).toBe(false);
+    expect(
+      requests.some(
+        ({ url, method }) => url === "/api/runs" && method === "POST",
+      ),
+    ).toBe(true);
+    expect(result.current.selectedId).toBe("fresh-run");
+  });
+
+  it("automatically follows the first externally delegated managed task", async () => {
+    sessionStorage.setItem("pikvm-harness-token", "desktop-managed");
+    const externalRun = {
+      run_id: "external-managed-run",
+      task: "Open Calculator and report the result",
+      status: "running",
+      mode: "computer",
+      origin: "managed",
+      caller: { interface: "managed_mcp", label: "claude-cli" },
+      created_at: "2026-07-28T09:00:00Z",
+      updated_at: "2026-07-28T09:00:01Z",
+      event_count: 1,
+      event_cursor: 1,
+      operator_guidance: [],
+      conversation: [],
+      events: [
+        {
+          sequence: 1,
+          at: "2026-07-28T09:00:01Z",
+          kind: "model.started",
+          data: { role: "reasoner" },
+        },
+      ],
+      events_truncated: false,
+    };
+    let delegated = false;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((path: string | URL | Request) => {
+        const url = String(path);
+        if (url === "/api/runs") {
+          return Promise.resolve(
+            jsonResponse(delegated ? [externalRun] : []),
+          );
+        }
+        if (url === "/api/runs/external-managed-run") {
+          return Promise.resolve(jsonResponse(externalRun));
+        }
+        if (url.includes("/stream?")) return new Promise<Response>(() => {});
+        if (
+          url === "/api/providers" ||
+          url === "/api/provider-catalog" ||
+          url === "/api/tools" ||
+          url === "/api/tool-servers"
+        ) {
+          return Promise.resolve(
+            jsonResponse(
+              url === "/api/providers" || url === "/api/tool-servers"
+                ? {}
+                : [],
+            ),
+          );
+        }
+        if (url === "/api/health") {
+          return Promise.resolve(
+            jsonResponse({ status: "ok", computer_control: "enabled" }),
+          );
+        }
+        if (url === "/api/computer-connection") {
+          return Promise.resolve(
+            jsonResponse({
+              enabled: true,
+              mcp_server_name: "Managed PiKVM MCP",
+              machine_name: "Disposable Windows VM",
+            }),
+          );
+        }
+        throw new Error(`Unexpected request: ${url}`);
+      }),
+    );
+
+    const { result } = renderHook(() => useHarnessWorkspace());
+
+    await waitFor(() => expect(result.current.connected).toBe(true));
+    expect(result.current.selectedId).toBeNull();
+
+    delegated = true;
+    await act(async () => {
+      await result.current.refresh();
+    });
+
+    await waitFor(() =>
+      expect(result.current.selectedId).toBe("external-managed-run"),
+    );
+    expect(result.current.selectedRun?.run_id).toBe(
+      "external-managed-run",
+    );
+  });
+
   it("does not let a stale task detail replace the newer selection", async () => {
     sessionStorage.setItem("pikvm-harness-token", "desktop-managed");
     const snapshot = (runId: string, task: string) => ({

@@ -51,8 +51,11 @@ const LIVE_RECONCILE_MS = 15_000;
 const DEGRADED_RECONCILE_MS = 1_500;
 const MODEL_ROLES: ModelRole[] = ["reasoner", "controller", "verifier"];
 
-export const reconcileIntervalMs = (status: LiveUpdateStatus) =>
-  status === "retrying" || status === "offline"
+export const reconcileIntervalMs = (
+  status: LiveUpdateStatus,
+  awaitingExternalRun = false,
+) =>
+  awaitingExternalRun || status === "retrying" || status === "offline"
     ? DEGRADED_RECONCILE_MS
     : LIVE_RECONCILE_MS;
 
@@ -192,6 +195,7 @@ export function useHarnessWorkspace() {
   const [lastLiveEventAt, setLastLiveEventAt] = useState<string | null>(null);
   const mounted = useRef(true);
   const selectedIdRef = useRef<string | null>(null);
+  const autoFollowExternalRunRef = useRef(true);
 
   useEffect(
     () => () => {
@@ -254,7 +258,24 @@ export function useHarnessWorkspace() {
       setProviderCatalog(nextCatalog);
       setTools(nextTools);
       setToolServers(nextToolServers);
-      if (!runId) setSelectedRun(null);
+      const delegatedRun =
+        !runId &&
+        selectedIdRef.current === null &&
+        autoFollowExternalRunRef.current
+          ? nextRuns.find(
+              (run) =>
+                run.origin === "managed" &&
+                run.caller?.interface === "managed_mcp",
+            )
+          : undefined;
+      if (delegatedRun) {
+        autoFollowExternalRunRef.current = false;
+        selectedIdRef.current = delegatedRun.run_id;
+        setSelectedId(delegatedRun.run_id);
+        await loadRun(accessToken, delegatedRun.run_id);
+      } else if (!runId) {
+        setSelectedRun(null);
+      }
       setModelPreferences((current) =>
         Object.fromEntries(
           MODEL_ROLES.flatMap((role) => {
@@ -313,6 +334,7 @@ export function useHarnessWorkspace() {
         );
         setConnected(true);
         const firstId = nextRuns[0]?.run_id ?? null;
+        autoFollowExternalRunRef.current = firstId === null;
         selectedIdRef.current = firstId;
         setSelectedId(firstId);
         if (firstId) await loadRun(accessToken, firstId);
@@ -335,14 +357,17 @@ export function useHarnessWorkspace() {
 
   useEffect(() => {
     if (!connected || !token) return;
-    const interval = reconcileIntervalMs(liveUpdateStatus);
+    const interval = reconcileIntervalMs(
+      liveUpdateStatus,
+      selectedId === null && autoFollowExternalRunRef.current,
+    );
     const timer = window.setInterval(() => {
       void refresh().catch((cause) => {
         if (cause instanceof Error && mounted.current) setError(cause.message);
       });
     }, interval);
     return () => window.clearInterval(timer);
-  }, [connected, liveUpdateStatus, refresh, token]);
+  }, [connected, liveUpdateStatus, refresh, selectedId, token]);
 
   const streamRunId =
     selectedRun?.run_id === selectedId ? selectedRun.run_id : null;
@@ -486,6 +511,7 @@ export function useHarnessWorkspace() {
 
   const selectRun = useCallback(
     async (runId: string) => {
+      autoFollowExternalRunRef.current = false;
       selectedIdRef.current = runId;
       setSelectedId(runId);
       setSelectedRun(null);
@@ -502,6 +528,7 @@ export function useHarnessWorkspace() {
   );
 
   const newThread = useCallback(() => {
+    autoFollowExternalRunRef.current = false;
     selectedIdRef.current = null;
     setSelectedId(null);
     setSelectedRun(null);
@@ -516,6 +543,7 @@ export function useHarnessWorkspace() {
         let run: RunSnapshot;
         const reusableAssistant =
           selectedRun != null &&
+          selectedIdRef.current === selectedRun.run_id &&
           (selectedRun?.conversation?.length ?? 0) > 0 &&
           !["aborted", "failed", "rejected"].includes(selectedRun.status);
         if (
@@ -535,6 +563,7 @@ export function useHarnessWorkspace() {
             method: "POST",
             body: JSON.stringify(createRunPayload(task, modelPreferences)),
           });
+          autoFollowExternalRunRef.current = false;
           selectedIdRef.current = run.run_id;
           setSelectedId(run.run_id);
         }
@@ -616,6 +645,7 @@ export function useHarnessWorkspace() {
     setError("");
     setLiveUpdateStatus("offline");
     setLastLiveEventAt(null);
+    autoFollowExternalRunRef.current = true;
   }, []);
 
   const isRunning = Boolean(
