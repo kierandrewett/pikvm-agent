@@ -202,22 +202,35 @@ def _classification(
         re.fullmatch(r"python(?:\d+(?:\.\d+)?)?(?:\.exe)?", command_name)
     )
     console_command = command_name in {"pikvm-agent", "pikvm-agent.exe"}
-    managed_shape = (
+    subcommand = ""
+    arguments: tuple[str, ...] = ()
+    if (
         python_command
-        and tokens[1:5]
-        == ("-m", "pikvm_agent.cli", "harness", "managed-mcp")
-    ) or (
-        console_command
-        and tokens[1:3] == ("harness", "managed-mcp")
+        and tokens[1:4] == ("-m", "pikvm_agent.cli", "harness")
+        and len(tokens) >= 5
+    ):
+        subcommand = tokens[4]
+        arguments = tokens[5:]
+    elif console_command and tokens[1:2] == ("harness",) and len(tokens) >= 3:
+        subcommand = tokens[2]
+        arguments = tokens[3:]
+
+    def has_single_value(option: str) -> bool:
+        indexes = [
+            index for index, value in enumerate(arguments) if value == option
+        ]
+        return (
+            len(indexes) == 1
+            and indexes[0] + 1 < len(arguments)
+            and bool(arguments[indexes[0] + 1])
+            and not arguments[indexes[0] + 1].startswith("-")
+        )
+
+    managed_shape = subcommand == "managed-mcp" or (
+        subcommand == "managed-runtime-mcp"
+        and has_single_value("--runtime")
     )
-    direct_shape = (
-        python_command
-        and tokens[1:5]
-        == ("-m", "pikvm_agent.cli", "harness", "direct-mcp")
-    ) or (
-        console_command
-        and tokens[1:3] == ("harness", "direct-mcp")
-    )
+    direct_shape = subcommand == "direct-mcp"
     raw_shape = (
         python_command
         and (

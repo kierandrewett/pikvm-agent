@@ -637,6 +637,7 @@ def write_lab_assets(
             executable=executable,
             harness_config=harness_config_path,
             server_name="pikvm-lab",
+            managed_runtime=client_runtime_path,
         )
     )
     codex_mcp_path.write_text(
@@ -646,6 +647,7 @@ def write_lab_assets(
             executable=executable,
             harness_config=harness_config_path,
             server_name="pikvm-lab",
+            managed_runtime=client_runtime_path,
         )
     )
     opencode_mcp_path.write_text(
@@ -655,6 +657,7 @@ def write_lab_assets(
             executable=executable,
             harness_config=harness_config_path,
             server_name="pikvm-lab",
+            managed_runtime=client_runtime_path,
         )
     )
     return LabAssets(
@@ -698,49 +701,18 @@ def load_lab_client_environment(
 ) -> dict[str, str]:
     """Load the lab's agent-only handoff without widening its authority."""
 
-    flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0)
-    flags |= getattr(os, "O_NOFOLLOW", 0)
-    descriptor = os.open(path.expanduser(), flags)
-    try:
-        metadata = os.fstat(descriptor)
-        if not stat.S_ISREG(metadata.st_mode):
-            raise ValueError("lab client runtime must be a regular file")
-        if stat.S_IMODE(metadata.st_mode) & 0o077:
-            raise ValueError("lab client runtime must be owner-only")
-        if hasattr(os, "geteuid") and metadata.st_uid != os.geteuid():
-            raise ValueError("lab client runtime must belong to this user")
-        with os.fdopen(descriptor, "r", encoding="utf-8") as handle:
-            descriptor = -1
-            rendered = handle.read(16_385)
-    finally:
-        if descriptor >= 0:
-            os.close(descriptor)
-    if len(rendered) > 16_384:
-        raise ValueError("lab client runtime exceeds 16 KiB")
-    try:
-        payload = json.loads(rendered)
-    except json.JSONDecodeError as exc:
-        raise ValueError("lab client runtime is not valid JSON") from exc
-    if not isinstance(payload, dict) or set(payload) != {
-        "schema_version",
-        "harness_config",
-        "agent_token_env",
-        "agent_token",
-    }:
-        raise ValueError("lab client runtime has an unsupported shape")
-    if payload["schema_version"] != 1:
-        raise ValueError("lab client runtime schema is unsupported")
-    if (
-        Path(str(payload["harness_config"])).expanduser().resolve()
-        != harness_config.expanduser().resolve()
-    ):
-        raise ValueError("lab client runtime belongs to another harness config")
-    if payload["agent_token_env"] != settings.agent_token_env:
+    from pikvm_agent.harness.managed_client_runtime import (
+        load_managed_client_runtime,
+    )
+
+    loaded = load_managed_client_runtime(
+        path,
+        expected_harness_config=harness_config,
+        environ=environ,
+    )
+    if loaded.settings.agent_token_env != settings.agent_token_env:
         raise ValueError("lab client runtime agent scope does not match config")
-    source = dict(os.environ if environ is None else environ)
-    source[settings.agent_token_env] = str(payload["agent_token"])
-    settings.agent_token(validate_distinct=False, environ=source)
-    return source
+    return loaded.environment
 
 
 def _wait_ready(url: str, child: subprocess.Popen[bytes], timeout_s: float) -> None:

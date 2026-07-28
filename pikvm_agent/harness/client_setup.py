@@ -76,13 +76,15 @@ def managed_mcp_environment(
     settings: HarnessSettings,
     *,
     caller_label: str = "mcp-client",
+    environ: Mapping[str, str] | None = None,
 ) -> dict[str, str]:
     """Resolve the scoped managed-harness connection at process start."""
 
     return {
         "PIKVM_HARNESS_URL": harness_base_url(settings),
         "PIKVM_HARNESS_AGENT_TOKEN": settings.agent_token(
-            validate_distinct=False
+            validate_distinct=False,
+            environ=environ,
         ),
         "PIKVM_MCP_CALLER_LABEL": normalize_caller_label(caller_label),
     }
@@ -158,23 +160,40 @@ def render_client_config(
     harness_config: Path,
     control_mode: ControlMode = "managed",
     server_name: str = "pikvm",
+    managed_runtime: Path | None = None,
 ) -> str:
     """Render a client config that forwards secret names, never secret values."""
     if not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", server_name):
         raise ValueError("server_name must contain only letters, digits, _ or -")
     if control_mode not in {"managed", "direct"}:
         raise ValueError("control_mode must be managed or direct")
-    command_name = "managed-mcp" if control_mode == "managed" else "direct-mcp"
-    args = [
-        "-m",
-        "pikvm_agent.cli",
-        "harness",
-        command_name,
-        "--config",
-        str(harness_config.expanduser().resolve()),
-        "--caller-label",
-        f"{client}-cli",
-    ]
+    if managed_runtime is not None and control_mode != "managed":
+        raise ValueError("managed runtime is unavailable in direct mode")
+    if managed_runtime is None:
+        command_name = (
+            "managed-mcp" if control_mode == "managed" else "direct-mcp"
+        )
+        args = [
+            "-m",
+            "pikvm_agent.cli",
+            "harness",
+            command_name,
+            "--config",
+            str(harness_config.expanduser().resolve()),
+            "--caller-label",
+            f"{client}-cli",
+        ]
+    else:
+        args = [
+            "-m",
+            "pikvm_agent.cli",
+            "harness",
+            "managed-runtime-mcp",
+            "--runtime",
+            str(managed_runtime.expanduser().absolute()),
+            "--caller-label",
+            f"{client}-cli",
+        ]
     if control_mode == "direct":
         forwarded = [
             settings.daemon_url_env,
@@ -192,11 +211,14 @@ def render_client_config(
             "PIKVM_MCP_PROVIDER": "${PIKVM_MCP_PROVIDER:-unreported}",
             "PIKVM_MCP_MODEL": "${PIKVM_MCP_MODEL:-unreported}",
         }
-    else:
+    elif managed_runtime is None:
         forwarded = [settings.agent_token_env]
         required = {
             settings.agent_token_env: f"${{{settings.agent_token_env}}}",
         }
+    else:
+        forwarded = []
+        required = {}
     if client == "codex":
         return "\n".join(
             [
@@ -289,12 +311,49 @@ def parse_client_launch_config(
         raise ValueError(
             f"generated {client} client config has no usable launch command"
         )
+    command_name = command.replace("\\", "/").rsplit("/", 1)[-1].lower()
+    python_command = bool(
+        re.fullmatch(
+            r"python(?:\d+(?:\.\d+)?)?(?:\.exe)?",
+            command_name,
+        )
+    )
+    console_command = command_name in {"pikvm-agent", "pikvm-agent.exe"}
+    runtime_args: list[str] | None = None
+    if python_command and tuple(args[:4]) == (
+        "-m",
+        "pikvm_agent.cli",
+        "harness",
+        "managed-runtime-mcp",
+    ):
+        runtime_args = args[4:]
+    elif console_command and tuple(args[:2]) == (
+        "harness",
+        "managed-runtime-mcp",
+    ):
+        runtime_args = args[2:]
+    runtime_indexes = (
+        [
+            index
+            for index, value in enumerate(runtime_args)
+            if value == "--runtime"
+        ]
+        if runtime_args is not None
+        else []
+    )
+    runtime_backed = (
+        runtime_args is not None
+        and len(runtime_indexes) == 1
+        and runtime_indexes[0] + 1 < len(runtime_args)
+        and bool(runtime_args[runtime_indexes[0] + 1])
+        and not runtime_args[runtime_indexes[0] + 1].startswith("-")
+    )
     if client == "codex":
         if (
             not isinstance(environment, list)
-            or not environment
             or not all(isinstance(name, str) and name for name in environment)
             or len(environment) != len(set(environment))
+            or (not environment and not runtime_backed)
         ):
             raise ValueError(
                 f"generated {client} client config has no usable environment"
@@ -303,7 +362,6 @@ def parse_client_launch_config(
     else:
         if (
             not isinstance(environment, dict)
-            or not environment
             or not all(
                 isinstance(name, str)
                 and name
@@ -316,6 +374,7 @@ def parse_client_launch_config(
                 )
                 for name, reference in environment.items()
             )
+            or (not environment and not runtime_backed)
         ):
             raise ValueError(
                 f"generated {client} client config has no usable environment"

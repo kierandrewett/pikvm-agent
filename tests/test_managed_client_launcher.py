@@ -177,6 +177,9 @@ def test_gemini_launch_uses_system_mcp_allowlist_and_default_deny_policy(
         "disableYoloMode": True,
         "disableAlwaysAllow": True,
         "enablePermanentToolApproval": False,
+        "auth": {
+            "selectedType": "oauth-personal",
+        },
     }
     assert rendered["skills"] == {"enabled": False}
     assert rendered["hooksConfig"] == {"enabled": False}
@@ -185,12 +188,44 @@ def test_gemini_launch_uses_system_mcp_allowlist_and_default_deny_policy(
     assert plan.modifies_persisted_config is False
 
 
+@pytest.mark.parametrize(
+    "client", ["codex", "claude", "gemini", "opencode"]
+)
+def test_runtime_backed_isolated_launch_forwards_no_agent_capability(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    client: str,
+) -> None:
+    runtime = tmp_path / "managed-client-runtime.json"
+
+    plan = build_managed_client_launch(
+        settings(monkeypatch),
+        client=client,
+        client_executable=f"/opt/{client}",
+        mcp_executable="/opt/pikvm/python",
+        harness_config=tmp_path / "harness.yaml",
+        project_dir=tmp_path,
+        managed_runtime=runtime,
+    )
+
+    assert plan.forwarded_env == ()
+    assert "managed-runtime-mcp" in plan.rendered_config
+    assert str(runtime) in plan.rendered_config
+    assert "TEST_AGENT_TOKEN" not in plan.rendered_config
+    assert "runtime-only-agent-token" not in plan.rendered_config
+
+
 def test_gemini_preflight_audits_native_effective_settings_and_admin_policy(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
     profile = tmp_path / "gemini-profile"
-    profile.mkdir()
+    profile_data = profile / ".gemini"
+    profile_data.mkdir(parents=True)
+    source_oauth = profile_data / "oauth_creds.json"
+    source_account = profile_data / "google_accounts.json"
+    source_oauth.write_text("oauth-owned", encoding="utf-8")
+    source_account.write_text("account-owned", encoding="utf-8")
     plan = build_managed_client_launch(
         settings(monkeypatch),
         client="gemini",
@@ -216,6 +251,24 @@ def test_gemini_preflight_audits_native_effective_settings_and_admin_policy(
         observed["workspace"] = workspace
         observed["policy"] = policy_path.read_text()
         observed["environment"] = child_environment
+        isolated_profile = Path(child_environment["GEMINI_CLI_HOME"])
+        isolated_data = isolated_profile / ".gemini"
+        observed["profile_is_isolated"] = isolated_profile != profile
+        observed["oauth_is_symlink"] = (
+            isolated_data / "oauth_creds.json"
+        ).is_symlink()
+        observed["oauth_target"] = (
+            isolated_data / "oauth_creds.json"
+        ).resolve()
+        observed["account_is_symlink"] = (
+            isolated_data / "google_accounts.json"
+        ).is_symlink()
+        observed["account_target"] = (
+            isolated_data / "google_accounts.json"
+        ).resolve()
+        observed["settings_linked"] = (
+            isolated_data / "settings.json"
+        ).exists()
         return {
             "mcp": system_settings["mcp"],
             "mcpServers": system_settings["mcpServers"],
@@ -275,7 +328,13 @@ def test_gemini_preflight_audits_native_effective_settings_and_admin_policy(
     )
     child_env = observed["environment"]
     assert isinstance(child_env, dict)
-    assert child_env["GEMINI_CLI_HOME"] == str(profile)
+    assert child_env["GEMINI_CLI_HOME"] != str(profile)
+    assert observed["profile_is_isolated"] is True
+    assert observed["oauth_is_symlink"] is True
+    assert observed["oauth_target"] == source_oauth
+    assert observed["account_is_symlink"] is True
+    assert observed["account_target"] == source_account
+    assert observed["settings_linked"] is False
     assert child_env["TEST_AGENT_TOKEN"] == "runtime-token"
     assert child_env["HOME"] != "/home/operator"
     assert child_env["XDG_CACHE_HOME"] != "/home/operator/.cache"
@@ -285,10 +344,12 @@ def test_gemini_preflight_audits_native_effective_settings_and_admin_policy(
     assert "UNRELATED_SECRET" not in child_env
 
 
-def test_gemini_preflight_requires_a_dedicated_profile(
+def test_gemini_preflight_can_isolate_the_normal_home(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
+    normal_home = tmp_path / "operator"
+    normal_home.mkdir()
     plan = build_managed_client_launch(
         settings(monkeypatch),
         client="gemini",
@@ -298,18 +359,59 @@ def test_gemini_preflight_requires_a_dedicated_profile(
         project_dir=tmp_path,
     )
 
-    with pytest.raises(
-        ClientIsolationError,
-        match="dedicated GEMINI_CLI_HOME",
-    ):
-        audit_managed_client_launch(
-            plan,
-            environ={
-                "HOME": "/home/operator",
-                "PATH": "/usr/bin",
-                "TEST_AGENT_TOKEN": "runtime-token",
-            },
+    def fake_effective(
+        _plan: object,
+        *,
+        child_environment: dict[str, str],
+        workspace: Path,
+    ) -> dict[str, object]:
+        del workspace
+        system_settings = json.loads(
+            Path(
+                child_environment["GEMINI_CLI_SYSTEM_SETTINGS_PATH"]
+            ).read_text()
         )
+        return {
+            "mcp": system_settings["mcp"],
+            "mcpServers": system_settings["mcpServers"],
+            "security": system_settings["security"],
+            "skills": system_settings["skills"],
+            "hooksConfig": system_settings["hooksConfig"],
+            "context": system_settings["context"],
+            "adminPolicyPaths": system_settings["adminPolicyPaths"],
+            "errors": [],
+        }
+
+    monkeypatch.setattr(
+        "pikvm_agent.harness.managed_client_launcher."
+        "_read_gemini_effective_settings",
+        fake_effective,
+    )
+    help_text = (
+        "--admin-policy --allowed-mcp-server-names --approval-mode "
+        "--extensions --output-format --prompt"
+    ).encode()
+    monkeypatch.setattr(
+        subprocess,
+        "run",
+        lambda argv, **_: subprocess.CompletedProcess(
+            argv,
+            0,
+            stdout=help_text,
+            stderr=b"",
+        ),
+    )
+
+    report = audit_managed_client_launch(
+        plan,
+        environ={
+            "HOME": str(normal_home),
+            "PATH": "/usr/bin",
+            "TEST_AGENT_TOKEN": "runtime-token",
+        },
+    )
+
+    assert report.safe is True
 
 
 def test_codex_preflight_audits_the_exact_inline_override(
@@ -1476,7 +1578,10 @@ def test_gemini_task_reuses_native_policy_runtime_and_clean_workspace(
     tmp_path: Path,
 ) -> None:
     profile = tmp_path / "gemini-profile"
-    profile.mkdir()
+    profile_data = profile / ".gemini"
+    profile_data.mkdir(parents=True)
+    source_oauth = profile_data / "oauth_creds.json"
+    source_oauth.write_text("oauth-owned", encoding="utf-8")
     plan = build_managed_client_launch(
         settings(monkeypatch),
         client="gemini",
@@ -1501,6 +1606,13 @@ def test_gemini_task_reuses_native_policy_runtime_and_clean_workspace(
         captured["policy"] = Path(
             system_settings["adminPolicyPaths"][0]
         ).read_text()
+        isolated_auth = (
+            Path(child_env["GEMINI_CLI_HOME"])
+            / ".gemini"
+            / "oauth_creds.json"
+        )
+        captured["auth_is_symlink"] = isolated_auth.is_symlink()
+        captured["auth_target"] = isolated_auth.resolve()
         return subprocess.CompletedProcess(argv, 0)
 
     monkeypatch.setattr(subprocess, "run", fake_run)
@@ -1534,7 +1646,9 @@ def test_gemini_task_reuses_native_policy_runtime_and_clean_workspace(
     assert captured["cwd"] != tmp_path.resolve()
     child_env = captured["env"]
     assert isinstance(child_env, dict)
-    assert child_env["GEMINI_CLI_HOME"] == str(profile)
+    assert child_env["GEMINI_CLI_HOME"] != str(profile)
+    assert captured["auth_is_symlink"] is True
+    assert captured["auth_target"] == source_oauth
     assert child_env["TEST_AGENT_TOKEN"] == "runtime-token"
     assert child_env["HOME"] != "/home/operator"
     assert child_env["XDG_CACHE_HOME"] != "/home/operator/.cache"
@@ -1830,7 +1944,7 @@ routes:
     )
 
     assert result.exit_code == 0, result.output
-    assert task_environment["TEST_AGENT_TOKEN"] == runtime_token
+    assert "TEST_AGENT_TOKEN" not in task_environment
     assert watch_arguments["agent_token"] == runtime_token
     assert runtime_token not in result.stdout
     assert "TEST_AGENT_TOKEN" not in os.environ

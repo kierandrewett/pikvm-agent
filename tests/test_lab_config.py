@@ -76,31 +76,27 @@ def test_lab_assets_point_only_at_isolated_adapter_and_daemon(tmp_path) -> None:
         "-m",
         "pikvm_agent.cli",
         "harness",
-        "managed-mcp",
-        "--config",
-        str(assets.harness_config),
+        "managed-runtime-mcp",
+        "--runtime",
+        str(assets.client_runtime),
         "--caller-label",
         "claude-cli",
     ]
-    assert server["env"] == {
-        "PIKVM_HARNESS_AGENT_TOKEN": "${PIKVM_HARNESS_AGENT_TOKEN}"
-    }
+    assert server["env"] == {}
     assert "PIKVM_AGENT_DAEMON" not in server["env"]
     assert "vnc" not in assets.mcp_config.read_text().lower()
 
     codex = assets.codex_mcp_config.read_text()
     assert "[mcp_servers.pikvm-lab]" in codex
-    assert '"PIKVM_HARNESS_AGENT_TOKEN"' in codex
-    assert "managed-mcp" in codex
+    assert "env_vars = []" in codex
+    assert "managed-runtime-mcp" in codex
     assert "PIKVM_AGENT_DAEMON" not in codex
 
     opencode = json.loads(assets.opencode_mcp_config.read_text())
     opencode_server = opencode["mcp"]["pikvm-lab"]
     assert opencode_server["type"] == "local"
-    assert "managed-mcp" in opencode_server["command"]
-    assert opencode_server["environment"] == {
-        "PIKVM_HARNESS_AGENT_TOKEN": "{env:PIKVM_HARNESS_AGENT_TOKEN}"
-    }
+    assert "managed-runtime-mcp" in opencode_server["command"]
+    assert opencode_server["environment"] == {}
     assert "vnc" not in assets.opencode_mcp_config.read_text().lower()
 
 
@@ -186,7 +182,11 @@ def test_lab_assets_can_reuse_custom_provider_routes_without_target_leak(
     assert harness["agent_token_env"] == "CUSTOM_AGENT_TOKEN"
 
     server = json.loads(assets.mcp_config.read_text())["mcpServers"]["pikvm-lab"]
-    assert server["env"] == {"CUSTOM_AGENT_TOKEN": "${CUSTOM_AGENT_TOKEN}"}
+    assert server["env"] == {}
+    assert server["args"][4:6] == [
+        "--runtime",
+        str(assets.client_runtime),
+    ]
 
 
 def test_visible_lab_generates_scoped_tokens_and_private_handoffs(

@@ -113,6 +113,10 @@ _GEMINI_ENV = (
     "TEMP",
     "TMP",
 )
+_GEMINI_AUTH_FILES = (
+    "oauth_creds.json",
+    "google_accounts.json",
+)
 _CLAUDE_ALLOWED_MANAGED_TOOLS = (
     "mcp__pikvm__computer_start_task",
     "mcp__pikvm__computer_status",
@@ -662,23 +666,30 @@ def _gemini_child_runtime(
     *,
     environ: Mapping[str, str] | None,
 ) -> Iterator[tuple[dict[str, str], Path]]:
-    """Build a clean workspace around dedicated Gemini CLI OAuth state."""
+    """Build a clean workspace around linked Gemini CLI OAuth state.
+
+    ``GEMINI_CLI_HOME`` is a home-directory override, not the ``.gemini``
+    directory itself. Treat an existing override as an optional credential
+    source, then expose only Gemini's provider-owned login files inside a new
+    process-private profile. The client can write installation IDs, histories,
+    caches, and settings without mutating the operator's profile.
+    """
 
     source = os.environ if environ is None else environ
-    profile_value = source.get("GEMINI_CLI_HOME")
-    if not profile_value:
-        raise ClientIsolationError(
-            "Gemini isolation requires a dedicated GEMINI_CLI_HOME"
-        )
-    profile_home = Path(profile_value)
-    if not profile_home.is_absolute() or not profile_home.is_dir():
-        raise ClientIsolationError(
-            "Gemini dedicated profile directory is unavailable"
-        )
     ordinary_home = source.get("HOME") or source.get("USERPROFILE")
-    if ordinary_home and profile_home.resolve() == Path(ordinary_home).resolve():
+    source_profile_value = source.get("GEMINI_CLI_HOME") or ordinary_home
+    if not source_profile_value:
         raise ClientIsolationError(
-            "Gemini dedicated profile must not reuse the normal user home"
+            "Gemini isolation requires HOME, USERPROFILE, or GEMINI_CLI_HOME"
+        )
+    source_profile_home = Path(source_profile_value).expanduser()
+    if not source_profile_home.is_absolute():
+        raise ClientIsolationError(
+            "Gemini OAuth source home must be absolute"
+        )
+    if source.get("GEMINI_CLI_HOME") and not source_profile_home.is_dir():
+        raise ClientIsolationError(
+            "Gemini OAuth source profile is unavailable"
         )
     for name in plan.forwarded_env:
         if not source.get(name):
@@ -689,6 +700,8 @@ def _gemini_child_runtime(
         root = Path(root_value)
         workspace = root / "workspace"
         control = root / "control"
+        profile_home = root / "gemini-profile"
+        profile_data = profile_home / ".gemini"
         runtime_directories = {
             "HOME": root / "home",
             "USERPROFILE": root / "home",
@@ -702,9 +715,15 @@ def _gemini_child_runtime(
         for directory in {
             workspace,
             control,
+            profile_data,
             *runtime_directories.values(),
         }:
             directory.mkdir(parents=True, exist_ok=True)
+        source_profile_data = source_profile_home / ".gemini"
+        for filename in _GEMINI_AUTH_FILES:
+            source_auth = source_profile_data / filename
+            if source_auth.is_file():
+                (profile_data / filename).symlink_to(source_auth.resolve())
         policy = control / "managed-only-policy.toml"
         system_settings = control / "system-settings.json"
         system_defaults = control / "system-defaults.json"
@@ -874,6 +893,7 @@ def build_managed_client_launch(
     harness_config: Path,
     project_dir: Path,
     server_name: str = "pikvm",
+    managed_runtime: Path | None = None,
 ) -> ManagedClientLaunch:
     """Build a secret-free launch plan without mutating client state."""
 
@@ -891,6 +911,7 @@ def build_managed_client_launch(
         harness_config=harness_config,
         control_mode="managed",
         server_name=server_name,
+        managed_runtime=managed_runtime,
     )
     launch = parse_client_launch_config(
         rendered,
@@ -954,6 +975,9 @@ def build_managed_client_launch(
                     "disableYoloMode": True,
                     "disableAlwaysAllow": True,
                     "enablePermanentToolApproval": False,
+                    "auth": {
+                        "selectedType": "oauth-personal",
+                    },
                 },
                 "skills": {"enabled": False},
                 "context": {
