@@ -1631,24 +1631,24 @@ representative 369-task OSWorld score.
 | Set volume to maximum | 1 | 2/2 | 5 | 33.73s | 40.16s | official `1.0`, completed |
 | Enable automatic screen lock | 11 | 9/10 | 31 | 295.30s | 369.63s | official `1.0`, completed |
 | Rename `todo_list_Jan_1` to `todo_list_Jan_2` | 2 | 5/5 | 12 | 98.29s | 128.56s | official `1.0`, completed |
-| Disable inactive-screen dimming | 5 | 11/12 | 29 | 332.22s | 464.33s | official `1.0`, completed |
+| Disable inactive-screen dimming | 5 | 9/10 | 25 | 285.17s | 333.19s | official `1.0`, completed |
 | Set timezone to UTC+0 | 11 | 18/23 | 50 | 491.19s | 602.09s | official `1.0`, completed |
 | Restore deleted poster from Trash | 1 | 3/3 | 7 | 66.68s | 82.01s | official `1.0`, completed |
 | Repair conda environment | 1 | 2/3 | 6 | 54.59s | 61.44s | official `0.0`, approval required |
 | Extract and remove video subtitles | 12 | 13/19 | 46 | 833.08s | 1,071.89s | official `0.0`, blocked |
 
-Across the current nine-task set: 191 model completions from 203 provider
-attempts, nine structured-output repairs, two deterministic safe-draft
-downgrades, three provider failures, one approval, 65/79 completed actions,
-2,245.67 seconds of summed model-active time, and 2,867.26 seconds wall time.
+Across the current nine-task set: 187 model completions from 198 provider
+attempts, eight structured-output repairs, two deterministic safe-draft
+downgrades, three provider failures, one approval, 63/77 completed actions,
+2,198.62 seconds of summed model-active time, and 2,736.13 seconds wall time.
 End-to-end median/p95 were 128.56/883.97 seconds. Auto-lock, UTC, and inactive
-screen dimming were accurate but far too slow; the latest subtitle run
+screen dimming remain accurate but too slow; the latest subtitle run
 regressed into ambiguous terminal OCR and repeated focus actions before
 reaching an approval boundary.
 
-The iteration history is intentionally less flattering. Thirty-nine attempts
-reached the official evaluator: nine achieved the goal state, while only eight
-also had a truthful harness `completed` state. Eleven more attempts ended before
+The iteration history is intentionally less flattering. Forty attempts
+reached the official evaluator: ten achieved the goal state, while only nine
+also had a truthful harness `completed` state. Twelve more attempts ended before
 evaluation because of infrastructure, provider, process-lifecycle, or
 controller/setup failures. The current 7/9 set is therefore shown beside—not
 instead of—the all-attempt history:
@@ -1656,9 +1656,9 @@ instead of—the all-attempt history:
 | Denominator | Result |
 | --- | ---: |
 | Current latest-run task set | 7/9 official + harness success |
-| All officially scored attempts | 9/39 official goal-state success |
-| All scored attempts requiring official + harness success | 8/39 |
-| Unscored attempts retained as failures | 11 |
+| All officially scored attempts | 10/40 official goal-state success |
+| All scored attempts requiring official + harness success | 9/40 |
+| Unscored attempts retained as failures | 12 |
 
 Durable evidence:
 
@@ -1700,6 +1700,20 @@ Durable evidence:
   is the fixed repeat. It completed 11/12 actions, verified the same 68- and
   62-character drafts exactly before separate Return commits, and received
   official score `1.0` in 464.33 seconds.
+- [`bedcedc4 R26`](results/2026-07-28/osworld/bedcedc4-dim-screen-r26-parallel-control/failure.json)
+  is the first verifier/controller-pipelining attempt. It failed unscored after
+  95.29 seconds when two concurrent SQLite checkpoints claimed the same durable
+  event sequence. No result is inferred from that attempt; commit `e879ba0`
+  moved cursor read and event append under one database write reservation.
+- [`bedcedc4 R27`](results/2026-07-28/osworld/bedcedc4-dim-screen-r27-parallel-control-sqlite/report.json)
+  is the fixed speed pass. It completed 9/10 actions, independently verified
+  the 68- and 62-character terminal drafts before separate Return commits,
+  required no approval, and received official score `1.0` in 333.19 seconds.
+  Six controller decisions overlapped verification. Provider critical-path
+  wait fell from 343.10 to 215.70 seconds; 69.70 seconds of provider overlap
+  was measured directly. Against R25, wall time fell by 131.14 seconds
+  (28.24%, or 1.39x throughput). Action execution remained 112.70 seconds, so
+  guarded input and OCR are the next measured bottleneck.
 - [`b6781586-utc-r2/report.json`](results/2026-07-25/osworld/b6781586-utc-r2/report.json)
   is the passing UTC+0 run, including its 602.09-second wall time and five
   recoverable typing failures.

@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "suite": "osworld-verified",
+  "suite_revision": "b7db4d8c85d9e95e0b1db44de5bec954cf37f0cf",
+  "task_id": "bedcedc4-4d72-425e-ad62-21960b11fe0d",
+  "instruction": "Could you set the 'Dim screen when inactive' to off in setting?",
+  "harness_status": "failed",
+  "official_score": null,
+  "scored": false,
+  "elapsed_seconds": 95.29,
+  "failure_class": "durable_event_sequence_race",
+  "error": "sqlite3.IntegrityError: UNIQUE constraint failed: harness_run_events.run_id, harness_run_events.sequence",
+  "failure_mode": "Parallel verifier and controller checkpoints used separate SQLite connections that observed the same durable event cursor.",
+  "remediation_commit": "e879ba0"
+}
