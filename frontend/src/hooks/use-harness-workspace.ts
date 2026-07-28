@@ -191,6 +191,7 @@ export function useHarnessWorkspace() {
     useState<LiveUpdateStatus>("idle");
   const [lastLiveEventAt, setLastLiveEventAt] = useState<string | null>(null);
   const mounted = useRef(true);
+  const selectedIdRef = useRef<string | null>(null);
 
   useEffect(
     () => () => {
@@ -205,7 +206,9 @@ export function useHarnessWorkspace() {
       `/api/runs/${encodeURIComponent(runId)}`,
     );
     if (mounted.current) {
-      setSelectedRun((current) => preferNewestRunRevision(current, run));
+      if (selectedIdRef.current === runId) {
+        setSelectedRun((current) => preferNewestRunRevision(current, run));
+      }
       setRuns((current) => {
         const index = current.findIndex((item) => item.run_id === run.run_id);
         const summary = summaryForRun(run);
@@ -310,6 +313,7 @@ export function useHarnessWorkspace() {
         );
         setConnected(true);
         const firstId = nextRuns[0]?.run_id ?? null;
+        selectedIdRef.current = firstId;
         setSelectedId(firstId);
         if (firstId) await loadRun(accessToken, firstId);
       } catch (cause) {
@@ -482,6 +486,7 @@ export function useHarnessWorkspace() {
 
   const selectRun = useCallback(
     async (runId: string) => {
+      selectedIdRef.current = runId;
       setSelectedId(runId);
       setSelectedRun(null);
       setError("");
@@ -497,6 +502,7 @@ export function useHarnessWorkspace() {
   );
 
   const newThread = useCallback(() => {
+    selectedIdRef.current = null;
     setSelectedId(null);
     setSelectedRun(null);
     setError("");
@@ -529,6 +535,7 @@ export function useHarnessWorkspace() {
             method: "POST",
             body: JSON.stringify(createRunPayload(task, modelPreferences)),
           });
+          selectedIdRef.current = run.run_id;
           setSelectedId(run.run_id);
         }
         setSelectedRun(run);
@@ -603,6 +610,7 @@ export function useHarnessWorkspace() {
     setToolServers({});
     setComputerConnection(defaultComputerConnection(true));
     setModelPreferences({});
+    selectedIdRef.current = null;
     setSelectedId(null);
     setSelectedRun(null);
     setError("");

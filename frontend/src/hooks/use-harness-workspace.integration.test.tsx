@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, renderHook, waitFor } from "@testing-library/react";
+import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useHarnessWorkspace } from "@/hooks/use-harness-workspace";
 
@@ -17,6 +17,99 @@ const jsonResponse = (body: unknown, status = 200) =>
   });
 
 describe("useHarnessWorkspace authentication boundary", () => {
+  it("does not let a stale task detail replace the newer selection", async () => {
+    sessionStorage.setItem("pikvm-harness-token", "desktop-managed");
+    const snapshot = (runId: string, task: string) => ({
+      run_id: runId,
+      task,
+      status: "completed",
+      mode: "assistant",
+      origin: "managed",
+      caller: { interface: "chat_workspace", label: "chat-workspace" },
+      created_at: "2026-07-27T12:00:00Z",
+      updated_at: "2026-07-27T12:00:01Z",
+      event_count: 0,
+      event_cursor: 0,
+      operator_guidance: [],
+      conversation: [],
+      events: [],
+      events_truncated: false,
+    });
+    const firstRun = snapshot("first-run", "First task");
+    const secondRun = snapshot("second-run", "Second task");
+    let resolveFirst!: (response: Response) => void;
+    let resolveSecond!: (response: Response) => void;
+    const firstDetail = new Promise<Response>((resolve) => {
+      resolveFirst = resolve;
+    });
+    const secondDetail = new Promise<Response>((resolve) => {
+      resolveSecond = resolve;
+    });
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((path: string | URL | Request) => {
+        const url = String(path);
+        if (url === "/api/runs") {
+          return Promise.resolve(jsonResponse([firstRun, secondRun]));
+        }
+        if (url === "/api/runs/first-run") return firstDetail;
+        if (url === "/api/runs/second-run") return secondDetail;
+        if (url.includes("/stream?")) return new Promise<Response>(() => {});
+        if (
+          url === "/api/providers" ||
+          url === "/api/provider-catalog" ||
+          url === "/api/tools" ||
+          url === "/api/tool-servers"
+        ) {
+          return Promise.resolve(
+            jsonResponse(
+              url === "/api/providers" || url === "/api/tool-servers"
+                ? {}
+                : [],
+            ),
+          );
+        }
+        if (url === "/api/health") {
+          return Promise.resolve(
+            jsonResponse({ status: "ok", computer_control: "enabled" }),
+          );
+        }
+        if (url === "/api/computer-connection") {
+          return Promise.resolve(
+            jsonResponse({
+              enabled: true,
+              mcp_server_name: "PiKVM lab",
+              machine_name: "Windows acceptance VM",
+            }),
+          );
+        }
+        throw new Error(`Unexpected request: ${url}`);
+      }),
+    );
+
+    const { result } = renderHook(() => useHarnessWorkspace());
+
+    await waitFor(() => expect(result.current.selectedId).toBe("first-run"));
+    let selecting!: Promise<void>;
+    act(() => {
+      selecting = result.current.selectRun("second-run");
+    });
+    await act(async () => {
+      resolveSecond(jsonResponse(secondRun));
+      await selecting;
+    });
+    expect(result.current.selectedRun?.run_id).toBe("second-run");
+
+    await act(async () => {
+      resolveFirst(jsonResponse(firstRun));
+      await Promise.resolve();
+    });
+
+    expect(result.current.selectedId).toBe("second-run");
+    expect(result.current.selectedRun?.run_id).toBe("second-run");
+  });
+
   it("keeps managed authentication when one persisted run cannot load", async () => {
     sessionStorage.setItem("pikvm-harness-token", "desktop-managed");
     vi.stubGlobal(
