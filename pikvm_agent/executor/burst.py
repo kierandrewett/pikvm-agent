@@ -836,9 +836,10 @@ async def _dispatch(
         text = a.get("text", "")
         method = str(a.get("method", "")).lower()
         code, secret = bool(a.get("code")), bool(a.get("secret"))
+        context = str(a.get("context", "")).lower()
         editor_prose = (
             not code
-            and str(a.get("context", "")).lower() == "editor"
+            and context == "editor"
             and is_editor_prose(str(text))
         )
         requested_verification = str(a.get("verification") or "").lower()
@@ -849,7 +850,7 @@ async def _dispatch(
         precise = (
             exact_verification
             or code
-            or str(a.get("context", "")).lower() in {"field", "terminal"}
+            or context in {"field", "terminal"}
             or (is_exact_text(str(text)) and not editor_prose)
         )
         fast = method in ("print", "hid_print", "pikvm_hid_print")
@@ -866,6 +867,7 @@ async def _dispatch(
                 prose=editor_prose,
                 exact=precise,
                 secret=secret,
+                context=context,
                 should_continue=should_continue,
             )
             action_receipt = _typing_receipt(a, res, precise=precise)

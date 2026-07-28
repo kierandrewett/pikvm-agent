@@ -51,6 +51,7 @@ from pikvm_agent.executor.verification import (
     is_exact_text,
     levenshtein,
     norm,
+    strip_prompt,
     verify_text,
 )
 from pikvm_agent.pikvm.text import flatten_line_breaks
@@ -85,6 +86,11 @@ DENSE_MAX_HEIGHT = 64
 _PRINT_SETTLE_S = 0.45
 _CLEAR_SETTLE_S = 0.15
 _VIDEO_RETRY_SETTLE_S = 0.20
+_PRECISE_READBACK_SETTLES_S = (0.45, 0.90, 1.80)
+
+_SIMPLE_TERMINAL_ARGV = re.compile(
+    r"[A-Za-z0-9_./:@=+-]+(?: [A-Za-z0-9_./:@=+-]+)*"
+)
 
 NO_FOCUS_SUMMARY = (
     "Typed but the screen did not change — the field isn't focused. STOP: do not "
@@ -477,6 +483,8 @@ class WatchedTyper:
         self.backend = backend
         self.ocr = ocr
         self._last_readback_frame_sha256 = ""
+        self._semantic_spacing_normalized = False
+        self._last_read_semantic_spacing = False
         self._last_grid_frame: CapturedFrame | None = None
 
     # ---- capture/read helpers -------------------------------------------- #
@@ -507,11 +515,13 @@ class WatchedTyper:
         *,
         intended: str | None = None,
         precise: bool = False,
+        allow_semantic_spacing: bool = False,
     ) -> str:
         """OCR the field. Capture the FULL frame and pass the region to the OCR
         provider so it reads the field crop on every backend: file OCR
         (tesseract) crops the saved frame by region, while live PiKVM OCR reads
         that region on the live screen — never the whole frame. ``""`` on failure."""
+        self._last_read_semantic_spacing = False
         try:
             frame = await self.backend.screenshot()
         except Exception:
@@ -556,11 +566,22 @@ class WatchedTyper:
                     any(character in intended for character in (" ", "\t", "\n"))
                     and result.spacing_evidence != "verified"
                 ):
-                    # Ordinary OCR collapses whitespace. Exact completion needs
-                    # independently repeated, calibrated word-gap evidence;
-                    # otherwise a doubled space can look identical to the
-                    # requested single-space text.
-                    return ""
+                    if (
+                        allow_semantic_spacing
+                        and norm(intended, precise)
+                        == norm(
+                            strip_prompt(result.text),
+                            precise,
+                        )
+                    ):
+                        self._last_read_semantic_spacing = True
+                    else:
+                        # Ordinary OCR collapses whitespace. Exact completion
+                        # needs independently repeated, calibrated word-gap
+                        # evidence. A terminal command whose argv contains no
+                        # quoting or shell syntax is the sole exception because
+                        # repeated token separators are semantically identical.
+                        return ""
             confidences = [
                 float(line.confidence)
                 for line in result.lines
@@ -891,6 +912,7 @@ class WatchedTyper:
         prose: bool = False,
         exact: bool | None = None,
         secret: bool = False,
+        context: str = "",
         should_continue: Callable[[], bool] | None = None,
     ) -> WatchedTypingResult:
         """Type ``text`` while watching the field; verify (and at most once correct).
@@ -902,12 +924,18 @@ class WatchedTyper:
         between transactions."""
         delivery_text = flatten_line_breaks(text)
         self._last_readback_frame_sha256 = ""
+        self._semantic_spacing_normalized = False
+        self._last_read_semantic_spacing = False
         precise = (
             exact
             if exact is not None
             else code or (is_exact_text(delivery_text) and not prose)
         )
         total = len(delivery_text)
+        allow_semantic_spacing = (
+            context.casefold() == "terminal"
+            and _SIMPLE_TERMINAL_ARGV.fullmatch(delivery_text) is not None
+        )
 
         # FAST TRANSPORT: long, plain (non-exact, non-secret) prose uses the
         # server-side keymap printer, but remains chunked and visually guarded.
@@ -943,6 +971,7 @@ class WatchedTyper:
                 code=code,
                 secret=secret,
                 precise=precise,
+                allow_semantic_spacing=allow_semantic_spacing,
                 should_continue=should_continue,
                 fast_print=True,
             )
@@ -953,6 +982,7 @@ class WatchedTyper:
             code=code,
             secret=secret,
             precise=precise,
+            allow_semantic_spacing=allow_semantic_spacing,
             should_continue=should_continue,
         )
 
@@ -966,6 +996,7 @@ class WatchedTyper:
         code: bool,
         secret: bool,
         precise: bool,
+        allow_semantic_spacing: bool,
         should_continue: Callable[[], bool] | None = None,
         fast_print: bool = False,
     ) -> WatchedTypingResult:
@@ -1018,16 +1049,28 @@ class WatchedTyper:
             nonlocal corrections, last_read, verified_clean
             read_back = self._typed_candidate(read_back, intended_snapshot, precise)
             last_read = read_back
+            semantic_spacing_match = (
+                allow_semantic_spacing
+                and self._last_read_semantic_spacing
+                and norm(intended_snapshot, precise)
+                == norm(strip_prompt(read_back), precise)
+            )
+            if norm(intended_snapshot, precise) == norm(text, precise):
+                self._semantic_spacing_normalized = semantic_spacing_match
             if corrections >= MAX_TOTAL_CORRECTIONS:
                 return
             # A correction re-types everything typed so far; don't start it if control
             # was just taken away.
             if should_continue is not None and not should_continue():
                 return
-            read_verdict = compute_verdict(
-                intended_snapshot,
-                read_back,
-                precise,
+            read_verdict = (
+                "match"
+                if semantic_spacing_match
+                else compute_verdict(
+                    intended_snapshot,
+                    read_back,
+                    precise,
+                )
             )
             kind = classify_mismatch(intended_snapshot, read_back, precise)
             if kind is None:
@@ -1295,6 +1338,7 @@ class WatchedTyper:
                     current_readback_region(),
                     intended=typed_so_far,
                     precise=precise,
+                    allow_semantic_spacing=allow_semantic_spacing,
                 )
                 await maybe_correct(rb, typed_so_far)
                 if corrections > 0:
@@ -1308,6 +1352,7 @@ class WatchedTyper:
                 current_readback_region(),
                 intended=text,
                 precise=precise,
+                allow_semantic_spacing=allow_semantic_spacing,
             )
             await maybe_correct(rb, text)
             if corrections > corrections_before:
@@ -1317,6 +1362,7 @@ class WatchedTyper:
                     current_readback_region(),
                     intended=text,
                     precise=precise,
+                    allow_semantic_spacing=allow_semantic_spacing,
                 )
             elif (
                 precise
@@ -1324,12 +1370,12 @@ class WatchedTyper:
             ):
                 # VNC/X11 can acknowledge all HID events before the final glyphs
                 # are painted. A prefix-only read is therefore not yet proof of
-                # truncation. Take at most two delayed reads (R19 needed the
-                # second capture), grow the auto-located crop if late pixels
-                # appear, and accept only exact/containing evidence. This never
-                # emits more HID, and Enter remains the caller's separate action.
-                for _ in range(2):
-                    await asyncio.sleep(_PRINT_SETTLE_S)
+                # truncation. Take three bounded, increasingly delayed reads,
+                # grow the auto-located crop if late pixels appear, and accept
+                # only exact/semantically safe evidence. This never emits more
+                # HID, and Enter remains the caller's separate action.
+                for settle_s in _PRECISE_READBACK_SETTLES_S:
+                    await asyncio.sleep(settle_s)
                     if not explicit_region:
                         settled_grid = await self._grid()
                         settled_frame = self._last_grid_frame
@@ -1357,15 +1403,26 @@ class WatchedTyper:
                             current_readback_region(),
                             intended=text,
                             precise=precise,
+                            allow_semantic_spacing=allow_semantic_spacing,
                         ),
                         text,
                         precise,
                     )
-                    if compute_verdict(text, settled_read, precise) in {
-                        "match",
-                        "contains",
-                    }:
+                    semantic_spacing_match = (
+                        allow_semantic_spacing
+                        and self._last_read_semantic_spacing
+                        and norm(text, precise)
+                        == norm(strip_prompt(settled_read), precise)
+                    )
+                    if (
+                        semantic_spacing_match
+                        or compute_verdict(text, settled_read, precise)
+                        in {"match", "contains"}
+                    ):
                         last_read = settled_read
+                        self._semantic_spacing_normalized = (
+                            semantic_spacing_match
+                        )
                         break
 
         if (
@@ -1384,6 +1441,8 @@ class WatchedTyper:
                 last_read = screen_candidate
 
         verdict = compute_verdict(text, last_read, precise)
+        if self._semantic_spacing_normalized:
+            verdict = "match"
         corrected = corrections > 0 or delivery_retries > 0
         return self._finalise(
             text,
@@ -1466,6 +1525,8 @@ class WatchedTyper:
         # declare typed text verified or failed). Verdict drives the summary text.
         vr: VerificationResult = verify_text(intended, field_text, code=precise)
         status = vr.status
+        if self._semantic_spacing_normalized:
+            status = "verified_safe_normalized"
 
         head = "Typed (fast)" if used_fast_path else "Typed"
         if verdict == "mismatch":
@@ -1481,6 +1542,11 @@ class WatchedTyper:
                 f"{head}; read-back only verified part of the field."
                 if field_text
                 else f"{head}."
+            )
+        elif self._semantic_spacing_normalized:
+            summary = (
+                f"{head} and verified the terminal argv with safe "
+                "whitespace normalization."
             )
         else:
             summary = f"{head} and verified the field reads correctly."

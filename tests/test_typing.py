@@ -1022,6 +1022,156 @@ async def test_precise_prefix_gets_second_bounded_settled_reread() -> None:
     _assert_no_enter(backend)
 
 
+async def test_precise_prefix_gets_third_bounded_settled_reread() -> None:
+    """A lagging VNC framebuffer may publish the final word after 0.9 seconds."""
+
+    backend = FakeBackend()
+    intended = "gsettings set org.gnome.settings-daemon.plugins.power idle-dim false"
+    prefix = intended.removesuffix("m false")
+    ocr = ScriptedOCR(prefix, prefix, prefix, prefix, prefix, intended)
+    typer = WatchedTyper(backend, ocr)
+
+    result = await typer.type_text(
+        intended,
+        region=Region(x=10, y=10, width=800, height=50),
+        code=True,
+    )
+
+    assert result.status == "verified_exact"
+    assert result.field_text == intended
+    assert result.emitted_exactly_once is True
+    assert ocr.calls == 6
+    _assert_no_enter(backend)
+
+
+async def test_simple_terminal_argv_accepts_only_safe_whitespace_normalization() -> None:
+    class UncertainSpacingOCR:
+        async def ocr(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path, region
+            return OCRResult(
+                lines=[
+                    OCRLine(
+                        text=(
+                            "user@host:~$  gsettings   set "
+                            "org.gnome.settings-daemon.plugins.power "
+                            "idle-dim false"
+                        ),
+                        confidence=0.99,
+                    )
+                ],
+                spacing_evidence="uncertain",
+            )
+
+        async def ocr_precise(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            return await self.ocr(image_path, region)
+
+    backend = FakeBackend()
+    intended = "gsettings set org.gnome.settings-daemon.plugins.power idle-dim false"
+
+    result = await WatchedTyper(backend, UncertainSpacingOCR()).type_text(
+        intended,
+        region=Region(x=10, y=10, width=800, height=50),
+        code=True,
+        context="terminal",
+    )
+
+    assert result.status == "verified_safe_normalized"
+    assert result.verdict == "match"
+    assert result.emitted_exactly_once is True
+    _assert_no_enter(backend)
+
+
+async def test_terminal_prefix_normalization_cannot_verify_a_stale_final_read(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def no_sleep(_seconds: float) -> None:
+        return None
+
+    monkeypatch.setattr(asyncio, "sleep", no_sleep)
+    intended = "gsettings set org.gnome.settings-daemon.plugins.power idle-dim false"
+    first_chunk = chunk_text(intended)[0]
+
+    class StalePrefixOCR:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        async def ocr(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path, region
+            self.calls += 1
+            text = first_chunk if self.calls == 1 else intended.removesuffix("m false")
+            return OCRResult(
+                lines=[OCRLine(text=text, confidence=0.99)],
+                spacing_evidence="uncertain",
+            )
+
+        async def ocr_precise(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            return await self.ocr(image_path, region)
+
+    backend = FakeBackend()
+
+    result = await WatchedTyper(backend, StalePrefixOCR()).type_text(
+        intended,
+        region=Region(x=10, y=10, width=800, height=50),
+        code=True,
+        context="terminal",
+    )
+
+    assert result.status.startswith("unverified_")
+    assert result.verdict == "unverified"
+    assert result.emitted_exactly_once is True
+    _assert_no_enter(backend)
+
+
+async def test_quoted_terminal_command_keeps_exact_spacing_requirement() -> None:
+    class UncertainSpacingOCR:
+        async def ocr(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path, region
+            return OCRResult(
+                lines=[OCRLine(text="printf '%s' hello", confidence=0.99)],
+                spacing_evidence="uncertain",
+            )
+
+        async def ocr_precise(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            return await self.ocr(image_path, region)
+
+    backend = FakeBackend()
+
+    result = await WatchedTyper(backend, UncertainSpacingOCR()).type_text(
+        "printf '%s' hello",
+        region=Region(x=10, y=10, width=500, height=50),
+        code=True,
+        context="terminal",
+    )
+
+    assert result.status == "unverified_ambiguous"
+    assert result.emitted_exactly_once is True
+    _assert_no_enter(backend)
+
+
 async def test_dropped_final_chunk_is_not_replayed_after_no_pixel_change() -> None:
     intended = "ffprobe -hide_banner /home/user/video.mp4"
 
@@ -1188,8 +1338,9 @@ async def test_at_most_once_emission_across_1000_stale_readbacks(
             *,
             intended: str | None = None,
             precise: bool = False,
+            allow_semantic_spacing: bool = False,
         ) -> str:
-            del region, intended, precise
+            del region, intended, precise, allow_semantic_spacing
             return chunks[0]
 
         typer._grid = unchanged_grid  # type: ignore[method-assign]

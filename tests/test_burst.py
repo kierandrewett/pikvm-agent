@@ -620,6 +620,7 @@ class _StubTyper:
         prose=False,
         exact=None,
         secret=False,
+        context="",
         should_continue=None,
     ):
         self.calls.append(text)
