@@ -192,6 +192,35 @@ def regions_overlap(a: Region, b: Region) -> bool:
     )
 
 
+def ocr_line_region(
+    line: OCRLine,
+    dims: tuple[int, int],
+    *,
+    pad: int = 8,
+) -> Region | None:
+    """Convert one valid OCR line bbox into a clamped screen region."""
+
+    box = line.bbox
+    if (
+        not isinstance(box, list)
+        or len(box) != 4
+        or any(isinstance(value, list) for value in box)
+    ):
+        return None
+    x0, y0, x1, y1 = (int(value) for value in box)
+    if x1 <= x0 or y1 <= y0:
+        return None
+    width, height = dims
+    x = max(0, x0 - pad)
+    y = max(0, y0 - pad)
+    return Region(
+        x=x,
+        y=y,
+        width=max(1, min(width, x1 + pad) - x),
+        height=max(1, min(height, y1 + pad) - y),
+    )
+
+
 def readback_region(
     region: Region,
     dims: tuple[int, int],
@@ -603,20 +632,29 @@ class WatchedTyper:
             if tmp is not None:
                 tmp.unlink(missing_ok=True)
 
-    async def _read_screen(self) -> OCRResult:
-        """OCR one exact full-frame capture for localization fallback."""
+    async def _read_screen(self, *, precise: bool = False) -> OCRResult:
+        """OCR one exact full-frame capture for localization/readback fallback."""
         try:
             frame = await self.backend.screenshot()
         except Exception:
             return OCRResult()
         if not frame or not frame.data:
             return OCRResult()
+        frame_sha256 = str(frame.sha256 or "").lower()
+        self._last_readback_frame_sha256 = (
+            frame_sha256
+            if re.fullmatch(r"[0-9a-f]{64}", frame_sha256)
+            else hashlib.sha256(frame.data).hexdigest()
+        )
         tmp: Path | None = None
         try:
             fd = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
             fd.write(frame.data)
             fd.close()
             tmp = Path(fd.name)
+            precise_ocr = getattr(self.ocr, "ocr_precise", None)
+            if precise and callable(precise_ocr):
+                return await precise_ocr(tmp)
             return await self.ocr.ocr(tmp)
         except Exception:
             return OCRResult()
@@ -660,23 +698,51 @@ class WatchedTyper:
                 and float(line.confidence) < MIN_MISMATCH_OCR_CONFIDENCE
             ):
                 continue
-            box = line.bbox
+            region = ocr_line_region(line, dims)
+            if region is not None:
+                return region
+        return None
+
+    @staticmethod
+    def _full_screen_exact_line_candidate(
+        result: OCRResult,
+        intended: str,
+        dims: tuple[int, int],
+        *,
+        allow_semantic_spacing: bool,
+    ) -> tuple[str, Region, bool] | None:
+        """Return one grounded complete line matching exact terminal input.
+
+        This is deliberately narrower than substring localization: the
+        prompt-stripped OCR line itself must be the complete emitted command.
+        Its geometry is retained so callers can require overlap with the
+        changed-pixel field instead of accepting matching task text elsewhere.
+        """
+
+        width, height = dims
+        target = intended.strip()
+        if not target or width <= 0 or height <= 0:
+            return None
+        for line in result.lines:
             if (
-                not isinstance(box, list)
-                or len(box) != 4
-                or any(isinstance(value, list) for value in box)
+                line.confidence is not None
+                and float(line.confidence) < MIN_MISMATCH_OCR_CONFIDENCE
             ):
                 continue
-            x0, y0, x1, y1 = (int(value) for value in box)
-            pad = 8
-            x = max(0, x0 - pad)
-            y = max(0, y0 - pad)
-            return Region(
-                x=x,
-                y=y,
-                width=max(1, min(width, x1 + pad) - x),
-                height=max(1, min(height, y1 + pad) - y),
-            )
+            region = ocr_line_region(line, dims)
+            if region is None:
+                continue
+            observed = strip_prompt(line.text).strip()
+            spacing_normalized = False
+            if observed != target:
+                spacing_normalized = (
+                    allow_semantic_spacing
+                    and _SIMPLE_TERMINAL_ARGV.fullmatch(target) is not None
+                    and norm(observed, True) == norm(target, True)
+                )
+                if not spacing_normalized:
+                    continue
+            return (observed, region, spacing_normalized)
         return None
 
     def _locate_wrapped_prose_tail(
@@ -702,30 +768,10 @@ class WatchedTyper:
                 and float(line.confidence) < MIN_MISMATCH_OCR_CONFIDENCE
             ):
                 continue
-            box = line.bbox
-            if (
-                not isinstance(box, list)
-                or len(box) != 4
-                or any(isinstance(value, list) for value in box)
-            ):
+            line_region = ocr_line_region(line, dims)
+            if line_region is None:
                 continue
-            x0, y0, x1, y1 = (int(value) for value in box)
-            if x1 <= x0 or y1 <= y0:
-                continue
-            eligible.append(
-                (
-                    line,
-                    Region(
-                        x=max(0, x0 - 8),
-                        y=max(0, y0 - 8),
-                        width=max(1, min(width, x1 + 8) - max(0, x0 - 8)),
-                        height=max(
-                            1,
-                            min(height, y1 + 8) - max(0, y0 - 8),
-                        ),
-                    ),
-                )
-            )
+            eligible.append((line, line_region))
 
         for start in range(len(eligible)):
             window: list[OCRLine] = []
@@ -1424,6 +1470,35 @@ class WatchedTyper:
                             semantic_spacing_match
                         )
                         break
+
+        if (
+            precise
+            and allow_semantic_spacing
+            and not explicit_region
+            and cur_region is not None
+            and compute_verdict(text, last_read, precise)
+            not in {"match", "contains"}
+        ):
+            # A thin changed-pixel crop can miss dark-theme terminal glyphs
+            # even when the full command is legible. Take one fresh precise
+            # full-frame read and accept only a complete prompt-stripped line
+            # whose bbox overlaps the field changed by this exact emission.
+            # This is read-only; Enter remains a separate guarded action.
+            full_screen_match = self._full_screen_exact_line_candidate(
+                await self._read_screen(precise=True),
+                text,
+                dims,
+                allow_semantic_spacing=allow_semantic_spacing,
+            )
+            if (
+                full_screen_match is not None
+                and regions_overlap(
+                    full_screen_match[1],
+                    current_readback_region(),
+                )
+            ):
+                last_read = full_screen_match[0]
+                self._semantic_spacing_normalized = full_screen_match[2]
 
         if (
             fast_print

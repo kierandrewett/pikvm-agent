@@ -1138,6 +1138,116 @@ async def test_terminal_prefix_normalization_cannot_verify_a_stale_final_read(
     _assert_no_enter(backend)
 
 
+@pytest.mark.parametrize(
+    ("line_bbox", "line_suffix", "expected_status"),
+    [
+        pytest.param(
+            [20, 72, 1040, 100],
+            "",
+            "verified_exact",
+            id="grounded-complete-line",
+        ),
+        pytest.param(
+            [20, 400, 1040, 428],
+            "",
+            "unverified_ambiguous",
+            id="matching-text-elsewhere",
+        ),
+        pytest.param(
+            [20, 72, 1040, 100],
+            "x",
+            "unverified_ambiguous",
+            id="extra-suffix",
+        ),
+    ],
+)
+async def test_terminal_exact_readback_recovers_only_from_grounded_complete_line(
+    monkeypatch: pytest.MonkeyPatch,
+    line_bbox: list[int],
+    line_suffix: str,
+    expected_status: str,
+) -> None:
+    """A fresh grounded full-screen line can rescue a bad inferred OCR crop."""
+
+    async def no_sleep(_seconds: float) -> None:
+        return None
+
+    monkeypatch.setattr(asyncio, "sleep", no_sleep)
+    intended = "gsettings set org.gnome.settings-daemon.plugins.power idle-dim false"
+
+    class VisibleTerminalBackend(FakeBackend):
+        def __init__(self) -> None:
+            super().__init__()
+            self.visible = ""
+
+        async def type_text(
+            self,
+            text: str,
+            *,
+            code: bool = False,
+            secret: bool = False,
+        ) -> None:
+            await super().type_text(text, code=code, secret=secret)
+            self.visible += text
+            self.set_screen(self.visible)
+
+    class EmptyCropExactScreenOCR:
+        def __init__(self, backend: VisibleTerminalBackend) -> None:
+            self.backend = backend
+            self.full_screen_precise_calls = 0
+
+        async def ocr(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path
+            if region is not None:
+                return OCRResult()
+            return OCRResult()
+
+        async def ocr_precise(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path
+            if region is not None:
+                return OCRResult()
+            self.full_screen_precise_calls += 1
+            return OCRResult(
+                lines=[
+                    OCRLine(
+                        text=(
+                            "user@vm:~$ "
+                            f"{self.backend.visible}{line_suffix}"
+                        ),
+                        confidence=0.96,
+                        bbox=line_bbox,
+                    )
+                ],
+                spacing_evidence="uncertain",
+            )
+
+    backend = VisibleTerminalBackend()
+    ocr = EmptyCropExactScreenOCR(backend)
+
+    result = await WatchedTyper(backend, ocr).type_text(
+        intended,
+        code=True,
+        context="terminal",
+    )
+
+    assert result.status == expected_status
+    assert result.field_text == (
+        intended if expected_status == "verified_exact" else ""
+    )
+    assert result.emitted_exactly_once is True
+    assert len(result.readback_frame_sha256) == 64
+    assert ocr.full_screen_precise_calls == 1
+    _assert_no_enter(backend)
+
+
 async def test_quoted_terminal_command_keeps_exact_spacing_requirement() -> None:
     class UncertainSpacingOCR:
         async def ocr(
