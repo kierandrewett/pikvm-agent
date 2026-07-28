@@ -374,7 +374,7 @@ const completionMarkdownForEvents = (events: readonly HarnessEvent[]) => {
 
 const toolParts = (
   run: RunSnapshot,
-  events: readonly HarnessEvent[] = run.events,
+  events: readonly HarnessEvent[] = run.timeline_events ?? run.events,
   includeLiveState = true,
 ) => {
   const attempts = events.filter((event) => event.kind === "action.attempted");
@@ -426,8 +426,6 @@ const toolParts = (
       },
     });
   }
-  attempts.splice(0, Math.max(0, attempts.length - 12));
-
   return attempts.map((attempt, index) => {
     const checkpoint = checkpointForAttempt(attempt, events);
     const outcome = outcomeForAttempt(attempt, events);
@@ -729,6 +727,7 @@ const assistantStatus = (
 
 export function messagesForRun(run: RunSnapshot | null): ThreadMessageLike[] {
   if (!run) return [];
+  const timelineEvents = run.timeline_events ?? run.events;
   if ((run.conversation?.length ?? 0) > 0) {
     const messages: ThreadMessageLike[] = [];
     let precedingCursor = 0;
@@ -748,7 +747,7 @@ export function messagesForRun(run: RunSnapshot | null): ThreadMessageLike[] {
         precedingCursor = messageCursor;
         continue;
       }
-      const turnEvents = run.events.filter(
+      const turnEvents = timelineEvents.filter(
         (event) =>
           event.sequence > precedingCursor && event.sequence <= messageCursor,
       );
@@ -798,7 +797,7 @@ export function messagesForRun(run: RunSnapshot | null): ThreadMessageLike[] {
     }
     const latest = run.conversation!.at(-1);
     if (latest?.role === "assistant" && latestAssistantMessageIndex >= 0) {
-      const activeTurnEvents = run.events.filter(
+      const activeTurnEvents = timelineEvents.filter(
         (event) => event.sequence > latestAssistantStartCursor,
       );
       const includesComputerHandoff = activeTurnEvents.some(
@@ -824,7 +823,7 @@ export function messagesForRun(run: RunSnapshot | null): ThreadMessageLike[] {
       }
     }
     if (run.mode === "assistant" && latest?.role === "user") {
-      const activeEvents = run.events.filter(
+      const activeEvents = timelineEvents.filter(
         (event) => event.sequence > (latest.event_cursor ?? precedingCursor),
       );
       messages.push({

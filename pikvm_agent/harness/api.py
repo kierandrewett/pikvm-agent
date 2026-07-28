@@ -54,6 +54,46 @@ from pikvm_agent.harness.redaction import redact_secrets
 RUN_EVENT_TAIL_LIMIT = 500
 RUN_EVENT_PAGE_LIMIT = 500
 RUN_EVENT_PAGE_MAX = 1_000
+RUN_TIMELINE_EVENT_LIMIT = 5_000
+RUN_TIMELINE_EVENT_KINDS = frozenset(
+    {
+        "action.attempted",
+        "action.checkpointed",
+        "action.completed",
+        "action.completed_unverified",
+        "action.failed",
+        "action.pre_action_evidence_captured",
+        "action.recoverable_failure",
+        "action.refused_by_operator",
+        "action.refused_by_policy",
+        "action.refused_stale",
+        "action.stale_world_refreshed",
+        "action.transport_uncertain",
+        "action.ungrounded_budget_exhausted",
+        "action.ungrounded_refresh_failed",
+        "action.ungrounded_refreshed",
+        "action.ungrounded_repeated",
+        "approval.required",
+        "assistant.computer_handoff",
+        "assistant.computer_handoff_completed",
+        "assistant.computer_handoff_failed",
+        "assistant.computer_handoff_started",
+        "model.completed",
+        "run.aborted",
+        "run.blocked",
+        "run.completed",
+        "run.failed",
+        "run.rejected",
+        "target.identity_changed",
+        "tool.approval_required",
+        "tool.completed",
+        "tool.failed",
+        "tool.refused",
+        "tool.started",
+        "verification.completed",
+        "verification.evidence_captured",
+    }
+)
 STREAM_HEARTBEAT_SECONDS = 5.0
 _AUTONOMOUS_PAUSE_REASONS = {
     "per-call action budget reached",
@@ -866,16 +906,25 @@ def create_harness_app(
     async def get_run(run_id: str) -> dict[str, Any]:
         summary = await store.get_summary(run_id)
         state = await store.get_state(run_id)
-        page = await store.events_after(
-            run_id,
-            max(0, summary.event_cursor - RUN_EVENT_TAIL_LIMIT),
-            RUN_EVENT_TAIL_LIMIT,
+        event_page, timeline_page = await asyncio.gather(
+            store.events_after(
+                run_id,
+                max(0, summary.event_cursor - RUN_EVENT_TAIL_LIMIT),
+                RUN_EVENT_TAIL_LIMIT,
+            ),
+            store.events_matching(
+                run_id,
+                RUN_TIMELINE_EVENT_KINDS,
+                RUN_TIMELINE_EVENT_LIMIT,
+            ),
         )
-        state.events = page.events
+        state.events = event_page.events
         return _visible_run(
             state,
             event_count=summary.event_count,
             event_cursor=summary.event_cursor,
+            timeline_events=timeline_page.events,
+            timeline_events_truncated=timeline_page.has_more,
         )
 
     @app.get("/api/runs/{run_id}/performance")
@@ -1608,6 +1657,8 @@ def _visible_run(
     *,
     event_count: int | None = None,
     event_cursor: int | None = None,
+    timeline_events: list[Any] | None = None,
+    timeline_events_truncated: bool = False,
 ) -> dict[str, Any]:
     """Serialize a run without exposing secret-marked input to UI/API clients."""
 
@@ -1648,6 +1699,22 @@ def _visible_run(
         event.model_dump(mode="json")
         for event in run.events[-RUN_EVENT_TAIL_LIMIT:]
     ]
+    visible_timeline = (
+        timeline_events
+        if timeline_events is not None
+        else [
+            event
+            for event in run.events
+            if event.kind in RUN_TIMELINE_EVENT_KINDS
+        ]
+    )
+    payload["timeline_events"] = [
+        event.model_dump(mode="json")
+        for event in visible_timeline[-RUN_TIMELINE_EVENT_LIMIT:]
+    ]
+    payload["timeline_events_truncated"] = timeline_events_truncated or (
+        len(visible_timeline) > RUN_TIMELINE_EVENT_LIMIT
+    )
     payload["event_count"] = durable_event_count
     payload["event_cursor"] = durable_event_cursor
     payload["events_truncated"] = (

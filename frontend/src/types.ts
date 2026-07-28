@@ -129,6 +129,8 @@ export type RunSnapshot = RunSummary & {
   } | null;
   events: HarnessEvent[];
   events_truncated: boolean;
+  timeline_events?: HarnessEvent[];
+  timeline_events_truncated?: boolean;
 };
 
 export type ProviderHealth = {

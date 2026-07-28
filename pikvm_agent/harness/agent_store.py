@@ -44,6 +44,12 @@ class RunStore(Protocol):
         after: int,
         limit: int,
     ) -> RunEventPage: ...
+    async def events_matching(
+        self,
+        run_id: str,
+        kinds: frozenset[str],
+        limit: int,
+    ) -> RunEventPage: ...
     async def updates_after(
         self,
         run_id: str,
@@ -270,6 +276,34 @@ class InMemoryRunStore:
     ) -> RunEventPage:
         _, page = await self.updates_after(run_id, after, limit)
         return page
+
+    async def events_matching(
+        self,
+        run_id: str,
+        kinds: frozenset[str],
+        limit: int,
+    ) -> RunEventPage:
+        if not kinds:
+            raise ValueError("kinds must not be empty")
+        if limit < 1:
+            raise ValueError("limit must be positive")
+        async with self._lock:
+            if run_id not in self._states:
+                raise RunNotFoundError(run_id)
+            durable_events = self._events.get(run_id, [])
+            selected = [
+                raw
+                for raw in durable_events
+                if json.loads(raw).get("kind") in kinds
+            ][: limit + 1]
+        return RunEventPage(
+            events=[
+                HarnessEvent.model_validate_json(raw)
+                for raw in selected[:limit]
+            ],
+            latest_cursor=len(durable_events),
+            has_more=len(selected) > limit,
+        )
 
     async def updates_after(
         self,
@@ -601,6 +635,49 @@ class SqliteRunStore:
     ) -> RunEventPage:
         _, page = await self.updates_after(run_id, after, limit)
         return page
+
+    async def events_matching(
+        self,
+        run_id: str,
+        kinds: frozenset[str],
+        limit: int,
+    ) -> RunEventPage:
+        if not kinds:
+            raise ValueError("kinds must not be empty")
+        if limit < 1:
+            raise ValueError("limit must be positive")
+        await self._initialize()
+        ordered_kinds = sorted(kinds)
+        placeholders = ",".join("?" for _ in ordered_kinds)
+        async with aiosqlite.connect(self.path) as db:
+            async with db.execute(
+                "SELECT summary_json FROM harness_runs WHERE run_id = ?",
+                (run_id,),
+            ) as cursor:
+                summary_row = await cursor.fetchone()
+            if summary_row is None:
+                raise RunNotFoundError(run_id)
+            summary = RunSummary.model_validate_json(summary_row[0])
+            async with db.execute(
+                f"""
+                SELECT event_json
+                FROM harness_run_events
+                WHERE run_id = ?
+                  AND json_extract(event_json, '$.kind') IN ({placeholders})
+                ORDER BY sequence
+                LIMIT ?
+                """,
+                (run_id, *ordered_kinds, limit + 1),
+            ) as cursor:
+                rows = await cursor.fetchall()
+        return RunEventPage(
+            events=[
+                HarnessEvent.model_validate_json(row[0])
+                for row in rows[:limit]
+            ],
+            latest_cursor=summary.event_cursor,
+            has_more=len(rows) > limit,
+        )
 
     async def updates_after(
         self,

@@ -450,6 +450,41 @@ async def test_sqlite_store_normalizes_events_and_reads_light_summaries(
 
 
 @pytest.mark.asyncio
+async def test_sqlite_store_filters_a_complete_timeline_without_loading_noise(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _synchronous_aiosqlite(monkeypatch)
+    store = SqliteRunStore(tmp_path / "timeline.sqlite3")
+    run = RunSnapshot(
+        run_id="sqlite-timeline",
+        task="Retain exact actions",
+        status=RunStatus.COMPLETED,
+    )
+    for index in range(25):
+        run.record("action.attempted", call_id=f"call-{index}")
+        for sample in range(30):
+            run.record(
+                "model.provider_output_received",
+                action=index,
+                sample=sample,
+            )
+    await store.save(run)
+
+    timeline = await store.events_matching(
+        run.run_id,
+        frozenset({"action.attempted"}),
+        limit=100,
+    )
+
+    assert [event.data["call_id"] for event in timeline.events] == [
+        f"call-{index}" for index in range(25)
+    ]
+    assert timeline.latest_cursor == 775
+    assert timeline.has_more is False
+
+
+@pytest.mark.asyncio
 async def test_sqlite_store_migrates_the_legacy_single_blob_schema(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

@@ -155,6 +155,36 @@ describe("live run reducer", () => {
     expect(checkpoint.run.active_activity).toBeUndefined();
   });
 
+  it("streams exact computer actions into the user-visible timeline", () => {
+    const initial: RunSnapshot = {
+      ...run(),
+      timeline_events: [],
+      timeline_events_truncated: false,
+    };
+    const noisy = reduceRunEvent(
+      initial,
+      event(2, "model.provider_output_received", {
+        role: "controller",
+        provider: "fast-controller",
+      }),
+    );
+    const attempted = reduceRunEvent(
+      noisy.run,
+      event(3, "action.attempted", {
+        call_id: "call-1",
+        tool: "pikvm_run_burst",
+        arguments: {
+          actions: [{ type: "type_text", text: "exactly this" }],
+        },
+      }),
+    );
+
+    expect(noisy.run.timeline_events).toEqual([]);
+    expect(attempted.run.timeline_events?.map((item) => item.sequence)).toEqual(
+      [3],
+    );
+  });
+
   it("applies compact state messages without discarding streamed events", () => {
     const updated = reduceRunState(run(), {
       status: "running",

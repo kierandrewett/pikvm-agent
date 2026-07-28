@@ -1606,6 +1606,57 @@ async def test_run_api_bounds_live_payloads_and_paginates_durable_history(
 
 
 @pytest.mark.asyncio
+async def test_run_api_preserves_complete_user_visible_action_timeline(
+    tmp_path: Path,
+) -> None:
+    frame = tmp_path / "frame.jpg"
+    frame.write_bytes(b"\xff\xd8fake-jpeg\xff\xd9")
+    store = InMemoryRunStore()
+    run = RunSnapshot(
+        run_id="action_history",
+        task="Complete a long computer task",
+        status=RunStatus.COMPLETED,
+    )
+    for index in range(25):
+        run.record(
+            "action.attempted",
+            index=index,
+            call_id=f"call-{index}",
+            idempotency_key=f"action-{index}",
+            tool="pikvm_run_burst",
+            arguments={"actions": [{"type": "click", "x": index, "y": 40}]},
+        )
+    for index in range(600):
+        run.record("model.provider_output_received", number=index)
+    await store.save(run)
+    app = create_harness_app(
+        harness=StubHarness(store, frame),  # type: ignore[arg-type]
+        store=store,
+        models=StubModels(),
+        access_token=TEST_ACCESS_TOKEN,
+        allowed_origins={"http://harness"},
+    )
+    transport = httpx.ASGITransport(app=app)
+
+    async with httpx.AsyncClient(
+        transport=transport,
+        base_url="http://harness",
+        headers={"authorization": f"Bearer {TEST_ACCESS_TOKEN}"},
+    ) as client:
+        detail = (await client.get("/api/runs/action_history")).json()
+
+    assert detail["events_truncated"] is True
+    assert len(detail["events"]) == 500
+    assert all(
+        event["kind"] != "action.attempted" for event in detail["events"]
+    )
+    assert [
+        event["data"]["call_id"] for event in detail["timeline_events"]
+    ] == [f"call-{index}" for index in range(25)]
+    assert detail["timeline_events_truncated"] is False
+
+
+@pytest.mark.asyncio
 async def test_external_benchmark_console_is_observe_approve_stop_only(
     tmp_path: Path,
 ) -> None:

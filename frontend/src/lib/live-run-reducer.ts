@@ -4,6 +4,10 @@ import type {
   RunSummary,
   RunStatus,
 } from "@/types";
+import {
+  isUserVisibleTimelineEvent,
+  MAX_VISIBLE_TIMELINE_EVENTS,
+} from "@/lib/run-timeline";
 
 const MAX_VISIBLE_EVENTS = 500;
 
@@ -176,6 +180,11 @@ export const reduceRunEvent = (
     return { run, changed: false, gap: true };
   }
   const events = [...run.events, event].slice(-MAX_VISIBLE_EVENTS);
+  const priorTimeline =
+    run.timeline_events ?? run.events.filter(isUserVisibleTimelineEvent);
+  const timelineEvents = isUserVisibleTimelineEvent(event)
+    ? [...priorTimeline, event].slice(-MAX_VISIBLE_TIMELINE_EVENTS)
+    : priorTimeline;
   const status =
     TERMINAL_STATUS_BY_EVENT[event.kind] ??
     (event.kind === "approval.required" ||
@@ -209,6 +218,12 @@ export const reduceRunEvent = (
       events_truncated:
         run.events_truncated ||
         run.events.length + 1 > MAX_VISIBLE_EVENTS,
+      timeline_events: timelineEvents,
+      timeline_events_truncated:
+        run.timeline_events_truncated ||
+        (run.timeline_events == null && run.events_truncated) ||
+        (isUserVisibleTimelineEvent(event) &&
+          priorTimeline.length + 1 > MAX_VISIBLE_TIMELINE_EVENTS),
       active_activity: activityAfterEvent(run.active_activity, event),
       pending_approval: pendingApproval,
     },

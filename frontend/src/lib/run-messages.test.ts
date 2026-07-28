@@ -381,6 +381,47 @@ describe("messagesForRun", () => {
     expect(messages[1]?.content).toBe("Hi! How can I help?");
   });
 
+  it("keeps every computer action in a long user-visible timeline", () => {
+    const timelineEvents = Array.from({ length: 25 }, (_, index) => ({
+      sequence: index + 1,
+      at: `2026-07-27T12:00:${String(index).padStart(2, "0")}Z`,
+      kind: "action.attempted",
+      data: {
+        call_id: `call-${index}`,
+        index,
+        attempt: 1,
+        idempotency_key: `action-${index}`,
+        tool: "pikvm_run_burst",
+        arguments: {
+          actions: [{ type: "click", x: index, y: 40 }],
+          idempotency_key: `action-${index}`,
+        },
+      },
+    }));
+    const assistant = messagesForRun(
+      run({
+        status: "completed",
+        events: [],
+        timeline_events: timelineEvents,
+        event_count: 625,
+        event_cursor: 625,
+        events_truncated: true,
+        timeline_events_truncated: false,
+      }),
+    ).at(-1);
+    const parts = Array.isArray(assistant?.content) ? assistant.content : [];
+
+    expect(parts.filter((part) => part.type === "tool-call")).toHaveLength(25);
+    expect(parts[0]).toMatchObject({
+      type: "tool-call",
+      toolCallId: "run-1:call-0",
+    });
+    expect(parts[24]).toMatchObject({
+      type: "tool-call",
+      toolCallId: "run-1:call-24",
+    });
+  });
+
   it("keeps one in-progress reply across streamed event updates", () => {
     const conversation = [
       {
