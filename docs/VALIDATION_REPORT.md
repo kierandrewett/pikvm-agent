@@ -336,7 +336,7 @@ short SHA-256 for the manifest and every linked report. Both
 Markdown drift. The first generation pass caught two real ambiguities: the
 then-current 54.1% Tesseract result belonged to the token-rejoin report rather
 than the older comparison artifact, and one earlier OSWorld official pass was a
-harness false negative. The latest failure-inclusive OSWorld headline is 7/37
+harness false negative. The latest failure-inclusive OSWorld headline is 8/39
 when the stricter harness-completed-plus-official-passed definition is applied.
 
 The local operator now has an offline `harness support-bundle` command. It
@@ -838,19 +838,19 @@ unscored.
 | Set volume to maximum | 2/2 | 33.73 s | 40.16 s | official `1.0`, completed |
 | Enable automatic screen lock | 9/10 | 295.30 s | 369.63 s | official `1.0`, completed |
 | Rename `todo_list_Jan_1` to `todo_list_Jan_2` | 5/5 | 98.29 s | 128.56 s | official `1.0`, completed |
-| Disable inactive-screen dimming | 10/11 | 325.40 s | 469.70 s | official `1.0`, completed |
+| Disable inactive-screen dimming | 11/12 | 332.22 s | 464.33 s | official `1.0`, completed |
 | Set timezone to UTC+0 | 18/23 | 491.19 s | 602.09 s | official `1.0`, completed |
 | Restore deleted poster from Trash | 3/3 | 66.68 s | 82.01 s | official `1.0`, completed |
 | Repair conda environment | 2/3 | 54.59 s | 61.44 s | official `0.0`, approval required |
 | Extract and remove video subtitles | 13/19 | 833.08 s | 1,071.89 s | official `0.0`, blocked |
 
 The current nine-task diagnostic is 7/9, with a Wilson 95% interval of
-45.3–93.7%. It consumed 2,238.85 seconds of summed model-active time and
-2,872.64 seconds wall time; end-to-end median/p95 were 128.56/883.97 seconds.
+45.3–93.7%. It consumed 2,245.67 seconds of summed model-active time and
+2,867.26 seconds wall time; end-to-end median/p95 were 128.56/883.97 seconds.
 This is a tracer, not a representative score over the discovered 369 tasks.
 
-All attempts remain in the denominator history. Thirty-seven reached the
-official evaluator: 8/37 achieved the official goal state, while 7/37 also had a
+All attempts remain in the denominator history. Thirty-nine reached the
+official evaluator: 9/39 achieved the official goal state, while 8/39 also had a
 truthful harness-completed state. Eleven additional attempts ended before
 evaluation and remain explicit unscored engineering failures.
 
@@ -861,8 +861,12 @@ task required three further scored failures before its first pass: lost
 terminal-legibility proof, an invented numeric zoom criterion, and failure to
 use two independent exact OCR reconstructions of one wrapped draft. R23 fixed
 that last boundary, verified 68- and 62-character terminal drafts exactly
-before separate Return commits, and scored `1.0`; its 469.70-second wall time
-is still release-blocking efficiency debt. The UTC run passed, but its
+before separate Return commits, and scored `1.0`. The required R24 repeat then
+failed at the 900-second budget after a controller timeout, empty OCR readback,
+and stale legibility proof following a safe cancellation. R25 preserved the
+verified proof, repeated both exact drafts, and scored `1.0`; post-pass
+reliability is therefore only 1/2, and its 464.33-second wall time is still
+release-blocking efficiency debt. The UTC run passed, but its
 602-second latency and five recoverable typing failures remain release-blocking.
 The first restore-from-Trash attempt also exposed late compatibility checking:
 the tracer booted a VM before rejecting the official `download` setup. Setup

@@ -1,0 +1,114 @@
+{
+  "schema_version": 4,
+  "suite": "osworld-verified",
+  "suite_revision": "b7db4d8c85d9e95e0b1db44de5bec954cf37f0cf",
+  "task_id": "bedcedc4-4d72-425e-ad62-21960b11fe0d",
+  "domain": "os",
+  "instruction": "Could you set the 'Dim screen when inactive' to off in setting?",
+  "docker_image": "happysixd/osworld-docker:latest",
+  "docker_image_id": "sha256:0e6497a9295647cf05bf2b2af522fdd79bdeba2737595259cab310a3bcf6baa9",
+  "vm_image_sha256": "6bf667a852b3c307f61d9f09c42559351f45e0607e428b4997becf534cf4d313",
+  "container_access": "direct_bridge",
+  "container_publish_fallback_reason": "docker run -d --rm failed with exit 125: docker: Error response from daemon: failed to set up container networking: driver failed programming external connectivity on endpoint pikvm-osworld-b3e755390bbe (c666ee4f027968c9bc250d9bb85e7aa0995f3e3c3cfc1fc0372ff22a9e6e356e): Unable to enable DNAT rule:  (iptables failed: iptables --wait -t nat -A DOCKER -p tcp -d 127.0.0.1 --dport 32832 -j DNAT --to-destination 172.17.0.2:5000 ! -i docker0: iptables: No chain/target/match by that name.\n (exit status 1))\n\nRun 'docker run --help' for more information",
+  "control_plane": "agent-harness -> MCP stdio -> isolated daemon",
+  "target_adapter": "official in-guest server through PiKVM-shaped lab",
+  "policy_profile": "isolated_benchmark",
+  "harness_status": "aborted",
+  "official_score": 0.0,
+  "evaluator": "or(2 x exact_match(vm_command_line, rule))",
+  "approvals_required": 0,
+  "cycles": 10,
+  "model_run_budget_s": 900.0,
+  "model_run_timed_out": true,
+  "performance": {
+    "run_id": "5e500f8f-c0f1-49e5-9fe0-7f40a0d0dc02",
+    "status": "aborted",
+    "wall_clock_ms": 900067,
+    "model_active_ms": 590897,
+    "model_lanes": [
+      {
+        "role": "controller",
+        "provider": "claude-opus-low",
+        "model": "opus",
+        "latency": {
+          "samples": 1,
+          "min_ms": 11864.0,
+          "median_ms": 11864.0,
+          "p95_ms": 11864.0,
+          "max_ms": 11864.0,
+          "mean_ms": 11864.0
+        }
+      },
+      {
+        "role": "controller",
+        "provider": "claude-sonnet-low",
+        "model": "sonnet",
+        "latency": {
+          "samples": 22,
+          "min_ms": 9551.0,
+          "median_ms": 11320.0,
+          "p95_ms": 16421.6,
+          "max_ms": 17141.0,
+          "mean_ms": 11989.0
+        }
+      },
+      {
+        "role": "reasoner",
+        "provider": "claude-opus-low",
+        "model": "opus",
+        "latency": {
+          "samples": 10,
+          "min_ms": 11764.0,
+          "median_ms": 18553.0,
+          "p95_ms": 19984.85,
+          "max_ms": 20276.0,
+          "mean_ms": 17164.2
+        }
+      },
+      {
+        "role": "verifier",
+        "provider": "claude-sonnet-low",
+        "model": "sonnet",
+        "latency": {
+          "samples": 12,
+          "min_ms": 9087.0,
+          "median_ms": 11533.5,
+          "p95_ms": 16780.649999999998,
+          "max_ms": 18462.0,
+          "mean_ms": 11969.416666666666
+        }
+      }
+    ],
+    "model_failures": 0,
+    "actions_checkpointed": 14,
+    "actions_attempted": 14,
+    "actions_completed": 12,
+    "progress_actions_completed": 12,
+    "observation_only_actions_completed": 0,
+    "action_recoverable_failures": 0,
+    "action_stale_retries": 0,
+    "pointer_noops_rejected": 0,
+    "repeated_actions_stopped": 0,
+    "non_idempotent_retries_stopped": 0,
+    "autonomous_resumes": 0,
+    "autonomy_stops": 0,
+    "provider_attempts": 48,
+    "provider_failures": 1,
+    "provider_fallbacks": 1,
+    "provider_schema_repairs": 1,
+    "provider_safety_downgrades": 0,
+    "action_latency": {
+      "samples": 12,
+      "min_ms": 1481.2559999999999,
+      "median_ms": 3496.5575,
+      "p95_ms": 7629.215699999998,
+      "max_ms": 9227.024,
+      "mean_ms": 3812.1444166666665
+    },
+    "completion_efficiency": 0.8571428571428571,
+    "progress_action_ratio": 1.0
+  },
+  "run_state_path": "/home/kieran/dev/pikvm-agent/bench/results/2026-07-28/osworld/bedcedc4-dim-screen-r24-repeat/harness.sqlite3",
+  "artifact_dir": "/home/kieran/dev/pikvm-agent/bench/results/2026-07-28/osworld/bedcedc4-dim-screen-r24-repeat/artifacts",
+  "report_path": "/home/kieran/dev/pikvm-agent/bench/results/2026-07-28/osworld/bedcedc4-dim-screen-r24-repeat/report.json"
+}

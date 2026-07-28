@@ -44,7 +44,7 @@ support a claim of generally reliable autonomous Windows operation.
 | Exact-byte virtual-media preparation works | 10/10 builder contracts plus 19/19 transaction/UI/adapter/surface contracts cover mode-0600 media, exact browser approval, rollback, cleanup uncertainty, identity, lease, stop, model-surface exclusion, and explicit unsupported VNC | Passing target-free contract; daemon bridge capability and live target result pending |
 | OCR can safely verify arbitrary desktop text | Tesseract is 56.9% selected and 61.4% expected-aware exact; its 800-case routine tier is 71.125% exact while the preserved 200-case confusable stress tier is 0%; PaddleOCR is 78.9% normalized exact; the retrospective known-intent candidate union is 82.7% overall, 97.0% routine, and 25.5% stress on the same 1,000 cases; no confidence threshold supports a 99% lower-bound claim | Failing release gate |
 | Model grounding is reliable | Current seeded ScreenSpot-Pro samples are Codex 73/100 and Claude Opus 17/20. An experimental Opus → Haiku correction pass reduced an 18/20 first pass to 7/20; the verifier is now veto-only by default | Diagnostic only; automatic correction failed |
-| End-to-end desktop tasks are reliable | Current OSWorld task set is 7/9; full scored-attempt denominator is 7/37 with 11 additional unscored failures. The latest inactive-screen remediation passed only after three further scored failures and still took 469.70 seconds | Failing release gate |
+| End-to-end desktop tasks are reliable | Current OSWorld task set is 7/9; full scored-attempt denominator is 8/39 with 11 additional unscored failures. The inactive-screen remediation is 2/6 overall and only 1/2 after its first pass; the latest pass still took 464.33 seconds | Failing release gate |
 | A model can autonomously complete routine Office work | Portable Word/Excel contracts and semantic OOXML verification pass local tests. Excel r23 is the first clean canonical pass: the model saved, closed, reopened, and audited the workbook; the host recovered 9,437 bytes and passed 29/29 cell/formula checks. The five-attempt optimization series retains three incomplete/rejected runs and one scorer false negative before that pass. r23 still took 29m 32s, used 52 model calls, and repeated one formula audit; the action-evidence contract was hardened afterward. Word r29 recovered a 16,081-byte DOCX that passed 11/11 checks, but its original runner transaction remains `artifact_failed` | Clean Excel n=1; Word runner still not clean; latency failing product target |
 | Windows Agent Arena is supported | 154 tasks discovered; official golden image is absent | Not run |
 | Provider choice is portable | Codex and Claude OAuth CLIs live-tested; dedicated-profile Gemini CLI OAuth, native OpenAI Responses, Azure OpenAI API-key/Entra modes, OpenAI-compatible, Anthropic, Gemini AI Studio, and Vertex AI adapters protocol-tested with mocks/source contracts; one target-free command now compares identical blind pixels/schema across configured routes. The live Anthropic Messages canary reached the provider with `claude-sonnet-5` but the environment-owned credential was rejected, so it recorded 0/1 with `authentication-failed`, zero tool calls, zero consequential executions, and no computer contact | Partial; OAuth works, but no API credential route has passed live yet |
@@ -1367,7 +1367,7 @@ messaging integration.
 ## Current headline
 
 <!-- pikvm-scorecard:start -->
-_Generated from checked JSON evidence as of 2026-07-28. Manifest `sha256:7af8e795ebf9`; run `pikvm-agent harness scorecard --check` to detect drift._
+_Generated from checked JSON evidence as of 2026-07-28. Manifest `sha256:a90bd982c168`; run `pikvm-agent harness scorecard --check` to detect drift._
 
 | Suite | Route | Cases | Result | Median / p95 | Wall | Status | Evidence |
 | --- | --- | ---: | ---: | ---: | ---: | --- | --- |
@@ -1425,8 +1425,8 @@ _Generated from checked JSON evidence as of 2026-07-28. Manifest `sha256:7af8e79
 | Hybrid OCR worker lifecycle | Tesseract precise + killable Paddle worker | 5 lifecycle cases + 19 contracts | 19/19; hard timeout before yes, after no | 5,025ms / 5,062ms | 5.07s | Process lifecycle fixed; diagnostic only, n=5 | [JSON](results/2026-07-26/ocr/hybrid-worker-shutdown-smoke-2026-07-27.json) · `sha256:766f4b73b6db` |
 | Live Excel artifact acceptance | Claude Opus controller/reasoner + Haiku verifier → disposable Windows VM | 5 failure-inclusive attempts | 1/5; final artifact 29/29; 23/25 actions, 92.0% | 25.33s / 40.06s controller | 1,772.38s | Passing n=1 artifact; four preceding attempts retained; latency failing product target | [JSON](results/2026-07-28/live-vnc/office-excel-live-acceptance.json) · `sha256:0b4610ec5ffd` |
 | Live Excel managed transcript replay | Preserved disposable-VM run → authenticated API → Electron/CDP | 532 durable events / 25 actions | 152 timeline events; 1 assistant / 0 branches / 0 duplicate planning | 126.4ms replay navigation | 244,805 gzip-9 JS bytes | Passing preserved live-run UI replay; no target contact during replay | [JSON](results/2026-07-28/ui/live-excel-managed-timeline-replay.json) · `sha256:c0f1e5f8d656` |
-| OSWorld-Verified tracer | Codex, Claude, and mixed role routes | 9 current; 37 scored + 11 unscored attempts | 7/9 current; 7/37 all scored attempts | 128.56s / 883.97s | 2,872.64s current set | Diagnostic; two current failures; 7/37 full-attempt success | [JSON](results/2026-07-28/osworld/summary.json) · `sha256:e2a19d524eff` |
-| OSWorld exact-input remediation | Opus reasoner → Sonnet controller/verifier | 4 scored attempts | 1/4; 34/40 actions, 85.0%; 2 exact long drafts before separate commits | 10.74s / 13.40s controller | 469.70s latest pass | First official pass after three scored failures; latency failing product target | [JSON](results/2026-07-28/osworld/summary.json) · `sha256:e2a19d524eff` |
+| OSWorld-Verified tracer | Codex, Claude, and mixed role routes | 9 current; 39 scored + 11 unscored attempts | 7/9 current; 8/39 all scored attempts | 128.56s / 883.97s | 2,867.26s current set | Diagnostic; two current failures; 8/39 full-attempt success | [JSON](results/2026-07-28/osworld/summary.json) · `sha256:95b1e232da50` |
+| OSWorld exact-input remediation | Opus reasoner → Sonnet controller/verifier | 6 scored attempts | 2/6; 57/66 actions, 86.4%; 2 exact long drafts before separate commits | 10.58s / 12.51s controller | 464.33s latest pass | Two official passes in six attempts; post-pass repeat 1/2; latency failing product target | [JSON](results/2026-07-28/osworld/summary.json) · `sha256:95b1e232da50` |
 | Windows Agent Arena | — | 154 tasks discovered | Not run | — | — | Blocked by missing official image | [JSON](results/2026-07-24/inventories/windows-agent-arena.json) · `sha256:c52ba54f6b29` |
 | Historical PiKVM incident audit | Claude Code + Codex + OpenCode histories | 24 conversations; 4,453 PiKVM calls | 70 incidents: 20 critical, 27 high | — | — | Available local histories audited | [JSON](historical_pikvm_incidents.json) · `sha256:6dc7b9e8b555` |
 | Historical critical/high regression coverage | Checked local control ledger | 47 critical/high incidents | 7 locally covered; 40 partial; 0 open | — | — | Coverage ledger; most incidents remain partial | [JSON](historical_pikvm_coverage.json) · `sha256:d6164522d369` |
@@ -1631,23 +1631,23 @@ representative 369-task OSWorld score.
 | Set volume to maximum | 1 | 2/2 | 5 | 33.73s | 40.16s | official `1.0`, completed |
 | Enable automatic screen lock | 11 | 9/10 | 31 | 295.30s | 369.63s | official `1.0`, completed |
 | Rename `todo_list_Jan_1` to `todo_list_Jan_2` | 2 | 5/5 | 12 | 98.29s | 128.56s | official `1.0`, completed |
-| Disable inactive-screen dimming | 5 | 10/11 | 26 | 325.40s | 469.70s | official `1.0`, completed |
+| Disable inactive-screen dimming | 5 | 11/12 | 29 | 332.22s | 464.33s | official `1.0`, completed |
 | Set timezone to UTC+0 | 11 | 18/23 | 50 | 491.19s | 602.09s | official `1.0`, completed |
 | Restore deleted poster from Trash | 1 | 3/3 | 7 | 66.68s | 82.01s | official `1.0`, completed |
 | Repair conda environment | 1 | 2/3 | 6 | 54.59s | 61.44s | official `0.0`, approval required |
 | Extract and remove video subtitles | 12 | 13/19 | 46 | 833.08s | 1,071.89s | official `0.0`, blocked |
 
-Across the current nine-task set: 188 model completions from 200 provider
+Across the current nine-task set: 191 model completions from 203 provider
 attempts, nine structured-output repairs, two deterministic safe-draft
-downgrades, three provider failures, one approval, 64/78 completed actions,
-2,238.85 seconds of summed model-active time, and 2,872.64 seconds wall time.
+downgrades, three provider failures, one approval, 65/79 completed actions,
+2,245.67 seconds of summed model-active time, and 2,867.26 seconds wall time.
 End-to-end median/p95 were 128.56/883.97 seconds. Auto-lock, UTC, and inactive
 screen dimming were accurate but far too slow; the latest subtitle run
 regressed into ambiguous terminal OCR and repeated focus actions before
 reaching an approval boundary.
 
-The iteration history is intentionally less flattering. Thirty-seven attempts
-reached the official evaluator: eight achieved the goal state, while only seven
+The iteration history is intentionally less flattering. Thirty-nine attempts
+reached the official evaluator: nine achieved the goal state, while only eight
 also had a truthful harness `completed` state. Eleven more attempts ended before
 evaluation because of infrastructure, provider, process-lifecycle, or
 controller/setup failures. The current 7/9 set is therefore shown beside—not
@@ -1656,8 +1656,8 @@ instead of—the all-attempt history:
 | Denominator | Result |
 | --- | ---: |
 | Current latest-run task set | 7/9 official + harness success |
-| All officially scored attempts | 8/37 official goal-state success |
-| All scored attempts requiring official + harness success | 7/37 |
+| All officially scored attempts | 9/39 official goal-state success |
+| All scored attempts requiring official + harness success | 8/39 |
 | Unscored attempts retained as failures | 11 |
 
 Durable evidence:
@@ -1692,6 +1692,14 @@ Durable evidence:
   is the first clean inactive-screen-dimming pass. It completed 10/11 actions,
   verified 68- and 62-character terminal drafts exactly before two separate
   Return commits, required no approval, and received official score `1.0`.
+- [`bedcedc4 R24`](results/2026-07-28/osworld/bedcedc4-dim-screen-r24-repeat/report.json)
+  is the required post-pass reliability failure. It aborted at 900.07 seconds
+  after a controller timeout, an empty exact readback, and a stale legibility
+  rule that discarded verified zoom after a safe `Ctrl+C` cancellation.
+- [`bedcedc4 R25`](results/2026-07-28/osworld/bedcedc4-dim-screen-r25-cancel-proof/report.json)
+  is the fixed repeat. It completed 11/12 actions, verified the same 68- and
+  62-character drafts exactly before separate Return commits, and received
+  official score `1.0` in 464.33 seconds.
 - [`b6781586-utc-r2/report.json`](results/2026-07-25/osworld/b6781586-utc-r2/report.json)
   is the passing UTC+0 run, including its 602.09-second wall time and five
   recoverable typing failures.
@@ -1760,9 +1768,9 @@ event stream and labelled before/after images without committing those bulky
 screen artifacts. Unscored attempts have explicit evidence records rather than
 invented `0.0` evaluator scores.
 
-### Inactive-screen exact-input remediation, R20–R23
+### Inactive-screen exact-input remediation, R20–R25
 
-All four attempts used the same official task, evaluator, VM image, Docker
+All six attempts used the same official task, evaluator, VM image, Docker
 image, and Opus-reasoner/Sonnet-controller-verifier route. The run was not
 declared successful until both the harness and official evaluator passed.
 
@@ -1772,13 +1780,15 @@ declared successful until both the harness and official evaluator passed.
 | R21 | `5611c8f` | 8/8 | 28 | 341.78s | 408.30s | official `0.0`, blocked | Verifier invented a numeric zoom requirement outside the user task |
 | R22 | `5c96d1b` | 6/9 | 25 | 345.78s | 467.89s | official `0.0`, blocked | Two exact wrapped-text alternatives existed, but the selected OCR reading remained noisy |
 | R23 | `14d7872` | 10/11 | 27 | 325.40s | 469.70s | official `1.0`, completed | Two long drafts matched requested, issued, and observed character counts and exact SHA before separate commits |
+| R24 | `fe0ad45` | 12/14 | 48 | 590.90s | 900.07s | official `0.0`, aborted | Sonnet timed out; empty exact readback was canceled safely, but the policy then discarded still-valid zoom proof and exhausted the budget |
+| R25 | `61cc0bd` | 11/12 | 30 | 332.22s | 464.33s | official `1.0`, completed | Preserved verifier-confirmed legibility across cancellation; both long drafts matched exact readback before separate commits |
 
-The failure-inclusive result is **1/4**, not “one successful demo.” The four
-attempts consumed 2,025.96 seconds wall time, 1,549.64 seconds of model-active
-time, 122 provider attempts, six schema repairs, one provider failure/fallback,
-and 40 attempted actions, of which 34 completed. The latest pass still took
-469.70 seconds; it proves correctness for this task, not interactive speed or
-general OSWorld reliability.
+The failure-inclusive result is **2/6**, and the post-pass repeat is **1/2**.
+The six attempts consumed 3,390.35 seconds wall time, 2,472.76 seconds of
+model-active time, 200 provider attempts, eight schema repairs, two provider
+failures/fallbacks, and 66 attempted actions, of which 57 completed. The latest
+pass still took 464.33 seconds; it proves recovery of the reproduced bug, not
+interactive speed or general OSWorld reliability.
 
 ### Issues found and fixed by the tracer loop
 
@@ -1843,10 +1853,12 @@ general OSWorld reliability.
     find the requested control and safely refused to alter Screen Blank or
     Automatic Suspend. Later R20–R22 runs exposed discarded terminal
     legibility, an invented numeric zoom criterion, and failure to use two
-    independent exact OCR reconstructions. R23 fixed the final boundary and
-    passed the upstream evaluator, but 469.70-second latency remains
-    release-blocking efficiency debt. Hidden evaluator rules were never
-    disclosed to the model.
+    independent exact OCR reconstructions. R23 passed, but the required R24
+    repeat exposed a controller timeout, empty OCR readback, and stale
+    legibility proof after a safe cancellation. R25 passed after preserving
+    verifier-confirmed legibility; repeat reliability is still only 1/2 and
+    464.33-second latency remains release-blocking efficiency debt. Hidden
+    evaluator rules were never disclosed to the model.
 18. The first restore-from-Trash attempt discovered an unsupported official
     `download` setup only after booting the VM. The tracer now preflights setup
     and evaluator shapes before startup, reproduces official HTTP(S) downloads

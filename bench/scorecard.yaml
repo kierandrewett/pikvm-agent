@@ -1005,7 +1005,7 @@ rows:
     result: "{passes}/{attempts}; {actions_completed}/{actions_attempted} actions, {efficiency}; {drafts} exact long drafts before separate commits"
     latency: "{controller_median} / {controller_p95} controller"
     wall: "{wall} latest pass"
-    status: "First official pass after three scored failures; latency failing product target"
+    status: "Two official passes in six attempts; post-pass repeat 1/2; latency failing product target"
 
   - suite: "Windows Agent Arena"
     route: "—"

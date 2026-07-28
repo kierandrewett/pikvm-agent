@@ -15,7 +15,7 @@
       "claude-sonnet-low/sonnet",
       "claude-opus-low/opus"
     ],
-    "definition": "R20-R23 inactive-screen-dimming remediation route: Opus reasoner with Sonnet controller/verifier and Opus fallback."
+    "definition": "R20-R25 inactive-screen-dimming remediation route: Opus reasoner with Sonnet controller/verifier and Opus fallback."
   },
   "prior_attempt_index": "../../2026-07-25/osworld/summary.json",
   "current_nine_task_diagnostic": {
@@ -28,27 +28,27 @@
       0.4526,
       0.9368
     ],
-    "wall_clock_ms_total": 2872637,
+    "wall_clock_ms_total": 2867260,
     "wall_clock_ms_median": 128563,
     "wall_clock_ms_p95": 883967.4,
-    "model_active_ms_total": 2238848,
-    "model_completions": 188,
-    "provider_attempts": 200,
+    "model_active_ms_total": 2245665,
+    "model_completions": 191,
+    "provider_attempts": 203,
     "provider_failures": 3,
     "provider_fallbacks": 2,
     "provider_schema_repairs": 9,
     "provider_safety_downgrades": 2,
     "approvals_required": 1,
     "cycles": 45,
-    "actions_attempted": 78,
-    "actions_completed": 64,
-    "completion_efficiency": 0.8205128205128205,
+    "actions_attempted": 79,
+    "actions_completed": 65,
+    "completion_efficiency": 0.8227848101265823,
     "reports": [
       "../../2026-07-24/osworld/f9be0997-dnd-r3/report.json",
       "../../2026-07-24/osworld/28cc3b7e-max-volume-r1/report.json",
       "../../2026-07-24/osworld/a4d98375-auto-lock-r9/report.json",
       "../../2026-07-24/osworld/e0df059f-rename-folder-r2/report.json",
-      "bedcedc4-dim-screen-r23-exact-consensus/report.json",
+      "bedcedc4-dim-screen-r25-cancel-proof/report.json",
       "../../2026-07-25/osworld/b6781586-utc-r2/report.json",
       "../../2026-07-25/osworld/5ea617a3-restore-trash-r2/report.json",
       "../../2026-07-25/osworld/48d05431-conda-r1/report.json",
@@ -57,44 +57,44 @@
   },
   "passing_subset": {
     "cases": 7,
-    "wall_clock_ms_total": 1739308,
+    "wall_clock_ms_total": 1733931,
     "wall_clock_ms_median": 128563,
-    "wall_clock_ms_p95": 562374.6,
-    "model_active_ms_total": 1351173,
-    "model_completions": 136,
-    "provider_attempts": 140,
+    "wall_clock_ms_p95": 560761.5,
+    "model_active_ms_total": 1357990,
+    "model_completions": 139,
+    "provider_attempts": 143,
     "provider_failures": 0,
     "provider_fallbacks": 0,
     "provider_schema_repairs": 4,
     "provider_safety_downgrades": 1,
-    "actions_attempted": 56,
-    "actions_completed": 49,
-    "completion_efficiency": 0.875
+    "actions_attempted": 57,
+    "actions_completed": 50,
+    "completion_efficiency": 0.8771929824561403
   },
   "latest_remediation_iteration": {
     "task_id": "bedcedc4-4d72-425e-ad62-21960b11fe0d",
     "instruction": "Could you set the 'Dim screen when inactive' to off in setting?",
     "evaluator": "or(2 x exact_match(vm_command_line, rule))",
-    "attempts": 4,
-    "official_passes": 1,
-    "harness_completed_and_official_passed": 1,
-    "success_rate": 0.25,
-    "wall_clock_ms_total": 2025956,
-    "wall_clock_ms_mean": 506489,
+    "attempts": 6,
+    "official_passes": 2,
+    "harness_completed_and_official_passed": 2,
+    "success_rate": 0.3333333333333333,
+    "wall_clock_ms_total": 3390349,
+    "wall_clock_ms_mean": 565058.1666666666,
     "wall_clock_ms_median": 468795.5,
-    "wall_clock_ms_p95": 648514.95,
-    "model_active_ms_total": 1549643,
-    "model_completions": 115,
-    "provider_attempts": 122,
-    "provider_failures": 1,
-    "provider_fallbacks": 1,
-    "provider_schema_repairs": 6,
-    "provider_safety_downgrades": 1,
+    "wall_clock_ms_p95": 845067.75,
+    "model_active_ms_total": 2472757,
+    "model_completions": 189,
+    "provider_attempts": 200,
+    "provider_failures": 2,
+    "provider_fallbacks": 2,
+    "provider_schema_repairs": 8,
+    "provider_safety_downgrades": 2,
     "approvals_required": 0,
-    "cycles": 25,
-    "actions_attempted": 40,
-    "actions_completed": 34,
-    "completion_efficiency": 0.85,
+    "cycles": 40,
+    "actions_attempted": 66,
+    "actions_completed": 57,
+    "completion_efficiency": 0.8636363636363636,
     "reports": [
       {
         "path": "bedcedc4-dim-screen-r20-wrapped-readback/report.json",
@@ -167,41 +167,77 @@
         "actions_completed": 10,
         "failure_mode": null,
         "validated_commit": "14d7872"
+      },
+      {
+        "path": "bedcedc4-dim-screen-r24-repeat/report.json",
+        "sha256": "33a7969c6ffe82804dacb1355e278e448cd49b17009612093c6bdc356cfa4b59",
+        "harness_revision": "fe0ad45",
+        "harness_status": "aborted",
+        "official_score": 0.0,
+        "cycles": 10,
+        "wall_clock_ms": 900067,
+        "model_active_ms": 590897,
+        "provider_attempts": 48,
+        "provider_failures": 1,
+        "provider_fallbacks": 1,
+        "provider_schema_repairs": 1,
+        "actions_attempted": 14,
+        "actions_completed": 12,
+        "failure_mode": "The first Sonnet controller call timed out and exact OCR returned no text for a fully issued draft. After a safe Ctrl+C cancellation, the legibility policy discarded still-valid zoom proof and looped until the run budget expired.",
+        "remediation_commit": "61cc0bd"
+      },
+      {
+        "path": "bedcedc4-dim-screen-r25-cancel-proof/report.json",
+        "sha256": "2a5132367c63ae20fba3208245bfab5ca8522f3d488b6a5580a1003a46cd5285",
+        "harness_revision": "61cc0bd",
+        "harness_status": "completed",
+        "official_score": 1.0,
+        "cycles": 5,
+        "wall_clock_ms": 464326,
+        "model_active_ms": 332217,
+        "provider_attempts": 30,
+        "provider_failures": 0,
+        "provider_fallbacks": 0,
+        "provider_schema_repairs": 1,
+        "actions_attempted": 12,
+        "actions_completed": 11,
+        "failure_mode": null,
+        "validated_commit": "61cc0bd"
       }
     ],
     "latest_success": {
-      "report": "bedcedc4-dim-screen-r23-exact-consensus/report.json",
-      "harness_revision": "14d7872",
+      "report": "bedcedc4-dim-screen-r25-cancel-proof/report.json",
+      "harness_revision": "61cc0bd",
       "official_score": 1.0,
       "harness_status": "completed",
-      "wall_clock_ms": 469703,
-      "model_active_ms": 325400,
-      "source_state_sha256": "200493a762739058d9bc357890a6da3773aeeaf7fae9b1a209537439b5482045",
+      "wall_clock_ms": 464326,
+      "model_active_ms": 332217,
+      "source_state_sha256": "accd7369af43245949a145c4f06008a1c8ae48524bdb8c344dfd78c62f27f09d",
       "source_state_retained_locally": true,
       "controller_latency": {
         "provider": "claude-sonnet-low",
         "model": "sonnet",
-        "samples": 12,
-        "median_ms": 10737,
-        "p95_ms": 13400.7
+        "samples": 13,
+        "median_ms": 10581,
+        "p95_ms": 12506
       },
       "reasoner_latency": {
         "provider": "claude-opus-low",
         "model": "opus",
-        "samples": 3,
-        "median_ms": 13873,
-        "p95_ms": 19413.4
+        "samples": 4,
+        "median_ms": 16348,
+        "p95_ms": 19021.3
       },
       "verifier_latency": {
         "provider": "claude-sonnet-low",
         "model": "sonnet",
-        "samples": 11,
-        "median_ms": 11706,
-        "p95_ms": 21528
+        "samples": 12,
+        "median_ms": 9890,
+        "p95_ms": 12735.95
       },
       "exact_terminal_drafts": [
         {
-          "source_event_sequence": 150,
+          "source_event_sequence": 205,
           "requested_characters": 68,
           "issued_characters": 68,
           "observed_characters": 68,
@@ -211,7 +247,7 @@
           "emitted_exactly_once": true
         },
         {
-          "source_event_sequence": 197,
+          "source_event_sequence": 247,
           "requested_characters": 62,
           "issued_characters": 62,
           "observed_characters": 62,
@@ -227,11 +263,11 @@
   },
   "all_scored_attempts": {
     "definition": "Every attempt that reached the official evaluator, including pre-fix failures and harness false negatives.",
-    "attempts": 37,
-    "official_goal_state_passes": 8,
-    "official_goal_state_rate": 0.21621621621621623,
-    "harness_completed_and_official_passed": 7,
-    "harness_and_official_success_rate": 0.1891891891891892,
+    "attempts": 39,
+    "official_goal_state_passes": 9,
+    "official_goal_state_rate": 0.23076923076923078,
+    "harness_completed_and_official_passed": 8,
+    "harness_and_official_success_rate": 0.20512820512820512,
     "new_reports": [
       {
         "path": "bedcedc4-dim-screen-r20-wrapped-readback/report.json",
@@ -252,6 +288,16 @@
         "path": "bedcedc4-dim-screen-r23-exact-consensus/report.json",
         "harness_status": "completed",
         "official_score": 1.0
+      },
+      {
+        "path": "bedcedc4-dim-screen-r24-repeat/report.json",
+        "harness_status": "aborted",
+        "official_score": 0.0
+      },
+      {
+        "path": "bedcedc4-dim-screen-r25-cancel-proof/report.json",
+        "harness_status": "completed",
+        "official_score": 1.0
       }
     ],
     "prior_attempt_index": "../../2026-07-25/osworld/summary.json"
@@ -262,5 +308,5 @@
     "new_evidence": [],
     "prior_attempt_index": "../../2026-07-25/osworld/summary.json"
   },
-  "scope_warning": "Nine scored tasks are a tracer diagnostic, not a representative 369-task OSWorld score. The latest remediation iteration passed one of four scored attempts and remains far above the interactive latency target."
+  "scope_warning": "Nine scored tasks are a tracer diagnostic, not a representative 369-task OSWorld score. The latest remediation iteration passed two of six scored attempts; the post-pass reliability repeat was 1/2 and remains far above the interactive latency target."
 }
