@@ -41,7 +41,7 @@ def _looks_like_control_border(
     )
 
 
-_TOKEN_CONTEXT_MARKERS = frozenset("/\\_:#?=@")
+_TOKEN_CONTEXT_MARKERS = frozenset("./\\_:#?=@")
 _SHA256_TEXT = re.compile(r"sha256:[0-9a-f]{32,128}")
 _RUN_IDENTIFIER = re.compile(r"run_[a-z0-9_]+")
 _UPPER_IDENTIFIER = re.compile(r"[A-Z][A-Z0-9_]+")

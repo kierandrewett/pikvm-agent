@@ -798,6 +798,25 @@ def test_tesseract_rejoins_machine_tokens_without_merging_prose() -> None:
     ]
 
 
+def test_tesseract_uses_tight_dot_geometry_without_merging_prose() -> None:
+    tsv = "\n".join(
+        [
+            "level\tpage_num\tblock_num\tpar_num\tline_num\tword_num\tleft\ttop\twidth\theight\tconf\ttext",
+            "5\t1\t1\t1\t1\t1\t200\t10\t340\t20\t90\torg.gnome.settings-daemon.plugins.",
+            "5\t1\t1\t1\t1\t2\t532\t10\t50\t20\t90\tpower",
+            "5\t1\t1\t1\t2\t1\t20\t40\t90\t20\t96\tSentence.",
+            "5\t1\t1\t1\t2\t2\t125\t40\t40\t20\t96\tNext",
+        ]
+    )
+
+    lines = _parse_tsv(tsv)
+
+    assert [line.text for line in lines] == [
+        "org.gnome.settings-daemon.plugins.power",
+        "Sentence. Next",
+    ]
+
+
 def test_tesseract_prefers_intact_machine_syntax_over_misleading_confidence() -> None:
     def candidate(text: str, confidence: float) -> list[OCRLine]:
         return [OCRLine(text=text, confidence=confidence, bbox=[0, 0, 500, 20])]

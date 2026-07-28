@@ -566,6 +566,37 @@ def test_full_screen_exact_candidate_reconstructs_adjacent_terminal_rows(
         assert candidate[1].y + candidate[1].height >= 194
 
 
+def test_full_screen_prefix_crop_includes_low_confidence_wrapped_row() -> None:
+    intended = "gsettings set org.gnome.settings-daemon.plugins.power idle-dim false"
+    result = OCRResult(
+        lines=[
+            OCRLine(
+                text=(
+                    "user@vm:~$ "
+                    "gsettings set org.gnome.settings-daemon.plugins.power"
+                ),
+                confidence=0.82,
+                bbox=[48, 111, 1249, 147],
+            ),
+            OCRLine(
+                text="idle-dim false",
+                confidence=0.31,
+                bbox=[48, 138, 267, 194],
+            ),
+        ]
+    )
+
+    region = WatchedTyper._full_screen_exact_prefix_region(
+        result,
+        intended,
+        (1280, 720),
+    )
+
+    assert region is not None
+    assert region.y <= 111
+    assert region.y + region.height >= 194
+
+
 # --------------------------------------------------------------------------- #
 # fast print path
 # --------------------------------------------------------------------------- #
@@ -1453,10 +1484,26 @@ async def test_terminal_wrapped_readback_reocrs_the_causal_rows(
                         confidence=0.89,
                     ),
                     OCRLine(
-                        text="lugins.power idle-dim false",
+                        text="lugins.power idle-dim falsef",
                         confidence=0.60,
                     ),
-                ]
+                ],
+                alternatives=[
+                    OCRCandidate(
+                        text=(
+                            "user@vm:~$ "
+                            "gsettings set org.gnome.settings-daemon.p"
+                            "lugins.power\nidle-dim false"
+                        )
+                    ),
+                    OCRCandidate(
+                        text=(
+                            "user@vm: S "
+                            "gsettings set org.gnome.settings-daemon.p"
+                            "lugins.power\nidle-dim false"
+                        )
+                    ),
+                ],
             )
 
     backend = WrappedTerminalBackend()

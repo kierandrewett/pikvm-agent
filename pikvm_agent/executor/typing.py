@@ -557,6 +557,7 @@ class WatchedTyper:
         self._last_read_semantic_spacing = False
         self._last_grid_frame: CapturedFrame | None = None
         self._last_read_screen_frame: CapturedFrame | None = None
+        self._last_field_ocr_result = OCRResult()
 
     # ---- capture/read helpers -------------------------------------------- #
 
@@ -594,6 +595,7 @@ class WatchedTyper:
         (tesseract) crops the saved frame by region, while live PiKVM OCR reads
         that region on the live screen — never the whole frame. ``""`` on failure."""
         self._last_read_semantic_spacing = False
+        self._last_field_ocr_result = OCRResult()
         try:
             frame = await self.backend.screenshot()
         except Exception:
@@ -617,6 +619,7 @@ class WatchedTyper:
                 result = await precise_ocr(tmp, region=region)
             else:
                 result = await self.ocr.ocr(tmp, region=region)
+            self._last_field_ocr_result = result
             if (
                 precise
                 and intended
@@ -871,15 +874,8 @@ class WatchedTyper:
             previous_region = line_region
             for continuation in result.lines[start + 1 : start + 3]:
                 continuation_region = ocr_line_region(continuation, dims)
-                continuation_confidence = (
-                    float(continuation.confidence)
-                    if continuation.confidence is not None
-                    else 1.0
-                )
                 if (
                     continuation_region is None
-                    or continuation_confidence
-                    < MIN_GROUNDED_EXACT_OCR_CONFIDENCE
                     or not vertically_adjacent_rows(
                         previous_region,
                         continuation_region,
@@ -1709,41 +1705,71 @@ class WatchedTyper:
                         MIN_GROUNDED_EXACT_OCR_CONFIDENCE
                     ),
                 )
-                cropped_lines = cropped_read.splitlines()
-                if not cropped_lines:
-                    continue
-                row_height = max(
-                    1,
-                    round(prefix_region.height / len(cropped_lines)),
-                )
-                cropped_result = OCRResult(
-                    lines=[
-                        OCRLine(
-                            text=line,
-                            confidence=1.0,
-                            bbox=[
-                                int(prefix_region.x),
-                                int(prefix_region.y) + index * row_height,
-                                int(
-                                    prefix_region.x
-                                    + prefix_region.width
-                                ),
-                                min(
-                                    dims[1],
-                                    int(prefix_region.y)
-                                    + (index + 1) * row_height,
-                                ),
-                            ],
+                def exact_crop_candidate(
+                    candidate_text: str,
+                ) -> tuple[str, Region, bool] | None:
+                    candidate_lines = candidate_text.splitlines()
+                    if not candidate_lines:
+                        return None
+                    row_height = max(
+                        1,
+                        round(
+                            prefix_region.height
+                            / len(candidate_lines)
+                        ),
+                    )
+                    candidate_result = OCRResult(
+                        lines=[
+                            OCRLine(
+                                text=line,
+                                confidence=1.0,
+                                bbox=[
+                                    int(prefix_region.x),
+                                    (
+                                        int(prefix_region.y)
+                                        + index * row_height
+                                    ),
+                                    int(
+                                        prefix_region.x
+                                        + prefix_region.width
+                                    ),
+                                    min(
+                                        dims[1],
+                                        int(prefix_region.y)
+                                        + (index + 1) * row_height,
+                                    ),
+                                ],
+                            )
+                            for index, line in enumerate(candidate_lines)
+                        ]
+                    )
+                    return self._full_screen_exact_line_candidate(
+                        candidate_result,
+                        text,
+                        dims,
+                        allow_semantic_spacing=allow_semantic_spacing,
+                    )
+
+                cropped_match = exact_crop_candidate(cropped_read)
+                if cropped_match is None:
+                    # Selected OCR can retain a one-character suffix artifact
+                    # while two independent scale reads agree exactly. The
+                    # crop is already grounded to the causal terminal rows;
+                    # require two exact alternatives before trusting either.
+                    alternative_matches = [
+                        match
+                        for alternative in (
+                            self._last_field_ocr_result.alternatives
                         )
-                        for index, line in enumerate(cropped_lines)
+                        if (
+                            match := exact_crop_candidate(
+                                alternative.text
+                            )
+                        )
+                        is not None
                     ]
-                )
-                cropped_match = self._full_screen_exact_line_candidate(
-                    cropped_result,
-                    text,
-                    dims,
-                    allow_semantic_spacing=allow_semantic_spacing,
-                )
+                    if len(alternative_matches) >= 2:
+                        cropped_match = alternative_matches[0]
                 if cropped_match is not None:
                     last_read = cropped_match[0]
                     self._semantic_spacing_normalized = cropped_match[2]
