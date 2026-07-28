@@ -415,6 +415,46 @@ def harness_managed_mcp(
     harness_mcp_main()
 
 
+def _run_runtime_managed_mcp(
+    runtime: Path,
+    *,
+    require_ready: bool,
+    caller_label: str,
+    refusal_label: str,
+) -> None:
+    from pikvm_agent.harness.client_setup import (
+        managed_mcp_environment,
+        verify_managed_harness_ready,
+    )
+    from pikvm_agent.harness.config import ensure_safe_bind
+    from pikvm_agent.harness.managed_client_runtime import (
+        load_managed_client_runtime,
+    )
+    from pikvm_agent.harness_mcp_server import main as harness_mcp_main
+
+    try:
+        loaded = load_managed_client_runtime(runtime)
+        ensure_safe_bind(loaded.settings)
+        environment = managed_mcp_environment(
+            loaded.settings,
+            caller_label=caller_label,
+            environ=loaded.environment,
+        )
+        if require_ready:
+            verify_managed_harness_ready(
+                loaded.settings,
+                environ=loaded.environment,
+            )
+    except Exception as exc:
+        typer.echo(
+            f"{refusal_label} startup refused: {type(exc).__name__}",
+            err=True,
+        )
+        raise typer.Exit(2)
+    os.environ.update(environment)
+    harness_mcp_main()
+
+
 @harness_app.command("managed-runtime-mcp")
 def harness_managed_runtime_mcp(
     runtime: Path = typer.Option(
@@ -444,37 +484,82 @@ def harness_managed_runtime_mcp(
 ) -> None:
     """Run managed MCP without requiring a token in the parent shell."""
 
-    from pikvm_agent.harness.client_setup import (
-        managed_mcp_environment,
-        verify_managed_harness_ready,
+    _run_runtime_managed_mcp(
+        runtime,
+        require_ready=require_ready,
+        caller_label=caller_label,
+        refusal_label="managed runtime MCP",
     )
-    from pikvm_agent.harness.config import ensure_safe_bind
+
+
+@harness_app.command("active-managed-mcp")
+def harness_active_managed_mcp(
+    caller_label: str = typer.Option(
+        "mcp-client",
+        "--caller-label",
+        help="Human-readable client label shown in the conversation timeline.",
+    ),
+    require_ready: bool = typer.Option(
+        False,
+        "--require-ready",
+        help=(
+            "Fail startup unless the harness is already reachable; by default "
+            "the safe high-level MCP stays available across harness restarts."
+        ),
+    ),
+) -> None:
+    """Run managed MCP from the active desktop-owned runtime handoff."""
+
     from pikvm_agent.harness.managed_client_runtime import (
-        load_managed_client_runtime,
+        active_managed_client_runtime_path,
     )
-    from pikvm_agent.harness_mcp_server import main as harness_mcp_main
+
+    _run_runtime_managed_mcp(
+        active_managed_client_runtime_path(),
+        require_ready=require_ready,
+        caller_label=caller_label,
+        refusal_label="active managed MCP",
+    )
+
+
+@harness_app.command("activate-managed-runtime")
+def harness_activate_managed_runtime(
+    runtime: Path = typer.Option(
+        ...,
+        "--runtime",
+        exists=True,
+        dir_okay=False,
+        readable=True,
+        help="Owner-only source runtime published by a healthy harness.",
+    ),
+    output: Path | None = typer.Option(
+        None,
+        "--out",
+        dir_okay=False,
+        help=(
+            "Optional active-runtime destination; the per-user runtime "
+            "location is used by default."
+        ),
+    ),
+) -> None:
+    """Publish only the active agent capability for persistent MCP clients."""
+
+    from pikvm_agent.harness.managed_client_runtime import (
+        publish_active_managed_client_runtime,
+    )
 
     try:
-        loaded = load_managed_client_runtime(runtime)
-        ensure_safe_bind(loaded.settings)
-        environment = managed_mcp_environment(
-            loaded.settings,
-            caller_label=caller_label,
-            environ=loaded.environment,
+        destination = publish_active_managed_client_runtime(
+            runtime,
+            destination=output,
         )
-        if require_ready:
-            verify_managed_harness_ready(
-                loaded.settings,
-                environ=loaded.environment,
-            )
     except Exception as exc:
         typer.echo(
-            f"managed runtime MCP startup refused: {type(exc).__name__}",
+            f"managed runtime activation refused: {type(exc).__name__}",
             err=True,
         )
         raise typer.Exit(2)
-    os.environ.update(environment)
-    harness_mcp_main()
+    typer.echo(f"Activated managed client runtime: {destination}")
 
 
 @harness_app.command("direct-mcp")
@@ -603,6 +688,10 @@ def harness_client_config(
         control_mode=normalized_control_mode,  # type: ignore[arg-type]
         server_name=server_name,
         managed_runtime=managed_runtime,
+        active_runtime=(
+            normalized_control_mode == "managed"
+            and managed_runtime is None
+        ),
     )
     if output is None:
         typer.echo(rendered, nl=False)

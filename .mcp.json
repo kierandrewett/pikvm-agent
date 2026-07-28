@@ -10,11 +10,9 @@
         "-m",
         "pikvm_agent.cli",
         "harness",
-      "managed-mcp",
-      "--config",
-      "/home/kieran/dev/pikvm-agent/config.harness.example.yaml",
-      "--caller-label",
-      "codex-cli"
+        "active-managed-mcp",
+        "--caller-label",
+        "claude-cli"
       ]
     }
   }

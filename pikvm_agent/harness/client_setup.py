@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import re
 import tomllib
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
@@ -39,6 +39,29 @@ def normalize_caller_label(value: str) -> str:
             "caller_label must contain only letters, digits, _ or -"
         )
     return label
+
+
+def valid_active_managed_mcp_arguments(
+    arguments: Sequence[str],
+) -> bool:
+    """Accept only the bounded options exposed by active-managed-mcp."""
+
+    remaining = list(arguments)
+    caller_seen = False
+    ready_seen = False
+    while remaining:
+        option = remaining.pop(0)
+        if option == "--caller-label" and not caller_seen and remaining:
+            value = remaining.pop(0)
+            if not _CALLER_LABEL.fullmatch(value):
+                return False
+            caller_seen = True
+            continue
+        if option == "--require-ready" and not ready_seen:
+            ready_seen = True
+            continue
+        return False
+    return True
 
 
 def harness_base_url(settings: HarnessSettings) -> str:
@@ -161,6 +184,7 @@ def render_client_config(
     control_mode: ControlMode = "managed",
     server_name: str = "pikvm",
     managed_runtime: Path | None = None,
+    active_runtime: bool = False,
 ) -> str:
     """Render a client config that forwards secret names, never secret values."""
     if not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", server_name):
@@ -169,7 +193,22 @@ def render_client_config(
         raise ValueError("control_mode must be managed or direct")
     if managed_runtime is not None and control_mode != "managed":
         raise ValueError("managed runtime is unavailable in direct mode")
-    if managed_runtime is None:
+    if active_runtime and control_mode != "managed":
+        raise ValueError("active runtime is unavailable in direct mode")
+    if active_runtime and managed_runtime is not None:
+        raise ValueError(
+            "active runtime and explicit managed runtime are mutually exclusive"
+        )
+    if active_runtime:
+        args = [
+            "-m",
+            "pikvm_agent.cli",
+            "harness",
+            "active-managed-mcp",
+            "--caller-label",
+            f"{client}-cli",
+        ]
+    elif managed_runtime is None:
         command_name = (
             "managed-mcp" if control_mode == "managed" else "direct-mcp"
         )
@@ -211,7 +250,7 @@ def render_client_config(
             "PIKVM_MCP_PROVIDER": "${PIKVM_MCP_PROVIDER:-unreported}",
             "PIKVM_MCP_MODEL": "${PIKVM_MCP_MODEL:-unreported}",
         }
-    elif managed_runtime is None:
+    elif managed_runtime is None and not active_runtime:
         forwarded = [settings.agent_token_env]
         required = {
             settings.agent_token_env: f"${{{settings.agent_token_env}}}",
@@ -320,6 +359,7 @@ def parse_client_launch_config(
     )
     console_command = command_name in {"pikvm-agent", "pikvm-agent.exe"}
     runtime_args: list[str] | None = None
+    active_runtime_args: list[str] | None = None
     if python_command and tuple(args[:4]) == (
         "-m",
         "pikvm_agent.cli",
@@ -327,11 +367,23 @@ def parse_client_launch_config(
         "managed-runtime-mcp",
     ):
         runtime_args = args[4:]
+    elif python_command and tuple(args[:4]) == (
+        "-m",
+        "pikvm_agent.cli",
+        "harness",
+        "active-managed-mcp",
+    ):
+        active_runtime_args = args[4:]
     elif console_command and tuple(args[:2]) == (
         "harness",
         "managed-runtime-mcp",
     ):
         runtime_args = args[2:]
+    elif console_command and tuple(args[:2]) == (
+        "harness",
+        "active-managed-mcp",
+    ):
+        active_runtime_args = args[2:]
     runtime_indexes = (
         [
             index
@@ -348,12 +400,20 @@ def parse_client_launch_config(
         and bool(runtime_args[runtime_indexes[0] + 1])
         and not runtime_args[runtime_indexes[0] + 1].startswith("-")
     )
+    active_runtime_backed = (
+        active_runtime_args is not None
+        and valid_active_managed_mcp_arguments(active_runtime_args)
+    )
     if client == "codex":
         if (
             not isinstance(environment, list)
             or not all(isinstance(name, str) and name for name in environment)
             or len(environment) != len(set(environment))
-            or (not environment and not runtime_backed)
+            or (
+                not environment
+                and not runtime_backed
+                and not active_runtime_backed
+            )
         ):
             raise ValueError(
                 f"generated {client} client config has no usable environment"
@@ -374,7 +434,11 @@ def parse_client_launch_config(
                 )
                 for name, reference in environment.items()
             )
-            or (not environment and not runtime_backed)
+            or (
+                not environment
+                and not runtime_backed
+                and not active_runtime_backed
+            )
         ):
             raise ValueError(
                 f"generated {client} client config has no usable environment"

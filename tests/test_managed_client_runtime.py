@@ -8,7 +8,10 @@ from typer.testing import CliRunner
 
 from pikvm_agent.cli import app
 from pikvm_agent.harness.managed_client_runtime import (
+    ACTIVE_MANAGED_RUNTIME_ENV,
+    active_managed_client_runtime_path,
     load_managed_client_runtime,
+    publish_active_managed_client_runtime,
 )
 
 AGENT_TOKEN = "runtime-agent-capability-0123456789abcdef"
@@ -83,6 +86,65 @@ def test_runtime_loads_only_agent_scope_into_a_copied_environment(
         "UNRELATED": "preserved",
         "LAB_AGENT": AGENT_TOKEN,
     }
+
+
+def test_active_runtime_path_is_stable_and_overrideable(
+    tmp_path: Path,
+) -> None:
+    selected = tmp_path / "selected" / "runtime.json"
+
+    assert active_managed_client_runtime_path(
+        environ={ACTIVE_MANAGED_RUNTIME_ENV: str(selected)}
+    ) == selected
+    assert active_managed_client_runtime_path(
+        environ={"XDG_RUNTIME_DIR": str(tmp_path)}
+    ) == tmp_path / "pikvm-agent" / "managed-client-runtime.json"
+    with pytest.raises(ValueError, match="must be an absolute path"):
+        active_managed_client_runtime_path(
+            environ={ACTIVE_MANAGED_RUNTIME_ENV: "relative/runtime.json"}
+        )
+
+
+def test_publish_active_runtime_reduces_and_atomically_replaces_agent_scope(
+    tmp_path: Path,
+) -> None:
+    config = tmp_path / "harness.yaml"
+    source = tmp_path / "source-runtime.json"
+    destination = tmp_path / "active" / "managed-client-runtime.json"
+    _write_harness_config(config)
+    _write_runtime(source, config)
+
+    published = publish_active_managed_client_runtime(
+        source,
+        destination=destination,
+        environ={"UNRELATED": "must-not-be-persisted"},
+    )
+
+    assert published == destination
+    assert destination.stat().st_mode & 0o077 == 0
+    payload = json.loads(destination.read_text(encoding="utf-8"))
+    assert payload == {
+        "schema_version": 1,
+        "harness_config": str(config),
+        "agent_token_env": "LAB_AGENT",
+        "agent_token": AGENT_TOKEN,
+    }
+    assert "UNRELATED" not in destination.read_text(encoding="utf-8")
+    assert list(destination.parent.glob(f".{destination.name}.*")) == []
+    loaded = load_managed_client_runtime(destination, environ={})
+    assert loaded.environment == {"LAB_AGENT": AGENT_TOKEN}
+
+    replacement = "replacement-agent-capability-0123456789abcdef"
+    _write_runtime(source, config, token=replacement)
+    publish_active_managed_client_runtime(
+        source,
+        destination=destination,
+        environ={},
+    )
+    assert load_managed_client_runtime(
+        destination,
+        environ={},
+    ).environment == {"LAB_AGENT": replacement}
 
 
 @pytest.mark.parametrize("mode", [0o640, 0o644, 0o666])

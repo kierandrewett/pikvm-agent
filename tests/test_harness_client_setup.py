@@ -6,6 +6,7 @@ from pathlib import Path
 
 import httpx
 import pytest
+import yaml
 from typer.testing import CliRunner
 
 from pikvm_agent.cli import app
@@ -264,6 +265,42 @@ def test_runtime_backed_managed_config_needs_no_shell_token(
     assert "PIKVM_AGENT_DAEMON" not in rendered
 
 
+@pytest.mark.parametrize(
+    "client", ["codex", "claude", "gemini", "opencode"]
+)
+def test_active_runtime_config_is_path_free_and_needs_no_shell_token(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    client: str,
+) -> None:
+    configured = settings(monkeypatch)
+
+    rendered = render_client_config(
+        configured,
+        client=client,  # type: ignore[arg-type]
+        executable="/opt/pikvm/python",
+        harness_config=tmp_path / "harness.yaml",
+        active_runtime=True,
+    )
+
+    launch = parse_client_launch_config(
+        rendered,
+        client=client,  # type: ignore[arg-type]
+    )
+    assert launch.args == (
+        "-m",
+        "pikvm_agent.cli",
+        "harness",
+        "active-managed-mcp",
+        "--caller-label",
+        f"{client}-cli",
+    )
+    assert launch.forwarded_env == ()
+    assert "TEST_AGENT_TOKEN" not in rendered
+    assert str(tmp_path) not in rendered
+    assert "PIKVM_AGENT_DAEMON" not in rendered
+
+
 def test_runtime_backed_config_refuses_direct_mode(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -281,6 +318,32 @@ def test_runtime_backed_config_refuses_direct_mode(
             harness_config=tmp_path / "harness.yaml",
             control_mode="direct",
             managed_runtime=tmp_path / "managed-client-runtime.json",
+        )
+
+
+def test_active_runtime_config_refuses_explicit_runtime_or_direct_mode(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    configured = settings(monkeypatch)
+
+    with pytest.raises(ValueError, match="mutually exclusive"):
+        render_client_config(
+            configured,
+            client="claude",
+            executable="/opt/pikvm/python",
+            harness_config=tmp_path / "harness.yaml",
+            managed_runtime=tmp_path / "managed-client-runtime.json",
+            active_runtime=True,
+        )
+    with pytest.raises(ValueError, match="unavailable in direct mode"):
+        render_client_config(
+            configured,
+            client="claude",
+            executable="/opt/pikvm/python",
+            harness_config=tmp_path / "harness.yaml",
+            control_mode="direct",
+            active_runtime=True,
         )
 
 
@@ -352,6 +415,38 @@ def test_empty_environment_requires_a_real_runtime_handoff(
             rendered,
             client=client,  # type: ignore[arg-type]
         )
+
+
+@pytest.mark.parametrize(
+    "arguments",
+    [
+        ["harness", "active-managed-mcp", "--caller-label"],
+        [
+            "harness",
+            "active-managed-mcp",
+            "--caller-label",
+            "invalid label",
+        ],
+        ["harness", "active-managed-mcp", "--unknown"],
+    ],
+)
+def test_active_runtime_parser_refuses_modified_launch_shapes(
+    arguments: list[str],
+) -> None:
+    rendered = json.dumps(
+        {
+            "mcpServers": {
+                "pikvm": {
+                    "command": "pikvm-agent",
+                    "args": arguments,
+                    "env": {},
+                }
+            }
+        }
+    )
+
+    with pytest.raises(ValueError, match="no usable environment"):
+        parse_client_launch_config(rendered, client="claude")
 
 
 def test_guarded_launcher_checks_capability_and_token(
@@ -446,6 +541,14 @@ def test_guarded_client_commands_are_visible_cli_surfaces() -> None:
         app,
         ["harness", "managed-runtime-mcp", "--help"],
     )
+    active_managed = runner.invoke(
+        app,
+        ["harness", "active-managed-mcp", "--help"],
+    )
+    activate_runtime = runner.invoke(
+        app,
+        ["harness", "activate-managed-runtime", "--help"],
+    )
     client_config = runner.invoke(
         app,
         ["harness", "client-config", "--help"],
@@ -459,6 +562,10 @@ def test_guarded_client_commands_are_visible_cli_surfaces() -> None:
     assert "--require-ready" in managed.stdout
     assert managed_runtime.exit_code == 0
     assert "--runtime" in managed_runtime.stdout
+    assert active_managed.exit_code == 0
+    assert "--caller-label" in active_managed.stdout
+    assert activate_runtime.exit_code == 0
+    assert "--runtime" in activate_runtime.stdout
     assert client_config.exit_code == 0
     assert "--client" in client_config.stdout
     assert "--control-mode" in client_config.stdout
@@ -467,6 +574,36 @@ def test_guarded_client_commands_are_visible_cli_surfaces() -> None:
     assert "codex" in client_config.stdout
     assert "gemini" in client_config.stdout
     assert "opencode" in client_config.stdout
+
+
+def test_client_config_cli_defaults_to_path_free_active_runtime(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    configured = settings(monkeypatch)
+    harness_config = tmp_path / "harness.yaml"
+    harness_config.write_text(
+        yaml.safe_dump(configured.model_dump(mode="json")),
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "harness",
+            "client-config",
+            "--config",
+            str(harness_config),
+            "--client",
+            "codex",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "active-managed-mcp" in result.stdout
+    assert "managed-runtime-mcp" not in result.stdout
+    assert str(tmp_path) not in result.stdout
+    assert "TEST_AGENT_TOKEN" not in result.stdout
 
 
 @pytest.mark.parametrize(

@@ -19,7 +19,10 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
-from pikvm_agent.harness.client_setup import ClientKind
+from pikvm_agent.harness.client_setup import (
+    ClientKind,
+    valid_active_managed_mcp_arguments,
+)
 
 RegistrationClass = Literal["managed", "direct", "raw", "ambiguous"]
 AuditFailure = Literal[
@@ -229,6 +232,9 @@ def _classification(
     managed_shape = subcommand == "managed-mcp" or (
         subcommand == "managed-runtime-mcp"
         and has_single_value("--runtime")
+    ) or (
+        subcommand == "active-managed-mcp"
+        and valid_active_managed_mcp_arguments(arguments)
     )
     direct_shape = subcommand == "direct-mcp"
     raw_shape = (

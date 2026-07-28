@@ -281,12 +281,11 @@ def test_shipped_mcp_config_defaults_to_managed_harness_not_raw_hid() -> None:
         "-m",
         "pikvm_agent.cli",
         "harness",
-        "managed-mcp",
-        "--config",
-        str(repo / "config.harness.example.yaml"),
+        "active-managed-mcp",
         "--caller-label",
-        "codex-cli",
+        "claude-cli",
     ]
+    assert str(repo / "config.harness.example.yaml") not in json.dumps(server)
     assert "pikvm_agent.mcp_server" not in json.dumps(server)
     assert "direct-mcp" not in json.dumps(server)
     assert "PIKVM_AGENT_DAEMON" not in json.dumps(server)
@@ -501,6 +500,64 @@ async def test_runtime_backed_config_launches_without_shell_credential(
             "PATH": os.environ.get("PATH", ""),
             "PYTHONPATH": str(REPO_ROOT),
             "PYTHONUNBUFFERED": "1",
+        },
+        cwd=tmp_path,
+    )
+    async with stdio_client(parameters) as (reader, writer):
+        async with ClientSession(reader, writer) as session:
+            await session.initialize()
+            tools = await session.list_tools()
+
+    assert sorted(tool.name for tool in tools.tools) == [
+        "computer_abort",
+        "computer_continue",
+        "computer_pause",
+        "computer_start_task",
+        "computer_status",
+    ]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "client", ["codex", "claude", "gemini", "opencode"]
+)
+async def test_active_runtime_config_launches_without_path_or_shell_credential(
+    tmp_path: Path,
+    client: str,
+) -> None:
+    port = 48124
+    settings_path = tmp_path / "harness.yaml"
+    runtime_path = tmp_path / "managed-client-runtime.json"
+    _write_settings(settings_path, port)
+    runtime_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "harness_config": str(settings_path),
+                "agent_token_env": "CLEAN_AGENT_TOKEN",
+                "agent_token": AGENT_TOKEN,
+            }
+        ),
+        encoding="utf-8",
+    )
+    runtime_path.chmod(0o600)
+    rendered = render_client_config(
+        _settings(port),
+        client=client,  # type: ignore[arg-type]
+        executable=sys.executable,
+        harness_config=settings_path,
+        active_runtime=True,
+    )
+    assert str(runtime_path) not in rendered
+    command, args = _launch_spec(client, rendered)
+    parameters = StdioServerParameters(
+        command=command,
+        args=args,
+        env={
+            "PATH": os.environ.get("PATH", ""),
+            "PYTHONPATH": str(REPO_ROOT),
+            "PYTHONUNBUFFERED": "1",
+            "PIKVM_MANAGED_CLIENT_RUNTIME": str(runtime_path),
         },
         cwd=tmp_path,
     )

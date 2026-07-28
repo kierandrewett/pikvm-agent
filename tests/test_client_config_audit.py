@@ -386,6 +386,53 @@ args = [
 
 
 @pytest.mark.parametrize(
+    "client", ["codex", "claude", "gemini", "opencode"]
+)
+def test_audit_recognizes_path_free_active_managed_launcher(
+    client: str,
+) -> None:
+    server = {
+        "command": "pikvm-agent",
+        "args": [
+            "harness",
+            "active-managed-mcp",
+            "--caller-label",
+            f"{client}-cli",
+        ],
+    }
+    if client == "codex":
+        rendered = """
+[mcp_servers.pikvm]
+command = "pikvm-agent"
+args = [
+  "harness",
+  "active-managed-mcp",
+  "--caller-label",
+  "codex-cli",
+]
+"""
+    elif client == "opencode":
+        server["command"] = [
+            "pikvm-agent",
+            *server.pop("args"),
+        ]
+        rendered = json.dumps({"mcp": {"pikvm": server}})
+    else:
+        rendered = json.dumps({"mcpServers": {"pikvm": server}})
+
+    report = audit_client_configs(
+        client=client,  # type: ignore[arg-type]
+        documents=[
+            ClientConfigDocument(source_label="user", rendered=rendered)
+        ],
+    )
+
+    assert report.safe is True
+    assert report.managed_count == 1
+    assert report.failures == ()
+
+
+@pytest.mark.parametrize(
     "arguments",
     [
         ["harness", "managed-runtime-mcp"],
@@ -428,6 +475,41 @@ def test_audit_refuses_incomplete_official_launch_shapes(
         "missing_managed",
         "ambiguous_pikvm_registration",
     )
+
+
+@pytest.mark.parametrize(
+    "arguments",
+    [
+        ["harness", "active-managed-mcp", "--runtime", "/tmp/runtime.json"],
+        ["harness", "active-managed-mcp", "--caller-label"],
+        ["harness", "active-managed-mcp", "--unknown"],
+    ],
+)
+def test_audit_refuses_modified_active_launcher_shapes(
+    arguments: list[str],
+) -> None:
+    report = audit_client_configs(
+        client="claude",
+        documents=[
+            ClientConfigDocument(
+                source_label="user",
+                rendered=json.dumps(
+                    {
+                        "mcpServers": {
+                            "pikvm": {
+                                "command": "pikvm-agent",
+                                "args": arguments,
+                            }
+                        }
+                    }
+                ),
+            )
+        ],
+    )
+
+    assert report.safe is False
+    assert report.managed_count == 0
+    assert report.findings[0].classification == "ambiguous"
 
 
 def test_opencode_audit_parses_v2_jsonc_server_shape() -> None:
