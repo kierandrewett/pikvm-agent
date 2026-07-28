@@ -2455,8 +2455,12 @@ class AgentHarness:
         return list(reversed(recent))
 
     @staticmethod
-    def _recent_verified_actions(run: RunSnapshot) -> list[dict[str, Any]]:
-        """Retain a bounded semantic memory of completed verification work."""
+    def _recent_verified_actions(
+        run: RunSnapshot,
+        *,
+        limit: int | None = 8,
+    ) -> list[dict[str, Any]]:
+        """Read durable verification work with an optional prompt-size bound."""
 
         current_action: dict[str, Any] | None = None
         verified: list[dict[str, Any]] = []
@@ -2492,7 +2496,7 @@ class AgentHarness:
                     "summary": summary[:500],
                 }
             )
-        return verified[-8:]
+        return verified[-limit:] if limit is not None else verified
 
     @staticmethod
     def _ungrounded_navigation_history(
@@ -2845,7 +2849,7 @@ class AgentHarness:
                     current_action_index,
                 )
 
-        for item in AgentHarness._recent_verified_actions(run):
+        for item in AgentHarness._recent_verified_actions(run, limit=None):
             action_index = item.get("action_index")
             if not isinstance(action_index, int):
                 continue

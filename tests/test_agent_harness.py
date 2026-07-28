@@ -2958,9 +2958,28 @@ def test_long_terminal_draft_requires_a_verified_legibility_step() -> None:
         proposed,
     )
 
+    for index in range(10, 19):
+        run.record(
+            "action.checkpointed",
+            index=index,
+            intent=f"Perform unrelated verified recovery step {index}.",
+            actions=[{"type": "wait", "ms": 100}],
+        )
+        run.record(
+            "model.completed",
+            role="verifier",
+            verdict="verified",
+            summary=f"Recovery step {index} completed.",
+        )
+
+    assert not AgentHarness._long_terminal_draft_needs_legibility_step(
+        run,
+        proposed,
+    )
+
     run.record(
         "action.checkpointed",
-        index=10,
+        index=19,
         intent="Open a new terminal window.",
         actions=[{"type": "key", "keys": ["CTRL", "ALT", "T"]}],
     )
