@@ -66,7 +66,7 @@ describe("ToolFallbackApproval", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Deny" }));
+    fireEvent.click(screen.getByRole("button", { name: "Deny & stop" }));
 
     expect(respond).toHaveBeenCalledOnce();
     expect(respond).toHaveBeenCalledWith({ optionId: "reject" });

@@ -553,19 +553,25 @@ const DENIED_RESULT = "User denied tool execution";
 const APPROVAL_OPTION_DEFAULT_LABELS: Record<string, string> = {
   "allow-once": "Allow",
   "allow-always": "Always allow",
-  "reject-once": "Deny",
-  "reject-always": "Always deny",
+  "reject-once": "Deny & stop",
+  "reject-always": "Always deny & stop",
 };
 
 const isAllowKind = (kind: string) =>
   kind === "allow-once" || kind === "allow-always";
 
-const approvalOptionLabel = (option: ToolApprovalOption) =>
-  option.label ??
-  (Object.hasOwn(APPROVAL_OPTION_DEFAULT_LABELS, option.kind)
-    ? APPROVAL_OPTION_DEFAULT_LABELS[option.kind]
-    : undefined) ??
-  option.id;
+const approvalOptionLabel = (option: ToolApprovalOption) => {
+  if (option.kind === "reject-once" || option.kind === "reject-always") {
+    return APPROVAL_OPTION_DEFAULT_LABELS[option.kind];
+  }
+  return (
+    option.label ??
+    (Object.hasOwn(APPROVAL_OPTION_DEFAULT_LABELS, option.kind)
+      ? APPROVAL_OPTION_DEFAULT_LABELS[option.kind]
+      : undefined) ??
+    option.id
+  );
+};
 
 function ToolFallbackApproval({
   className,

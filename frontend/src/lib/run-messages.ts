@@ -562,7 +562,11 @@ const toolParts = (
                     "The exact input shown above will be sent once.",
                 },
               },
-              { id: "reject", kind: "reject-once" as const, label: "Deny" },
+              {
+                id: "reject",
+                kind: "reject-once" as const,
+                label: "Deny & stop",
+              },
             ],
           }
         : undefined,
@@ -695,7 +699,7 @@ const assistantToolParts = (
               {
                 id: "reject",
                 kind: "reject-once" as const,
-                label: "Deny",
+                label: "Deny & stop",
               },
             ],
           }

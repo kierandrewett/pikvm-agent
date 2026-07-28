@@ -263,7 +263,7 @@ describe("messagesForRun", () => {
         id: "approval-mail",
         options: [
           { kind: "allow-once", label: "Allow once" },
-          { kind: "reject-once", label: "Deny" },
+          { kind: "reject-once", label: "Deny & stop" },
         ],
       },
     });
@@ -1338,7 +1338,7 @@ describe("messagesForRun", () => {
             label: "Allow once",
             confirm: { title: "Allow this computer action?" },
           },
-          { kind: "reject-once", label: "Deny" },
+          { kind: "reject-once", label: "Deny & stop" },
         ],
       },
     });
