@@ -1,0 +1,1906 @@
+{
+  "schema_version": 4,
+  "suite": "screenspot-pro",
+  "suite_revision": "dbe00114bc53a32c61c1a267786da85967710da8",
+  "dataset_revision": "210e78d3844251110bff86c95835ebd37a6930fa",
+  "seed": 104729,
+  "cases_discovered": 1581,
+  "cases_evaluated": 20,
+  "initial_correct": 18,
+  "initial_accuracy": 0.9,
+  "correct": 7,
+  "accuracy": 0.35,
+  "model_calls": 40,
+  "model_active_ms": 1168595,
+  "usage_totals": {
+    "input_tokens": 448,
+    "cache_creation_input_tokens": 255007,
+    "cache_read_input_tokens": 234382,
+    "output_tokens": 67179
+  },
+  "model_errors": 2,
+  "evaluation_wall_ms": 607970,
+  "throughput_cases_per_second": 0.03289636001776403,
+  "median_latency_ms": 13498.5,
+  "p95_latency_ms": 24867.100000000002,
+  "by_platform": {
+    "macos": {
+      "cases": 6,
+      "correct": 2,
+      "accuracy": 0.3333333333333333
+    },
+    "windows": {
+      "cases": 14,
+      "correct": 5,
+      "accuracy": 0.35714285714285715
+    }
+  },
+  "by_ui_type": {
+    "icon": {
+      "cases": 7,
+      "correct": 1,
+      "accuracy": 0.14285714285714285
+    },
+    "text": {
+      "cases": 13,
+      "correct": 6,
+      "accuracy": 0.46153846153846156
+    }
+  },
+  "by_application": {
+    "blender": {
+      "cases": 1,
+      "correct": 0,
+      "accuracy": 0.0
+    },
+    "eviews": {
+      "cases": 3,
+      "correct": 3,
+      "accuracy": 1.0
+    },
+    "excel": {
+      "cases": 1,
+      "correct": 0,
+      "accuracy": 0.0
+    },
+    "fruitloops": {
+      "cases": 2,
+      "correct": 0,
+      "accuracy": 0.0
+    },
+    "matlab": {
+      "cases": 1,
+      "correct": 1,
+      "accuracy": 1.0
+    },
+    "origin": {
+      "cases": 1,
+      "correct": 0,
+      "accuracy": 0.0
+    },
+    "photoshop": {
+      "cases": 1,
+      "correct": 1,
+      "accuracy": 1.0
+    },
+    "powerpoint": {
+      "cases": 1,
+      "correct": 0,
+      "accuracy": 0.0
+    },
+    "premiere": {
+      "cases": 1,
+      "correct": 1,
+      "accuracy": 1.0
+    },
+    "pycharm": {
+      "cases": 1,
+      "correct": 0,
+      "accuracy": 0.0
+    },
+    "solidworks": {
+      "cases": 1,
+      "correct": 0,
+      "accuracy": 0.0
+    },
+    "unreal_engine": {
+      "cases": 1,
+      "correct": 0,
+      "accuracy": 0.0
+    },
+    "vivado": {
+      "cases": 1,
+      "correct": 0,
+      "accuracy": 0.0
+    },
+    "vscode": {
+      "cases": 2,
+      "correct": 0,
+      "accuracy": 0.0
+    },
+    "windows_common": {
+      "cases": 1,
+      "correct": 0,
+      "accuracy": 0.0
+    },
+    "word": {
+      "cases": 1,
+      "correct": 1,
+      "accuracy": 1.0
+    }
+  },
+  "results": [
+    {
+      "case_id": "vscode_macos_5",
+      "application": "vscode",
+      "platform": "macos",
+      "ui_type": "icon",
+      "target_bbox": [
+        2289,
+        1545,
+        2320,
+        1575
+      ],
+      "initial_point": [
+        2305,
+        1559
+      ],
+      "initial_correct": true,
+      "predicted_point": null,
+      "click_error_pixels": null,
+      "correct": false,
+      "correction_applied": false,
+      "verification_verdict": "uncertain",
+      "provider": "claude-account",
+      "model": "opus",
+      "verifier_provider": "claude-fast",
+      "verifier_model": "haiku",
+      "latency_ms": 24639,
+      "verification_latency_ms": 39329,
+      "usage": {
+        "input_tokens": 4,
+        "cache_creation_input_tokens": 6120,
+        "cache_read_input_tokens": 5594,
+        "output_tokens": 1505,
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 6120,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1402,
+            "cache_read_input_tokens": 4081,
+            "cache_creation_input_tokens": 3552,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 3552
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard"
+      },
+      "verifier_usage": {
+        "input_tokens": 20,
+        "cache_creation_input_tokens": 7097,
+        "cache_read_input_tokens": 5182,
+        "output_tokens": 2479,
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 7097,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 10,
+            "output_tokens": 2205,
+            "cache_read_input_tokens": 5182,
+            "cache_creation_input_tokens": 1915,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 1915
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard"
+      },
+      "error_class": null,
+      "failure_kind": "target_miss"
+    },
+    {
+      "case_id": "fruitloops_windows_55",
+      "application": "fruitloops",
+      "platform": "windows",
+      "ui_type": "text",
+      "target_bbox": [
+        1224,
+        844,
+        1336,
+        878
+      ],
+      "initial_point": [
+        1280,
+        859
+      ],
+      "initial_correct": true,
+      "predicted_point": null,
+      "click_error_pixels": null,
+      "correct": false,
+      "correction_applied": false,
+      "verification_verdict": "uncertain",
+      "provider": "claude-account",
+      "model": "opus",
+      "verifier_provider": "claude-fast",
+      "verifier_model": "haiku",
+      "latency_ms": 9808,
+      "verification_latency_ms": 61457,
+      "usage": {
+        "input_tokens": 4,
+        "cache_creation_input_tokens": 5685,
+        "cache_read_input_tokens": 5592,
+        "output_tokens": 407,
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 5685,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 305,
+            "cache_read_input_tokens": 4079,
+            "cache_creation_input_tokens": 3119,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 3119
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard"
+      },
+      "verifier_usage": {
+        "input_tokens": 20,
+        "cache_creation_input_tokens": 7085,
+        "cache_read_input_tokens": 5182,
+        "output_tokens": 4964,
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 7085,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 10,
+            "output_tokens": 4694,
+            "cache_read_input_tokens": 5182,
+            "cache_creation_input_tokens": 1903,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 1903
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard"
+      },
+      "error_class": null,
+      "failure_kind": "target_miss"
+    },
+    {
+      "case_id": "powerpoint_windows_65",
+      "application": "powerpoint",
+      "platform": "windows",
+      "ui_type": "text",
+      "target_bbox": [
+        68,
+        65,
+        141,
+        137
+      ],
+      "initial_point": [
+        102,
+        104
+      ],
+      "initial_correct": true,
+      "predicted_point": null,
+      "click_error_pixels": null,
+      "correct": false,
+      "correction_applied": false,
+      "verification_verdict": "error",
+      "provider": "claude-account",
+      "model": "opus",
+      "verifier_provider": "claude-fast",
+      "verifier_model": null,
+      "latency_ms": 10122,
+      "verification_latency_ms": 90035,
+      "usage": {
+        "input_tokens": 4,
+        "cache_creation_input_tokens": 5973,
+        "cache_read_input_tokens": 5591,
+        "output_tokens": 379,
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 5973,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 276,
+            "cache_read_input_tokens": 4078,
+            "cache_creation_input_tokens": 3408,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 3408
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard"
+      },
+      "verifier_usage": {},
+      "error_class": "RuntimeError",
+      "failure_kind": "RuntimeError"
+    },
+    {
+      "case_id": "word_macos_4",
+      "application": "word",
+      "platform": "macos",
+      "ui_type": "text",
+      "target_bbox": [
+        952,
+        312,
+        1025,
+        336
+      ],
+      "initial_point": [
+        983,
+        324
+      ],
+      "initial_correct": true,
+      "predicted_point": [
+        983,
+        324
+      ],
+      "click_error_pixels": 5.5,
+      "correct": true,
+      "correction_applied": false,
+      "verification_verdict": "hit",
+      "provider": "claude-account",
+      "model": "opus",
+      "verifier_provider": "claude-fast",
+      "verifier_model": "haiku",
+      "latency_ms": 20148,
+      "verification_latency_ms": 37111,
+      "usage": {
+        "input_tokens": 6,
+        "cache_creation_input_tokens": 9001,
+        "cache_read_input_tokens": 12800,
+        "output_tokens": 733,
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 9001,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 336,
+            "cache_read_input_tokens": 7204,
+            "cache_creation_input_tokens": 3310,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 3310
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard"
+      },
+      "verifier_usage": {
+        "input_tokens": 20,
+        "cache_creation_input_tokens": 7107,
+        "cache_read_input_tokens": 5184,
+        "output_tokens": 3193,
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 7107,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 10,
+            "output_tokens": 2903,
+            "cache_read_input_tokens": 5184,
+            "cache_creation_input_tokens": 1923,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 1923
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard"
+      },
+      "error_class": null,
+      "failure_kind": null
+    },
+    {
+      "case_id": "fruitloops_windows_15",
+      "application": "fruitloops",
+      "platform": "windows",
+      "ui_type": "icon",
+      "target_bbox": [
+        1721,
+        451,
+        1736,
+        468
+      ],
+      "initial_point": [
+        1728,
+        458
+      ],
+      "initial_correct": true,
+      "predicted_point": null,
+      "click_error_pixels": null,
+      "correct": false,
+      "correction_applied": false,
+      "verification_verdict": "uncertain",
+      "provider": "claude-account",
+      "model": "opus",
+      "verifier_provider": "claude-fast",
+      "verifier_model": "haiku",
+      "latency_ms": 12056,
+      "verification_latency_ms": 48662,
+      "usage": {
+        "input_tokens": 4,
+        "cache_creation_input_tokens": 5685,
+        "cache_read_input_tokens": 5590,
+        "output_tokens": 469,
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 5685,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 365,
+            "cache_read_input_tokens": 4077,
+            "cache_creation_input_tokens": 3121,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 3121
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard"
+      },
+      "verifier_usage": {
+        "input_tokens": 20,
+        "cache_creation_input_tokens": 7059,
+        "cache_read_input_tokens": 5180,
+        "output_tokens": 5232,
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 7059,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 10,
+            "output_tokens": 4986,
+            "cache_read_input_tokens": 5180,
+            "cache_creation_input_tokens": 1879,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 1879
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard"
+      },
+      "error_class": null,
+      "failure_kind": "target_miss"
+    },
+    {
+      "case_id": "windows_common_windows_14",
+      "application": "windows_common",
+      "platform": "windows",
+      "ui_type": "text",
+      "target_bbox": [
+        3707,
+        1882,
+        3809,
+        1941
+      ],
+      "initial_point": [
+        3754,
+        1909
+      ],
+      "initial_correct": true,
+      "predicted_point": null,
+      "click_error_pixels": null,
+      "correct": false,
+      "correction_applied": false,
+      "verification_verdict": "uncertain",
+      "provider": "claude-account",
+      "model": "opus",
+      "verifier_provider": "claude-fast",
+      "verifier_model": "haiku",
+      "latency_ms": 10506,
+      "verification_latency_ms": 34234,
+      "usage": {
+        "input_tokens": 4,
+        "cache_creation_input_tokens": 5683,
+        "cache_read_input_tokens": 5591,
+        "output_tokens": 412,
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 5683,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 311,
+            "cache_read_input_tokens": 4078,
+            "cache_creation_input_tokens": 3118,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 3118
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard"
+      },
+      "verifier_usage": {
+        "input_tokens": 20,
+        "cache_creation_input_tokens": 7063,
+        "cache_read_input_tokens": 5182,
+        "output_tokens": 2325,
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 7063,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 10,
+            "output_tokens": 2077,
+            "cache_read_input_tokens": 5182,
+            "cache_creation_input_tokens": 1881,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 1881
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard"
+      },
+      "error_class": null,
+      "failure_kind": "target_miss"
+    },
+    {
+      "case_id": "photoshop_windows_16",
+      "application": "photoshop",
+      "platform": "windows",
+      "ui_type": "text",
+      "target_bbox": [
+        29,
+        262,
+        301,
+        285
+      ],
+      "initial_point": [
+        172,
+        275
+      ],
+      "initial_correct": true,
+      "predicted_point": [
+        172,
+        275
+      ],
+      "click_error_pixels": 7.158910531638177,
+      "correct": true,
+      "correction_applied": false,
+      "verification_verdict": "hit",
+      "provider": "claude-account",
+      "model": "opus",
+      "verifier_provider": "claude-fast",
+      "verifier_model": "haiku",
+      "latency_ms": 11538,
+      "verification_latency_ms": 25377,
+      "usage": {
+        "input_tokens": 4,
+        "cache_creation_input_tokens": 5683,
+        "cache_read_input_tokens": 5590,
+        "output_tokens": 499,
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 5683,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 397,
+            "cache_read_input_tokens": 4077,
+            "cache_creation_input_tokens": 3119,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 3119
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard"
+      },
+      "verifier_usage": {
+        "input_tokens": 20,
+        "cache_creation_input_tokens": 7072,
+        "cache_read_input_tokens": 5179,
+        "output_tokens": 1440,
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 7072,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 10,
+            "output_tokens": 1180,
+            "cache_read_input_tokens": 5179,
+            "cache_creation_input_tokens": 1893,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 1893
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard"
+      },
+      "error_class": null,
+      "failure_kind": null
+    },
+    {
+      "case_id": "matlab_macos_38",
+      "application": "matlab",
+      "platform": "macos",
+      "ui_type": "text",
+      "target_bbox": [
+        889,
+        1300,
+        1143,
+        1325
+      ],
+      "initial_point": [
+        1016,
+        1313
+      ],
+      "initial_correct": true,
+      "predicted_point": [
+        1016,
+        1313
+      ],
+      "click_error_pixels": 0.5,
+      "correct": true,
+      "correction_applied": false,
+      "verification_verdict": "hit",
+      "provider": "claude-account",
+      "model": "opus",
+      "verifier_provider": "claude-fast",
+      "verifier_model": "haiku",
+      "latency_ms": 9241,
+      "verification_latency_ms": 17551,
+      "usage": {
+        "input_tokens": 4,
+        "cache_creation_input_tokens": 5682,
+        "cache_read_input_tokens": 5588,
+        "output_tokens": 413,
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 5682,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 310,
+            "cache_read_input_tokens": 4075,
+            "cache_creation_input_tokens": 3120,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 3120
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard"
+      },
+      "verifier_usage": {
+        "input_tokens": 20,
+        "cache_creation_input_tokens": 7070,
+        "cache_read_input_tokens": 5180,
+        "output_tokens": 1319,
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 7070,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 10,
+            "output_tokens": 1062,
+            "cache_read_input_tokens": 5180,
+            "cache_creation_input_tokens": 1890,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 1890
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard"
+      },
+      "error_class": null,
+      "failure_kind": null
+    },
+    {
+      "case_id": "eviews_windows_9",
+      "application": "eviews",
+      "platform": "windows",
+      "ui_type": "text",
+      "target_bbox": [
+        936,
+        824,
+        1268,
+        847
+      ],
+      "initial_point": [
+        1102,
+        837
+      ],
+      "initial_correct": true,
+      "predicted_point": [
+        1102,
+        837
+      ],
+      "click_error_pixels": 1.5,
+      "correct": true,
+      "correction_applied": false,
+      "verification_verdict": "hit",
+      "provider": "claude-account",
+      "model": "opus",
+      "verifier_provider": "claude-fast",
+      "verifier_model": "haiku",
+      "latency_ms": 15630,
+      "verification_latency_ms": 22680,
+      "usage": {
+        "input_tokens": 6,
+        "cache_creation_input_tokens": 9889,
+        "cache_read_input_tokens": 13289,
+        "output_tokens": 615,
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 9889,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 331,
+            "cache_read_input_tokens": 7700,
+            "cache_creation_input_tokens": 3702,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 3702
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard"
+      },
+      "verifier_usage": {
+        "input_tokens": 20,
+        "cache_creation_input_tokens": 7059,
+        "cache_read_input_tokens": 5181,
+        "output_tokens": 1251,
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 7059,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 10,
+            "output_tokens": 982,
+            "cache_read_input_tokens": 5181,
+            "cache_creation_input_tokens": 1878,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 1878
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard"
+      },
+      "error_class": null,
+      "failure_kind": null
+    },
+    {
+      "case_id": "eviews_windows_25",
+      "application": "eviews",
+      "platform": "windows",
+      "ui_type": "icon",
+      "target_bbox": [
+        1100,
+        771,
+        1194,
+        791
+      ],
+      "initial_point": [
+        1146,
+        781
+      ],
+      "initial_correct": true,
+      "predicted_point": [
+        1146,
+        781
+      ],
+      "click_error_pixels": 1.0,
+      "correct": true,
+      "correction_applied": false,
+      "verification_verdict": "hit",
+      "provider": "claude-account",
+      "model": "opus",
+      "verifier_provider": "claude-fast",
+      "verifier_model": "haiku",
+      "latency_ms": 14121,
+      "verification_latency_ms": 32446,
+      "usage": {
+        "input_tokens": 4,
+        "cache_creation_input_tokens": 6190,
+        "cache_read_input_tokens": 5591,
+        "output_tokens": 392,
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 6190,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 288,
+            "cache_read_input_tokens": 4078,
+            "cache_creation_input_tokens": 3625,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 3625
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard"
+      },
+      "verifier_usage": {
+        "input_tokens": 20,
+        "cache_creation_input_tokens": 6997,
+        "cache_read_input_tokens": 5180,
+        "output_tokens": 1859,
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 6997,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 10,
+            "output_tokens": 1651,
+            "cache_read_input_tokens": 5180,
+            "cache_creation_input_tokens": 1817,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 1817
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard"
+      },
+      "error_class": null,
+      "failure_kind": null
+    },
+    {
+      "case_id": "solidworks_windows_13",
+      "application": "solidworks",
+      "platform": "windows",
+      "ui_type": "text",
+      "target_bbox": [
+        57,
+        35,
+        103,
+        95
+      ],
+      "initial_point": [
+        115,
+        618
+      ],
+      "initial_correct": false,
+      "predicted_point": null,
+      "click_error_pixels": null,
+      "correct": false,
+      "correction_applied": false,
+      "verification_verdict": "uncertain",
+      "provider": "claude-account",
+      "model": "opus",
+      "verifier_provider": "claude-fast",
+      "verifier_model": "haiku",
+      "latency_ms": 29201,
+      "verification_latency_ms": 26092,
+      "usage": {
+        "input_tokens": 4,
+        "cache_creation_input_tokens": 4243,
+        "cache_read_input_tokens": 5591,
+        "output_tokens": 1753,
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 4243,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1651,
+            "cache_read_input_tokens": 4078,
+            "cache_creation_input_tokens": 1678,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 1678
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard"
+      },
+      "verifier_usage": {
+        "input_tokens": 20,
+        "cache_creation_input_tokens": 6406,
+        "cache_read_input_tokens": 5178,
+        "output_tokens": 2016,
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 6406,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 10,
+            "output_tokens": 1756,
+            "cache_read_input_tokens": 5178,
+            "cache_creation_input_tokens": 1228,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 1228
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard"
+      },
+      "error_class": null,
+      "failure_kind": "target_miss"
+    },
+    {
+      "case_id": "eviews_windows_15",
+      "application": "eviews",
+      "platform": "windows",
+      "ui_type": "text",
+      "target_bbox": [
+        1074,
+        717,
+        1108,
+        734
+      ],
+      "initial_point": [
+        1091,
+        724
+      ],
+      "initial_correct": true,
+      "predicted_point": [
+        1091,
+        724
+      ],
+      "click_error_pixels": 1.5,
+      "correct": true,
+      "correction_applied": false,
+      "verification_verdict": "hit",
+      "provider": "claude-account",
+      "model": "opus",
+      "verifier_provider": "claude-fast",
+      "verifier_model": "haiku",
+      "latency_ms": 8463,
+      "verification_latency_ms": 17042,
+      "usage": {
+        "input_tokens": 4,
+        "cache_creation_input_tokens": 6184,
+        "cache_read_input_tokens": 5588,
+        "output_tokens": 381,
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 6184,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 280,
+            "cache_read_input_tokens": 4075,
+            "cache_creation_input_tokens": 3622,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 3622
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard"
+      },
+      "verifier_usage": {
+        "input_tokens": 20,
+        "cache_creation_input_tokens": 6988,
+        "cache_read_input_tokens": 5179,
+        "output_tokens": 987,
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 6988,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 10,
+            "output_tokens": 787,
+            "cache_read_input_tokens": 5179,
+            "cache_creation_input_tokens": 1809,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 1809
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard"
+      },
+      "error_class": null,
+      "failure_kind": null
+    },
+    {
+      "case_id": "vivado_windows_73",
+      "application": "vivado",
+      "platform": "windows",
+      "ui_type": "text",
+      "target_bbox": [
+        341,
+        324,
+        371,
+        352
+      ],
+      "initial_point": [
+        185,
+        989
+      ],
+      "initial_correct": false,
+      "predicted_point": [
+        123,
+        710
+      ],
+      "click_error_pixels": 438.9453268916301,
+      "correct": false,
+      "correction_applied": true,
+      "verification_verdict": "miss",
+      "provider": "claude-account",
+      "model": "opus",
+      "verifier_provider": "claude-fast",
+      "verifier_model": "haiku",
+      "latency_ms": 9041,
+      "verification_latency_ms": 36648,
+      "usage": {
+        "input_tokens": 4,
+        "cache_creation_input_tokens": 5689,
+        "cache_read_input_tokens": 5595,
+        "output_tokens": 367,
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 5689,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 264,
+            "cache_read_input_tokens": 4082,
+            "cache_creation_input_tokens": 3120,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 3120
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard"
+      },
+      "verifier_usage": {
+        "input_tokens": 20,
+        "cache_creation_input_tokens": 7087,
+        "cache_read_input_tokens": 5183,
+        "output_tokens": 3084,
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 7087,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 10,
+            "output_tokens": 2813,
+            "cache_read_input_tokens": 5183,
+            "cache_creation_input_tokens": 1904,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 1904
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard"
+      },
+      "error_class": null,
+      "failure_kind": "target_miss"
+    },
+    {
+      "case_id": "origin_windows_6",
+      "application": "origin",
+      "platform": "windows",
+      "ui_type": "text",
+      "target_bbox": [
+        1726,
+        1078,
+        1801,
+        1099
+      ],
+      "initial_point": [
+        1732,
+        1086
+      ],
+      "initial_correct": true,
+      "predicted_point": null,
+      "click_error_pixels": null,
+      "correct": false,
+      "correction_applied": false,
+      "verification_verdict": "uncertain",
+      "provider": "claude-account",
+      "model": "opus",
+      "verifier_provider": "claude-fast",
+      "verifier_model": "haiku",
+      "latency_ms": 12876,
+      "verification_latency_ms": 33440,
+      "usage": {
+        "input_tokens": 4,
+        "cache_creation_input_tokens": 5686,
+        "cache_read_input_tokens": 5591,
+        "output_tokens": 591,
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 5686,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 487,
+            "cache_read_input_tokens": 4078,
+            "cache_creation_input_tokens": 3121,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 3121
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard"
+      },
+      "verifier_usage": {
+        "input_tokens": 20,
+        "cache_creation_input_tokens": 7103,
+        "cache_read_input_tokens": 5182,
+        "output_tokens": 2702,
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 7103,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 10,
+            "output_tokens": 2414,
+            "cache_read_input_tokens": 5182,
+            "cache_creation_input_tokens": 1921,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 1921
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard"
+      },
+      "error_class": null,
+      "failure_kind": "target_miss"
+    },
+    {
+      "case_id": "pycharm_macos_37",
+      "application": "pycharm",
+      "platform": "macos",
+      "ui_type": "icon",
+      "target_bbox": [
+        443,
+        1542,
+        492,
+        1591
+      ],
+      "initial_point": [
+        466,
+        1564
+      ],
+      "initial_correct": true,
+      "predicted_point": [
+        338,
+        2583
+      ],
+      "click_error_pixels": 1024.7158142626668,
+      "correct": false,
+      "correction_applied": true,
+      "verification_verdict": "miss",
+      "provider": "claude-account",
+      "model": "opus",
+      "verifier_provider": "claude-fast",
+      "verifier_model": "haiku",
+      "latency_ms": 23644,
+      "verification_latency_ms": 61852,
+      "usage": {
+        "input_tokens": 6,
+        "cache_creation_input_tokens": 8889,
+        "cache_read_input_tokens": 12785,
+        "output_tokens": 575,
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 8889,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 283,
+            "cache_read_input_tokens": 7196,
+            "cache_creation_input_tokens": 3206,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 3206
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard"
+      },
+      "verifier_usage": {
+        "input_tokens": 20,
+        "cache_creation_input_tokens": 7072,
+        "cache_read_input_tokens": 5180,
+        "output_tokens": 5515,
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 7072,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 10,
+            "output_tokens": 5256,
+            "cache_read_input_tokens": 5180,
+            "cache_creation_input_tokens": 1892,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 1892
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard"
+      },
+      "error_class": null,
+      "failure_kind": "target_miss"
+    },
+    {
+      "case_id": "unreal_engine_windows_10",
+      "application": "unreal_engine",
+      "platform": "windows",
+      "ui_type": "icon",
+      "target_bbox": [
+        7,
+        59,
+        45,
+        92
+      ],
+      "initial_point": [
+        28,
+        75
+      ],
+      "initial_correct": true,
+      "predicted_point": [
+        38,
+        17
+      ],
+      "click_error_pixels": 59.71808771218315,
+      "correct": false,
+      "correction_applied": true,
+      "verification_verdict": "miss",
+      "provider": "claude-account",
+      "model": "opus",
+      "verifier_provider": "claude-fast",
+      "verifier_model": "haiku",
+      "latency_ms": 15662,
+      "verification_latency_ms": 70416,
+      "usage": {
+        "input_tokens": 4,
+        "cache_creation_input_tokens": 5680,
+        "cache_read_input_tokens": 5587,
+        "output_tokens": 732,
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 5680,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 630,
+            "cache_read_input_tokens": 4074,
+            "cache_creation_input_tokens": 3119,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 3119
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard"
+      },
+      "verifier_usage": {
+        "input_tokens": 20,
+        "cache_creation_input_tokens": 7100,
+        "cache_read_input_tokens": 5180,
+        "output_tokens": 6306,
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 7100,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 10,
+            "output_tokens": 6019,
+            "cache_read_input_tokens": 5180,
+            "cache_creation_input_tokens": 1920,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 1920
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard"
+      },
+      "error_class": null,
+      "failure_kind": "target_miss"
+    },
+    {
+      "case_id": "premiere_windows_28",
+      "application": "premiere",
+      "platform": "windows",
+      "ui_type": "text",
+      "target_bbox": [
+        723,
+        933,
+        741,
+        954
+      ],
+      "initial_point": [
+        731,
+        945
+      ],
+      "initial_correct": true,
+      "predicted_point": [
+        731,
+        945
+      ],
+      "click_error_pixels": 1.8027756377319946,
+      "correct": true,
+      "correction_applied": false,
+      "verification_verdict": "hit",
+      "provider": "claude-account",
+      "model": "opus",
+      "verifier_provider": "claude-fast",
+      "verifier_model": "haiku",
+      "latency_ms": 9541,
+      "verification_latency_ms": 25722,
+      "usage": {
+        "input_tokens": 4,
+        "cache_creation_input_tokens": 5685,
+        "cache_read_input_tokens": 5591,
+        "output_tokens": 406,
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 5685,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 303,
+            "cache_read_input_tokens": 4078,
+            "cache_creation_input_tokens": 3120,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 3120
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard"
+      },
+      "verifier_usage": {
+        "input_tokens": 20,
+        "cache_creation_input_tokens": 7047,
+        "cache_read_input_tokens": 5179,
+        "output_tokens": 2067,
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 7047,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 10,
+            "output_tokens": 1832,
+            "cache_read_input_tokens": 5179,
+            "cache_creation_input_tokens": 1868,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 1868
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard"
+      },
+      "error_class": null,
+      "failure_kind": null
+    },
+    {
+      "case_id": "excel_macos_60",
+      "application": "excel",
+      "platform": "macos",
+      "ui_type": "icon",
+      "target_bbox": [
+        1205,
+        72,
+        1215,
+        110
+      ],
+      "initial_point": [
+        1212,
+        90
+      ],
+      "initial_correct": true,
+      "predicted_point": null,
+      "click_error_pixels": null,
+      "correct": false,
+      "correction_applied": false,
+      "verification_verdict": "error",
+      "provider": "claude-account",
+      "model": "opus",
+      "verifier_provider": "claude-fast",
+      "verifier_model": null,
+      "latency_ms": 21697,
+      "verification_latency_ms": 90054,
+      "usage": {
+        "input_tokens": 4,
+        "cache_creation_input_tokens": 5691,
+        "cache_read_input_tokens": 5598,
+        "output_tokens": 789,
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 5691,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 687,
+            "cache_read_input_tokens": 4085,
+            "cache_creation_input_tokens": 3119,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 3119
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard"
+      },
+      "verifier_usage": {},
+      "error_class": "RuntimeError",
+      "failure_kind": "RuntimeError"
+    },
+    {
+      "case_id": "blender_windows_68",
+      "application": "blender",
+      "platform": "windows",
+      "ui_type": "icon",
+      "target_bbox": [
+        1600,
+        253,
+        1628,
+        279
+      ],
+      "initial_point": [
+        1615,
+        265
+      ],
+      "initial_correct": true,
+      "predicted_point": null,
+      "click_error_pixels": null,
+      "correct": false,
+      "correction_applied": false,
+      "verification_verdict": "uncertain",
+      "provider": "claude-account",
+      "model": "opus",
+      "verifier_provider": "claude-fast",
+      "verifier_model": "haiku",
+      "latency_ms": 16874,
+      "verification_latency_ms": 37762,
+      "usage": {
+        "input_tokens": 6,
+        "cache_creation_input_tokens": 8974,
+        "cache_read_input_tokens": 12783,
+        "output_tokens": 671,
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 8974,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 294,
+            "cache_read_input_tokens": 7194,
+            "cache_creation_input_tokens": 3293,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 3293
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard"
+      },
+      "verifier_usage": {
+        "input_tokens": 20,
+        "cache_creation_input_tokens": 7062,
+        "cache_read_input_tokens": 5180,
+        "output_tokens": 3136,
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 7062,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 10,
+            "output_tokens": 2887,
+            "cache_read_input_tokens": 5180,
+            "cache_creation_input_tokens": 1882,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 1882
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard"
+      },
+      "error_class": null,
+      "failure_kind": "target_miss"
+    },
+    {
+      "case_id": "vscode_macos_39",
+      "application": "vscode",
+      "platform": "macos",
+      "ui_type": "text",
+      "target_bbox": [
+        2032,
+        385,
+        2104,
+        425
+      ],
+      "initial_point": [
+        2068,
+        403
+      ],
+      "initial_correct": true,
+      "predicted_point": null,
+      "click_error_pixels": null,
+      "correct": false,
+      "correction_applied": false,
+      "verification_verdict": "uncertain",
+      "provider": "claude-account",
+      "model": "opus",
+      "verifier_provider": "claude-fast",
+      "verifier_model": "haiku",
+      "latency_ms": 14960,
+      "verification_latency_ms": 60917,
+      "usage": {
+        "input_tokens": 4,
+        "cache_creation_input_tokens": 6125,
+        "cache_read_input_tokens": 5599,
+        "output_tokens": 585,
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 6125,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 482,
+            "cache_read_input_tokens": 4086,
+            "cache_creation_input_tokens": 3552,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 3552
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard"
+      },
+      "verifier_usage": {
+        "input_tokens": 20,
+        "cache_creation_input_tokens": 7096,
+        "cache_read_input_tokens": 5187,
+        "output_tokens": 4630,
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 7096,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 10,
+            "output_tokens": 4362,
+            "cache_read_input_tokens": 5187,
+            "cache_creation_input_tokens": 1909,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 1909
+            },
+            "type": "message"
+          }
+        ],
+        "speed": "standard"
+      },
+      "error_class": null,
+      "failure_kind": "target_miss"
+    }
+  ]
+}

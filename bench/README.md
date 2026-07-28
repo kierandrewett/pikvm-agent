@@ -43,7 +43,7 @@ support a claim of generally reliable autonomous Windows operation.
 | Raw HID avoids encoded/script transfer hacks | A seeded 1,000-payload corpus caught 800/800 unsafe shapes with 0/200 safe false positives; the public MCP integration also refuses encoded transfer before daemon contact | Passing local syntax gate; explicit byte-verified transfer channel pending |
 | Exact-byte virtual-media preparation works | 10/10 builder contracts plus 19/19 transaction/UI/adapter/surface contracts cover mode-0600 media, exact browser approval, rollback, cleanup uncertainty, identity, lease, stop, model-surface exclusion, and explicit unsupported VNC | Passing target-free contract; daemon bridge capability and live target result pending |
 | OCR can safely verify arbitrary desktop text | Tesseract is 56.9% selected and 61.4% expected-aware exact; its 800-case routine tier is 71.125% exact while the preserved 200-case confusable stress tier is 0%; PaddleOCR is 78.9% normalized exact; the retrospective known-intent candidate union is 82.7% overall, 97.0% routine, and 25.5% stress on the same 1,000 cases; no confidence threshold supports a 99% lower-bound claim | Failing release gate |
-| Model grounding is reliable | Current seeded ScreenSpot-Pro sample is 73/100 | Diagnostic only |
+| Model grounding is reliable | Current seeded ScreenSpot-Pro samples are Codex 73/100 and Claude Opus 17/20. An experimental Opus → Haiku correction pass reduced an 18/20 first pass to 7/20; the verifier is now veto-only by default | Diagnostic only; automatic correction failed |
 | End-to-end desktop tasks are reliable | Current OSWorld task set is 6/9; full scored-attempt denominator is 6/33 with 11 additional unscored failures | Failing release gate |
 | A model can autonomously complete routine Office work | Portable Word/Excel contracts and semantic OOXML verification pass local tests. Excel r23 is the first clean canonical pass: the model saved, closed, reopened, and audited the workbook; the host recovered 9,437 bytes and passed 29/29 cell/formula checks. The five-attempt optimization series retains three incomplete/rejected runs and one scorer false negative before that pass. r23 still took 29m 32s, used 52 model calls, and repeated one formula audit; the action-evidence contract was hardened afterward. Word r29 recovered a 16,081-byte DOCX that passed 11/11 checks, but its original runner transaction remains `artifact_failed` | Clean Excel n=1; Word runner still not clean; latency failing product target |
 | Windows Agent Arena is supported | 154 tasks discovered; official golden image is absent | Not run |
@@ -1367,7 +1367,7 @@ messaging integration.
 ## Current headline
 
 <!-- pikvm-scorecard:start -->
-_Generated from checked JSON evidence as of 2026-07-28. Manifest `sha256:5b2f695b10c9`; run `pikvm-agent harness scorecard --check` to detect drift._
+_Generated from checked JSON evidence as of 2026-07-28. Manifest `sha256:e762ee243927`; run `pikvm-agent harness scorecard --check` to detect drift._
 
 | Suite | Route | Cases | Result | Median / p95 | Wall | Status | Evidence |
 | --- | --- | ---: | ---: | ---: | ---: | --- | --- |
@@ -1415,6 +1415,8 @@ _Generated from checked JSON evidence as of 2026-07-28. Manifest `sha256:5b2f695
 | Live chat-first assistant | Codex OAuth → assistant → web MCP / computer hand-off | 4 live tasks | 4/4; 5 model / 1 tool calls; 3 tools / 1 server ready | Greeting 110.84s; question 97.57s; research 230.87s; hand-off 110.18s | 549.45s | Passing after strict-schema fix; too slow for default interactive route | [JSON](results/2026-07-27/providers/live-codex-assistant-conformance.json) · `sha256:3c6a8af4e33c` |
 | Live consequential-tool approval | Codex OAuth → simulated send-message canary | 1 live canary | 1/1; 1 requested / 0 called; consequential executed 0 | 104.25s | 104.25s | Passing target-free; needs_approval; first activity 2ms | [JSON](results/2026-07-27/providers/live-codex-assistant-approval-conformance-v2.json) · `sha256:fc717b24d31f` |
 | ScreenSpot-Pro, single pass | Codex CLI / `gpt-5.6-sol` | 100 | 73/100, 73.0% | 7.63s / 13.29s | 218.53s | Current seeded sample | [JSON](results/2026-07-25/screenspot-pro/codex-gpt-5.6-sol-seed104729-n100.json) · `sha256:dc21a201b455` |
+| ScreenSpot-Pro, single pass | Claude OAuth / `opus` | 20 | 17/20, 85.0%; 0 model errors | 13.21s / 21.84s | 149.10s | Fresh seeded diagnostic; below 100-case product threshold | [JSON](results/2026-07-28/screenspot-pro/claude-opus-seed104729-n20/report.json) · `sha256:8967b855603e` |
+| ScreenSpot-Pro, experimental verifier | Claude OAuth / `opus` → `haiku` | 20 | First pass 18/20; legacy corrections 7/20; veto replay 7/7 accepted correct (100.0%) at 35.0% coverage; 2 verifier errors | 13.50s / 24.87s primary | 607.97s | Failed correction experiment; 0/3 replacements correct, including 2 initially correct clicks overwritten | [JSON](results/2026-07-28/screenspot-pro/claude-opus-haiku-verifier-postmortem.json) · `sha256:4572a5cc0487` |
 | Blind OCR | Local Tesseract structured ensemble | 1,000 | 56.9% selected; 61.4% expected-aware exact; 2.08% CER | 156ms / 215ms | 40.20s | Failing release gate | [JSON](results/2026-07-25/ocr/tesseract-structured-candidates-seed104729-n1000.json) · `sha256:68da9a6bdb5e` |
 | Blind OCR | PaddleOCR v6 medium CPU | 1,000 | 78.9% normalized exact; 1.06% CER | 874ms / 2.54s | 1,078.82s | Failing gate; crop adapter fixed afterward | [JSON](results/2026-07-25/ocr/ocr-seed104729-n1000-comparison.json) · `sha256:dbbce9299995` |
 | Blind spacing OCR | Tesseract precise, canonical text trusted | 1,000: 500 clean / 500 doubled | 32.8% detected; 181 false verified; 1 false alarms; 92.8% clean verified | 354ms / 673ms | 101.12s | Unsafe baseline; canonical OCR collapsed visible spaces | [JSON](results/2026-07-27/ocr/tesseract-spacing-integrity-seed104729-n1000/report.json) · `sha256:21432a0f4872` |
@@ -1566,6 +1568,9 @@ Durable per-case reports:
 - [`codex-gpt-5.6-sol-seed104729-n20-r2.json`](results/2026-07-24/screenspot-pro/codex-gpt-5.6-sol-seed104729-n20-r2.json)
 - [`codex-gpt-5.6-sol-seed104729-n20-verified.json`](results/2026-07-24/screenspot-pro/codex-gpt-5.6-sol-seed104729-n20-verified.json)
 - [`claude-opus-seed104729-n5.json`](results/2026-07-24/screenspot-pro/claude-opus-seed104729-n5.json)
+- [`claude-opus-seed104729-n20/report.json`](results/2026-07-28/screenspot-pro/claude-opus-seed104729-n20/report.json)
+- [`claude-opus-haiku-verified-seed104729-n20/report.json`](results/2026-07-28/screenspot-pro/claude-opus-haiku-verified-seed104729-n20/report.json)
+- [`claude-opus-haiku-verifier-postmortem.json`](results/2026-07-28/screenspot-pro/claude-opus-haiku-verifier-postmortem.json)
 
 Report schema v3 preserves first-pass and post-verification coordinates
 separately. Older R1/R2 artifacts retain the schema emitted at run time rather
@@ -1575,7 +1580,10 @@ The compact 100-case artifact preserves every case ID, official target box,
 predicted point, hit/miss, latency, error class, and platform/application/UI
 slice. Case IDs resolve the original instruction and image in the pinned
 dataset. Public benchmark schema v4 additionally records first-pass and
-verifier usage, but this v3 run predates that instrumentation.
+verifier usage, but this v3 run predates that instrumentation. The two fresh
+Claude reports remain schema v4 because that is the code that produced them.
+They are not rewritten to match the current schema. Schema v5 adds explicit
+`verifier_mode`, actionable coverage, abstentions, and accepted-click accuracy.
 
 ### Issues found by the live runs
 
@@ -1592,9 +1600,11 @@ verifier usage, but this v3 run predates that instrumentation.
    in the real application.
 4. Repeating the same 20 cases changed the score from 90% to 80%. One-shot
    samples are therefore prohibited as release evidence.
-5. Crosshair verification improved one trial by one case but roughly doubled
-   calls and wall time. It should be routed selectively by uncertainty/risk,
-   not applied to every click.
+5. Crosshair verification improved one older trial by one case, but the fresh
+   Opus → Haiku run made all three replacement coordinates wrong, overwrote two
+   initially correct clicks, and increased wall time from 149.097 to 607.970
+   seconds. Verification is now veto-only by default. Any future correction
+   experiment must remain explicit, offline, and non-authorizing.
 
 ## OSWorld-Verified
 

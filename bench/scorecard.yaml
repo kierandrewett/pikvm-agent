@@ -779,6 +779,47 @@ rows:
     wall: "{wall}"
     status: "Current seeded sample"
 
+  - suite: "ScreenSpot-Pro, single pass"
+    route: "Claude OAuth / `opus`"
+    source: "results/2026-07-28/screenspot-pro/claude-opus-seed104729-n20/report.json"
+    fields:
+      cases: {path: "cases_evaluated", format: "integer"}
+      correct: {path: "correct", format: "integer"}
+      accuracy: {path: "accuracy", format: "percent", digits: 1}
+      errors: {path: "model_errors", format: "integer"}
+      median: {path: "median_latency_ms", format: "seconds_from_ms", digits: 2}
+      p95: {path: "p95_latency_ms", format: "seconds_from_ms", digits: 2}
+      wall: {path: "evaluation_wall_ms", format: "seconds_from_ms", digits: 2}
+    cases: "{cases}"
+    result: "{correct}/{cases}, {accuracy}; {errors} model errors"
+    latency: "{median} / {p95}"
+    wall: "{wall}"
+    status: "Fresh seeded diagnostic; below 100-case product threshold"
+
+  - suite: "ScreenSpot-Pro, experimental verifier"
+    route: "Claude OAuth / `opus` → `haiku`"
+    source: "results/2026-07-28/screenspot-pro/claude-opus-haiku-verifier-postmortem.json"
+    fields:
+      cases: {path: "cases_evaluated", format: "integer"}
+      first_correct: {path: "first_pass.correct", format: "integer"}
+      legacy_correct: {path: "legacy_correction_policy.correct", format: "integer"}
+      accepted: {path: "veto_policy_replay.actionable_cases", format: "integer"}
+      accepted_correct: {path: "veto_policy_replay.actionable_correct", format: "integer"}
+      accepted_accuracy: {path: "veto_policy_replay.actionable_accuracy", format: "percent", digits: 1}
+      coverage: {path: "veto_policy_replay.coverage", format: "percent", digits: 1}
+      errors: {path: "performance.model_errors", format: "integer"}
+      corrections: {path: "legacy_correction_policy.corrections_applied", format: "integer"}
+      correction_hits: {path: "legacy_correction_policy.corrections_correct", format: "integer"}
+      replaced_correct: {path: "legacy_correction_policy.initially_correct_clicks_replaced", format: "integer"}
+      median: {path: "performance.primary_median_latency_ms", format: "seconds_from_ms", digits: 2}
+      p95: {path: "performance.primary_p95_latency_ms", format: "seconds_from_ms", digits: 2}
+      wall: {path: "performance.evaluation_wall_ms", format: "seconds_from_ms", digits: 2}
+    cases: "{cases}"
+    result: "First pass {first_correct}/{cases}; legacy corrections {legacy_correct}/{cases}; veto replay {accepted_correct}/{accepted} accepted correct ({accepted_accuracy}) at {coverage} coverage; {errors} verifier errors"
+    latency: "{median} / {p95} primary"
+    wall: "{wall}"
+    status: "Failed correction experiment; {correction_hits}/{corrections} replacements correct, including {replaced_correct} initially correct clicks overwritten"
+
   - suite: "Blind OCR"
     route: "Local Tesseract structured ensemble"
     source: "results/2026-07-25/ocr/tesseract-structured-candidates-seed104729-n1000.json"

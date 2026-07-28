@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "analysis": "deterministic-policy-replay",
+  "source_report": "claude-opus-haiku-verified-seed104729-n20/report.json",
+  "source_report_schema_version": 4,
+  "provider_calls_reused": true,
+  "new_provider_calls": 0,
+  "cases_evaluated": 20,
+  "first_pass": {
+    "correct": 18,
+    "accuracy": 0.9
+  },
+  "legacy_correction_policy": {
+    "correct": 7,
+    "accuracy": 0.35,
+    "corrections_applied": 3,
+    "corrections_correct": 0,
+    "initially_correct_clicks_replaced": 2
+  },
+  "verifier_verdicts": {
+    "hit": 7,
+    "miss": 3,
+    "uncertain": 8,
+    "error": 2
+  },
+  "veto_policy_replay": {
+    "actionable_cases": 7,
+    "actionable_correct": 7,
+    "actionable_accuracy": 1.0,
+    "coverage": 0.35,
+    "abstained_cases": 13
+  },
+  "performance": {
+    "model_calls": 40,
+    "model_errors": 2,
+    "evaluation_wall_ms": 607970,
+    "model_active_ms": 1168595,
+    "primary_median_latency_ms": 13498.5,
+    "primary_p95_latency_ms": 24867.1
+  },
+  "policy_change": {
+    "default": "veto",
+    "replacement_coordinates": "explicit-experimental-correct-mode-only",
+    "verifier_error": "abstain",
+    "verifier_uncertain": "abstain",
+    "verifier_miss": "record-suggestion-and-abstain"
+  },
+  "safety": {
+    "computer_target_contacted": false,
+    "computer_input_committed": false,
+    "external_side_effects": 0
+  }
+}

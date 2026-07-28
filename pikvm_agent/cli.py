@@ -2478,7 +2478,16 @@ def harness_screenspot_pro(
         "--verifier-provider",
         help=(
             "Optional independent configured provider that verifies the "
-            "candidate crosshair and may return one correction."
+            "candidate crosshair. Suggested corrections are diagnostic unless "
+            "--verifier-mode correct is explicitly selected."
+        ),
+    ),
+    verifier_mode: str = typer.Option(
+        "veto",
+        "--verifier-mode",
+        help=(
+            "veto lets the verifier accept or abstain; correct explicitly "
+            "enables experimental replacement coordinates."
         ),
     ),
     dataset: Path = typer.Option(
@@ -2530,6 +2539,10 @@ def harness_screenspot_pro(
     from pikvm_agent.harness.public_benchmarks import run_screenspot_pro
 
     settings = load_harness_settings(config)
+    normalized_verifier_mode = verifier_mode.strip().lower()
+    if normalized_verifier_mode not in {"veto", "correct"}:
+        typer.echo("--verifier-mode must be veto or correct", err=True)
+        raise typer.Exit(2)
     readiness = check_provider_prerequisites(settings)
     selected_names = [provider]
     if verifier_provider:
@@ -2556,6 +2569,7 @@ def harness_screenspot_pro(
             return await run_screenspot_pro(
                 selected,
                 verifier_provider=verifier,
+                verifier_mode=normalized_verifier_mode,  # type: ignore[arg-type]
                 dataset_dir=dataset,
                 output_dir=output,
                 suite_revision=suite_revision,
@@ -2581,6 +2595,10 @@ def harness_screenspot_pro(
                 "cases_evaluated": report.cases_evaluated,
                 "initial_correct": report.initial_correct,
                 "initial_accuracy": report.initial_accuracy,
+                "verifier_mode": report.verifier_mode,
+                "actionable_cases": report.actionable_cases,
+                "abstained_cases": report.abstained_cases,
+                "actionable_accuracy": report.actionable_accuracy,
                 "correct": report.correct,
                 "accuracy": report.accuracy,
                 "model_calls": report.model_calls,

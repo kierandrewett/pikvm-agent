@@ -332,10 +332,14 @@ async def test_screenspot_pro_scores_official_xyxy_annotation(
     )
 
     assert report.suite == "screenspot-pro"
-    assert report.schema_version == 4
+    assert report.schema_version == 5
     assert report.cases_evaluated == 1
     assert report.correct == 1
     assert report.accuracy == 1.0
+    assert report.verifier_mode == "none"
+    assert report.actionable_cases == 1
+    assert report.abstained_cases == 0
+    assert report.actionable_accuracy == 1.0
     assert report.by_platform["windows"].accuracy == 1.0
     assert report.by_ui_type["text"].accuracy == 1.0
     assert report.results[0].target_bbox == (2626, 138, 2880, 163)
@@ -355,7 +359,7 @@ async def test_screenspot_pro_scores_official_xyxy_annotation(
     assert (tmp_path / "results" / "report.json").is_file()
 
 
-async def test_screenspot_verifier_can_correct_without_ground_truth(
+async def test_screenspot_verifier_is_veto_only_by_default(
     tmp_path: Path,
 ) -> None:
     dataset = tmp_path / "dataset"
@@ -395,11 +399,16 @@ async def test_screenspot_verifier_can_correct_without_ground_truth(
     )
 
     assert report.initial_correct == 0
-    assert report.correct == 1
+    assert report.correct == 0
+    assert report.verifier_mode == "veto"
+    assert report.actionable_cases == 0
+    assert report.abstained_cases == 1
+    assert report.actionable_accuracy is None
     assert report.model_calls == 2
     assert report.results[0].initial_point == (10, 10)
-    assert report.results[0].predicted_point == (55, 55)
-    assert report.results[0].correction_applied is True
+    assert report.results[0].predicted_point is None
+    assert report.results[0].verifier_suggested_point == (55, 55)
+    assert report.results[0].correction_applied is False
     assert report.results[0].usage == {
         "input_tokens": 40,
         "output_tokens": 10,
@@ -414,6 +423,55 @@ async def test_screenspot_verifier_can_correct_without_ground_truth(
     }
 
 
+async def test_screenspot_verifier_correction_requires_explicit_mode(
+    tmp_path: Path,
+) -> None:
+    dataset = tmp_path / "dataset"
+    annotations = dataset / "annotations"
+    image_dir = dataset / "images" / "app"
+    annotations.mkdir(parents=True)
+    image_dir.mkdir(parents=True)
+    Image.new("RGB", (100, 100), "white").save(image_dir / "screen.png")
+    (annotations / "app.json").write_text(
+        json.dumps(
+            [
+                {
+                    "img_filename": "app/screen.png",
+                    "bbox": [50, 50, 60, 60],
+                    "instruction": "target",
+                    "id": "case",
+                    "application": "app",
+                    "platform": "windows",
+                    "img_size": [100, 100],
+                    "ui_type": "icon",
+                    "group": "OS",
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    report = await run_screenspot_pro(
+        MissGrounder(),
+        verifier_provider=CorrectingVerifier(),
+        verifier_mode="correct",
+        dataset_dir=dataset,
+        output_dir=tmp_path / "results",
+        suite_revision="suite",
+        dataset_revision="dataset",
+        limit=1,
+        jobs=1,
+    )
+
+    assert report.verifier_mode == "correct"
+    assert report.correct == 1
+    assert report.actionable_cases == 1
+    assert report.actionable_accuracy == 1.0
+    assert report.results[0].predicted_point == (55, 55)
+    assert report.results[0].verifier_suggested_point == (55, 55)
+    assert report.results[0].correction_applied is True
+
+
 def test_cli_exposes_live_screenspot_pro_benchmark() -> None:
     result = CliRunner().invoke(
         app,
@@ -424,6 +482,7 @@ def test_cli_exposes_live_screenspot_pro_benchmark() -> None:
     assert "--config" in result.stdout
     assert "--provider" in result.stdout
     assert "--verifier-provider" in result.stdout
+    assert "--verifier-mode" in result.stdout
     assert "--dataset" in result.stdout
     assert "--suite-revision" in result.stdout
 

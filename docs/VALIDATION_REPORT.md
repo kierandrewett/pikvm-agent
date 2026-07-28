@@ -793,6 +793,35 @@ hit/miss results, latency, and failure classifications:
 [`../bench/results/2026-07-25/screenspot-pro/codex-gpt-5.6-sol-seed104729-n100.json`](../bench/results/2026-07-25/screenspot-pro/codex-gpt-5.6-sol-seed104729-n100.json).
 No computer-control target was contacted.
 
+### Fresh Claude grounding and verifier failure
+
+A fresh 20-case pass at the same pinned revisions and seed used Claude OAuth
+`opus` with two concurrent calls. It scored 17/20 (85.0%) with zero model
+errors, 13.213-second median and 21.844-second p95 latency, and 149.097 seconds
+of wall time. Windows scored 12/14 and macOS 5/6; icons scored 6/7 and text
+targets 11/13. This remains a diagnostic sample because it is below the public
+100-case threshold.
+
+The follow-up `opus` → `haiku` verifier experiment failed. Its stochastic
+first pass scored 18/20, but allowing the verifier to replace coordinates
+reduced the final score to 7/20. All three corrections were wrong, two replaced
+initially correct clicks, two verifier calls errored, and wall time grew to
+607.970 seconds for 40 model calls. Replaying the same retained verdicts as a
+veto-only policy accepts 7 cases, all 7 correct, and abstains on 13: 100%
+accepted-click precision at only 35% coverage.
+
+The benchmark now defaults to veto-only verification. A `miss`, `uncertain`,
+or verifier error records evidence and abstains; replacement coordinates
+require explicit experimental `--verifier-mode correct`. Schema v5 records the
+mode, actionable cases, abstentions, accepted-click accuracy, and suggested
+coordinates separately. The original schema-v4 reports are preserved:
+
+- [`single-pass report`](../bench/results/2026-07-28/screenspot-pro/claude-opus-seed104729-n20/report.json)
+- [`failed correction report`](../bench/results/2026-07-28/screenspot-pro/claude-opus-haiku-verified-seed104729-n20/report.json)
+- [`deterministic veto-policy replay`](../bench/results/2026-07-28/screenspot-pro/claude-opus-haiku-verifier-postmortem.json)
+
+No VNC, PiKVM, HID, or computer target was contacted by either grounding run.
+
 ## OSWorld-Verified live task runs
 
 The official OSWorld repository was pinned at

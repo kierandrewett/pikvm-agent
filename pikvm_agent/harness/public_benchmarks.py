@@ -103,6 +103,7 @@ class PublicBenchmarkCaseResult(BaseModel):
     click_error_pixels: float | None
     correct: bool
     correction_applied: bool = False
+    verifier_suggested_point: tuple[int, int] | None = None
     verification_verdict: str | None = None
     provider: str | None = None
     model: str | None = None
@@ -127,7 +128,7 @@ class PublicBenchmarkSlice(BaseModel):
 class PublicBenchmarkReport(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    schema_version: int = 4
+    schema_version: int = 5
     suite: str
     suite_revision: str
     dataset_revision: str
@@ -136,6 +137,10 @@ class PublicBenchmarkReport(BaseModel):
     cases_evaluated: int
     initial_correct: int
     initial_accuracy: float
+    verifier_mode: Literal["none", "veto", "correct"]
+    actionable_cases: int
+    abstained_cases: int
+    actionable_accuracy: float | None
     correct: int
     accuracy: float
     model_calls: int
@@ -310,9 +315,11 @@ def _verification_prompt(
         "ScreenSpot-Pro benchmark. The attached screenshot has a red crosshair "
         "at the candidate point. Decide whether that crosshair is inside the "
         "specific interactive target requested below. If it is not, return a "
-        "corrected center point as normalized x,y coordinates in [0,1]. Return "
-        "uncertain rather than guessing. Do not use external tools or perform "
-        "an action.\n\n"
+        "corrected center point as normalized x,y coordinates in [0,1]. The "
+        "correction is diagnostic evidence and cannot authorize a new click "
+        "unless the benchmark is explicitly in experimental correction mode. "
+        "Return uncertain rather than guessing. Do not use external tools or "
+        "perform an action.\n\n"
         f"Instruction: {case.instruction}\n"
         f"Candidate pixel: ({point[0]}, {point[1]}) on {width}x{height}"
     )
@@ -323,6 +330,7 @@ async def _run_grounding_case(
     case: ScreenSpotProCase,
     *,
     verifier_provider: PublicBenchmarkProvider | None,
+    verifier_mode: Literal["veto", "correct"],
     output_dir: Path,
 ) -> PublicBenchmarkCaseResult:
     started = time.monotonic()
@@ -346,6 +354,7 @@ async def _run_grounding_case(
         verification_latency_ms = 0
         verifier_response: ModelResponse | None = None
         correction_applied = False
+        verifier_suggested_point: tuple[int, int] | None = None
         if verifier_provider is not None and initial_point is not None:
             overlay = _candidate_overlay(case, initial_point, output_dir)
             verifier_started = time.monotonic()
@@ -374,11 +383,15 @@ async def _run_grounding_case(
                 )
                 verification_verdict = verification.verdict
                 if verification.verdict == "miss":
-                    point = _point_to_pixels(
+                    verifier_suggested_point = _point_to_pixels(
                         verification.corrected_point,
                         case.image_size,
                     )
-                    correction_applied = True
+                    if verifier_mode == "correct":
+                        point = verifier_suggested_point
+                        correction_applied = True
+                    else:
+                        point = None
                 elif verification.verdict == "uncertain":
                     point = None
             except Exception as exc:
@@ -393,6 +406,7 @@ async def _run_grounding_case(
                     predicted_point=None,
                     click_error_pixels=None,
                     correct=False,
+                    verifier_suggested_point=verifier_suggested_point,
                     verification_verdict="error",
                     provider=response.provider,
                     model=response.model,
@@ -438,6 +452,7 @@ async def _run_grounding_case(
             click_error_pixels=click_error,
             correct=correct,
             correction_applied=correction_applied,
+            verifier_suggested_point=verifier_suggested_point,
             verification_verdict=verification_verdict,
             provider=response.provider,
             model=response.model,
@@ -486,6 +501,7 @@ async def run_screenspot_pro(
     provider: PublicBenchmarkProvider,
     *,
     verifier_provider: PublicBenchmarkProvider | None = None,
+    verifier_mode: Literal["veto", "correct"] = "veto",
     dataset_dir: Path,
     output_dir: Path,
     suite_revision: str,
@@ -500,6 +516,8 @@ async def run_screenspot_pro(
         raise ValueError("limit must be positive")
     if jobs < 1:
         raise ValueError("jobs must be positive")
+    if verifier_mode not in {"veto", "correct"}:
+        raise ValueError("verifier_mode must be veto or correct")
     discovered = _load_screenspot_pro(dataset_dir)
     selected = list(discovered)
     random.Random(seed).shuffle(selected)
@@ -516,6 +534,7 @@ async def run_screenspot_pro(
                 provider,
                 case,
                 verifier_provider=verifier_provider,
+                verifier_mode=verifier_mode,
                 output_dir=output_dir,
             )
 
@@ -525,6 +544,9 @@ async def run_screenspot_pro(
     latencies = [result.latency_ms for result in results]
     correct = sum(result.correct for result in results)
     initial_correct = sum(result.initial_correct for result in results)
+    actionable_cases = sum(
+        result.predicted_point is not None for result in results
+    )
     model_calls = len(results) + sum(
         result.verification_verdict is not None for result in results
     )
@@ -537,6 +559,14 @@ async def run_screenspot_pro(
         cases_evaluated=len(results),
         initial_correct=initial_correct,
         initial_accuracy=initial_correct / len(results),
+        verifier_mode=(
+            verifier_mode if verifier_provider is not None else "none"
+        ),
+        actionable_cases=actionable_cases,
+        abstained_cases=len(results) - actionable_cases,
+        actionable_accuracy=(
+            correct / actionable_cases if actionable_cases else None
+        ),
         correct=correct,
         accuracy=correct / len(results),
         model_calls=model_calls,
