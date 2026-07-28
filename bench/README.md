@@ -37,7 +37,7 @@ support a claim of generally reliable autonomous Windows operation.
 | The desktop compatibility launcher does not give ordinary clients raw HID | The built Electron-owned launcher completed a real stdio MCP handshake with exactly five `computer_*` controls and zero `pikvm_*` tools. Managed mode is the default; guarded direct requires an explicit compatibility argument. A separate 3.048-second provider hold showed “Waiting for a response” after 20ms, then one reply, with no branch control, duplicate progress, computer session, input event, screenshot, or remote target | Passing target-free desktop launcher and live-progress acceptance; restart and live-client probes remain |
 | Effective client config cannot silently retain a second PiKVM tool surface | Fail-closed audit supports native Codex resolved inventory, Codex TOML/shared project JSON, Claude/Gemini JSON, and legacy/V2 OpenCode JSON/JSONC. Native read-only Codex inventory found one raw PiKVM registration and no managed registration. A session-only Codex override produced exactly one managed PiKVM surface while retaining unrelated MCPs; Claude's installed strict-MCP flags produced one explicit managed surface. OpenCode 1.14.44 resolved one managed surface under `--pure`, exact default-deny permissions, ephemeral writable state, and client-owned OAuth linked without copying it. Gemini 0.35.3 loaded the temporary system catalog natively and resolved one allowlisted managed surface from an empty dedicated profile; the exact admin-policy path/content and extension-disable argv are configured but not enforcement-tested. These paths modify no persisted registration and passed 54 launcher/audit/package contracts | Codex/Claude/OpenCode native isolation dry-runs pass; Gemini settings audit passes; no authenticated coding-client task or Gemini policy-enforcement call was run |
 | Managed and direct assurance levels are unambiguous | The reference conversation is explicitly retained as 551/551 direct calls, not reclassified as a managed run. Chromium, Firefox, and WebKit each labelled the direct trace `Guarded direct`, named the launcher-declared caller/provider/model, removed managed assurance and the chat composer, and retained zero horizontal overflow | Passing target-free ownership/UI contract; live computer task pending |
-| Computer-use actions remain inspectable while a run is changing | The authenticated Chromium/Firefox/WebKit fixture retained and expanded all 12 actions, loaded 20 action-bound previews per engine, and exposed the exact MCP tool/model route with zero desktop or 390×844 overflow. The held Teams fixture showed the exact text, final Enter, reason, and Allow once/Deny controls without committing input | Passing target-free three-engine UI contract |
+| Computer-use actions remain inspectable while a run is changing | The authenticated Chromium/Firefox/WebKit fixture retained and expanded all 12 actions, loaded 20 action-bound previews per engine, and exposed the exact MCP tool/model route with zero desktop or 390×844 overflow. The held Teams fixture showed the exact text, final Enter, reason, and Allow once/Deny controls without committing input. A later isolated Electron/CDP pass proved that a mixed `computer_start_task` plus `pikvm_*` managed turn renders as one expanded `Computer activity` timeline with the current exact input visible, not as a generic tool-name chain | Passing target-free multi-engine and managed-group UI contracts |
 | The operator can inspect the verifier's visual evidence | Authenticated API contracts return the labelled before/after bytes without exposing their local path; static UI contracts cover revision refresh, loading/error state, and blob revocation. A live disposable-Windows diagnostic exercised failed and uncertain visual verification without turning either into success | Passing local/browser contract; live task itself did not pass |
 | Long prose/code arrives exactly | Windows transport trials were exact 581/581 and 142/142 characters. A later seeded live boundary probe was 8/8 exact with 0 character errors and 0 duplicated spaces at 17–72 characters, although generic screen OCR was exact in 0/8. A deterministic repro then proved that replaying an apparently missing chunk could duplicate its already-delivered leading space. Typing is now at-most-once: ambiguous delivery stops unverified and never replays text. A 1,000-case stale-readback fuzz emitted every canonical payload exactly once with zero introduced doubled spaces. Receipts retain requested, delivery, emitted, OCR, and evaluated-frame SHA-256 values | Partial; target-free sender integrity passes, fresh live replay and generic OCR do not |
 | Raw HID avoids encoded/script transfer hacks | A seeded 1,000-payload corpus caught 800/800 unsafe shapes with 0/200 safe false positives; the public MCP integration also refuses encoded transfer before daemon contact | Passing local syntax gate; explicit byte-verified transfer channel pending |
@@ -88,6 +88,44 @@ Opus for the assistant hand-off and as a fallback. It is not a model-quality
 ranking and says nothing about Office or input reliability. The failure-
 inclusive machine-readable record is
 [`read-only-fast-verifier.json`](results/2026-07-27/live-vnc/read-only-fast-verifier.json).
+
+### Calculator controller-effort pair
+
+On 2026-07-28 the first-party Electron chat ran the same bounded Calculator
+task twice against the authorized disposable Windows VM. Both runs used Opus
+for assistant/reasoner, Haiku for controller/verifier, produced the correct
+displayed result `442`, and kept every input inside Calculator. The only model
+configuration change was an explicit Claude CLI `low` effort override for the
+controller and verifier in the second run.
+
+| Signal | Default CLI effort | `low` controller + verifier |
+| --- | ---: | ---: |
+| Final state / display | completed / `442` | completed / `442` |
+| Wall time | 118.195 s | 251.432 s |
+| Model calls / active time | 4 / 106.546 s | 8 / 227.617 s |
+| Controller calls | 1 | 3 |
+| Verifier calls | 1 | 3 |
+| HID bursts / exact inputs | 1 / 8 | 3 / 8 |
+| HID-active time | 9.329 s | 21.408 s |
+
+The forced-low run took 2.127× as long and split one reversible eight-input
+sequence across three controller/verifier rounds. That is a failed
+optimization for this task, not evidence that low effort is always worse. The
+harness now forwards an explicitly configured Claude CLI effort, but generated
+defaults do not force one.
+
+The same increment fixes live tool visibility. A managed turn containing
+`computer_start_task` and raw `pikvm_*` calls now uses the computer-specific
+timeline. Its collapsed count reflects low-level inputs rather than wrapper
+calls; while active it opens automatically and shows a compact semantic
+sequence. An isolated authenticated Electron/CDP fixture showed one
+`Computer activity` group, `64 inputs`, the current click, and zero generic
+managed-computer tool chains. No screenshot or remote target was used for that
+UI check.
+
+The failure-inclusive record, route latencies, safety scope, UI DOM results,
+and limitations are in
+[`calculator-controller-effort-pair.json`](results/2026-07-28/live-vnc/calculator-controller-effort-pair.json).
 
 On 2026-07-27 the managed harness was given one bounded task: use Windows
 Search to open Notepad without pressing Enter or touching a destructive,

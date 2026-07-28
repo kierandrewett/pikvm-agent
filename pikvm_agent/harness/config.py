@@ -138,6 +138,14 @@ class ProviderSpec(BaseModel):
             raise ValueError(
                 "profile_home_env is only supported by gemini_cli"
             )
+        if self.kind == "claude_cli" and self.reasoning_effort in {
+            "none",
+            "minimal",
+        }:
+            raise ValueError(
+                "claude_cli reasoning_effort must be low, medium, high, "
+                "xhigh, or max"
+            )
         if self.kind in {"azure_openai_responses", "vertex_gemini"}:
             if not self.base_url:
                 raise ValueError(
@@ -713,6 +721,7 @@ def build_model_pool(settings: HarnessSettings) -> ModelPool:
                 **common,
                 executable=spec.executable or "claude",
                 inherited_env=spec.inherited_env,
+                reasoning_effort=spec.reasoning_effort,
             )
         elif spec.kind == "gemini_cli":
             providers[name] = GeminiCliProvider(

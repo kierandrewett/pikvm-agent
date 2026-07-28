@@ -318,6 +318,23 @@ const actionKindLabel = (action: JsonRecord) => {
 const actionSequence = (actions: readonly JsonRecord[]) =>
   actions.map((action) => actionLabel(action)).join(" → ");
 
+const compactActionLabel = (action: JsonRecord) => {
+  const kind = actionName(action);
+  if (kind.includes("click")) {
+    return text(action.target_text) || actionLabel(action);
+  }
+  if (isKeyboardAction(kind)) {
+    return keyLabel(action) || actionLabel(action);
+  }
+  return actionLabel(action);
+};
+
+const compactActionSequence = (actions: readonly JsonRecord[]) => {
+  const visible = actions.slice(0, 4).map(compactActionLabel);
+  const remaining = actions.length - visible.length;
+  return `${visible.join(" → ")}${remaining > 0 ? ` → +${remaining}` : ""}`;
+};
+
 const summarize = (toolName: string, args: JsonRecord) => {
   const actions = Array.isArray(args.actions)
     ? args.actions.map(record)
@@ -340,7 +357,7 @@ const summarize = (toolName: string, args: JsonRecord) => {
   }
   if (actions.length > 1) {
     return {
-      title: `${actions.length}-step computer sequence`,
+      title: `${actions.length} inputs · ${compactActionSequence(actions)}`,
       detail: actionSequence(actions),
       actions,
     };
@@ -1611,8 +1628,21 @@ export const ComputerToolCall =
 export function ComputerToolGroup({
   group,
   children,
-}: PropsWithChildren<{ group: ThreadGroupPart }>) {
+  inputCount,
+}: PropsWithChildren<{
+  group: ThreadGroupPart;
+  inputCount?: number;
+}>) {
   const count = group.indices.length;
+  const quantity = inputCount ?? count;
+  const quantityLabel =
+    inputCount == null
+      ? `${quantity} ${quantity === 1 ? "action" : "actions"}`
+      : `${quantity} ${quantity === 1 ? "input" : "inputs"}`;
+  const accessibleQuantityLabel =
+    inputCount == null
+      ? `${quantity} computer ${quantity === 1 ? "action" : "actions"}`
+      : `${quantity} computer ${quantity === 1 ? "input" : "inputs"}`;
   const active = group.status.type === "running";
   const needsAttention = group.status.type === "requires-action";
   const [open, setOpen] = useState(needsAttention || active);
@@ -1637,7 +1667,7 @@ export function ComputerToolGroup({
       className="my-3"
     >
       <CollapsibleTrigger
-        aria-label={`${count} computer actions, ${
+        aria-label={`${accessibleQuantityLabel}, ${
           needsAttention
             ? "approval waiting"
             : active
@@ -1669,7 +1699,7 @@ export function ComputerToolGroup({
             Computer activity
           </span>
           <span className="shrink-0 font-mono text-[10px] tabular-nums text-muted-foreground">
-            {count} {count === 1 ? "action" : "actions"}
+            {quantityLabel}
           </span>
         </span>
         {needsAttention ? (

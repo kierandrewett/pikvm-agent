@@ -151,6 +151,75 @@ const computerToolMessages: ThreadMessageLike[] = [
   },
 ];
 
+const managedComputerToolMessages: ThreadMessageLike[] = [
+  {
+    id: "user-managed-computer-tools",
+    role: "user",
+    content: "Use Calculator to multiply two numbers.",
+  },
+  {
+    id: "assistant-managed-computer-tools",
+    role: "assistant",
+    content: [
+      {
+        type: "tool-call",
+        toolCallId: "managed-handoff",
+        toolName: "computer_start_task",
+        args: { task: "Use Calculator to multiply two numbers." },
+        argsText: '{"task":"Use Calculator to multiply two numbers."}',
+        result: { status: "completed", control: "managed" },
+      },
+      {
+        type: "tool-call",
+        toolCallId: "managed-input",
+        toolName: "pikvm_run_burst",
+        args: {
+          actions: [
+            { type: "click", x: 105, y: 301, target_text: "2" },
+            { type: "click", x: 154, y: 268, target_text: "6" },
+            { type: "click", x: 203, y: 334, target_text: "=" },
+          ],
+        },
+        argsText:
+          '{"actions":[{"type":"click","x":105,"y":301},{"type":"click","x":154,"y":268},{"type":"click","x":203,"y":334}]}',
+        result: { status: "completed" },
+      },
+    ],
+    status: { type: "complete", reason: "stop" },
+  },
+];
+
+const runningManagedComputerToolMessages: ThreadMessageLike[] = [
+  managedComputerToolMessages[0]!,
+  {
+    ...managedComputerToolMessages[1]!,
+    id: "assistant-running-managed-computer-tools",
+    content: [
+      (
+        managedComputerToolMessages[1]!.content as Exclude<
+          ThreadMessageLike["content"],
+          string | undefined
+        >
+      )[0]!,
+      {
+        type: "tool-call",
+        toolCallId: "managed-input-running",
+        toolName: "pikvm_run_burst",
+        args: {
+          actions: [
+            { type: "click", x: 105, y: 301, target_text: "2" },
+            { type: "click", x: 154, y: 268, target_text: "6" },
+            { type: "click", x: 203, y: 334, target_text: "=" },
+          ],
+        },
+        argsText:
+          '{"actions":[{"type":"click","x":105,"y":301},{"type":"click","x":154,"y":268},{"type":"click","x":203,"y":334}]}',
+      },
+    ],
+    status: { type: "running" },
+  },
+];
+
 const approvalToolMessages: ThreadMessageLike[] = [
   {
     id: "user-approval-tool",
@@ -480,7 +549,7 @@ describe("Thread progress", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByRole("button", { name: /2 computer actions/i }),
+        screen.getByRole("button", { name: /2 computer inputs/i }),
       ).toHaveTextContent("Computer activity");
     });
 
@@ -494,8 +563,46 @@ describe("Thread progress", () => {
       ).toBeVisible();
     });
     expect(
-      screen.queryByRole("button", { name: /computer actions/i }),
+      screen.queryByRole("button", { name: /computer inputs/i }),
     ).toBeNull();
+  });
+
+  it("keeps a managed computer handoff and its PiKVM inputs in one computer activity", async () => {
+    render(
+      <ToolThread
+        messages={managedComputerToolMessages}
+        computerAware
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Computer activity")).toBeVisible();
+    });
+    expect(screen.getByText("3 inputs")).toBeVisible();
+    expect(
+      screen.queryByRole("button", {
+        name: /computer_start_task then pikvm_run_burst/i,
+      }),
+    ).toBeNull();
+  });
+
+  it("shows the current exact input while a managed computer sequence is running", async () => {
+    render(
+      <ToolThread
+        messages={runningManagedComputerToolMessages}
+        isRunning
+        computerAware
+      />,
+    );
+
+    const activity = await screen.findByRole("button", {
+      name: /3 computer inputs, input sequence running/i,
+    });
+    expect(activity).toHaveAttribute("aria-expanded", "true");
+    expect(activity).toHaveTextContent("Input live");
+    expect(
+      await screen.findByText("3 inputs · 2 → 6 → ="),
+    ).toBeVisible();
   });
 
   it("shows the active tool and running state in the collapsed summary", () => {

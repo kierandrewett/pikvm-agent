@@ -524,6 +524,7 @@ class ClaudeCodeProvider:
         executable: str = "claude",
         runner: ProcessRunner | None = None,
         inherited_env: list[str] | None = None,
+        reasoning_effort: str | None = None,
         timeout_s: float = 300.0,
     ) -> None:
         self.name = name
@@ -533,6 +534,19 @@ class ClaudeCodeProvider:
         self.inherited_env = list(
             inherited_env or ["PATH", "HOME", "CLAUDE_CONFIG_DIR"]
         )
+        if reasoning_effort not in {
+            None,
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max",
+        }:
+            raise ValueError(
+                "Claude CLI reasoning_effort must be low, medium, high, "
+                "xhigh, or max"
+            )
+        self.reasoning_effort = reasoning_effort
         self.timeout_s = timeout_s
 
     async def complete(self, request: ModelRequest) -> ModelResponse:
@@ -578,6 +592,8 @@ class ClaudeCodeProvider:
                 argv.extend(["--allowedTools", "Read"])
             if self.model != "account-default":
                 argv.extend(["--model", self.model])
+            if self.reasoning_effort is not None:
+                argv.extend(["--effort", self.reasoning_effort])
             started = time.monotonic()
             result = await self.runner.run(
                 argv=argv,

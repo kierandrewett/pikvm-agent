@@ -1,0 +1,130 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-07-28T11:43:04+01:00",
+  "source_revision": "a838e1984dde3707d18c07b87f7d259676906d39",
+  "scope": {
+    "route": "first-party Electron chat -> managed harness -> disposable Windows VM",
+    "task_class": "bounded Calculator pointer-input acceptance",
+    "task": "Clear any prior expression, click 26 × 17 using on-screen Calculator buttons, press equals, and report the displayed result.",
+    "target": "authorized disposable Windows VM; runtime endpoint omitted",
+    "same_task": true,
+    "same_disposable_vm": true,
+    "screenshots_published": 0,
+    "raw_model_output_published": false
+  },
+  "safety": {
+    "production_pikvm_contacted": false,
+    "production_windows_laptop_contacted": false,
+    "inputs_confined_to_calculator": true,
+    "communication_actions": 0,
+    "file_actions": 0,
+    "settings_changes": 0,
+    "approval_submissions": 0
+  },
+  "route": {
+    "assistant": {
+      "provider": "claude-account",
+      "model": "opus"
+    },
+    "reasoner": {
+      "provider": "claude-account",
+      "model": "opus"
+    },
+    "controller": {
+      "provider": "claude-fast",
+      "model": "haiku"
+    },
+    "verifier": {
+      "provider": "claude-fast",
+      "model": "haiku"
+    }
+  },
+  "baseline": {
+    "run_id": "82374f2d-1214-4eee-bee5-d69ce8231624",
+    "status": "completed",
+    "final_display": "442",
+    "reasoning_effort_override": null,
+    "wall_ms": 118195,
+    "model_calls": 4,
+    "model_active_ms": 106546,
+    "role_latency_ms": {
+      "assistant": [
+        7831
+      ],
+      "reasoner": [
+        26442
+      ],
+      "controller": [
+        24658
+      ],
+      "verifier": [
+        47615
+      ]
+    },
+    "action_bursts": 1,
+    "exact_inputs": 8,
+    "action_active_ms": 9329,
+    "final_verifier_rounds": 1
+  },
+  "low_effort": {
+    "run_id": "aaa3fe43-3216-4767-a58c-6294f3bfa3f5",
+    "status": "completed",
+    "final_display": "442",
+    "reasoning_effort_override": "low",
+    "override_scope": [
+      "controller",
+      "verifier"
+    ],
+    "wall_ms": 251432,
+    "model_calls": 8,
+    "model_active_ms": 227617,
+    "role_latency_ms": {
+      "assistant": [
+        7506
+      ],
+      "reasoner": [
+        36507
+      ],
+      "controller": [
+        23816,
+        19347,
+        21752
+      ],
+      "verifier": [
+        24261,
+        56326,
+        38102
+      ]
+    },
+    "action_bursts": 3,
+    "exact_inputs": 8,
+    "action_active_ms": 21408,
+    "final_verifier_rounds": 3
+  },
+  "comparison": {
+    "wall_time_delta_ms": 133238,
+    "wall_time_increase_percent": 112.73,
+    "low_effort_to_baseline_wall_ratio": 2.127,
+    "model_call_delta": 4,
+    "action_burst_delta": 2,
+    "same_correct_result": true,
+    "default_promoted": false,
+    "decision": "Keep Claude CLI reasoning effort explicitly configurable, but do not force low effort in generated defaults."
+  },
+  "ui_validation": {
+    "environment": "isolated authenticated Electron fixture over CDP",
+    "remote_target_contacted": false,
+    "screenshot_captured": false,
+    "computer_activity_groups": 1,
+    "visible_exact_input_count": 64,
+    "group_expanded_while_running": true,
+    "current_input_visible": "Click at 811 × 420",
+    "generic_managed_computer_tool_chains": 0
+  },
+  "limitations": [
+    "This is one paired diagnostic, not a latency distribution or a general model-quality ranking.",
+    "The second run began with the prior result visible and added one focus click; both tasks explicitly required clearing prior state.",
+    "The low-effort override applied to both controller and verifier, so this does not isolate either role independently.",
+    "The UI fixture validates projection and live-state behavior without contacting a computer."
+  ]
+}

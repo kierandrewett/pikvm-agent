@@ -143,6 +143,27 @@ def test_gemini_cli_config_rejects_missing_profile_environment_name() -> None:
         )
 
 
+def test_claude_cli_config_rejects_an_effort_the_cli_does_not_support() -> None:
+    with pytest.raises(
+        ValueError,
+        match="claude_cli reasoning_effort must be low, medium, high, xhigh, or max",
+    ):
+        HarnessSettings(
+            providers={
+                "claude-account": {
+                    "kind": "claude_cli",
+                    "model": "opus",
+                    "reasoning_effort": "minimal",
+                }
+            },
+            routes={
+                "reasoner": ["claude-account"],
+                "controller": ["claude-account"],
+                "verifier": ["claude-account"],
+            },
+        )
+
+
 def test_optional_daemon_url_distinguishes_chat_only_from_selected_computer(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -191,6 +212,7 @@ providers:
   claude-oauth:
     kind: claude_cli
     model: "subscription-default"
+    reasoning_effort: "low"
   gateway-fast:
     kind: openai_compatible
     model: "fast-model"
@@ -231,6 +253,7 @@ routes:
         tmp_path / "provider-conformance.json"
     )
     assert isinstance(pool.providers["claude-oauth"], ClaudeCodeProvider)
+    assert pool.providers["claude-oauth"].reasoning_effort == "low"
     assert isinstance(pool.providers["gateway-fast"], OpenAICompatibleProvider)
     assert isinstance(
         pool.providers["openai-native"], OpenAIResponsesProvider

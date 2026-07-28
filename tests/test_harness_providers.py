@@ -1107,6 +1107,7 @@ async def test_claude_code_provider_uses_oauth_with_safe_read_only_image_access(
         model="opus",
         runner=runner,
         inherited_env=["PATH", "HOME", "CLAUDE_CONFIG_DIR"],
+        reasoning_effort="low",
     )
 
     response = await provider.complete(model_request)
@@ -1121,6 +1122,7 @@ async def test_claude_code_provider_uses_oauth_with_safe_read_only_image_access(
     assert "--strict-mcp-config" in argv
     assert "--no-session-persistence" in argv
     assert argv[argv.index("--model") + 1] == "opus"
+    assert argv[argv.index("--effort") + 1] == "low"
     assert "--max-turns" not in argv
     assert runner.schema["required"] == [
         "summary",

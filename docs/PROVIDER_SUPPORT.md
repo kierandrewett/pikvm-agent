@@ -94,6 +94,17 @@ the denominator and records the configured model, returned model identities,
 exact/schema accuracy, failure classes, usage, median latency, and p95 latency.
 The operator UI labels prerequisite-only state as unproven.
 
+## Reasoning effort
+
+`claude_cli` accepts an optional `reasoning_effort` value of `low`, `medium`,
+`high`, `xhigh`, or `max` and forwards it as the Claude CLI `--effort`
+argument. The harness does not force an effort for generated Claude providers.
+It is a route-specific tuning control, not a guaranteed fast path: the current
+paired Calculator diagnostic found that forcing `low` on both controller and
+verifier more than doubled wall time by creating extra action/verification
+rounds. Any promoted default must therefore pass the same action-quality and
+latency acceptance path, not merely reduce one provider call.
+
 ## Version and change policy
 
 - Stable provider kinds and configuration fields are not silently removed.

@@ -65,6 +65,7 @@ def test_lab_assets_point_only_at_isolated_adapter_and_daemon(tmp_path) -> None:
     }
     assert harness["providers"]["claude-fast"]["kind"] == "claude_cli"
     assert harness["providers"]["claude-fast"]["model"] == "haiku"
+    assert "reasoning_effort" not in harness["providers"]["claude-fast"]
     assert harness["model_budget"]["max_provider_attempts_per_run"] == 500
     assert "vnc" not in assets.harness_config.read_text().lower()
 
