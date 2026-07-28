@@ -941,6 +941,65 @@ def test_controller_action_schema_rejects_pointer_only_wiggle() -> None:
         )
 
 
+def test_controller_can_request_one_bounded_spreadsheet_grid() -> None:
+    decision = ControllerDecision.model_validate(
+        {
+            "outcome": "act",
+            "intent": "Enter the quarterly table from the verified active cell.",
+            "actions": [
+                {
+                    "type": "spreadsheet_grid",
+                    "rows": [["Q1", "124.8"], ["Q2", "132.1"]],
+                }
+            ],
+            "expected_evidence": ["The two spreadsheet rows are visible."],
+        }
+    )
+
+    assert decision.actions[0].model_dump(mode="json") == {
+        "type": "spreadsheet_grid",
+        "rows": [["Q1", "124.8"], ["Q2", "132.1"]],
+    }
+
+
+async def test_controller_prompt_limits_grid_entry_to_a_verified_spreadsheet_cell() -> None:
+    provider = ScriptedProvider()
+    harness = build_harness(provider, FakeComputer())
+
+    await harness.start("Enter a small quarterly table in the workbook.")
+
+    prompt = next(
+        request.prompt
+        for request in provider.requests
+        if request.role == "controller"
+    )
+    assert "spreadsheet_grid" in prompt
+    assert "verified active spreadsheet cell" in prompt
+    assert "Never use it in messaging" in prompt
+    assert "one reviewed local-file action" in prompt
+
+
+def test_controller_separates_spreadsheet_focus_from_grid_entry() -> None:
+    with pytest.raises(
+        ValidationError,
+        match="separate verified focus action",
+    ):
+        ControllerDecision.model_validate(
+            {
+                "outcome": "act",
+                "intent": "Click the first cell and enter the table.",
+                "actions": [
+                    {"type": "click", "x": 160, "y": 240},
+                    {
+                        "type": "spreadsheet_grid",
+                        "rows": [["Q1", "124.8"]],
+                    },
+                ],
+                "expected_evidence": ["The row is visible."],
+            }
+        )
+
+
 def test_controller_action_schema_rejects_duplicate_click_within_burst() -> None:
     with pytest.raises(ValidationError, match="duplicate pointer activation"):
         ControllerDecision.model_validate(

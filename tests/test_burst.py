@@ -102,6 +102,22 @@ def test_auto_runtime_budget_counts_implicit_screen_wait_defaults() -> None:
     assert recommended_runtime_ms([{"type": "wait_for_change"}]) >= 12_000
 
 
+def test_auto_runtime_budget_counts_spreadsheet_grid_cells() -> None:
+    rows = [
+        [f"Q{row}", f"{120 + row}.8", f"={row + 2}*1.1", "Reviewed"]
+        for row in range(1, 7)
+    ]
+
+    budget = recommended_runtime_ms(
+        [{"type": "spreadsheet_grid", "rows": rows}]
+    )
+
+    assert budget >= 50_000
+    assert needs_post_action_settle(
+        [{"type": "spreadsheet_grid", "rows": rows}]
+    )
+
+
 async def test_run_burst_executes_in_order() -> None:
     be = FakeBackend()
     actions = [
@@ -128,6 +144,160 @@ async def test_run_burst_executes_in_order() -> None:
     ).hexdigest()
     assert receipt["issued_prefix_sha256"] == receipt["requested_sha256"]
     assert receipt["exact_readback_sha256_match"] is False
+
+
+async def test_spreadsheet_grid_enters_rows_from_the_active_cell() -> None:
+    backend = FakeBackend()
+
+    result = await run_burst(
+        [
+            {
+                "type": "spreadsheet_grid",
+                "rows": [["Q1", "124.8"], ["Q2", "132.1"]],
+            }
+        ],
+        backend=backend,
+    )
+
+    assert result.status == "completed"
+    assert backend.calls == [
+        ("type_text", {"text": "Q1", "code": True, "secret": False}),
+        ("keypress", {"keys": ["Tab"]}),
+        ("type_text", {"text": "124.8", "code": True, "secret": False}),
+        ("keypress", {"keys": ["Enter"]}),
+        ("keypress", {"keys": ["Home"]}),
+        ("type_text", {"text": "Q2", "code": True, "secret": False}),
+        ("keypress", {"keys": ["Tab"]}),
+        ("type_text", {"text": "132.1", "code": True, "secret": False}),
+        ("keypress", {"keys": ["Enter"]}),
+    ]
+    assert result.action_receipts == [
+        {
+            "index": 0,
+            "type": "spreadsheet_grid",
+            "status": "delivered_unverified",
+            "verdict": "unverified",
+            "proof_state": "issued_only",
+            "focus_evidence": "read_back_unavailable",
+            "requested_cells": 4,
+            "issued_cells": 4,
+            "requested_characters": 14,
+            "issued_characters": 14,
+            "emitted_characters": 14,
+            "emitted_exactly_once": True,
+            "requested_sha256": hashlib.sha256(
+                b"Q1\t124.8\nQ2\t132.1"
+            ).hexdigest(),
+            "issued_prefix_sha256": hashlib.sha256(
+                b"Q1\t124.8\nQ2\t132.1"
+            ).hexdigest(),
+            "emitted_sha256": hashlib.sha256(
+                b"Q1\t124.8\nQ2\t132.1"
+            ).hexdigest(),
+        }
+    ]
+
+
+async def test_spreadsheet_grid_rejects_ragged_rows_before_input() -> None:
+    backend = FakeBackend()
+
+    with pytest.raises(BurstError, match="same number of columns"):
+        await run_burst(
+            [
+                {
+                    "type": "spreadsheet_grid",
+                    "rows": [["Q1", "124.8"], ["Q2"]],
+                }
+            ],
+            backend=backend,
+        )
+
+    assert backend.calls == []
+
+
+async def test_spreadsheet_grid_rejects_unverified_focus_action_in_same_burst() -> None:
+    backend = FakeBackend()
+
+    with pytest.raises(BurstError, match="separate verified focus action"):
+        await run_burst(
+            [
+                {"type": "click", "x": 160, "y": 240},
+                {
+                    "type": "spreadsheet_grid",
+                    "rows": [["Q1", "124.8"]],
+                },
+            ],
+            backend=backend,
+        )
+
+    assert backend.calls == []
+
+
+async def test_spreadsheet_grid_rejects_more_than_eight_rows_before_input() -> None:
+    backend = FakeBackend()
+
+    with pytest.raises(BurstError, match="1 to 8 rows"):
+        await run_burst(
+            [
+                {
+                    "type": "spreadsheet_grid",
+                    "rows": [[f"Q{index}"] for index in range(1, 10)],
+                }
+            ],
+            backend=backend,
+        )
+
+    assert backend.calls == []
+
+
+async def test_spreadsheet_grid_stops_before_the_next_cell_when_control_changes() -> None:
+    backend = FakeBackend()
+    checks = 0
+
+    def should_continue() -> bool:
+        nonlocal checks
+        checks += 1
+        return checks <= 3
+
+    result = await run_burst(
+        [
+            {
+                "type": "spreadsheet_grid",
+                "rows": [["Q1", "124.8"]],
+            }
+        ],
+        backend=backend,
+        should_continue=should_continue,
+    )
+
+    assert result.status == "interrupted"
+    assert result.partial_action == {
+        "type": "spreadsheet_grid",
+        "issued_cells": 1,
+        "requested_cells": 2,
+    }
+    assert backend.calls == [
+        ("type_text", {"text": "Q1", "code": True, "secret": False}),
+        ("keypress", {"keys": ["Tab"]}),
+        ("release_all", {}),
+    ]
+
+
+async def test_spreadsheet_grid_rejects_control_characters_before_input() -> None:
+    backend = FakeBackend()
+
+    with pytest.raises(BurstError, match="control characters"):
+        await run_burst(
+            [
+                {
+                    "type": "spreadsheet_grid",
+                    "rows": [["Q1\t124.8"]],
+                }
+            ],
+            backend=backend,
+        )
+
+    assert backend.calls == []
 
 
 def kw_keys(kw):

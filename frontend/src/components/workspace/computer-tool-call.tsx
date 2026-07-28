@@ -23,6 +23,7 @@ import {
   ScanSearchIcon,
   ScrollTextIcon,
   ShieldAlertIcon,
+  TablePropertiesIcon,
   XIcon,
 } from "lucide-react";
 import {
@@ -99,6 +100,8 @@ export type InputReceipt = {
   proof_state: string;
   observed_text: string;
   observed_text_redacted: boolean;
+  requested_cells?: number;
+  issued_cells?: number;
   requested_characters?: number;
   delivery_characters?: number;
   delivery_transformed?: boolean;
@@ -131,6 +134,8 @@ const inputReceipt = (value: unknown): InputReceipt => {
     proof_state: text(item.proof_state),
     observed_text: text(item.observed_text),
     observed_text_redacted: item.observed_text_redacted === true,
+    requested_cells: number(item.requested_cells),
+    issued_cells: number(item.issued_cells),
     requested_characters: number(
       item.requested_characters ?? item.intended_characters,
     ),
@@ -215,6 +220,7 @@ const isKeyboardAction = (kind: string) =>
   kind === "key" || kind.includes("keypress") || kind.includes("hotkey");
 
 const actionIcon = (kind: string) => {
+  if (kind === "spreadsheet_grid") return TablePropertiesIcon;
   if (kind.includes("type")) return KeyboardIcon;
   if (isKeyboardAction(kind)) return CommandIcon;
   if (kind.includes("click")) return MousePointer2Icon;
@@ -230,10 +236,24 @@ const keyValues = (action: JsonRecord) =>
 
 const keyLabel = (action: JsonRecord) => keyValues(action).join(" + ");
 
+const spreadsheetRows = (action: JsonRecord) =>
+  (Array.isArray(action.rows) ? action.rows : [])
+    .slice(0, 8)
+    .map((row) =>
+      (Array.isArray(row) ? row : []).slice(0, 8).map(String),
+    );
+
 const actionLabel = (action: JsonRecord) => {
   const kind = actionName(action);
   const x = number(action.x);
   const y = number(action.y);
+  if (kind === "spreadsheet_grid") {
+    const rows = spreadsheetRows(action);
+    const columns = rows[0]?.length ?? 0;
+    return rows.length && columns
+      ? `Enter ${rows.length} × ${columns} spreadsheet grid`
+      : "Enter spreadsheet grid";
+  }
   if (kind.includes("click")) {
     const click = kind.includes("double") ? "Double-click" : "Click";
     const target = text(action.target_text);
@@ -283,6 +303,7 @@ const actionLabel = (action: JsonRecord) => {
 
 const actionKindLabel = (action: JsonRecord) => {
   const kind = actionName(action);
+  if (kind === "spreadsheet_grid") return "Spreadsheet data";
   if (kind.includes("type")) return "Text input";
   if (isKeyboardAction(kind)) return "Keyboard input";
   if (kind.includes("click")) return "Pointer input";
@@ -723,6 +744,51 @@ function ActionExactInput({
   actionIndex: number;
 }) {
   const kind = actionName(action);
+  if (kind === "spreadsheet_grid") {
+    const rows = spreadsheetRows(action);
+    const columns = rows[0]?.length ?? 0;
+    if (!rows.length || !columns) return null;
+    const requestedCells =
+      inputReceipt?.requested_cells ?? rows.length * columns;
+    const issuedCells = inputReceipt?.issued_cells ?? 0;
+    return (
+      <div className="mt-2">
+        <div className="overflow-x-auto rounded-md border border-border/70">
+          <table
+            className="w-full border-separate border-spacing-0 font-mono text-[11px]"
+            aria-label={`Spreadsheet grid input: ${rows.length} rows by ${columns} columns`}
+          >
+            <tbody>
+              {rows.map((row, rowIndex) => (
+                <tr key={rowIndex}>
+                  {row.map((value, columnIndex) => (
+                    <td
+                      key={columnIndex}
+                      className={cn(
+                        "max-w-48 border-r border-b border-border/60 px-2 py-1.5 text-foreground/90",
+                        columnIndex === row.length - 1 && "border-r-0",
+                        rowIndex === rows.length - 1 && "border-b-0",
+                      )}
+                    >
+                      <span className="block truncate" title={value}>
+                        {value}
+                      </span>
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+          <span className="font-mono tabular-nums">
+            {issuedCells} / {requestedCells} cells issued
+          </span>
+          <span>Final workbook verification pending</span>
+        </div>
+      </div>
+    );
+  }
   if (kind.includes("type")) {
     const value = text(action.text);
     if (!value) return null;
@@ -1285,10 +1351,23 @@ const ComputerToolCallImpl: ToolCallMessagePartComponent<
   const approvalContext = approval?.options?.find(
     (option) => option.kind === "allow-once" || option.kind === "allow-always",
   )?.description;
-  const characters = summary.actions.reduce(
-    (total, action) => total + text(action.text).length,
-    0,
-  );
+  const characters = summary.actions.reduce((total, action) => {
+    if (actionName(action) === "spreadsheet_grid") {
+      return (
+        total +
+        spreadsheetRows(action).reduce(
+          (rowTotal, row) =>
+            rowTotal +
+            row.reduce(
+              (cellTotal, value) => cellTotal + value.length,
+              0,
+            ),
+          0,
+        )
+      );
+    }
+    return total + text(action.text).length;
+  }, 0);
   const visibleDuration = checkpointed
     ? undefined
     : receipt.latencyMs ?? elapsed;

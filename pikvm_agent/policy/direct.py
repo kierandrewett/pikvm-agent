@@ -422,6 +422,15 @@ def classify_direct_burst(
 
     run_dialog_opened = False
     for index, action in enumerate(actions):
+        if action.get("type") == "spreadsheet_grid":
+            candidates.append(
+                (
+                    "local_file_edit",
+                    "medium",
+                    "structured spreadsheet entry requires human review",
+                )
+            )
+
         if action.get("type") == "key":
             keys = {
                 str(key).strip().upper()

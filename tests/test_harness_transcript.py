@@ -90,3 +90,48 @@ def test_transcript_analyzer_turns_direct_tool_history_into_replay_findings(
     } <= kinds
     # The report carries hashes/lengths for replay grouping, never typed bodies.
     assert "rm -rf" not in report.model_dump_json()
+
+
+def test_transcript_analyzer_counts_grid_characters_without_serializing_cells(
+    tmp_path: Path,
+) -> None:
+    transcript = tmp_path / "grid.jsonl"
+    transcript.write_text(
+        json.dumps(
+            {
+                "type": "assistant",
+                "message": {
+                    "content": [
+                        {
+                            "type": "tool_use",
+                            "id": "tool_grid",
+                            "name": "mcp__pikvm__pikvm_run_burst",
+                            "input": {
+                                "session_id": "s_1",
+                                "idempotency_key": "grid-once",
+                                "based_on_world_version": 2,
+                                "based_on_control_epoch": 1,
+                                "actions": [
+                                    {
+                                        "type": "spreadsheet_grid",
+                                        "rows": [
+                                            ["Quarter", "Revenue"],
+                                            ["Q1", "120"],
+                                        ],
+                                    }
+                                ],
+                            },
+                        }
+                    ]
+                },
+            }
+        )
+    )
+
+    report = analyze_claude_transcript(transcript)
+
+    assert report.total_typed_characters == len("QuarterRevenueQ1120")
+    assert report.maximum_text_length == len("QuarterRevenueQ1120")
+    serialized = report.model_dump_json()
+    assert "Quarter" not in serialized
+    assert "Revenue" not in serialized

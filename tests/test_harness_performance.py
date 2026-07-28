@@ -169,6 +169,37 @@ def test_run_performance_does_not_count_pointer_wiggles_as_progress() -> None:
     assert report.progress_action_ratio == 0.5
 
 
+def test_run_performance_counts_spreadsheet_grid_entry_as_progress() -> None:
+    run = RunSnapshot(
+        run_id="run_spreadsheet_grid",
+        task="benchmark",
+        status=RunStatus.COMPLETED,
+        created_at=datetime(2026, 1, 1, tzinfo=UTC),
+        updated_at=datetime(2026, 1, 1, tzinfo=UTC) + timedelta(seconds=1),
+        events=[
+            _event(
+                1,
+                0,
+                "action.checkpointed",
+                index=0,
+                actions=[
+                    {
+                        "type": "spreadsheet_grid",
+                        "rows": [["Quarter", "Revenue"], ["Q1", "120"]],
+                    }
+                ],
+            ),
+            _event(2, 100, "action.attempted", index=0),
+            _event(3, 200, "action.completed", index=0),
+        ],
+    )
+
+    report = summarize_run_performance(run)
+
+    assert report.progress_actions_completed == 1
+    assert report.observation_only_actions_completed == 0
+
+
 def test_cli_exposes_saved_run_speed_report() -> None:
     result = CliRunner().invoke(app, ["harness", "run-metrics", "--help"])
 

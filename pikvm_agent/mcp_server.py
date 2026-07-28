@@ -225,6 +225,14 @@ async def pikvm_run_burst(session_id: str, actions: list[dict],
             normalized whitespace is explicitly acceptable.
             "method":"print" is only a transport hint: when watched typing is available it cannot
             bypass chunk guards or read-back.
+      {"type":"spreadsheet_grid","rows":[["Q1","120"],["Q2","135"]]} — bounded exact entry
+            into an already active spreadsheet cell. The grid must be rectangular (1–8 rows and
+            columns, each cell ≤80 characters, total ≤240). The daemon types each cell once and
+            navigates with Tab / Enter / Home while checking abort control before every input.
+            It cannot share a burst with clicks, keys, typing, moves, or scrolling; passive waits
+            may follow it. This is always held as a medium-risk local-file edit for operator
+            approval. Its receipt proves issued cell/character counts and hashes, not guest-side
+            persistence; the saved workbook still needs independent artifact validation.
       {"type":"click","x":840,"y":300,"button":"left"}   — raw coordinate click (WindMouse)
       {"type":"double_click","x":840,"y":300}
       {"type":"move","x":840,"y":300}

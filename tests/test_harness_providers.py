@@ -1079,7 +1079,7 @@ async def test_codex_schema_normalizes_discriminated_action_union(
     action_items = runner.schema["properties"]["actions"]["items"]
     assert "discriminator" not in action_items
     assert "oneOf" not in action_items
-    assert len(action_items["anyOf"]) == 8
+    assert len(action_items["anyOf"]) == 9
 
 
 @pytest.mark.asyncio
@@ -1168,7 +1168,7 @@ async def test_claude_schema_normalizes_discriminated_action_union() -> None:
     action_items = runner.schema["properties"]["actions"]["items"]
     assert "discriminator" not in action_items
     assert "oneOf" not in action_items
-    assert len(action_items["anyOf"]) == 8
+    assert len(action_items["anyOf"]) == 9
     assert runner.schema["required"] == [
         "outcome",
         "intent",

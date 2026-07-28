@@ -20,6 +20,11 @@ from pydantic import (
     model_validator,
 )
 
+from pikvm_agent.core.spreadsheet_grid import (
+    SpreadsheetGridError,
+    validate_spreadsheet_grid,
+)
+
 ModelRole = Literal["reasoner", "controller", "verifier"]
 RunMode = Literal["assistant", "computer"]
 ModelActivityPhase = Literal[
@@ -374,6 +379,19 @@ class TypeTextAction(StrictModelDecision):
         return value
 
 
+class SpreadsheetGridAction(StrictModelDecision):
+    type: Literal["spreadsheet_grid"]
+    rows: list[list[str]]
+
+    @model_validator(mode="after")
+    def grid_is_bounded_and_rectangular(self) -> "SpreadsheetGridAction":
+        try:
+            validate_spreadsheet_grid(self.rows)
+        except SpreadsheetGridError as exc:
+            raise ValueError(f"spreadsheet_grid {exc}") from exc
+        return self
+
+
 class ClickAction(StrictModelDecision):
     type: Literal["click", "double_click"]
     x: int = Field(ge=0)
@@ -412,6 +430,7 @@ class WaitForChangeAction(StrictModelDecision):
 ComputerAction = Annotated[
     KeyAction
     | TypeTextAction
+    | SpreadsheetGridAction
     | ClickAction
     | MoveAction
     | ScrollAction
@@ -441,6 +460,24 @@ class ControllerDecision(StrictModelDecision):
             WaitForStableScreenAction,
             WaitForChangeAction,
         )
+        spreadsheet_actions = [
+            action
+            for action in self.actions
+            if isinstance(action, SpreadsheetGridAction)
+        ]
+        if spreadsheet_actions and (
+            len(spreadsheet_actions) != 1
+            or any(
+                not isinstance(
+                    action,
+                    (*passive_evidence_types, SpreadsheetGridAction),
+                )
+                for action in self.actions
+            )
+        ):
+            raise ValueError(
+                "spreadsheet_grid requires a separate verified focus action"
+            )
         for action in self.actions:
             if typed_text and not isinstance(action, passive_evidence_types):
                 raise ValueError(

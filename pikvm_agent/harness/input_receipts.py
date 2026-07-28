@@ -17,7 +17,7 @@ def public_input_receipts(
     The daemon result is tool-controlled and may include exact field contents.
     Only known receipt fields are retained, secret inputs are forced back to an
     unverified delivery-only state, and every receipt must correspond to an
-    actual type action in the attempted input sequence.
+    actual text or bounded spreadsheet action in the attempted input sequence.
     """
 
     candidates = raw.get("action_receipts")
@@ -66,6 +66,8 @@ def public_input_receipts(
         },
     }
     integer_limits = {
+        "requested_cells": 64,
+        "issued_cells": 64,
         "requested_characters": 480,
         "delivery_characters": 480,
         "issued_characters": 480,
@@ -88,14 +90,15 @@ def public_input_receipts(
         ):
             continue
         action = actions[index]
-        if action.get("type") != "type_text":
+        action_type = action.get("type")
+        if action_type not in {"type_text", "spreadsheet_grid"}:
             continue
         seen.add(index)
-        secret = action.get("secret") is True
+        secret = action_type == "type_text" and action.get("secret") is True
         redacted = secret or candidate.get("observed_text_redacted") is True
         receipt: dict[str, Any] = {
             "index": index,
-            "type": "type_text",
+            "type": action_type,
         }
         for key, allowed in allowed_strings.items():
             value = candidate.get(key)
@@ -163,7 +166,7 @@ def public_input_receipts(
                     "proof_state": "not_retained",
                 }
             )
-        else:
+        elif action_type == "type_text":
             observed_text = candidate.get("observed_text")
             if isinstance(observed_text, str) and len(observed_text) <= 960:
                 receipt["observed_text"] = observed_text
@@ -182,6 +185,8 @@ def public_input_receipts(
                     str(action.get("text") or "")
                 ),
             )
+        else:
+            receipt["proof_state"] = "issued_only"
         output.append(receipt)
     return output
 

@@ -121,6 +121,62 @@ def test_visual_readback_preserves_the_full_checksum_chain() -> None:
     assert receipt["emitted_exactly_once"] is True
 
 
+def test_spreadsheet_grid_receipt_exposes_counts_and_hashes_without_cell_text() -> None:
+    payload = "Q1\t124.8\nQ2\t132.1"
+    payload_sha256 = _sha256(payload)
+    raw = {
+        "action_receipts": [
+            {
+                "index": 0,
+                "type": "spreadsheet_grid",
+                "status": "delivered_unverified",
+                "verdict": "unverified",
+                "proof_state": "issued_only",
+                "focus_evidence": "read_back_unavailable",
+                "requested_cells": 4,
+                "issued_cells": 4,
+                "requested_characters": 14,
+                "issued_characters": 14,
+                "emitted_characters": 14,
+                "emitted_exactly_once": True,
+                "requested_sha256": payload_sha256,
+                "issued_prefix_sha256": payload_sha256,
+                "emitted_sha256": payload_sha256,
+                "observed_text": "must not cross the public boundary",
+            }
+        ]
+    }
+
+    receipt = public_input_receipts(
+        raw,
+        [
+            {
+                "type": "spreadsheet_grid",
+                "rows": [["Q1", "124.8"], ["Q2", "132.1"]],
+            }
+        ],
+    )[0]
+
+    assert receipt == {
+        "index": 0,
+        "type": "spreadsheet_grid",
+        "status": "delivered_unverified",
+        "verdict": "unverified",
+        "focus_evidence": "read_back_unavailable",
+        "proof_state": "issued_only",
+        "requested_cells": 4,
+        "issued_cells": 4,
+        "requested_characters": 14,
+        "issued_characters": 14,
+        "emitted_characters": 14,
+        "requested_sha256": payload_sha256,
+        "issued_prefix_sha256": payload_sha256,
+        "emitted_sha256": payload_sha256,
+        "emitted_exactly_once": True,
+        "observed_text_redacted": False,
+    }
+
+
 def test_public_receipt_keeps_requested_and_delivery_hashes_distinct() -> None:
     requested = "one \n space"
     delivered = "one space"

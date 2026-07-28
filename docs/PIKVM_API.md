@@ -51,6 +51,17 @@ reproduce these exactly. Treat this as the contract.
   is rejected before HID.
 - **Newlines never auto-submit**: `\n` in typed text is collapsed to a space;
   Enter/submit is always a separate, explicit, reviewable key press.
+- **Bounded spreadsheet grid entry**: `spreadsheet_grid` accepts a rectangular
+  matrix of 1–8 rows and columns, with at most 80 characters per cell and 240
+  characters total. It is valid only after the active spreadsheet cell has
+  been visibly confirmed. Each cell is sent exactly once with the precise
+  code-text path; navigation is Tab between columns and Enter + Home between
+  rows, with a final Enter to commit the last cell. Abort/control state is
+  checked before every text or navigation input. A grid cannot share a burst
+  with clicks, keys, ordinary typing, moves, or scrolling and is always held
+  for one local-file-edit approval. Receipts report issued counts and
+  SHA-256s, never the cell bodies; they do not claim guest persistence, so the
+  saved workbook remains subject to independent OOXML/content validation.
 - **Caps-Lock compensation**: when the target Caps-Lock LED is ON, invert Shift
   for `Key[A-Z]` strokes so the output case is correct, **without** toggling the
   target's Caps Lock (which would race the live LED). Letters only.

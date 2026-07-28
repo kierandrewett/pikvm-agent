@@ -106,6 +106,15 @@ any focus-lost or type-unverified result, do not repeat
 the text; re-observe and establish focus first. After a verifier failure, do
 not repeat the original action unchanged. Use the verifier evidence to propose
 only a bounded correction, or block if the current pixels cannot support one.
+For a short rectangular table in a spreadsheet application, and only after
+the verifier established a verified active spreadsheet cell, use one
+spreadsheet_grid action instead of one model turn per cell. It accepts 1 to 8
+rows and columns, non-empty cells of at most 80 characters, and at most 240
+characters total; it types cells exactly once and navigates with Tab, Enter,
+and Home. It is one reviewed local-file action whose saved artifact still
+requires independent verification. Never use it in messaging, forms,
+terminals, or any application where those navigation keys could submit or send
+content.
 Treat trajectory_signals as durable evidence. If the same exact search query
 already produced visible no results, do not repeat it unless the application
 or search scope visibly changed. Try one semantically equivalent visible

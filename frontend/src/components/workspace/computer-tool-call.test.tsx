@@ -353,6 +353,53 @@ describe("ComputerToolCall", () => {
 });
 
 describe("ComputerInputSequence", () => {
+  it("shows a bounded spreadsheet action as one readable grid receipt", () => {
+    render(
+      <ComputerInputSequence
+        actions={[
+          {
+            type: "spreadsheet_grid",
+            rows: [
+              ["Q1", "124.8"],
+              ["Q2", "132.1"],
+            ],
+          },
+        ]}
+        inputReceipts={[
+          {
+            index: 0,
+            type: "spreadsheet_grid",
+            status: "delivered_unverified",
+            verdict: "unverified",
+            proof_state: "issued_only",
+            observed_text: "",
+            observed_text_redacted: false,
+            requested_cells: 4,
+            issued_cells: 4,
+            requested_characters: 14,
+            issued_characters: 14,
+            emitted_characters: 14,
+            emitted_exactly_once: true,
+            used_fast_path: false,
+            focus_evidence: "read_back_unavailable",
+          },
+        ]}
+      />,
+    );
+
+    expect(screen.getByText("Spreadsheet data")).not.toBeNull();
+    expect(screen.getByText("Enter 2 × 2 spreadsheet grid")).not.toBeNull();
+    const grid = screen.getByLabelText(
+      "Spreadsheet grid input: 2 rows by 2 columns",
+    );
+    expect(grid.textContent).toContain("Q1");
+    expect(grid.textContent).toContain("124.8");
+    expect(grid.textContent).toContain("Q2");
+    expect(grid.textContent).toContain("132.1");
+    expect(screen.getByText("4 / 4 cells issued")).not.toBeNull();
+    expect(screen.getByText("Final workbook verification pending")).not.toBeNull();
+  });
+
   it("keeps long text and consequential keys independently inspectable", () => {
     render(
       <ComputerInputSequence

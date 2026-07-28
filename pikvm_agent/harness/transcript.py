@@ -11,6 +11,11 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+from pikvm_agent.core.spreadsheet_grid import (
+    SpreadsheetGridError,
+    validate_spreadsheet_grid,
+)
+
 _BURST_SUFFIX = "pikvm_run_burst"
 _BASE64_CHARS = frozenset(
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=_-"
@@ -163,6 +168,23 @@ def _analyze_burst(
                     "oversized_text",
                     "warning",
                     **safe_details,
+                )
+        if action.get("type") == "spreadsheet_grid":
+            try:
+                grid = validate_spreadsheet_grid(action.get("rows"))
+            except SpreadsheetGridError:
+                _finding(
+                    report,
+                    sequence,
+                    tool_use_id,
+                    "invalid_spreadsheet_grid",
+                    "warning",
+                )
+            else:
+                report.total_typed_characters += grid.character_count
+                report.maximum_text_length = max(
+                    report.maximum_text_length,
+                    grid.character_count,
                 )
         if action.get("type") == "key":
             keys = action.get("keys") or []

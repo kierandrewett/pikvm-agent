@@ -24,6 +24,11 @@ from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable
 
 from pikvm_agent.core.models import VERIFIED_STATUSES
+from pikvm_agent.core.spreadsheet_grid import (
+    SpreadsheetGrid,
+    SpreadsheetGridError,
+    validate_spreadsheet_grid,
+)
 from pikvm_agent.executor.typing import chunk_text
 from pikvm_agent.executor.verification import (
     is_editor_prose,
@@ -238,12 +243,23 @@ def recommended_runtime_ms(actions: list[dict[str, Any]]) -> int:
     not a delay: control-change and panic gates are still polled between typing chunks.
     """
     typed_characters = 0
+    navigation_actions = 0
     declared_wait_ms = 0
     for raw in actions:
         action = raw if isinstance(raw, dict) else dict(raw)
         kind = action.get("type")
         if kind == "type_text":
             typed_characters += len(str(action.get("text", "")))
+        elif kind == "spreadsheet_grid":
+            try:
+                grid_contract = validate_spreadsheet_grid(
+                    action.get("rows"),
+                    max_characters=MAX_TYPE_TEXT_CHARS,
+                )
+            except SpreadsheetGridError:
+                continue
+            typed_characters += grid_contract.character_count
+            navigation_actions += grid_contract.navigation_count
         elif kind == "wait":
             declared_wait_ms += max(0, int(action.get("ms", 0)))
         elif kind == "wait_for_stable_screen":
@@ -262,7 +278,12 @@ def recommended_runtime_ms(actions: list[dict[str, Any]]) -> int:
         if typed_characters
         else 0
     )
-    estimate = AUTO_RUNTIME_FLOOR_MS + declared_wait_ms + typing_ms
+    estimate = (
+        AUTO_RUNTIME_FLOOR_MS
+        + declared_wait_ms
+        + typing_ms
+        + (navigation_actions * 250)
+    )
     return min(AUTO_RUNTIME_CEILING_MS, max(AUTO_RUNTIME_FLOOR_MS, estimate))
 
 
@@ -271,7 +292,14 @@ def needs_post_action_settle(actions: list[dict[str, Any]]) -> bool:
 
     if not any(
         action.get("type")
-        in {"key", "type_text", "click", "double_click", "scroll"}
+        in {
+            "key",
+            "type_text",
+            "spreadsheet_grid",
+            "click",
+            "double_click",
+            "scroll",
+        }
         for action in actions
     ):
         return False
@@ -309,6 +337,8 @@ def validate_actions(
     total_type_text_chars = 0
     contiguous_text_parts: list[str] = []
     contiguous_text_start = 0
+    spreadsheet_grid_count = 0
+    other_active_action_count = 0
     for index, raw in enumerate(actions):
         try:
             action = raw if isinstance(raw, dict) else dict(raw)
@@ -321,7 +351,17 @@ def validate_actions(
                 "cannot be disabled by a caller"
             )
 
-        if action.get("type") == "key":
+        action_type = action.get("type")
+        if action_type == "spreadsheet_grid":
+            spreadsheet_grid_count += 1
+        elif action_type not in {
+            "wait",
+            "wait_for_stable_screen",
+            "wait_for_change",
+        }:
+            other_active_action_count += 1
+
+        if action_type == "key":
             keys = action.get("keys") or (
                 [action["key"]] if action.get("key") else []
             )
@@ -331,6 +371,22 @@ def validate_actions(
                 raise BurstError(
                     f"key action {index} needs 'keys' (or 'key')"
                 )
+
+        if action_type == "spreadsheet_grid":
+            rows = action.get("rows")
+            try:
+                grid_contract = validate_spreadsheet_grid(
+                    rows,
+                    max_characters=max_type_text_chars,
+                )
+            except SpreadsheetGridError as exc:
+                raise BurstError(
+                    f"spreadsheet_grid action {index} {exc}"
+                ) from exc
+            reject_unsafe_payload(
+                grid_contract.payload(),
+                f"spreadsheet_grid action {index}",
+            )
 
         if action.get("type") != "type_text":
             if len(contiguous_text_parts) > 1:
@@ -394,6 +450,12 @@ def validate_actions(
                 "contiguous type_text actions "
                 f"{contiguous_text_start}-{len(actions) - 1}"
             ),
+        )
+    if spreadsheet_grid_count and (
+        spreadsheet_grid_count != 1 or other_active_action_count
+    ):
+        raise BurstError(
+            "spreadsheet_grid requires a separate verified focus action"
         )
 
 
@@ -725,6 +787,38 @@ def _unwatched_typing_receipt(
     return receipt
 
 
+def _spreadsheet_grid_receipt(
+    grid_contract: SpreadsheetGrid,
+    *,
+    issued_cells: int,
+) -> dict[str, Any]:
+    requested_payload = grid_contract.payload()
+    issued_payload = grid_contract.payload(cell_limit=issued_cells)
+    issued_characters = grid_contract.issued_character_count(issued_cells)
+    return {
+        "type": "spreadsheet_grid",
+        "status": "delivered_unverified",
+        "verdict": "unverified",
+        "proof_state": "issued_only",
+        "focus_evidence": "read_back_unavailable",
+        "requested_cells": grid_contract.cell_count,
+        "issued_cells": issued_cells,
+        "requested_characters": grid_contract.character_count,
+        "issued_characters": issued_characters,
+        "emitted_characters": issued_characters,
+        "emitted_exactly_once": True,
+        "requested_sha256": hashlib.sha256(
+            requested_payload.encode("utf-8")
+        ).hexdigest(),
+        "issued_prefix_sha256": hashlib.sha256(
+            issued_payload.encode("utf-8")
+        ).hexdigest(),
+        "emitted_sha256": hashlib.sha256(
+            issued_payload.encode("utf-8")
+        ).hexdigest(),
+    }
+
+
 async def _dispatch(
     a: dict[str, Any],
     kind: str | None,
@@ -825,6 +919,46 @@ async def _dispatch(
         else:
             await backend.type_text(text, code=code, secret=secret)
             return _unwatched_typing_receipt(str(text), secret=secret)
+    elif kind == "spreadsheet_grid":
+        grid_contract = validate_spreadsheet_grid(
+            a.get("rows"),
+            max_characters=MAX_TYPE_TEXT_CHARS,
+        )
+        rows = grid_contract.rows
+        issued_cells = 0
+        requested_cells = grid_contract.cell_count
+
+        def require_grid_control() -> None:
+            if should_continue is not None and not should_continue():
+                raise BurstInterrupted(
+                    {
+                        "type": "spreadsheet_grid",
+                        "issued_cells": issued_cells,
+                        "requested_cells": requested_cells,
+                    },
+                    action_receipt=_spreadsheet_grid_receipt(
+                        grid_contract,
+                        issued_cells=issued_cells,
+                    ),
+                )
+
+        for row_index, row in enumerate(rows):
+            for column_index, value in enumerate(row):
+                require_grid_control()
+                await backend.type_text(str(value), code=True, secret=False)
+                issued_cells += 1
+                if column_index < len(row) - 1:
+                    require_grid_control()
+                    await backend.keypress(normalize_keys(["TAB"]))
+            require_grid_control()
+            await backend.keypress(normalize_keys(["ENTER"]))
+            if row_index < len(rows) - 1:
+                require_grid_control()
+                await backend.keypress(normalize_keys(["HOME"]))
+        return _spreadsheet_grid_receipt(
+            grid_contract,
+            issued_cells=issued_cells,
+        )
     elif kind in ("click", "double_click"):
         x, y = int(a["x"]), int(a["y"])
         button = a.get("button", "left")

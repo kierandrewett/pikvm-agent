@@ -138,7 +138,14 @@ def summarize_run_performance(run: RunSnapshot) -> RunPerformanceReport:
         if event.kind == "action.completed"
         and isinstance(event.data.get("index"), int)
     }
-    progress_types = {"key", "type_text", "click", "double_click", "scroll"}
+    progress_types = {
+        "key",
+        "type_text",
+        "spreadsheet_grid",
+        "click",
+        "double_click",
+        "scroll",
+    }
     progress_indices = {
         event.data.get("index")
         for event in run.events

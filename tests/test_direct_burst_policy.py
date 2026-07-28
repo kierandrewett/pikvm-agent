@@ -20,6 +20,23 @@ def test_safe_grounded_navigation_and_plain_editor_typing_are_allowed() -> None:
     ).status == "allowed"
 
 
+def test_spreadsheet_grid_requires_one_local_file_edit_approval() -> None:
+    verdict = _classify(
+        [
+            {
+                "type": "spreadsheet_grid",
+                "rows": [["Q1", "124.8"], ["Q2", "132.1"]],
+            }
+        ]
+    )
+
+    assert (verdict.status, verdict.category, verdict.level) == (
+        "approval_required",
+        "local_file_edit",
+        "medium",
+    )
+
+
 def test_dangerous_command_requires_human_even_before_enter() -> None:
     verdict = _classify(
         [{"type": "type_text", "text": "sudo rm -rf /tmp/example", "context": "terminal"}]
