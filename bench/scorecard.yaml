@@ -1,5 +1,5 @@
 schema_version: 1
-as_of: "2026-07-27"
+as_of: "2026-07-28"
 rows:
   - suite: "Independent emergency stop"
     route: "Explicit CLI → isolated daemon"
@@ -871,6 +871,26 @@ rows:
     latency: "{median} / {p95}"
     wall: "{wall}"
     status: "Process lifecycle fixed; diagnostic only, n=5"
+
+  - suite: "Live Excel artifact acceptance"
+    route: "Claude Opus controller/reasoner + Haiku verifier → disposable Windows VM"
+    source: "results/2026-07-28/live-vnc/office-excel-live-acceptance.json"
+    fields:
+      attempts: {path: "attempts_total", format: "integer"}
+      passed: {path: "attempts_passed", format: "integer"}
+      checks_passed: {path: "final.checks_passed", format: "integer"}
+      checks_total: {path: "final.checks_total", format: "integer"}
+      actions_completed: {path: "final.actions_completed", format: "integer"}
+      actions_attempted: {path: "final.actions_attempted", format: "integer"}
+      efficiency: {path: "final.completion_efficiency", format: "percent", digits: 1}
+      controller_median: {path: "final.controller_median_ms", format: "seconds_from_ms", digits: 2}
+      controller_p95: {path: "final.controller_p95_ms", format: "seconds_from_ms", digits: 2}
+      wall: {path: "final.wall_clock_ms", format: "seconds_from_ms", digits: 2}
+    cases: "{attempts} failure-inclusive attempts"
+    result: "{passed}/{attempts}; final artifact {checks_passed}/{checks_total}; {actions_completed}/{actions_attempted} actions, {efficiency}"
+    latency: "{controller_median} / {controller_p95} controller"
+    wall: "{wall}"
+    status: "Passing n=1 artifact; four preceding attempts retained; latency failing product target"
 
   - suite: "OSWorld-Verified tracer"
     route: "Codex, Claude, and mixed role routes"

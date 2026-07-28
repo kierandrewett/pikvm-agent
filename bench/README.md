@@ -44,7 +44,7 @@ support a claim of generally reliable autonomous Windows operation.
 | OCR can safely verify arbitrary desktop text | Tesseract is 56.9% selected and 61.4% expected-aware exact; its 800-case routine tier is 71.125% exact while the preserved 200-case confusable stress tier is 0%; PaddleOCR is 78.9% normalized exact; the retrospective known-intent candidate union is 82.7% overall, 97.0% routine, and 25.5% stress on the same 1,000 cases; no confidence threshold supports a 99% lower-bound claim | Failing release gate |
 | Model grounding is reliable | Current seeded ScreenSpot-Pro sample is 73/100 | Diagnostic only |
 | End-to-end desktop tasks are reliable | Current OSWorld task set is 6/9; full scored-attempt denominator is 6/33 with 11 additional unscored failures | Failing release gate |
-| A model can autonomously complete routine Office work | Portable Word/Excel contracts and semantic OOXML verification pass local tests. r12 failed and r13 was deliberately aborted. r29 completed the visible Word task and saved a 16,081-byte DOCX that was recovered from the same disposable VM and passed all 11 semantic checks, including exact title/style, word-count bounds, required Shakespeare coverage, and zero repeated spaces. The canonical r29 runner result remains `artifact_failed` because a stale helper owned the capture hotkey; post-run recovery does not convert that transaction into a clean pass | First verified live saved artifact; failing clean end-to-end acceptance gate |
+| A model can autonomously complete routine Office work | Portable Word/Excel contracts and semantic OOXML verification pass local tests. Excel r23 is the first clean canonical pass: the model saved, closed, reopened, and audited the workbook; the host recovered 9,437 bytes and passed 29/29 cell/formula checks. The five-attempt optimization series retains three incomplete/rejected runs and one scorer false negative before that pass. r23 still took 29m 32s, used 52 model calls, and repeated one formula audit; the action-evidence contract was hardened afterward. Word r29 recovered a 16,081-byte DOCX that passed 11/11 checks, but its original runner transaction remains `artifact_failed` | Clean Excel n=1; Word runner still not clean; latency failing product target |
 | Windows Agent Arena is supported | 154 tasks discovered; official golden image is absent | Not run |
 | Provider choice is portable | Codex and Claude OAuth CLIs live-tested; dedicated-profile Gemini CLI OAuth, native OpenAI Responses, Azure OpenAI API-key/Entra modes, OpenAI-compatible, Anthropic, Gemini AI Studio, and Vertex AI adapters protocol-tested with mocks/source contracts; one target-free command now compares identical blind pixels/schema across configured routes. The live Anthropic Messages canary reached the provider with `claude-sonnet-5` but the environment-owned credential was rejected, so it recorded 0/1 with `authentication-failed`, zero tool calls, zero consequential executions, and no computer contact | Partial; OAuth works, but no API credential route has passed live yet |
 
@@ -538,15 +538,48 @@ filename inside the lab workspace, and the observer-returned path must match
 exactly before OOXML scoring; an artifact from an earlier run cannot satisfy
 the current attempt.
 
-Current evidence is deliberately limited to the acceptance contract: twenty-two
-Office tests plus eleven helper/bootstrap tests pass, and the Windows observer
-cross-build succeeds. `office-case --skip-provision` now restarts an installed
-helper with the attempt's fresh artifact path instead of requiring a pre-running
-process to know that random path. No live task result exists. Even after exact
-authorization, the execution broker denied the isolated adapter before process
-creation, so no listener, connection, helper action, Office mutation, or model
-call occurred.
-This section will link the first `result.json` only after a real artifact passes.
+The first clean canonical Excel result now exists. On 2026-07-28, r23 used
+Claude Opus for reasoning/control and Haiku for independent visual
+verification against the authorized disposable Windows VM. The model saved to
+a fresh runtime path, closed Excel, reopened the new workbook from the visible
+Recent list, and audited the disk-backed copy. The observer returned a
+9,437-byte XLSX with SHA-256
+`1fad889b048aa7a6974588862c734752b5d057b4a0341237baf8a1b7f9266782`;
+the host parser passed all 29 worksheet, value, and formula checks. No endpoint
+is retained in the checked evidence.
+
+This was attempt five, not a first-try success:
+
+- r19 timed out after a dark-theme filename edit was falsely classified as
+  focus loss;
+- r20 timed out while the model over-audited before Save As;
+- r21 visibly saved and reopened the workbook, but the UI's ambiguous `Deny`
+  control terminated the run before artifact capture;
+- r22 completed and returned a valid 9,439-byte XLSX, but the scorer compared
+  Excel's serialized `20.399999999999999` literally with `20.4`; the unchanged
+  file passed 29/29 after the bounded numeric-equivalence fix;
+- r23 produced the clean runner pass.
+
+r23 completed 23 of 25 checkpointed actions for 92.0% completion efficiency
+with no provider failures, fallbacks, schema repairs, or safety downgrades.
+The exact 67-character Save As path was emitted once with matching requested,
+delivery, issued, and emitted hashes and zero replay; generic screen OCR could
+not read the constrained field, so the agent verified the resulting title
+instead. Wall time was 1,772.382 seconds. Controller latency was 25.329s median
+/ 40.061s p95; verifier latency was 32.745s / 52.132s. This is correct but not
+yet responsive enough for a production desktop agent.
+
+The run also exposed one subtle verifier failure: an earlier B8 click was
+reported as verified even though the evidence proved selection but not the
+requested formula-bar text. A later controller therefore repeated the audit.
+The verifier contract now carries a structured assessment for every
+action-level evidence item and fails closed when any item is missing,
+unsatisfied, or unsupported. That correction is regression-tested but was
+landed after r23, so it is not retroactively counted in the live pass.
+
+The complete failure-inclusive series, model lanes, sender receipt, artifact
+hash, limitations, and per-attempt metrics are checked in
+[`office-excel-live-acceptance.json`](results/2026-07-28/live-vnc/office-excel-live-acceptance.json).
 
 ### Bounded history and reconnect audit
 
@@ -1189,7 +1222,7 @@ messaging integration.
 ## Current headline
 
 <!-- pikvm-scorecard:start -->
-_Generated from checked JSON evidence as of 2026-07-27. Manifest `sha256:a4795e43bec7`; run `pikvm-agent harness scorecard --check` to detect drift._
+_Generated from checked JSON evidence as of 2026-07-28. Manifest `sha256:7dd93f997977`; run `pikvm-agent harness scorecard --check` to detect drift._
 
 | Suite | Route | Cases | Result | Median / p95 | Wall | Status | Evidence |
 | --- | --- | ---: | ---: | ---: | ---: | --- | --- |
@@ -1242,6 +1275,7 @@ _Generated from checked JSON evidence as of 2026-07-27. Manifest `sha256:a4795e4
 | Blind spacing OCR | Tesseract multi-scale spacing evidence, fail closed | 1,000 across 10 validated shards | 59.0% detected; 0 false verified; 3 false alarms; 555 abstained; 29.4% clean verified | 352ms / 595ms | 98.20s | Safe but failing usability gate; exact spacing remains uncertain | [JSON](results/2026-07-27/ocr/tesseract-spacing-integrity-seed104729-n1000-v2-merged/report.json) · `sha256:415bc3937d3b` |
 | Blind OCR known-intent candidate union | Tesseract precise + PaddleOCR evidence | 1,000 paired cases | 827/1,000, 82.7%; routine 776/800, 97.0%; stress 51/200, 25.5% | Not measured | Retrospective paired analysis | Failing gate; runtime hybrid pass not run | [JSON](results/2026-07-26/ocr/hybrid-known-intent-candidate-union-n1000.json) · `sha256:5b37f898a147` |
 | Hybrid OCR worker lifecycle | Tesseract precise + killable Paddle worker | 5 lifecycle cases + 19 contracts | 19/19; hard timeout before yes, after no | 5,025ms / 5,062ms | 5.07s | Process lifecycle fixed; diagnostic only, n=5 | [JSON](results/2026-07-26/ocr/hybrid-worker-shutdown-smoke-2026-07-27.json) · `sha256:766f4b73b6db` |
+| Live Excel artifact acceptance | Claude Opus controller/reasoner + Haiku verifier → disposable Windows VM | 5 failure-inclusive attempts | 1/5; final artifact 29/29; 23/25 actions, 92.0% | 25.33s / 40.06s controller | 1,772.38s | Passing n=1 artifact; four preceding attempts retained; latency failing product target | [JSON](results/2026-07-28/live-vnc/office-excel-live-acceptance.json) · `sha256:0b4610ec5ffd` |
 | OSWorld-Verified tracer | Codex, Claude, and mixed role routes | 9 current; 33 scored + 11 unscored attempts | 6/9 current; 6/33 all scored attempts | 128.56s / 883.97s | 2,583.98s current set | Diagnostic; three current failures | [JSON](results/2026-07-25/osworld/summary.json) · `sha256:061062fbbdbe` |
 | Windows Agent Arena | — | 154 tasks discovered | Not run | — | — | Blocked by missing official image | [JSON](results/2026-07-24/inventories/windows-agent-arena.json) · `sha256:c52ba54f6b29` |
 | Historical PiKVM incident audit | Claude Code + Codex + OpenCode histories | 24 conversations; 4,453 PiKVM calls | 70 incidents: 20 critical, 27 high | — | — | Available local histories audited | [JSON](historical_pikvm_incidents.json) · `sha256:6dc7b9e8b555` |
