@@ -1,0 +1,114 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-07-28",
+  "kind": "target-free-effective-client-route-audit",
+  "verdict": "ambient-clients-not-yet-managed-by-default",
+  "production_target_contacted": false,
+  "computer_target_contacted": false,
+  "model_provider_contacted": false,
+  "mcp_server_started": false,
+  "persisted_client_config_mutated": false,
+  "installed_desktop_restarted": false,
+  "clients": [
+    {
+      "client": "codex",
+      "version": "0.144.4",
+      "scope": "native-effective-inventory",
+      "safe": false,
+      "managed_count": 0,
+      "findings": [
+        {
+          "server_name": "pikvm",
+          "classification": "raw"
+        }
+      ],
+      "failures": [
+        "missing_managed",
+        "competing_raw_or_direct"
+      ]
+    },
+    {
+      "client": "claude",
+      "version": "2.1.220",
+      "scope": "user",
+      "safe": false,
+      "managed_count": 0,
+      "findings": [
+        {
+          "server_name": "pikvm",
+          "classification": "ambiguous"
+        }
+      ],
+      "failures": [
+        "missing_managed",
+        "ambiguous_pikvm_registration"
+      ]
+    },
+    {
+      "client": "claude",
+      "version": "2.1.220",
+      "scope": "user-plus-repository-project",
+      "safe": true,
+      "managed_count": 1,
+      "findings": [
+        {
+          "server_name": "pikvm",
+          "classification": "managed"
+        }
+      ],
+      "failures": []
+    },
+    {
+      "client": "gemini",
+      "version": "0.35.3",
+      "scope": "user",
+      "safe": false,
+      "managed_count": 0,
+      "findings": [],
+      "failures": [
+        "missing_managed"
+      ]
+    },
+    {
+      "client": "opencode",
+      "version": "1.14.44",
+      "scope": "user",
+      "safe": false,
+      "managed_count": 0,
+      "findings": [
+        {
+          "server_name": "pikvm",
+          "classification": "raw"
+        }
+      ],
+      "failures": [
+        "missing_managed",
+        "competing_raw_or_direct"
+      ]
+    }
+  ],
+  "safe_boundary": {
+    "primary_agent": "first-party-desktop-harness",
+    "external_client_role": "managed-task-compatibility-client",
+    "launcher": "active-managed-mcp",
+    "public_tools": [
+      "computer_abort",
+      "computer_continue",
+      "computer_pause",
+      "computer_start_task",
+      "computer_status"
+    ],
+    "raw_hid_tools": 0,
+    "persistent_registration_contains_target": false,
+    "persistent_registration_contains_runtime_path": false,
+    "persistent_registration_contains_harness_path": false,
+    "persistent_registration_contains_token_name_or_value": false
+  },
+  "remaining": [
+    "transactional reviewed install and rollback",
+    "run the new desktop build before ambient cutover",
+    "post-cutover native effective inventory for every supported client",
+    "supported Gemini live route",
+    "disposable Windows task repeat through each supported outer client"
+  ]
+}

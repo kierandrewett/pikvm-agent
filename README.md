@@ -93,6 +93,26 @@ visible durable tasks, safe outage errors, and recovery through the same MCP
 process; it made no external model call or computer connection. See
 [`managed-client acceptance`](bench/results/2026-07-28/safety/managed-client-acceptance.json).
 
+### Which process is actually the agent?
+
+The first-party desktop harness is the product agent. It owns the conversation,
+normal research tools, provider selection, computer hand-off, the
+reason-act-verify loop, approvals, and the complete visible transcript.
+Claude Code, Codex, Gemini CLI, and OpenCode are optional compatibility
+clients. When connected safely, they can submit, inspect, pause, continue, or
+abort a managed task; they do not receive individual keyboard, pointer, or
+screen tools and do not choose the next HID action.
+
+This separation is required rather than cosmetic. A 2026-07-28 read-only audit
+of the actually effective local client registrations found Codex and OpenCode
+still pointed at raw PiKVM MCP, Gemini had no managed registration, and
+Claude's ambient registration was ambiguous. Only this repository's explicit
+Claude project scope resolved to one managed registration. No persisted client
+configuration was changed by the audit. Until a client is deliberately cut
+over, launching the desktop harness is the safe default; an ambient coding CLI
+must not be assumed to use the managed loop. See the failure-inclusive
+[`effective client route audit`](bench/results/2026-07-28/safety/effective-client-route-audit.json).
+
 ## Install
 
 Requires Python ≥ 3.11 and [`uv`](https://docs.astral.sh/uv/).
@@ -149,15 +169,17 @@ export PIKVM_AGENT_HARNESS_TOKEN="$(openssl rand -hex 32)"
 PIKVM_USER=admin PIKVM_PASSWORD=… uv run pikvm-agent daemon
 #    → human console at http://127.0.0.1:47615/  (live frame, event feed, approvals)
 
-# 2. run the visible harness and generate a managed MCP client configuration
+# 2. run the visible harness and generate a path-free managed registration
 uv run pikvm-agent harness serve --config config.harness.yaml
-uv run pikvm-agent harness client-config \
-  --config config.harness.yaml \
+uv run pikvm-agent harness active-client-config \
   --client codex
 ```
 
-The generated configuration defaults to five high-level managed controls. If a
-coding agent must remain the planner, generate `--control-mode direct`; its
+The generated registration contains no harness path, machine endpoint, or
+credential name/value. It starts a stable per-user launcher which exposes the
+five high-level managed controls only while a healthy desktop has published
+its scoped agent capability. If a coding agent must remain the planner,
+generate `client-config --control-mode direct`; its
 ordinary PiKVM tools then run through an authenticated preflight/completion
 boundary. Calling `pikvm-agent mcp` with only `PIKVM_AGENT_DAEMON` is refused,
 and unconfigured protocol dispatch fails before the tool body.
@@ -497,28 +519,28 @@ show that fingerprint on every run. A target-fingerprint change, manual cursor
 input, or concurrent machine client revokes the prior control authority before
 further HID.
 
-The generated client configuration defaults to the five high-level managed
-controls. The scoped agent token can create, inspect, continue, pause, and
-abort runs; it cannot steer, read provider administration, or resolve an
-approval:
+The path-free client configuration exposes the five high-level managed
+controls. The desktop-published scoped agent capability can create, inspect,
+continue, pause, and abort runs; it cannot steer, read provider administration,
+or resolve an approval:
 
 ```bash
-pikvm-agent harness client-config \
-  --config config.harness.yaml \
+pikvm-agent harness active-client-config \
   --client codex
 ```
 
 Use `--client claude`, `--client gemini`, or `--client opencode` for their JSON
-MCP formats. The generated launcher derives the harness URL at process start
-and forwards only the agent-token environment-variable name. It also supplies
-a validated static client label such as `codex-cli`; that label is stored with
-the managed run and shown in the run rail, machine/session header, and plan.
-It is source attribution, not a claim about the model selected inside that
-client. The safe
-high-level MCP stays registered if the harness starts later or restarts; each
-tool call reconnects to the authenticated API. An outage returns a stable,
-redacted error that explicitly keeps the task in managed mode; HTTP bodies,
-internal endpoints, and credentials are not copied into the coding client.
+MCP formats. The generated registration contains no harness YAML path, runtime
+file path, machine target, token environment name, or token value. The stable
+launcher resolves the desktop-owned per-user runtime only when the MCP process
+starts. The desktop atomically publishes that reduced runtime after its harness
+is healthy and revokes only its own generation on stop or failed startup. It
+also supplies a validated static client label such as `codex-cli`; that label
+is stored with the managed run and shown in the run rail, machine/session
+header, and plan. It is source attribution, not a claim about the model
+selected inside that client. The safe high-level MCP registration can remain
+installed while the harness stops or restarts; an unavailable desktop returns
+a stable redacted startup error and cannot fall back to raw control.
 On POSIX, both the high-level process and the harness-owned raw MCP child use
 descriptor-ready stdio instead of the SDK's worker-backed stdin wrapper. MCP
 message validation and session semantics still come from the SDK.
@@ -529,8 +551,9 @@ four-action slices. Deployments that require
 fail-fast startup can add `--require-ready`. The launcher does not forward the
 machine target or browser approval credential.
 
-After merging the generated entry into a client, audit every effective
-project/user configuration scope before starting it:
+Preview and merge the generated entry deliberately; this command does not
+rewrite any client configuration. Then audit every effective project/user
+scope before starting the client:
 
 ```bash
 pikvm-agent harness client-audit \

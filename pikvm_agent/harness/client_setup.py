@@ -175,6 +175,95 @@ def verify_managed_harness_ready(
     )
 
 
+def _render_launch_config(
+    *,
+    client: ClientKind,
+    executable: str,
+    args: Sequence[str],
+    forwarded: Sequence[str],
+    required: Mapping[str, str],
+    server_name: str,
+) -> str:
+    """Render one already-bounded stdio launch spec in a native client shape."""
+
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", server_name):
+        raise ValueError("server_name must contain only letters, digits, _ or -")
+    if client == "codex":
+        return "\n".join(
+            [
+                f"[mcp_servers.{server_name}]",
+                f"command = {json.dumps(executable)}",
+                f"args = {json.dumps(list(args))}",
+                f"env_vars = {json.dumps(list(forwarded))}",
+                "",
+            ]
+        )
+
+    if client == "opencode":
+        return (
+            json.dumps(
+                {
+                    "$schema": "https://opencode.ai/config.json",
+                    "mcp": {
+                        server_name: {
+                            "type": "local",
+                            "command": [executable, *args],
+                            "enabled": True,
+                            "environment": {
+                                name: f"{{env:{name}}}"
+                                for name in forwarded
+                            },
+                        }
+                    },
+                },
+                indent=2,
+            )
+            + "\n"
+        )
+
+    return (
+        json.dumps(
+            {
+                "mcpServers": {
+                    server_name: {
+                        "type": "stdio",
+                        "command": executable,
+                        "args": list(args),
+                        "env": dict(required),
+                    }
+                }
+            },
+            indent=2,
+        )
+        + "\n"
+    )
+
+
+def render_active_managed_client_config(
+    *,
+    client: ClientKind,
+    executable: str,
+    server_name: str = "pikvm",
+) -> str:
+    """Render the stable, path-free launcher owned by the desktop runtime."""
+
+    return _render_launch_config(
+        client=client,
+        executable=executable,
+        args=(
+            "-m",
+            "pikvm_agent.cli",
+            "harness",
+            "active-managed-mcp",
+            "--caller-label",
+            f"{client}-cli",
+        ),
+        forwarded=(),
+        required={},
+        server_name=server_name,
+    )
+
+
 def render_client_config(
     settings: HarnessSettings,
     *,
@@ -187,8 +276,6 @@ def render_client_config(
     active_runtime: bool = False,
 ) -> str:
     """Render a client config that forwards secret names, never secret values."""
-    if not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", server_name):
-        raise ValueError("server_name must contain only letters, digits, _ or -")
     if control_mode not in {"managed", "direct"}:
         raise ValueError("control_mode must be managed or direct")
     if managed_runtime is not None and control_mode != "managed":
@@ -200,14 +287,11 @@ def render_client_config(
             "active runtime and explicit managed runtime are mutually exclusive"
         )
     if active_runtime:
-        args = [
-            "-m",
-            "pikvm_agent.cli",
-            "harness",
-            "active-managed-mcp",
-            "--caller-label",
-            f"{client}-cli",
-        ]
+        return render_active_managed_client_config(
+            client=client,
+            executable=executable,
+            server_name=server_name,
+        )
     elif managed_runtime is None:
         command_name = (
             "managed-mcp" if control_mode == "managed" else "direct-mcp"
@@ -258,54 +342,13 @@ def render_client_config(
     else:
         forwarded = []
         required = {}
-    if client == "codex":
-        return "\n".join(
-            [
-                f"[mcp_servers.{server_name}]",
-                f"command = {json.dumps(executable)}",
-                f"args = {json.dumps(args)}",
-                f"env_vars = {json.dumps(forwarded)}",
-                "",
-            ]
-        )
-
-    if client == "opencode":
-        return (
-            json.dumps(
-                {
-                    "$schema": "https://opencode.ai/config.json",
-                    "mcp": {
-                        server_name: {
-                            "type": "local",
-                            "command": [executable, *args],
-                            "enabled": True,
-                            "environment": {
-                                name: f"{{env:{name}}}"
-                                for name in forwarded
-                            },
-                        }
-                    },
-                },
-                indent=2,
-            )
-            + "\n"
-        )
-
-    return (
-        json.dumps(
-            {
-                "mcpServers": {
-                    server_name: {
-                        "type": "stdio",
-                        "command": executable,
-                        "args": args,
-                        "env": required,
-                    }
-                }
-            },
-            indent=2,
-        )
-        + "\n"
+    return _render_launch_config(
+        client=client,
+        executable=executable,
+        args=args,
+        forwarded=forwarded,
+        required=required,
+        server_name=server_name,
     )
 
 

@@ -705,6 +705,58 @@ def harness_client_config(
     )
 
 
+@harness_app.command("active-client-config")
+def harness_active_client_config(
+    client: str = typer.Option(
+        ...,
+        "--client",
+        help="Client format: codex, claude, gemini, or opencode.",
+    ),
+    output: Path | None = typer.Option(
+        None,
+        "--out",
+        help="Optional destination; omit to print the path-free snippet.",
+    ),
+    server_name: str = typer.Option(
+        "pikvm",
+        "--server-name",
+        help="MCP server name in the generated client configuration.",
+    ),
+) -> None:
+    """Generate a path-free client registration for the active desktop."""
+
+    from pikvm_agent.harness.client_setup import (
+        render_active_managed_client_config,
+    )
+
+    normalized_client = client.strip().lower()
+    if normalized_client not in {"codex", "claude", "gemini", "opencode"}:
+        typer.echo(
+            "--client must be codex, claude, gemini, or opencode",
+            err=True,
+        )
+        raise typer.Exit(2)
+    try:
+        rendered = render_active_managed_client_config(
+            client=normalized_client,  # type: ignore[arg-type]
+            executable=os.path.abspath(sys.executable),
+            server_name=server_name,
+        )
+    except ValueError as exc:
+        typer.echo(f"active client config refused: {exc}", err=True)
+        raise typer.Exit(2)
+    if output is None:
+        typer.echo(rendered, nl=False)
+        return
+    destination = output.expanduser().resolve()
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text(rendered, encoding="utf-8")
+    typer.echo(
+        f"Wrote path-free managed {normalized_client} MCP config: "
+        f"{destination}"
+    )
+
+
 @harness_app.command("client-audit")
 def harness_client_audit(
     client: str = typer.Option(
