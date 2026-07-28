@@ -83,6 +83,31 @@ def test_plain_ls_is_safe() -> None:
     assert classify_command("git status") == "safe"
     assert classify_command("ffprobe video.mp4") == "safe"
     assert classify_command("command -v ffmpeg ffprobe") == "safe"
+    assert (
+        classify_command(
+            "gsettings get org.gnome.settings-daemon.plugins.power idle-dim"
+        )
+        == "safe"
+    )
+    assert classify_command("gsettings list-schemas") == "safe"
+
+
+def test_mutating_or_malformed_gsettings_stays_gated() -> None:
+    assert (
+        classify_command(
+            "gsettings set org.gnome.settings-daemon.plugins.power idle-dim false"
+        )
+        == "medium"
+    )
+    assert classify_command("gsettings unknown example") == "medium"
+    assert classify_command("gsettings") == "medium"
+    assert (
+        classify_command(
+            "gsettings get org.gnome.settings-daemon.plugins.power idle-dim; "
+            "rm notes.txt"
+        )
+        == "medium"
+    )
 
 
 def test_command_wrapper_does_not_hide_mutation() -> None:

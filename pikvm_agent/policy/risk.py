@@ -102,6 +102,13 @@ _COMMAND_QUERY_RE: re.Pattern[str] = re.compile(
     r"^\s*command\s+-(?:v|V)\s+[A-Za-z0-9_.+:-]+"
     r"(?:\s+[A-Za-z0-9_.+:-]+)*\s*$"
 )
+_READ_ONLY_GSETTINGS_RE: re.Pattern[str] = re.compile(
+    r"^\s*gsettings\s+(?:"
+    r"get|range|describe|list-schemas|list-relocatable-schemas|"
+    r"list-keys|list-children|list-recursively|writable"
+    r")(?:\s+[A-Za-z0-9_.:/+-]+)*\s*$",
+    re.IGNORECASE,
+)
 
 
 def _is_benign_git_verb(clause: str) -> bool:
@@ -116,6 +123,10 @@ def _is_safe_clause(clause: str) -> bool:
     # accepted grammar deliberately narrow: no substitutions, redirects,
     # wrappers, or arbitrary `command <program>` execution.
     if _COMMAND_QUERY_RE.fullmatch(clause):
+        return True
+    # `gsettings` mixes observation and mutation behind the same executable.
+    # Only its documented read-only verbs and inert token grammar are safe.
+    if _READ_ONLY_GSETTINGS_RE.fullmatch(clause):
         return True
     words = clause.strip().split()
     if not words:

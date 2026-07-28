@@ -102,6 +102,30 @@ def test_terminal_system_setting_uses_the_specific_policy_category() -> None:
     )
 
 
+def test_terminal_gsettings_observation_does_not_require_approval() -> None:
+    for verb_and_arguments in (
+        "get org.gnome.settings-daemon.plugins.power idle-dim",
+        "range org.gnome.desktop.session idle-delay",
+        "describe org.gnome.desktop.session idle-delay",
+        "list-schemas",
+        "list-relocatable-schemas",
+        "list-keys org.gnome.desktop.session",
+        "list-children org.gnome.desktop",
+        "list-recursively org.gnome.desktop.session",
+        "writable org.gnome.desktop.session idle-delay",
+    ):
+        verdict = _classify(
+            [
+                {
+                    "type": "type_text",
+                    "text": f"gsettings {verb_and_arguments}",
+                    "context": "terminal",
+                }
+            ]
+        )
+        assert verdict.status == "allowed", verb_and_arguments
+
+
 def test_segmented_read_only_terminal_command_is_classified_as_one_line() -> None:
     verdict = _classify(
         [
