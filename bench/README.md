@@ -63,6 +63,36 @@ unsafe refusals and ordinary safe controls in the same denominator.
 
 ## Latest disposable-Windows diagnostic
 
+### Literal screen-observation fast path
+
+On 2026-07-28 the first-party Electron chat ran the exact request
+`what is on the screen` against the authorized disposable Windows VM before
+and after the literal read-only routing fix. Both runs completed with zero
+keyboard, pointer, approval, file, settings, or communication actions. The
+production PiKVM target was not contacted.
+
+| Signal | Before | After |
+| --- | ---: | ---: |
+| Final state | completed | completed |
+| Model path | assistant → reasoner → controller → verifier | verifier |
+| Model calls | 4 | 1 |
+| Model-active time | 141.188 s | 23.580 s |
+| Total wall time | 142.344 s | 25.176 s |
+| Running progress rows | not retained | 1 |
+| Reply-branch controls | not retained | 0 |
+| Computer input events | 0 | 0 |
+
+The optimized path is 5.654× faster in this pair, an 82.31% wall-time
+reduction. The clean Electron/CDP run showed one user turn, one assistant turn,
+one live progress row labelled `Waiting for a response` with `haiku`, no reply
+versions, and an empty composer after send. Ambiguous prompts such as
+`Did it work?` still go through the normal chat model unless the conversation
+already has computer context.
+
+This is a passing n=1 read-only diagnostic, not a general model-quality or
+computer-action claim. The failure-inclusive record is
+[`literal-screen-observation-fast-path.json`](results/2026-07-28/live-vnc/literal-screen-observation-fast-path.json).
+
 ### Read-only fast-verifier pair
 
 On 2026-07-27 the first-party Electron chat ran the same explicit read-only
@@ -1261,7 +1291,7 @@ messaging integration.
 ## Current headline
 
 <!-- pikvm-scorecard:start -->
-_Generated from checked JSON evidence as of 2026-07-28. Manifest `sha256:8b7e1482f66c`; run `pikvm-agent harness scorecard --check` to detect drift._
+_Generated from checked JSON evidence as of 2026-07-28. Manifest `sha256:5b2f695b10c9`; run `pikvm-agent harness scorecard --check` to detect drift._
 
 | Suite | Route | Cases | Result | Median / p95 | Wall | Status | Evidence |
 | --- | --- | ---: | ---: | ---: | ---: | --- | --- |
@@ -1277,6 +1307,7 @@ _Generated from checked JSON evidence as of 2026-07-28. Manifest `sha256:8b7e148
 | Managed/direct control separation | assistant-ui ownership + click evidence | 93 frontend + 1,191 Python; 551 audited reference calls | 93/93; 1,191 passed / 1 skipped; reference route 551 direct / 0 managed; 0px normal / 0px 200% overflow | 239,916-byte gzip JavaScript | Target-free browser audit | Passing visible ownership contract; live computer task pending | [JSON](results/2026-07-27/ui/managed-direct-control-separation.json) · `sha256:650cf26af2f5` |
 | Live provider and pre-HID action visibility | SSE lifecycle → exact checkpoint → guarded HID | 105 frontend + 1,193 full Python / 1 skipped; 7 provider phases | 2 streamed events / 0 per-event refetches; exact action held 300ms before HID; 30 browser samples / 1 simultaneous progress | 241,373-byte gzip JavaScript | Target-free event/build/Electron contract | Passing isolated Electron/CDP contract; live computer pending | [JSON](results/2026-07-27/ui/live-provider-action-visibility.json) · `sha256:43e78e1497f9` |
 | Read-only screen verification | Electron chat → managed harness → disposable Windows VM | 1 paired live read-only task | 56.227s → 26.663s; 52.58% lower wall time; 1 progress row / 0 branches / 0 actions | 18.300s verifier | 26.663s | Passing n=1 read-only diagnostic; no action-quality claim | [JSON](results/2026-07-27/live-vnc/read-only-fast-verifier.json) · `sha256:e69b5d1b4b19` |
+| Literal screen-observation fast path | Electron chat → literal router → managed read-only verifier → disposable Windows VM | 1 paired literal read-only task | 142.344s → 25.176s; 5.654× faster; 4 → 1 model calls; 1 progress row / 0 branches / 0 actions | 23.580s verifier | 25.176s | Passing n=1 read-only diagnostic; no action-quality claim | [JSON](results/2026-07-28/live-vnc/literal-screen-observation-fast-path.json) · `sha256:342e4ce992bf` |
 | Managed client launch | Codex + Claude + Gemini + OpenCode | 4 clients; 12 stdio cases | 65 local contracts passed; 7/12 stdio executed; 5 skipped | Not measured | 6.96s local selection | Generated stdio proven locally; authenticated task/restart pending | [JSON](results/2026-07-25/safety/managed-client-launch-2026-07-26.json) · `sha256:b464af4a60c8` |
 | Isolated managed client launch | Codex + Claude + OpenCode; Gemini policy contract | 4 installed clients / 54 contracts | 3 native dry-runs; 1 settings-only audit; raw Codex baseline shadowed without persistence | Not measured | Dry-run | Three native isolation dry-runs plus Gemini settings audit; enforcement and tasks pending | [JSON](results/2026-07-26/safety/isolated-managed-client-launch.json) · `sha256:82c085f02a53` |
 | Managed smoke lab contract | Target-free app + stdin client task | 24 contracts | 24/24; 44 focused gates | Not measured | Target-free contract | Passing contract; live task rejected-before-process-creation | [JSON](results/2026-07-26/harness/managed-smoke-lab-contract.json) · `sha256:c7bb759ff96b` |

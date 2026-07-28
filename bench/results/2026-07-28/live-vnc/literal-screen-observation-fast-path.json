@@ -1,0 +1,109 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-07-28T12:28:00+01:00",
+  "source_revision": "09a96cf57e2ab6a415297b662a0e1c3f40727d70",
+  "scope": {
+    "route": "first-party Electron chat -> managed harness -> disposable Windows VM",
+    "task_class": "literal read-only screen observation",
+    "task": "what is on the screen",
+    "target": "authorized disposable Windows VM; runtime endpoint omitted",
+    "same_task": true,
+    "same_disposable_vm": true,
+    "screenshots_published": 0,
+    "raw_model_output_published": false
+  },
+  "safety": {
+    "production_pikvm_contacted": false,
+    "production_windows_laptop_contacted": false,
+    "keyboard_events": 0,
+    "pointer_events": 0,
+    "computer_action_events": 0,
+    "communication_actions": 0,
+    "file_actions": 0,
+    "settings_changes": 0,
+    "approval_submissions": 0
+  },
+  "baseline": {
+    "source_revision": "33c55174c135ee454d71ead1bdb8050ae618fdfc",
+    "run_id": "f4a73a25-3e97-495d-b76d-fbaf4e0070c7",
+    "status": "completed",
+    "wall_ms": 142344,
+    "model_calls": 4,
+    "model_active_ms": 141188,
+    "role_latency_ms": {
+      "assistant": [
+        8465
+      ],
+      "reasoner": [
+        28825
+      ],
+      "controller": [
+        26042
+      ],
+      "verifier": [
+        77856
+      ]
+    },
+    "input_events": 0,
+    "observation_fast_path": false,
+    "deterministic_computer_router": false
+  },
+  "optimized": {
+    "run_id": "bb6eecee-96f0-44af-a247-44950db7823d",
+    "status": "completed",
+    "wall_ms": 25176,
+    "model_calls": 1,
+    "model_active_ms": 23580,
+    "role_latency_ms": {
+      "verifier": [
+        23580
+      ]
+    },
+    "input_events": 0,
+    "observation_fast_path": true,
+    "deterministic_computer_router": true,
+    "route": {
+      "provider": "claude-fast",
+      "model": "haiku",
+      "role": "verifier"
+    }
+  },
+  "comparison": {
+    "wall_time_delta_ms": -117168,
+    "wall_time_reduction_percent": 82.31,
+    "baseline_to_optimized_speedup": 5.654,
+    "model_call_delta": -3,
+    "model_call_reduction_percent": 75.0,
+    "same_safety_outcome": true,
+    "same_completed_outcome": true
+  },
+  "ui_validation": {
+    "environment": "isolated authenticated Electron over CDP",
+    "screenshot_captured": false,
+    "running_user_turns": 1,
+    "running_assistant_turns": 1,
+    "running_progress_rows": 1,
+    "running_progress_label": "Waiting for a response",
+    "running_progress_model": "haiku",
+    "reply_branch_controls": 0,
+    "composer_characters_after_send": 0,
+    "completed_progress_rows": 0,
+    "completed_answer_visible": true
+  },
+  "validation": {
+    "python": {
+      "passed": 1275,
+      "skipped": 1
+    },
+    "frontend": {
+      "passed": 144
+    },
+    "production_build": "passed"
+  },
+  "limitations": [
+    "This is one failure-inclusive paired diagnostic, not a latency distribution or a general model-quality ranking.",
+    "The result validates a literal read-only screen question and does not claim improved action-selection accuracy.",
+    "The optimized run still depends on provider-owned Claude CLI latency; a configured low-latency API vision model may be faster.",
+    "No screenshot is published; UI structure was inspected through Electron CDP."
+  ]
+}

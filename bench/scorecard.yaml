@@ -202,6 +202,25 @@ rows:
     wall: "{optimized_wall}"
     status: "Passing n=1 read-only diagnostic; no action-quality claim"
 
+  - suite: "Literal screen-observation fast path"
+    route: "Electron chat → literal router → managed read-only verifier → disposable Windows VM"
+    source: "results/2026-07-28/live-vnc/literal-screen-observation-fast-path.json"
+    fields:
+      baseline_wall: {path: "baseline.wall_ms", format: "seconds_from_ms", digits: 3}
+      optimized_wall: {path: "optimized.wall_ms", format: "seconds_from_ms", digits: 3}
+      optimized_verifier: {path: "optimized.role_latency_ms.verifier.0", format: "seconds_from_ms", digits: 3}
+      speedup: {path: "comparison.baseline_to_optimized_speedup", format: "number", digits: 3}
+      baseline_calls: {path: "baseline.model_calls", format: "integer"}
+      optimized_calls: {path: "optimized.model_calls", format: "integer"}
+      progress: {path: "ui_validation.running_progress_rows", format: "integer"}
+      branches: {path: "ui_validation.reply_branch_controls", format: "integer"}
+      actions: {path: "optimized.input_events", format: "integer"}
+    cases: "1 paired literal read-only task"
+    result: "{baseline_wall} → {optimized_wall}; {speedup}× faster; {baseline_calls} → {optimized_calls} model calls; {progress} progress row / {branches} branches / {actions} actions"
+    latency: "{optimized_verifier} verifier"
+    wall: "{optimized_wall}"
+    status: "Passing n=1 read-only diagnostic; no action-quality claim"
+
   - suite: "Managed client launch"
     route: "Codex + Claude + Gemini + OpenCode"
     source: "results/2026-07-25/safety/managed-client-launch-2026-07-26.json"
