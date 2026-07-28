@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 from pathlib import Path
 
@@ -1331,3 +1332,109 @@ routes:
         task_call["argv"]  # type: ignore[arg-type]
     )
     assert "runtime-only-agent-token" not in result.stdout
+
+
+def test_client_task_cli_reads_only_agent_scope_from_private_lab_runtime(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    harness_config = tmp_path / "harness.yaml"
+    harness_config.write_text(
+        """
+listen: "127.0.0.1:48124"
+agent_token_env: "TEST_AGENT_TOKEN"
+providers:
+  fake:
+    kind: "subprocess_json"
+    model: "test"
+    argv: ["provider"]
+routes:
+  reasoner: ["fake"]
+  controller: ["fake"]
+  verifier: ["fake"]
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    runtime_token = "lab-agent-token-0123456789abcdef012345"
+    runtime = tmp_path / "managed-client-runtime.json"
+    runtime.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "harness_config": str(harness_config),
+                "agent_token_env": "TEST_AGENT_TOKEN",
+                "agent_token": runtime_token,
+            }
+        ),
+        encoding="utf-8",
+    )
+    runtime.chmod(0o600)
+    monkeypatch.delenv("TEST_AGENT_TOKEN", raising=False)
+    task_environment: dict[str, str] = {}
+
+    def fake_run(
+        argv: list[str],
+        **kwargs: object,
+    ) -> subprocess.CompletedProcess:
+        if "mcp" in argv and "list" in argv:
+            inventory = json.dumps(
+                [
+                    {
+                        "name": "pikvm",
+                        "enabled": True,
+                        "transport": {
+                            "command": "/opt/pikvm/python",
+                            "args": [
+                                "-m",
+                                "pikvm_agent.cli",
+                                "harness",
+                                "managed-mcp",
+                            ],
+                        },
+                    }
+                ]
+            ).encode()
+            return subprocess.CompletedProcess(
+                argv,
+                0,
+                stdout=inventory,
+                stderr=b"",
+            )
+        task_environment.update(kwargs["env"])  # type: ignore[arg-type]
+        return subprocess.CompletedProcess(argv, 0)
+
+    def fake_verify(_settings, *, environ=None) -> None:
+        assert environ is not None
+        assert environ["TEST_AGENT_TOKEN"] == runtime_token
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setattr(
+        "pikvm_agent.harness.client_setup.verify_managed_harness_ready",
+        fake_verify,
+    )
+    result = CliRunner().invoke(
+        app,
+        [
+            "harness",
+            "client-task",
+            "--client",
+            "codex",
+            "--config",
+            str(harness_config),
+            "--lab-runtime",
+            str(runtime),
+            "--project",
+            str(tmp_path),
+            "--client-executable",
+            "/opt/codex",
+            "--max-runtime-s",
+            "30",
+        ],
+        input="Complete the private lab task.\n",
+    )
+
+    assert result.exit_code == 0, result.output
+    assert task_environment["TEST_AGENT_TOKEN"] == runtime_token
+    assert runtime_token not in result.stdout
+    assert "TEST_AGENT_TOKEN" not in os.environ

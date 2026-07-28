@@ -7,6 +7,7 @@ import os
 import re
 import secrets
 import shutil
+from collections.abc import Mapping
 from decimal import ROUND_CEILING, Decimal
 from pathlib import Path
 from typing import Literal
@@ -39,6 +40,20 @@ from pikvm_agent.harness.providers import (
 )
 
 HARNESS_ACCESS_TOKEN_MIN_LENGTH = 32
+
+
+def _required_harness_token(
+    env_name: str,
+    environ: Mapping[str, str] | None,
+) -> str:
+    source = os.environ if environ is None else environ
+    value = source.get(env_name, "")
+    if len(value) < HARNESS_ACCESS_TOKEN_MIN_LENGTH:
+        raise ValueError(
+            f"{env_name} must contain at least "
+            f"{HARNESS_ACCESS_TOKEN_MIN_LENGTH} characters"
+        )
+    return value
 
 
 def _usd_to_microusd(value: Decimal) -> int:
@@ -394,16 +409,19 @@ class HarnessSettings(BaseModel):
             return None
         return self.daemon_url()
 
-    def access_token(self) -> str:
-        value = os.environ.get(self.access_token_env, "")
-        if len(value) < HARNESS_ACCESS_TOKEN_MIN_LENGTH:
-            raise ValueError(
-                f"{self.access_token_env} must contain at least "
-                f"{HARNESS_ACCESS_TOKEN_MIN_LENGTH} characters"
-            )
-        return value
+    def access_token(
+        self,
+        *,
+        environ: Mapping[str, str] | None = None,
+    ) -> str:
+        return _required_harness_token(self.access_token_env, environ)
 
-    def observer_token(self, *, validate_distinct: bool = True) -> str:
+    def observer_token(
+        self,
+        *,
+        validate_distinct: bool = True,
+        environ: Mapping[str, str] | None = None,
+    ) -> str:
         """Return the model-side telemetry credential.
 
         This credential is deliberately separate from the operator token. It
@@ -411,21 +429,16 @@ class HarnessSettings(BaseModel):
         any operator control.
         """
 
-        value = os.environ.get(self.observer_token_env, "")
-        if len(value) < HARNESS_ACCESS_TOKEN_MIN_LENGTH:
-            raise ValueError(
-                f"{self.observer_token_env} must contain at least "
-                f"{HARNESS_ACCESS_TOKEN_MIN_LENGTH} characters"
-            )
+        value = _required_harness_token(self.observer_token_env, environ)
         if validate_distinct and secrets.compare_digest(
-            value, self.access_token()
+            value, self.access_token(environ=environ)
         ):
             raise ValueError(
                 f"{self.observer_token_env} must differ from "
                 f"{self.access_token_env}"
             )
         if validate_distinct and secrets.compare_digest(
-            value, self.agent_token()
+            value, self.agent_token(environ=environ)
         ):
             raise ValueError(
                 f"{self.observer_token_env} must differ from "
@@ -433,17 +446,17 @@ class HarnessSettings(BaseModel):
             )
         return value
 
-    def agent_token(self, *, validate_distinct: bool = True) -> str:
+    def agent_token(
+        self,
+        *,
+        validate_distinct: bool = True,
+        environ: Mapping[str, str] | None = None,
+    ) -> str:
         """Return the high-level model credential without approval authority."""
 
-        value = os.environ.get(self.agent_token_env, "")
-        if len(value) < HARNESS_ACCESS_TOKEN_MIN_LENGTH:
-            raise ValueError(
-                f"{self.agent_token_env} must contain at least "
-                f"{HARNESS_ACCESS_TOKEN_MIN_LENGTH} characters"
-            )
+        value = _required_harness_token(self.agent_token_env, environ)
         if validate_distinct and secrets.compare_digest(
-            value, self.access_token()
+            value, self.access_token(environ=environ)
         ):
             raise ValueError(
                 f"{self.agent_token_env} must differ from "

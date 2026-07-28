@@ -789,6 +789,17 @@ def harness_client_task(
         "--client",
         help="Stable isolated client: codex, claude, gemini, or opencode.",
     ),
+    lab_runtime: Path | None = typer.Option(
+        None,
+        "--lab-runtime",
+        exists=True,
+        dir_okay=False,
+        readable=True,
+        help=(
+            "Owner-only managed-client runtime emitted by `lab up`; "
+            "loads only the agent-scoped credential."
+        ),
+    ),
     project: Path = typer.Option(
         Path("."),
         "--project",
@@ -821,11 +832,21 @@ def harness_client_task(
         build_managed_client_launch,
         run_managed_client_task,
     )
+    from pikvm_agent.harness.lab import load_lab_client_environment
 
     normalized = client.strip().lower()
     executable = client_executable or normalized
     settings = load_harness_settings(config)
     try:
+        runtime_environment = (
+            load_lab_client_environment(
+                lab_runtime,
+                settings=settings,
+                harness_config=config,
+            )
+            if lab_runtime is not None
+            else None
+        )
         plan = build_managed_client_launch(
             settings,
             client=normalized,
@@ -834,8 +855,17 @@ def harness_client_task(
             harness_config=config,
             project_dir=project,
         )
-        report = audit_managed_client_launch(plan)
-        verify_managed_harness_ready(settings)
+        report = audit_managed_client_launch(
+            plan,
+            environ=runtime_environment,
+        )
+        if runtime_environment is None:
+            verify_managed_harness_ready(settings)
+        else:
+            verify_managed_harness_ready(
+                settings,
+                environ=runtime_environment,
+            )
     except ClientIsolationError as exc:
         typer.echo(f"Managed client task refused: {exc}.", err=True)
         raise typer.Exit(2)
@@ -855,6 +885,7 @@ def harness_client_task(
             plan,
             task=task,
             timeout_s=max_runtime_s,
+            environ=runtime_environment,
         )
     except (ClientIsolationError, ValueError) as exc:
         typer.echo(f"Managed client task refused: {exc}.", err=True)

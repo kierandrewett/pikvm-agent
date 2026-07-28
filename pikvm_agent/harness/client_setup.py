@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import re
 import tomllib
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
@@ -132,12 +133,16 @@ def verify_managed_harness_ready(
     *,
     timeout_s: float = 3.0,
     transport: httpx.BaseTransport | None = None,
+    environ: Mapping[str, str] | None = None,
 ) -> None:
     """Fail before MCP startup unless scoped managed control is reachable."""
 
     _verify_scope(
         base_url=harness_base_url(settings),
-        token=settings.agent_token(validate_distinct=False),
+        token=settings.agent_token(
+            validate_distinct=False,
+            environ=environ,
+        ),
         path="/api/agent/health",
         missing_detail="operator harness has no managed-agent control surface",
         timeout_s=timeout_s,

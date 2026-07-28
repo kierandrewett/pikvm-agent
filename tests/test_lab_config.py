@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import stat
 
 import pytest
 import yaml
@@ -183,28 +185,52 @@ def test_lab_assets_can_reuse_custom_provider_routes_without_target_leak(
     assert server["env"] == {"CUSTOM_AGENT_TOKEN": "${CUSTOM_AGENT_TOKEN}"}
 
 
-def test_visible_lab_refuses_missing_tokens_before_contacting_target(
+def test_visible_lab_generates_scoped_tokens_and_private_handoffs(
     tmp_path,
     monkeypatch,
 ) -> None:
-    for name in (
+    token_names = (
         "PIKVM_HARNESS_TOKEN",
         "PIKVM_HARNESS_AGENT_TOKEN",
         "PIKVM_HARNESS_OBSERVER_TOKEN",
-    ):
+    )
+    for name in token_names:
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setattr(
         "pikvm_agent.harness.lab._assert_port_available",
         lambda _port: None,
     )
-    contacted = False
+    monkeypatch.setattr(
+        "pikvm_agent.harness.lab._wait_ready",
+        lambda _url, _child, _timeout: None,
+    )
+    monkeypatch.setattr(
+        "pikvm_agent.harness.lab.ensure_provider_prerequisites",
+        lambda _settings: None,
+    )
+    child_environments: list[dict[str, str]] = []
 
-    def refuse_popen(*_args, **_kwargs):
-        nonlocal contacted
-        contacted = True
-        raise AssertionError("target process should not start before auth preflight")
+    class FakeChild:
+        returncode = None
 
-    monkeypatch.setattr("pikvm_agent.harness.lab.subprocess.Popen", refuse_popen)
+        def __init__(self, _args, **kwargs) -> None:
+            child_environments.append(dict(kwargs["env"]))
+            self.running = True
+
+        def poll(self):
+            return None if self.running else 0
+
+        def terminate(self) -> None:
+            self.running = False
+
+        def wait(self, timeout=None):
+            self.running = False
+            return 0
+
+        def kill(self) -> None:
+            self.running = False
+
+    monkeypatch.setattr("pikvm_agent.harness.lab.subprocess.Popen", FakeChild)
     lab = RunningLab(
         endpoint="runtime-only.invalid:5900",
         root=tmp_path,
@@ -214,13 +240,48 @@ def test_visible_lab_refuses_missing_tokens_before_contacting_target(
         start_harness=True,
     )
 
+    lab.start()
     try:
-        lab.start()
-    except ValueError as exc:
-        assert "PIKVM_HARNESS_TOKEN" in str(exc)
-    else:
-        raise AssertionError("visible lab should require scoped harness tokens")
-    assert contacted is False
+        assert len(child_environments) == 3
+        values = [lab.env[name] for name in token_names]
+        assert all(len(value) >= 32 for value in values)
+        assert len(set(values)) == len(values)
+        assert all(name not in os.environ for name in token_names)
+        assert all(
+            child[name] == lab.env[name]
+            for child in child_environments
+            for name in token_names
+        )
+        assert lab.assets is not None
+        assert stat.S_IMODE(lab.assets.operator_runtime.stat().st_mode) == 0o600
+        assert stat.S_IMODE(lab.assets.client_runtime.stat().st_mode) == 0o600
+
+        operator_runtime = json.loads(
+            lab.assets.operator_runtime.read_text(encoding="utf-8")
+        )
+        assert operator_runtime == {
+            "schema_version": 1,
+            "harness_url": "http://127.0.0.1:48172/app/",
+            "token_env": "PIKVM_HARNESS_TOKEN",
+            "token": lab.env["PIKVM_HARNESS_TOKEN"],
+        }
+        client_runtime = json.loads(
+            lab.assets.client_runtime.read_text(encoding="utf-8")
+        )
+        assert client_runtime == {
+            "schema_version": 1,
+            "harness_config": str(tmp_path / "harness-config.yaml"),
+            "agent_token_env": "PIKVM_HARNESS_AGENT_TOKEN",
+            "agent_token": lab.env["PIKVM_HARNESS_AGENT_TOKEN"],
+        }
+        assert lab.env["PIKVM_HARNESS_TOKEN"] not in (
+            lab.assets.client_runtime.read_text(encoding="utf-8")
+        )
+        assert lab.env["PIKVM_HARNESS_AGENT_TOKEN"] not in (
+            lab.assets.operator_runtime.read_text(encoding="utf-8")
+        )
+    finally:
+        lab.close()
 
 
 def test_lab_refuses_empty_runtime_target_before_starting_child(
@@ -310,6 +371,9 @@ def test_visible_lab_supervises_adapter_daemon_and_managed_harness(
     lab.start()
     try:
         assert len(commands) == 3
+        assert lab.env["PIKVM_HARNESS_TOKEN"] != "o" * 32
+        assert lab.env["PIKVM_HARNESS_AGENT_TOKEN"] != "a" * 32
+        assert lab.env["PIKVM_HARNESS_OBSERVER_TOKEN"] != "v" * 32
         assert "pikvm_agent.daemon:lab_app" in commands[1]
         assert commands[2] == [
             "/opt/pikvm-agent/bin/pikvm-agent",

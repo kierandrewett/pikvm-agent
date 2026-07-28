@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
+import json
 import os
 import secrets
 import signal
 import socket
+import stat
 import subprocess
 import sys
 import time
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import IO, Any, Literal
@@ -123,6 +126,8 @@ class LabAssets:
     mcp_config: Path
     codex_mcp_config: Path
     opencode_mcp_config: Path
+    operator_runtime: Path
+    client_runtime: Path
     log_dir: Path
 
 
@@ -214,13 +219,34 @@ class RunningLab:
         env[HARNESS_TOKEN_ENV] = secrets.token_urlsafe(32)
         if self.start_harness:
             settings = load_harness_settings(self.assets.harness_config)
+            env[settings.access_token_env] = secrets.token_urlsafe(32)
+            env[settings.agent_token_env] = secrets.token_urlsafe(32)
+            env[settings.observer_token_env] = secrets.token_urlsafe(32)
             # Refuse before opening the VNC connection: a visible product lab
             # must not run with missing/shared role credentials or no usable
             # model route.
-            settings.access_token()
-            settings.agent_token()
-            settings.observer_token()
+            settings.access_token(environ=env)
+            settings.agent_token(environ=env)
+            settings.observer_token(environ=env)
             ensure_provider_prerequisites(settings)
+            _write_private_json(
+                self.assets.operator_runtime,
+                {
+                    "schema_version": 1,
+                    "harness_url": f"{self.harness_url}/app/",
+                    "token_env": settings.access_token_env,
+                    "token": settings.access_token(environ=env),
+                },
+            )
+            _write_private_json(
+                self.assets.client_runtime,
+                {
+                    "schema_version": 1,
+                    "harness_config": str(self.assets.harness_config),
+                    "agent_token_env": settings.agent_token_env,
+                    "agent_token": settings.agent_token(environ=env),
+                },
+            )
         source_root = str(Path(__file__).resolve().parents[2])
         env["PYTHONPATH"] = (
             source_root
@@ -427,6 +453,15 @@ class RunningLab:
         for handle in self._log_handles:
             handle.close()
         self._log_handles.clear()
+        if self.assets is not None:
+            for runtime in (
+                self.assets.operator_runtime,
+                self.assets.client_runtime,
+            ):
+                try:
+                    runtime.unlink(missing_ok=True)
+                except OSError:
+                    pass
 
     @property
     def daemon_url(self) -> str:
@@ -565,6 +600,8 @@ def write_lab_assets(
     mcp_path = root / "mcp.lab.json"
     codex_mcp_path = root / "mcp.lab.codex.toml"
     opencode_mcp_path = root / "mcp.lab.opencode.json"
+    operator_runtime_path = root / "operator-runtime.json"
+    client_runtime_path = root / "managed-client-runtime.json"
 
     config = build_lab_config(
         api_host="127.0.0.1",
@@ -624,8 +661,83 @@ def write_lab_assets(
         mcp_config=mcp_path,
         codex_mcp_config=codex_mcp_path,
         opencode_mcp_config=opencode_mcp_path,
+        operator_runtime=operator_runtime_path,
+        client_runtime=client_runtime_path,
         log_dir=log_dir,
     )
+
+
+def _write_private_json(path: Path, payload: dict[str, object]) -> None:
+    """Replace one lab-only runtime handoff without following symlinks."""
+
+    flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
+    flags |= getattr(os, "O_CLOEXEC", 0)
+    flags |= getattr(os, "O_NOFOLLOW", 0)
+    descriptor = os.open(path, flags, 0o600)
+    try:
+        if hasattr(os, "fchmod"):
+            os.fchmod(descriptor, 0o600)
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            descriptor = -1
+            json.dump(payload, handle, indent=2)
+            handle.write("\n")
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+
+
+def load_lab_client_environment(
+    path: Path,
+    *,
+    settings: HarnessSettings,
+    harness_config: Path,
+    environ: Mapping[str, str] | None = None,
+) -> dict[str, str]:
+    """Load the lab's agent-only handoff without widening its authority."""
+
+    flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0)
+    flags |= getattr(os, "O_NOFOLLOW", 0)
+    descriptor = os.open(path.expanduser(), flags)
+    try:
+        metadata = os.fstat(descriptor)
+        if not stat.S_ISREG(metadata.st_mode):
+            raise ValueError("lab client runtime must be a regular file")
+        if stat.S_IMODE(metadata.st_mode) & 0o077:
+            raise ValueError("lab client runtime must be owner-only")
+        if hasattr(os, "geteuid") and metadata.st_uid != os.geteuid():
+            raise ValueError("lab client runtime must belong to this user")
+        with os.fdopen(descriptor, "r", encoding="utf-8") as handle:
+            descriptor = -1
+            rendered = handle.read(16_385)
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+    if len(rendered) > 16_384:
+        raise ValueError("lab client runtime exceeds 16 KiB")
+    try:
+        payload = json.loads(rendered)
+    except json.JSONDecodeError as exc:
+        raise ValueError("lab client runtime is not valid JSON") from exc
+    if not isinstance(payload, dict) or set(payload) != {
+        "schema_version",
+        "harness_config",
+        "agent_token_env",
+        "agent_token",
+    }:
+        raise ValueError("lab client runtime has an unsupported shape")
+    if payload["schema_version"] != 1:
+        raise ValueError("lab client runtime schema is unsupported")
+    if (
+        Path(str(payload["harness_config"])).expanduser().resolve()
+        != harness_config.expanduser().resolve()
+    ):
+        raise ValueError("lab client runtime belongs to another harness config")
+    if payload["agent_token_env"] != settings.agent_token_env:
+        raise ValueError("lab client runtime agent scope does not match config")
+    source = dict(os.environ if environ is None else environ)
+    source[settings.agent_token_env] = str(payload["agent_token"])
+    settings.agent_token(validate_distinct=False, environ=source)
+    return source
 
 
 def _wait_ready(url: str, child: subprocess.Popen[bytes], timeout_s: float) -> None:
@@ -688,6 +800,8 @@ def run_lab(
         typer.echo(f"  harness:   http://127.0.0.1:{ports.harness}/app/")
         typer.echo(f"  config:    {lab.assets.config}")
         typer.echo(f"  harness config: {lab.assets.harness_config}")
+        typer.echo(f"  operator login:  {lab.assets.operator_runtime}")
+        typer.echo(f"  client runtime:  {lab.assets.client_runtime}")
         typer.echo(f"  Claude/Gemini MCP: {lab.assets.mcp_config}")
         typer.echo(f"  Codex MCP:         {lab.assets.codex_mcp_config}")
         typer.echo(f"  OpenCode MCP:      {lab.assets.opencode_mcp_config}")
