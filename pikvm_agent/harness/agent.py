@@ -74,6 +74,11 @@ satisfies the local task and its resulting state can be independently verified.
 Never use this fallback for a long script, encoded payload, command chain,
 installer, package change, or unrelated system mutation. Preserve
 existing/default values unless the user explicitly asked to change them.
+For a command that may approach the visible line width, maximize or widen the
+terminal before typing. If the sender issued a complete terminal draft but the
+screen could not prove an exact readback, never append a guessed suffix and
+never execute the draft. First cancel the draft with Ctrl+C, make the terminal
+legible, verify a visibly clean prompt, and only then plan one clean retype.
 operator_guidance contains authenticated user/operator
 corrections to the original task: obey it, and when entries conflict, the latest
 entry wins. Never dismiss a requirement in operator_guidance merely because it
@@ -157,8 +162,12 @@ only target that cannot be independently read. Treat recent_input_delivery as
 sender evidence. When sender_finished is true, the local sender finished issuing
 the payload, but the guest may still have dropped it. Never blindly replay it.
 Re-observe and use a bounded application-level check. Only readback_exact proves
-an exact OCR read-back. Treat recent_verified_actions as durable evidence. Do
-not repeat a completed check unless current pixels contradict it."""
+an exact OCR read-back. For an unverified terminal draft, never append guessed
+missing characters and do not press Enter; cancel the draft with Ctrl+C in a
+separate non-text burst, make the terminal legible, verify a visibly clean
+prompt, and only then type the complete command once from that clean state.
+Treat recent_verified_actions as durable evidence. Do not repeat a completed
+check unless current pixels contradict it."""
 
 _VERIFIER_SYSTEM = """\
 You are the independent verifier. Compare the plan, intended action, before
@@ -736,6 +745,67 @@ class AgentHarness:
                     run.record(
                         "controller.ungrounded_correction_failed",
                         actions=self._visible_actions(rejected_actions),
+                    )
+                    await self.store.save(run)
+                    return run
+            proposed_actions = [
+                action.model_dump(mode="json", exclude_none=True)
+                for action in controller.actions
+            ]
+            if self._unsafe_unverified_terminal_followup(
+                run,
+                proposed_actions,
+            ):
+                run.record(
+                    "controller.unverified_terminal_followup_rejected",
+                    action_types=[
+                        str(action.get("type") or "")
+                        for action in proposed_actions
+                    ],
+                    reason=(
+                        "sender issued the full terminal draft but exact "
+                        "screen readback was unavailable"
+                    ),
+                )
+                await self.store.save(run)
+                controller = await self._control(
+                    run,
+                    controller_feedback={
+                        "reason": (
+                            "The sender issued the entire terminal draft, but "
+                            "the screen did not prove an exact readback."
+                        ),
+                        "instruction": (
+                            "Do not append text and do not execute the draft. "
+                            "Choose one non-text reversible action: cancel the "
+                            "draft with Ctrl+C, or make the line legible. Text "
+                            "may be retyped only after Ctrl+C has completed "
+                            "and a clean prompt has been observed."
+                        ),
+                    },
+                )
+                if controller is None:
+                    return run
+                proposed_actions = [
+                    action.model_dump(mode="json", exclude_none=True)
+                    for action in controller.actions
+                ]
+                if self._unsafe_unverified_terminal_followup(
+                    run,
+                    proposed_actions,
+                ):
+                    run.plan = None
+                    run.status = RunStatus.PAUSED
+                    run.error = (
+                        "controller tried to append or execute an unverified "
+                        "terminal draft"
+                    )
+                    run.record(
+                        "controller.unverified_terminal_correction_failed",
+                        action_types=[
+                            str(action.get("type") or "")
+                            for action in proposed_actions
+                        ],
                     )
                     await self.store.save(run)
                     return run
@@ -2064,6 +2134,93 @@ class AgentHarness:
             ):
                 return True
         return False
+
+    @staticmethod
+    def _unsafe_unverified_terminal_followup(
+        run: RunSnapshot,
+        proposed_actions: list[dict[str, Any]],
+    ) -> bool:
+        """Require cancellation before changing or executing an unread draft."""
+
+        checkpoints: dict[int, list[dict[str, Any]]] = {}
+        active_unverified_draft = False
+        for event in run.events:
+            index = event.data.get("index")
+            if not isinstance(index, int):
+                continue
+            if event.kind == "action.checkpointed":
+                actions = event.data.get("actions")
+                if isinstance(actions, list):
+                    checkpoints[index] = [
+                        dict(action)
+                        for action in actions
+                        if isinstance(action, dict)
+                    ]
+                continue
+            checkpointed = checkpoints.get(index, [])
+            if event.kind == "action.completed_unverified":
+                terminal_text_indexes = {
+                    action_index
+                    for action_index, action in enumerate(checkpointed)
+                    if (
+                        action.get("type") == "type_text"
+                        and action.get("context") == "terminal"
+                    )
+                }
+                receipts = event.data.get("input_receipts")
+                if not terminal_text_indexes or not isinstance(receipts, list):
+                    continue
+                for receipt in receipts:
+                    if not isinstance(receipt, dict):
+                        continue
+                    requested = receipt.get("requested_characters")
+                    issued = receipt.get("issued_characters")
+                    requested_hash = receipt.get("requested_sha256")
+                    issued_hash = receipt.get("issued_prefix_sha256")
+                    if (
+                        receipt.get("index") in terminal_text_indexes
+                        and isinstance(requested, int)
+                        and requested > 0
+                        and issued == requested
+                        and isinstance(requested_hash, str)
+                        and bool(requested_hash)
+                        and issued_hash == requested_hash
+                        and receipt.get("exact_readback_sha256_match") is not True
+                    ):
+                        active_unverified_draft = True
+                        break
+                continue
+            if event.kind == "action.completed" and any(
+                action.get("type") == "key"
+                and {
+                    str(key).upper()
+                    for key in action.get("keys", [])
+                    if isinstance(key, str)
+                }
+                == {"CTRL", "C"}
+                for action in checkpointed
+            ):
+                active_unverified_draft = False
+
+        if not active_unverified_draft:
+            return False
+        return any(
+            (
+                action.get("type") == "type_text"
+                and action.get("context") == "terminal"
+            )
+            or (
+                action.get("type") == "key"
+                and bool(
+                    {
+                        str(key).upper()
+                        for key in action.get("keys", [])
+                        if isinstance(key, str)
+                    }.intersection({"ENTER", "RETURN"})
+                )
+            )
+            for action in proposed_actions
+        )
 
     @staticmethod
     def _verification_composite(

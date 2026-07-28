@@ -1081,6 +1081,27 @@ async def test_reasoner_can_plan_a_short_visible_terminal_fallback() -> None:
     assert "exact GUI control is absent" in normalized
     assert "not a hidden side channel" in normalized
     assert "Never use this fallback for a long script" in normalized
+    assert "maximize or widen the terminal before typing" in normalized
+    assert "never append a guessed suffix" in normalized
+    assert "cancel the draft with Ctrl+C" in normalized
+
+
+async def test_controller_handles_an_unverified_terminal_draft_without_guessing() -> None:
+    provider = ScriptedProvider()
+    harness = build_harness(provider, FakeComputer())
+
+    await harness.start("Disable the local dim-screen setting.")
+
+    prompt = next(
+        request.prompt
+        for request in provider.requests
+        if request.role == "controller"
+    )
+    normalized = " ".join(prompt.split())
+    assert "never append guessed missing characters" in normalized
+    assert "do not press Enter" in normalized
+    assert "cancel the draft with Ctrl+C" in normalized
+    assert "visibly clean prompt" in normalized
 
 
 def test_controller_separates_spreadsheet_focus_from_grid_entry() -> None:
@@ -2307,6 +2328,207 @@ def test_recent_input_delivery_distinguishes_transport_from_screen_proof() -> No
             "readback_available": False,
         }
     ]
+
+
+def test_unverified_terminal_draft_blocks_suffixes_and_execution_until_cancelled() -> None:
+    run = RunSnapshot(
+        run_id="unverified-terminal-draft",
+        task="Disable the dim-screen setting",
+        status=RunStatus.PAUSED,
+    )
+    run.record(
+        "action.checkpointed",
+        index=5,
+        actions=[
+            {
+                "type": "type_text",
+                "text": (
+                    "gsettings set "
+                    "org.gnome.settings-daemon.plugins.power idle-dim false"
+                ),
+                "code": True,
+                "context": "terminal",
+            }
+        ],
+    )
+    run.record(
+        "action.completed_unverified",
+        index=5,
+        input_receipts=[
+            {
+                "index": 0,
+                "status": "unverified_ambiguous",
+                "issued_characters": 68,
+                "requested_characters": 68,
+                "requested_sha256": "a" * 64,
+                "issued_prefix_sha256": "a" * 64,
+                "exact_readback_sha256_match": False,
+                "observed_text": "",
+            }
+        ],
+    )
+
+    assert AgentHarness._unsafe_unverified_terminal_followup(
+        run,
+        [{"type": "type_text", "text": "se", "code": True, "context": "terminal"}],
+    )
+    assert AgentHarness._unsafe_unverified_terminal_followup(
+        run,
+        [{"type": "key", "keys": ["ENTER"]}],
+    )
+    assert not AgentHarness._unsafe_unverified_terminal_followup(
+        run,
+        [{"type": "key", "keys": ["CTRL", "C"]}],
+    )
+    assert not AgentHarness._unsafe_unverified_terminal_followup(
+        run,
+        [{"type": "key", "keys": ["META", "ARROWUP"]}],
+    )
+
+    run.record(
+        "action.checkpointed",
+        index=6,
+        actions=[{"type": "key", "keys": ["CTRL", "C"]}],
+    )
+    run.record("action.completed", index=6)
+
+    assert not AgentHarness._unsafe_unverified_terminal_followup(
+        run,
+        [
+            {
+                "type": "type_text",
+                "text": (
+                    "gsettings set "
+                    "org.gnome.settings-daemon.plugins.power idle-dim false"
+                ),
+                "code": True,
+                "context": "terminal",
+            }
+        ],
+    )
+
+
+@pytest.mark.asyncio
+async def test_unverified_terminal_suffix_is_replaced_with_cancel_before_hid() -> None:
+    class RecoveryProvider(ScriptedProvider):
+        def __init__(self) -> None:
+            super().__init__()
+            self.controller_calls = 0
+
+        async def complete(self, request: ModelRequest) -> ModelResponse:
+            if request.role == "controller":
+                self.requests.append(request)
+                self.controller_calls += 1
+                action = (
+                    {
+                        "type": "type_text",
+                        "text": "se",
+                        "code": True,
+                        "context": "terminal",
+                    }
+                    if self.controller_calls == 1
+                    else {"type": "key", "keys": ["CTRL", "C"]}
+                )
+                return ModelResponse(
+                    provider=self.name,
+                    model="scripted-v1",
+                    data={
+                        "outcome": "act",
+                        "intent": "Recover the unread terminal draft safely.",
+                        "actions": [action],
+                        "expected_evidence": ["A clean terminal prompt is visible."],
+                    },
+                )
+            if request.role == "verifier":
+                self.requests.append(request)
+                return ModelResponse(
+                    provider=self.name,
+                    model="scripted-v1",
+                    data={
+                        "verdict": "failed",
+                        "summary": "The task still needs a clean command entry.",
+                        "evidence": ["The draft was cancelled safely."],
+                    },
+                )
+            return await super().complete(request)
+
+    provider = RecoveryProvider()
+    computer = FakeComputer()
+    store = InMemoryRunStore()
+    pool = ModelPool(
+        providers={provider.name: provider},
+        routes={
+            role: RoleRoute(providers=[provider.name])
+            for role in ("reasoner", "controller", "verifier")
+        },
+    )
+    harness = AgentHarness(
+        computer=computer,
+        models=pool,
+        store=store,
+        config=HarnessConfig(max_actions_per_advance=1),
+    )
+    run = RunSnapshot(
+        run_id="recover-unverified-terminal-draft",
+        task="Disable the dim-screen setting",
+        status=RunStatus.PAUSED,
+        session_id="s_1",
+        observation=await computer.open("recovery-test"),
+        plan=PlanDecision(
+            summary="Disable the requested setting.",
+            steps=["Enter the exact local setting command."],
+            success_criteria=["The dim-screen setting is off."],
+            constraints=["Preserve unrelated settings."],
+        ),
+    )
+    run.record(
+        "action.checkpointed",
+        index=5,
+        actions=[
+            {
+                "type": "type_text",
+                "text": (
+                    "gsettings set "
+                    "org.gnome.settings-daemon.plugins.power idle-dim false"
+                ),
+                "code": True,
+                "context": "terminal",
+            }
+        ],
+    )
+    run.record(
+        "action.completed_unverified",
+        index=5,
+        input_receipts=[
+            {
+                "index": 0,
+                "issued_characters": 68,
+                "requested_characters": 68,
+                "requested_sha256": "a" * 64,
+                "issued_prefix_sha256": "a" * 64,
+                "exact_readback_sha256_match": False,
+            }
+        ],
+    )
+    await store.save(run)
+
+    result = await harness.continue_run(run.run_id)
+
+    assert provider.controller_calls == 2
+    assert [burst["actions"] for burst in computer.bursts] == [
+        [{"type": "key", "keys": ["CTRL", "C"]}]
+    ]
+    controller_prompts = [
+        request.prompt
+        for request in provider.requests
+        if request.role == "controller"
+    ]
+    assert '"controller_feedback": {' in controller_prompts[1]
+    assert "Do not append text and do not execute the draft" in controller_prompts[1]
+    assert any(
+        event.kind == "controller.unverified_terminal_followup_rejected"
+        for event in result.events
+    )
 
 
 def test_recent_verified_actions_keep_bounded_durable_task_evidence() -> None:
