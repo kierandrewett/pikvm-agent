@@ -451,12 +451,22 @@ class VncDotoolTransport:
                 return
             if (
                 down
-                and code == "IntlBackslash"
                 and self.keyboard_profile == "windows"
+                and (
+                    code == "IntlBackslash"
+                    or (
+                        code == "Backslash"
+                        and self._shift_pending
+                        and ks.keymap_to_layout(self.keymap) == "uk"
+                    )
+                )
             ):
-                character = "|" if self._shift_pending else "\\"
+                character = (
+                    "~"
+                    if code == "Backslash"
+                    else "|" if self._shift_pending else "\\"
+                )
                 self._synthetic_keyups.add(code)
-                self._shift_pending = False
                 await asyncio.to_thread(
                     self._type_windows_alt_code,
                     client,
@@ -547,8 +557,15 @@ class VncDotoolTransport:
                     else:
                         key = code_to_vnc_key(key_info.code)
                         if (
-                            key_info.code == "IntlBackslash"
-                            and self.keyboard_profile == "windows"
+                            self.keyboard_profile == "windows"
+                            and (
+                                key_info.code == "IntlBackslash"
+                                or (
+                                    key_info.code == "Backslash"
+                                    and char == "~"
+                                    and layout == "uk"
+                                )
+                            )
                         ):
                             self._type_windows_alt_code(client, char)
                             import time

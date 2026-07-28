@@ -484,6 +484,30 @@ async def _probe_visual_observer(
         )
 
 
+def _keyboard_probe_delivery_complete(
+    state: dict[str, Any],
+    *,
+    expected_characters: int,
+) -> bool:
+    """Allow exact observer proof to resolve an otherwise inconclusive OCR read."""
+
+    if state.get("status") == "completed":
+        return True
+    if state.get("status") != "unverified":
+        return False
+    receipts = state.get("action_receipts")
+    if not isinstance(receipts, list) or len(receipts) != 1:
+        return False
+    receipt = receipts[0]
+    return (
+        isinstance(receipt, dict)
+        and state.get("completed_actions") == 1
+        and state.get("remaining_actions") == 0
+        and receipt.get("issued_characters") == expected_characters
+        and receipt.get("emitted_exactly_once") is True
+    )
+
+
 async def _probe_keyboard_layout(
     lab: RunningLab,
     *,
@@ -522,7 +546,10 @@ async def _probe_keyboard_layout(
                             ],
                             key="office-keyboard-preflight-type",
                         )
-                        if typed.get("status") != "completed":
+                        if not _keyboard_probe_delivery_complete(
+                            typed,
+                            expected_characters=len(sentinel),
+                        ):
                             raise KeyboardLayoutError(
                                 "keyboard-layout preflight input did not complete"
                             )

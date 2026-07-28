@@ -196,6 +196,45 @@ def test_live_office_artifact_path_is_fresh_and_scoped_to_the_lab_workspace() ->
     )
 
 
+def test_keyboard_preflight_accepts_full_delivery_pending_exact_oracle() -> None:
+    assert office_runner._keyboard_probe_delivery_complete(
+        {
+            "status": "unverified",
+            "completed_actions": 1,
+            "remaining_actions": 0,
+            "action_receipts": [
+                {
+                    "issued_characters": 14,
+                    "emitted_exactly_once": True,
+                }
+            ],
+        },
+        expected_characters=14,
+    )
+    assert not office_runner._keyboard_probe_delivery_complete(
+        {
+            "status": "unverified",
+            "completed_actions": 1,
+            "remaining_actions": 0,
+            "action_receipts": [
+                {
+                    "issued_characters": 14,
+                    "emitted_exactly_once": False,
+                }
+            ],
+        },
+        expected_characters=14,
+    )
+    assert not office_runner._keyboard_probe_delivery_complete(
+        {
+            "status": "blocked_by_policy",
+            "completed_actions": 0,
+            "remaining_actions": 1,
+        },
+        expected_characters=14,
+    )
+
+
 async def test_live_office_run_stays_paused_until_artifact_visibility_exists() -> None:
     requests: list[tuple[str, dict[str, object] | None]] = []
 

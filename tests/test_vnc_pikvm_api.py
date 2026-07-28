@@ -223,7 +223,7 @@ async def test_transport_uses_semantic_uppercase_for_shifted_letters() -> None:
     ]
 
 
-async def test_transport_uses_semantic_pipe_for_the_uk_iso_key() -> None:
+async def test_transport_uses_alt_codes_for_uk_symbols_windows_vnc_drops() -> None:
     class Client:
         def __init__(self) -> None:
             self.calls = []
@@ -248,6 +248,8 @@ async def test_transport_uses_semantic_pipe_for_the_uk_iso_key() -> None:
     await transport.key("ShiftLeft", True)
     await transport.key("IntlBackslash", True)
     await transport.key("IntlBackslash", False)
+    await transport.key("Backslash", True)
+    await transport.key("Backslash", False)
     await transport.key("ShiftLeft", False)
 
     assert client.calls == [
@@ -255,6 +257,11 @@ async def test_transport_uses_semantic_pipe_for_the_uk_iso_key() -> None:
         ("press", "kp1"),
         ("press", "kp2"),
         ("press", "kp4"),
+        ("up", "alt"),
+        ("down", "alt"),
+        ("press", "kp1"),
+        ("press", "kp2"),
+        ("press", "kp6"),
         ("up", "alt"),
     ]
 
@@ -281,7 +288,7 @@ async def test_transport_prints_shifted_punctuation_as_a_physical_key_chord() ->
     client = Client()
     transport._client = client
 
-    await transport.print_text("Aa:|\\")
+    await transport.print_text("Aa:|\\~")
 
     assert client.calls == [
         ("down", "A"),
@@ -300,6 +307,11 @@ async def test_transport_prints_shifted_punctuation_as_a_physical_key_chord() ->
         ("down", "alt"),
         ("press", "kp9"),
         ("press", "kp2"),
+        ("up", "alt"),
+        ("down", "alt"),
+        ("press", "kp1"),
+        ("press", "kp2"),
+        ("press", "kp6"),
         ("up", "alt"),
     ]
 
