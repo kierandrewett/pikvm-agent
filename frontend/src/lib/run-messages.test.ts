@@ -552,6 +552,65 @@ describe("messagesForRun", () => {
     );
   });
 
+  it("keeps one reply identity through the transient computer hand-off state", () => {
+    const user = {
+      message_id: "user-turn-1",
+      role: "user" as const,
+      content: "what is on the screen",
+      created_at: "2026-07-27T12:00:00Z",
+      event_cursor: 0,
+    };
+    const before = run({
+      task: user.content,
+      mode: "assistant",
+      status: "running",
+      conversation: [user],
+      events: [],
+      event_count: 1,
+      event_cursor: 1,
+    });
+    const pendingHandoff = run({
+      ...before,
+      mode: "computer",
+      status: "planning",
+      event_count: 2,
+      event_cursor: 2,
+    });
+    const durableHandoff = run({
+      ...pendingHandoff,
+      conversation: [
+        user,
+        {
+          message_id: "server-generated-handoff-id",
+          role: "assistant",
+          content: "Let me take a look at the screen.",
+          created_at: "2026-07-27T12:00:01Z",
+          event_cursor: 2,
+        },
+      ],
+      events: [
+        {
+          sequence: 2,
+          at: "2026-07-27T12:00:01Z",
+          kind: "assistant.computer_handoff",
+          data: {
+            call_id: "computer-handoff-1",
+            tool: "computer_start_task",
+            arguments: { task: "Inspect the connected screen." },
+          },
+        },
+      ],
+    });
+
+    const replies = [before, pendingHandoff, durableHandoff].map((snapshot) => {
+      const messages = messagesForRun(snapshot);
+      expect(messages).toHaveLength(2);
+      return messages.at(-1)?.id;
+    });
+
+    expect(new Set(replies)).toEqual(new Set([replies[0]]));
+  });
+
   it("keeps hand-off and computer progress in one assistant turn", () => {
     const user = {
       message_id: "user-turn-1",

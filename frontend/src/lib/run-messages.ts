@@ -874,7 +874,7 @@ export function messagesForRun(run: RunSnapshot | null): ThreadMessageLike[] {
       ...(completion ? [{ type: "text" as const, text: completion }] : []),
     ];
     messages.push({
-      id: `${run.run_id}:computer:reply-to:${latest?.message_id ?? "task"}`,
+      id: `${run.run_id}:assistant:reply-to:${latest?.message_id ?? "task"}`,
       role: "assistant",
       content,
       createdAt: new Date(run.updated_at),
