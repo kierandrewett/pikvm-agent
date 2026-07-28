@@ -2298,10 +2298,31 @@ class AgentHarness:
             f"{system}\n\nReturn only JSON matching the supplied schema.\n\n"
             f"RUN CONTEXT:\n{json.dumps(context, ensure_ascii=False, sort_keys=True)}"
         )
+        output_schema = output_type.model_json_schema()
+        if role == "verifier":
+            action_context = context.get("action")
+            expected_evidence = (
+                action_context.get("expected_evidence")
+                if isinstance(action_context, dict)
+                else []
+            )
+            output_schema = self._constrained_verification_schema(
+                output_schema,
+                task_criteria=(
+                    len(run.plan.success_criteria)
+                    if run.plan is not None
+                    else 0
+                ),
+                action_criteria=(
+                    len(expected_evidence)
+                    if isinstance(expected_evidence, list)
+                    else 0
+                ),
+            )
         return ModelRequest(
             role=role,
             prompt=prompt,
-            output_schema=output_type.model_json_schema(),
+            output_schema=output_schema,
             image_path=(
                 image_path
                 if image_path is not None
@@ -2310,6 +2331,29 @@ class AgentHarness:
             run_id=run.run_id,
             metadata={"action_index": run.next_action_index},
         )
+
+    @staticmethod
+    def _constrained_verification_schema(
+        schema: dict[str, Any],
+        *,
+        task_criteria: int,
+        action_criteria: int,
+    ) -> dict[str, Any]:
+        """Require one structured assessment for every declared criterion."""
+
+        properties = schema.get("properties")
+        if not isinstance(properties, dict):
+            return schema
+        for field, count in (
+            ("criteria", task_criteria),
+            ("action_criteria", action_criteria),
+        ):
+            definition = properties.get(field)
+            if not isinstance(definition, dict):
+                continue
+            definition["minItems"] = count
+            definition["maxItems"] = count
+        return schema
 
     @staticmethod
     def _trajectory_signals(run: RunSnapshot) -> dict[str, Any]:

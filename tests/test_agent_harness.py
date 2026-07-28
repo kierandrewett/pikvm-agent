@@ -1468,6 +1468,11 @@ async def test_start_runs_a_checkpointed_reason_act_verify_slice() -> None:
     assert "Do not return uncertain merely because the overall task" in verifier_prompt
     assert "visibly larger terminal glyphs are sufficient" in verifier_prompt
     assert "not require a numeric zoom percentage" in verifier_prompt
+    verifier_properties = provider.requests[2].output_schema["properties"]
+    assert verifier_properties["criteria"]["minItems"] == 1
+    assert verifier_properties["criteria"]["maxItems"] == 1
+    assert verifier_properties["action_criteria"]["minItems"] == 1
+    assert verifier_properties["action_criteria"]["maxItems"] == 1
     assert len(computer.bursts) == 1
     burst = computer.bursts[0]
     assert burst["actions"] == [

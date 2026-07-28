@@ -1176,6 +1176,7 @@ async def test_claude_schema_normalizes_discriminated_action_union() -> None:
         "intent",
         "actions",
         "expected_evidence",
+        "expects_task_completion",
         "reason",
     ]
 
