@@ -23,6 +23,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import hashlib
+import io
 import math
 import re
 import tempfile
@@ -31,6 +32,7 @@ from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
 import numpy as np
+from PIL import Image
 from pydantic import BaseModel
 
 from pikvm_agent.core.models import (
@@ -73,6 +75,11 @@ MAX_AUTODETECTED_FIELD_HEIGHT = 80
 MAX_AUTODETECTED_FIELD_HEIGHT_FRAC = 0.15
 MAX_PROSE_EDGE_CONTEXT_CHARS = 96
 AUTODETECTED_READBACK_MARGIN_X_FRAC = 0.075
+DENSE_PIXEL_DELTA = 10
+DENSE_MIN_CHANGED_PIXELS = 80
+DENSE_MIN_WIDTH = 8
+DENSE_MIN_HEIGHT = 4
+DENSE_MAX_HEIGHT = 64
 
 # Pauses (seconds) — let a print / clear land and the video settle before reading.
 _PRINT_SETTLE_S = 0.45
@@ -290,6 +297,112 @@ def locate_changed_bbox(
     return Region(x=x, y=y, width=w, height=h)
 
 
+def locate_dense_changed_bbox(
+    before_image: bytes,
+    after_image: bytes,
+    dims: Any,
+) -> Region | None:
+    """Locate a narrow text-line change hidden by the coarse luminance grid.
+
+    Replacing selected text can preserve the average brightness of every
+    96x54 grid cell even though hundreds of full-resolution pixels changed.
+    This fallback accepts only a coherent, horizontal, text-line-sized delta;
+    isolated caret blinking and large window repaints remain non-evidence.
+    """
+
+    width, height = _dims_wh(dims)
+    if width <= 0 or height <= 0 or not before_image or not after_image:
+        return None
+    try:
+        before = np.asarray(
+            Image.open(io.BytesIO(before_image)).convert("RGB"),
+            dtype=np.int16,
+        )
+        after = np.asarray(
+            Image.open(io.BytesIO(after_image)).convert("RGB"),
+            dtype=np.int16,
+        )
+    except Exception:
+        return None
+    if before.shape != after.shape or before.ndim != 3:
+        return None
+    changed = np.max(np.abs(after - before), axis=2) > DENSE_PIXEL_DELTA
+    changed_count = int(changed.sum())
+    if changed_count < DENSE_MIN_CHANGED_PIXELS or changed_count > 50_000:
+        return None
+
+    remaining = {
+        (int(y), int(x))
+        for y, x in zip(*np.nonzero(changed), strict=True)
+    }
+    components: list[tuple[int, int, int, int, int]] = []
+    while remaining:
+        seed = remaining.pop()
+        stack = [seed]
+        count = 0
+        min_y = max_y = seed[0]
+        min_x = max_x = seed[1]
+        while stack:
+            y, x = stack.pop()
+            count += 1
+            min_y, max_y = min(min_y, y), max(max_y, y)
+            min_x, max_x = min(min_x, x), max(max_x, x)
+            for neighbour_y in range(y - 1, y + 2):
+                for neighbour_x in range(x - 1, x + 2):
+                    neighbour = (neighbour_y, neighbour_x)
+                    if neighbour in remaining:
+                        remaining.remove(neighbour)
+                        stack.append(neighbour)
+        if count >= 4:
+            components.append((count, min_x, min_y, max_x + 1, max_y + 1))
+
+    candidates_by_box: dict[tuple[int, int, int, int], int] = {}
+    for seed in components:
+        count, x0, y0, x1, y1 = seed
+        for component in components:
+            if component == seed:
+                continue
+            other_count, other_x0, other_y0, other_x1, other_y1 = component
+            vertical_gap = max(0, max(y0, other_y0) - min(y1, other_y1))
+            horizontal_gap = max(0, max(x0, other_x0) - min(x1, other_x1))
+            if vertical_gap <= 4 and horizontal_gap <= 64:
+                count += other_count
+                x0, y0 = min(x0, other_x0), min(y0, other_y0)
+                x1, y1 = max(x1, other_x1), max(y1, other_y1)
+        box_width = x1 - x0
+        box_height = y1 - y0
+        if (
+            count >= DENSE_MIN_CHANGED_PIXELS
+            and box_width >= DENSE_MIN_WIDTH
+            and box_height >= DENSE_MIN_HEIGHT
+            and box_height <= min(DENSE_MAX_HEIGHT, height * 0.1)
+            and box_width >= box_height * 1.25
+        ):
+            box = (x0, y0, x1, y1)
+            candidates_by_box[box] = max(candidates_by_box.get(box, 0), count)
+    candidates = [
+        (count, *box)
+        for box, count in candidates_by_box.items()
+    ]
+    if not candidates:
+        return None
+    candidates.sort(reverse=True)
+    count, x0, y0, x1, y1 = candidates[0]
+    if len(candidates) > 1 and count < candidates[1][0] * 2:
+        return None
+    pad = 8
+    x = max(0, x0 - pad)
+    y = max(0, y0 - pad)
+    x2 = min(width, x1 + pad)
+    y2 = min(height, y1 + pad)
+    return Region(
+        x=x,
+        y=y,
+        width=max(1, x2 - x),
+        height=max(1, y2 - y),
+    )
+
+
 def _pruned_changed_cells(
     before_grid: np.ndarray,
     after_grid: np.ndarray,
@@ -364,6 +477,7 @@ class WatchedTyper:
         self.backend = backend
         self.ocr = ocr
         self._last_readback_frame_sha256 = ""
+        self._last_grid_frame: CapturedFrame | None = None
 
     # ---- capture/read helpers -------------------------------------------- #
 
@@ -377,12 +491,14 @@ class WatchedTyper:
 
     async def _grid(self) -> np.ndarray | None:
         """Full-frame grayscale grid for the pixel-diff, or ``None`` on failure."""
+        self._last_grid_frame = None
         try:
             frame = await self.backend.screenshot()
         except Exception:
             return None
         if not frame or not frame.data:
             return None
+        self._last_grid_frame = frame
         return await asyncio.to_thread(grid, frame.data)
 
     async def _read_field(
@@ -949,6 +1065,7 @@ class WatchedTyper:
             await emit_text(typed_so_far)
 
         grid_prev = await self._grid()
+        dense_prev = self._last_grid_frame
 
         for i, chunk in enumerate(chunks):
             # Cooperative cancellation: an abort / panic / steer between chunks stops the
@@ -977,6 +1094,7 @@ class WatchedTyper:
                 and grid_prev is not None
             ):
                 preflight_grid = await self._grid()
+                preflight_frame = self._last_grid_frame
                 if (
                     preflight_grid is not None
                     and _substantial_change_outside_region(
@@ -1048,14 +1166,27 @@ class WatchedTyper:
                         )
                 if preflight_grid is not None:
                     grid_prev = preflight_grid
+                    dense_prev = preflight_frame
             await emit_text(chunk)
             typed_so_far += chunk
             grid_now = await self._grid()
+            dense_now = self._last_grid_frame
             chunk_change = (
                 locate_changed_bbox(grid_prev, grid_now, dims)
                 if grid_prev is not None and grid_now is not None
                 else None
             )
+            if (
+                chunk_change is None
+                and dense_prev is not None
+                and dense_now is not None
+            ):
+                chunk_change = await asyncio.to_thread(
+                    locate_dense_changed_bbox,
+                    dense_prev.data,
+                    dense_now.data,
+                    dims,
+                )
 
             # Keyboard input is not idempotent. A stale frame cannot distinguish
             # "nothing landed" from "the boundary space landed but the glyphs
@@ -1101,15 +1232,28 @@ class WatchedTyper:
                     ):
                         await asyncio.sleep(settle_s)
                         grid_retry = await self._grid()
+                        dense_retry = self._last_grid_frame
                         retry_loc = (
                             locate_changed_bbox(grid_prev, grid_retry, dims)
                             if grid_prev is not None and grid_retry is not None
                             else None
                         )
+                        if (
+                            retry_loc is None
+                            and dense_prev is not None
+                            and dense_retry is not None
+                        ):
+                            retry_loc = await asyncio.to_thread(
+                                locate_dense_changed_bbox,
+                                dense_prev.data,
+                                dense_retry.data,
+                                dims,
+                            )
                         if retry_loc is not None:
                             cur_region = retry_loc
                             located = True
                             grid_now = grid_retry
+                            dense_now = dense_retry
                             break
 
                         # Some VNC encoders quantize small dark-theme glyph
@@ -1144,6 +1288,7 @@ class WatchedTyper:
                         )
             if grid_now is not None:
                 grid_prev = grid_now
+                dense_prev = dense_now
 
             if cadence(i) and cur_region is not None:
                 rb = await self._read_field(
@@ -1154,6 +1299,7 @@ class WatchedTyper:
                 await maybe_correct(rb, typed_so_far)
                 if corrections > 0:
                     grid_prev = await self._grid()  # field changed under us
+                    dense_prev = self._last_grid_frame
 
         # Final correctness check if we never got a clean read mid-stream.
         if not verified_clean and cur_region is not None and can_vision:
@@ -1186,12 +1332,24 @@ class WatchedTyper:
                     await asyncio.sleep(_PRINT_SETTLE_S)
                     if not explicit_region:
                         settled_grid = await self._grid()
+                        settled_frame = self._last_grid_frame
                         late_region = (
                             locate_changed_bbox(grid_prev, settled_grid, dims)
                             if grid_prev is not None
                             and settled_grid is not None
                             else None
                         )
+                        if (
+                            late_region is None
+                            and dense_prev is not None
+                            and settled_frame is not None
+                        ):
+                            late_region = await asyncio.to_thread(
+                                locate_dense_changed_bbox,
+                                dense_prev.data,
+                                settled_frame.data,
+                                dims,
+                            )
                         if late_region is not None:
                             cur_region = union_region(cur_region, late_region)
                     settled_read = self._typed_candidate(

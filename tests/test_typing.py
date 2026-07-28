@@ -30,9 +30,11 @@ from pikvm_agent.executor.typing import (
     _substantial_change_outside_region,
     chunk_text,
     locate_changed_bbox,
+    locate_dense_changed_bbox,
     readback_region,
 )
 from pikvm_agent.pikvm.fake import FakeBackend
+from pikvm_agent.vision.frame_diff import grid
 
 _ENTER_KEYS = {"Enter", "NumpadEnter", "Return"}
 
@@ -308,6 +310,123 @@ def test_locate_too_few_changed_returns_none() -> None:
     after[5, 5] = 200  # one isolated cell — pruned away (no changed neighbour)
     region = locate_changed_bbox(before, after.reshape(-1), {"width": 1280, "height": 720})
     assert region is None
+
+
+def test_dense_locator_recovers_text_line_change_hidden_by_coarse_grid() -> None:
+    before = Image.new("RGB", (1280, 800), (32, 32, 32))
+    after = before.copy()
+    before_draw = ImageDraw.Draw(before)
+    after_draw = ImageDraw.Draw(after)
+    for x in range(88, 152, 2):
+        before_draw.line((x, 304, x, 319), fill=(224, 224, 224))
+        after_draw.line((x + 1, 304, x + 1, 319), fill=(224, 224, 224))
+
+    def jpeg(image: Image.Image) -> bytes:
+        output = io.BytesIO()
+        image.save(output, format="JPEG", quality=90)
+        return output.getvalue()
+
+    before_bytes = jpeg(before)
+    after_bytes = jpeg(after)
+    assert locate_changed_bbox(
+        grid(before_bytes),
+        grid(after_bytes),
+        (1280, 800),
+    ) is None
+
+    region = locate_dense_changed_bbox(
+        before_bytes,
+        after_bytes,
+        (1280, 800),
+    )
+
+    assert region is not None
+    assert region.x <= 88
+    assert region.y <= 304
+    assert region.x + region.width >= 151
+    assert region.y + region.height >= 319
+
+
+def test_dense_locator_rejects_caret_sized_change() -> None:
+    before = Image.new("RGB", (1280, 800), (32, 32, 32))
+    after = before.copy()
+    ImageDraw.Draw(after).rectangle((150, 304, 151, 319), fill=(224, 224, 224))
+
+    def jpeg(image: Image.Image) -> bytes:
+        output = io.BytesIO()
+        image.save(output, format="JPEG", quality=90)
+        return output.getvalue()
+
+    assert (
+        locate_dense_changed_bbox(
+            jpeg(before),
+            jpeg(after),
+            (1280, 800),
+        )
+        is None
+    )
+
+
+async def test_watched_typer_uses_dense_text_line_change_when_grid_is_unchanged() -> None:
+    backend = FakeBackend(width=1280, height=800)
+    before = Image.new("RGB", (1280, 800), (32, 32, 32))
+    after = before.copy()
+    before_draw = ImageDraw.Draw(before)
+    after_draw = ImageDraw.Draw(after)
+    for x in range(88, 152, 2):
+        before_draw.line((x, 304, x, 319), fill=(224, 224, 224))
+        after_draw.line((x + 1, 304, x + 1, 319), fill=(224, 224, 224))
+
+    def jpeg(image: Image.Image) -> bytes:
+        output = io.BytesIO()
+        image.save(output, format="JPEG", quality=90)
+        return output.getvalue()
+
+    before_bytes = jpeg(before)
+    after_bytes = jpeg(after)
+    backend.set_frame_bytes(before_bytes)
+    typed = ""
+    original_type = backend.type_text
+
+    async def typing(
+        text: str,
+        *,
+        code: bool = False,
+        secret: bool = False,
+    ) -> None:
+        nonlocal typed
+        await original_type(text, code=code, secret=secret)
+        typed += text
+        backend.set_frame_bytes(after_bytes)
+
+    backend.type_text = typing  # type: ignore[method-assign]
+
+    class CurrentTextOCR:
+        async def ocr(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            return OCRResult(
+                lines=[OCRLine(text=typed, confidence=0.99)] if typed else [],
+                spacing_evidence="verified",
+            )
+
+        async def ocr_precise(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            return await self.ocr(image_path, region)
+
+    intended = r"C:\PiKVM-Harness\workspace"
+    typer = WatchedTyper(backend, CurrentTextOCR())
+
+    result = await typer.type_text(intended, code=True)
+
+    assert result.status == "verified_exact"
+    assert result.typed_characters == len(intended)
+    assert result.emitted_exactly_once is True
 
 
 def test_focus_change_guard_declines_unknown_screen_dimensions() -> None:
