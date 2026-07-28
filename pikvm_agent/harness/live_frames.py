@@ -44,6 +44,7 @@ class DaemonLiveFrameSource:
         self,
         daemon_url: str,
         *,
+        bearer_token: str | None = None,
         minimum_interval_s: float = 0.45,
         timeout_s: float = 8.0,
         max_frame_bytes: int = MAX_LIVE_FRAME_BYTES,
@@ -62,6 +63,11 @@ class DaemonLiveFrameSource:
             base_url=daemon_url.rstrip("/"),
             timeout=timeout_s,
             transport=transport,
+            headers=(
+                {"Authorization": f"Bearer {bearer_token}"}
+                if bearer_token
+                else None
+            ),
         )
         self.minimum_interval_s = minimum_interval_s
         self.max_frame_bytes = max_frame_bytes

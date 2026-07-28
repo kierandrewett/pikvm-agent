@@ -10,7 +10,11 @@ import pytest
 import pytest_asyncio
 
 from pikvm_agent.config import AppConfig, DaemonConfig
+from pikvm_agent.daemon_access import DaemonAccess
 from pikvm_agent.runtime import Runtime
+
+TEST_DAEMON_ACTION_TOKEN = "test-action-capability-0123456789abcdef"
+TEST_DAEMON_HARNESS_TOKEN = "test-harness-capability-0123456789abcdef"
 
 
 @pytest.fixture(autouse=True)
@@ -30,6 +34,12 @@ def _isolate_config(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
     for var in ("PIKVM_BASE_URL", "PIKVM_VERIFY_TLS"):
         monkeypatch.delenv(var, raising=False)
     monkeypatch.delenv("PIKVM_MACHINE_ID", raising=False)
+    monkeypatch.delenv("PIKVM_AGENT_DAEMON_TOKEN", raising=False)
+    monkeypatch.delenv("PIKVM_AGENT_HARNESS_TOKEN", raising=False)
+    monkeypatch.delenv(
+        "PIKVM_AGENT_TRUSTED_APPROVAL_CLIENT",
+        raising=False,
+    )
     monkeypatch.chdir(tmp_path)
 
 
@@ -42,6 +52,28 @@ def app_config(tmp_path) -> AppConfig:
             debug_log_path=str(tmp_path / "debug.jsonl"),  # don't write the real log in tests
         )
     )
+
+
+@pytest.fixture
+def daemon_access() -> DaemonAccess:
+    return DaemonAccess(
+        action_token=TEST_DAEMON_ACTION_TOKEN,
+        harness_token=TEST_DAEMON_HARNESS_TOKEN,
+    )
+
+
+@pytest.fixture
+def daemon_headers() -> dict[str, str]:
+    return {
+        "Authorization": f"Bearer {TEST_DAEMON_ACTION_TOKEN}",
+    }
+
+
+@pytest.fixture
+def daemon_harness_headers() -> dict[str, str]:
+    return {
+        "Authorization": f"Bearer {TEST_DAEMON_HARNESS_TOKEN}",
+    }
 
 
 @pytest_asyncio.fixture

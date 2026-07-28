@@ -61,6 +61,22 @@ coding clients. The **daemon** remains the authoritative machine boundary for
 sessions, frame state, policy, approvals, and execution. Raw tools are private
 to the harness; guarded direct MCP is an explicit compatibility mode.
 
+The local daemon uses two non-interchangeable bearer capabilities. A guarded
+direct client receives the action capability, which can observe and propose
+machine input but cannot resolve an approval. Only the desktop-owned harness
+child receives the approval-relay capability. The legacy
+`PIKVM_AGENT_TRUSTED_APPROVAL_CLIENT` flag grants no authority.
+
+The capability boundary has a checked, target-free desktop acceptance:
+anonymous daemon access was rejected, the desktop action capability could use
+ordinary session routes but could not approve, and only the private harness
+capability crossed the approval authentication boundary. The owner-only
+runtime handoff contained the action capability but not the approval
+capability. The isolated Electron chat shell loaded in 32 ms with no Terminal
+control, branch counter, or duplicate planning row. No screenshot was captured
+and no remote target was contacted. See the
+[`daemon capability evidence`](bench/results/2026-07-28/security/daemon-capability-boundary.json).
+
 ## Install
 
 Requires Python ≥ 3.11 and [`uv`](https://docs.astral.sh/uv/).
@@ -110,7 +126,10 @@ no fallback machine-control target, and the public raw MCP server also refuses
 to start without an operator visibility boundary:
 
 ```bash
-# 1. the daemon (FastAPI). Set PiKVM creds, or PIKVM_AGENT_FAKE=1 for no hardware.
+# 1. the daemon (FastAPI). Use distinct per-session capabilities.
+export PIKVM_AGENT_DAEMON_TOKEN="$(openssl rand -hex 32)"
+export PIKVM_AGENT_HARNESS_TOKEN="$(openssl rand -hex 32)"
+# Set PiKVM creds, or PIKVM_AGENT_FAKE=1 for no hardware.
 PIKVM_USER=admin PIKVM_PASSWORD=… uv run pikvm-agent daemon
 #    → human console at http://127.0.0.1:47615/  (live frame, event feed, approvals)
 
@@ -190,6 +209,8 @@ pikvm-agent harness init --out config.harness.yaml
 #   --vertex-auth gcloud
 
 export PIKVM_AGENT_DAEMON=http://127.0.0.1:<explicitly-selected-daemon-port>
+export PIKVM_AGENT_DAEMON_TOKEN="$(openssl rand -hex 32)"
+export PIKVM_AGENT_HARNESS_TOKEN="$(openssl rand -hex 32)"
 export PIKVM_HARNESS_TOKEN="$(openssl rand -hex 32)"
 export PIKVM_HARNESS_AGENT_TOKEN="$(openssl rand -hex 32)"
 export PIKVM_HARNESS_OBSERVER_TOKEN="$(openssl rand -hex 32)"
@@ -287,8 +308,10 @@ remote server's annotations. `harness init` enables DDGS search, news, and page
 extraction as reviewed read-only tools; additional MCP servers can be declared
 under `assistant_tools`. Header values and child-process credentials are
 inherited by environment-variable name and are not written to configuration or
-returned by the UI. Any tool not on the local `read_only_tools` list pauses for
-an exact browser approval showing its arguments before execution.
+returned by the UI. Assistant-tool adapters cannot inherit daemon/harness
+capabilities or expose raw `pikvm_*` tools; computer work must use the managed
+handoff. Any tool not on the local `read_only_tools` list pauses for an exact
+browser approval showing its arguments before execution.
 
 Compare configured OAuth and API routes against identical seeded pixels and
 one strict schema without opening any computer target:
@@ -619,7 +642,8 @@ PIKVM_MCP_MODEL=<actual-model-string> \
 
 The direct configuration also forwards only environment-variable names. It
 never writes the daemon target or any token value. The direct MCP process
-receives the observer token, not the browser operator token.
+receives the observer token and daemon action capability, not the browser
+operator token or harness approval capability.
 
 `guarded` mode fails closed before a tool body if the harness cannot record the
 preflight. `observe` is an explicit degraded migration mode that keeps only

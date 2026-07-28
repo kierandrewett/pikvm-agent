@@ -15,6 +15,7 @@ import yaml
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from pikvm_agent.config import require_daemon_url
+from pikvm_agent.daemon_access import DAEMON_CAPABILITY_ENV_NAMES
 from pikvm_agent.harness.model_budget import (
     ModelBudgetPolicy,
     ProviderCostTerms,
@@ -272,6 +273,29 @@ class McpToolServerSpec(BaseModel):
         if set(self.read_only_tools) - set(self.allowed_tools):
             raise ValueError(
                 "read_only_tools must be included in allowed_tools"
+            )
+        machine_control_tools = sorted(
+            name
+            for name in self.allowed_tools
+            if name.casefold().startswith("pikvm_")
+        )
+        if machine_control_tools:
+            raise ValueError(
+                "assistant MCP tools cannot expose raw machine-control "
+                "tools; use the managed computer handoff: "
+                + ", ".join(machine_control_tools)
+            )
+        inherited_capabilities = sorted(
+            (
+                set(self.inherited_env)
+                | set(self.header_env.values())
+            )
+            & DAEMON_CAPABILITY_ENV_NAMES
+        )
+        if inherited_capabilities:
+            raise ValueError(
+                "assistant MCP tools cannot inherit daemon capabilities: "
+                + ", ".join(inherited_capabilities)
             )
         return self
 

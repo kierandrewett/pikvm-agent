@@ -24,6 +24,7 @@ import httpx
 from PIL import Image
 from pydantic import BaseModel, ConfigDict
 
+from pikvm_agent.daemon_access import DaemonAccess
 from pikvm_agent.harness.agent import AgentHarness
 from pikvm_agent.harness.agent_models import HarnessConfig, RunStatus
 from pikvm_agent.harness.agent_store import SqliteRunStore
@@ -772,9 +773,11 @@ async def run_osworld_case(
                 transport="in-guest",
                 policy=isolated_benchmark_policy(),
             ) as lab:
+                daemon_access = DaemonAccess.from_environment(lab.env)
                 client = PersistentMcpToolClient(
                     daemon_url=lab.daemon_url,
                     artifact_dir=artifacts,
+                    daemon_access=daemon_access,
                 )
                 store = SqliteRunStore(state_path)
                 harness = AgentHarness(
@@ -799,7 +802,10 @@ async def run_osworld_case(
                         )
                         shared_run_locks = {}
                         host, port = settings.host_port()
-                        live_frames = DaemonLiveFrameSource(lab.daemon_url)
+                        live_frames = DaemonLiveFrameSource(
+                            lab.daemon_url,
+                            bearer_token=daemon_access.harness_token,
+                        )
                         operator_app = create_harness_app(
                             harness=harness,
                             store=store,

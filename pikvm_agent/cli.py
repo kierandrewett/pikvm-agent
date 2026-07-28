@@ -58,7 +58,13 @@ def daemon(
     import uvicorn
 
     from pikvm_agent.config import load_config
+    from pikvm_agent.daemon_access import DaemonAccess, DaemonAccessError
 
+    try:
+        DaemonAccess.from_environment()
+    except DaemonAccessError as exc:
+        typer.echo(f"daemon refused: {exc}", err=True)
+        raise typer.Exit(2)
     cfg = load_config()
     uvicorn.run(
         "pikvm_agent.daemon:app",
@@ -1110,6 +1116,9 @@ def harness_check(
         settings.access_token()
         daemon_url = settings.optional_daemon_url()
         if daemon_url is not None:
+            from pikvm_agent.daemon_access import DaemonAccess
+
+            DaemonAccess.from_environment()
             settings.agent_token()
             settings.observer_token()
         elif settings.agent_token_env in os.environ:

@@ -64,6 +64,21 @@ def test_mcp_server_connection_is_fail_closed_without_a_safe_namespace() -> None
             allowed_tools=frozenset({"search"}),
         )
 
+    with pytest.raises(ValueError, match="machine-control"):
+        McpServerConnection(
+            name="raw",
+            command="raw-pikvm-mcp",
+            allowed_tools=frozenset({"pikvm_run_burst"}),
+        )
+
+    with pytest.raises(ValueError, match="daemon capabilities"):
+        McpServerConnection(
+            name="raw",
+            command="wrapper-mcp",
+            inherited_env=("PATH", "PIKVM_AGENT_HARNESS_TOKEN"),
+            allowed_tools=frozenset({"run_burst"}),
+        )
+
 
 @pytest.mark.asyncio
 async def test_one_unavailable_mcp_server_does_not_take_down_other_tools() -> None:

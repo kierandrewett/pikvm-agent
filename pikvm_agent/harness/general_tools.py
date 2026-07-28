@@ -23,6 +23,7 @@ from mcp.client.stdio import stdio_client
 from mcp.client.streamable_http import streamablehttp_client
 from pydantic import BaseModel, ConfigDict, Field
 
+from pikvm_agent.daemon_access import DAEMON_CAPABILITY_ENV_NAMES
 
 class ToolDescriptor(BaseModel):
     """Model-visible capability metadata plus host-owned safety semantics."""
@@ -105,6 +106,29 @@ class McpServerConnection:
         if self.read_only_tools - self.allowed_tools:
             raise ValueError(
                 f"MCP tool server {self.name} read-only tools must be allowed"
+            )
+        machine_control_tools = sorted(
+            name
+            for name in self.allowed_tools
+            if name.casefold().startswith("pikvm_")
+        )
+        if machine_control_tools:
+            raise ValueError(
+                "assistant MCP tools cannot expose raw machine-control "
+                "tools; use the managed computer handoff: "
+                + ", ".join(machine_control_tools)
+            )
+        inherited_capabilities = sorted(
+            (
+                set(self.inherited_env)
+                | set(self.header_env.values())
+            )
+            & DAEMON_CAPABILITY_ENV_NAMES
+        )
+        if inherited_capabilities:
+            raise ValueError(
+                "assistant MCP tools cannot inherit daemon capabilities: "
+                + ", ".join(inherited_capabilities)
             )
 
 

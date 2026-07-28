@@ -19,6 +19,7 @@ from httpx import ASGITransport
 import pikvm_agent.mcp_server as mcp_server
 from pikvm_agent.config import AppConfig
 from pikvm_agent.daemon import BurstRequest, create_app
+from pikvm_agent.daemon_access import DaemonAccess
 from pikvm_agent.executor.burst import MAX_TYPE_TEXT_CHARS
 from pikvm_agent.runtime import Runtime
 
@@ -107,9 +108,13 @@ def test_daemon_burst_request_rejects_blank_idempotency_key() -> None:
         )
 
 
-def test_daemon_http_endpoints(app_config: AppConfig) -> None:
-    app = create_app(app_config)
-    with TestClient(app) as client:
+def test_daemon_http_endpoints(
+    app_config: AppConfig,
+    daemon_access: DaemonAccess,
+    daemon_headers: dict[str, str],
+) -> None:
+    app = create_app(app_config, access=daemon_access)
+    with TestClient(app, headers=daemon_headers) as client:
         assert client.get("/healthz").json() == {"ok": True}
         sid = client.post("/sessions", json={"task": "t"}).json()["session_id"]
         # Plain GET is read-only — no capture yet, so no frame (polling must not capture).
@@ -146,15 +151,22 @@ def test_daemon_http_endpoints(app_config: AppConfig) -> None:
 
 
 async def test_mcp_facade_forwards_to_daemon(app_config: AppConfig,
-                                             monkeypatch: pytest.MonkeyPatch) -> None:
-    app = create_app(app_config)
+                                             monkeypatch: pytest.MonkeyPatch,
+                                             daemon_access: DaemonAccess,
+                                             daemon_harness_headers: dict[str, str]) -> None:
+    app = create_app(app_config, access=daemon_access)
     rt = await Runtime.from_config(app_config)
     app.state.runtime = rt  # set state directly; ASGITransport doesn't run lifespan
     transport = ASGITransport(app=app)
     monkeypatch.setattr(
         mcp_server,
         "_daemon_client",
-        lambda timeout: httpx.AsyncClient(transport=transport, base_url="http://daemon", timeout=timeout),
+        lambda timeout: httpx.AsyncClient(
+            transport=transport,
+            base_url="http://daemon",
+            timeout=timeout,
+            headers=daemon_harness_headers,
+        ),
     )
     try:
         names = sorted(t.name for t in await mcp_server.mcp.list_tools())

@@ -34,6 +34,8 @@ from pikvm_agent.harness.mcp_driver import unpack_tool_result
 
 AGENT_TOKEN = "clean-launch-agent-token-0123456789abcdef"
 OPERATOR_TOKEN = "clean-launch-operator-token-0123456789abcd"
+DAEMON_ACTION_TOKEN = "daemon-action-token-0123456789abcdef"
+DAEMON_HARNESS_TOKEN = "daemon-harness-token-0123456789abcdef"
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -227,7 +229,8 @@ async def test_private_raw_mcp_child_initializes_without_a_stdio_worker(
             "PATH": os.environ.get("PATH", ""),
             "PYTHONPATH": str(REPO_ROOT),
             "PIKVM_AGENT_DAEMON": "http://127.0.0.1:1",
-            "PIKVM_AGENT_TRUSTED_APPROVAL_CLIENT": "1",
+            "PIKVM_AGENT_DAEMON_TOKEN": DAEMON_ACTION_TOKEN,
+            "PIKVM_AGENT_HARNESS_TOKEN": DAEMON_HARNESS_TOKEN,
         },
         cwd=tmp_path,
     )
@@ -244,6 +247,29 @@ async def test_private_raw_mcp_child_initializes_without_a_stdio_worker(
         "pikvm_resolve_approval",
     } <= names
     assert "debug_pikvm_raw" not in names
+
+
+def test_legacy_trusted_flag_cannot_create_a_private_raw_mcp_child(
+    tmp_path: Path,
+) -> None:
+    result = subprocess.run(
+        [sys.executable, "-m", "pikvm_agent.mcp_server"],
+        input="",
+        text=True,
+        capture_output=True,
+        timeout=3,
+        cwd=tmp_path,
+        env={
+            "PATH": os.environ.get("PATH", ""),
+            "PYTHONPATH": str(REPO_ROOT),
+            "PIKVM_AGENT_DAEMON": "http://127.0.0.1:1",
+            "PIKVM_AGENT_TRUSTED_APPROVAL_CLIENT": "1",
+        },
+        check=False,
+    )
+
+    assert result.returncode != 0
+    assert "PIKVM_AGENT_DAEMON_TOKEN is required" in result.stderr
 
 
 def test_shipped_mcp_config_defaults_to_managed_harness_not_raw_hid() -> None:

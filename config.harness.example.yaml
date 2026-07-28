@@ -2,6 +2,8 @@
 #
 # Secrets and the selected machine stay out of this file:
 #   export PIKVM_AGENT_DAEMON=http://127.0.0.1:<isolated-daemon-port>
+#   export PIKVM_AGENT_DAEMON_TOKEN="$(openssl rand -hex 32)"
+#   export PIKVM_AGENT_HARNESS_TOKEN="$(openssl rand -hex 32)"
 #   export PIKVM_HARNESS_TOKEN="$(openssl rand -hex 32)"
 #   export PIKVM_HARNESS_AGENT_TOKEN="$(openssl rand -hex 32)"
 #   export PIKVM_HARNESS_OBSERVER_TOKEN="$(openssl rand -hex 32)"

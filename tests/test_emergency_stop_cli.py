@@ -65,6 +65,10 @@ def test_mcp_cli_refuses_selected_target_without_visibility_boundary(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("PIKVM_AGENT_DAEMON", "http://127.0.0.1:48765")
+    monkeypatch.setenv(
+        "PIKVM_AGENT_DAEMON_TOKEN",
+        "daemon-action-token-0123456789abcdef",
+    )
     monkeypatch.delenv("PIKVM_HARNESS_OBSERVER_URL", raising=False)
     monkeypatch.delenv("PIKVM_HARNESS_OBSERVER_TOKEN", raising=False)
     monkeypatch.delenv("PIKVM_AGENT_TRUSTED_APPROVAL_CLIENT", raising=False)

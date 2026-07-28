@@ -9,6 +9,10 @@ from typing import Any
 
 from fastapi import FastAPI
 
+from pikvm_agent.daemon_access import (
+    DaemonAccess,
+    harness_token_from_environment,
+)
 from pikvm_agent.harness.agent import AgentHarness
 from pikvm_agent.harness.agent_models import HarnessConfig
 from pikvm_agent.harness.agent_store import SqliteRunStore
@@ -54,11 +58,17 @@ def build_harness_app(
         computer = UnavailableComputerDriver()
         direct_calls = None
     else:
+        daemon_access = DaemonAccess.from_environment()
+        harness_token = harness_token_from_environment()
         tool_client = PersistentMcpToolClient(
             daemon_url=daemon_url,
             artifact_dir=settings.artifact_dir,
+            daemon_access=daemon_access,
         )
-        live_frames = DaemonLiveFrameSource(daemon_url)
+        live_frames = DaemonLiveFrameSource(
+            daemon_url,
+            bearer_token=harness_token,
+        )
         computer = McpComputerDriver(tool_client)
         direct_calls = DirectCallCoordinator(store=store, computer=computer)
     harness = AgentHarness(

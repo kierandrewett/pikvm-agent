@@ -23,6 +23,11 @@ from pydantic import BaseModel, Field
 
 from pikvm_agent.config import AppConfig
 from pikvm_agent.core.errors import PikvmAgentError, SessionNotFoundError
+from pikvm_agent.daemon_access import (
+    DaemonAccess,
+    DaemonAccessError,
+    bearer_from_header,
+)
 from pikvm_agent.runtime import Runtime, RuntimeCapabilities
 
 _WEBUI = Path(__file__).resolve().parent / "webui"
@@ -64,9 +69,13 @@ def create_app(
     config: AppConfig | None = None,
     *,
     capabilities: RuntimeCapabilities | None = None,
+    access: DaemonAccess | None = None,
 ) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
+        app.state.daemon_access = (
+            access if access is not None else DaemonAccess.from_environment()
+        )
         app.state.runtime = await Runtime.from_config(
             config,
             capabilities=capabilities,
@@ -77,6 +86,51 @@ def create_app(
             await app.state.runtime.aclose()
 
     app = FastAPI(title="PiKVM Agent Daemon", version="0.1.0", lifespan=lifespan)
+
+    public_routes = frozenset(
+        {
+            ("GET", "/"),
+            ("GET", "/healthz"),
+            ("GET", "/status"),
+            ("GET", "/ui/app.js"),
+            ("POST", "/panic-stop"),
+        }
+    )
+
+    @app.middleware("http")
+    async def _capability_boundary(request: Request, call_next):
+        route = (request.method, request.url.path)
+        if route in public_routes:
+            return await call_next(request)
+        try:
+            configured_access = getattr(
+                request.app.state,
+                "daemon_access",
+                None,
+            ) or access or DaemonAccess.from_environment()
+        except DaemonAccessError:
+            return JSONResponse(
+                status_code=503,
+                content={"error": "daemon_access_not_configured"},
+            )
+        harness_only = (
+            request.method == "POST"
+            and request.url.path.startswith("/sessions/")
+            and "/approvals/" in request.url.path
+        )
+        bearer = bearer_from_header(
+            request.headers.get("authorization", "")
+        )
+        if not configured_access.authorizes(
+            bearer,
+            harness_only=harness_only,
+        ):
+            return JSONResponse(
+                status_code=401,
+                content={"error": "unauthorized"},
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        return await call_next(request)
 
     @app.middleware("http")
     async def _timing(request: Request, call_next):

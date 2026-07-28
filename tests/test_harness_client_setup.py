@@ -9,6 +9,7 @@ import pytest
 from typer.testing import CliRunner
 
 from pikvm_agent.cli import app
+from pikvm_agent.daemon_access import DAEMON_TOKEN_ENV
 from pikvm_agent.harness.client_setup import (
     direct_mcp_environment,
     managed_mcp_environment,
@@ -22,6 +23,10 @@ from pikvm_agent.harness.config import HarnessSettings
 
 def settings(monkeypatch: pytest.MonkeyPatch) -> HarnessSettings:
     monkeypatch.setenv("TEST_DAEMON_URL", "http://127.0.0.1:48123")
+    monkeypatch.setenv(
+        DAEMON_TOKEN_ENV,
+        "runtime-only-daemon-action-token-0123456789abcdef",
+    )
     monkeypatch.setenv(
         "TEST_HARNESS_TOKEN",
         "runtime-only-secret-token-0123456789abcdef",
@@ -72,7 +77,9 @@ def test_direct_mcp_runtime_environment_maps_custom_names_without_persistence(
 
     assert environment == {
         "PIKVM_AGENT_DAEMON": "http://127.0.0.1:48123",
-        "PIKVM_AGENT_TRUSTED_APPROVAL_CLIENT": "0",
+        DAEMON_TOKEN_ENV: (
+            "runtime-only-daemon-action-token-0123456789abcdef"
+        ),
         "PIKVM_HARNESS_OBSERVER_URL": "http://127.0.0.1:48124",
         "PIKVM_HARNESS_OBSERVER_TOKEN": (
             "runtime-only-observer-token-0123456789abcdef"
@@ -126,6 +133,7 @@ def test_client_configs_forward_only_scoped_env_names_and_never_runtime_values(
 
     assert "runtime-only-secret-token" not in rendered
     assert "runtime-only-observer-token" not in rendered
+    assert "runtime-only-daemon-action-token" not in rendered
     assert "http://127.0.0.1:48123" not in rendered
     assert "TEST_HARNESS_TOKEN" not in rendered
     if control_mode == "managed":
@@ -141,6 +149,7 @@ def test_client_configs_forward_only_scoped_env_names_and_never_runtime_values(
         assert "TEST_DAEMON_URL" in rendered
         expected_forwarded = (
             "TEST_DAEMON_URL",
+            DAEMON_TOKEN_ENV,
             "TEST_OBSERVER_TOKEN",
             "PIKVM_MCP_PROVIDER",
             "PIKVM_MCP_MODEL",
@@ -156,7 +165,11 @@ def test_client_configs_forward_only_scoped_env_names_and_never_runtime_values(
         expected = (
             ["TEST_AGENT_TOKEN"]
             if control_mode == "managed"
-            else ["TEST_DAEMON_URL", "TEST_OBSERVER_TOKEN"]
+            else [
+                "TEST_DAEMON_URL",
+                DAEMON_TOKEN_ENV,
+                "TEST_OBSERVER_TOKEN",
+            ]
         )
         assert server["env_vars"][: len(expected)] == expected
     elif client == "opencode":
@@ -176,6 +189,10 @@ def test_client_configs_forward_only_scoped_env_names_and_never_runtime_values(
             else "TEST_OBSERVER_TOKEN"
         )
         assert server["environment"][token_env] == f"{{env:{token_env}}}"
+        if control_mode == "direct":
+            assert server["environment"][DAEMON_TOKEN_ENV] == (
+                f"{{env:{DAEMON_TOKEN_ENV}}}"
+            )
     else:
         parsed = json.loads(rendered)
         server = parsed["mcpServers"]["pikvm"]
@@ -185,6 +202,10 @@ def test_client_configs_forward_only_scoped_env_names_and_never_runtime_values(
             else "TEST_OBSERVER_TOKEN"
         )
         assert server["env"][token_env] == f"${{{token_env}}}"
+        if control_mode == "direct":
+            assert server["env"][DAEMON_TOKEN_ENV] == (
+                f"${{{DAEMON_TOKEN_ENV}}}"
+            )
 
 
 def test_client_config_defaults_to_managed_harness(

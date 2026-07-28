@@ -9,10 +9,14 @@ from fastapi.testclient import TestClient
 
 from pikvm_agent.config import AppConfig
 from pikvm_agent.daemon import create_app
+from pikvm_agent.daemon_access import DaemonAccess
 
 
-def test_console_page_and_assets(app_config: AppConfig) -> None:
-    app = create_app(app_config)
+def test_console_page_and_assets(
+    app_config: AppConfig,
+    daemon_access: DaemonAccess,
+) -> None:
+    app = create_app(app_config, access=daemon_access)
     with TestClient(app) as c:
         page = c.get("/")
         assert page.status_code == 200 and "PiKVM Agent" in page.text
@@ -20,10 +24,13 @@ def test_console_page_and_assets(app_config: AppConfig) -> None:
         assert js.status_code == 200 and "loadSessions" in js.text
 
 
-def test_status_endpoint(app_config: AppConfig) -> None:
+def test_status_endpoint(
+    app_config: AppConfig,
+    daemon_access: DaemonAccess,
+) -> None:
     # /status is the readiness probe UIs poll: it reports every dependency the daemon
     # needs to drive a session.
-    app = create_app(app_config)
+    app = create_app(app_config, access=daemon_access)
     with TestClient(app) as c:
         body = c.get("/status").json()
         assert "ok" in body
@@ -44,9 +51,13 @@ def test_status_endpoint(app_config: AppConfig) -> None:
         assert body["ok"] is True
 
 
-def test_console_data_endpoints(app_config: AppConfig) -> None:
-    app = create_app(app_config)
-    with TestClient(app) as c:
+def test_console_data_endpoints(
+    app_config: AppConfig,
+    daemon_access: DaemonAccess,
+    daemon_headers: dict[str, str],
+) -> None:
+    app = create_app(app_config, access=daemon_access)
+    with TestClient(app, headers=daemon_headers) as c:
         sid = c.post("/sessions", json={"task": "open the readme"}).json()["session_id"]
         # before any observe there is no frame yet
         assert c.get(f"/sessions/{sid}/frame").status_code == 404
@@ -67,9 +78,11 @@ def test_console_data_endpoints(app_config: AppConfig) -> None:
 
 def test_preview_frame_is_live_but_does_not_mutate_session_freshness(
     app_config: AppConfig,
+    daemon_access: DaemonAccess,
+    daemon_headers: dict[str, str],
 ) -> None:
-    app = create_app(app_config)
-    with TestClient(app) as c:
+    app = create_app(app_config, access=daemon_access)
+    with TestClient(app, headers=daemon_headers) as c:
         sid = c.post("/sessions", json={"task": "observe the desktop"}).json()[
             "session_id"
         ]
@@ -86,9 +99,13 @@ def test_preview_frame_is_live_but_does_not_mutate_session_freshness(
         )
 
 
-def test_memory_update_export_route(app_config: AppConfig) -> None:
-    app = create_app(app_config)
-    with TestClient(app) as c:
+def test_memory_update_export_route(
+    app_config: AppConfig,
+    daemon_access: DaemonAccess,
+    daemon_headers: dict[str, str],
+) -> None:
+    app = create_app(app_config, access=daemon_access)
+    with TestClient(app, headers=daemon_headers) as c:
         sid = c.post("/sessions", json={"task": "open the readme"}).json()["session_id"]
         c.get(f"/sessions/{sid}")  # generate some trace
         mu = c.get(f"/sessions/{sid}/memory-update").json()

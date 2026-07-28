@@ -17,6 +17,11 @@ from typing import Any, Protocol
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
+from pikvm_agent.daemon_access import (
+    DAEMON_TOKEN_ENV,
+    HARNESS_TOKEN_ENV,
+    DaemonAccess,
+)
 from pikvm_agent.harness.agent_models import ComputerObservation
 from pikvm_agent.harness.mcp_driver import unpack_tool_result
 
@@ -32,9 +37,12 @@ def harness_child_environment(
     """
 
     env = dict(os.environ if inherited is None else inherited)
+    access = DaemonAccess.from_environment(env)
     env["PIKVM_AGENT_DAEMON"] = daemon_url
-    env["PIKVM_AGENT_TRUSTED_APPROVAL_CLIENT"] = "1"
+    env[DAEMON_TOKEN_ENV] = access.action_token
+    env[HARNESS_TOKEN_ENV] = access.harness_token
     for key in (
+        "PIKVM_AGENT_TRUSTED_APPROVAL_CLIENT",
         "PIKVM_HARNESS_OBSERVER_URL",
         "PIKVM_HARNESS_OBSERVER_TOKEN",
         "PIKVM_HARNESS_OBSERVER_MODE",
@@ -109,10 +117,12 @@ class PersistentMcpToolClient:
         daemon_url: str,
         artifact_dir: Path,
         executable: str | None = None,
+        daemon_access: DaemonAccess | None = None,
     ) -> None:
         self.daemon_url = daemon_url
         self.artifact_dir = artifact_dir
         self.executable = executable or sys.executable
+        self.daemon_access = daemon_access
         self._stdio_context: Any = None
         self._session_context: Any = None
         self._session: ClientSession | None = None
@@ -125,7 +135,19 @@ class PersistentMcpToolClient:
         async with self._start_lock:
             if self._session is not None:
                 return
-            env = harness_child_environment(self.daemon_url)
+            inherited = None
+            if self.daemon_access is not None:
+                inherited = dict(os.environ)
+                inherited[DAEMON_TOKEN_ENV] = (
+                    self.daemon_access.action_token
+                )
+                inherited[HARNESS_TOKEN_ENV] = (
+                    self.daemon_access.harness_token
+                )
+            env = harness_child_environment(
+                self.daemon_url,
+                inherited=inherited,
+            )
             params = StdioServerParameters(
                 command=self.executable,
                 args=["-m", "pikvm_agent.cli", "mcp"],

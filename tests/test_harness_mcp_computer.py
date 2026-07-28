@@ -9,6 +9,9 @@ from pikvm_agent.harness.mcp_computer import (
     harness_child_environment,
 )
 
+ACTION_TOKEN = "action-capability-token-0123456789abcdef"
+HARNESS_TOKEN = "harness-capability-token-0123456789abcdef"
+
 
 class FakeToolClient:
     def __init__(self) -> None:
@@ -75,6 +78,8 @@ def test_harness_child_is_the_only_raw_mcp_process_trusted_to_relay_approval() -
         "http://127.0.0.1:48123",
         inherited={
             "PATH": "/usr/bin",
+            "PIKVM_AGENT_DAEMON_TOKEN": ACTION_TOKEN,
+            "PIKVM_AGENT_HARNESS_TOKEN": HARNESS_TOKEN,
             "PIKVM_HARNESS_OBSERVER_URL": "http://127.0.0.1:48124",
             "PIKVM_HARNESS_OBSERVER_TOKEN": "observer-secret",
             "PIKVM_HARNESS_OBSERVER_MODE": "guarded",
@@ -87,7 +92,8 @@ def test_harness_child_is_the_only_raw_mcp_process_trusted_to_relay_approval() -
     assert env == {
         "PATH": "/usr/bin",
         "PIKVM_AGENT_DAEMON": "http://127.0.0.1:48123",
-        "PIKVM_AGENT_TRUSTED_APPROVAL_CLIENT": "1",
+        "PIKVM_AGENT_DAEMON_TOKEN": ACTION_TOKEN,
+        "PIKVM_AGENT_HARNESS_TOKEN": HARNESS_TOKEN,
     }
 
 

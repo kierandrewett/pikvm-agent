@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-07-28T07:29:11+01:00",
+  "environment": {
+    "kind": "isolated-electron-fake-target",
+    "production_touched": false,
+    "remote_target_contacted": false,
+    "screenshot_captured": false
+  },
+  "daemon_capability_checks": {
+    "passed": 14,
+    "failed": 0,
+    "checks": {
+      "runtime_owner_only": true,
+      "runtime_schema_v2": true,
+      "runtime_has_action_capability": true,
+      "runtime_excludes_approval_capability_key": true,
+      "runtime_excludes_approval_capability_value": true,
+      "daemon_capabilities_distinct": true,
+      "harness_receives_action_capability": true,
+      "harness_receives_approval_capability": true,
+      "public_health_available": true,
+      "sessions_reject_anonymous": true,
+      "sessions_accept_action_capability": true,
+      "approval_rejects_action_capability": true,
+      "approval_accepts_harness_authentication": true,
+      "desktop_proxy_injects_action_capability": true
+    },
+    "observed_statuses": {
+      "anonymous_sessions": 401,
+      "action_sessions": 200,
+      "action_approval": 401,
+      "harness_approval_for_missing_session": 404,
+      "desktop_proxy_sessions": 200
+    }
+  },
+  "electron_chat_shell": {
+    "ready": true,
+    "heading": "How can I help?",
+    "composer_present": true,
+    "terminal_controls": 0,
+    "branch_counters": 0,
+    "planning_rows": 0,
+    "navigation_duration_ms": 32
+  },
+  "automated_tests": {
+    "pikvm_agent": {
+      "passed": 1257,
+      "skipped": 1,
+      "failed": 0
+    },
+    "pikvm_desktop_agentic": {
+      "passed": 16,
+      "failed": 0,
+      "build": "passed"
+    }
+  }
+}

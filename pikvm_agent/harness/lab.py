@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import secrets
 import signal
 import socket
 import subprocess
@@ -17,6 +18,7 @@ import typer
 import yaml
 
 from pikvm_agent.config import AppConfig, PolicyConfig
+from pikvm_agent.daemon_access import DAEMON_TOKEN_ENV, HARNESS_TOKEN_ENV
 from pikvm_agent.harness.client_setup import render_client_config
 from pikvm_agent.harness.config import (
     HarnessSettings,
@@ -208,6 +210,8 @@ class RunningLab:
             env[self.username_env] = self.username
         env["PIKVM_AGENT_CONFIG"] = str(self.assets.config)
         env[LAB_DAEMON_URL_ENV] = f"http://127.0.0.1:{self.ports.daemon}"
+        env[DAEMON_TOKEN_ENV] = secrets.token_urlsafe(32)
+        env[HARNESS_TOKEN_ENV] = secrets.token_urlsafe(32)
         if self.start_harness:
             settings = load_harness_settings(self.assets.harness_config)
             # Refuse before opening the VNC connection: a visible product lab

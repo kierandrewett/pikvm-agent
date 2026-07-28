@@ -24,6 +24,11 @@ from mcp.types import ToolAnnotations
 from pydantic import Field
 
 from pikvm_agent.config import require_daemon_url
+from pikvm_agent.daemon_access import (
+    DaemonAccessError,
+    action_token_from_environment,
+    harness_token_from_environment,
+)
 from pikvm_agent.executor.burst import BurstError, validate_actions
 from pikvm_agent.harness.mcp_visibility import (
     DirectCallReporter,
@@ -59,9 +64,12 @@ MCP server cannot approve its own proposal. pikvm_autonomous_* is opt-in and slo
 unless the user explicitly wants hands-off operation.
 """
 
-_PRIVATE_HARNESS_CHILD = (
-    os.environ.get("PIKVM_AGENT_TRUSTED_APPROVAL_CLIENT") == "1"
-)
+try:
+    harness_token_from_environment()
+except DaemonAccessError:
+    _PRIVATE_HARNESS_CHILD = False
+else:
+    _PRIVATE_HARNESS_CHILD = True
 
 mcp = VisibleFastMCP(
     "pikvm",
@@ -74,7 +82,17 @@ mcp = VisibleFastMCP(
 def _daemon_client(timeout: float) -> httpx.AsyncClient:
     """Factory for the daemon HTTP client. Patched in tests to talk to an
     in-process ASGI app instead of a live port."""
-    return httpx.AsyncClient(base_url=require_daemon_url(), timeout=timeout)
+    daemon_url = require_daemon_url()
+    token = (
+        harness_token_from_environment()
+        if _PRIVATE_HARNESS_CHILD
+        else action_token_from_environment()
+    )
+    return httpx.AsyncClient(
+        base_url=daemon_url,
+        timeout=timeout,
+        headers={"Authorization": f"Bearer {token}"},
+    )
 
 
 async def _get(path: str, timeout: float = 60.0) -> dict[str, Any]:
@@ -615,6 +633,13 @@ def main() -> None:  # pragma: no cover - stdio entrypoint
     try:
         require_daemon_url()
     except ValueError as exc:
+        raise SystemExit(f"PiKVM MCP startup refused: {exc}") from None
+    try:
+        if _PRIVATE_HARNESS_CHILD:
+            harness_token_from_environment()
+        else:
+            action_token_from_environment()
+    except DaemonAccessError as exc:
         raise SystemExit(f"PiKVM MCP startup refused: {exc}") from None
     if not _PRIVATE_HARNESS_CHILD:
         try:

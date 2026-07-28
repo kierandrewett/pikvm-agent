@@ -12,6 +12,8 @@ from pikvm_agent.harness.server import build_harness_app
 TEST_ACCESS_TOKEN = "test-harness-token-0123456789abcdef"
 TEST_AGENT_TOKEN = "test-agent-token-000123456789abcdef"
 TEST_OBSERVER_TOKEN = "test-observer-token-0123456789abc"
+TEST_DAEMON_ACTION_TOKEN = "test-daemon-action-token-0123456789abcdef"
+TEST_DAEMON_HARNESS_TOKEN = "test-daemon-harness-token-0123456789abcde"
 
 
 def target_free_settings(tmp_path) -> HarnessSettings:
@@ -100,6 +102,14 @@ def test_selected_computer_keeps_managed_and_direct_control_enabled(
     monkeypatch.setenv(
         "TEST_OPTIONAL_DAEMON",
         "http://127.0.0.1:48123",
+    )
+    monkeypatch.setenv(
+        "PIKVM_AGENT_DAEMON_TOKEN",
+        TEST_DAEMON_ACTION_TOKEN,
+    )
+    monkeypatch.setenv(
+        "PIKVM_AGENT_HARNESS_TOKEN",
+        TEST_DAEMON_HARNESS_TOKEN,
     )
 
     app = build_harness_app(target_free_settings(tmp_path))

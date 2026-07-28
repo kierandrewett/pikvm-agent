@@ -11,6 +11,10 @@ from typing import Literal
 
 import httpx
 
+from pikvm_agent.daemon_access import (
+    DAEMON_TOKEN_ENV,
+    action_token_from_environment,
+)
 from pikvm_agent.harness.config import HarnessSettings
 
 ClientKind = Literal["codex", "claude", "gemini", "opencode"]
@@ -57,7 +61,7 @@ def direct_mcp_environment(
     caller_label = normalize_caller_label(caller_label)
     return {
         "PIKVM_AGENT_DAEMON": settings.daemon_url(),
-        "PIKVM_AGENT_TRUSTED_APPROVAL_CLIENT": "0",
+        DAEMON_TOKEN_ENV: action_token_from_environment(),
         "PIKVM_HARNESS_OBSERVER_URL": harness_base_url(settings),
         "PIKVM_HARNESS_OBSERVER_TOKEN": settings.observer_token(
             validate_distinct=False
@@ -169,12 +173,14 @@ def render_client_config(
     if control_mode == "direct":
         forwarded = [
             settings.daemon_url_env,
+            DAEMON_TOKEN_ENV,
             settings.observer_token_env,
             "PIKVM_MCP_PROVIDER",
             "PIKVM_MCP_MODEL",
         ]
         required = {
             settings.daemon_url_env: f"${{{settings.daemon_url_env}}}",
+            DAEMON_TOKEN_ENV: f"${{{DAEMON_TOKEN_ENV}}}",
             settings.observer_token_env: (
                 f"${{{settings.observer_token_env}}}"
             ),

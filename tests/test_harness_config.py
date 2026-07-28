@@ -271,6 +271,34 @@ def test_assistant_mcp_tools_require_an_explicit_allow_list() -> None:
     assert configured.read_only_tools == ["search"]
 
 
+def test_assistant_mcp_tools_cannot_reintroduce_raw_machine_control() -> None:
+    with pytest.raises(ValueError, match="machine-control"):
+        McpToolServerSpec(
+            command="raw-pikvm-mcp",
+            allowed_tools=["pikvm_run_burst"],
+        )
+
+    with pytest.raises(ValueError, match="daemon capabilities"):
+        McpToolServerSpec(
+            command="wrapper-mcp",
+            inherited_env=[
+                "PATH",
+                "PIKVM_AGENT_HARNESS_TOKEN",
+            ],
+            allowed_tools=["run_burst"],
+        )
+
+    with pytest.raises(ValueError, match="daemon capabilities"):
+        McpToolServerSpec(
+            transport="streamable_http",
+            url="http://127.0.0.1:9999/mcp",
+            header_env={
+                "Authorization": "PIKVM_AGENT_DAEMON_TOKEN",
+            },
+            allowed_tools=["run_burst"],
+        )
+
+
 def test_assistant_mcp_server_namespace_cannot_collide_with_tool_separator() -> None:
     with pytest.raises(ValueError, match="server names"):
         HarnessSettings(
