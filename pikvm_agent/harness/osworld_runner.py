@@ -672,6 +672,7 @@ async def _run_bounded_harness(
                     )
             cycles = 1
             stagnant_cycles = 0
+            operational_outage_cycles = 0
             previous_action_index = run.next_action_index
             while (
                 run.status in {RunStatus.PAUSED, RunStatus.NEEDS_APPROVAL}
@@ -710,20 +711,42 @@ async def _run_bounded_harness(
                     )
                 cycles += 1
                 cycle_events = getattr(run, "events", [])[previous_event_count:]
+                operational_outage = any(
+                    event.kind
+                    in {
+                        "model.failed",
+                        "action.transport_uncertain",
+                    }
+                    for event in cycle_events
+                )
+                if (
+                    operational_outage
+                    and run.next_action_index <= previous_action_index
+                ):
+                    operational_outage_cycles += 1
+                else:
+                    operational_outage_cycles = 0
                 stagnant_cycles, stopped = update_stagnant_cycle_count(
                     previous_action_index=previous_action_index,
                     current_action_index=run.next_action_index,
                     stagnant_cycles=stagnant_cycles,
-                    operational_outage=any(
-                        event.kind
-                        in {
-                            "model.failed",
-                            "action.transport_uncertain",
-                        }
-                        for event in cycle_events
-                    ),
+                    operational_outage=operational_outage,
                 )
                 previous_action_index = run.next_action_index
+                if (
+                    operational_outage_cycles >= 2
+                    and run.status is RunStatus.PAUSED
+                ):
+                    run.error = (
+                        "benchmark stopped after two consecutive "
+                        "operational outages"
+                    )
+                    run.record(
+                        "run.operational_outage_stopped",
+                        outage_cycles=operational_outage_cycles,
+                    )
+                    await harness.store.save(run)
+                    break
                 if stopped and run.status is RunStatus.PAUSED:
                     run.status = RunStatus.BLOCKED
                     run.error = (

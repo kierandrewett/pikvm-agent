@@ -289,6 +289,62 @@ def test_osworld_stagnation_counter_does_not_treat_provider_outage_as_stall() ->
     assert (count, stopped) == (1, False)
 
 
+async def test_osworld_stops_after_two_consecutive_transport_outages() -> None:
+    class Store:
+        saved = 0
+
+        async def save(self, run):
+            self.saved += 1
+
+    class Harness:
+        def __init__(self) -> None:
+            self.store = Store()
+            self.continue_calls = 0
+            self.run = SimpleNamespace(
+                run_id="run-id",
+                status=RunStatus.PAUSED,
+                next_action_index=4,
+                events=[],
+                error=None,
+                record=lambda kind, **data: self.run.events.append(
+                    SimpleNamespace(kind=kind, data=data)
+                ),
+            )
+
+        async def start(self, task):
+            return self.run
+
+        async def continue_run(self, run_id):
+            assert run_id == "run-id"
+            self.continue_calls += 1
+            self.run.events.append(
+                SimpleNamespace(
+                    kind="action.transport_uncertain",
+                    data={"index": 4},
+                )
+            )
+            return self.run
+
+    harness = Harness()
+
+    run, cycles, timed_out = await _run_bounded_harness(
+        harness,
+        "Perform the task.",
+        max_cycles=20,
+        max_run_time_s=30,
+    )
+
+    assert harness.continue_calls == 2
+    assert cycles == 3
+    assert timed_out is False
+    assert run.status is RunStatus.PAUSED
+    assert run.error == (
+        "benchmark stopped after two consecutive operational outages"
+    )
+    assert run.events[-1].kind == "run.operational_outage_stopped"
+    assert harness.store.saved == 1
+
+
 async def test_osworld_coordinator_keeps_setup_and_evaluator_outside_mcp() -> None:
     payloads: list[dict] = []
 
