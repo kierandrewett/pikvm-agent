@@ -71,6 +71,7 @@ MAX_TOTAL_CORRECTIONS = 1  # one clean retry; never a compounding loop
 MAX_BACKSPACES = 400      # safety cap on a correction's clear
 FAST_PRINT_MIN = 120      # above this, plain text takes the (bursty) fast print path;
                           # shorter text stays on the fully-humanized per-key path
+FAST_TERMINAL_PRINT_MIN = 32  # exact simple argv can use PiKVM's guarded printer
 MIN_MISMATCH_OCR_CONFIDENCE = 0.78
 MIN_GROUNDED_EXACT_OCR_CONFIDENCE = 0.55
 MAX_AUTODETECTED_FIELD_HEIGHT = 80
@@ -1144,14 +1145,31 @@ class WatchedTyper:
             and _SIMPLE_TERMINAL_ARGV.fullmatch(delivery_text) is not None
         )
 
-        # FAST TRANSPORT: long, plain (non-exact, non-secret) prose uses the
-        # server-side keymap printer, but remains chunked and visually guarded.
-        # Caps-on disables it (the printer cannot compensate per letter);
-        # Commands/code, short text, and secrets stay on the per-key transport.
-        # Exact natural-language verification may still use guarded printer
-        # chunks: transport choice and OCR strictness are separate concerns.
+        # FAST TRANSPORT: long prose and exact simple terminal argv can use the
+        # server-side keymap printer, while remaining chunked, interruptible,
+        # visually read back, and never auto-submitted. Exact terminal text is
+        # restricted to the no-metacharacter grammar above; its separate Enter
+        # remains a later guarded action. Caps-on and secrets always stay on
+        # the compensating per-key transport.
         print_text = getattr(self.backend, "print_text", None)
         caps_on = self.backend.get_caps_lock()
+        guarded_terminal_print = (
+            precise
+            and allow_semantic_spacing
+            and total >= FAST_TERMINAL_PRINT_MIN
+            and bool(
+                getattr(
+                    self.backend,
+                    "guarded_exact_print",
+                    False,
+                )
+            )
+        )
+        guarded_prose_print = (
+            not code
+            and (prose or not is_exact_text(delivery_text))
+            and total > FAST_PRINT_MIN
+        )
         if should_continue is not None and not should_continue():
             await self._release_all_quietly()
             return self._halted_result(
@@ -1167,9 +1185,7 @@ class WatchedTyper:
         if (
             callable(print_text)
             and not secret
-            and not code
-            and (prose or not is_exact_text(delivery_text))
-            and total > FAST_PRINT_MIN
+            and (guarded_terminal_print or guarded_prose_print)
             and caps_on is not True
         ):
             return await self._humanized(

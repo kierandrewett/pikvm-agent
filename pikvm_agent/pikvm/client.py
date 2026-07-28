@@ -33,6 +33,11 @@ async def _sleep(ms: float) -> None:
 
 
 class PiKVMBackend:
+    # The native /api/hid/print endpoint preserves keymap translation and its
+    # slow-printer cadence. WatchedTyper may use it for exact simple terminal
+    # argv only because it still performs visual readback and separates Enter.
+    guarded_exact_print = True
+
     def __init__(self, cfg: PikvmConfig) -> None:
         self._cfg = cfg
         parts = urlsplit(cfg.base_url)
