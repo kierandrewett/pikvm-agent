@@ -5,7 +5,7 @@ test for one adapter or one benchmark sample does not close a broader product
 requirement. `Proven` means current authoritative evidence covers the stated
 scope; `Partial` and `Blocked` are not release claims.
 
-Last audited: 2026-07-27.
+Last audited: 2026-07-28.
 
 | Requirement | Status | Current evidence | What remains |
 | --- | --- | --- | --- |
@@ -43,6 +43,24 @@ Last audited: 2026-07-27.
 | Sellable local operator edition | Partial | Core harness, UI, provider config, transcript audit, VNC lab, benchmark reporting, Office artifact acceptance, target-free managed smoke lab, a mode-0600 offline support bundle, and a wheel inspector that verifies `RECORD`, CLI wiring, budget/Office/smoke modules, UI assets, size/path limits, and secret/runtime exclusions exist. A prior offline Hatch wheel installed into a fresh venv and loaded wheel code against the existing dependency layer; the new smoke-lab module is now required and that artifact is stale | Rebuild and reinspect the updated wheel; complete a dependency-isolated clean-venv install where locked compiled wheels are available; add signing, installer, and updater |
 | Team edge edition | Missing | Product architecture is documented | Local identities/roles, machine registry, two-person approval, audit export |
 | Hosted SaaS control plane | Missing | Threat boundary and release sequence are documented | Tenant isolation, edge enrollment/mTLS, relay, retention, SSO, billing, pen test |
+
+### 2026-07-28 managed-default increment
+
+The desktop's stable MCP launcher now chooses the managed five-tool facade by
+default. Its owner-only runtime carries the agent capability required by that
+facade but still excludes the browser operator token and daemon approval
+capability. Guarded direct control remains available only through the explicit
+`--control-mode direct` compatibility argument.
+
+An isolated Electron-owned harness completed a real stdio MCP handshake through
+the built desktop launcher. The inventory contained exactly the five
+`computer_*` controls and zero raw `pikvm_*` tools. A separate three-second
+provider hold reached the browser-visible “Waiting for a response” stage 20 ms
+after run creation, completed as one assistant reply, and created no computer
+session or input event. The completed DOM had no branch counter, duplicate
+planning row, Terminal control, or horizontal overflow. No screenshot or
+remote target was used. Evidence:
+[`desktop-managed-default-and-progress.json`](../bench/results/2026-07-28/ui/desktop-managed-default-and-progress.json).
 
 ## Current verification boundary
 

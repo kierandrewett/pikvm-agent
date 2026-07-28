@@ -18,6 +18,8 @@ export const activityPresentation = (activity: ActiveActivity) => {
   const phaseLabel =
     activity?.phase === "provider_selected"
       ? "Starting the model"
+      : activity?.phase === "request_sent"
+        ? "Waiting for a response"
       : activity?.phase === "output_received"
         ? "Reading the model response"
         : activity?.phase === "validating"

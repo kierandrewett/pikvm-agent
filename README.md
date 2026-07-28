@@ -77,6 +77,22 @@ control, branch counter, or duplicate planning row. No screenshot was captured
 and no remote target was contacted. See the
 [`daemon capability evidence`](bench/results/2026-07-28/security/daemon-capability-boundary.json).
 
+The desktop's stable MCP launcher now defaults to `managed-mcp`, not the raw
+PiKVM surface. A real stdio MCP handshake through an Electron-owned runtime
+listed exactly `computer_start_task`, status, continue, pause, and abort, with
+zero `pikvm_*` tools. Guarded direct control requires an explicit
+`--control-mode direct` compatibility argument. The same isolated run held a
+provider response for 3.048 seconds: the chat showed “Waiting for a response”
+20 ms after run creation, then replaced that single status with one assistant
+reply. It produced no branch counter, duplicate planning row, computer
+session, or computer event. See the checked
+[`managed-default and progress evidence`](bench/results/2026-07-28/ui/desktop-managed-default-and-progress.json).
+The target-free restart acceptance also completed for Codex, Claude, Gemini,
+and OpenCode 4/4 with exact scoped environments, exact managed inventories,
+visible durable tasks, safe outage errors, and recovery through the same MCP
+process; it made no external model call or computer connection. See
+[`managed-client acceptance`](bench/results/2026-07-28/safety/managed-client-acceptance.json).
+
 ## Install
 
 Requires Python ≥ 3.11 and [`uv`](https://docs.astral.sh/uv/).

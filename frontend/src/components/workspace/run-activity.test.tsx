@@ -85,6 +85,27 @@ describe("RunActivity", () => {
     expect(screen.getByRole("status")).toHaveTextContent("strong-provider");
   });
 
+  it("says when the request is waiting on the selected model", () => {
+    render(
+      <RunActivity
+        working
+        activity={{
+          kind: "model",
+          started_at: "2026-07-27T12:00:00Z",
+          phase: "request_sent",
+          role: "reasoner",
+          provider: "claude-account",
+          model: "opus",
+        }}
+      />,
+    );
+
+    const status = screen.getByRole("status");
+    expect(status).toHaveTextContent("Waiting for a response");
+    expect(status).toHaveTextContent("opus");
+    expect(status).not.toHaveTextContent(/\d+s/);
+  });
+
   it("does not duplicate a running tool call", () => {
     const { container } = render(
       <RunActivity
