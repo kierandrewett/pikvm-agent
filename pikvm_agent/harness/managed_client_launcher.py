@@ -20,7 +20,9 @@ from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Protocol
+
+import httpx
 
 from pikvm_agent.harness.client_config_audit import (
     ClientConfigAuditReport,
@@ -123,6 +125,228 @@ class ClientIsolationError(RuntimeError):
     """The selected client cannot prove a managed-only PiKVM surface."""
 
 
+class ManagedTaskCompletionError(RuntimeError):
+    """The delegated harness run did not reach verified completion."""
+
+
+@dataclass(frozen=True)
+class ManagedRunCompletion:
+    """Safe proof that the delegated harness run reached verified completion."""
+
+    run_id: str
+    status: str
+    verification_verdict: str
+    event_cursor: int
+    action_count: int
+
+    def summary(self) -> dict[str, object]:
+        return {
+            "run_id": self.run_id,
+            "status": self.status,
+            "verification_verdict": self.verification_verdict,
+            "event_cursor": self.event_cursor,
+            "action_count": self.action_count,
+        }
+
+
+class ManagedTaskCompletionWatch(Protocol):
+    """Boundary used to correlate and await one delegated managed run."""
+
+    def capture_baseline(self) -> frozenset[str]: ...
+
+    def wait_for_completion(
+        self,
+        baseline: frozenset[str],
+        *,
+        timeout_s: float,
+    ) -> ManagedRunCompletion: ...
+
+
+class HarnessTaskCompletionWatch:
+    """Correlate one newly delegated run and wait for verified completion."""
+
+    _ACTIVE_STATUSES = frozenset(
+        {"created", "planning", "running", "executing", "verifying"}
+    )
+    _INCOMPLETE_STATUSES = frozenset(
+        {
+            "needs_approval",
+            "paused",
+            "failed",
+            "blocked",
+            "rejected",
+            "aborted",
+        }
+    )
+
+    def __init__(
+        self,
+        *,
+        base_url: str,
+        agent_token: str,
+        caller_label: str,
+        transport: httpx.BaseTransport | None = None,
+        poll_interval_s: float = 0.5,
+    ) -> None:
+        if not base_url.strip():
+            raise ValueError("managed harness base URL is required")
+        if len(agent_token) < 32:
+            raise ValueError("managed harness agent token is too short")
+        if not caller_label.strip():
+            raise ValueError("managed harness caller label is required")
+        if not 0 <= poll_interval_s <= 10:
+            raise ValueError("completion poll interval must be 0..10 seconds")
+        self._base_url = base_url.rstrip("/")
+        self._agent_token = agent_token
+        self._caller_label = caller_label
+        self._transport = transport
+        self._poll_interval_s = poll_interval_s
+
+    def _get_json(
+        self,
+        path: str,
+        *,
+        params: dict[str, int] | None = None,
+    ) -> object:
+        try:
+            with httpx.Client(
+                base_url=self._base_url,
+                headers={
+                    "Authorization": f"Bearer {self._agent_token}",
+                },
+                timeout=5.0,
+                transport=self._transport,
+            ) as client:
+                response = client.get(path, params=params)
+                response.raise_for_status()
+                return response.json()
+        except (httpx.HTTPError, ValueError) as exc:
+            raise ManagedTaskCompletionError(
+                "managed harness completion probe failed"
+            ) from exc
+
+    def _list_runs(self) -> list[dict[str, object]]:
+        payload = self._get_json("/api/runs", params={"limit": 500})
+        if not isinstance(payload, list) or not all(
+            isinstance(item, dict) for item in payload
+        ):
+            raise ManagedTaskCompletionError(
+                "managed harness returned an invalid run inventory"
+            )
+        return payload
+
+    def capture_baseline(self) -> frozenset[str]:
+        return frozenset(
+            run_id
+            for item in self._list_runs()
+            for run_id in (item.get("run_id"),)
+            if isinstance(run_id, str) and run_id
+        )
+
+    def _new_matching_runs(
+        self,
+        baseline: frozenset[str],
+    ) -> list[str]:
+        matched: list[str] = []
+        for item in self._list_runs():
+            run_id = item.get("run_id")
+            caller = item.get("caller")
+            if (
+                not isinstance(run_id, str)
+                or not run_id
+                or run_id in baseline
+                or item.get("origin") != "managed"
+                or not isinstance(caller, dict)
+                or caller.get("interface") != "managed_mcp"
+                or caller.get("label") != self._caller_label
+            ):
+                continue
+            matched.append(run_id)
+        return matched
+
+    def _run_detail(self, run_id: str) -> dict[str, object]:
+        payload = self._get_json(f"/api/runs/{run_id}")
+        if not isinstance(payload, dict):
+            raise ManagedTaskCompletionError(
+                "managed harness returned an invalid run state"
+            )
+        return payload
+
+    def wait_for_completion(
+        self,
+        baseline: frozenset[str],
+        *,
+        timeout_s: float,
+    ) -> ManagedRunCompletion:
+        if timeout_s <= 0:
+            raise ValueError("completion timeout must be positive")
+        deadline = time.monotonic() + timeout_s
+        run_id: str | None = None
+        while time.monotonic() < deadline:
+            if run_id is None:
+                matched = self._new_matching_runs(baseline)
+                if len(matched) > 1:
+                    raise ManagedTaskCompletionError(
+                        "managed client delegated more than one computer run"
+                    )
+                if matched:
+                    run_id = matched[0]
+            if run_id is not None:
+                detail = self._run_detail(run_id)
+                status = detail.get("status")
+                if status == "completed":
+                    verification = detail.get("last_verification")
+                    verdict = (
+                        verification.get("verdict")
+                        if isinstance(verification, dict)
+                        else None
+                    )
+                    if verdict not in {"verified", "complete"}:
+                        raise ManagedTaskCompletionError(
+                            "managed run completed without independent "
+                            "verification"
+                        )
+                    event_cursor = detail.get("event_cursor")
+                    action_count = detail.get("next_action_index")
+                    return ManagedRunCompletion(
+                        run_id=run_id,
+                        status=status,
+                        verification_verdict=str(verdict),
+                        event_cursor=(
+                            event_cursor
+                            if isinstance(event_cursor, int)
+                            else 0
+                        ),
+                        action_count=(
+                            action_count
+                            if isinstance(action_count, int)
+                            else 0
+                        ),
+                    )
+                if status in self._INCOMPLETE_STATUSES:
+                    raise ManagedTaskCompletionError(
+                        f"managed run stopped with status {status}"
+                    )
+                if status not in self._ACTIVE_STATUSES:
+                    raise ManagedTaskCompletionError(
+                        "managed harness returned an unknown run status"
+                    )
+            if self._poll_interval_s:
+                time.sleep(
+                    min(
+                        self._poll_interval_s,
+                        max(0, deadline - time.monotonic()),
+                    )
+                )
+        if run_id is None:
+            raise ManagedTaskCompletionError(
+                "managed client did not delegate exactly one computer run"
+            )
+        raise ManagedTaskCompletionError(
+            "managed run did not finish before the runtime limit"
+        )
+
+
 @dataclass(frozen=True)
 class ManagedClientLaunch:
     """Internal exact launch shape plus a small secret-free reporting surface."""
@@ -171,9 +395,10 @@ class ManagedClientTaskResult:
     elapsed_ms: int
     task_bytes: int
     task_sha256: str
+    completion: ManagedRunCompletion | None = None
 
     def summary(self) -> dict[str, object]:
-        return {
+        result: dict[str, object] = {
             "schema_version": 1,
             "client": self.client,
             "exit_code": self.exit_code,
@@ -181,6 +406,9 @@ class ManagedClientTaskResult:
             "task_bytes": self.task_bytes,
             "task_sha256": self.task_sha256,
         }
+        if self.completion is not None:
+            result["managed_run"] = self.completion.summary()
+        return result
 
 
 def _codex_config_prefix(server_name: str) -> str:
@@ -1084,6 +1312,7 @@ def run_managed_client_task(
     task: str,
     timeout_s: float,
     environ: dict[str, str] | None = None,
+    completion_watch: ManagedTaskCompletionWatch | None = None,
 ) -> ManagedClientTaskResult:
     """Run one non-interactive task without placing its text in argv."""
 
@@ -1097,25 +1326,48 @@ def run_managed_client_task(
     if not 1 <= timeout_s <= 86_400:
         raise ValueError("managed client task timeout must be 1..86400 seconds")
     started = time.monotonic()
+    baseline = (
+        completion_watch.capture_baseline()
+        if completion_watch is not None
+        else None
+    )
     try:
         with _managed_client_runtime(
             plan,
             environ=environ,
         ) as (child_environment, cwd):
-            completed = subprocess.run(
-                list(build_managed_client_task_argv(plan)),
-                cwd=cwd,
-                env=child_environment,
-                input=task_bytes,
-                timeout=timeout_s,
-                check=False,
-            )
+            with (
+                tempfile.TemporaryFile() as client_stdout,
+                tempfile.TemporaryFile() as client_stderr,
+            ):
+                completed = subprocess.run(
+                    list(build_managed_client_task_argv(plan)),
+                    cwd=cwd,
+                    env=child_environment,
+                    input=task_bytes,
+                    stdout=client_stdout,
+                    stderr=client_stderr,
+                    timeout=timeout_s,
+                    check=False,
+                )
     except subprocess.TimeoutExpired:
         raise ClientIsolationError(
             "managed client task exceeded its runtime limit"
         ) from None
     except OSError as exc:
         raise ClientIsolationError("managed client task could not start") from exc
+    completion = None
+    if completed.returncode == 0 and completion_watch is not None:
+        remaining_s = timeout_s - (time.monotonic() - started)
+        if remaining_s <= 0:
+            raise ClientIsolationError(
+                "managed client task exceeded its runtime limit"
+            )
+        assert baseline is not None
+        completion = completion_watch.wait_for_completion(
+            baseline,
+            timeout_s=remaining_s,
+        )
     elapsed_ms = round((time.monotonic() - started) * 1000)
     return ManagedClientTaskResult(
         client=plan.client,
@@ -1123,4 +1375,5 @@ def run_managed_client_task(
         elapsed_ms=max(0, elapsed_ms),
         task_bytes=len(task_bytes),
         task_sha256=hashlib.sha256(task_bytes).hexdigest(),
+        completion=completion,
     )

@@ -4,7 +4,9 @@ import json
 import os
 import subprocess
 from pathlib import Path
+from types import SimpleNamespace
 
+import httpx
 import pytest
 from typer.testing import CliRunner
 
@@ -13,6 +15,9 @@ from pikvm_agent.harness.client_config_audit import ClientConfigDocument
 from pikvm_agent.harness.config import HarnessSettings
 from pikvm_agent.harness.managed_client_launcher import (
     ClientIsolationError,
+    HarnessTaskCompletionWatch,
+    ManagedRunCompletion,
+    ManagedTaskCompletionError,
     audit_managed_client_launch,
     build_managed_client_launch,
     build_managed_client_task_argv,
@@ -979,6 +984,14 @@ def test_managed_client_task_reports_only_safe_execution_metadata(
     def fake_run(argv: list[str], **kwargs: object) -> subprocess.CompletedProcess:
         captured["argv"] = argv
         captured.update(kwargs)
+        captured["stdout_is_private"] = (
+            kwargs.get("stdout") not in (None, subprocess.PIPE)
+            and hasattr(kwargs.get("stdout"), "write")
+        )
+        captured["stderr_is_private"] = (
+            kwargs.get("stderr") not in (None, subprocess.PIPE)
+            and hasattr(kwargs.get("stderr"), "write")
+        )
         child = kwargs["env"]
         assert isinstance(child, dict)
         isolated_home = Path(child["CODEX_HOME"])
@@ -1014,11 +1027,321 @@ def test_managed_client_task_reports_only_safe_execution_metadata(
     assert captured["auth_is_symlink"] is True
     assert captured["auth_target"] == source_auth.resolve()
     assert captured["unrelated_secret_present"] is False
+    assert captured["stdout_is_private"] is True
+    assert captured["stderr_is_private"] is True
     assert summary["client"] == "codex"
     assert summary["exit_code"] == 0
     assert summary["task_bytes"] == 34
     assert len(str(summary["task_sha256"])) == 64
     assert "private managed task" not in json.dumps(summary)
+
+
+def test_managed_client_task_waits_for_the_managed_run_after_client_exit(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    source_home = tmp_path / "codex-home"
+    source_home.mkdir()
+    (source_home / "auth.json").write_text(
+        '{"auth":"client-owned"}\n',
+        encoding="utf-8",
+    )
+    plan = build_managed_client_launch(
+        settings(monkeypatch),
+        client="codex",
+        client_executable="/opt/codex",
+        mcp_executable="/opt/pikvm/python",
+        harness_config=tmp_path / "harness.yaml",
+        project_dir=tmp_path,
+    )
+    completion = SimpleNamespace(
+        run_id="managed-run-1",
+        status="completed",
+        verification_verdict="verified",
+    )
+
+    class CompletionWatch:
+        def __init__(self) -> None:
+            self.events: list[object] = []
+
+        def capture_baseline(self) -> frozenset[str]:
+            self.events.append("baseline")
+            return frozenset({"existing-run"})
+
+        def wait_for_completion(
+            self,
+            baseline: frozenset[str],
+            *,
+            timeout_s: float,
+        ) -> object:
+            self.events.append(("wait", baseline, timeout_s))
+            return completion
+
+    watch = CompletionWatch()
+    monkeypatch.setattr(
+        subprocess,
+        "run",
+        lambda argv, **_kwargs: subprocess.CompletedProcess(argv, 0),
+    )
+
+    result = run_managed_client_task(
+        plan,
+        task="Complete the private managed task.",
+        timeout_s=30,
+        environ={
+            "CODEX_HOME": str(source_home),
+            "HOME": "/home/operator",
+            "PATH": "/usr/bin",
+            "TEST_AGENT_TOKEN": "runtime-token",
+        },
+        completion_watch=watch,
+    )
+
+    assert watch.events[0] == "baseline"
+    wait = watch.events[1]
+    assert isinstance(wait, tuple)
+    assert wait[:2] == ("wait", frozenset({"existing-run"}))
+    assert 0 < wait[2] <= 30
+    assert result.completion is completion
+
+
+def test_harness_completion_watch_correlates_and_verifies_the_new_run() -> None:
+    requests: list[tuple[str, str]] = []
+    list_calls = 0
+    detail_calls = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal list_calls, detail_calls
+        requests.append(
+            (
+                request.url.path,
+                request.headers.get("authorization", ""),
+            )
+        )
+        if request.url.path == "/api/runs":
+            list_calls += 1
+            if list_calls == 1:
+                return httpx.Response(
+                    200,
+                    json=[
+                        {
+                            "run_id": "existing-run",
+                            "status": "completed",
+                            "origin": "managed",
+                            "caller": {
+                                "interface": "managed_mcp",
+                                "label": "claude-cli",
+                            },
+                        }
+                    ],
+                )
+            return httpx.Response(
+                200,
+                json=[
+                    {
+                        "run_id": "new-run",
+                        "status": "running",
+                        "origin": "managed",
+                        "caller": {
+                            "interface": "managed_mcp",
+                            "label": "claude-cli",
+                        },
+                    },
+                    {
+                        "run_id": "existing-run",
+                        "status": "completed",
+                        "origin": "managed",
+                        "caller": {
+                            "interface": "managed_mcp",
+                            "label": "claude-cli",
+                        },
+                    },
+                ],
+            )
+        if request.url.path == "/api/runs/new-run":
+            detail_calls += 1
+            running = detail_calls == 1
+            return httpx.Response(
+                200,
+                json={
+                    "run_id": "new-run",
+                    "status": "running" if running else "completed",
+                    "origin": "managed",
+                    "caller": {
+                        "interface": "managed_mcp",
+                        "label": "claude-cli",
+                    },
+                    "event_cursor": 42,
+                    "next_action_index": 3,
+                    "last_verification": (
+                        None
+                        if running
+                        else {
+                            "verdict": "verified",
+                            "summary": "private screen content",
+                        }
+                    ),
+                },
+            )
+        return httpx.Response(404)
+
+    watch = HarnessTaskCompletionWatch(
+        base_url="http://127.0.0.1:48124",
+        agent_token="runtime-agent-token-0123456789abcdef",
+        caller_label="claude-cli",
+        transport=httpx.MockTransport(handler),
+        poll_interval_s=0,
+    )
+
+    baseline = watch.capture_baseline()
+    completion = watch.wait_for_completion(baseline, timeout_s=3)
+
+    assert baseline == frozenset({"existing-run"})
+    assert completion.run_id == "new-run"
+    assert completion.status == "completed"
+    assert completion.verification_verdict == "verified"
+    assert completion.event_cursor == 42
+    assert completion.action_count == 3
+    assert detail_calls == 2
+    assert all(
+        authorization == (
+            "Bearer runtime-agent-token-0123456789abcdef"
+        )
+        for _path, authorization in requests
+    )
+
+
+@pytest.mark.parametrize(
+    "status",
+    (
+        "needs_approval",
+        "paused",
+        "failed",
+        "blocked",
+        "rejected",
+        "aborted",
+    ),
+)
+def test_harness_completion_watch_fails_closed_on_nonterminal_success(
+    status: str,
+) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/api/runs":
+            return httpx.Response(
+                200,
+                json=[
+                    {
+                        "run_id": "new-run",
+                        "status": status,
+                        "origin": "managed",
+                        "caller": {
+                            "interface": "managed_mcp",
+                            "label": "claude-cli",
+                        },
+                    }
+                ],
+            )
+        if request.url.path == "/api/runs/new-run":
+            return httpx.Response(
+                200,
+                json={
+                    "run_id": "new-run",
+                    "status": status,
+                    "last_verification": {"verdict": "uncertain"},
+                },
+            )
+        return httpx.Response(404)
+
+    watch = HarnessTaskCompletionWatch(
+        base_url="http://127.0.0.1:48124",
+        agent_token="runtime-agent-token-0123456789abcdef",
+        caller_label="claude-cli",
+        transport=httpx.MockTransport(handler),
+        poll_interval_s=0,
+    )
+
+    with pytest.raises(
+        ManagedTaskCompletionError,
+        match=f"managed run stopped with status {status}",
+    ):
+        watch.wait_for_completion(frozenset(), timeout_s=3)
+
+
+def test_harness_completion_watch_rejects_unverified_completion() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/api/runs":
+            return httpx.Response(
+                200,
+                json=[
+                    {
+                        "run_id": "new-run",
+                        "status": "completed",
+                        "origin": "managed",
+                        "caller": {
+                            "interface": "managed_mcp",
+                            "label": "claude-cli",
+                        },
+                    }
+                ],
+            )
+        if request.url.path == "/api/runs/new-run":
+            return httpx.Response(
+                200,
+                json={
+                    "run_id": "new-run",
+                    "status": "completed",
+                    "last_verification": None,
+                },
+            )
+        return httpx.Response(404)
+
+    watch = HarnessTaskCompletionWatch(
+        base_url="http://127.0.0.1:48124",
+        agent_token="runtime-agent-token-0123456789abcdef",
+        caller_label="claude-cli",
+        transport=httpx.MockTransport(handler),
+        poll_interval_s=0,
+    )
+
+    with pytest.raises(
+        ManagedTaskCompletionError,
+        match="completed without independent verification",
+    ):
+        watch.wait_for_completion(frozenset(), timeout_s=3)
+
+
+def test_harness_completion_watch_rejects_multiple_delegated_runs() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/api/runs"
+        return httpx.Response(
+            200,
+            json=[
+                {
+                    "run_id": run_id,
+                    "status": "running",
+                    "origin": "managed",
+                    "caller": {
+                        "interface": "managed_mcp",
+                        "label": "claude-cli",
+                    },
+                }
+                for run_id in ("first-new-run", "second-new-run")
+            ],
+        )
+
+    watch = HarnessTaskCompletionWatch(
+        base_url="http://127.0.0.1:48124",
+        agent_token="runtime-agent-token-0123456789abcdef",
+        caller_label="claude-cli",
+        transport=httpx.MockTransport(handler),
+        poll_interval_s=0,
+    )
+
+    with pytest.raises(
+        ManagedTaskCompletionError,
+        match="delegated more than one computer run",
+    ):
+        watch.wait_for_completion(frozenset(), timeout_s=3)
 
 
 def test_claude_task_keeps_cli_oauth_without_forwarding_ambient_secrets(
@@ -1303,6 +1626,36 @@ routes:
         "pikvm_agent.harness.client_setup.verify_managed_harness_ready",
         lambda _settings: None,
     )
+    watch_arguments: dict[str, object] = {}
+
+    class CompletionWatch:
+        def capture_baseline(self) -> frozenset[str]:
+            return frozenset()
+
+        def wait_for_completion(
+            self,
+            _baseline: frozenset[str],
+            *,
+            timeout_s: float,
+        ) -> ManagedRunCompletion:
+            assert 0 < timeout_s <= 30
+            return ManagedRunCompletion(
+                run_id="managed-run-1",
+                status="completed",
+                verification_verdict="verified",
+                event_cursor=24,
+                action_count=3,
+            )
+
+    def fake_completion_watch(**kwargs: object) -> CompletionWatch:
+        watch_arguments.update(kwargs)
+        return CompletionWatch()
+
+    monkeypatch.setattr(
+        "pikvm_agent.harness.managed_client_launcher."
+        "HarnessTaskCompletionWatch",
+        fake_completion_watch,
+    )
     result = CliRunner().invoke(
         app,
         [
@@ -1327,6 +1680,18 @@ routes:
     assert summary["safe"] is True
     assert summary["managed_count"] == 1
     assert summary["task"]["exit_code"] == 0
+    assert summary["task"]["managed_run"] == {
+        "run_id": "managed-run-1",
+        "status": "completed",
+        "verification_verdict": "verified",
+        "event_cursor": 24,
+        "action_count": 3,
+    }
+    assert watch_arguments["base_url"] == "http://127.0.0.1:48124"
+    assert watch_arguments["caller_label"] == "codex-cli"
+    assert watch_arguments["agent_token"] == (
+        "runtime-only-agent-token-0123456789abcdef"
+    )
     assert task_call["input"] == b"Complete the smoke task.\n"
     assert "Complete the smoke task" not in "\n".join(
         task_call["argv"]  # type: ignore[arg-type]
@@ -1413,6 +1778,36 @@ routes:
         "pikvm_agent.harness.client_setup.verify_managed_harness_ready",
         fake_verify,
     )
+    watch_arguments: dict[str, object] = {}
+
+    class CompletionWatch:
+        def capture_baseline(self) -> frozenset[str]:
+            return frozenset()
+
+        def wait_for_completion(
+            self,
+            _baseline: frozenset[str],
+            *,
+            timeout_s: float,
+        ) -> ManagedRunCompletion:
+            assert 0 < timeout_s <= 30
+            return ManagedRunCompletion(
+                run_id="private-lab-run",
+                status="completed",
+                verification_verdict="verified",
+                event_cursor=18,
+                action_count=2,
+            )
+
+    def fake_completion_watch(**kwargs: object) -> CompletionWatch:
+        watch_arguments.update(kwargs)
+        return CompletionWatch()
+
+    monkeypatch.setattr(
+        "pikvm_agent.harness.managed_client_launcher."
+        "HarnessTaskCompletionWatch",
+        fake_completion_watch,
+    )
     result = CliRunner().invoke(
         app,
         [
@@ -1436,5 +1831,6 @@ routes:
 
     assert result.exit_code == 0, result.output
     assert task_environment["TEST_AGENT_TOKEN"] == runtime_token
+    assert watch_arguments["agent_token"] == runtime_token
     assert runtime_token not in result.stdout
     assert "TEST_AGENT_TOKEN" not in os.environ

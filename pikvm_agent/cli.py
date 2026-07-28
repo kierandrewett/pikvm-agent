@@ -824,10 +824,15 @@ def harness_client_task(
     """Run one stdin task through an audited managed-only PiKVM surface."""
     import json
 
-    from pikvm_agent.harness.client_setup import verify_managed_harness_ready
+    from pikvm_agent.harness.client_setup import (
+        harness_base_url,
+        verify_managed_harness_ready,
+    )
     from pikvm_agent.harness.config import load_harness_settings
     from pikvm_agent.harness.managed_client_launcher import (
         ClientIsolationError,
+        HarnessTaskCompletionWatch,
+        ManagedTaskCompletionError,
         audit_managed_client_launch,
         build_managed_client_launch,
         run_managed_client_task,
@@ -866,6 +871,14 @@ def harness_client_task(
                 settings,
                 environ=runtime_environment,
             )
+        completion_watch = HarnessTaskCompletionWatch(
+            base_url=harness_base_url(settings),
+            agent_token=settings.agent_token(
+                validate_distinct=False,
+                environ=runtime_environment,
+            ),
+            caller_label=f"{normalized}-cli",
+        )
     except ClientIsolationError as exc:
         typer.echo(f"Managed client task refused: {exc}.", err=True)
         raise typer.Exit(2)
@@ -886,7 +899,11 @@ def harness_client_task(
             task=task,
             timeout_s=max_runtime_s,
             environ=runtime_environment,
+            completion_watch=completion_watch,
         )
+    except ManagedTaskCompletionError as exc:
+        typer.echo(f"Managed client task incomplete: {exc}.", err=True)
+        raise typer.Exit(1)
     except (ClientIsolationError, ValueError) as exc:
         typer.echo(f"Managed client task refused: {exc}.", err=True)
         raise typer.Exit(2)
