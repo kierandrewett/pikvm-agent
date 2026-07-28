@@ -195,6 +195,7 @@ def test_corrected_reference_incidents_match_the_raw_route_audit() -> None:
 
     dry_run = incidents["oc-dry-run-auto-approve-submitted"]
     assert dry_run["model"]["id"] == "openrouter/google/gemini-3.6-flash"
+    assert dry_run["cause_attribution"] == "model"
     assert dry_run["outcome"] == "unresolved"
     assert dry_run["source"]["tool_sequences"] == [33, 36, 70]
 

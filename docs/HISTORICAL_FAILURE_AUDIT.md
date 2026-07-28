@@ -170,6 +170,10 @@ External send, delete, publish, commit/push, cloud mutation, and broad file repl
 
 Approval cannot be inferred from a general earlier request. The approval UI must show the actual destination, exact action class, target identity, and a concise effect summary. Human input or a target change invalidates the approval.
 
+The OpenCode dry-run violation is model-attributed: the tool executed the
+submitted HID actions as requested. Its completion result proves input
+submission only, not whether the infrastructure wrapper changed cloud state.
+
 ## Model attribution
 
 ### PiKVM call volume

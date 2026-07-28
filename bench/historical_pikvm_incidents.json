@@ -59,7 +59,7 @@
     "severity": {"critical":20,"high":27,"low":3,"medium":20},
     "category": {"command_or_script_corruption":8,"concurrency":1,"duplicate_or_extra_input":6,"focus_loss":11,"grounding_click":5,"keyboard_layout_or_case":1,"ocr_misread":2,"operator_loop":2,"pager_or_modal":2,"selection_or_editor":9,"transport_or_schema":6,"typing_truncation":5,"unsafe_or_unapproved":4,"wrong_app_or_window":3,"wrong_target":5},
     "outcome": {"abandoned":3,"contained":14,"no_state_change":2,"recovered":49,"unresolved":2},
-    "cause_attribution": {"mixed":30,"model":21,"tool_or_transport":17,"unknown":2},
+    "cause_attribution": {"mixed":29,"model":22,"tool_or_transport":17,"unknown":2},
     "one_shot_risk": {"cloud_mutation":10,"commit_or_push":2,"external_message":6,"file_overwrite":31,"none":18,"shared_task_mutation":3},
     "attributed_model": {"claude-opus-4-8":25,"claude-opus-4-8 + claude-sonnet-5":1,"claude-sonnet-4-6":9,"claude-sonnet-5":16,"gpt-5.4-mini":2,"gpt-5.5":14,"openrouter/google/gemini-3.6-flash":3}
   },
@@ -950,7 +950,7 @@
       "model": {"id":"openrouter/google/gemini-3.6-flash","attribution":"active_model_transition"},
       "category": "unsafe_or_unapproved",
       "severity": "critical",
-      "cause_attribution": "mixed",
+      "cause_attribution": "model",
       "one_shot_risk": "cloud_mutation",
       "failure": "Despite an explicit dry-run request, Gemini 3.6 directly typed and submitted a wrapper command with infrastructure auto-approval enabled three times. The raw MCP calls reported all HID actions completed; the local history does not independently prove the final cloud outcome.",
       "correction": "No first-party harness blocked the submissions. The historical record does not establish a rollback, so the external effect remains unresolved.",
