@@ -79,6 +79,9 @@ async def test_harness_serves_the_compiled_authenticated_chat_workspace() -> Non
     assert page.status_code == 200
     assert script.status_code == 200
     assert styles.status_code == 200
+    assert page.headers["cache-control"] == "no-store"
+    assert script.headers["cache-control"] == "no-store"
+    assert styles.headers["cache-control"] == "no-store"
     assert font.status_code == 200
     assert font.headers["content-type"].startswith("font/woff2")
     assert computer_chunk.status_code == 200

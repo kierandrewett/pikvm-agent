@@ -95,6 +95,15 @@ RUN_TIMELINE_EVENT_KINDS = frozenset(
     }
 )
 STREAM_HEARTBEAT_SECONDS = 5.0
+UNCACHED_UI_ENTRYPOINTS = frozenset(
+    {
+        "/app",
+        "/app/",
+        "/app/index.html",
+        "/app/app.js",
+        "/app/styles.css",
+    }
+)
 _AUTONOMOUS_PAUSE_REASONS = {
     "per-call action budget reached",
     "verifier requires more work",
@@ -534,6 +543,17 @@ def create_harness_app(
         observer_token=observer_token,
         allowed_origins=allowed_origins,
     )
+
+    @app.middleware("http")
+    async def prevent_stale_ui_entrypoints(
+        request: Request,
+        call_next: Callable[[Request], Any],
+    ) -> Response:
+        response = await call_next(request)
+        if request.url.path in UNCACHED_UI_ENTRYPOINTS:
+            response.headers["Cache-Control"] = "no-store"
+        return response
+
     shutdown_requested = asyncio.Event()
     app.state.shutdown_requested = shutdown_requested
     active_tasks: set[asyncio.Task[Any]] = set()
