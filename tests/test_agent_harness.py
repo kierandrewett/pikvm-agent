@@ -1221,6 +1221,23 @@ async def test_observational_follow_up_uses_one_read_only_model_call() -> None:
 
 
 @pytest.mark.asyncio
+async def test_plain_screen_question_uses_one_read_only_model_call() -> None:
+    provider = ScriptedProvider()
+    computer = FakeComputer()
+    harness = build_harness(provider, computer)
+
+    result = await harness.start("what is on the screen")
+
+    assert result.status is RunStatus.COMPLETED
+    assert [request.role for request in provider.requests] == ["verifier"]
+    assert computer.bursts == []
+    assert any(
+        event.kind == "plan.observation_only"
+        for event in result.events
+    )
+
+
+@pytest.mark.asyncio
 async def test_explicit_read_only_screen_description_skips_planning_and_input() -> None:
     provider = ScriptedProvider()
     computer = FakeComputer()

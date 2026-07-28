@@ -14,7 +14,11 @@ from pydantic import (
     model_validator,
 )
 
-from pikvm_agent.harness.agent import AgentHarness
+from pikvm_agent.harness.agent import (
+    AgentHarness,
+    is_direct_screen_observation_request,
+    is_observation_only_request,
+)
 from pikvm_agent.harness.agent_models import (
     AssistantDecision,
     ConversationMessage,
@@ -228,10 +232,32 @@ class AssistantHarness:
         run.status = RunStatus.RUNNING
         run.error = None
         tool_rounds = self._tool_rounds_in_current_turn(run)
+        direct_observation_task = self._direct_observation_task(run)
+        if direct_observation_task is not None:
+            run.record(
+                "assistant.computer_routed",
+                strategy="literal_read_only_fast_path",
+                task=direct_observation_task,
+            )
+            await self.store.save(run)
         while True:
-            decision = await self._decide(run)
-            if decision is None:
-                return run
+            if direct_observation_task is not None:
+                decision = AssistantDecision(
+                    outcome="computer",
+                    message="Let me take a look at the screen.",
+                    computer_task=direct_observation_task,
+                )
+                selected_by = {
+                    "provider": "harness",
+                    "model": "literal-read-only-router",
+                    "latency_ms": 0,
+                }
+                direct_observation_task = None
+            else:
+                decision = await self._decide(run)
+                if decision is None:
+                    return run
+                selected_by = self._latest_assistant_model_receipt(run)
             if decision.outcome == "reply":
                 run.status = RunStatus.COMPLETED
                 run.error = None
@@ -251,7 +277,6 @@ class AssistantHarness:
                 return run
             if decision.outcome == "computer":
                 computer_task = decision.computer_task or ""
-                selected_by = self._latest_assistant_model_receipt(run)
                 call_id = str(uuid.uuid4())
                 run.record(
                     "assistant.computer_handoff",
@@ -308,7 +333,7 @@ class AssistantHarness:
                 run,
                 decision.tool_call.name,
                 decision.tool_call.arguments,
-                selected_by=self._latest_assistant_model_receipt(run),
+                selected_by=selected_by,
             )
             if waiting:
                 return run
@@ -322,6 +347,28 @@ class AssistantHarness:
         )
         await self.store.save(run)
         return run
+
+    @staticmethod
+    def _direct_observation_task(run: RunSnapshot) -> str | None:
+        prior_computer_context = any(
+            event.kind.startswith("assistant.computer_handoff")
+            for event in run.events
+        )
+        for message in reversed(run.conversation):
+            if message.role == "user":
+                request = message.content.strip()
+                return (
+                    request
+                    if (
+                        is_direct_screen_observation_request(request)
+                        or (
+                            prior_computer_context
+                            and is_observation_only_request(request)
+                        )
+                    )
+                    else None
+                )
+        return None
 
     async def steer(self, run_id: str, instruction: str) -> RunSnapshot:
         instruction = instruction.strip()

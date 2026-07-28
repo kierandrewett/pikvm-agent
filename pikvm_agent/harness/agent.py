@@ -201,7 +201,9 @@ _OBSERVATION_ONLY_REQUESTS = frozenset(
         "what do you see",
         "what do you see rn",
         "what is on screen",
+        "what is on the screen",
         "whats on screen",
+        "whats on the screen",
     }
 )
 
@@ -226,6 +228,44 @@ _SENTENCE_INPUT_PATTERN = re.compile(
     r"(?:^|[.!?;:]\s*)(?:please\s+)?"
     rf"{_COMPUTER_INPUT_VERB_PATTERN}\b"
 )
+_DIRECT_SCREEN_TARGET_PATTERN = re.compile(
+    r"\b(?:desktop|screen|visible|window|vm)\b"
+)
+
+
+def is_observation_only_request(request: str) -> bool:
+    """Return whether a literal request needs fresh pixels but no HID input."""
+
+    normalized = re.sub(r"[^a-z0-9']+", " ", request.casefold()).strip()
+    normalized = normalized.replace("'", "")
+    if normalized in _OBSERVATION_ONLY_REQUESTS:
+        return True
+    explicit_mode = normalized.startswith(_EXPLICIT_OBSERVATION_PREFIXES)
+    observation_target = bool(
+        _OBSERVATION_TARGET_PATTERN.search(normalized)
+    )
+    follow_up_input = bool(
+        _FOLLOW_UP_INPUT_PATTERN.search(request.casefold())
+    )
+    sentence_input = bool(
+        _SENTENCE_INPUT_PATTERN.search(request.casefold())
+    )
+    return (
+        explicit_mode
+        and observation_target
+        and not follow_up_input
+        and not sentence_input
+    )
+
+
+def is_direct_screen_observation_request(request: str) -> bool:
+    """Return whether a fresh-screen request is unambiguous without a model."""
+
+    return (
+        is_observation_only_request(request)
+        and _DIRECT_SCREEN_TARGET_PATTERN.search(request.casefold())
+        is not None
+    )
 
 
 class AgentHarness:
@@ -853,26 +893,7 @@ class AgentHarness:
             if run.operator_guidance
             else run.task
         )
-        normalized = re.sub(r"[^a-z0-9']+", " ", request.casefold()).strip()
-        normalized = normalized.replace("'", "")
-        if normalized in _OBSERVATION_ONLY_REQUESTS:
-            return True
-        explicit_mode = normalized.startswith(_EXPLICIT_OBSERVATION_PREFIXES)
-        observation_target = bool(
-            _OBSERVATION_TARGET_PATTERN.search(normalized)
-        )
-        follow_up_input = bool(
-            _FOLLOW_UP_INPUT_PATTERN.search(request.casefold())
-        )
-        sentence_input = bool(
-            _SENTENCE_INPUT_PATTERN.search(request.casefold())
-        )
-        return (
-            explicit_mode
-            and observation_target
-            and not follow_up_input
-            and not sentence_input
-        )
+        return is_observation_only_request(request)
 
     async def _plan(
         self,

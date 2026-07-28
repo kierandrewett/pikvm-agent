@@ -434,6 +434,60 @@ async def test_computer_handoff_preserves_the_exact_bounded_task() -> None:
 
 
 @pytest.mark.asyncio
+async def test_literal_screen_question_skips_the_assistant_router_model() -> None:
+    harness, provider, computer, _ = assistant_harness([])
+
+    created = await harness.create("what is on the screen")
+    completed = await harness.continue_run(created.run_id)
+
+    assert provider.requests == []
+    assert computer.activated == [
+        (created.run_id, "what is on the screen")
+    ]
+    assert completed.conversation[-1].content == (
+        "Let me take a look at the screen."
+    )
+    routed = next(
+        event
+        for event in completed.events
+        if event.kind == "assistant.computer_routed"
+    )
+    assert routed.data == {
+        "strategy": "literal_read_only_fast_path",
+        "task": "what is on the screen",
+    }
+    handoff = next(
+        event
+        for event in completed.events
+        if event.kind == "assistant.computer_handoff"
+    )
+    assert handoff.data["selected_by"] == {
+        "provider": "harness",
+        "model": "literal-read-only-router",
+        "latency_ms": 0,
+    }
+
+
+@pytest.mark.asyncio
+async def test_ambiguous_observation_follow_up_stays_in_normal_chat() -> None:
+    harness, provider, computer, _ = assistant_harness(
+        [
+            {
+                "outcome": "reply",
+                "message": "What are you referring to?",
+            }
+        ]
+    )
+
+    created = await harness.create("Did it work?")
+    completed = await harness.continue_run(created.run_id)
+
+    assert len(provider.requests) == 1
+    assert computer.activated == []
+    assert completed.conversation[-1].content == "What are you referring to?"
+
+
+@pytest.mark.asyncio
 async def test_computer_handoff_is_visible_even_without_model_prose() -> None:
     harness, _, computer, _ = assistant_harness(
         [
@@ -444,7 +498,7 @@ async def test_computer_handoff_is_visible_even_without_model_prose() -> None:
         ]
     )
 
-    created = await harness.create("What is on the screen?")
+    created = await harness.create("Inspect the connected monitor now.")
     completed = await harness.continue_run(created.run_id)
 
     assert computer.activated == [

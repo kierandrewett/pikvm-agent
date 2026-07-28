@@ -500,6 +500,9 @@ describe("Thread progress", () => {
         .getByRole("status")
         .closest("[data-slot='aui_assistant-message-root']"),
     ).toBeNull();
+    expect(
+      document.querySelector("[data-slot='aui-branch-picker-root']"),
+    ).toBeNull();
   });
 
   it("virtualizes old assistant messages without virtualizing the current one", () => {
