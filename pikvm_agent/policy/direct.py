@@ -177,6 +177,10 @@ _SHELL_LAUNCHER = re.compile(
     r")",
     re.IGNORECASE,
 )
+_TERMINAL_SYSTEM_SETTING = re.compile(
+    r"^\s*gsettings\s+(?:set|reset|reset-recursively)\b",
+    re.IGNORECASE,
+)
 
 
 def _semantic_text(action: dict) -> str:
@@ -382,6 +386,20 @@ def _terminal_text_groups(
     return groups, grouped_indexes
 
 
+def _medium_terminal_candidate(command: str) -> tuple[str, str, str]:
+    if _TERMINAL_SYSTEM_SETTING.search(command):
+        return (
+            "system_setting_change",
+            "medium",
+            "terminal system-setting change requires human review",
+        )
+    return (
+        "terminal_mutating",
+        "medium",
+        "mutating terminal command requires human review",
+    )
+
+
 def classify_direct_burst(
     actions: list[dict], policy: PolicyConfig
 ) -> DirectBurstVerdict:
@@ -412,13 +430,7 @@ def classify_direct_burst(
                 )
             )
         elif command_risk == "medium":
-            candidates.append(
-                (
-                    "terminal_mutating",
-                    "medium",
-                    "mutating terminal command requires human review",
-                )
-            )
+            candidates.append(_medium_terminal_candidate(command))
 
     run_dialog_opened = False
     for index, action in enumerate(actions):
@@ -557,9 +569,7 @@ def classify_direct_burst(
                 ("communication_send", "medium", "side-effecting command requires human review")
             )
         elif terminal_context and command_risk == "medium":
-            candidates.append(
-                ("terminal_mutating", "medium", "mutating terminal command requires human review")
-            )
+            candidates.append(_medium_terminal_candidate(text))
 
     if not candidates:
         return DirectBurstVerdict("allowed")

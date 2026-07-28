@@ -72,6 +72,36 @@ def test_unknown_mutating_terminal_command_requires_human() -> None:
     assert verdict.category == "terminal_mutating"
 
 
+def test_terminal_system_setting_uses_the_specific_policy_category() -> None:
+    actions = [
+        {
+            "type": "type_text",
+            "text": (
+                "gsettings set "
+                "org.gnome.settings-daemon.plugins.power idle-dim false"
+            ),
+            "context": "terminal",
+        }
+    ]
+
+    normal = _classify(actions)
+    benchmark = classify_direct_burst(
+        actions,
+        isolated_benchmark_policy(),
+    )
+
+    assert (normal.status, normal.category, normal.level) == (
+        "approval_required",
+        "system_setting_change",
+        "medium",
+    )
+    assert (benchmark.status, benchmark.category, benchmark.level) == (
+        "allowed",
+        "system_setting_change",
+        "medium",
+    )
+
+
 def test_segmented_read_only_terminal_command_is_classified_as_one_line() -> None:
     verdict = _classify(
         [
