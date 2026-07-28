@@ -1223,7 +1223,7 @@ messaging integration.
 ## Current headline
 
 <!-- pikvm-scorecard:start -->
-_Generated from checked JSON evidence as of 2026-07-28. Manifest `sha256:7dd93f997977`; run `pikvm-agent harness scorecard --check` to detect drift._
+_Generated from checked JSON evidence as of 2026-07-28. Manifest `sha256:8b7e1482f66c`; run `pikvm-agent harness scorecard --check` to detect drift._
 
 | Suite | Route | Cases | Result | Median / p95 | Wall | Status | Evidence |
 | --- | --- | ---: | ---: | ---: | ---: | --- | --- |
@@ -1277,11 +1277,23 @@ _Generated from checked JSON evidence as of 2026-07-28. Manifest `sha256:7dd93f9
 | Blind OCR known-intent candidate union | Tesseract precise + PaddleOCR evidence | 1,000 paired cases | 827/1,000, 82.7%; routine 776/800, 97.0%; stress 51/200, 25.5% | Not measured | Retrospective paired analysis | Failing gate; runtime hybrid pass not run | [JSON](results/2026-07-26/ocr/hybrid-known-intent-candidate-union-n1000.json) · `sha256:5b37f898a147` |
 | Hybrid OCR worker lifecycle | Tesseract precise + killable Paddle worker | 5 lifecycle cases + 19 contracts | 19/19; hard timeout before yes, after no | 5,025ms / 5,062ms | 5.07s | Process lifecycle fixed; diagnostic only, n=5 | [JSON](results/2026-07-26/ocr/hybrid-worker-shutdown-smoke-2026-07-27.json) · `sha256:766f4b73b6db` |
 | Live Excel artifact acceptance | Claude Opus controller/reasoner + Haiku verifier → disposable Windows VM | 5 failure-inclusive attempts | 1/5; final artifact 29/29; 23/25 actions, 92.0% | 25.33s / 40.06s controller | 1,772.38s | Passing n=1 artifact; four preceding attempts retained; latency failing product target | [JSON](results/2026-07-28/live-vnc/office-excel-live-acceptance.json) · `sha256:0b4610ec5ffd` |
+| Live Excel managed transcript replay | Preserved disposable-VM run → authenticated API → Electron/CDP | 532 durable events / 25 actions | 152 timeline events; 1 assistant / 0 branches / 0 duplicate planning | 126.4ms replay navigation | 244,805 gzip-9 JS bytes | Passing preserved live-run UI replay; no target contact during replay | [JSON](results/2026-07-28/ui/live-excel-managed-timeline-replay.json) · `sha256:c0f1e5f8d656` |
 | OSWorld-Verified tracer | Codex, Claude, and mixed role routes | 9 current; 33 scored + 11 unscored attempts | 6/9 current; 6/33 all scored attempts | 128.56s / 883.97s | 2,583.98s current set | Diagnostic; three current failures | [JSON](results/2026-07-25/osworld/summary.json) · `sha256:061062fbbdbe` |
 | Windows Agent Arena | — | 154 tasks discovered | Not run | — | — | Blocked by missing official image | [JSON](results/2026-07-24/inventories/windows-agent-arena.json) · `sha256:c52ba54f6b29` |
 | Historical PiKVM incident audit | Claude Code + Codex + OpenCode histories | 24 conversations; 4,453 PiKVM calls | 70 incidents: 20 critical, 27 high | — | — | Available local histories audited | [JSON](historical_pikvm_incidents.json) · `sha256:6dc7b9e8b555` |
 | Historical critical/high regression coverage | Checked local control ledger | 47 critical/high incidents | 7 locally covered; 40 partial; 0 open | — | — | Coverage ledger; most incidents remain partial | [JSON](historical_pikvm_coverage.json) · `sha256:d6164522d369` |
 <!-- pikvm-scorecard:end -->
+
+The live Excel managed-transcript row is a replay of the preserved disposable
+Windows run through the current authenticated API and Electron UI. It did not
+contact the target again. The durable store contains 532 events and 25 action
+attempts; the API keeps the newest 500 raw diagnostic events while separately
+returning all 152 user-visible timeline events. The collapsed transcript reports
+all 25 actions in one tool group with one user message, one assistant message,
+zero branch counters, and zero duplicate planning rows. The evidence file
+retains source revisions, reproduction commands, evaluator identity, hashes for
+the private raw state and redacted timeline, and the limitation that this is not
+a second live execution.
 
 The current 100-case Codex sample is 73%, with a Wilson 95% interval of
 63.6–80.7%. Its first 20 cases scored 16/20 while the remaining 80 scored

@@ -1,6 +1,10 @@
 {
   "schema_version": 1,
   "generated_at": "2026-07-28T07:55:42+01:00",
+  "source_revisions": {
+    "pikvm_agent": "03b8d74585163d0200a70588bdaf9c805c48488f",
+    "pikvm_desktop_agentic": "2e3ac067d3ef1a68039c39d8b22fbed7a5a60e99"
+  },
   "environment": {
     "kind": "isolated-electron-fake-target",
     "production_touched": false,
@@ -59,5 +63,15 @@
       "failed": 0,
       "build": "passed"
     }
+  },
+  "evaluator": {
+    "identity": "automated Electron Chromium CDP DOM audit plus real stdio MCP inventory",
+    "raw_log": "not published; the report retains the complete non-secret result projection",
+    "reproduction_commands": [
+      "npm test",
+      "npm run build",
+      "PIKVM_CDP_PORT=<isolated-cdp-port> node scripts/inspect-electron-cdp.mjs",
+      "pikvm-agent harness client-acceptance --out <mode-0600-report>"
+    ]
   }
 }

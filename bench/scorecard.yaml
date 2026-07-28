@@ -892,6 +892,24 @@ rows:
     wall: "{wall}"
     status: "Passing n=1 artifact; four preceding attempts retained; latency failing product target"
 
+  - suite: "Live Excel managed transcript replay"
+    route: "Preserved disposable-VM run → authenticated API → Electron/CDP"
+    source: "results/2026-07-28/ui/live-excel-managed-timeline-replay.json"
+    fields:
+      durable_events: {path: "durable_state.event_count", format: "integer"}
+      timeline_events: {path: "authenticated_api_projection.timeline_events", format: "integer"}
+      actions: {path: "electron_dom_audit.computer_actions_reported", format: "integer"}
+      assistant_messages: {path: "electron_dom_audit.assistant_messages", format: "integer"}
+      branches: {path: "electron_dom_audit.branch_counters", format: "integer"}
+      duplicates: {path: "electron_dom_audit.duplicate_planning_rows", format: "integer"}
+      navigation: {path: "electron_dom_audit.navigation_duration_ms", format: "milliseconds", digits: 1}
+      javascript: {path: "build.javascript_gzip_9_bytes", format: "integer"}
+    cases: "{durable_events} durable events / {actions} actions"
+    result: "{timeline_events} timeline events; {assistant_messages} assistant / {branches} branches / {duplicates} duplicate planning"
+    latency: "{navigation} replay navigation"
+    wall: "{javascript} gzip-9 JS bytes"
+    status: "Passing preserved live-run UI replay; no target contact during replay"
+
   - suite: "OSWorld-Verified tracer"
     route: "Codex, Claude, and mixed role routes"
     source: "results/2026-07-25/osworld/summary.json"

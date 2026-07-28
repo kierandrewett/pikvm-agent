@@ -456,8 +456,14 @@ path; it does not assume that a pre-running process could know the path.
 
 The endpoint and artifact path are runtime inputs. Consequential approvals
 remain in the operator UI; the runner has no approval method. The supplied
-remote VM has not yet produced a passing Office result, so this command and its
-contract are not presented as live-task proof.
+disposable VM has now produced one clean Excel pass: the final failure-inclusive
+attempt saved and reopened a 9,437-byte workbook that passed 29/29 independent
+semantic checks. The five retained attempts passed 1/5 and the successful run
+took 1,772.382 seconds, so this is live-task proof for one workbook—not a broad
+Office reliability claim. See the
+[`live Excel acceptance`](bench/results/2026-07-28/live-vnc/office-excel-live-acceptance.json)
+and its
+[`current UI replay`](bench/results/2026-07-28/ui/live-excel-managed-timeline-replay.json).
 
 Before signing or publishing a local-operator wheel:
 

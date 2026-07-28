@@ -2,6 +2,12 @@
   "schema_version": 1,
   "suite": "managed-client-acceptance",
   "created_at": "2026-07-28T06:58:41.561813+00:00",
+  "source_revision": "03b8d74585163d0200a70588bdaf9c805c48488f",
+  "evaluator": {
+    "identity": "first-party deterministic managed-client acceptance runner",
+    "reproduction_command": "pikvm-agent harness client-acceptance --out <mode-0600-report>",
+    "raw_log": "the no-overwrite report is the authoritative complete result"
+  },
   "clients_requested": 4,
   "clients_passed": 4,
   "clients_failed": 0,

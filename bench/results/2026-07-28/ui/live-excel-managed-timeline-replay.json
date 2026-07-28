@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-07-28T08:46:00+01:00",
+  "suite": "live-excel-managed-timeline-replay",
+  "source_revisions": {
+    "pikvm_agent": "e30d0f005df6178b9f01063fc7b5c8891cc1e0c0",
+    "pikvm_desktop_agentic": "00486fec239ea861174ba0fee349b1f729eece4e"
+  },
+  "environment": {
+    "kind": "isolated-electron-preserved-live-run-replay",
+    "production_touched": false,
+    "remote_target_contacted_during_replay": false,
+    "screenshot_captured": false,
+    "target_endpoint_retained": false
+  },
+  "source_live_run": {
+    "run_id": "46c6e5dd-38e6-4443-a16f-9e140cbebef1",
+    "environment": "disposable-windows-vm",
+    "report": "../../live-vnc/office-excel-live-acceptance.json",
+    "source_result_sha256": "43636e4a7ee7b6cd65a366de1ea0375fd4a60e7fb7f9526a151bc4158507dacf",
+    "status": "completed",
+    "artifact_checks_passed": 29,
+    "artifact_checks_total": 29,
+    "artifact_byte_count": 9437,
+    "artifact_sha256": "1fad889b048aa7a6974588862c734752b5d057b4a0341237baf8a1b7f9266782"
+  },
+  "durable_state": {
+    "event_count": 532,
+    "event_cursor": 532,
+    "first_sequence": 1,
+    "last_sequence": 532,
+    "action_checkpoints": 25,
+    "action_attempts": 25,
+    "action_completed": 23,
+    "action_completed_unverified": 1,
+    "action_ungrounded_refreshed": 1,
+    "verification_evidence_captured": 24,
+    "sequence_kind_sha256": "365bc5abe814958ceecf96d777a7912e758a4a01ffffdd79abadd7e9c4e73144"
+  },
+  "authenticated_api_projection": {
+    "raw_tail_events": 500,
+    "raw_tail_truncated": true,
+    "timeline_events": 152,
+    "timeline_truncated": false,
+    "action_attempts": 25,
+    "first_timeline_sequence": 11,
+    "last_timeline_sequence": 530,
+    "redacted_timeline_sha256": "d96f125de6542447b1defd688252c2b58a18644c485ca7922cb12e16afc1ab57"
+  },
+  "electron_dom_audit": {
+    "user_messages": 1,
+    "assistant_messages": 1,
+    "tool_groups": 1,
+    "computer_activity_label": "25 computer actions, inspect exact inputs and screen evidence",
+    "computer_actions_reported": 25,
+    "branch_counters": 0,
+    "duplicate_planning_rows": 0,
+    "completion_visible": true,
+    "navigation_duration_ms": 126.4,
+    "dom_nodes_after_gc": 281,
+    "javascript_heap_bytes_after_gc": 10352696
+  },
+  "build": {
+    "javascript_bytes": 826221,
+    "javascript_gzip_9_bytes": 244805,
+    "css_bytes": 110405,
+    "css_gzip_9_bytes": 18252
+  },
+  "evaluator": {
+    "identity": "automated SQLite count, authenticated API projection, Electron Chromium CDP DOM audit, and independent XLSX semantic verifier",
+    "assertions": [
+      "Every one of the 25 durable action attempts appears in the authenticated user-visible timeline.",
+      "The collapsed computer activity trigger reports the same 25-action count.",
+      "The completed transcript contains one user message, one assistant message, one tool group, zero branch counters, and zero duplicate planning rows.",
+      "The saved workbook remains the 9437-byte artifact that passed all 29 independent semantic checks."
+    ]
+  },
+  "reproduction": {
+    "commands": [
+      "npm --prefix frontend test",
+      "npm --prefix frontend run build",
+      "pikvm-agent harness serve --config <preserved-replay-config>",
+      "curl -H 'Authorization: Bearer <operator-token>' http://127.0.0.1:<isolated-port>/api/runs/46c6e5dd-38e6-4443-a16f-9e140cbebef1",
+      "PIKVM_CDP_PORT=<isolated-cdp-port> PIKVM_CDP_COLLECT_GARBAGE=1 PIKVM_CDP_BODY_TEXT_LIMIT=3000 node scripts/inspect-electron-cdp.mjs"
+    ],
+    "raw_state": {
+      "availability": "retained locally; not published because it contains raw model prompts and screen-derived evidence",
+      "byte_count": 802816,
+      "sha256": "0e457c81080fcb534311eba057ea2584f120027057cdf9b62fc73db59df21136"
+    }
+  },
+  "limitations": [
+    "This is a replay of the preserved live disposable-VM run through the current UI, not a second computer execution.",
+    "The collapsed transcript count was inspected over CDP without expanding all 25 action rows.",
+    "The underlying live result remains one passing Excel artifact out of five failure-inclusive attempts and took 1772.382 seconds."
+  ]
+}
