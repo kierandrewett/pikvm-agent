@@ -79,6 +79,14 @@ managed registration. Nothing was rewritten, no installed desktop was
 restarted, and no computer target was contacted. Evidence:
 [`effective-client-route-audit.json`](../bench/results/2026-07-28/safety/effective-client-route-audit.json).
 
+A DOM-only isolated Electron follow-up also removed the composer-facing
+`opus / opus / haiku` implementation tuple. It now shows `Opus + Haiku` while
+the accessible label and tooltip retain exact Reasoning, Acting, and Checking
+provider attribution. At the actual 916×540 window the completed page had zero
+branch counters and zero horizontal overflow. No screenshot was captured and
+the installed desktop was not restarted. Evidence:
+[`compact-model-route-audit.json`](../bench/results/2026-07-28/ui/compact-model-route-audit.json).
+
 A fresh target-free provider repeat then exercised normal chat rather than
 computer control. Claude OAuth passed greeting, ordinary knowledge, cited
 research through visible `web.search_text`, explicit computer hand-off, and a

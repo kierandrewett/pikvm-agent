@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-07-28",
+  "kind": "isolated-electron-dom-audit",
+  "surface": "composer-model-route",
+  "viewport": {
+    "width": 916,
+    "height": 540
+  },
+  "visible_model_label": "Opus + Haiku",
+  "accessible_route_label": "Configure model route. Reasoning: opus (claude-account). Acting: opus (claude-account). Checking: haiku (claude-fast)",
+  "route_tooltip": "Reasoning: opus (claude-account). Acting: opus (claude-account). Checking: haiku (claude-fast). Click to configure this task.",
+  "branch_counters": 0,
+  "horizontal_overflow_px": 0,
+  "screenshot_captured": false,
+  "computer_input_sent": false,
+  "installed_desktop_restarted": false,
+  "production_target_contacted": false
+}

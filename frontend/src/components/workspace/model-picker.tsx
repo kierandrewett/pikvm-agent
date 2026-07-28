@@ -20,6 +20,16 @@ type ModelPickerProps = {
   onOpenModels: () => void;
 };
 
+const compactModelLabel = (model: string) => {
+  const familiarAliases: Record<string, string> = {
+    opus: "Opus",
+    sonnet: "Sonnet",
+    haiku: "Haiku",
+    "account-default": "Codex",
+  };
+  return familiarAliases[model.toLowerCase()] || model;
+};
+
 export function ModelPicker({
   providers,
   preferences,
@@ -46,8 +56,11 @@ export function ModelPicker({
     };
   });
   const models = primaries.map(({ model }) => model);
-  const oneModel = new Set(models).size === 1;
-  const summary = oneModel ? models[0] : models.join(" / ");
+  const visibleModels = [...new Set(models.map(compactModelLabel))];
+  const summary =
+    visibleModels.length <= 2
+      ? visibleModels.join(" + ")
+      : `${visibleModels[0]} + ${visibleModels.length - 1} more`;
   const routeDescription = primaries
     .map(({ label, model, provider }) =>
       `${label}: ${model}${provider && model !== provider ? ` (${provider})` : ""}`,

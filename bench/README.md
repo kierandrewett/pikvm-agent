@@ -84,6 +84,15 @@ cutover path-free and fail-closed, but it does not pretend an installation has
 happened. Machine-readable evidence:
 [`effective-client-route-audit.json`](results/2026-07-28/safety/effective-client-route-audit.json).
 
+The same isolated desktop was reloaded over CDP after a composer copy polish.
+Its model control now renders `Opus + Haiku` instead of the internal
+`opus / opus / haiku` role tuple. The accessible label and tooltip still name
+the exact Reasoning, Acting, and Checking providers. At the real 916×540
+Electron viewport the DOM had zero branch counters and zero horizontal
+overflow. No screenshot, input action, installed-app restart, or production
+target was involved:
+[`compact model route audit`](results/2026-07-28/ui/compact-model-route-audit.json).
+
 ### Target-free OAuth assistant repeat
 
 A fresh secret-free harness configuration selected the logged-in Claude and
