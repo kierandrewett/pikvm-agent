@@ -2230,15 +2230,29 @@ def harness_run_metrics(
         help="Harness SQLite checkpoint database.",
     ),
     run_id: str = typer.Option(..., "--run-id", help="Durable harness run ID."),
+    human_baseline_ms: int | None = typer.Option(
+        None,
+        "--human-baseline-ms",
+        min=1,
+        help=(
+            "Optional successful-human wall time for the same task and "
+            "environment."
+        ),
+    ),
 ) -> None:
-    """Report per-model and HID-loop latency for a saved harness run."""
+    """Report critical-path, model, HID, and optional human-relative latency."""
     import asyncio
 
     from pikvm_agent.harness.agent_store import SqliteRunStore
     from pikvm_agent.harness.performance import summarize_run_performance
 
     run = asyncio.run(SqliteRunStore(state).get(run_id))
-    typer.echo(summarize_run_performance(run).model_dump_json(indent=2))
+    typer.echo(
+        summarize_run_performance(
+            run,
+            human_baseline_ms=human_baseline_ms,
+        ).model_dump_json(indent=2)
+    )
 
 
 @harness_app.command("scorecard")

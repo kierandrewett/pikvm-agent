@@ -7,7 +7,7 @@ import statistics
 from collections import defaultdict
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from pikvm_agent.harness.agent_models import HarnessEvent, RunSnapshot
 
@@ -30,6 +30,35 @@ class ModelLanePerformance(BaseModel):
     provider: str
     model: str
     latency: Distribution
+
+
+class CriticalPathBreakdown(BaseModel):
+    """Observed wall-time buckets from durable run events."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    startup_ms: int = 0
+    provider_wait_ms: int = 0
+    action_execution_ms: int = 0
+    evidence_capture_ms: int = 0
+    unclassified_overhead_ms: int = 0
+    overlap_ms: int = 0
+    provider_wait_share: float = 0.0
+    action_execution_share: float = 0.0
+    provider_calls: int = 0
+    reasoner_calls: int = 0
+    controller_calls: int = 0
+    verifier_calls: int = 0
+
+
+class HumanSpeedComparison(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    human_baseline_ms: int
+    agent_wall_clock_ms: int
+    time_over_human_ms: int
+    agent_to_human_ratio: float
+    human_competitive: bool
 
 
 class RunPerformanceReport(BaseModel):
@@ -61,6 +90,10 @@ class RunPerformanceReport(BaseModel):
     action_latency: Distribution | None
     completion_efficiency: float
     progress_action_ratio: float
+    critical_path: CriticalPathBreakdown = Field(
+        default_factory=CriticalPathBreakdown
+    )
+    human_comparison: HumanSpeedComparison | None = None
 
 
 def _percentile(values: list[float], percentile: float) -> float:
@@ -96,6 +129,7 @@ def _action_latencies(events: list[HarnessEvent]) -> list[float]:
     latencies: list[float] = []
     terminal_kinds = {
         "action.completed",
+        "action.completed_unverified",
         "action.recoverable_failure",
         "action.failed",
         "action.refused_stale",
@@ -112,9 +146,246 @@ def _action_latencies(events: list[HarnessEvent]) -> list[float]:
     return latencies
 
 
-def summarize_run_performance(run: RunSnapshot) -> RunPerformanceReport:
+def _bounded_interval(
+    start: datetime,
+    end: datetime,
+    *,
+    run_start: datetime,
+    run_end: datetime,
+) -> tuple[datetime, datetime] | None:
+    bounded_start = max(start, run_start)
+    bounded_end = min(end, run_end)
+    if bounded_end <= bounded_start:
+        return None
+    return bounded_start, bounded_end
+
+
+def _interval_total_ms(
+    intervals: list[tuple[datetime, datetime]],
+) -> int:
+    if not intervals:
+        return 0
+    ordered = sorted(intervals)
+    merged: list[tuple[datetime, datetime]] = []
+    for start, end in ordered:
+        if not merged or start > merged[-1][1]:
+            merged.append((start, end))
+            continue
+        previous_start, previous_end = merged[-1]
+        merged[-1] = (previous_start, max(previous_end, end))
+    return round(sum(_duration_ms(start, end) for start, end in merged))
+
+
+def _matching_pending_index(
+    pending: list[HarnessEvent],
+    terminal: HarnessEvent,
+    *,
+    fields: tuple[str, ...],
+) -> int | None:
+    for index, started in enumerate(pending):
+        if all(
+            field not in terminal.data
+            or field not in started.data
+            or terminal.data.get(field) == started.data.get(field)
+            for field in fields
+        ):
+            return index
+    return None
+
+
+def _provider_wait_intervals(
+    run: RunSnapshot,
+) -> list[tuple[datetime, datetime]]:
+    pending: list[HarnessEvent] = []
+    intervals: list[tuple[datetime, datetime]] = []
+    terminal_kinds = {
+        "model.provider_output_received",
+        "model.provider_failed",
+    }
+    fields = ("role", "provider", "route_index", "attempt", "repair")
+    for event in run.events:
+        if event.kind == "model.provider_request_sent":
+            pending.append(event)
+            continue
+        if event.kind not in terminal_kinds:
+            continue
+        index = _matching_pending_index(pending, event, fields=fields)
+        if index is None:
+            continue
+        started = pending.pop(index)
+        interval = _bounded_interval(
+            started.at,
+            event.at,
+            run_start=run.created_at,
+            run_end=run.updated_at,
+        )
+        if interval is not None:
+            intervals.append(interval)
+    for started in pending:
+        interval = _bounded_interval(
+            started.at,
+            run.updated_at,
+            run_start=run.created_at,
+            run_end=run.updated_at,
+        )
+        if interval is not None:
+            intervals.append(interval)
+    return intervals
+
+
+def _action_execution_intervals(
+    run: RunSnapshot,
+) -> list[tuple[datetime, datetime]]:
+    pending: list[HarnessEvent] = []
+    intervals: list[tuple[datetime, datetime]] = []
+    terminal_kinds = {
+        "action.completed",
+        "action.completed_unverified",
+        "action.recoverable_failure",
+        "action.failed",
+        "action.refused_stale",
+        "action.transport_uncertain",
+    }
+    for event in run.events:
+        if event.kind == "action.attempted":
+            pending.append(event)
+            continue
+        if event.kind not in terminal_kinds:
+            continue
+        index = _matching_pending_index(
+            pending,
+            event,
+            fields=("index", "attempt"),
+        )
+        if index is None:
+            continue
+        started = pending.pop(index)
+        interval = _bounded_interval(
+            started.at,
+            event.at,
+            run_start=run.created_at,
+            run_end=run.updated_at,
+        )
+        if interval is not None:
+            intervals.append(interval)
+    for started in pending:
+        interval = _bounded_interval(
+            started.at,
+            run.updated_at,
+            run_start=run.created_at,
+            run_end=run.updated_at,
+        )
+        if interval is not None:
+            intervals.append(interval)
+    return intervals
+
+
+def _evidence_capture_intervals(
+    run: RunSnapshot,
+) -> list[tuple[datetime, datetime]]:
+    pending_terminal: datetime | None = None
+    intervals: list[tuple[datetime, datetime]] = []
+    action_terminal_kinds = {
+        "action.completed",
+        "action.completed_unverified",
+        "action.recoverable_failure",
+        "action.failed",
+        "action.refused_stale",
+        "action.transport_uncertain",
+    }
+    for event in run.events:
+        if event.kind in action_terminal_kinds:
+            pending_terminal = event.at
+            continue
+        if (
+            event.kind != "verification.evidence_captured"
+            or pending_terminal is None
+        ):
+            continue
+        interval = _bounded_interval(
+            pending_terminal,
+            event.at,
+            run_start=run.created_at,
+            run_end=run.updated_at,
+        )
+        pending_terminal = None
+        if interval is not None:
+            intervals.append(interval)
+    return intervals
+
+
+def _critical_path(run: RunSnapshot) -> CriticalPathBreakdown:
+    wall_ms = round(_duration_ms(run.created_at, run.updated_at))
+    first_work = next(
+        (
+            event.at
+            for event in run.events
+            if event.kind
+            in {"model.provider_request_sent", "action.attempted"}
+        ),
+        run.created_at,
+    )
+    startup_interval = _bounded_interval(
+        run.created_at,
+        first_work,
+        run_start=run.created_at,
+        run_end=run.updated_at,
+    )
+    startup_intervals = [startup_interval] if startup_interval else []
+    provider_intervals = _provider_wait_intervals(run)
+    action_intervals = _action_execution_intervals(run)
+    evidence_intervals = _evidence_capture_intervals(run)
+    measured_intervals = [
+        *startup_intervals,
+        *provider_intervals,
+        *action_intervals,
+        *evidence_intervals,
+    ]
+    startup_ms = _interval_total_ms(startup_intervals)
+    provider_wait_ms = _interval_total_ms(provider_intervals)
+    action_execution_ms = _interval_total_ms(action_intervals)
+    evidence_capture_ms = _interval_total_ms(evidence_intervals)
+    measured_union_ms = _interval_total_ms(measured_intervals)
+    category_total_ms = (
+        startup_ms
+        + provider_wait_ms
+        + action_execution_ms
+        + evidence_capture_ms
+    )
+    provider_events = [
+        event
+        for event in run.events
+        if event.kind == "model.provider_request_sent"
+    ]
+    role_calls = lambda role: sum(
+        str(event.data.get("role") or "") == role
+        for event in provider_events
+    )
+    return CriticalPathBreakdown(
+        startup_ms=startup_ms,
+        provider_wait_ms=provider_wait_ms,
+        action_execution_ms=action_execution_ms,
+        evidence_capture_ms=evidence_capture_ms,
+        unclassified_overhead_ms=max(0, wall_ms - measured_union_ms),
+        overlap_ms=max(0, category_total_ms - measured_union_ms),
+        provider_wait_share=provider_wait_ms / max(1, wall_ms),
+        action_execution_share=action_execution_ms / max(1, wall_ms),
+        provider_calls=len(provider_events),
+        reasoner_calls=role_calls("reasoner"),
+        controller_calls=role_calls("controller"),
+        verifier_calls=role_calls("verifier"),
+    )
+
+
+def summarize_run_performance(
+    run: RunSnapshot,
+    *,
+    human_baseline_ms: int | None = None,
+) -> RunPerformanceReport:
     """Summarize provider and HID-loop speed without counting hidden idle as work."""
 
+    if human_baseline_ms is not None and human_baseline_ms <= 0:
+        raise ValueError("human_baseline_ms must be greater than zero")
     grouped: dict[tuple[str, str, str], list[float]] = defaultdict(list)
     model_active_ms = 0
     for event in run.events:
@@ -166,10 +437,11 @@ def summarize_run_performance(run: RunSnapshot) -> RunPerformanceReport:
     progress_completed = len(completed_indices & progress_indices)
     observation_only_completed = len(classified_completed - progress_indices)
     action_latencies = _action_latencies(run.events)
+    wall_clock_ms = round(_duration_ms(run.created_at, run.updated_at))
     return RunPerformanceReport(
         run_id=run.run_id,
         status=run.status.value,
-        wall_clock_ms=round(_duration_ms(run.created_at, run.updated_at)),
+        wall_clock_ms=wall_clock_ms,
         model_active_ms=model_active_ms,
         model_lanes=[
             ModelLanePerformance(
@@ -218,4 +490,19 @@ def summarize_run_performance(run: RunSnapshot) -> RunPerformanceReport:
         ),
         completion_efficiency=completed / max(1, checkpointed),
         progress_action_ratio=progress_completed / max(1, completed),
+        critical_path=_critical_path(run),
+        human_comparison=(
+            HumanSpeedComparison(
+                human_baseline_ms=human_baseline_ms,
+                agent_wall_clock_ms=wall_clock_ms,
+                time_over_human_ms=max(0, wall_clock_ms - human_baseline_ms),
+                agent_to_human_ratio=wall_clock_ms / human_baseline_ms,
+                human_competitive=(
+                    run.status.value == "completed"
+                    and wall_clock_ms <= human_baseline_ms
+                ),
+            )
+            if human_baseline_ms is not None
+            else None
+        ),
     )

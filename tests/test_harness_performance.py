@@ -200,9 +200,111 @@ def test_run_performance_counts_spreadsheet_grid_entry_as_progress() -> None:
     assert report.observation_only_actions_completed == 0
 
 
+def test_run_performance_breaks_down_critical_path_and_human_ratio() -> None:
+    run = RunSnapshot(
+        run_id="run_human_speed",
+        task="change one setting",
+        status=RunStatus.COMPLETED,
+        created_at=datetime(2026, 1, 1, tzinfo=UTC),
+        updated_at=datetime(2026, 1, 1, tzinfo=UTC) + timedelta(seconds=10),
+        events=[
+            _event(1, 100, "computer.opened"),
+            _event(
+                2,
+                200,
+                "model.provider_request_sent",
+                role="reasoner",
+                provider="deep",
+                route_index=0,
+                attempt=1,
+                repair=False,
+            ),
+            _event(
+                3,
+                2_200,
+                "model.provider_output_received",
+                role="reasoner",
+                provider="deep",
+                route_index=0,
+                attempt=1,
+                repair=False,
+                latency_ms=2_000,
+            ),
+            _event(4, 2_300, "model.provider_schema_repair", role="controller"),
+            _event(
+                5,
+                2_400,
+                "model.provider_request_sent",
+                role="controller",
+                provider="fast",
+                route_index=0,
+                attempt=1,
+                repair=True,
+            ),
+            _event(
+                6,
+                3_400,
+                "model.provider_output_received",
+                role="controller",
+                provider="fast",
+                route_index=0,
+                attempt=1,
+                repair=True,
+                latency_ms=1_000,
+            ),
+            _event(7, 3_500, "action.attempted", index=0, attempt=1),
+            _event(8, 6_500, "action.completed_unverified", index=0),
+            _event(9, 7_000, "verification.evidence_captured", index=0),
+            _event(
+                10,
+                7_100,
+                "model.provider_request_sent",
+                role="verifier",
+                provider="vision",
+                route_index=0,
+                attempt=1,
+                repair=False,
+            ),
+            _event(
+                11,
+                9_100,
+                "model.provider_failed",
+                role="verifier",
+                provider="vision",
+                route_index=0,
+                attempt=1,
+                repair=False,
+                error_type="timeout",
+            ),
+        ],
+    )
+
+    report = summarize_run_performance(run, human_baseline_ms=2_000)
+
+    assert report.critical_path.startup_ms == 200
+    assert report.critical_path.provider_wait_ms == 5_000
+    assert report.critical_path.action_execution_ms == 3_000
+    assert report.critical_path.evidence_capture_ms == 500
+    assert report.critical_path.unclassified_overhead_ms == 1_300
+    assert report.critical_path.overlap_ms == 0
+    assert report.critical_path.provider_wait_share == 0.5
+    assert report.critical_path.action_execution_share == 0.3
+    assert report.critical_path.provider_calls == 3
+    assert report.critical_path.reasoner_calls == 1
+    assert report.critical_path.controller_calls == 1
+    assert report.critical_path.verifier_calls == 1
+    assert report.action_latency is not None
+    assert report.action_latency.median_ms == 3_000
+    assert report.human_comparison is not None
+    assert report.human_comparison.agent_to_human_ratio == 5.0
+    assert report.human_comparison.time_over_human_ms == 8_000
+    assert report.human_comparison.human_competitive is False
+
+
 def test_cli_exposes_saved_run_speed_report() -> None:
     result = CliRunner().invoke(app, ["harness", "run-metrics", "--help"])
 
     assert result.exit_code == 0
     assert "--state" in result.stdout
     assert "--run-id" in result.stdout
+    assert "--human-baseline-ms" in result.stdout
