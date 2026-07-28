@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-07-28",
+  "kind": "active-desktop-isolated-client-launch-dry-run",
+  "verdict": "passed",
+  "clients_requested": 4,
+  "clients_passed": 4,
+  "persisted_client_config_mutated": false,
+  "model_provider_contacted": false,
+  "mcp_server_started": false,
+  "harness_readiness_requested": false,
+  "computer_target_contacted": false,
+  "production_target_contacted": false,
+  "clients": [
+    {
+      "client": "codex",
+      "version": "0.144.4",
+      "isolation_mode": "isolated-auth-link",
+      "safe": true,
+      "managed_count": 1,
+      "failures": [],
+      "mcp_forwarded_env_names": [],
+      "modifies_persisted_config": false
+    },
+    {
+      "client": "claude",
+      "version": "2.1.220",
+      "isolation_mode": "strict-explicit-config",
+      "safe": true,
+      "managed_count": 1,
+      "failures": [],
+      "mcp_forwarded_env_names": [],
+      "modifies_persisted_config": false
+    },
+    {
+      "client": "gemini",
+      "version": "0.35.3",
+      "isolation_mode": "system-policy-allowlist",
+      "safe": true,
+      "managed_count": 1,
+      "failures": [],
+      "mcp_forwarded_env_names": [],
+      "modifies_persisted_config": false
+    },
+    {
+      "client": "opencode",
+      "version": "1.14.44",
+      "isolation_mode": "pure-inline-config",
+      "safe": true,
+      "managed_count": 1,
+      "failures": [],
+      "mcp_forwarded_env_names": [],
+      "modifies_persisted_config": false
+    }
+  ],
+  "execution_contract": {
+    "preview_is_default": true,
+    "execute_requires_explicit_flag": true,
+    "active_runtime_is_session_only": true,
+    "process_exit_is_rollback": true,
+    "persistent_cutover_required": false
+  }
+}

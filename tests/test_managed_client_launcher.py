@@ -993,6 +993,111 @@ routes:
     assert "managed-mcp" not in result.stdout
 
 
+def test_client_launch_defaults_to_active_desktop_runtime(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    harness_config = tmp_path / "harness.yaml"
+    harness_config.write_text(
+        """
+listen: "127.0.0.1:48124"
+agent_token_env: "TEST_AGENT_TOKEN"
+providers:
+  fake:
+    kind: "subprocess_json"
+    model: "test"
+    argv: ["provider"]
+routes:
+  reasoner: ["fake"]
+  controller: ["fake"]
+  verifier: ["fake"]
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    runtime = tmp_path / "managed-client-runtime.json"
+    runtime.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "harness_config": str(harness_config),
+                "agent_token_env": "TEST_AGENT_TOKEN",
+                "agent_token": (
+                    "active-agent-token-0123456789abcdef012345"
+                ),
+            }
+        ),
+        encoding="utf-8",
+    )
+    runtime.chmod(0o600)
+    monkeypatch.setenv("PIKVM_MANAGED_CLIENT_RUNTIME", str(runtime))
+    monkeypatch.delenv("TEST_AGENT_TOKEN", raising=False)
+    observed: dict[str, object] = {}
+
+    def fake_run(
+        argv: list[str],
+        **_: object,
+    ) -> subprocess.CompletedProcess[bytes]:
+        observed["argv"] = argv
+        inventory = json.dumps(
+            [
+                {
+                    "name": "pikvm",
+                    "enabled": True,
+                    "transport": {
+                        "command": "/opt/pikvm/python",
+                        "args": [
+                            "-m",
+                            "pikvm_agent.cli",
+                            "harness",
+                            "managed-runtime-mcp",
+                            "--runtime",
+                            str(runtime),
+                            "--caller-label",
+                            "codex-cli",
+                        ],
+                    },
+                }
+            ]
+        ).encode()
+        return subprocess.CompletedProcess(
+            argv,
+            0,
+            stdout=inventory,
+            stderr=b"",
+        )
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "harness",
+            "client-launch",
+            "--client",
+            "codex",
+            "--project",
+            str(tmp_path),
+            "--client-executable",
+            "/opt/codex",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    summary = json.loads(result.stdout)
+    assert summary["safe"] is True
+    assert summary["managed_count"] == 1
+    assert summary["mcp_forwarded_env_names"] == []
+    assert summary["modifies_persisted_config"] is False
+    assert summary["would_launch"] is False
+    assert str(runtime) not in result.stdout
+    assert "active-agent-token" not in result.stdout
+    assert "managed-runtime-mcp" not in result.stdout
+    assert str(runtime) in "\n".join(
+        observed["argv"]  # type: ignore[arg-type]
+    )
+
+
 @pytest.mark.parametrize(
     ("client", "expected_suffix"),
     (

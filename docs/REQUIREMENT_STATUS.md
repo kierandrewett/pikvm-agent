@@ -79,6 +79,16 @@ managed registration. Nothing was rewritten, no installed desktop was
 restarted, and no computer target was contacted. Evidence:
 [`effective-client-route-audit.json`](../bench/results/2026-07-28/safety/effective-client-route-audit.json).
 
+Persistent migration is no longer required for normal compatibility use.
+`harness client-launch --client <name>` now defaults to the desktop's active
+runtime, injects that exact runtime only into an isolated client process, runs
+the existing native effective-inventory audit, and never changes user/project
+configuration; exiting the client is the rollback. Dry-runs passed 4/4 for the
+installed Codex, Claude, Gemini, and OpenCode versions with exactly one managed
+PiKVM surface, zero forwarded agent-token environment names, and no model, MCP
+process, readiness request, or computer contact. Evidence:
+[`active-client-launch-dry-run.json`](../bench/results/2026-07-28/safety/active-client-launch-dry-run.json).
+
 A DOM-only isolated Electron follow-up also removed the composer-facing
 `opus / opus / haiku` implementation tuple. It now shows `Opus + Haiku` while
 the accessible label and tooltip retain exact Reasoning, Acting, and Checking

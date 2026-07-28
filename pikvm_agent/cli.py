@@ -893,14 +893,17 @@ def harness_client_audit(
 
 @harness_app.command("client-launch")
 def harness_client_launch(
-    config: Path = typer.Option(
-        ...,
+    config: Path | None = typer.Option(
+        None,
         "--config",
         envvar="PIKVM_HARNESS_CONFIG",
         exists=True,
         dir_okay=False,
         readable=True,
-        help="Harness YAML used by the managed MCP launcher.",
+        help=(
+            "Optional Harness YAML; omit it to use the active desktop-owned "
+            "runtime."
+        ),
     ),
     client: str = typer.Option(
         ...,
@@ -949,29 +952,44 @@ def harness_client_launch(
         run_managed_client_launch,
     )
     from pikvm_agent.harness.managed_client_runtime import (
+        active_managed_client_runtime_path,
         load_managed_client_runtime,
     )
 
     normalized = client.strip().lower()
     executable = client_executable or normalized
-    settings = load_harness_settings(config)
     try:
-        runtime_environment = (
-            load_managed_client_runtime(
-                managed_runtime,
-                expected_harness_config=config,
-            ).environment
-            if managed_runtime is not None
-            else None
-        )
+        if config is None:
+            selected_runtime = (
+                managed_runtime
+                if managed_runtime is not None
+                else active_managed_client_runtime_path()
+            )
+            loaded_runtime = load_managed_client_runtime(selected_runtime)
+            settings = loaded_runtime.settings
+            harness_config = loaded_runtime.harness_config
+            runtime_environment = loaded_runtime.environment
+            runtime_for_plan = selected_runtime
+        else:
+            settings = load_harness_settings(config)
+            harness_config = config
+            runtime_for_plan = managed_runtime
+            runtime_environment = (
+                load_managed_client_runtime(
+                    managed_runtime,
+                    expected_harness_config=config,
+                ).environment
+                if managed_runtime is not None
+                else None
+            )
         plan = build_managed_client_launch(
             settings,
             client=normalized,
             client_executable=executable,
             mcp_executable=os.path.abspath(sys.executable),
-            harness_config=config,
+            harness_config=harness_config,
             project_dir=project,
-            managed_runtime=managed_runtime,
+            managed_runtime=runtime_for_plan,
         )
         report = audit_managed_client_launch(
             plan,

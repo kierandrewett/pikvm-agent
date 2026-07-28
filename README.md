@@ -584,20 +584,24 @@ For Codex, Claude, Gemini, or OpenCode, avoid changing any persisted
 user/project registration:
 
 ```bash
-# Inspect the exact isolated launch first.
+# Inspect the exact isolated launch against the active desktop first.
 pikvm-agent harness client-launch \
   --client codex \
-  --config config.harness.yaml \
   --project .
 
 # Then start the coding client only after the same isolation audit and a
 # loopback managed-harness readiness check.
 pikvm-agent harness client-launch \
   --client codex \
-  --config config.harness.yaml \
   --project . \
   --execute
 ```
+
+When `--config` is omitted, the launcher reads the desktop's validated active
+runtime and injects its exact runtime file only into that one ephemeral client
+session. It never writes the path, token, or registration to the client's
+persisted configuration; exiting the client is the rollback. Use `--config`
+for an explicitly selected standalone harness or lab.
 
 Codex receives an inline override for the `pikvm` registration, preserves its
 normal OAuth state and unrelated MCP servers, and runs native effective
