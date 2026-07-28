@@ -1081,6 +1081,8 @@ async def test_reasoner_can_plan_a_short_visible_terminal_fallback() -> None:
     assert "exact GUI control is absent" in normalized
     assert "not a hidden side channel" in normalized
     assert "Never use this fallback for a long script" in normalized
+    assert "Do not invent a GUI-only or no-terminal constraint" in normalized
+    assert "missing from the visible GUI, replan to that fallback" in normalized
     assert "maximize or widen the terminal" in normalized
     assert "increase its text size" in normalized
     assert "never append a guessed suffix" in normalized
@@ -1106,6 +1108,8 @@ async def test_controller_handles_an_unverified_terminal_draft_without_guessing(
     assert "long exact terminal draft" in normalized
     assert "separate verified width action" in normalized
     assert "separate verified text-size increase" in normalized
+    assert "request a replan instead of blocking" in normalized
+    assert "model-invented GUI-only or no-terminal constraint" in normalized
 
 
 def test_controller_separates_spreadsheet_focus_from_grid_entry() -> None:

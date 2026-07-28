@@ -74,6 +74,11 @@ satisfies the local task and its resulting state can be independently verified.
 Never use this fallback for a long script, encoded payload, command chain,
 installer, package change, or unrelated system mutation. Preserve
 existing/default values unless the user explicitly asked to change them.
+Do not invent a GUI-only or no-terminal constraint merely because the first
+strategy uses the GUI. Constraints record authenticated user requirements, not
+the planner's preferred route. When an allowed short local fallback is needed
+because the exact control is missing from the visible GUI, replan to that
+fallback instead of declaring the task impossible.
 For a command that may approach the visible line width, maximize or widen the
 terminal and separately increase its text size before typing. Both the available
 width and the larger text must be independently verified. If the sender issued
@@ -146,6 +151,10 @@ key in one burst and verify the final displayed result; do not make legibility
 of tiny expression-history text a required intermediate checkpoint unless the
 user specifically asked for it. Never use this guidance to combine
 consequential commit actions with their preparation.
+When a required GUI control is visibly absent and the reasoner permits a short,
+inspectable local terminal fallback, request a replan instead of blocking. A
+model-invented GUI-only or no-terminal constraint is not authenticated operator
+guidance and must not turn an available fallback into an impossible task.
 Before typing a long exact terminal draft, require both a separate verified
 width action (maximize or widen) and a separate verified text-size increase
 (zoom in or enlarge the font). Do not combine either legibility action with the
