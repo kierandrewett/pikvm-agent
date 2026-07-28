@@ -422,6 +422,56 @@ describe("messagesForRun", () => {
     });
   });
 
+  it("keeps legacy computer action display identities unique when indexes repeat", () => {
+    const timelineEvents = [1, 2].flatMap((cycle) => [
+      {
+        sequence: cycle * 10,
+        at: `2026-07-27T12:00:${cycle}0Z`,
+        kind: "action.attempted",
+        data: {
+          index: 0,
+          attempt: 1,
+          tool: "pikvm_run_burst",
+          arguments: {
+            actions: [{ type: "click", x: cycle, y: 40 }],
+            idempotency_key: `legacy-action-${cycle}`,
+          },
+        },
+      },
+      {
+        sequence: cycle * 10 + 1,
+        at: `2026-07-27T12:00:${cycle}1Z`,
+        kind: "action.completed",
+        data: {
+          index: 0,
+          frame_id: cycle + 1,
+          world_version: cycle + 1,
+        },
+      },
+    ]);
+    const assistant = messagesForRun(
+      run({
+        status: "completed",
+        events: [],
+        timeline_events: timelineEvents,
+        event_count: timelineEvents.length,
+        event_cursor: timelineEvents.at(-1)?.sequence ?? 0,
+        timeline_events_truncated: false,
+      }),
+    ).at(-1);
+    const toolCallIds = (
+      Array.isArray(assistant?.content) ? assistant.content : []
+    )
+      .filter((part) => part.type === "tool-call")
+      .map((part) => part.toolCallId);
+
+    expect(toolCallIds).toEqual([
+      "run-1:legacy-action-1",
+      "run-1:legacy-action-2",
+    ]);
+    expect(new Set(toolCallIds)).toHaveLength(toolCallIds.length);
+  });
+
   it("keeps one in-progress reply across streamed event updates", () => {
     const conversation = [
       {
@@ -1141,6 +1191,53 @@ describe("messagesForRun", () => {
           model: "claude-opus-4-8",
         },
       },
+    });
+  });
+
+  it("does not advertise an action image after its bounded artifact expires", () => {
+    const events = [
+      ...run().events,
+      {
+        sequence: 3,
+        at: "2026-07-27T12:00:02Z",
+        kind: "verification.evidence_captured",
+        data: {
+          revision: 7,
+          action_index: 1,
+          before_frame_id: 11,
+          after_frame_id: 12,
+        },
+      },
+    ];
+    const tool = (verificationImages: RunSnapshot["verification_images"]) => {
+      const assistant = messagesForRun(
+        run({
+          events,
+          event_count: events.length,
+          event_cursor: events.at(-1)?.sequence ?? 0,
+          verification_images: verificationImages,
+        }),
+      ).at(-1);
+      return Array.isArray(assistant?.content)
+        ? assistant.content.find((part) => part.type === "tool-call")
+        : undefined;
+    };
+
+    expect(tool([])).toMatchObject({
+      args: { __receipt: { evidence_revision: undefined } },
+    });
+    expect(
+      tool([
+        {
+          revision: 7,
+          action_index: 1,
+          kind: "before_after",
+          before_frame_id: 11,
+          after_frame_id: 12,
+        },
+      ]),
+    ).toMatchObject({
+      args: { __receipt: { evidence_revision: 7 } },
     });
   });
 

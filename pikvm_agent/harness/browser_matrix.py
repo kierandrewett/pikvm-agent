@@ -505,26 +505,33 @@ def _audit_engine(
                 f"configured computer identity is incomplete: {missing}"
             )
         stage = "expand computer action group"
-        group = page.locator(
-            'button[aria-label^="12 computer actions"]'
+        group = page.get_by_role(
+            "button",
+            name=re.compile(r"^\d+ computer (?:inputs|actions),"),
         )
         group.wait_for()
         _pointer_click(page, group)
         action_rows = page.locator(".computer-action-step")
-        stage = "render twelve computer action rows"
+        stage = "render the complete computer action timeline"
         page.wait_for_function(
             "() => document.querySelectorAll("
             "'.computer-action-step'"
-            ").length === 12"
+            ").length >= 12"
         )
-        stage = "expand individual computer actions"
-        for index in range(action_rows.count()):
+        rendered_action_count = action_rows.count()
+        audited_action_count = min(12, rendered_action_count)
+        audited_action_start = rendered_action_count - audited_action_count
+        stage = "expand representative computer actions"
+        for index in range(
+            audited_action_start,
+            rendered_action_count,
+        ):
             stage = f"expand computer action {index + 1}"
             trigger = action_rows.nth(index).locator(":scope > button").first
             if trigger.get_attribute("aria-expanded") == "false":
                 _pointer_click(page, trigger)
         stage = "open first computer action details"
-        first_details = action_rows.first.get_by_role(
+        first_details = action_rows.nth(audited_action_start).get_by_role(
             "button", name="Details"
         )
         _pointer_click(page, first_details)
@@ -543,7 +550,8 @@ def _audit_engine(
             raise BrowserAuditFailure("exact MCP tool name is not visible")
         desktop = {
             "viewport": "1440x900",
-            "actions": action_rows.count(),
+            "actions": rendered_action_count,
+            "actions_expanded": audited_action_count,
             "screen_previews_loaded": previews_loaded,
             "model_route_visible": True,
             "exact_tool_visible": True,

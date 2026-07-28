@@ -19,6 +19,21 @@ const eventIdentity = (event: HarnessEvent) =>
   safeString(event.data.call_id) ||
   String(safeNumber(event.data.index) ?? event.sequence);
 
+const toolCallIdentity = (event: HarnessEvent) => {
+  const arguments_ =
+    event.data.arguments &&
+    typeof event.data.arguments === "object" &&
+    !Array.isArray(event.data.arguments)
+      ? (event.data.arguments as Record<string, unknown>)
+      : {};
+  return (
+    safeString(event.data.call_id) ||
+    safeString(event.data.idempotency_key) ||
+    safeString(arguments_.idempotency_key) ||
+    `${safeNumber(event.data.index) ?? "event"}:${event.sequence}`
+  );
+};
+
 const SAFE_REFUSAL_OUTCOMES = new Set([
   "action.refused_by_policy",
   "action.refused_by_operator",
@@ -132,6 +147,20 @@ const preActionEvidenceForAttempt = (
         event.kind === "action.pre_action_evidence_captured" &&
         eventIdentity(event) === identity,
     );
+};
+
+const retainedEvidenceForRun = (
+  run: RunSnapshot,
+  evidence: HarnessEvent | undefined,
+) => {
+  if (!evidence || run.verification_images === undefined) return evidence;
+  const revision = safeNumber(evidence.data.revision);
+  if (revision === undefined) return evidence;
+  return run.verification_images.some(
+    (artifact) => artifact.revision === revision,
+  )
+    ? evidence
+    : undefined;
 };
 
 const controllerForCheckpoint = (
@@ -430,9 +459,11 @@ const toolParts = (
     const checkpoint = checkpointForAttempt(attempt, events);
     const outcome = outcomeForAttempt(attempt, events);
     const verification = verificationForOutcome(outcome, events);
-    const evidence =
+    const evidence = retainedEvidenceForRun(
+      run,
       preActionEvidenceForAttempt(attempt, events) ??
-      evidenceForOutcome(outcome, events);
+        evidenceForOutcome(outcome, events),
+    );
     const controller = controllerForCheckpoint(checkpoint, events);
     const isPending = !outcome && index === attempts.length - 1;
     const approval =
@@ -536,7 +567,7 @@ const toolParts = (
     };
     return {
       type: "tool-call" as const,
-      toolCallId: `${run.run_id}:${eventIdentity(attempt)}`,
+      toolCallId: `${run.run_id}:${toolCallIdentity(attempt)}`,
       toolName,
       args: args as never,
       argsText: JSON.stringify(exactArgs, null, 2),
