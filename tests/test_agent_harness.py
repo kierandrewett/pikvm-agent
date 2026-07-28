@@ -2495,12 +2495,34 @@ def test_long_terminal_draft_requires_a_verified_legibility_step() -> None:
     run.record(
         "action.checkpointed",
         index=6,
+        intent=(
+            "Open the terminal's hamburger menu to find the zoom-in control."
+        ),
+        actions=[{"type": "click", "x": 1179, "y": 33}],
+    )
+    run.record(
+        "model.completed",
+        role="verifier",
+        verdict="verified",
+        summary=(
+            "The terminal menu opened and shows the zoom controls."
+        ),
+    )
+
+    assert not AgentHarness._long_terminal_draft_needs_legibility_step(
+        run,
+        proposed,
+    )
+
+    run.record(
+        "action.checkpointed",
+        index=7,
         intent="Type the exact command for visual verification.",
         actions=proposed,
     )
     run.record(
         "action.completed_unverified",
-        index=6,
+        index=7,
         status="unverified",
         input_receipts=[
             {
@@ -2518,7 +2540,7 @@ def test_long_terminal_draft_requires_a_verified_legibility_step() -> None:
 
     run.record(
         "action.checkpointed",
-        index=7,
+        index=8,
         intent="Increase the terminal text size after the unreadable draft.",
         actions=[{"type": "key", "keys": ["CTRL", "SHIFT", "EQUAL"]}],
     )
@@ -2536,7 +2558,7 @@ def test_long_terminal_draft_requires_a_verified_legibility_step() -> None:
 
     run.record(
         "action.checkpointed",
-        index=8,
+        index=9,
         intent="Open a new terminal window.",
         actions=[{"type": "key", "keys": ["CTRL", "ALT", "T"]}],
     )

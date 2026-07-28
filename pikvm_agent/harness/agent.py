@@ -2374,15 +2374,29 @@ class AgentHarness:
             action_index = item.get("action_index")
             if not isinstance(action_index, int):
                 continue
-            evidence = " ".join(
-                str(item.get(key) or "")
+            evidence_fields = [
+                str(item.get(key) or "").casefold()
                 for key in ("intent", "summary")
-            ).casefold()
+            ]
+            evidence = " ".join(evidence_fields)
             terminal_named = "terminal" in evidence
-            if terminal_named and re.search(
-                r"\b(?:open|opened|launch|launched|start|started)\b",
-                evidence,
-            ):
+            terminal_surface_opened = any(
+                re.search(
+                    r"\b(?:open(?:ed)?|launch(?:ed)?|start(?:ed)?)"
+                    r"(?:\s+(?:the|a|new))?\s+terminal"
+                    r"(?:\s+(?:application|app|window|shell))?"
+                    r"(?!\s+menu|['’]s\b)\b",
+                    field,
+                )
+                or re.search(
+                    r"\bterminal(?:\s+(?:application|app|window|shell))?"
+                    r"\s+(?:(?:is|was|has been)\s+)?"
+                    r"(?:open(?:ed)?|launch(?:ed)?|start(?:ed)?)\b",
+                    field,
+                )
+                for field in evidence_fields
+            )
+            if terminal_surface_opened:
                 terminal_opened_at = max(terminal_opened_at, action_index)
             if terminal_named and re.search(
                 r"\b(?:maximi[sz](?:e|ed)|widen(?:ed)?|full[- ]width)\b",
