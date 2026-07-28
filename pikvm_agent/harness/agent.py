@@ -165,7 +165,9 @@ cancelling that draft, require a new verified text-size increase before
 retyping it. Maximizing again does not satisfy this post-failure requirement.
 For this preparation, visibly larger terminal glyphs and a clean prompt are the
 minimum sufficient evidence; do not require a numeric zoom indicator unless the
-user explicitly requested a numeric zoom value.
+user explicitly requested a numeric zoom value. Do not put a numeric zoom
+percentage in expected_evidence for this internal preparation unless the
+authenticated user request asks for that number.
 For a short rectangular table in a spreadsheet application, and only after
 the verifier established a verified active spreadsheet cell, use one
 spreadsheet_grid action instead of one model turn per cell. It accepts 1 to 8
@@ -1025,6 +1027,24 @@ class AgentHarness:
                 )
                 await self.store.save(run)
                 return run
+            expected_evidence = self._normalized_expected_evidence(
+                run,
+                intent=controller.intent,
+                actions=actions,
+                expected_evidence=controller.expected_evidence,
+            )
+            if expected_evidence != controller.expected_evidence:
+                controller = controller.model_copy(
+                    update={"expected_evidence": expected_evidence}
+                )
+                run.last_controller = controller
+                run.record(
+                    "controller.expected_evidence_normalized",
+                    reason=(
+                        "numeric terminal zoom evidence was not requested "
+                        "by the user"
+                    ),
+                )
             run.pending_action = self._pending_action(
                 run, controller, actions
             )
@@ -1334,6 +1354,13 @@ class AgentHarness:
             await self._model_failed(run, "verifier", exc)
             return
         reported_verdict = verdict.verdict
+        verdict, legibility_normalization = (
+            self._normalized_internal_legibility_verdict(
+                run,
+                action=action,
+                verdict=verdict,
+            )
+        )
         completion_rejection = self._completion_rejection_reason(run, verdict)
         action_rejection = self._verified_action_rejection_reason(
             action,
@@ -1360,6 +1387,13 @@ class AgentHarness:
                 for item in verdict.action_criteria
             ],
         )
+        if legibility_normalization is not None:
+            run.record(
+                "verification.internal_legibility_normalized",
+                reason=legibility_normalization,
+                reported_verdict=reported_verdict,
+                effective_verdict=verdict.verdict,
+            )
         if completion_rejection is not None:
             run.record(
                 "verification.complete_rejected",
@@ -1854,6 +1888,147 @@ class AgentHarness:
             ),
             idempotency_key=(
                 f"{run.run_id}:action:{run.next_action_index}:{digest}"
+            ),
+        )
+
+    @staticmethod
+    def _is_internal_terminal_text_size_action(
+        *,
+        intent: str,
+        actions: list[dict[str, Any]],
+    ) -> bool:
+        """Recognise reversible OCR preparation, never arbitrary terminal HID."""
+
+        normalized_intent = intent.casefold()
+        if "terminal" not in normalized_intent or not re.search(
+            r"\b(?:zoom|text[- ]size|font[- ]size|enlarg|larger|"
+            r"increas\w*\s+(?:the\s+)?(?:terminal\s+)?"
+            r"(?:text|font|glyph))",
+            normalized_intent,
+        ):
+            return False
+        allowed = {
+            "click",
+            "key",
+            "wait",
+            "wait_for_change",
+            "wait_for_stable_screen",
+        }
+        return bool(actions) and all(
+            str(action.get("type") or "") in allowed
+            for action in actions
+        )
+
+    @staticmethod
+    def _requests_numeric_terminal_zoom(run: RunSnapshot) -> bool:
+        request = " ".join(
+            [run.task, *run.operator_guidance]
+        ).casefold()
+        return (
+            "terminal" in request
+            and re.search(r"\b(?:zoom|text|font)\b", request) is not None
+            and (
+                "%" in request
+                or re.search(r"\bpercent(?:age)?\b", request) is not None
+            )
+        )
+
+    @classmethod
+    def _normalized_expected_evidence(
+        cls,
+        run: RunSnapshot,
+        *,
+        intent: str,
+        actions: list[dict[str, Any]],
+        expected_evidence: list[str],
+    ) -> list[str]:
+        """Remove model-invented numeric criteria from OCR preparation."""
+
+        if (
+            not cls._is_internal_terminal_text_size_action(
+                intent=intent,
+                actions=actions,
+            )
+            or cls._requests_numeric_terminal_zoom(run)
+        ):
+            return list(expected_evidence)
+        relevant = [
+            item
+            for item in expected_evidence
+            if re.search(
+                r"\b(?:percent(?:age)?|zoom[- ]level|numeric)\b|"
+                r"\b\d{2,3}\s*%",
+                item.casefold(),
+            )
+            is None
+        ]
+        if relevant:
+            return relevant
+        return [
+            "The terminal glyphs are visibly larger and a clean prompt remains "
+            "readable."
+        ]
+
+    @classmethod
+    def _normalized_internal_legibility_verdict(
+        cls,
+        run: RunSnapshot,
+        *,
+        action: PendingAction | None,
+        verdict: VerificationDecision,
+    ) -> tuple[VerificationDecision, str | None]:
+        """Resolve one narrow verifier contradiction for reversible OCR prep."""
+
+        if (
+            action is None
+            or verdict.verdict != "uncertain"
+            or cls._requests_numeric_terminal_zoom(run)
+            or not cls._is_internal_terminal_text_size_action(
+                intent=action.intent,
+                actions=action.actions,
+            )
+            or not action.expected_evidence
+        ):
+            return verdict, None
+        assessments = {
+            item.criterion_index: item
+            for item in verdict.action_criteria
+        }
+        if set(assessments) != set(range(len(action.expected_evidence))) or any(
+            not assessments[index].satisfied
+            or not assessments[index].evidence.strip()
+            for index in range(len(action.expected_evidence))
+        ):
+            return verdict, None
+        claim = " ".join(
+            [
+                verdict.summary,
+                *verdict.evidence,
+                *(
+                    item.evidence
+                    for item in verdict.action_criteria
+                ),
+            ]
+        ).casefold()
+        visibly_larger = re.search(
+            r"\b(?:visibly|noticeably)\s+(?:larger|enlarged)\b|"
+            r"\b(?:larger|enlarged)\b.{0,40}\bvisible",
+            claim,
+        )
+        irrelevant_numeric_doubt = re.search(
+            r"\b(?:closed|hidden|not|cannot|could not|unable)\b"
+            r".{0,120}\b(?:zoom|percent(?:age)?|100%)\b|"
+            r"\b(?:zoom|percent(?:age)?|100%)\b"
+            r".{0,120}\b(?:not|cannot|could not|unable|confirm)",
+            claim,
+        )
+        if visibly_larger is None or irrelevant_numeric_doubt is None:
+            return verdict, None
+        return (
+            verdict.model_copy(update={"verdict": "verified"}),
+            (
+                "all user-relevant legibility criteria were visibly satisfied; "
+                "only an unrequested numeric zoom indicator was unavailable"
             ),
         )
 

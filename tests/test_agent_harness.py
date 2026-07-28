@@ -2575,6 +2575,114 @@ def test_long_terminal_draft_requires_a_verified_legibility_step() -> None:
     )
 
 
+def test_internal_terminal_legibility_ignores_unrequested_numeric_zoom() -> None:
+    run = RunSnapshot(
+        run_id="terminal-legibility-evidence",
+        task="Disable the dim-screen setting",
+        status=RunStatus.PAUSED,
+    )
+    intent = (
+        "Click the terminal menu's Zoom In control once to increase text size."
+    )
+    actions = [
+        {"type": "click", "x": 1222, "y": 77, "button": "left"},
+        {
+            "type": "wait_for_stable_screen",
+            "stable_ms": 300,
+            "timeout_ms": 3000,
+        },
+    ]
+    expected = [
+        "Zoom percentage in menu increases above 100%",
+        "Prompt text appears visibly larger",
+    ]
+
+    assert AgentHarness._normalized_expected_evidence(
+        run,
+        intent=intent,
+        actions=actions,
+        expected_evidence=expected,
+    ) == ["Prompt text appears visibly larger"]
+
+    numeric_request = run.model_copy(
+        update={"task": "Set the terminal zoom to 125%."}
+    )
+    assert AgentHarness._normalized_expected_evidence(
+        numeric_request,
+        intent=intent,
+        actions=actions,
+        expected_evidence=expected,
+    ) == expected
+
+
+def test_visible_terminal_legibility_overrides_only_numeric_doubt() -> None:
+    run = RunSnapshot(
+        run_id="terminal-legibility-verdict",
+        task="Disable the dim-screen setting",
+        status=RunStatus.PAUSED,
+    )
+    action = PendingAction(
+        index=7,
+        intent=(
+            "Click the terminal menu's Zoom In control once to increase text "
+            "size."
+        ),
+        actions=[
+            {"type": "click", "x": 1222, "y": 77, "button": "left"},
+            {
+                "type": "wait_for_stable_screen",
+                "stable_ms": 300,
+                "timeout_ms": 3000,
+            },
+        ],
+        expected_evidence=["Prompt text appears visibly larger"],
+        based_on_world_version=7,
+        based_on_control_epoch=1,
+        idempotency_key="terminal-legibility:action:7:test",
+    )
+    verdict = VerificationDecision(
+        verdict="uncertain",
+        summary=(
+            "The terminal prompt text is now visibly larger, but the menu "
+            "closed before the zoom percentage could be confirmed."
+        ),
+        evidence=[
+            "The prompt glyphs appear visibly larger in the after frame."
+        ],
+        action_criteria=[
+            {
+                "criterion_index": 0,
+                "satisfied": True,
+                "evidence": "Prompt glyphs are visibly larger than before.",
+            }
+        ],
+    )
+
+    normalized, reason = (
+        AgentHarness._normalized_internal_legibility_verdict(
+            run,
+            action=action,
+            verdict=verdict,
+        )
+    )
+
+    assert normalized.verdict == "verified"
+    assert reason is not None
+
+    numeric_request = run.model_copy(
+        update={"task": "Set the terminal zoom to 125%."}
+    )
+    unchanged, reason = (
+        AgentHarness._normalized_internal_legibility_verdict(
+            numeric_request,
+            action=action,
+            verdict=verdict,
+        )
+    )
+    assert unchanged.verdict == "uncertain"
+    assert reason is None
+
+
 @pytest.mark.asyncio
 async def test_long_terminal_draft_is_replaced_with_legibility_action_before_hid() -> None:
     class LegibilityProvider(ScriptedProvider):
