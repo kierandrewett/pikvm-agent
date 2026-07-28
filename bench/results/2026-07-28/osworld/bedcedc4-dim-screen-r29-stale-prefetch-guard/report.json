@@ -1,0 +1,119 @@
+{
+  "schema_version": 4,
+  "suite": "osworld-verified",
+  "suite_revision": "b7db4d8c85d9e95e0b1db44de5bec954cf37f0cf",
+  "task_id": "bedcedc4-4d72-425e-ad62-21960b11fe0d",
+  "domain": "os",
+  "instruction": "Could you set the 'Dim screen when inactive' to off in setting?",
+  "docker_image": "happysixd/osworld-docker:latest",
+  "docker_image_id": "sha256:0e6497a9295647cf05bf2b2af522fdd79bdeba2737595259cab310a3bcf6baa9",
+  "vm_image_sha256": "6bf667a852b3c307f61d9f09c42559351f45e0607e428b4997becf534cf4d313",
+  "container_access": "direct_bridge",
+  "container_publish_fallback_reason": "docker run -d --rm failed with exit 125: docker: Error response from daemon: failed to set up container networking: driver failed programming external connectivity on endpoint pikvm-osworld-8c9f93c1467b (b372fe889c9478d9ede3703994dc22ef611ce7a60beed3348425e47c874c4744): Unable to enable DNAT rule:  (iptables failed: iptables --wait -t nat -A DOCKER -p tcp -d 127.0.0.1 --dport 32837 -j DNAT --to-destination 172.17.0.2:5000 ! -i docker0: iptables: No chain/target/match by that name.\n (exit status 1))\n\nRun 'docker run --help' for more information",
+  "control_plane": "agent-harness -> MCP stdio -> isolated daemon",
+  "target_adapter": "official in-guest server through PiKVM-shaped lab",
+  "policy_profile": "isolated_benchmark",
+  "harness_status": "completed",
+  "official_score": 1.0,
+  "evaluator": "or(2 x exact_match(vm_command_line, rule))",
+  "approvals_required": 0,
+  "cycles": 4,
+  "model_run_budget_s": 900.0,
+  "model_run_timed_out": false,
+  "performance": {
+    "run_id": "c233dbf2-0a56-4e98-8d66-682f47c11e35",
+    "status": "completed",
+    "wall_clock_ms": 275271,
+    "model_active_ms": 270244,
+    "model_lanes": [
+      {
+        "role": "controller",
+        "provider": "claude-sonnet-low",
+        "model": "sonnet",
+        "latency": {
+          "samples": 11,
+          "min_ms": 9394.0,
+          "median_ms": 10136.0,
+          "p95_ms": 13232.0,
+          "max_ms": 13562.0,
+          "mean_ms": 10995.727272727272
+        }
+      },
+      {
+        "role": "reasoner",
+        "provider": "claude-opus-low",
+        "model": "opus",
+        "latency": {
+          "samples": 3,
+          "min_ms": 12635.0,
+          "median_ms": 15971.0,
+          "p95_ms": 19644.8,
+          "max_ms": 20053.0,
+          "mean_ms": 16219.666666666666
+        }
+      },
+      {
+        "role": "verifier",
+        "provider": "claude-sonnet-low",
+        "model": "sonnet",
+        "latency": {
+          "samples": 9,
+          "min_ms": 9251.0,
+          "median_ms": 11046.0,
+          "p95_ms": 13211.0,
+          "max_ms": 14527.0,
+          "mean_ms": 11181.333333333334
+        }
+      }
+    ],
+    "model_failures": 0,
+    "actions_checkpointed": 10,
+    "actions_attempted": 10,
+    "actions_completed": 9,
+    "progress_actions_completed": 9,
+    "observation_only_actions_completed": 0,
+    "action_recoverable_failures": 0,
+    "action_stale_retries": 0,
+    "pointer_noops_rejected": 0,
+    "repeated_actions_stopped": 0,
+    "non_idempotent_retries_stopped": 0,
+    "autonomous_resumes": 0,
+    "autonomy_stops": 0,
+    "provider_attempts": 23,
+    "provider_failures": 0,
+    "provider_fallbacks": 0,
+    "provider_schema_repairs": 0,
+    "provider_safety_downgrades": 0,
+    "action_latency": {
+      "samples": 10,
+      "min_ms": 1729.023,
+      "median_ms": 5215.4675,
+      "p95_ms": 14982.207949999998,
+      "max_ms": 15653.981,
+      "mean_ms": 7338.323299999999
+    },
+    "completion_efficiency": 0.9,
+    "progress_action_ratio": 1.0,
+    "critical_path": {
+      "startup_ms": 1866,
+      "provider_wait_ms": 197559,
+      "provider_serial_equivalent_ms": 270440,
+      "provider_overlap_ms": 72881,
+      "max_concurrent_provider_calls": 2,
+      "action_execution_ms": 73383,
+      "evidence_capture_ms": 1518,
+      "unclassified_overhead_ms": 945,
+      "overlap_ms": 0,
+      "provider_wait_share": 0.7176891136371067,
+      "action_execution_share": 0.26658456575520123,
+      "provider_calls": 23,
+      "reasoner_calls": 3,
+      "controller_calls": 11,
+      "verifier_calls": 9
+    },
+    "human_comparison": null
+  },
+  "run_state_path": "/home/kieran/dev/pikvm-agent/bench/results/2026-07-28/osworld/bedcedc4-dim-screen-r29-stale-prefetch-guard/harness.sqlite3",
+  "artifact_dir": "/home/kieran/dev/pikvm-agent/bench/results/2026-07-28/osworld/bedcedc4-dim-screen-r29-stale-prefetch-guard/artifacts",
+  "report_path": "/home/kieran/dev/pikvm-agent/bench/results/2026-07-28/osworld/bedcedc4-dim-screen-r29-stale-prefetch-guard/report.json"
+}

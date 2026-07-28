@@ -1631,23 +1631,24 @@ representative 369-task OSWorld score.
 | Set volume to maximum | 1 | 2/2 | 5 | 33.73s | 40.16s | official `1.0`, completed |
 | Enable automatic screen lock | 11 | 9/10 | 31 | 295.30s | 369.63s | official `1.0`, completed |
 | Rename `todo_list_Jan_1` to `todo_list_Jan_2` | 2 | 5/5 | 12 | 98.29s | 128.56s | official `1.0`, completed |
-| Disable inactive-screen dimming | 5 | 8/9 | 27 | 291.84s | 322.31s | official `1.0`, completed |
+| Disable inactive-screen dimming | 4 | 9/10 | 23 | 270.24s | 275.27s | official `1.0`, completed |
 | Set timezone to UTC+0 | 11 | 18/23 | 50 | 491.19s | 602.09s | official `1.0`, completed |
 | Restore deleted poster from Trash | 1 | 3/3 | 7 | 66.68s | 82.01s | official `1.0`, completed |
 | Repair conda environment | 1 | 2/3 | 6 | 54.59s | 61.44s | official `0.0`, approval required |
 | Extract and remove video subtitles | 12 | 13/19 | 46 | 833.08s | 1,071.89s | official `0.0`, blocked |
 
-Across the current nine-task set: 187 model completions from 200 provider
-attempts, ten structured-output repairs, one deterministic safe-draft
-downgrade, three provider failures, one approval, 62/76 completed actions,
-2,205.29 seconds of summed model-active time, and 2,725.25 seconds wall time.
+Across the current nine-task set: 185 model completions from 196 provider
+attempts, eight structured-output repairs, one deterministic safe-draft
+downgrade, three provider failures, one approval, 63/77 completed actions,
+2,183.69 seconds of summed model-active time, and 2,678.21 seconds wall time.
 End-to-end median/p95 were 128.56/883.97 seconds. Auto-lock, UTC, and inactive
 screen dimming remain accurate but too slow; the latest subtitle run
 regressed into ambiguous terminal OCR and repeated focus actions before
 reaching an approval boundary.
 
-The iteration history is intentionally less flattering. Forty-one attempts
-reached the official evaluator: eleven achieved the goal state, while only ten
+The iteration history is intentionally less flattering. Forty-two attempts
+reached the official evaluator: twelve achieved the goal state, while only
+eleven
 also had a truthful harness `completed` state. Twelve more attempts ended before
 evaluation because of infrastructure, provider, process-lifecycle, or
 controller/setup failures. The current 7/9 set is therefore shown beside—not
@@ -1656,8 +1657,8 @@ instead of—the all-attempt history:
 | Denominator | Result |
 | --- | ---: |
 | Current latest-run task set | 7/9 official + harness success |
-| All officially scored attempts | 11/41 official goal-state success |
-| All scored attempts requiring official + harness success | 10/41 |
+| All officially scored attempts | 12/42 official goal-state success |
+| All scored attempts requiring official + harness success | 11/42 |
 | Unscored attempts retained as failures | 12 |
 
 Durable evidence:
@@ -1726,6 +1727,18 @@ Durable evidence:
   seconds (3.27%); against R25, wall time is down 142.01 seconds (30.58%, or
   1.44x throughput). The remaining critical path is now model orchestration,
   not HID delivery.
+- [`bedcedc4 R29`](results/2026-07-28/osworld/bedcedc4-dim-screen-r29-stale-prefetch-guard/report.json)
+  is the first post-stale-prefetch-guard pass. It completed 9/10 actions,
+  retained exact once-only visual readback for both native-print drafts,
+  required no approval, and received official score `1.0` in 275.27 seconds.
+  It used 23 model calls rather than R28's 27, including three Opus plans
+  rather than four, and reduced provider critical-path wait from 245.84 to
+  197.56 seconds. Wall time fell 47.04 seconds versus R28 (14.59%, or 1.17x
+  throughput) and 189.06 seconds versus R25 (40.72%, or 1.69x throughput).
+  The stale-repeat guard itself did not fire in this sample because the
+  speculative controller did not repeat the completed action. The result is
+  therefore evidence for the complete post-fix route, not a causal attribution
+  of all 47.04 seconds to that one guard.
 - [`b6781586-utc-r2/report.json`](results/2026-07-25/osworld/b6781586-utc-r2/report.json)
   is the passing UTC+0 run, including its 602.09-second wall time and five
   recoverable typing failures.

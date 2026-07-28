@@ -15,7 +15,7 @@
       "claude-sonnet-low/sonnet",
       "claude-opus-low/opus"
     ],
-    "definition": "R20-R28 inactive-screen-dimming remediation route: Opus reasoner with Sonnet controller/verifier and Opus fallback. R27 pipelines independent verification with the next non-authorizing controller decision; R28 adds guarded native printing for exact simple terminal argv while retaining independent visual readback and separate Return commits."
+    "definition": "R20-R29 inactive-screen-dimming remediation route: Opus reasoner with Sonnet controller/verifier and Opus fallback. R27 pipelines independent verification with the next non-authorizing controller decision; R28 adds guarded native printing for exact simple terminal argv while retaining independent visual readback and separate Return commits; R29 discards stale speculative repeats before adoption."
   },
   "prior_attempt_index": "../../2026-07-25/osworld/summary.json",
   "current_nine_task_diagnostic": {
@@ -28,27 +28,27 @@
       0.4526,
       0.9368
     ],
-    "wall_clock_ms_total": 2725246,
+    "wall_clock_ms_total": 2678205,
     "wall_clock_ms_median": 128563,
     "wall_clock_ms_p95": 883967.4,
-    "model_active_ms_total": 2205292,
-    "model_completions": 187,
-    "provider_attempts": 200,
+    "model_active_ms_total": 2183692,
+    "model_completions": 185,
+    "provider_attempts": 196,
     "provider_failures": 3,
     "provider_fallbacks": 2,
-    "provider_schema_repairs": 10,
+    "provider_schema_repairs": 8,
     "provider_safety_downgrades": 1,
     "approvals_required": 1,
-    "cycles": 45,
-    "actions_attempted": 76,
-    "actions_completed": 62,
-    "completion_efficiency": 0.8157894736842105,
+    "cycles": 44,
+    "actions_attempted": 77,
+    "actions_completed": 63,
+    "completion_efficiency": 0.8181818181818182,
     "reports": [
       "../../2026-07-24/osworld/f9be0997-dnd-r3/report.json",
       "../../2026-07-24/osworld/28cc3b7e-max-volume-r1/report.json",
       "../../2026-07-24/osworld/a4d98375-auto-lock-r9/report.json",
       "../../2026-07-24/osworld/e0df059f-rename-folder-r2/report.json",
-      "bedcedc4-dim-screen-r28-guarded-fast-print/report.json",
+      "bedcedc4-dim-screen-r29-stale-prefetch-guard/report.json",
       "../../2026-07-25/osworld/b6781586-utc-r2/report.json",
       "../../2026-07-25/osworld/5ea617a3-restore-trash-r2/report.json",
       "../../2026-07-25/osworld/48d05431-conda-r1/report.json",
@@ -57,44 +57,44 @@
   },
   "passing_subset": {
     "cases": 7,
-    "wall_clock_ms_total": 1591917,
+    "wall_clock_ms_total": 1544876,
     "wall_clock_ms_median": 128563,
     "wall_clock_ms_p95": 532352.1,
-    "model_active_ms_total": 1317617,
-    "model_completions": 135,
-    "provider_attempts": 140,
+    "model_active_ms_total": 1296017,
+    "model_completions": 133,
+    "provider_attempts": 136,
     "provider_failures": 0,
     "provider_fallbacks": 0,
-    "provider_schema_repairs": 5,
+    "provider_schema_repairs": 3,
     "provider_safety_downgrades": 0,
-    "actions_attempted": 54,
-    "actions_completed": 47,
-    "completion_efficiency": 0.8703703703703703
+    "actions_attempted": 55,
+    "actions_completed": 48,
+    "completion_efficiency": 0.8727272727272727
   },
   "latest_remediation_iteration": {
     "task_id": "bedcedc4-4d72-425e-ad62-21960b11fe0d",
     "instruction": "Could you set the 'Dim screen when inactive' to off in setting?",
     "evaluator": "or(2 x exact_match(vm_command_line, rule))",
-    "attempts": 8,
-    "official_passes": 4,
-    "harness_completed_and_official_passed": 4,
-    "success_rate": 0.5,
-    "wall_clock_ms_total": 4045852,
-    "wall_clock_ms_mean": 505731.5,
-    "wall_clock_ms_median": 466107,
-    "wall_clock_ms_p95": 823068.05,
-    "model_active_ms_total": 3049773,
-    "model_completions": 239,
-    "provider_attempts": 252,
+    "attempts": 9,
+    "official_passes": 5,
+    "harness_completed_and_official_passed": 5,
+    "success_rate": 0.5555555555555556,
+    "wall_clock_ms_total": 4321123,
+    "wall_clock_ms_mean": 480124.77777777775,
+    "wall_clock_ms_median": 464326,
+    "wall_clock_ms_p95": 812068.2,
+    "model_active_ms_total": 3320017,
+    "model_completions": 262,
+    "provider_attempts": 275,
     "provider_failures": 2,
     "provider_fallbacks": 2,
     "provider_schema_repairs": 10,
     "provider_safety_downgrades": 3,
     "approvals_required": 0,
-    "cycles": 50,
-    "actions_attempted": 85,
-    "actions_completed": 74,
-    "completion_efficiency": 0.8705882352941177,
+    "cycles": 54,
+    "actions_attempted": 95,
+    "actions_completed": 83,
+    "completion_efficiency": 0.8736842105263158,
     "reports": [
       {
         "path": "bedcedc4-dim-screen-r20-wrapped-readback/report.json",
@@ -241,85 +241,103 @@
         "actions_completed": 8,
         "failure_mode": null,
         "validated_commit": "15d5bba"
+      },
+      {
+        "path": "bedcedc4-dim-screen-r29-stale-prefetch-guard/report.json",
+        "sha256": "8fd1920a56abd7a05f18dcf9fc4fb235fdbadcc4f718caa36c1ccbb0405351e8",
+        "harness_revision": "270945f",
+        "harness_status": "completed",
+        "official_score": 1.0,
+        "cycles": 4,
+        "wall_clock_ms": 275271,
+        "model_active_ms": 270244,
+        "provider_attempts": 23,
+        "provider_failures": 0,
+        "provider_fallbacks": 0,
+        "provider_schema_repairs": 0,
+        "provider_safety_downgrades": 0,
+        "actions_attempted": 10,
+        "actions_completed": 9,
+        "failure_mode": null,
+        "validated_commit": "270945f"
       }
     ],
     "latest_success": {
-      "report": "bedcedc4-dim-screen-r28-guarded-fast-print/report.json",
-      "harness_revision": "15d5bba",
+      "report": "bedcedc4-dim-screen-r29-stale-prefetch-guard/report.json",
+      "harness_revision": "270945f",
       "official_score": 1.0,
       "harness_status": "completed",
-      "wall_clock_ms": 322312,
-      "model_active_ms": 291844,
-      "source_state_sha256": "d537de68b7d2ff060b50d129c1a0fbe735f01a31cc63b5cb99165982599022e0",
+      "wall_clock_ms": 275271,
+      "model_active_ms": 270244,
+      "source_state_sha256": "6dabe182a6f5d9133d7ac62d4fae90dbdf2102adf9f166845146281aecf125bd",
       "source_state_retained_locally": true,
       "critical_path": {
-        "provider_wait_ms": 245835,
-        "provider_serial_equivalent_ms": 313952,
-        "provider_overlap_ms": 68117,
+        "provider_wait_ms": 197559,
+        "provider_serial_equivalent_ms": 270440,
+        "provider_overlap_ms": 72881,
         "max_concurrent_provider_calls": 2,
-        "action_execution_ms": 71522,
-        "evidence_capture_ms": 1377
+        "action_execution_ms": 73383,
+        "evidence_capture_ms": 1518
       },
       "comparison_to_r25": {
         "baseline_wall_clock_ms": 464326,
-        "wall_clock_ms_saved": 142014,
-        "wall_clock_reduction": 0.3058497693430908,
-        "throughput_speedup": 1.4406103402913946,
-        "provider_wait_ms_saved": 97265
+        "wall_clock_ms_saved": 189055,
+        "wall_clock_reduction": 0.40716005565055585,
+        "throughput_speedup": 1.6867959211104693,
+        "provider_wait_ms_saved": 145541
       },
-      "comparison_to_r27": {
-        "baseline_wall_clock_ms": 333191,
-        "wall_clock_ms_saved": 10879,
-        "wall_clock_reduction": 0.032650941952213595,
-        "throughput_speedup": 1.0337530095063168,
-        "action_execution_ms_saved": 41182,
-        "action_execution_reduction": 0.3653996308915389,
-        "exact_terminal_typing_ms_saved": 39467,
-        "exact_terminal_typing_reduction": 0.5718031931847817
+      "comparison_to_r28": {
+        "baseline_wall_clock_ms": 322312,
+        "wall_clock_ms_saved": 47041,
+        "wall_clock_reduction": 0.1459486460324158,
+        "throughput_speedup": 1.1708897777099658,
+        "provider_wait_ms_saved": 48276,
+        "provider_calls_saved": 4,
+        "reasoner_calls_saved": 1
       },
       "controller_latency": {
         "provider": "claude-sonnet-low",
         "model": "sonnet",
-        "samples": 12,
-        "median_ms": 11203,
-        "p95_ms": 14285.849999999999
+        "samples": 11,
+        "median_ms": 10136,
+        "p95_ms": 13232
       },
       "reasoner_latency": {
         "provider": "claude-opus-low",
         "model": "opus",
-        "samples": 4,
-        "median_ms": 15197,
-        "p95_ms": 17641.8
+        "samples": 3,
+        "median_ms": 15971,
+        "p95_ms": 19644.8
       },
       "verifier_latency": {
         "provider": "claude-sonnet-low",
         "model": "sonnet",
         "samples": 9,
-        "median_ms": 10619,
-        "p95_ms": 17071
+        "median_ms": 11046,
+        "p95_ms": 13211
       },
       "exact_terminal_drafts": [
         {
-          "source_event_sequence": 149,
+          "source_event_sequence": 169,
           "requested_characters": 68,
           "issued_characters": 68,
           "observed_characters": 68,
           "status": "verified_exact",
           "proof_state": "exact_visual_readback",
           "used_fast_path": true,
-          "action_latency_ms": 14489,
+          "action_latency_ms": 14161,
           "exact_readback_sha256_match": true,
           "emitted_exactly_once": true
         },
         {
-          "source_event_sequence": 222,
+          "source_event_sequence": 215,
           "requested_characters": 62,
           "issued_characters": 62,
           "observed_characters": 62,
           "status": "verified_exact",
           "proof_state": "exact_visual_readback",
           "used_fast_path": true,
-          "action_latency_ms": 15066,
+          "action_latency_ms": 15654,
           "exact_readback_sha256_match": true,
           "emitted_exactly_once": true
         }
@@ -330,11 +348,11 @@
   },
   "all_scored_attempts": {
     "definition": "Every attempt that reached the official evaluator, including pre-fix failures and harness false negatives.",
-    "attempts": 41,
-    "official_goal_state_passes": 11,
-    "official_goal_state_rate": 0.2682926829268293,
-    "harness_completed_and_official_passed": 10,
-    "harness_and_official_success_rate": 0.24390243902439024,
+    "attempts": 42,
+    "official_goal_state_passes": 12,
+    "official_goal_state_rate": 0.2857142857142857,
+    "harness_completed_and_official_passed": 11,
+    "harness_and_official_success_rate": 0.2619047619047619,
     "new_reports": [
       {
         "path": "bedcedc4-dim-screen-r20-wrapped-readback/report.json",
@@ -375,6 +393,11 @@
         "path": "bedcedc4-dim-screen-r28-guarded-fast-print/report.json",
         "harness_status": "completed",
         "official_score": 1.0
+      },
+      {
+        "path": "bedcedc4-dim-screen-r29-stale-prefetch-guard/report.json",
+        "harness_status": "completed",
+        "official_score": 1.0
       }
     ],
     "prior_attempt_index": "../../2026-07-25/osworld/summary.json"
@@ -392,5 +415,5 @@
     ],
     "prior_attempt_index": "../../2026-07-25/osworld/summary.json"
   },
-  "scope_warning": "Nine scored tasks are a tracer diagnostic, not a representative 369-task OSWorld score. The latest remediation iteration passed four of eight scored attempts and retained one additional unscored speed-pipeline failure. R28 is 30.58% faster than R25 and 3.27% faster than R27, but remains above an unmeasured human baseline."
+  "scope_warning": "Nine scored tasks are a tracer diagnostic, not a representative 369-task OSWorld score. The latest remediation iteration passed five of nine scored attempts and retained one additional unscored speed-pipeline failure. R29 is 40.72% faster than R25 and 14.59% faster than R28, but remains above an unmeasured human baseline; the stale-repeat guard did not fire in R29, so the full sample delta is not attributed to that guard."
 }

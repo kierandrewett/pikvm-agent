@@ -739,11 +739,11 @@ def test_latest_osworld_scorecard_retains_failed_remediation_attempts() -> None:
     ]
     assert scored["attempts"] == (
         prior["all_scored_attempts"]["attempts"] + len(new_scored)
-    ) == 41
+    ) == 42
     assert scored["official_goal_state_passes"] == (
         prior["all_scored_attempts"]["official_goal_state_passes"]
         + sum(report["official_score"] == 1.0 for report in new_scored)
-    ) == 11
+    ) == 12
     assert scored["harness_completed_and_official_passed"] == (
         prior["all_scored_attempts"]["harness_completed_and_official_passed"]
         + sum(
@@ -751,7 +751,7 @@ def test_latest_osworld_scorecard_retains_failed_remediation_attempts() -> None:
             and report["harness_status"] == "completed"
             for report in new_scored
         )
-    ) == 10
+    ) == 11
 
     iteration = summary["latest_remediation_iteration"]
     retained_reports = []
@@ -770,8 +770,8 @@ def test_latest_osworld_scorecard_retains_failed_remediation_attempts() -> None:
         assert item["actions_completed"] == report["performance"][
             "actions_completed"
         ]
-    assert iteration["attempts"] == len(retained_reports) == 8
-    assert iteration["harness_completed_and_official_passed"] == 4
+    assert iteration["attempts"] == len(retained_reports) == 9
+    assert iteration["harness_completed_and_official_passed"] == 5
     assert iteration["wall_clock_ms_total"] == sum(
         report["performance"]["wall_clock_ms"] for report in retained_reports
     )
@@ -790,14 +790,14 @@ def test_latest_osworld_scorecard_retains_failed_remediation_attempts() -> None:
 
     latest = iteration["latest_success"]
     assert latest["report"] == (
-        "bedcedc4-dim-screen-r28-guarded-fast-print/report.json"
+        "bedcedc4-dim-screen-r29-stale-prefetch-guard/report.json"
     )
-    assert latest["harness_revision"] == "15d5bba"
+    assert latest["harness_revision"] == "270945f"
     assert latest["official_score"] == 1.0
     assert latest["harness_status"] == "completed"
     assert latest["separate_return_commits"] == 2
     assert latest["source_state_sha256"] == (
-        "d537de68b7d2ff060b50d129c1a0fbe735f01a31cc63b5cb99165982599022e0"
+        "6dabe182a6f5d9133d7ac62d4fae90dbdf2102adf9f166845146281aecf125bd"
     )
     assert latest["source_state_retained_locally"] is True
     assert [
@@ -815,7 +815,7 @@ def test_latest_osworld_scorecard_retains_failed_remediation_attempts() -> None:
         for receipt in latest["exact_terminal_drafts"]
     ] == [
         (
-            149,
+            169,
             68,
             68,
             68,
@@ -826,7 +826,7 @@ def test_latest_osworld_scorecard_retains_failed_remediation_attempts() -> None:
             True,
         ),
         (
-            222,
+            215,
             62,
             62,
             62,
