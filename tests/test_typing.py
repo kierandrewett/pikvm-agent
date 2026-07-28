@@ -29,9 +29,11 @@ from pikvm_agent.executor.typing import (
     WatchedTypingResult,
     _substantial_change_outside_region,
     chunk_text,
+    locate_capture_change,
     locate_changed_bbox,
     locate_dense_changed_bbox,
     readback_region,
+    regions_overlap,
 )
 from pikvm_agent.pikvm.fake import FakeBackend
 from pikvm_agent.vision.frame_diff import grid
@@ -427,6 +429,28 @@ async def test_watched_typer_uses_dense_text_line_change_when_grid_is_unchanged(
     assert result.status == "verified_exact"
     assert result.typed_characters == len(intended)
     assert result.emitted_exactly_once is True
+
+
+async def test_capture_change_grounds_terminal_line_when_inferred_crop_is_wrong() -> None:
+    intended = "gsettings set org.gnome.settings-daemon.plugins.power idle-dim false"
+    backend = FakeBackend()
+    before = await backend.screenshot()
+    before_grid = grid(before.data)
+    backend.set_screen(intended)
+    after = await backend.screenshot()
+
+    changed = locate_capture_change(
+        before_grid,
+        before,
+        after,
+        (1280, 720),
+    )
+    command_line = Region(x=12, y=72, width=1100, height=36)
+    poisoned_crop = Region(x=560, y=290, width=80, height=24)
+
+    assert changed is not None
+    assert regions_overlap(changed, command_line)
+    assert not regions_overlap(poisoned_crop, command_line)
 
 
 def test_focus_change_guard_declines_unknown_screen_dimensions() -> None:
@@ -1139,23 +1163,33 @@ async def test_terminal_prefix_normalization_cannot_verify_a_stale_final_read(
 
 
 @pytest.mark.parametrize(
-    ("line_bbox", "line_suffix", "expected_status"),
+    ("line_bbox", "line_suffix", "poison_readback", "expected_status"),
     [
         pytest.param(
             [20, 72, 1040, 100],
             "",
+            False,
             "verified_exact",
             id="grounded-complete-line",
         ),
         pytest.param(
+            [20, 72, 1040, 100],
+            "",
+            True,
+            "verified_exact",
+            id="causal-delta-recovers-poisoned-crop",
+        ),
+        pytest.param(
             [20, 400, 1040, 428],
             "",
+            False,
             "unverified_ambiguous",
             id="matching-text-elsewhere",
         ),
         pytest.param(
             [20, 72, 1040, 100],
             "x",
+            False,
             "unverified_ambiguous",
             id="extra-suffix",
         ),
@@ -1165,6 +1199,7 @@ async def test_terminal_exact_readback_recovers_only_from_grounded_complete_line
     monkeypatch: pytest.MonkeyPatch,
     line_bbox: list[int],
     line_suffix: str,
+    poison_readback: bool,
     expected_status: str,
 ) -> None:
     """A fresh grounded full-screen line can rescue a bad inferred OCR crop."""
@@ -1173,6 +1208,16 @@ async def test_terminal_exact_readback_recovers_only_from_grounded_complete_line
         return None
 
     monkeypatch.setattr(asyncio, "sleep", no_sleep)
+    if poison_readback:
+        monkeypatch.setattr(
+            "pikvm_agent.executor.typing.readback_region",
+            lambda *_args, **_kwargs: Region(
+                x=560,
+                y=290,
+                width=80,
+                height=24,
+            ),
+        )
     intended = "gsettings set org.gnome.settings-daemon.plugins.power idle-dim false"
 
     class VisibleTerminalBackend(FakeBackend):

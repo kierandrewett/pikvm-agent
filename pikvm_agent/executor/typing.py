@@ -438,6 +438,34 @@ def locate_dense_changed_bbox(
     )
 
 
+def locate_capture_change(
+    before_grid: np.ndarray | None,
+    before_frame: CapturedFrame | None,
+    after_frame: CapturedFrame | None,
+    dims: Any,
+) -> Region | None:
+    """Locate the causal delta from immediately before typing to one fresh frame."""
+
+    if after_frame is None or not after_frame.data:
+        return None
+    after_grid: np.ndarray | None = None
+    try:
+        after_grid = grid(after_frame.data)
+    except Exception:
+        pass
+    if before_grid is not None and after_grid is not None:
+        changed = locate_changed_bbox(before_grid, after_grid, dims)
+        if changed is not None:
+            return changed
+    if before_frame is None or not before_frame.data:
+        return None
+    return locate_dense_changed_bbox(
+        before_frame.data,
+        after_frame.data,
+        dims,
+    )
+
+
 def _pruned_changed_cells(
     before_grid: np.ndarray,
     after_grid: np.ndarray,
@@ -515,6 +543,7 @@ class WatchedTyper:
         self._semantic_spacing_normalized = False
         self._last_read_semantic_spacing = False
         self._last_grid_frame: CapturedFrame | None = None
+        self._last_read_screen_frame: CapturedFrame | None = None
 
     # ---- capture/read helpers -------------------------------------------- #
 
@@ -634,12 +663,14 @@ class WatchedTyper:
 
     async def _read_screen(self, *, precise: bool = False) -> OCRResult:
         """OCR one exact full-frame capture for localization/readback fallback."""
+        self._last_read_screen_frame = None
         try:
             frame = await self.backend.screenshot()
         except Exception:
             return OCRResult()
         if not frame or not frame.data:
             return OCRResult()
+        self._last_read_screen_frame = frame
         frame_sha256 = str(frame.sha256 or "").lower()
         self._last_readback_frame_sha256 = (
             frame_sha256
@@ -972,6 +1003,7 @@ class WatchedTyper:
         self._last_readback_frame_sha256 = ""
         self._semantic_spacing_normalized = False
         self._last_read_semantic_spacing = False
+        self._last_read_screen_frame = None
         precise = (
             exact
             if exact is not None
@@ -1155,6 +1187,8 @@ class WatchedTyper:
 
         grid_prev = await self._grid()
         dense_prev = self._last_grid_frame
+        emission_start_grid = grid_prev
+        emission_start_frame = dense_prev
 
         for i, chunk in enumerate(chunks):
             # Cooperative cancellation: an abort / panic / steer between chunks stops the
@@ -1484,17 +1518,35 @@ class WatchedTyper:
             # full-frame read and accept only a complete prompt-stripped line
             # whose bbox overlaps the field changed by this exact emission.
             # This is read-only; Enter remains a separate guarded action.
+            full_screen_result = await self._read_screen(precise=True)
+            full_screen_frame = self._last_read_screen_frame
             full_screen_match = self._full_screen_exact_line_candidate(
-                await self._read_screen(precise=True),
+                full_screen_result,
                 text,
                 dims,
                 allow_semantic_spacing=allow_semantic_spacing,
             )
+            capture_change = await asyncio.to_thread(
+                locate_capture_change,
+                emission_start_grid,
+                emission_start_frame,
+                full_screen_frame,
+                dims,
+            )
             if (
                 full_screen_match is not None
-                and regions_overlap(
-                    full_screen_match[1],
-                    current_readback_region(),
+                and (
+                    regions_overlap(
+                        full_screen_match[1],
+                        current_readback_region(),
+                    )
+                    or (
+                        capture_change is not None
+                        and regions_overlap(
+                            full_screen_match[1],
+                            capture_change,
+                        )
+                    )
                 )
             ):
                 last_read = full_screen_match[0]
