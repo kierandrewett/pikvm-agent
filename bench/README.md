@@ -113,6 +113,13 @@ All three reports attest zero computer contact. Evidence:
 and
 [`Codex 180s pass`](results/2026-07-28/providers/oauth-assistant-codex-180s-repeat.json).
 
+The environment exposed one API credential name, for Anthropic Messages. A
+fresh greeting reached the provider and was rejected as
+`authentication-failed` in 877ms, before any tool request and with zero
+computer contact. No other API credential prerequisite was present. This is a
+current 0/1 API result, not adapter compatibility evidence:
+[`Anthropic API authentication failure`](results/2026-07-28/providers/anthropic-api-assistant-auth-failure.json).
+
 ### Literal screen-observation fast path
 
 On 2026-07-28 the first-party Electron chat ran the exact request

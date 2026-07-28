@@ -92,6 +92,14 @@ activity in 2ms. Both the failed and passing attempts are retained, and all
 three reports attest zero computer contact. This confirms compatibility while
 also confirming that Codex is not the current interactive default.
 
+The only locally present API credential name was then retried through the
+native Anthropic Messages adapter. The provider rejected it as
+`authentication-failed` in 877ms before any tool request; the report records
+0/1 and zero computer contact. OpenAI, Gemini, Azure, Vertex, and compatible
+gateway credential prerequisites were absent. API portability therefore
+remains blocked on a valid credential rather than being promoted from mock
+contracts.
+
 ## Current verification boundary
 
 The completed post-change selection is recorded in
