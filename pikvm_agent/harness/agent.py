@@ -1813,7 +1813,13 @@ class AgentHarness:
                     action.index + 1,
                 )
             run.error = observation.error
-            run.plan = None
+            plan_preserved = self._can_preserve_plan_after_unverified_navigation(
+                action,
+                input_receipts,
+                reason=str(observation.raw.get("reason") or ""),
+            )
+            if not plan_preserved:
+                run.plan = None
             run.status = RunStatus.PAUSED
             run.record(
                 "action.completed_unverified",
@@ -1822,6 +1828,7 @@ class AgentHarness:
                 world_version=observation.world_version,
                 reason=observation.raw.get("reason"),
                 status=observation.status,
+                plan_preserved=plan_preserved,
                 **screen_proof,
                 **receipt_outcome,
                 **tool_outcome,
@@ -1975,6 +1982,69 @@ class AgentHarness:
                 ),
             )
         await self.store.save(run)
+
+    @staticmethod
+    def _can_preserve_plan_after_unverified_navigation(
+        action: PendingAction | None,
+        receipts: list[dict[str, Any]],
+        *,
+        reason: str,
+    ) -> bool:
+        """Keep a useful plan after harmless once-only navigation text.
+
+        This does not verify the text or authorize a follow-up. The run still
+        pauses and the next controller must inspect the resulting frame. The
+        narrow shape excludes secrets, code, terminals, and every active key
+        commit so uncertain consequential input continues to force replanning.
+        """
+
+        if action is None or reason != "type_unverified":
+            return False
+        text_actions = [
+            item
+            for item in action.actions
+            if str(item.get("type") or "") == "type_text"
+        ]
+        if len(text_actions) != 1 or any(
+            str(item.get("type") or "")
+            not in {
+                "click",
+                "type_text",
+                "wait",
+                "wait_for_change",
+                "wait_for_stable_screen",
+            }
+            for item in action.actions
+        ):
+            return False
+        draft = text_actions[0]
+        text = str(draft.get("text") or "")
+        if (
+            not text
+            or len(text) > 64
+            or draft.get("secret") is True
+            or draft.get("code") is True
+            or "terminal" in str(draft.get("context") or "").casefold()
+        ):
+            return False
+        receipt = next(
+            (
+                item
+                for item in receipts
+                if item.get("type") == "type_text"
+            ),
+            None,
+        )
+        if receipt is None:
+            return False
+        requested = receipt.get("requested_characters")
+        return (
+            receipt.get("emitted_exactly_once") is True
+            and isinstance(requested, int)
+            and requested == len(text)
+            and receipt.get("issued_characters") == requested
+            and receipt.get("emitted_characters") == requested
+        )
 
     @staticmethod
     def _same_controller_actions(

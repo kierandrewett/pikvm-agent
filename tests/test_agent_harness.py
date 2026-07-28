@@ -934,6 +934,92 @@ class UnverifiedTypingComputer(FakeComputer):
         )
 
 
+class OnceOnlyUnverifiedSearchComputer(FakeComputer):
+    async def burst(self, **kwargs: Any) -> ComputerObservation:
+        self.bursts.append(kwargs)
+        return ComputerObservation(
+            session_id=kwargs["session_id"],
+            status="unverified",
+            frame_id=2,
+            world_version=8,
+            control_epoch=2,
+            image_path="/tmp/frame-after.jpg",
+            error="OCR could not read the search draft",
+            raw={
+                "reason": "type_unverified",
+                "action_receipts": [
+                    {
+                        "index": 0,
+                        "type": "type_text",
+                        "status": "unverified_ambiguous",
+                        "verdict": "unverified",
+                        "focus_evidence": "read_back_unverified",
+                        "proof_state": "issued_only",
+                        "requested_characters": 8,
+                        "delivery_characters": 8,
+                        "issued_characters": 8,
+                        "emitted_characters": 8,
+                        "emitted_exactly_once": True,
+                    }
+                ],
+            },
+        )
+
+
+class SearchRecoveryProvider(ScriptedProvider):
+    def __init__(self) -> None:
+        super().__init__()
+        self.controller_calls = 0
+
+    async def complete(self, request: ModelRequest) -> ModelResponse:
+        self.requests.append(request)
+        if request.role == "reasoner":
+            data = {
+                "summary": "Find the Settings application.",
+                "steps": ["Search for Settings", "Confirm the result"],
+                "success_criteria": ["The Settings result is visible"],
+                "constraints": ["Do not open unrelated applications"],
+            }
+        elif request.role == "controller":
+            self.controller_calls += 1
+            if self.controller_calls == 1:
+                data = {
+                    "outcome": "act",
+                    "intent": "Search for the Settings application.",
+                    "actions": [
+                        {
+                            "type": "type_text",
+                            "text": "Settings",
+                            "secret": False,
+                            "code": False,
+                        }
+                    ],
+                    "expected_evidence": ["The Settings result is visible"],
+                }
+            else:
+                data = {
+                    "outcome": "done",
+                    "intent": "The Settings result is visible.",
+                    "actions": [],
+                    "expected_evidence": [],
+                }
+        else:
+            data = {
+                "verdict": "complete",
+                "summary": "The Settings result is visible.",
+                "evidence": ["The current frame shows the Settings result."],
+                "criteria": [
+                    {
+                        "criterion_index": 0,
+                        "satisfied": True,
+                        "evidence": "The Settings result is visible.",
+                    }
+                ],
+                "action_criteria": [],
+            }
+        return ModelResponse(provider=self.name, model="scripted-v1", data=data)
+
+
 class InputReceiptComputer(FakeComputer):
     async def burst(self, **kwargs: Any) -> ComputerObservation:
         self.bursts.append(kwargs)
@@ -2446,6 +2532,94 @@ async def test_daemon_unverified_typing_cannot_be_overridden_by_model_verifier()
         for event in paused.events
     )
     assert not any(request.role == "verifier" for request in provider.requests)
+
+
+@pytest.mark.asyncio
+async def test_once_only_navigation_text_preserves_plan_without_replaying() -> None:
+    provider = SearchRecoveryProvider()
+    computer = OnceOnlyUnverifiedSearchComputer()
+    harness = build_harness(provider, computer)
+
+    paused = await harness.start("Find the Settings application.")
+
+    assert paused.status is RunStatus.PAUSED
+    assert paused.plan is not None
+    assert paused.pending_action is None
+    assert paused.events[-1].kind == "action.completed_unverified"
+    assert paused.events[-1].data["plan_preserved"] is True
+
+    completed = await harness.continue_run(paused.run_id)
+
+    assert completed.status is RunStatus.COMPLETED
+    assert len(computer.bursts) == 1
+    assert [request.role for request in provider.requests].count("reasoner") == 1
+    assert provider.controller_calls == 2
+
+
+@pytest.mark.parametrize(
+    "actions,receipt",
+    [
+        (
+            [{"type": "type_text", "text": "password", "secret": True}],
+            {
+                "type": "type_text",
+                "requested_characters": 8,
+                "issued_characters": 8,
+                "emitted_characters": 8,
+                "emitted_exactly_once": True,
+            },
+        ),
+        (
+            [
+                {
+                    "type": "type_text",
+                    "text": "echo hello",
+                    "code": True,
+                    "context": "terminal",
+                }
+            ],
+            {
+                "type": "type_text",
+                "requested_characters": 10,
+                "issued_characters": 10,
+                "emitted_characters": 10,
+                "emitted_exactly_once": True,
+            },
+        ),
+        (
+            [
+                {"type": "type_text", "text": "Settings"},
+                {"type": "key", "key": "ENTER"},
+            ],
+            {
+                "type": "type_text",
+                "requested_characters": 8,
+                "issued_characters": 8,
+                "emitted_characters": 8,
+                "emitted_exactly_once": True,
+            },
+        ),
+    ],
+)
+def test_uncertain_secret_code_and_committed_text_discard_plan(
+    actions: list[dict[str, Any]],
+    receipt: dict[str, Any],
+) -> None:
+    pending = PendingAction(
+        index=0,
+        intent="Attempt uncertain text.",
+        actions=actions,
+        expected_evidence=[],
+        based_on_world_version=None,
+        based_on_control_epoch=None,
+        idempotency_key="run:action:0",
+    )
+
+    assert not AgentHarness._can_preserve_plan_after_unverified_navigation(
+        pending,
+        [receipt],
+        reason="type_unverified",
+    )
 
 
 @pytest.mark.asyncio
