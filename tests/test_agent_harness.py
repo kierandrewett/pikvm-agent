@@ -993,6 +993,9 @@ async def test_controller_prompt_prefers_a_stable_legible_end_state() -> None:
     )
     normalized = " ".join(prompt.split())
     assert "stable, directly legible local end state" in normalized
+    assert "complete reversible local operation, not one mouse click" in normalized
+    assert "group the full sequence of reversible local inputs" in normalized
+    assert "one controller/verifier round trip on each digit" in normalized
     assert "complete expression including the equals key" in normalized
     assert "tiny expression-history text" in normalized
     assert "consequential commit actions" in normalized
