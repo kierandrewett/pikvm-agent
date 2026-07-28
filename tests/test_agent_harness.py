@@ -73,8 +73,9 @@ class ScriptedProvider:
 class ParallelPostActionProvider(ScriptedProvider):
     """Block until verifier and next controller are both in flight."""
 
-    def __init__(self) -> None:
+    def __init__(self, *, stale_repeat: bool = False) -> None:
         super().__init__()
+        self.stale_repeat = stale_repeat
         self.controller_calls = 0
         self.verifier_calls = 0
         self.parallel_roles: set[str] = set()
@@ -108,10 +109,24 @@ class ParallelPostActionProvider(ScriptedProvider):
                         ],
                     },
                 )
-            self.parallel_roles.add("controller")
-            if self.parallel_roles == {"controller", "verifier"}:
-                self.parallel_started.set()
-            await asyncio.wait_for(self.parallel_started.wait(), timeout=0.5)
+            if self.controller_calls == 2:
+                self.parallel_roles.add("controller")
+                if self.parallel_roles == {"controller", "verifier"}:
+                    self.parallel_started.set()
+                await asyncio.wait_for(self.parallel_started.wait(), timeout=0.5)
+                if self.stale_repeat:
+                    return ModelResponse(
+                        provider=self.name,
+                        model="scripted-v1",
+                        data={
+                            "outcome": "act",
+                            "intent": "Stale repeat of the completed action.",
+                            "actions": [{"type": "click", "x": 320, "y": 240}],
+                            "expected_evidence": [
+                                "The requested setting is visible."
+                            ],
+                        },
+                    )
             return ModelResponse(
                 provider=self.name,
                 model="scripted-v1",
@@ -1433,6 +1448,44 @@ async def test_post_action_verification_and_next_control_run_in_parallel(
     )
     assert any(
         event.kind == "controller.parallel_adopted"
+        for event in result.events
+    )
+
+
+@pytest.mark.asyncio
+async def test_stale_parallel_repeat_is_discarded_without_replanning(
+    tmp_path: Path,
+) -> None:
+    provider = ParallelPostActionProvider(stale_repeat=True)
+    computer = FakeComputer()
+    pool = ModelPool(
+        providers={provider.name: provider},
+        routes={
+            role: RoleRoute(providers=[provider.name])
+            for role in ("reasoner", "controller", "verifier")
+        },
+    )
+    harness = AgentHarness(
+        computer=computer,
+        models=pool,
+        store=SqliteRunStore(tmp_path / "stale-repeat.sqlite3"),
+        config=HarnessConfig(max_actions_per_advance=2),
+    )
+
+    result = await asyncio.wait_for(
+        harness.start("Turn the requested setting off."),
+        timeout=1,
+    )
+
+    assert result.status is RunStatus.COMPLETED
+    assert provider.controller_calls == 3
+    assert [request.role for request in provider.requests].count("reasoner") == 1
+    assert any(
+        event.kind == "controller.parallel_stale_repeat_discarded"
+        for event in result.events
+    )
+    assert not any(
+        event.kind == "controller.repeated_actions"
         for event in result.events
     )
 

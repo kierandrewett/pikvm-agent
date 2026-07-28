@@ -995,16 +995,10 @@ class AgentHarness:
                 action.model_dump(mode="json", exclude_none=True)
                 for action in controller.actions
             ]
-            previous_actions = (
-                [
-                    action.model_dump(mode="json", exclude_none=True)
-                    for action in previous_controller.actions
-                ]
-                if previous_controller is not None
-                and previous_controller.outcome == "act"
-                else None
-            )
-            if previous_actions == actions:
+            if self._same_controller_actions(
+                previous_controller,
+                controller,
+            ):
                 # Exact repeated HID is almost always an agent stall and is
                 # especially dangerous for text. Refuse it before checkpoint
                 # creation so a retry cannot duplicate accepted input.
@@ -1945,12 +1939,26 @@ class AgentHarness:
             and run.last_verification is not None
             and run.last_verification.verdict == "verified"
         ):
-            self._prefetched_controllers[run.run_id] = controller
-            run.record(
-                "controller.parallel_ready",
-                outcome=controller.outcome,
-                intent=controller.intent,
-            )
+            if self._same_controller_actions(
+                run.last_controller,
+                controller,
+            ):
+                run.record(
+                    "controller.parallel_stale_repeat_discarded",
+                    outcome=controller.outcome,
+                    intent=controller.intent,
+                    reason=(
+                        "speculative decision repeated the action that had "
+                        "already completed"
+                    ),
+                )
+            else:
+                self._prefetched_controllers[run.run_id] = controller
+                run.record(
+                    "controller.parallel_ready",
+                    outcome=controller.outcome,
+                    intent=controller.intent,
+                )
         else:
             run.record(
                 "controller.parallel_discarded",
@@ -1967,6 +1975,23 @@ class AgentHarness:
                 ),
             )
         await self.store.save(run)
+
+    @staticmethod
+    def _same_controller_actions(
+        previous: ControllerDecision | None,
+        proposed: ControllerDecision,
+    ) -> bool:
+        if previous is None or (
+            previous.outcome != "act" or proposed.outcome != "act"
+        ):
+            return False
+        return [
+            action.model_dump(mode="json", exclude_none=True)
+            for action in previous.actions
+        ] == [
+            action.model_dump(mode="json", exclude_none=True)
+            for action in proposed.actions
+        ]
 
     @staticmethod
     def _is_ungrounded_navigation(
