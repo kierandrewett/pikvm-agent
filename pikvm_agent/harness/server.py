@@ -78,6 +78,9 @@ def build_harness_app(
         config=HarnessConfig(
             max_actions_per_advance=settings.max_actions_per_advance,
             max_actions_per_burst=settings.max_actions_per_burst,
+            parallel_post_action_control=(
+                settings.parallel_post_action_control
+            ),
             max_total_actions=settings.max_total_actions,
             max_ungrounded_navigation_replans=(
                 settings.max_ungrounded_navigation_replans

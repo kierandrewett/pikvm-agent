@@ -39,6 +39,9 @@ class CriticalPathBreakdown(BaseModel):
 
     startup_ms: int = 0
     provider_wait_ms: int = 0
+    provider_serial_equivalent_ms: int = 0
+    provider_overlap_ms: int = 0
+    max_concurrent_provider_calls: int = 0
     action_execution_ms: int = 0
     evidence_capture_ms: int = 0
     unclassified_overhead_ms: int = 0
@@ -174,6 +177,30 @@ def _interval_total_ms(
         previous_start, previous_end = merged[-1]
         merged[-1] = (previous_start, max(previous_end, end))
     return round(sum(_duration_ms(start, end) for start, end in merged))
+
+
+def _interval_serial_ms(
+    intervals: list[tuple[datetime, datetime]],
+) -> int:
+    return round(
+        sum(_duration_ms(start, end) for start, end in intervals)
+    )
+
+
+def _max_interval_concurrency(
+    intervals: list[tuple[datetime, datetime]],
+) -> int:
+    points = [
+        point
+        for start, end in intervals
+        for point in ((start, 1), (end, -1))
+    ]
+    active = 0
+    maximum = 0
+    for _, delta in sorted(points, key=lambda item: (item[0], item[1])):
+        active += delta
+        maximum = max(maximum, active)
+    return maximum
 
 
 def _matching_pending_index(
@@ -343,6 +370,9 @@ def _critical_path(run: RunSnapshot) -> CriticalPathBreakdown:
     ]
     startup_ms = _interval_total_ms(startup_intervals)
     provider_wait_ms = _interval_total_ms(provider_intervals)
+    provider_serial_equivalent_ms = _interval_serial_ms(
+        provider_intervals
+    )
     action_execution_ms = _interval_total_ms(action_intervals)
     evidence_capture_ms = _interval_total_ms(evidence_intervals)
     measured_union_ms = _interval_total_ms(measured_intervals)
@@ -364,6 +394,14 @@ def _critical_path(run: RunSnapshot) -> CriticalPathBreakdown:
     return CriticalPathBreakdown(
         startup_ms=startup_ms,
         provider_wait_ms=provider_wait_ms,
+        provider_serial_equivalent_ms=provider_serial_equivalent_ms,
+        provider_overlap_ms=max(
+            0,
+            provider_serial_equivalent_ms - provider_wait_ms,
+        ),
+        max_concurrent_provider_calls=_max_interval_concurrency(
+            provider_intervals
+        ),
         action_execution_ms=action_execution_ms,
         evidence_capture_ms=evidence_capture_ms,
         unclassified_overhead_ms=max(0, wall_ms - measured_union_ms),

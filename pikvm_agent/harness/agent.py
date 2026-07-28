@@ -144,6 +144,9 @@ any focus-lost or type-unverified result, do not repeat
 the text; re-observe and establish focus first. After a verifier failure, do
 not repeat the original action unchanged. Use the verifier evidence to propose
 only a bounded correction, or block if the current pixels cannot support one.
+Set expects_task_completion true only when this action should satisfy every
+remaining success criterion. This is a scheduling hint, never a success claim;
+the independent verifier still decides.
 Prefer a bounded reversible burst that reaches a stable, directly legible local
 end state over stopping at a low-contrast or transient intermediate state. For
 short local calculations, enter the complete expression including the equals
@@ -334,6 +337,9 @@ class AgentHarness:
         self.budget_policy = budget_policy or ModelBudgetPolicy(
             max_provider_attempts=self.config.max_provider_attempts_per_run,
         )
+        # This is deliberately ephemeral. A speculative controller decision
+        # never authorizes HID and may be recomputed safely after a restart.
+        self._prefetched_controllers: dict[str, ControllerDecision] = {}
 
     async def start(self, task: str) -> RunSnapshot:
         run = await self.create(task)
@@ -468,6 +474,9 @@ class AgentHarness:
         return await self.store.get_control(run_id)
 
     async def continue_run(self, run_id: str) -> RunSnapshot:
+        # A continuation loaded from durable state must never consume an
+        # ephemeral decision left behind by a cancelled prior coroutine.
+        self._prefetched_controllers.pop(run_id, None)
         run = await self.store.get_control(run_id)
         retry_provider_cooldown = (
             run.status is RunStatus.PAUSED
@@ -529,6 +538,7 @@ class AgentHarness:
     ) -> RunSnapshot:
         """Pause model progress without discarding a durable pending action."""
 
+        self._prefetched_controllers.pop(run_id, None)
         run = await self.store.get_control(run_id)
         if run.status in TERMINAL_RUN_STATUSES or run.status is RunStatus.NEEDS_APPROVAL:
             return run
@@ -540,6 +550,7 @@ class AgentHarness:
     async def steer(self, run_id: str, instruction: str) -> RunSnapshot:
         """Checkpoint operator guidance and force a fresh managed plan."""
 
+        self._prefetched_controllers.pop(run_id, None)
         instruction = instruction.strip()
         if not instruction:
             raise ValueError("steering instruction must not be empty")
@@ -589,6 +600,7 @@ class AgentHarness:
     async def resolve_approval(
         self, run_id: str, approval_id: str, decision: dict[str, Any]
     ) -> RunSnapshot:
+        self._prefetched_controllers.pop(run_id, None)
         run = await self.store.get_control(run_id)
         pending = run.pending_approval or {}
         if run.status is not RunStatus.NEEDS_APPROVAL:
@@ -645,6 +657,7 @@ class AgentHarness:
         return await self._advance(run)
 
     async def abort(self, run_id: str, reason: str = "aborted by caller") -> RunSnapshot:
+        self._prefetched_controllers.pop(run_id, None)
         run = await self.store.get_control(run_id)
         if run.status in TERMINAL_RUN_STATUSES:
             return run
@@ -676,7 +689,15 @@ class AgentHarness:
                 return run
 
             if run.pending_action is not None:
-                outcome = await self._execute_pending(run)
+                outcome = await self._execute_pending(
+                    run,
+                    parallel_next_control=(
+                        self.config.parallel_post_action_control
+                        and not run.pending_action.expects_task_completion
+                        and actions_this_call + 1
+                        < self.config.max_actions_per_advance
+                    ),
+                )
                 if outcome != "continue":
                     return run
                 actions_this_call += 1
@@ -727,10 +748,22 @@ class AgentHarness:
                 retry_provider_cooldown = False
 
             previous_controller = run.last_controller
-            controller = await self._control(
-                run,
-                bypass_cooldown=retry_provider_cooldown,
+            controller = self._prefetched_controllers.pop(
+                run.run_id,
+                None,
             )
+            if controller is not None:
+                run.record(
+                    "controller.parallel_adopted",
+                    outcome=controller.outcome,
+                    intent=controller.intent,
+                )
+                await self.store.save(run)
+            else:
+                controller = await self._control(
+                    run,
+                    bypass_cooldown=retry_provider_cooldown,
+                )
             retry_provider_cooldown = False
             if controller is None:
                 return run
@@ -1425,7 +1458,12 @@ class AgentHarness:
             run.record("verification.failed", summary=verdict.summary)
         await self.store.save(run)
 
-    async def _execute_pending(self, run: RunSnapshot) -> str:
+    async def _execute_pending(
+        self,
+        run: RunSnapshot,
+        *,
+        parallel_next_control: bool = False,
+    ) -> str:
         action = run.pending_action
         if action is None or not run.session_id:
             raise RuntimeError("pending action requires a computer session")
@@ -1485,6 +1523,7 @@ class AgentHarness:
             tool=tool,
             call_id=call_id,
             latency_ms=latency_ms,
+            parallel_next_control=parallel_next_control,
         )
         return "continue" if accepted else "stop"
 
@@ -1497,6 +1536,7 @@ class AgentHarness:
         tool: str | None = None,
         call_id: str | None = None,
         latency_ms: int | None = None,
+        parallel_next_control: bool = False,
     ) -> bool:
         action = run.pending_action
         tool_outcome = {
@@ -1844,8 +1884,89 @@ class AgentHarness:
             **tool_outcome,
         )
         await self.store.save(run)
-        await self._verify(run, action=action, before=before)
+        if parallel_next_control:
+            await self._verify_and_prefetch_control(
+                run,
+                action=action,
+                before=before,
+            )
+        else:
+            await self._verify(run, action=action, before=before)
         return run.status is RunStatus.RUNNING
+
+    async def _verify_and_prefetch_control(
+        self,
+        run: RunSnapshot,
+        *,
+        action: PendingAction | None,
+        before: ComputerObservation | None,
+    ) -> None:
+        """Overlap independent verification with a non-authorizing decision.
+
+        The controller may inspect the fresh post-action frame while the
+        verifier checks the same transition. Its output remains ephemeral and
+        cannot reach HID unless verification succeeds and the normal action
+        validation/checkpoint path adopts it.
+        """
+
+        run.record(
+            "controller.parallel_started",
+            action_index=action.index if action is not None else None,
+            roles=["verifier", "controller"],
+        )
+        await self.store.save(run)
+        verify_task = asyncio.create_task(
+            self._verify(run, action=action, before=before),
+            name=f"harness-verify:{run.run_id}",
+        )
+        control_task = asyncio.create_task(
+            self._control(run),
+            name=f"harness-control:{run.run_id}",
+        )
+        try:
+            _, controller = await asyncio.gather(
+                verify_task,
+                control_task,
+            )
+        except BaseException:
+            for task in (verify_task, control_task):
+                if not task.done():
+                    task.cancel()
+            await asyncio.gather(
+                verify_task,
+                control_task,
+                return_exceptions=True,
+            )
+            raise
+
+        if (
+            run.status is RunStatus.RUNNING
+            and controller is not None
+            and run.last_verification is not None
+            and run.last_verification.verdict == "verified"
+        ):
+            self._prefetched_controllers[run.run_id] = controller
+            run.record(
+                "controller.parallel_ready",
+                outcome=controller.outcome,
+                intent=controller.intent,
+            )
+        else:
+            run.record(
+                "controller.parallel_discarded",
+                reason=(
+                    "verification did not authorize another action"
+                    if controller is not None
+                    else "controller did not return a usable decision"
+                ),
+                run_status=run.status.value,
+                verification_verdict=(
+                    run.last_verification.verdict
+                    if run.last_verification is not None
+                    else None
+                ),
+            )
+        await self.store.save(run)
 
     @staticmethod
     def _is_ungrounded_navigation(
@@ -1880,6 +2001,7 @@ class AgentHarness:
             intent=controller.intent,
             actions=actions,
             expected_evidence=controller.expected_evidence,
+            expects_task_completion=controller.expects_task_completion,
             based_on_world_version=(
                 observation.world_version if observation is not None else None
             ),

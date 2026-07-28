@@ -52,6 +52,7 @@ class ManagedSmokeProvider:
                 "expected_evidence": [
                     "The canvas visibly reports Managed task complete."
                 ],
+                "expects_task_completion": True,
             }
         else:
             data = {

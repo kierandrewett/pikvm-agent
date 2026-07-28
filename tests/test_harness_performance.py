@@ -289,6 +289,9 @@ def test_run_performance_breaks_down_critical_path_and_human_ratio() -> None:
     assert report.critical_path.overlap_ms == 0
     assert report.critical_path.provider_wait_share == 0.5
     assert report.critical_path.action_execution_share == 0.3
+    assert report.critical_path.provider_serial_equivalent_ms == 5_000
+    assert report.critical_path.provider_overlap_ms == 0
+    assert report.critical_path.max_concurrent_provider_calls == 1
     assert report.critical_path.provider_calls == 3
     assert report.critical_path.reasoner_calls == 1
     assert report.critical_path.controller_calls == 1
@@ -299,6 +302,67 @@ def test_run_performance_breaks_down_critical_path_and_human_ratio() -> None:
     assert report.human_comparison.agent_to_human_ratio == 5.0
     assert report.human_comparison.time_over_human_ms == 8_000
     assert report.human_comparison.human_competitive is False
+
+
+def test_run_performance_reports_parallel_provider_overlap() -> None:
+    run = RunSnapshot(
+        run_id="run_parallel_models",
+        task="pipeline verification and control",
+        status=RunStatus.COMPLETED,
+        created_at=datetime(2026, 1, 1, tzinfo=UTC),
+        updated_at=datetime(2026, 1, 1, tzinfo=UTC) + timedelta(seconds=5),
+        events=[
+            _event(
+                1,
+                1_000,
+                "model.provider_request_sent",
+                role="verifier",
+                provider="vision",
+                route_index=0,
+                attempt=1,
+                repair=False,
+            ),
+            _event(
+                2,
+                1_200,
+                "model.provider_request_sent",
+                role="controller",
+                provider="fast",
+                route_index=0,
+                attempt=1,
+                repair=False,
+            ),
+            _event(
+                3,
+                3_000,
+                "model.provider_output_received",
+                role="verifier",
+                provider="vision",
+                route_index=0,
+                attempt=1,
+                repair=False,
+                latency_ms=2_000,
+            ),
+            _event(
+                4,
+                3_200,
+                "model.provider_output_received",
+                role="controller",
+                provider="fast",
+                route_index=0,
+                attempt=1,
+                repair=False,
+                latency_ms=2_000,
+            ),
+        ],
+    )
+
+    report = summarize_run_performance(run)
+
+    assert report.critical_path.provider_wait_ms == 2_200
+    assert report.critical_path.provider_serial_equivalent_ms == 4_000
+    assert report.critical_path.provider_overlap_ms == 1_800
+    assert report.critical_path.max_concurrent_provider_calls == 2
 
 
 def test_cli_exposes_saved_run_speed_report() -> None:

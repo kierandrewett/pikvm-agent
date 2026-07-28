@@ -181,6 +181,7 @@ class HarnessConfig(BaseModel):
 
     max_actions_per_advance: int = Field(default=4, ge=1, le=32)
     max_actions_per_burst: int = Field(default=8, ge=1, le=32)
+    parallel_post_action_control: bool = True
     max_total_actions: int = Field(default=100, ge=1)
     max_ungrounded_navigation_replans: int = Field(default=3, ge=1, le=16)
     max_provider_attempts_per_run: int = Field(default=500, ge=1, le=100_000)
@@ -446,6 +447,7 @@ class ControllerDecision(StrictModelDecision):
     intent: str
     actions: list[ComputerAction] = Field(default_factory=list)
     expected_evidence: list[str] = Field(default_factory=list, max_length=20)
+    expects_task_completion: bool = False
     reason: str = ""
 
     @model_validator(mode="after")
@@ -541,6 +543,7 @@ class PendingAction(BaseModel):
     intent: str
     actions: list[dict[str, Any]]
     expected_evidence: list[str] = Field(default_factory=list, max_length=20)
+    expects_task_completion: bool = False
     based_on_world_version: int | None
     based_on_control_epoch: int | None
     idempotency_key: str

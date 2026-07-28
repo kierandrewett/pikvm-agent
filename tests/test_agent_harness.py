@@ -70,6 +70,106 @@ class ScriptedProvider:
         return ModelResponse(provider=self.name, model="scripted-v1", data=data)
 
 
+class ParallelPostActionProvider(ScriptedProvider):
+    """Block until verifier and next controller are both in flight."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.controller_calls = 0
+        self.verifier_calls = 0
+        self.parallel_roles: set[str] = set()
+        self.parallel_started = asyncio.Event()
+
+    async def complete(self, request: ModelRequest) -> ModelResponse:
+        self.requests.append(request)
+        if request.role == "reasoner":
+            return ModelResponse(
+                provider=self.name,
+                model="scripted-v1",
+                data={
+                    "summary": "Open the setting and confirm the result.",
+                    "steps": ["Open the setting", "Confirm the requested state"],
+                    "success_criteria": ["The requested setting is visibly off."],
+                    "constraints": ["Preserve unrelated settings."],
+                },
+            )
+        if request.role == "controller":
+            self.controller_calls += 1
+            if self.controller_calls == 1:
+                return ModelResponse(
+                    provider=self.name,
+                    model="scripted-v1",
+                    data={
+                        "outcome": "act",
+                        "intent": "Open the visibly labelled setting.",
+                        "actions": [{"type": "click", "x": 320, "y": 240}],
+                        "expected_evidence": [
+                            "The requested setting is visible."
+                        ],
+                    },
+                )
+            self.parallel_roles.add("controller")
+            if self.parallel_roles == {"controller", "verifier"}:
+                self.parallel_started.set()
+            await asyncio.wait_for(self.parallel_started.wait(), timeout=0.5)
+            return ModelResponse(
+                provider=self.name,
+                model="scripted-v1",
+                data={
+                    "outcome": "done",
+                    "intent": "The requested state is now visible.",
+                    "actions": [],
+                    "expected_evidence": [],
+                },
+            )
+        self.verifier_calls += 1
+        if self.verifier_calls == 1:
+            self.parallel_roles.add("verifier")
+            if self.parallel_roles == {"controller", "verifier"}:
+                self.parallel_started.set()
+            await asyncio.wait_for(self.parallel_started.wait(), timeout=0.5)
+            return ModelResponse(
+                provider=self.name,
+                model="scripted-v1",
+                data={
+                    "verdict": "verified",
+                    "summary": "The setting is visible.",
+                    "evidence": ["The labelled setting is visible."],
+                    "criteria": [
+                        {
+                            "criterion_index": 0,
+                            "satisfied": False,
+                            "evidence": "The final off state is not yet confirmed.",
+                        }
+                    ],
+                    "action_criteria": [
+                        {
+                            "criterion_index": 0,
+                            "satisfied": True,
+                            "evidence": "The requested setting is visible.",
+                        }
+                    ],
+                },
+            )
+        return ModelResponse(
+            provider=self.name,
+            model="scripted-v1",
+            data={
+                "verdict": "complete",
+                "summary": "The requested setting is off.",
+                "evidence": ["The setting visibly shows off."],
+                "criteria": [
+                    {
+                        "criterion_index": 0,
+                        "satisfied": True,
+                        "evidence": "The requested setting visibly shows off.",
+                    }
+                ],
+                "action_criteria": [],
+            },
+        )
+
+
 def test_artifact_acceptance_pass_requires_complete_host_evidence() -> None:
     acceptance = ArtifactAcceptance(
         kind="office_artifact",
@@ -1296,6 +1396,43 @@ async def test_start_runs_a_checkpointed_reason_act_verify_slice() -> None:
     assert completed.data["tool"] == "pikvm_run_burst"
     assert completed.data["status"] == "completed"
     assert completed.data["latency_ms"] >= 0
+
+
+@pytest.mark.asyncio
+async def test_post_action_verification_and_next_control_run_in_parallel() -> None:
+    provider = ParallelPostActionProvider()
+    computer = FakeComputer()
+    pool = ModelPool(
+        providers={provider.name: provider},
+        routes={
+            role: RoleRoute(providers=[provider.name])
+            for role in ("reasoner", "controller", "verifier")
+        },
+    )
+    harness = AgentHarness(
+        computer=computer,
+        models=pool,
+        store=InMemoryRunStore(),
+        config=HarnessConfig(max_actions_per_advance=2),
+    )
+
+    result = await asyncio.wait_for(
+        harness.start("Turn the requested setting off."),
+        timeout=1,
+    )
+
+    assert result.status is RunStatus.COMPLETED
+    assert provider.parallel_roles == {"controller", "verifier"}
+    assert provider.controller_calls == 2
+    assert provider.verifier_calls == 2
+    assert any(
+        event.kind == "controller.parallel_started"
+        for event in result.events
+    )
+    assert any(
+        event.kind == "controller.parallel_adopted"
+        for event in result.events
+    )
 
 
 @pytest.mark.asyncio

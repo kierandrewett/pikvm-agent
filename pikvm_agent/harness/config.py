@@ -355,6 +355,7 @@ class HarnessSettings(BaseModel):
     )
     model_budget: ModelBudgetSettings = Field(default_factory=ModelBudgetSettings)
     max_actions_per_advance: int = Field(default=4, ge=1, le=32)
+    parallel_post_action_control: bool = True
     max_autonomous_resumes: int = Field(default=64, ge=1, le=10_000)
     max_actions_per_burst: int = Field(default=8, ge=1, le=32)
     max_total_actions: int = Field(default=100, ge=1)
