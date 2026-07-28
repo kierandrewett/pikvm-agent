@@ -1081,7 +1081,8 @@ async def test_reasoner_can_plan_a_short_visible_terminal_fallback() -> None:
     assert "exact GUI control is absent" in normalized
     assert "not a hidden side channel" in normalized
     assert "Never use this fallback for a long script" in normalized
-    assert "maximize or widen the terminal before typing" in normalized
+    assert "maximize or widen the terminal" in normalized
+    assert "increase its text size" in normalized
     assert "never append a guessed suffix" in normalized
     assert "cancel the draft with Ctrl+C" in normalized
 
@@ -1103,7 +1104,8 @@ async def test_controller_handles_an_unverified_terminal_draft_without_guessing(
     assert "cancel the draft with Ctrl+C" in normalized
     assert "visibly clean prompt" in normalized
     assert "long exact terminal draft" in normalized
-    assert "separate verified maximize, widen, or zoom action" in normalized
+    assert "separate verified width action" in normalized
+    assert "separate verified text-size increase" in normalized
 
 
 def test_controller_separates_spreadsheet_focus_from_grid_entry() -> None:
@@ -2457,7 +2459,7 @@ def test_long_terminal_draft_requires_a_verified_legibility_step() -> None:
         summary="The terminal is visibly maximized and the clean prompt is legible.",
     )
 
-    assert not AgentHarness._long_terminal_draft_needs_legibility_step(
+    assert AgentHarness._long_terminal_draft_needs_legibility_step(
         run,
         proposed,
     )
@@ -2465,12 +2467,30 @@ def test_long_terminal_draft_requires_a_verified_legibility_step() -> None:
     run.record(
         "action.checkpointed",
         index=5,
+        intent="Increase the terminal text size before entering the exact command.",
+        actions=[{"type": "key", "keys": ["CTRL", "SHIFT", "EQUAL"]}],
+    )
+    run.record(
+        "model.completed",
+        role="verifier",
+        verdict="verified",
+        summary="The terminal text is visibly zoomed in and larger.",
+    )
+
+    assert not AgentHarness._long_terminal_draft_needs_legibility_step(
+        run,
+        proposed,
+    )
+
+    run.record(
+        "action.checkpointed",
+        index=6,
         intent="Type the exact command for visual verification.",
         actions=proposed,
     )
     run.record(
         "action.completed_unverified",
-        index=5,
+        index=6,
         status="unverified",
         input_receipts=[
             {
@@ -2488,9 +2508,9 @@ def test_long_terminal_draft_requires_a_verified_legibility_step() -> None:
 
     run.record(
         "action.checkpointed",
-        index=6,
-        intent="Zoom in so the terminal command is independently legible.",
-        actions=[{"type": "key", "keys": ["CTRL", "+"]}],
+        index=7,
+        intent="Increase the terminal text size after the unreadable draft.",
+        actions=[{"type": "key", "keys": ["CTRL", "SHIFT", "EQUAL"]}],
     )
     run.record(
         "model.completed",
@@ -2506,7 +2526,7 @@ def test_long_terminal_draft_requires_a_verified_legibility_step() -> None:
 
     run.record(
         "action.checkpointed",
-        index=7,
+        index=8,
         intent="Open a new terminal window.",
         actions=[{"type": "key", "keys": ["CTRL", "ALT", "T"]}],
     )
@@ -2549,7 +2569,12 @@ async def test_long_terminal_draft_is_replaced_with_legibility_action_before_hid
                         }
                     ]
                     if self.controller_calls == 1
-                    else [{"type": "key", "keys": ["META", "UP"]}]
+                    else [
+                        {
+                            "type": "key",
+                            "keys": ["CTRL", "SHIFT", "EQUAL"],
+                        }
+                    ]
                 )
                 return ModelResponse(
                     provider=self.name,
@@ -2559,7 +2584,10 @@ async def test_long_terminal_draft_is_replaced_with_legibility_action_before_hid
                         "intent": (
                             "Type the exact setting command."
                             if self.controller_calls == 1
-                            else "Maximize the terminal before typing."
+                            else (
+                                "Increase the terminal text size before "
+                                "typing."
+                            )
                         ),
                         "actions": actions,
                         "expected_evidence": [
@@ -2575,10 +2603,10 @@ async def test_long_terminal_draft_is_replaced_with_legibility_action_before_hid
                     data={
                         "verdict": "verified",
                         "summary": (
-                            "The terminal is visibly maximized and the prompt "
-                            "is legible."
+                            "The terminal text is visibly zoomed in and the "
+                            "prompt is legible."
                         ),
-                        "evidence": ["The terminal now fills the screen width."],
+                        "evidence": ["The terminal text is visibly larger."],
                     },
                 )
             return await super().complete(request)
@@ -2627,6 +2655,18 @@ async def test_long_terminal_draft_is_replaced_with_legibility_action_before_hid
     run.record(
         "action.checkpointed",
         index=5,
+        intent="Increase the terminal text size before entering the exact command.",
+        actions=[{"type": "key", "keys": ["CTRL", "SHIFT", "EQUAL"]}],
+    )
+    run.record(
+        "model.completed",
+        role="verifier",
+        verdict="verified",
+        summary="The terminal text is visibly zoomed in and larger.",
+    )
+    run.record(
+        "action.checkpointed",
+        index=6,
         intent="Type the exact command for visual verification.",
         actions=[
             {
@@ -2643,7 +2683,7 @@ async def test_long_terminal_draft_is_replaced_with_legibility_action_before_hid
     )
     run.record(
         "action.completed_unverified",
-        index=5,
+        index=6,
         status="unverified",
         input_receipts=[
             {
@@ -2659,7 +2699,7 @@ async def test_long_terminal_draft_is_replaced_with_legibility_action_before_hid
 
     assert provider.controller_calls == 2
     assert [burst["actions"] for burst in computer.bursts] == [
-        [{"type": "key", "keys": ["META", "UP"]}]
+        [{"type": "key", "keys": ["CTRL", "SHIFT", "EQUAL"]}]
     ], [(event.kind, event.data) for event in result.events[-8:]]
     assert any(
         event.kind == "controller.long_terminal_draft_rejected"
@@ -2672,6 +2712,7 @@ async def test_long_terminal_draft_is_replaced_with_legibility_action_before_hid
     ]
     assert '"controller_feedback": {' in controller_prompts[1]
     assert "Do not type any text yet" in controller_prompts[1]
+    assert "increase the terminal text size" in controller_prompts[1]
 
 
 @pytest.mark.asyncio

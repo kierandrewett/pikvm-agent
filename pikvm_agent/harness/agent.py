@@ -75,10 +75,12 @@ Never use this fallback for a long script, encoded payload, command chain,
 installer, package change, or unrelated system mutation. Preserve
 existing/default values unless the user explicitly asked to change them.
 For a command that may approach the visible line width, maximize or widen the
-terminal before typing. If the sender issued a complete terminal draft but the
-screen could not prove an exact readback, never append a guessed suffix and
-never execute the draft. First cancel the draft with Ctrl+C, make the terminal
-legible, verify a visibly clean prompt, and only then plan one clean retype.
+terminal and separately increase its text size before typing. Both the available
+width and the larger text must be independently verified. If the sender issued
+a complete terminal draft but the screen could not prove an exact readback,
+never append a guessed suffix and never execute the draft. First cancel the
+draft with Ctrl+C, increase the terminal text size again, verify a visibly clean
+prompt with larger text, and only then plan one clean retype.
 operator_guidance contains authenticated user/operator
 corrections to the original task: obey it, and when entries conflict, the latest
 entry wins. Never dismiss a requirement in operator_guidance merely because it
@@ -141,13 +143,14 @@ key in one burst and verify the final displayed result; do not make legibility
 of tiny expression-history text a required intermediate checkpoint unless the
 user specifically asked for it. Never use this guidance to combine
 consequential commit actions with their preparation.
-Before typing a long exact terminal draft, require a separate verified maximize,
-widen, or zoom action that makes the whole line directly legible. Do not combine
-that legibility action with the text entry. If recent_verified_actions does not
-prove the terminal was made legible after it was opened, propose the non-text
-legibility action first. A prior legibility proof expires when exact terminal
-readback is unverified: after cancelling that draft, require a new verified
-legibility improvement before retyping it.
+Before typing a long exact terminal draft, require both a separate verified
+width action (maximize or widen) and a separate verified text-size increase
+(zoom in or enlarge the font). Do not combine either legibility action with the
+text entry. If recent_verified_actions does not prove both properties after the
+terminal was opened, propose one missing non-text legibility action first. A
+prior text-size proof expires when exact terminal readback is unverified: after
+cancelling that draft, require a new verified text-size increase before
+retyping it. Maximizing again does not satisfy this post-failure requirement.
 For a short rectangular table in a spreadsheet application, and only after
 the verifier established a verified active spreadsheet cell, use one
 spreadsheet_grid action instead of one model turn per cell. It accepts 1 to 8
@@ -837,14 +840,16 @@ class AgentHarness:
                     controller_feedback={
                         "reason": (
                             "The proposed exact terminal draft is too long to "
-                            "type before the current terminal width and text "
-                            "legibility have been independently verified."
+                            "type before both full terminal width and increased "
+                            "text size have been independently verified."
                         ),
                         "instruction": (
                             "Do not type any text yet. Propose one non-text, "
-                            "reversible action that makes the terminal visibly "
-                            "wide and legible on this OS (for example maximize, "
-                            "widen, or zoom out), then let the verifier check it."
+                            "reversible legibility action. If full width is not "
+                            "already verifier-confirmed, maximize or widen the "
+                            "terminal. Otherwise increase the terminal text size "
+                            "or zoom in (for example with the OS-appropriate "
+                            "Ctrl+plus shortcut), then let the verifier check it."
                         ),
                     },
                 )
@@ -2314,7 +2319,8 @@ class AgentHarness:
             return False
 
         terminal_opened_at = -1
-        legibility_verified_at = -1
+        width_verified_at = -1
+        text_size_verified_at = -1
         long_terminal_checkpoints: set[int] = set()
         unverified_terminal_at = -1
         for event in run.events:
@@ -2359,20 +2365,31 @@ class AgentHarness:
             ):
                 terminal_opened_at = max(terminal_opened_at, action_index)
             if terminal_named and re.search(
-                r"\b(?:maximi[sz](?:e|ed)|widen(?:ed)?|"
-                r"zoom(?:ed)?(?:\s+out)?|full[- ]width)\b",
+                r"\b(?:maximi[sz](?:e|ed)|widen(?:ed)?|full[- ]width)\b",
                 evidence,
             ):
-                legibility_verified_at = max(
-                    legibility_verified_at,
+                width_verified_at = max(
+                    width_verified_at,
+                    action_index,
+                )
+            if terminal_named and re.search(
+                r"\b(?:zoom(?:ed)?\s+in|enlarg(?:e|ed)|larger|"
+                r"increas(?:e|ed|ing))\b",
+                evidence,
+            ) and re.search(
+                r"\b(?:text|font|zoom)\b",
+                evidence,
+            ):
+                text_size_verified_at = max(
+                    text_size_verified_at,
                     action_index,
                 )
 
-        legibility_required_after = max(
-            terminal_opened_at,
-            unverified_terminal_at,
+        return (
+            width_verified_at <= terminal_opened_at
+            or text_size_verified_at
+            <= max(terminal_opened_at, unverified_terminal_at)
         )
-        return legibility_verified_at <= legibility_required_after
 
     @staticmethod
     def _verification_composite(
