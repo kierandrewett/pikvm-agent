@@ -178,6 +178,9 @@ def test_lab_assets_can_reuse_custom_provider_routes_without_target_leak(
     harness = yaml.safe_load(assets.harness_config.read_text())
     assert harness["listen"] == "127.0.0.1:48162"
     assert harness["daemon_url_env"] == "PIKVM_LAB_DAEMON_URL"
+    assert harness["provider_conformance_path"].startswith(
+        str(tmp_path / "generated")
+    )
     assert list(harness["providers"]) == ["controller"]
     assert harness["agent_token_env"] == "CUSTOM_AGENT_TOKEN"
 

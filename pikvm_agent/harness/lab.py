@@ -565,6 +565,9 @@ def build_lab_harness_settings(
             "allowed_origins": [],
             "state_path": str(root / "harness" / "state.sqlite3"),
             "artifact_dir": str(root / "harness" / "artifacts"),
+            "provider_conformance_path": str(
+                root / "harness" / "provider-conformance.json"
+            ),
         }
     )
     raw.setdefault("managed_mcp_name", "PiKVM lab")
