@@ -977,6 +977,7 @@ async def test_controller_prompt_limits_grid_entry_to_a_verified_spreadsheet_cel
     assert "verified active spreadsheet cell" in prompt
     assert "Never use it in messaging" in prompt
     assert "one reviewed local-file action" in prompt
+    assert "Treat recent_verified_actions as durable evidence" in prompt
 
 
 async def test_reasoner_prompt_avoids_duplicate_pre_and_post_save_audits() -> None:
@@ -996,6 +997,7 @@ async def test_reasoner_prompt_avoids_duplicate_pre_and_post_save_audits() -> No
     assert "perform the requested detailed audit once, after reopening" in prompt
     assert "simultaneously legible in one frame" in prompt
     assert "do not cancel an already-open Save As dialog solely to resume an audit" in prompt
+    assert "Treat recent_verified_actions as durable evidence" in prompt
 
 
 def test_controller_separates_spreadsheet_focus_from_grid_entry() -> None:
@@ -2203,6 +2205,47 @@ def test_recent_input_delivery_distinguishes_transport_from_screen_proof() -> No
             "sender_finished": True,
             "readback_exact": False,
             "readback_available": False,
+        }
+    ]
+
+
+def test_recent_verified_actions_keep_bounded_durable_task_evidence() -> None:
+    run = RunSnapshot(
+        run_id="durable-verification-memory",
+        task="Save and reopen the workbook",
+        status=RunStatus.PAUSED,
+    )
+    run.record(
+        "action.checkpointed",
+        index=3,
+        intent="Select B8 and inspect its stored formula.",
+        actions=[{"type": "click", "x": 100, "y": 200}],
+    )
+    run.record(
+        "model.completed",
+        role="verifier",
+        verdict="verified",
+        summary="B8 contains =SUM(B4:B7), not a typed constant.",
+    )
+    run.record(
+        "action.checkpointed",
+        index=4,
+        intent="Focus the filename field.",
+        actions=[{"type": "key", "keys": ["alt+n"]}],
+    )
+    run.record(
+        "model.completed",
+        role="verifier",
+        verdict="uncertain",
+        summary="Focus was not visibly proven.",
+    )
+
+    assert AgentHarness._recent_verified_actions(run) == [
+        {
+            "action_index": 3,
+            "intent": "Select B8 and inspect its stored formula.",
+            "verdict": "verified",
+            "summary": "B8 contains =SUM(B4:B7), not a typed constant.",
         }
     ]
 

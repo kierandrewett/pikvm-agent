@@ -89,6 +89,8 @@ Reserve sequential formula-bar or field readbacks for stored formulas, truncated
 content, or other requirements the rendered surface cannot prove.
 Once a correctly targeted Save As dialog is open, do not cancel an already-open Save As dialog solely to resume an audit that can be completed after reopening.
 Cancel only when current evidence indicates the content or destination is wrong.
+Treat recent_verified_actions as durable evidence. Do not repeat a completed
+check unless the current screen visibly contradicts that recorded result.
 Treat recent_input_delivery as sender evidence. sender_finished means the local
 sender issued the whole intended payload; it is not a transport acknowledgement
 and not screen proof. Do not blindly replay sender-finished text merely because
@@ -136,7 +138,8 @@ only target that cannot be independently read. Treat recent_input_delivery as
 sender evidence. When sender_finished is true, the local sender finished issuing
 the payload, but the guest may still have dropped it. Never blindly replay it.
 Re-observe and use a bounded application-level check. Only readback_exact proves
-an exact OCR read-back."""
+an exact OCR read-back. Treat recent_verified_actions as durable evidence. Do
+not repeat a completed check unless current pixels contradict it."""
 
 _VERIFIER_SYSTEM = """\
 You are the independent verifier. Compare the plan, intended action, before
@@ -1668,6 +1671,7 @@ class AgentHarness:
                 else None
             ),
             "recent_input_delivery": self._recent_input_delivery(run),
+            "recent_verified_actions": self._recent_verified_actions(run),
             "trajectory_signals": self._trajectory_signals(run),
         }
         if extra:
@@ -1787,6 +1791,46 @@ class AgentHarness:
                 if len(recent) >= 8:
                     return list(reversed(recent))
         return list(reversed(recent))
+
+    @staticmethod
+    def _recent_verified_actions(run: RunSnapshot) -> list[dict[str, Any]]:
+        """Retain a bounded semantic memory of completed verification work."""
+
+        current_action: dict[str, Any] | None = None
+        verified: list[dict[str, Any]] = []
+        for event in run.events:
+            if event.kind == "action.checkpointed":
+                index = event.data.get("index")
+                intent = event.data.get("intent")
+                if isinstance(index, int) and isinstance(intent, str):
+                    current_action = {
+                        "action_index": index,
+                        "intent": intent[:500],
+                    }
+                else:
+                    current_action = None
+                continue
+            if (
+                event.kind != "model.completed"
+                or event.data.get("role") != "verifier"
+                or current_action is None
+            ):
+                continue
+            verdict = str(event.data.get("verdict") or "")
+            summary = event.data.get("summary")
+            if verdict not in {"verified", "complete"} or not isinstance(
+                summary,
+                str,
+            ):
+                continue
+            verified.append(
+                {
+                    **current_action,
+                    "verdict": verdict,
+                    "summary": summary[:500],
+                }
+            )
+        return verified[-8:]
 
     @staticmethod
     def _ungrounded_navigation_history(
