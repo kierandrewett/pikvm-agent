@@ -995,6 +995,7 @@ async def test_reasoner_prompt_avoids_duplicate_pre_and_post_save_audits() -> No
     assert "do not plan a complete content audit both before and after saving" in prompt
     assert "perform the requested detailed audit once, after reopening" in prompt
     assert "simultaneously legible in one frame" in prompt
+    assert "do not cancel an already-open Save As dialog solely to resume an audit" in prompt
 
 
 def test_controller_separates_spreadsheet_focus_from_grid_entry() -> None:

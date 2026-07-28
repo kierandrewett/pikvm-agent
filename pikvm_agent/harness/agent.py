@@ -87,6 +87,8 @@ incorrect artifact; perform the requested detailed audit once, after reopening.
 Treat values that are simultaneously legible in one frame as grouped evidence.
 Reserve sequential formula-bar or field readbacks for stored formulas, truncated
 content, or other requirements the rendered surface cannot prove.
+Once a correctly targeted Save As dialog is open, do not cancel an already-open Save As dialog solely to resume an audit that can be completed after reopening.
+Cancel only when current evidence indicates the content or destination is wrong.
 Treat recent_input_delivery as sender evidence. sender_finished means the local
 sender issued the whole intended payload; it is not a transport acknowledgement
 and not screen proof. Do not blindly replay sender-finished text merely because
