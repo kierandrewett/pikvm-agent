@@ -541,18 +541,22 @@ export function useHarnessWorkspace() {
       setError("");
       try {
         let run: RunSnapshot;
-        const reusableAssistant =
+        const currentRun =
           selectedRun != null &&
-          selectedIdRef.current === selectedRun.run_id &&
-          (selectedRun?.conversation?.length ?? 0) > 0 &&
-          !["aborted", "failed", "rejected"].includes(selectedRun.status);
+          selectedIdRef.current === selectedRun.run_id
+            ? selectedRun
+            : null;
+        const reusableAssistant =
+          currentRun != null &&
+          (currentRun.conversation?.length ?? 0) > 0 &&
+          !["aborted", "failed", "rejected"].includes(currentRun.status);
         if (
-          selectedRun &&
-          (ACTIVE_OR_PAUSED.has(selectedRun.status) || reusableAssistant)
+          currentRun &&
+          (ACTIVE_OR_PAUSED.has(currentRun.status) || reusableAssistant)
         ) {
           run = await harnessJson<RunSnapshot>(
             token,
-            `/api/runs/${encodeURIComponent(selectedRun.run_id)}/steer`,
+            `/api/runs/${encodeURIComponent(currentRun.run_id)}/steer`,
             {
               method: "POST",
               body: JSON.stringify({ instruction: task, auto_resume: true }),

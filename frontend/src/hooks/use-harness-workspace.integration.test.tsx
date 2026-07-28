@@ -22,7 +22,7 @@ describe("useHarnessWorkspace authentication boundary", () => {
     const existingRun = {
       run_id: "existing-run",
       task: "what is on the screen",
-      status: "completed",
+      status: "planning",
       mode: "assistant",
       origin: "managed",
       caller: { interface: "managed_mcp", label: "chat-workspace" },
