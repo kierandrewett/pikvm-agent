@@ -458,6 +458,11 @@ class SqliteRunStore:
     async def save(self, run: RunSnapshot) -> None:
         await self._initialize()
         async with aiosqlite.connect(self.path) as db:
+            # Read the durable cursor and append its suffix under one database
+            # write reservation. Parallel verifier/controller tasks use
+            # separate connections; without BEGIN IMMEDIATE both can observe
+            # the same cursor and attempt the same next sequence.
+            await db.execute("BEGIN IMMEDIATE")
             async with db.execute(
                 """
                 SELECT COUNT(*), COALESCE(MAX(sequence), 0)

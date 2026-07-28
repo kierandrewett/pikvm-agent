@@ -24,7 +24,7 @@ from pikvm_agent.harness.agent_models import (
     RunStatus,
     VerificationDecision,
 )
-from pikvm_agent.harness.agent_store import InMemoryRunStore
+from pikvm_agent.harness.agent_store import InMemoryRunStore, SqliteRunStore
 from pikvm_agent.harness.model_budget import (
     ModelBudgetPolicy,
     ProviderCostTerms,
@@ -1399,7 +1399,9 @@ async def test_start_runs_a_checkpointed_reason_act_verify_slice() -> None:
 
 
 @pytest.mark.asyncio
-async def test_post_action_verification_and_next_control_run_in_parallel() -> None:
+async def test_post_action_verification_and_next_control_run_in_parallel(
+    tmp_path: Path,
+) -> None:
     provider = ParallelPostActionProvider()
     computer = FakeComputer()
     pool = ModelPool(
@@ -1412,7 +1414,7 @@ async def test_post_action_verification_and_next_control_run_in_parallel() -> No
     harness = AgentHarness(
         computer=computer,
         models=pool,
-        store=InMemoryRunStore(),
+        store=SqliteRunStore(tmp_path / "parallel-run.sqlite3"),
         config=HarnessConfig(max_actions_per_advance=2),
     )
 
