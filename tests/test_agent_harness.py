@@ -2465,6 +2465,48 @@ def test_long_terminal_draft_requires_a_verified_legibility_step() -> None:
     run.record(
         "action.checkpointed",
         index=5,
+        intent="Type the exact command for visual verification.",
+        actions=proposed,
+    )
+    run.record(
+        "action.completed_unverified",
+        index=5,
+        status="unverified",
+        input_receipts=[
+            {
+                "index": 0,
+                "status": "unverified_ambiguous",
+                "exact_readback_sha256_match": False,
+            }
+        ],
+    )
+
+    assert AgentHarness._long_terminal_draft_needs_legibility_step(
+        run,
+        proposed,
+    )
+
+    run.record(
+        "action.checkpointed",
+        index=6,
+        intent="Zoom in so the terminal command is independently legible.",
+        actions=[{"type": "key", "keys": ["CTRL", "+"]}],
+    )
+    run.record(
+        "model.completed",
+        role="verifier",
+        verdict="verified",
+        summary="The terminal is zoomed in and the clean prompt remains visible.",
+    )
+
+    assert not AgentHarness._long_terminal_draft_needs_legibility_step(
+        run,
+        proposed,
+    )
+
+    run.record(
+        "action.checkpointed",
+        index=7,
         intent="Open a new terminal window.",
         actions=[{"type": "key", "keys": ["CTRL", "ALT", "T"]}],
     )
@@ -2569,6 +2611,47 @@ async def test_long_terminal_draft_is_replaced_with_legibility_action_before_hid
             success_criteria=["The dim-screen setting is off."],
             constraints=["Preserve unrelated settings."],
         ),
+    )
+    run.record(
+        "action.checkpointed",
+        index=4,
+        intent="Maximize the terminal before entering the exact command.",
+        actions=[{"type": "key", "keys": ["META", "UP"]}],
+    )
+    run.record(
+        "model.completed",
+        role="verifier",
+        verdict="verified",
+        summary="The terminal is visibly maximized and legible.",
+    )
+    run.record(
+        "action.checkpointed",
+        index=5,
+        intent="Type the exact command for visual verification.",
+        actions=[
+            {
+                "type": "type_text",
+                "text": (
+                    "gsettings set "
+                    "org.gnome.settings-daemon.plugins.power idle-dim false"
+                ),
+                "code": True,
+                "context": "terminal",
+                "verification": "exact",
+            }
+        ],
+    )
+    run.record(
+        "action.completed_unverified",
+        index=5,
+        status="unverified",
+        input_receipts=[
+            {
+                "index": 0,
+                "status": "unverified_ambiguous",
+                "exact_readback_sha256_match": False,
+            }
+        ],
     )
     await store.save(run)
 

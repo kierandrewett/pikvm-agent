@@ -145,7 +145,9 @@ Before typing a long exact terminal draft, require a separate verified maximize,
 widen, or zoom action that makes the whole line directly legible. Do not combine
 that legibility action with the text entry. If recent_verified_actions does not
 prove the terminal was made legible after it was opened, propose the non-text
-legibility action first.
+legibility action first. A prior legibility proof expires when exact terminal
+readback is unverified: after cancelling that draft, require a new verified
+legibility improvement before retyping it.
 For a short rectangular table in a spreadsheet application, and only after
 the verifier established a verified active spreadsheet cell, use one
 spreadsheet_grid action instead of one model turn per cell. It accepts 1 to 8
@@ -2293,14 +2295,19 @@ class AgentHarness:
     ) -> bool:
         """Refuse a long exact terminal draft until its surface is legible."""
 
-        has_long_terminal_draft = any(
-            action.get("type") == "type_text"
-            and action.get("context") == "terminal"
-            and (
-                bool(action.get("code"))
-                or action.get("verification") == "exact"
+        def is_long_terminal_draft(action: dict[str, Any]) -> bool:
+            return (
+                action.get("type") == "type_text"
+                and action.get("context") == "terminal"
+                and (
+                    bool(action.get("code"))
+                    or action.get("verification") == "exact"
+                )
+                and len(str(action.get("text") or "")) > 48
             )
-            and len(str(action.get("text") or "")) > 48
+
+        has_long_terminal_draft = any(
+            is_long_terminal_draft(action)
             for action in proposed_actions
         )
         if not has_long_terminal_draft:
@@ -2308,6 +2315,35 @@ class AgentHarness:
 
         terminal_opened_at = -1
         legibility_verified_at = -1
+        long_terminal_checkpoints: set[int] = set()
+        unverified_terminal_at = -1
+        for event in run.events:
+            action_index = event.data.get("index")
+            if not isinstance(action_index, int):
+                continue
+            if event.kind == "action.checkpointed":
+                actions = event.data.get("actions")
+                if isinstance(actions, list) and any(
+                    is_long_terminal_draft(action)
+                    for action in actions
+                    if isinstance(action, dict)
+                ):
+                    long_terminal_checkpoints.add(action_index)
+                continue
+            if (
+                action_index in long_terminal_checkpoints
+                and event.kind
+                in {
+                    "action.completed_unverified",
+                    "action.failed",
+                    "action.recoverable_failure",
+                }
+            ):
+                unverified_terminal_at = max(
+                    unverified_terminal_at,
+                    action_index,
+                )
+
         for item in AgentHarness._recent_verified_actions(run):
             action_index = item.get("action_index")
             if not isinstance(action_index, int):
@@ -2332,7 +2368,11 @@ class AgentHarness:
                     action_index,
                 )
 
-        return legibility_verified_at <= terminal_opened_at
+        legibility_required_after = max(
+            terminal_opened_at,
+            unverified_terminal_at,
+        )
+        return legibility_verified_at <= legibility_required_after
 
     @staticmethod
     def _verification_composite(
