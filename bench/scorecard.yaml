@@ -994,10 +994,13 @@ rows:
     fields:
       attempts: {path: "latest_remediation_iteration.attempts", format: "integer"}
       passes: {path: "latest_remediation_iteration.harness_completed_and_official_passed", format: "integer"}
+      official_passes: {path: "latest_remediation_iteration.official_passes", format: "integer"}
       actions_completed: {path: "latest_remediation_iteration.actions_completed", format: "integer"}
       actions_attempted: {path: "latest_remediation_iteration.actions_attempted", format: "integer"}
       efficiency: {path: "latest_remediation_iteration.completion_efficiency", format: "percent", digits: 1}
       drafts: {path: "latest_remediation_iteration.latest_success.exact_terminal_drafts", format: "count"}
+      post_cases: {path: "latest_remediation_iteration.latest_success.post_input_strict_passes.cases", format: "integer"}
+      post_median: {path: "latest_remediation_iteration.latest_success.post_input_strict_passes.wall_clock_ms_median", format: "seconds_from_ms", digits: 2}
       controller_median: {path: "latest_remediation_iteration.latest_success.controller_latency.median_ms", format: "seconds_from_ms", digits: 2}
       controller_p95: {path: "latest_remediation_iteration.latest_success.controller_latency.p95_ms", format: "seconds_from_ms", digits: 2}
       wall: {path: "latest_remediation_iteration.latest_success.wall_clock_ms", format: "seconds_from_ms", digits: 2}
@@ -1005,7 +1008,7 @@ rows:
     result: "{passes}/{attempts}; {actions_completed}/{actions_attempted} actions, {efficiency}; {drafts} exact long drafts before separate commits"
     latency: "{controller_median} / {controller_p95} controller"
     wall: "{wall} latest pass"
-    status: "Two official passes in six attempts; post-pass repeat 1/2; latency failing product target"
+    status: "{passes} strict completions and {official_passes} official goal states in {attempts}; {post_cases} strict post-input passes at {post_median} median; latency failing product target"
 
   - suite: "Windows Agent Arena"
     route: "—"
