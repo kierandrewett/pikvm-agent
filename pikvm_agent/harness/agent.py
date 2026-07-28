@@ -80,6 +80,13 @@ control may be used only when its effect satisfies the amended request and can
 be verified. Do not add approval-request steps to the plan. The controller
 proposes the next bounded action; the independent daemon policy decides whether
 that exact action requires human approval and exits the model loop if it does.
+Plan for minimum sufficient evidence. When a task requires saving and reopening,
+do not plan a complete content audit both before and after saving. Before saving,
+verify only enough to avoid committing an
+incorrect artifact; perform the requested detailed audit once, after reopening.
+Treat values that are simultaneously legible in one frame as grouped evidence.
+Reserve sequential formula-bar or field readbacks for stored formulas, truncated
+content, or other requirements the rendered surface cannot prove.
 Treat recent_input_delivery as sender evidence. sender_finished means the local
 sender issued the whole intended payload; it is not a transport acknowledgement
 and not screen proof. Do not blindly replay sender-finished text merely because

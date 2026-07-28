@@ -979,6 +979,24 @@ async def test_controller_prompt_limits_grid_entry_to_a_verified_spreadsheet_cel
     assert "one reviewed local-file action" in prompt
 
 
+async def test_reasoner_prompt_avoids_duplicate_pre_and_post_save_audits() -> None:
+    provider = ScriptedProvider()
+    harness = build_harness(provider, FakeComputer())
+
+    await harness.start(
+        "Create the workbook, save it, reopen it, and verify every required value."
+    )
+
+    prompt = next(
+        request.prompt
+        for request in provider.requests
+        if request.role == "reasoner"
+    )
+    assert "do not plan a complete content audit both before and after saving" in prompt
+    assert "perform the requested detailed audit once, after reopening" in prompt
+    assert "simultaneously legible in one frame" in prompt
+
+
 def test_controller_separates_spreadsheet_focus_from_grid_entry() -> None:
     with pytest.raises(
         ValidationError,
