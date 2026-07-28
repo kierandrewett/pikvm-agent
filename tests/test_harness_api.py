@@ -34,6 +34,37 @@ TEST_AGENT_TOKEN = "test-agent-token-000123456789abcdef"
 TEST_OBSERVER_TOKEN = "test-observer-token-0123456789abc"
 
 
+@pytest.mark.asyncio
+async def test_ui_version_manifest_is_never_cached(tmp_path: Path) -> None:
+    frame = tmp_path / "frame.jpg"
+    frame.write_bytes(b"frame")
+    ui_dir = tmp_path / "ui"
+    ui_dir.mkdir()
+    (ui_dir / "version.json").write_text(
+        '{"build":"test-build"}\n',
+        encoding="utf-8",
+    )
+    store = InMemoryRunStore()
+    app = create_harness_app(
+        harness=StubHarness(store, frame),  # type: ignore[arg-type]
+        store=store,
+        models=StubModels(),
+        access_token=TEST_ACCESS_TOKEN,
+        allowed_origins={"http://harness"},
+        ui_dir=ui_dir,
+    )
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app),
+        base_url="http://harness",
+    ) as client:
+        response = await client.get("/app/version.json")
+
+    assert response.status_code == 200
+    assert response.json() == {"build": "test-build"}
+    assert response.headers["cache-control"] == "no-store"
+
+
 class StubHarness:
     def __init__(self, store: InMemoryRunStore, frame: Path) -> None:
         self.store = store

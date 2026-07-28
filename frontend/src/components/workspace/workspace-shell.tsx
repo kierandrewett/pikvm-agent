@@ -44,7 +44,10 @@ import {
   DeferredComputerToolCall as ComputerToolCall,
   DeferredWorkspaceToolGroup as WorkspaceToolGroup,
 } from "@/components/workspace/deferred-computer-tools";
-import { LiveUpdateBadge } from "@/components/workspace/live-update-badge";
+import {
+  hasFreshRunActivity,
+  LiveUpdateBadge,
+} from "@/components/workspace/live-update-badge";
 import { ModelPicker } from "@/components/workspace/model-picker";
 import {
   canComposeIntoRun,
@@ -53,6 +56,7 @@ import {
   usesManagedControlLoop,
 } from "@/components/workspace/run-control-mode";
 import { RunProvenance } from "@/components/workspace/run-provenance";
+import { UiUpdateBadge } from "@/components/workspace/ui-update-badge";
 import { useHarnessWorkspace } from "@/hooks/use-harness-workspace";
 import { messagesForRun } from "@/lib/run-messages";
 
@@ -321,11 +325,16 @@ export function WorkspaceShell() {
                 </>
               ) : null}
               {workspace.connected ? (
-                <LiveUpdateBadge
-                  status={
-                    workspace.selectedRun ? workspace.liveUpdateStatus : "idle"
-                  }
-                />
+                <>
+                  <LiveUpdateBadge
+                    status={
+                      workspace.selectedRun
+                        ? workspace.liveUpdateStatus
+                        : "idle"
+                    }
+                  />
+                  <UiUpdateBadge />
+                </>
               ) : null}
             </div>
             <div className="flex shrink-0 items-center gap-1">
@@ -392,7 +401,10 @@ export function WorkspaceShell() {
                 <Thread
                   readOnly={!managedControl}
                   activity={workspace.selectedRun?.active_activity}
-                  working={workspace.isRunning}
+                  working={
+                    workspace.isRunning &&
+                    hasFreshRunActivity(workspace.liveUpdateStatus)
+                  }
                   components={{
                     ComposerToolbar,
                     ToolFallback: WorkspaceToolCall,

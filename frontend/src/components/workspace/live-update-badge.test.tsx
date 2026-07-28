@@ -2,7 +2,10 @@
 
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import { LiveUpdateBadge } from "@/components/workspace/live-update-badge";
+import {
+  hasFreshRunActivity,
+  LiveUpdateBadge,
+} from "@/components/workspace/live-update-badge";
 
 afterEach(cleanup);
 
@@ -26,5 +29,13 @@ describe("LiveUpdateBadge", () => {
     expect(
       screen.getByLabelText(/Bounded polling is keeping the run current/),
     ).not.toBeNull();
+  });
+
+  it("never presents stale model activity while updates are degraded", () => {
+    expect(hasFreshRunActivity("idle")).toBe(true);
+    expect(hasFreshRunActivity("connecting")).toBe(true);
+    expect(hasFreshRunActivity("live")).toBe(true);
+    expect(hasFreshRunActivity("retrying")).toBe(false);
+    expect(hasFreshRunActivity("offline")).toBe(false);
   });
 });

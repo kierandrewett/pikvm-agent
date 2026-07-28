@@ -102,6 +102,7 @@ UNCACHED_UI_ENTRYPOINTS = frozenset(
         "/app/index.html",
         "/app/app.js",
         "/app/styles.css",
+        "/app/version.json",
     }
 )
 _AUTONOMOUS_PAUSE_REASONS = {

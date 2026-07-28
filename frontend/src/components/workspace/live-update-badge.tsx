@@ -11,6 +11,9 @@ type LiveUpdateBadgeProps = {
   status: LiveUpdateStatus;
 };
 
+export const hasFreshRunActivity = (status: LiveUpdateStatus) =>
+  status !== "retrying" && status !== "offline";
+
 const presentation = {
   idle: {
     label: "Harness ready",
