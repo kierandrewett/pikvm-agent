@@ -17,6 +17,7 @@ from pikvm_agent.harness.showcase_runner import (
     HarnessCampaignClient,
     ShowcaseManifest,
     VncAdapter,
+    approval_disposition,
     approval_is_safe,
     load_showcase_manifest,
 )
@@ -156,6 +157,36 @@ def test_read_only_campaign_can_approve_pointer_navigation_only() -> None:
 
     assert approval_is_safe(click, mutates_workspace=False)
     assert not approval_is_safe(shortcut, mutates_workspace=False)
+
+
+def test_campaign_waits_while_an_approved_request_is_still_resolving() -> None:
+    pending = {
+        "approval_id": "approval-click",
+        "risk": "unknown",
+        "reason": "commit target requires human review",
+        "proposed_action": {
+            "actions": [
+                {"type": "click", "x": 774, "y": 389, "button": "left"}
+            ]
+        },
+    }
+
+    assert (
+        approval_disposition(
+            pending,
+            approved_ids={"approval-click"},
+            mutates_workspace=False,
+        )
+        == "wait"
+    )
+    assert (
+        approval_disposition(
+            pending,
+            approved_ids=set(),
+            mutates_workspace=False,
+        )
+        == "approve"
+    )
 
 
 def test_showcase_cli_runs_async_campaign(

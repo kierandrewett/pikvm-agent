@@ -74,6 +74,7 @@ READ_ONLY_NAVIGATION_ACTION_TYPES = frozenset(
         "wait_for_stable_screen",
     }
 )
+ApprovalDisposition = Literal["approve", "refuse", "wait"]
 
 
 def utc_now() -> str:
@@ -136,6 +137,31 @@ def approval_is_safe(
         str(action.get("type") or "") in READ_ONLY_NAVIGATION_ACTION_TYPES
         for action in actions
     )
+
+
+def approval_disposition(
+    pending: dict[str, Any] | None,
+    *,
+    approved_ids: set[str],
+    mutates_workspace: bool,
+) -> ApprovalDisposition:
+    approval_id = (
+        str(pending.get("approval_id") or "")
+        if isinstance(pending, dict)
+        else ""
+    )
+    if approval_id and approval_id in approved_ids:
+        return "wait"
+    if (
+        approval_id
+        and isinstance(pending, dict)
+        and approval_is_safe(
+            pending,
+            mutates_workspace=mutates_workspace,
+        )
+    ):
+        return "approve"
+    return "refuse"
 
 
 class CampaignWriter:
@@ -789,14 +815,12 @@ async def run_showcase_campaign(
                                 if isinstance(pending, dict)
                                 else ""
                             )
-                            if (
-                                approval_id
-                                and approval_id not in approved_ids
-                                and approval_is_safe(
-                                    pending,
-                                    mutates_workspace=spec.mutates_workspace,
-                                )
-                            ):
+                            disposition = approval_disposition(
+                                pending,
+                                approved_ids=approved_ids,
+                                mutates_workspace=spec.mutates_workspace,
+                            )
+                            if disposition == "approve":
                                 await harness.approve(run_id, approval_id)
                                 approved_ids.add(approval_id)
                                 record["approvals"].append(
@@ -807,7 +831,7 @@ async def run_showcase_campaign(
                                     }
                                 )
                                 writer.flush()
-                            else:
+                            elif disposition == "refuse":
                                 run_error = (
                                     "campaign stopped at a non-allowlisted "
                                     "approval"
