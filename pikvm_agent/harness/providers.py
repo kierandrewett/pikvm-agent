@@ -937,6 +937,9 @@ class CodexAppServerProvider:
         result = await self._session.complete(
             prompt=request.prompt,
             image_path=request.image_path,
+            image_detail=str(
+                request.metadata.get("image_detail", "original")
+            ),
             output_schema=_strict_json_schema(request.output_schema),
             model=self.model,
             reasoning_effort=self.reasoning_effort,

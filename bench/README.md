@@ -205,6 +205,45 @@ This is a passing n=1 read-only diagnostic, not a general model-quality or
 computer-action claim. The failure-inclusive record is
 [`literal-screen-observation-fast-path.json`](results/2026-07-28/live-vnc/literal-screen-observation-fast-path.json).
 
+### Cached VNC observation and durable task selection
+
+On 2026-07-29 the exact request `what is on the screen` was repeated against
+the authorized disposable Windows VNC VM after moving the chat to Codex
+app-server. The reproduced baseline took 9.089 seconds: 2.675 seconds to open
+and capture the computer and 6.380 seconds in the Terra-low visual verifier.
+
+The VNC preview was also requesting a serialized RFB capture approximately
+every 200 milliseconds. A 750-millisecond read-only frame cache now coalesces
+preview and agent consumers. Every keyboard, pointer, wheel, or print operation
+invalidates that cache before another frame can be returned. The observation
+verifier also receives a compact prompt and high-detail image instead of the
+general action-verification context.
+
+| Signal | Reproduced baseline | Cached high-detail median |
+| --- | ---: | ---: |
+| Completed accurate screen descriptions | 1/1 | 3/3 |
+| Total wall time | 9.089 s | 6.342 s |
+| Visual model time | 6.380 s | 4.916 s |
+| Non-model hand-off/capture time | 2.709 s | 0.293–1.527 s |
+| Keyboard/pointer events | 0 | 0 |
+
+The three retained high-detail runs took 5.209, 6.342, and 7.791 seconds
+end-to-end. All three named Excel, Calculator's visible `442`, and Phone Link.
+Median wall time fell 30.22%; the remaining dominant cost is the 4.815–7.528
+second provider call. A low-detail trial was explicitly rejected: although it
+reduced visual input tokens, it paused without identifying the screen.
+
+Task identity was tested separately through Electron CDP without a screenshot
+or computer input. Reloading the live chat retained the exact selected run ID
+and restored its prior result. Frontend regressions also prove that a temporary
+run 404 sends zero replacement-create requests. New-run creation now carries a
+session-persisted request ID; replaying it returns the original durable run and
+invokes the assistant once.
+
+This is a read-only n=3 latency diagnostic and persistence regression, not a
+general computer-action score. The failure-inclusive record is
+[`screen-observation-cache-and-state.json`](results/2026-07-29/live-vnc/screen-observation-cache-and-state.json).
+
 ### Read-only fast-verifier pair
 
 On 2026-07-27 the first-party Electron chat ran the same explicit read-only

@@ -17,6 +17,7 @@ import io
 import re
 import shutil
 import tempfile
+import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -297,13 +298,17 @@ class VncDotoolTransport:
         ocr_lang: str = "eng",
         keymap: str = "en-us",
         keyboard_profile: str = "generic",
+        frame_cache_ttl_s: float = 0.75,
     ) -> None:
+        if frame_cache_ttl_s < 0:
+            raise ValueError("frame_cache_ttl_s must be non-negative")
         self.endpoint = normalize_vnc_endpoint(endpoint)
         self.password = password
         self.username = username
         self.ocr_lang = ocr_lang
         self.keymap = keymap
         self.keyboard_profile = keyboard_profile
+        self.frame_cache_ttl_s = frame_cache_ttl_s
         self.width = 1
         self.height = 1
         self._client: Any | None = None
@@ -316,6 +321,8 @@ class VncDotoolTransport:
         self._semantic_shift_keys: dict[str, str] = {}
         self._synthetic_keyups: set[str] = set()
         self._active_chord_modifiers: set[str] = set()
+        self._cached_frame: bytes | None = None
+        self._frame_cached_at = 0.0
 
     async def connect(self) -> None:
         if self._client is not None:
@@ -390,6 +397,7 @@ class VncDotoolTransport:
 
     async def close(self) -> None:
         client, self._client = self._client, None
+        self._invalidate_frame()
         lease, self._target_lease = self._target_lease, None
         try:
             if client is not None:
@@ -408,8 +416,18 @@ class VncDotoolTransport:
             raise RuntimeError("VNC transport is not connected")
         return self._client
 
+    def _invalidate_frame(self) -> None:
+        self._cached_frame = None
+        self._frame_cached_at = 0.0
+
     async def screenshot(self) -> bytes:
         async with self._lock:
+            now = time.monotonic()
+            if (
+                self._cached_frame is not None
+                and now - self._frame_cached_at <= self.frame_cache_ttl_s
+            ):
+                return self._cached_frame
             client = self._require()
 
             def capture() -> tuple[bytes, int, int]:
@@ -422,10 +440,13 @@ class VncDotoolTransport:
                 return encoded.getvalue(), image.width, image.height
 
             data, self.width, self.height = await asyncio.to_thread(capture)
+            self._cached_frame = data
+            self._frame_cached_at = time.monotonic()
             return data
 
     async def key(self, code: str, down: bool) -> None:
         async with self._lock:
+            self._invalidate_frame()
             client = self._require()
             key = code_to_vnc_key(code)
             if code in {"ShiftLeft", "ShiftRight"}:
@@ -515,6 +536,7 @@ class VncDotoolTransport:
 
     async def mouse_move(self, x: int, y: int) -> None:
         async with self._lock:
+            self._invalidate_frame()
             self._mouse_x, self._mouse_y = x, y
             await asyncio.to_thread(self._require().mouseMove, x, y)
 
@@ -527,11 +549,13 @@ class VncDotoolTransport:
     async def mouse_button(self, button: str, down: bool) -> None:
         number = {"left": 1, "middle": 2, "right": 3}.get(button, 1)
         async with self._lock:
+            self._invalidate_frame()
             method = self._require().mouseDown if down else self._require().mouseUp
             await asyncio.to_thread(method, number)
 
     async def mouse_wheel(self, dx: int, dy: int) -> None:
         async with self._lock:
+            self._invalidate_frame()
             client = self._require()
 
             def wheel() -> None:
@@ -546,6 +570,7 @@ class VncDotoolTransport:
 
     async def print_text(self, text: str) -> None:
         async with self._lock:
+            self._invalidate_frame()
             client = self._require()
             layout = ks.keymap_to_layout(self.keymap) or "us"
 

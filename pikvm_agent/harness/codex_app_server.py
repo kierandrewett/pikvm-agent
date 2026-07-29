@@ -31,6 +31,7 @@ class CodexAppServerSession(Protocol):
         *,
         prompt: str,
         image_path: str | None,
+        image_detail: str,
         output_schema: dict[str, Any],
         model: str,
         reasoning_effort: str,
@@ -561,12 +562,18 @@ class CodexAppServerClient:
         *,
         prompt: str,
         image_path: str | None,
+        image_detail: str,
         output_schema: dict[str, Any],
         model: str,
         reasoning_effort: str,
         service_tier: str | None,
         timeout_s: float,
     ) -> CodexAppServerTurnResult:
+        if image_detail not in {"auto", "low", "high", "original"}:
+            raise ValueError(
+                "Codex app-server image_detail must be auto, low, high, "
+                "or original"
+            )
         await self._ensure_started()
         started = time.monotonic()
         thread_id: str | None = None
@@ -631,7 +638,7 @@ class CodexAppServerClient:
                             {
                                 "type": "localImage",
                                 "path": str(image),
-                                "detail": "original",
+                                "detail": image_detail,
                             }
                         )
                     turn_params: dict[str, Any] = {

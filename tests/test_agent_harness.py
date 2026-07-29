@@ -1611,6 +1611,8 @@ async def test_plain_screen_question_uses_one_read_only_model_call() -> None:
     assert result.status is RunStatus.COMPLETED
     assert [request.role for request in provider.requests] == ["verifier"]
     assert computer.bursts == []
+    assert provider.requests[0].metadata["image_detail"] == "high"
+    assert len(provider.requests[0].prompt) < 1_500
     assert any(
         event.kind == "plan.observation_only"
         for event in result.events

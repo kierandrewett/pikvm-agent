@@ -235,6 +235,14 @@ say "the verifier", "the comparison image", "success criteria", or "the pixels"
 in summary. Detailed writing explicitly requested by the user belongs in the
 target artifact; summary should still describe the result concisely."""
 
+_OBSERVATION_VERIFIER_SYSTEM = """\
+You are a fast screen reader. Answer the user's observational question using
+only the attached current screenshot. Do not infer hidden state or propose
+computer input. Return complete when the screenshot answers the question and
+uncertain when it does not. The summary is the direct user-facing answer in one
+or two concise sentences. Provide exactly one criteria assessment at index 0,
+and return an empty action_criteria list."""
+
 _OBSERVATION_ONLY_REQUESTS = frozenset(
     {
         "and now",
@@ -1329,12 +1337,21 @@ class AgentHarness:
                 after_frame_id=evidence.after_frame_id,
             )
             await self.store.save(run)
+        observation_only = (
+            action is None and self._is_observation_only_request(run)
+        )
         request = self._model_request(
             run,
             "verifier",
             VerificationDecision,
-            _VERIFIER_SYSTEM,
+            (
+                _OBSERVATION_VERIFIER_SYSTEM
+                if observation_only
+                else _VERIFIER_SYSTEM
+            ),
             image_path=comparison_image,
+            compact_observation=observation_only,
+            image_detail="high" if observation_only else "original",
             extra={
                 "action": action.model_dump(mode="json") if action else None,
                 "before": before.model_dump(mode="json") if before else None,
@@ -2267,31 +2284,51 @@ class AgentHarness:
         *,
         extra: dict[str, Any] | None = None,
         image_path: str | None = None,
+        compact_observation: bool = False,
+        image_detail: str = "original",
     ) -> ModelRequest:
-        context: dict[str, Any] = {
-            "task": run.computer_task or run.task,
-            "operator_guidance": run.operator_guidance,
-            "plan": run.plan.model_dump(mode="json") if run.plan else None,
-            "action_index": run.next_action_index,
-            "last_controller": (
-                run.last_controller.model_dump(mode="json")
-                if run.last_controller
-                else None
-            ),
-            "last_verification": (
-                run.last_verification.model_dump(mode="json")
-                if run.last_verification
-                else None
-            ),
-            "observation": (
-                run.observation.model_dump(mode="json")
-                if run.observation
-                else None
-            ),
-            "recent_input_delivery": self._recent_input_delivery(run),
-            "recent_verified_actions": self._recent_verified_actions(run),
-            "trajectory_signals": self._trajectory_signals(run),
-        }
+        if compact_observation:
+            observation = run.observation
+            context: dict[str, Any] = {
+                "task": run.computer_task or run.task,
+                "success_criteria": (
+                    run.plan.success_criteria if run.plan else []
+                ),
+                "screen": (
+                    {
+                        "frame_id": observation.frame_id,
+                        "width": observation.width,
+                        "height": observation.height,
+                    }
+                    if observation is not None
+                    else None
+                ),
+            }
+        else:
+            context = {
+                "task": run.computer_task or run.task,
+                "operator_guidance": run.operator_guidance,
+                "plan": run.plan.model_dump(mode="json") if run.plan else None,
+                "action_index": run.next_action_index,
+                "last_controller": (
+                    run.last_controller.model_dump(mode="json")
+                    if run.last_controller
+                    else None
+                ),
+                "last_verification": (
+                    run.last_verification.model_dump(mode="json")
+                    if run.last_verification
+                    else None
+                ),
+                "observation": (
+                    run.observation.model_dump(mode="json")
+                    if run.observation
+                    else None
+                ),
+                "recent_input_delivery": self._recent_input_delivery(run),
+                "recent_verified_actions": self._recent_verified_actions(run),
+                "trajectory_signals": self._trajectory_signals(run),
+            }
         if extra:
             context.update(extra)
         prompt = (
@@ -2329,7 +2366,10 @@ class AgentHarness:
                 else run.observation.image_path if run.observation else None
             ),
             run_id=run.run_id,
-            metadata={"action_index": run.next_action_index},
+            metadata={
+                "action_index": run.next_action_index,
+                "image_detail": image_detail,
+            },
         )
 
     @staticmethod

@@ -331,3 +331,57 @@ async def test_transport_releases_stale_modifiers_on_connection() -> None:
     transport._release_client_modifiers()
 
     assert client.calls == ["shift", "ctrl", "alt", "super"]
+
+
+async def test_transport_coalesces_frequent_read_only_frame_consumers() -> None:
+    class Client:
+        def __init__(self) -> None:
+            self.captures = 0
+
+        def captureScreen(self, output, *, format) -> None:
+            assert format == "PNG"
+            self.captures += 1
+            Image.new("RGB", (640, 400), (20, 40, 80)).save(output, "PNG")
+
+    transport = VncDotoolTransport(
+        "unused:5900",
+        frame_cache_ttl_s=60,
+    )
+    client = Client()
+    transport._client = client
+
+    first = await transport.screenshot()
+    second = await transport.screenshot()
+
+    assert first == second
+    assert client.captures == 1
+
+
+async def test_transport_invalidates_cached_frame_after_input() -> None:
+    class Client:
+        def __init__(self) -> None:
+            self.captures = 0
+
+        def captureScreen(self, output, *, format) -> None:
+            assert format == "PNG"
+            self.captures += 1
+            Image.new("RGB", (640, 400), (20, 40, 80)).save(output, "PNG")
+
+        def keyDown(self, _key) -> None:
+            pass
+
+        def keyUp(self, _key) -> None:
+            pass
+
+    transport = VncDotoolTransport(
+        "unused:5900",
+        frame_cache_ttl_s=60,
+    )
+    client = Client()
+    transport._client = client
+
+    await transport.screenshot()
+    await transport.key("KeyA", True)
+    await transport.screenshot()
+
+    assert client.captures == 2

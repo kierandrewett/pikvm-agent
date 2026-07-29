@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "created_at": "2026-07-29T17:31:00Z",
+  "suite": "live_vnc_screen_observation_cache_and_state",
+  "scope": {
+    "target": "authorized disposable Windows VNC VM",
+    "production_pikvm_contacted": false,
+    "computer_input_events": 0,
+    "screenshots_retained": false,
+    "runtime_endpoint_retained": false
+  },
+  "baseline": {
+    "run_id": "63acf061-060c-42fc-9070-80a43c3c6d2e",
+    "status": "completed",
+    "wall_ms": 9089,
+    "model_latency_ms": 6380,
+    "handoff_and_capture_ms": 2675,
+    "input_tokens": 11552,
+    "cached_input_tokens": 0,
+    "accurate": true
+  },
+  "rejected_trials": [
+    {
+      "strategy": "low_detail_image",
+      "run_id": "f9feb84b-bdd5-4391-9014-3b83e81e659f",
+      "status": "paused",
+      "model_latency_ms": 6981,
+      "input_tokens": 9522,
+      "cached_input_tokens": 0,
+      "accurate": false,
+      "reason": "The verifier could not determine what was on screen."
+    }
+  ],
+  "accepted_strategy": {
+    "image_detail": "high",
+    "compact_observation_prompt": true,
+    "vnc_frame_cache_ttl_ms": 750,
+    "cache_invalidated_after_input": true,
+    "runs": [
+      {
+        "run_id": "bffdf239-bcc9-4a40-a457-5bb8572242aa",
+        "status": "completed",
+        "wall_ms": 6342,
+        "model_latency_ms": 4815,
+        "input_tokens": 10707,
+        "cached_input_tokens": 7936,
+        "accurate": true
+      },
+      {
+        "run_id": "925092a9-3efa-4258-944c-25ba787fcec3",
+        "status": "completed",
+        "wall_ms": 5209,
+        "model_latency_ms": 4916,
+        "input_tokens": 10703,
+        "cached_input_tokens": 7936,
+        "accurate": true
+      },
+      {
+        "run_id": "fadd5e04-c0ab-4110-ad61-02372e499a40",
+        "status": "completed",
+        "wall_ms": 7791,
+        "model_latency_ms": 7528,
+        "input_tokens": 10695,
+        "cached_input_tokens": 7936,
+        "accurate": true
+      }
+    ],
+    "median_wall_ms": 6342,
+    "median_model_latency_ms": 4916,
+    "wall_improvement_percent": 30.22,
+    "model_improvement_percent": 22.95
+  },
+  "durability": {
+    "electron_cdp_reload_same_run": true,
+    "electron_cdp_result_restored": true,
+    "temporary_404_replacement_creates": 0,
+    "create_retry_reuses_run": true,
+    "assistant_create_calls_after_retry": 1
+  },
+  "limitations": [
+    "This is a read-only three-run latency diagnostic, not a general computer-action score.",
+    "Provider latency still ranged from 4.815 to 7.528 seconds.",
+    "The low-detail visual optimization failed accuracy and was not retained."
+  ]
+}

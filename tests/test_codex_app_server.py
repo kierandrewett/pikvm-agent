@@ -216,6 +216,7 @@ async def test_persistent_codex_app_server_runs_concurrent_ephemeral_turns(
             client.complete(
                 prompt=f"Inspect screen {index}",
                 image_path=str(image),
+                image_detail="high",
                 output_schema=schema,
                 model="gpt-5.6-luna",
                 reasoning_effort="low",
@@ -275,7 +276,7 @@ async def test_persistent_codex_app_server_runs_concurrent_ephemeral_turns(
         and message["params"]["input"][1] == {
             "type": "localImage",
             "path": str(image),
-            "detail": "original",
+            "detail": "high",
         }
         for message in turn_starts
     )
