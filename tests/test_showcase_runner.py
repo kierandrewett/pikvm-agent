@@ -209,6 +209,7 @@ tasks:
     assert result.exit_code == 0
     assert json.loads(result.stdout)["status"] == "completed"
     assert calls[0]["adapter_url"] == "http://127.0.0.1:48002"
+    assert calls[0]["max_same_run_recoveries"] == 8
 
 
 def test_frame_recorder_encodes_browser_native_webm(tmp_path: Path) -> None:

@@ -1573,6 +1573,13 @@ def harness_showcase_run(
         min=0.2,
         max=5,
     ),
+    max_same_run_recoveries: int = typer.Option(
+        8,
+        "--max-same-run-recoveries",
+        min=1,
+        max=50,
+        help="Bounded paused-checkpoint recoveries before a task fails.",
+    ),
 ) -> None:
     """Run Codex tasks one-by-one, record them, and reboot after every task."""
     import asyncio
@@ -1601,6 +1608,7 @@ def harness_showcase_run(
                 task_timeout_s=task_timeout_s,
                 reboot_timeout_s=reboot_timeout_s,
                 frame_interval_s=frame_interval_s,
+                max_same_run_recoveries=max_same_run_recoveries,
             )
         )
     except (OSError, RuntimeError, TimeoutError, ValueError) as exc:

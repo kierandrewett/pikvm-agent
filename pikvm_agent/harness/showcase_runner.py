@@ -641,9 +641,16 @@ async def run_showcase_campaign(
     task_timeout_s: float = 300,
     reboot_timeout_s: float = 180,
     frame_interval_s: float = 0.5,
+    max_same_run_recoveries: int = 8,
 ) -> dict[str, Any]:
+    if max_same_run_recoveries < 1:
+        raise ValueError("max_same_run_recoveries must be positive")
     manifest = load_showcase_manifest(manifest_path)
     writer = CampaignWriter(manifest, output_root)
+    writer.payload["limits"] = {
+        "task_timeout_s": task_timeout_s,
+        "max_same_run_recoveries": max_same_run_recoveries,
+    }
     writer.payload["status"] = "running"
     writer.payload["started_at"] = writer.payload.get("started_at") or utc_now()
     writer.payload["finished_at"] = None
@@ -724,7 +731,10 @@ async def run_showcase_campaign(
                                 paused_cursor = event_count
                                 await asyncio.sleep(0.75)
                                 continue
-                            if len(record["recoveries"]) >= 3:
+                            if (
+                                len(record["recoveries"])
+                                >= max_same_run_recoveries
+                            ):
                                 run_error = (
                                     "same-run recovery limit reached at a "
                                     "paused checkpoint"
