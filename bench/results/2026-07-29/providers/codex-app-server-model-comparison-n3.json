@@ -1,0 +1,382 @@
+{
+  "calls_attempted": 9,
+  "calls_exact": 8,
+  "calls_failed": 0,
+  "calls_normalized_exact": 8,
+  "calls_schema_valid": 9,
+  "cases_per_provider": 3,
+  "computer_target_contacted": false,
+  "concurrency": 1,
+  "created_at": "2026-07-29T16:27:40.430675+00:00",
+  "evaluation_wall_ms": 51452,
+  "exact_accuracy": 0.8888888888888888,
+  "normalized_exact_accuracy": 0.8888888888888888,
+  "providers": [
+    {
+      "auth_mode": "saved_cli_login",
+      "calls_attempted": 3,
+      "cases_requested": 3,
+      "configured_model": "gpt-5.6-luna",
+      "credential_owner": "provider_cli",
+      "exact": 2,
+      "exact_accuracy": 0.6666666666666666,
+      "exercised": true,
+      "failure_counts": {},
+      "implementation_contract": "first_party",
+      "interface": "Codex app-server",
+      "kind": "codex_app_server",
+      "median_latency_ms": 5742.0,
+      "name": "luna-medium",
+      "normalized_exact": 2,
+      "normalized_exact_accuracy": 0.6666666666666666,
+      "p95_latency_ms": 6370.0,
+      "pixel_input": "Native local image input",
+      "readiness_error": null,
+      "ready": true,
+      "results": [
+        {
+          "case_index": 0,
+          "error_class": null,
+          "exact": false,
+          "expected": {
+            "primary_button_label": "Inspect results",
+            "screen_title": "Incident Ledger",
+            "verification_code": "8HBG9-YWX82"
+          },
+          "fields_exact": 2,
+          "fields_normalized_exact": 2,
+          "latency_ms": 6370,
+          "model": "gpt-5.6-luna",
+          "normalized_exact": false,
+          "observed": {
+            "primary_button_label": "Inspect results",
+            "screen_title": "Incident Ledger",
+            "verification_code": "8H0G9-YWX82"
+          },
+          "provider": "luna-medium",
+          "schema_valid": true,
+          "usage": {
+            "cached_input_tokens": 0,
+            "input_tokens": 8637,
+            "output_tokens": 121,
+            "total_tokens": 8758
+          }
+        },
+        {
+          "case_index": 1,
+          "error_class": null,
+          "exact": true,
+          "expected": {
+            "primary_button_label": "Compare runs",
+            "screen_title": "Quality Workspace",
+            "verification_code": "B54CQ-WTYFG"
+          },
+          "fields_exact": 3,
+          "fields_normalized_exact": 3,
+          "latency_ms": 5742,
+          "model": "gpt-5.6-luna",
+          "normalized_exact": true,
+          "observed": {
+            "primary_button_label": "Compare runs",
+            "screen_title": "Quality Workspace",
+            "verification_code": "B54CQ-WTYFG"
+          },
+          "provider": "luna-medium",
+          "schema_valid": true,
+          "usage": {
+            "cached_input_tokens": 0,
+            "input_tokens": 8637,
+            "output_tokens": 109,
+            "total_tokens": 8746
+          }
+        },
+        {
+          "case_index": 2,
+          "error_class": null,
+          "exact": true,
+          "expected": {
+            "primary_button_label": "Compare runs",
+            "screen_title": "Desktop Evidence",
+            "verification_code": "FJL2E-G8REN"
+          },
+          "fields_exact": 3,
+          "fields_normalized_exact": 3,
+          "latency_ms": 3874,
+          "model": "gpt-5.6-luna",
+          "normalized_exact": true,
+          "observed": {
+            "primary_button_label": "Compare runs",
+            "screen_title": "Desktop Evidence",
+            "verification_code": "FJL2E-G8REN"
+          },
+          "provider": "luna-medium",
+          "schema_valid": true,
+          "usage": {
+            "cached_input_tokens": 0,
+            "input_tokens": 8635,
+            "output_tokens": 35,
+            "total_tokens": 8670
+          }
+        }
+      ],
+      "returned_models": [
+        "gpt-5.6-luna"
+      ],
+      "schema_valid": 3,
+      "structured_output": "Strict JSON Schema",
+      "support_tier": "beta",
+      "usage_totals": {
+        "cached_input_tokens": 0,
+        "input_tokens": 25909,
+        "output_tokens": 265,
+        "total_tokens": 26174
+      }
+    },
+    {
+      "auth_mode": "saved_cli_login",
+      "calls_attempted": 3,
+      "cases_requested": 3,
+      "configured_model": "gpt-5.6-terra",
+      "credential_owner": "provider_cli",
+      "exact": 3,
+      "exact_accuracy": 1.0,
+      "exercised": true,
+      "failure_counts": {},
+      "implementation_contract": "first_party",
+      "interface": "Codex app-server",
+      "kind": "codex_app_server",
+      "median_latency_ms": 5318.0,
+      "name": "terra-low",
+      "normalized_exact": 3,
+      "normalized_exact_accuracy": 1.0,
+      "p95_latency_ms": 6337.0,
+      "pixel_input": "Native local image input",
+      "readiness_error": null,
+      "ready": true,
+      "results": [
+        {
+          "case_index": 0,
+          "error_class": null,
+          "exact": true,
+          "expected": {
+            "primary_button_label": "Inspect results",
+            "screen_title": "Incident Ledger",
+            "verification_code": "8HBG9-YWX82"
+          },
+          "fields_exact": 3,
+          "fields_normalized_exact": 3,
+          "latency_ms": 6337,
+          "model": "gpt-5.6-terra",
+          "normalized_exact": true,
+          "observed": {
+            "primary_button_label": "Inspect results",
+            "screen_title": "Incident Ledger",
+            "verification_code": "8HBG9-YWX82"
+          },
+          "provider": "terra-low",
+          "schema_valid": true,
+          "usage": {
+            "cached_input_tokens": 0,
+            "input_tokens": 9826,
+            "output_tokens": 35,
+            "total_tokens": 9861
+          }
+        },
+        {
+          "case_index": 1,
+          "error_class": null,
+          "exact": true,
+          "expected": {
+            "primary_button_label": "Compare runs",
+            "screen_title": "Quality Workspace",
+            "verification_code": "B54CQ-WTYFG"
+          },
+          "fields_exact": 3,
+          "fields_normalized_exact": 3,
+          "latency_ms": 5318,
+          "model": "gpt-5.6-terra",
+          "normalized_exact": true,
+          "observed": {
+            "primary_button_label": "Compare runs",
+            "screen_title": "Quality Workspace",
+            "verification_code": "B54CQ-WTYFG"
+          },
+          "provider": "terra-low",
+          "schema_valid": true,
+          "usage": {
+            "cached_input_tokens": 7936,
+            "input_tokens": 9828,
+            "output_tokens": 69,
+            "total_tokens": 9897
+          }
+        },
+        {
+          "case_index": 2,
+          "error_class": null,
+          "exact": true,
+          "expected": {
+            "primary_button_label": "Compare runs",
+            "screen_title": "Desktop Evidence",
+            "verification_code": "FJL2E-G8REN"
+          },
+          "fields_exact": 3,
+          "fields_normalized_exact": 3,
+          "latency_ms": 4932,
+          "model": "gpt-5.6-terra",
+          "normalized_exact": true,
+          "observed": {
+            "primary_button_label": "Compare runs",
+            "screen_title": "Desktop Evidence",
+            "verification_code": "FJL2E-G8REN"
+          },
+          "provider": "terra-low",
+          "schema_valid": true,
+          "usage": {
+            "cached_input_tokens": 7936,
+            "input_tokens": 9826,
+            "output_tokens": 35,
+            "total_tokens": 9861
+          }
+        }
+      ],
+      "returned_models": [
+        "gpt-5.6-terra"
+      ],
+      "schema_valid": 3,
+      "structured_output": "Strict JSON Schema",
+      "support_tier": "beta",
+      "usage_totals": {
+        "cached_input_tokens": 15872,
+        "input_tokens": 29480,
+        "output_tokens": 139,
+        "total_tokens": 29619
+      }
+    },
+    {
+      "auth_mode": "saved_cli_login",
+      "calls_attempted": 3,
+      "cases_requested": 3,
+      "configured_model": "gpt-5.6-sol",
+      "credential_owner": "provider_cli",
+      "exact": 3,
+      "exact_accuracy": 1.0,
+      "exercised": true,
+      "failure_counts": {},
+      "implementation_contract": "first_party",
+      "interface": "Codex app-server",
+      "kind": "codex_app_server",
+      "median_latency_ms": 5527.0,
+      "name": "sol-low",
+      "normalized_exact": 3,
+      "normalized_exact_accuracy": 1.0,
+      "p95_latency_ms": 6856.0,
+      "pixel_input": "Native local image input",
+      "readiness_error": null,
+      "ready": true,
+      "results": [
+        {
+          "case_index": 0,
+          "error_class": null,
+          "exact": true,
+          "expected": {
+            "primary_button_label": "Inspect results",
+            "screen_title": "Incident Ledger",
+            "verification_code": "8HBG9-YWX82"
+          },
+          "fields_exact": 3,
+          "fields_normalized_exact": 3,
+          "latency_ms": 5334,
+          "model": "gpt-5.6-sol",
+          "normalized_exact": true,
+          "observed": {
+            "primary_button_label": "Inspect results",
+            "screen_title": "Incident Ledger",
+            "verification_code": "8HBG9-YWX82"
+          },
+          "provider": "sol-low",
+          "schema_valid": true,
+          "usage": {
+            "cached_input_tokens": 0,
+            "input_tokens": 10655,
+            "output_tokens": 35,
+            "total_tokens": 10690
+          }
+        },
+        {
+          "case_index": 1,
+          "error_class": null,
+          "exact": true,
+          "expected": {
+            "primary_button_label": "Compare runs",
+            "screen_title": "Quality Workspace",
+            "verification_code": "B54CQ-WTYFG"
+          },
+          "fields_exact": 3,
+          "fields_normalized_exact": 3,
+          "latency_ms": 6856,
+          "model": "gpt-5.6-sol",
+          "normalized_exact": true,
+          "observed": {
+            "primary_button_label": "Compare runs",
+            "screen_title": "Quality Workspace",
+            "verification_code": "B54CQ-WTYFG"
+          },
+          "provider": "sol-low",
+          "schema_valid": true,
+          "usage": {
+            "cached_input_tokens": 0,
+            "input_tokens": 10655,
+            "output_tokens": 34,
+            "total_tokens": 10689
+          }
+        },
+        {
+          "case_index": 2,
+          "error_class": null,
+          "exact": true,
+          "expected": {
+            "primary_button_label": "Compare runs",
+            "screen_title": "Desktop Evidence",
+            "verification_code": "FJL2E-G8REN"
+          },
+          "fields_exact": 3,
+          "fields_normalized_exact": 3,
+          "latency_ms": 5527,
+          "model": "gpt-5.6-sol",
+          "normalized_exact": true,
+          "observed": {
+            "primary_button_label": "Compare runs",
+            "screen_title": "Desktop Evidence",
+            "verification_code": "FJL2E-G8REN"
+          },
+          "provider": "sol-low",
+          "schema_valid": true,
+          "usage": {
+            "cached_input_tokens": 0,
+            "input_tokens": 10649,
+            "output_tokens": 35,
+            "total_tokens": 10684
+          }
+        }
+      ],
+      "returned_models": [
+        "gpt-5.6-sol"
+      ],
+      "schema_valid": 3,
+      "structured_output": "Strict JSON Schema",
+      "support_tier": "beta",
+      "usage_totals": {
+        "cached_input_tokens": 0,
+        "input_tokens": 31959,
+        "output_tokens": 104,
+        "total_tokens": 32063
+      }
+    }
+  ],
+  "providers_exercised": 3,
+  "providers_selected": 3,
+  "providers_unavailable": 0,
+  "schema_version": 1,
+  "seed": 104729,
+  "suite": "provider-conformance"
+}

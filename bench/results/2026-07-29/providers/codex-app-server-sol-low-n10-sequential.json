@@ -1,0 +1,338 @@
+{
+  "calls_attempted": 10,
+  "calls_exact": 9,
+  "calls_failed": 0,
+  "calls_normalized_exact": 9,
+  "calls_schema_valid": 10,
+  "cases_per_provider": 10,
+  "computer_target_contacted": false,
+  "concurrency": 1,
+  "created_at": "2026-07-29T16:31:49.880212+00:00",
+  "evaluation_wall_ms": 71690,
+  "exact_accuracy": 0.9,
+  "normalized_exact_accuracy": 0.9,
+  "providers": [
+    {
+      "auth_mode": "saved_cli_login",
+      "calls_attempted": 10,
+      "cases_requested": 10,
+      "configured_model": "gpt-5.6-sol",
+      "credential_owner": "provider_cli",
+      "exact": 9,
+      "exact_accuracy": 0.9,
+      "exercised": true,
+      "failure_counts": {},
+      "implementation_contract": "first_party",
+      "interface": "Codex app-server",
+      "kind": "codex_app_server",
+      "median_latency_ms": 6931.5,
+      "name": "sol-low",
+      "normalized_exact": 9,
+      "normalized_exact_accuracy": 0.9,
+      "p95_latency_ms": 10549.0,
+      "pixel_input": "Native local image input",
+      "readiness_error": null,
+      "ready": true,
+      "results": [
+        {
+          "case_index": 0,
+          "error_class": null,
+          "exact": true,
+          "expected": {
+            "primary_button_label": "Inspect results",
+            "screen_title": "Incident Ledger",
+            "verification_code": "8HBG9-YWX82"
+          },
+          "fields_exact": 3,
+          "fields_normalized_exact": 3,
+          "latency_ms": 6807,
+          "model": "gpt-5.6-sol",
+          "normalized_exact": true,
+          "observed": {
+            "primary_button_label": "Inspect results",
+            "screen_title": "Incident Ledger",
+            "verification_code": "8HBG9-YWX82"
+          },
+          "provider": "sol-low",
+          "schema_valid": true,
+          "usage": {
+            "cached_input_tokens": 0,
+            "input_tokens": 10654,
+            "output_tokens": 35,
+            "total_tokens": 10689
+          }
+        },
+        {
+          "case_index": 1,
+          "error_class": null,
+          "exact": true,
+          "expected": {
+            "primary_button_label": "Compare runs",
+            "screen_title": "Quality Workspace",
+            "verification_code": "B54CQ-WTYFG"
+          },
+          "fields_exact": 3,
+          "fields_normalized_exact": 3,
+          "latency_ms": 8095,
+          "model": "gpt-5.6-sol",
+          "normalized_exact": true,
+          "observed": {
+            "primary_button_label": "Compare runs",
+            "screen_title": "Quality Workspace",
+            "verification_code": "B54CQ-WTYFG"
+          },
+          "provider": "sol-low",
+          "schema_valid": true,
+          "usage": {
+            "cached_input_tokens": 0,
+            "input_tokens": 10656,
+            "output_tokens": 34,
+            "total_tokens": 10690
+          }
+        },
+        {
+          "case_index": 2,
+          "error_class": null,
+          "exact": true,
+          "expected": {
+            "primary_button_label": "Compare runs",
+            "screen_title": "Desktop Evidence",
+            "verification_code": "FJL2E-G8REN"
+          },
+          "fields_exact": 3,
+          "fields_normalized_exact": 3,
+          "latency_ms": 5216,
+          "model": "gpt-5.6-sol",
+          "normalized_exact": true,
+          "observed": {
+            "primary_button_label": "Compare runs",
+            "screen_title": "Desktop Evidence",
+            "verification_code": "FJL2E-G8REN"
+          },
+          "provider": "sol-low",
+          "schema_valid": true,
+          "usage": {
+            "cached_input_tokens": 0,
+            "input_tokens": 10656,
+            "output_tokens": 35,
+            "total_tokens": 10691
+          }
+        },
+        {
+          "case_index": 3,
+          "error_class": null,
+          "exact": true,
+          "expected": {
+            "primary_button_label": "Compare runs",
+            "screen_title": "Incident Ledger",
+            "verification_code": "N59HV-6Q3VP"
+          },
+          "fields_exact": 3,
+          "fields_normalized_exact": 3,
+          "latency_ms": 8600,
+          "model": "gpt-5.6-sol",
+          "normalized_exact": true,
+          "observed": {
+            "primary_button_label": "Compare runs",
+            "screen_title": "Incident Ledger",
+            "verification_code": "N59HV-6Q3VP"
+          },
+          "provider": "sol-low",
+          "schema_valid": true,
+          "usage": {
+            "cached_input_tokens": 0,
+            "input_tokens": 10658,
+            "output_tokens": 36,
+            "total_tokens": 10694
+          }
+        },
+        {
+          "case_index": 4,
+          "error_class": null,
+          "exact": true,
+          "expected": {
+            "primary_button_label": "Open report",
+            "screen_title": "Desktop Evidence",
+            "verification_code": "AHL96-RL79G"
+          },
+          "fields_exact": 3,
+          "fields_normalized_exact": 3,
+          "latency_ms": 7165,
+          "model": "gpt-5.6-sol",
+          "normalized_exact": true,
+          "observed": {
+            "primary_button_label": "Open report",
+            "screen_title": "Desktop Evidence",
+            "verification_code": "AHL96-RL79G"
+          },
+          "provider": "sol-low",
+          "schema_valid": true,
+          "usage": {
+            "cached_input_tokens": 0,
+            "input_tokens": 10656,
+            "output_tokens": 35,
+            "total_tokens": 10691
+          }
+        },
+        {
+          "case_index": 5,
+          "error_class": null,
+          "exact": true,
+          "expected": {
+            "primary_button_label": "View timeline",
+            "screen_title": "Release Console",
+            "verification_code": "PS88Y-7D9TJ"
+          },
+          "fields_exact": 3,
+          "fields_normalized_exact": 3,
+          "latency_ms": 5938,
+          "model": "gpt-5.6-sol",
+          "normalized_exact": true,
+          "observed": {
+            "primary_button_label": "View timeline",
+            "screen_title": "Release Console",
+            "verification_code": "PS88Y-7D9TJ"
+          },
+          "provider": "sol-low",
+          "schema_valid": true,
+          "usage": {
+            "cached_input_tokens": 0,
+            "input_tokens": 10658,
+            "output_tokens": 36,
+            "total_tokens": 10694
+          }
+        },
+        {
+          "case_index": 6,
+          "error_class": null,
+          "exact": true,
+          "expected": {
+            "primary_button_label": "Show details",
+            "screen_title": "Incident Ledger",
+            "verification_code": "8GTEN-PDD52"
+          },
+          "fields_exact": 3,
+          "fields_normalized_exact": 3,
+          "latency_ms": 10549,
+          "model": "gpt-5.6-sol",
+          "normalized_exact": true,
+          "observed": {
+            "primary_button_label": "Show details",
+            "screen_title": "Incident Ledger",
+            "verification_code": "8GTEN-PDD52"
+          },
+          "provider": "sol-low",
+          "schema_valid": true,
+          "usage": {
+            "cached_input_tokens": 8960,
+            "input_tokens": 10656,
+            "output_tokens": 34,
+            "total_tokens": 10690
+          }
+        },
+        {
+          "case_index": 7,
+          "error_class": null,
+          "exact": true,
+          "expected": {
+            "primary_button_label": "Open report",
+            "screen_title": "Desktop Evidence",
+            "verification_code": "K2495-EAYXY"
+          },
+          "fields_exact": 3,
+          "fields_normalized_exact": 3,
+          "latency_ms": 6357,
+          "model": "gpt-5.6-sol",
+          "normalized_exact": true,
+          "observed": {
+            "primary_button_label": "Open report",
+            "screen_title": "Desktop Evidence",
+            "verification_code": "K2495-EAYXY"
+          },
+          "provider": "sol-low",
+          "schema_valid": true,
+          "usage": {
+            "cached_input_tokens": 8960,
+            "input_tokens": 10656,
+            "output_tokens": 34,
+            "total_tokens": 10690
+          }
+        },
+        {
+          "case_index": 8,
+          "error_class": null,
+          "exact": true,
+          "expected": {
+            "primary_button_label": "Show details",
+            "screen_title": "Provider Observatory",
+            "verification_code": "YLU25-6QHUG"
+          },
+          "fields_exact": 3,
+          "fields_normalized_exact": 3,
+          "latency_ms": 7056,
+          "model": "gpt-5.6-sol",
+          "normalized_exact": true,
+          "observed": {
+            "primary_button_label": "Show details",
+            "screen_title": "Provider Observatory",
+            "verification_code": "YLU25-6QHUG"
+          },
+          "provider": "sol-low",
+          "schema_valid": true,
+          "usage": {
+            "cached_input_tokens": 8960,
+            "input_tokens": 10658,
+            "output_tokens": 36,
+            "total_tokens": 10694
+          }
+        },
+        {
+          "case_index": 9,
+          "error_class": null,
+          "exact": false,
+          "expected": {
+            "primary_button_label": "Review evidence",
+            "screen_title": "Provider Observatory",
+            "verification_code": "3DKSF-T69S3"
+          },
+          "fields_exact": 2,
+          "fields_normalized_exact": 2,
+          "latency_ms": 5423,
+          "model": "gpt-5.6-sol",
+          "normalized_exact": false,
+          "observed": {
+            "primary_button_label": "Review evidence",
+            "screen_title": "Provider Observatory",
+            "verification_code": "3DK5E-T69S3"
+          },
+          "provider": "sol-low",
+          "schema_valid": true,
+          "usage": {
+            "cached_input_tokens": 0,
+            "input_tokens": 10656,
+            "output_tokens": 36,
+            "total_tokens": 10692
+          }
+        }
+      ],
+      "returned_models": [
+        "gpt-5.6-sol"
+      ],
+      "schema_valid": 10,
+      "structured_output": "Strict JSON Schema",
+      "support_tier": "beta",
+      "usage_totals": {
+        "cached_input_tokens": 26880,
+        "input_tokens": 106564,
+        "output_tokens": 351,
+        "total_tokens": 106915
+      }
+    }
+  ],
+  "providers_exercised": 1,
+  "providers_selected": 1,
+  "providers_unavailable": 0,
+  "schema_version": 1,
+  "seed": 104729,
+  "suite": "provider-conformance"
+}

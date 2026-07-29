@@ -5,7 +5,7 @@ harness. It records passing, failing, invalid, and infrastructure-blocked runs.
 A row is not a product claim unless its environment, upstream revision, model,
 sample size, and evaluator are all shown.
 
-Last updated: 2026-07-28.
+Last updated: 2026-07-29.
 
 ## Evidence rules
 
@@ -47,7 +47,7 @@ support a claim of generally reliable autonomous Windows operation.
 | End-to-end desktop tasks are reliable | Current OSWorld task set is 7/9; full scored-attempt denominator is 8/39 with 11 additional unscored failures. The inactive-screen remediation is 2/6 overall and only 1/2 after its first pass; the latest pass still took 464.33 seconds | Failing release gate |
 | A model can autonomously complete routine Office work | Portable Word/Excel contracts and semantic OOXML verification pass local tests. Excel r23 is the first clean canonical pass: the model saved, closed, reopened, and audited the workbook; the host recovered 9,437 bytes and passed 29/29 cell/formula checks. The five-attempt optimization series retains three incomplete/rejected runs and one scorer false negative before that pass. r23 still took 29m 32s, used 52 model calls, and repeated one formula audit; the action-evidence contract was hardened afterward. Word r29 recovered a 16,081-byte DOCX that passed 11/11 checks, but its original runner transaction remains `artifact_failed` | Clean Excel n=1; Word runner still not clean; latency failing product target |
 | Windows Agent Arena is supported | 154 tasks discovered; official golden image is absent | Not run |
-| Provider choice is portable | Codex and Claude OAuth CLIs live-tested; dedicated-profile Gemini CLI OAuth, native OpenAI Responses, Azure OpenAI API-key/Entra modes, OpenAI-compatible, Anthropic, Gemini AI Studio, and Vertex AI adapters protocol-tested with mocks/source contracts; one target-free command now compares identical blind pixels/schema across configured routes. The live Anthropic Messages canary reached the provider with `claude-sonnet-5` but the environment-owned credential was rejected, so it recorded 0/1 with `authentication-failed`, zero tool calls, zero consequential executions, and no computer contact | Partial; OAuth works, but no API credential route has passed live yet |
+| Provider choice is portable | Codex and Claude OAuth CLIs live-tested; persistent Codex app-server now reuses the same provider-owned ChatGPT login and returned valid strict-schema output on 42/42 calls, with 37/42 exact, across the published Luna/Terra/Sol diagnostics with zero computer contact. Terra-low was the best first fast-lane candidate: 19/20 exact across two identical ten-case repeats, 4.990s combined median, and 7.474s combined p95. Dedicated-profile Gemini CLI OAuth, native OpenAI Responses, Azure OpenAI API-key/Entra modes, OpenAI-compatible, Anthropic, Gemini AI Studio, and Vertex AI adapters remain protocol-tested with mocks/source contracts. The live Anthropic Messages canary reached the provider with `claude-sonnet-5` but the environment-owned credential was rejected | Partial; Codex app-server OAuth is live and fast enough for task trials, but its 95% diagnostic accuracy is below the release gate and no API credential route has passed live yet |
 
 Re-run the target-free HID payload corpus with:
 
@@ -138,6 +138,42 @@ fresh greeting reached the provider and was rejected as
 computer contact. No other API credential prerequisite was present. This is a
 current 0/1 API result, not adapter compatibility evidence:
 [`Anthropic API authentication failure`](results/2026-07-28/providers/anthropic-api-assistant-auth-failure.json).
+
+### Persistent Codex app-server fast-lane diagnostic
+
+On 2026-07-29 a new first-party provider adapter reused the saved Codex
+ChatGPT login through one persistent `codex app-server` process. Every request
+used an ephemeral read-only thread, disabled tools and web access, attached
+only the deterministic synthetic screen, and required strict structured
+output. No daemon, VNC, PiKVM, HID, email, or chat target was available.
+
+The first identical three-case comparison used priority service and low
+reasoning unless noted:
+
+| Route | Exact | Median | p95 | Schema failures |
+| --- | ---: | ---: | ---: | ---: |
+| Luna low | 1/3 | 5.204s | 5.405s | 0 |
+| Luna medium | 2/3 | 5.742s | 6.370s | 0 |
+| Terra low | 3/3 | 5.318s | 6.337s | 0 |
+| Sol low | 3/3 | 5.527s | 6.856s | 0 |
+
+Terra-low and Sol-low then ran the same ten blind cases. Both scored 9/10,
+but Terra was materially faster: 4.712s median and 10.135s p95 versus Sol's
+6.932s median and 10.549s p95. A second identical Terra repeat scored 10/10.
+Across its two repeats Terra is therefore 19/20 exact with a 4.990s combined
+median and 7.474s combined p95. The misses were single-character
+transcription errors in deliberately confusable verification codes. This is a
+small diagnostic and still fails a release-quality exactness gate; it is
+enough to select Terra-low for the next disposable-computer task trial, not to
+claim reliable autonomous control.
+
+Failure-inclusive evidence:
+[`Luna-low n=3`](results/2026-07-29/providers/codex-app-server-speed-n3.json),
+[`model comparison n=3`](results/2026-07-29/providers/codex-app-server-model-comparison-n3.json),
+[`Terra-low n=10`](results/2026-07-29/providers/codex-app-server-terra-low-n10-sequential.json),
+[`Terra-low repeat n=10`](results/2026-07-29/providers/codex-app-server-terra-low-n10-concurrency4.json),
+and
+[`Sol-low n=10`](results/2026-07-29/providers/codex-app-server-sol-low-n10-sequential.json).
 
 ### Literal screen-observation fast path
 
