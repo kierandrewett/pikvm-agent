@@ -154,6 +154,8 @@ only the write-only receiver; never expose its evaluator.
 The report separates independent signals:
 
 - exact character accuracy from the observer;
+- intended and observer-reported UTF-8 text SHA-256 values plus an exact-match
+  bit;
 - trailing extras, missing suffixes, and duplicated-prefix length;
 - OCR exact and whitespace-normalised edit distance;
 - exact file bytes;
@@ -178,6 +180,27 @@ substitute: the command itself must remain fail-closed before Enter.
 This catches the failure mode where OCR says a command is plausible while the
 actual field contains one wrong character, a repeated chunk, or an extra
 suffix.
+
+### What the checksums prove
+
+Input integrity is a chain, not one checksum:
+
+1. The delivery hash proves the exact logical text accepted by the MCP.
+2. The emitted hash proves the text handed to the keyboard transport and the
+   at-most-once guard.
+3. The read-back hash proves what strict OCR reconstructed from one retained
+   screen frame; the frame has its own SHA-256. This is visual evidence, not a
+   guest acknowledgement.
+4. In the disposable lab only, the observer reports the focused editor's exact
+   text. The score now publishes intended and observer-text SHA-256 values.
+   Matching values are guest-side ground truth for that test.
+5. For saved files, the observer returns exact bytes and the harness compares
+   file SHA-256 values.
+
+Production targets have no observer. A screen cannot calculate a cryptographic
+hash of its own text, so the runtime must never label OCR-normalised text as
+exact. If strict OCR cannot preserve every character and calibrated whitespace,
+the action remains unverified and no submit, send, or Enter action may follow.
 
 ## Runtime safety changes
 

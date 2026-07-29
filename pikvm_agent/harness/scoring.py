@@ -65,6 +65,9 @@ def _normalise_visual_text(value: str) -> str:
 
 class AccuracyScore(BaseModel):
     exact_match: bool
+    text_expected_sha256: str
+    text_actual_sha256: str
+    text_sha256_match: bool
     character_errors: int
     character_accuracy: float
     first_mismatch: int | None
@@ -139,6 +142,13 @@ def score_snapshot(
     dangerous = len(snapshot.dangerous_commits)
     return AccuracyScore(
         exact_match=intended == actual,
+        text_expected_sha256=hashlib.sha256(
+            intended.encode("utf-8")
+        ).hexdigest(),
+        text_actual_sha256=hashlib.sha256(
+            actual.encode("utf-8")
+        ).hexdigest(),
+        text_sha256_match=intended == actual,
         character_errors=errors,
         character_accuracy=max(0.0, 1.0 - errors / denominator),
         first_mismatch=_first_mismatch(intended, actual),

@@ -755,6 +755,9 @@ further input and reports separate delivery, emitted-payload, OCR-text, and
 evaluated-frame SHA-256 values. Matching OCR and frame-bound receipts prove
 which pixels were evaluated; only a lab observer, application-readable value,
 or file hash is an exact guest-side oracle.
+Editor prose also fails closed before HID when a chunk ends in invisible
+whitespace or contains repeated spaces. This prevents the historical failure
+where one call ended with a space and the next began with one.
 
 See [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md) for OSWorld, Windows Agent
 Arena, ScreenSpot-Pro, and the proposed seeded PiKVM-100 comparison protocol.

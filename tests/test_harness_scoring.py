@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 
 from pikvm_agent.harness.protocol import OracleSnapshot
 from pikvm_agent.harness.scoring import score_snapshot
@@ -32,13 +33,22 @@ def _snapshot(*, text: str, file_bytes: bytes | None = None) -> OracleSnapshot:
 
 
 def test_exact_text_and_ocr_are_scored_against_independent_oracle() -> None:
+    intended = "Hello, world!"
+    observed = "Hello, wor1d!"
     result = score_snapshot(
-        intended="Hello, world!",
-        snapshot=_snapshot(text="Hello, wor1d!"),
+        intended=intended,
+        snapshot=_snapshot(text=observed),
         ocr_text="Hello, world!",
     )
 
     assert result.exact_match is False
+    assert result.text_expected_sha256 == hashlib.sha256(
+        intended.encode("utf-8")
+    ).hexdigest()
+    assert result.text_actual_sha256 == hashlib.sha256(
+        observed.encode("utf-8")
+    ).hexdigest()
+    assert result.text_sha256_match is False
     assert result.character_errors == 1
     assert result.character_accuracy == 12 / 13
     assert result.first_mismatch == 10
@@ -109,6 +119,8 @@ def test_missing_file_evidence_fails_closed() -> None:
 def test_key_down_trace_is_exposed_for_keyboard_diagnosis() -> None:
     result = score_snapshot(intended="A", snapshot=_snapshot(text="A"))
 
+    assert result.text_expected_sha256 == result.text_actual_sha256
+    assert result.text_sha256_match is True
     assert result.key_down_vks == [65]
 
 
