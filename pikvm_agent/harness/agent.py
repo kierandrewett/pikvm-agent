@@ -147,6 +147,13 @@ only a bounded correction, or block if the current pixels cannot support one.
 Set expects_task_completion true only when this action should satisfy every
 remaining success criterion. This is a scheduling hint, never a success claim;
 the independent verifier still decides.
+There is one narrow app-launch exception to the separate focus-action rule.
+When the current frame visibly proves a surfaced Windows desktop and the task
+requires a standard local app, launch it in one bounded burst: Win+R, a short
+settle, wait for a stable screen, type only the app's executable name with no
+arguments, press Enter, then wait for a stable screen. Do not use this exception
+for a shell, terminal, URL, file path, command arguments, or any consequential
+operation. Verify the launched app as the burst's stable end state.
 Prefer a bounded reversible burst that reaches a stable, directly legible local
 end state over stopping at a low-contrast or transient intermediate state. For
 short local calculations, enter the complete expression including the equals

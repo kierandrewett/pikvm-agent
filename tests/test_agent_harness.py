@@ -8,7 +8,7 @@ import pytest
 from PIL import Image
 from pydantic import ValidationError
 
-from pikvm_agent.harness.agent import AgentHarness
+from pikvm_agent.harness.agent import AgentHarness, _CONTROLLER_SYSTEM
 from pikvm_agent.harness.agent_models import (
     ArtifactAcceptance,
     ArtifactAcceptanceState,
@@ -30,6 +30,15 @@ from pikvm_agent.harness.model_budget import (
     ProviderCostTerms,
 )
 from pikvm_agent.harness.model_pool import ModelPool, RoleRoute
+
+
+def test_controller_can_launch_a_standard_app_in_one_safe_burst() -> None:
+    assert "one narrow app-launch exception" in _CONTROLLER_SYSTEM
+    assert "type only the app's executable name" in _CONTROLLER_SYSTEM
+    assert "arguments, press Enter" in _CONTROLLER_SYSTEM
+    assert "shell, terminal, URL, file path, command arguments" in (
+        _CONTROLLER_SYSTEM
+    )
 
 
 class ScriptedProvider:
