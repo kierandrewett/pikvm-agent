@@ -2637,6 +2637,46 @@ async def test_process_start_recovers_a_slice_scheduled_just_before_crash(
     assert harness.calls == [("continue", "scheduled-before-crash")]
 
 
+@pytest.mark.asyncio
+async def test_process_start_recovers_an_orphaned_running_activity(
+    tmp_path: Path,
+) -> None:
+    frame = tmp_path / "frame.jpg"
+    frame.write_bytes(b"frame")
+    store = InMemoryRunStore()
+    interrupted = RunSnapshot(
+        run_id="interrupted-tool",
+        task="Resume the durable action after restart",
+        status=RunStatus.RUNNING,
+    )
+    interrupted.record(
+        "action.attempted",
+        tool="pikvm_run_burst",
+        call_id="action-7:attempt:1",
+        arguments={"idempotency_key": "action-7"},
+    )
+    await store.save(interrupted)
+    harness = RestartRecoveryHarness(store, frame)
+    app = create_harness_app(
+        harness=harness,  # type: ignore[arg-type]
+        store=store,
+        models=StubModels(),
+        access_token=TEST_ACCESS_TOKEN,
+        allowed_origins={"http://harness"},
+    )
+
+    async with app.router.lifespan_context(app):
+        await asyncio.wait_for(harness.completed.wait(), timeout=1)
+
+    recovered = await store.get("interrupted-tool")
+    assert harness.calls == [("continue", "interrupted-tool")]
+    assert [event.kind for event in recovered.events[-2:]] == [
+        "run.process_interrupted",
+        "run.completed",
+    ]
+    assert recovered.active_activity is None
+
+
 class RestartLoopHarness(StubHarness):
     def __init__(self, store: InMemoryRunStore, frame: Path) -> None:
         super().__init__(store, frame)

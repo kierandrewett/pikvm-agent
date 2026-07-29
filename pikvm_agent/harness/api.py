@@ -115,6 +115,7 @@ _AUTONOMOUS_PAUSE_EVENTS = {
     "action.ungrounded_refreshed",
     "controller.requested_replan",
     "run.autonomous_resume",
+    "run.process_interrupted",
     "verification.failed",
 }
 
@@ -751,7 +752,27 @@ def create_harness_app(
 
     async def resume_automatic_runs() -> None:
         for summary in await store.list_summaries(limit=10_000):
-            if summary.status is not RunStatus.PAUSED:
+            if (
+                summary.status is RunStatus.RUNNING
+                and summary.origin == "managed"
+            ):
+                interrupted = await store.get_control(summary.run_id)
+                interrupted.status = RunStatus.PAUSED
+                interrupted.error = (
+                    "local harness process restarted; resuming the durable "
+                    "checkpoint"
+                )
+                interrupted.record(
+                    "run.process_interrupted",
+                    pending_action=interrupted.pending_action is not None,
+                    activity_kind=(
+                        interrupted.active_activity.kind
+                        if interrupted.active_activity is not None
+                        else None
+                    ),
+                )
+                await store.save(interrupted)
+            elif summary.status is not RunStatus.PAUSED:
                 continue
             run = await store.get_control(summary.run_id)
             if _autonomous_resume_reason(run) is not None:

@@ -608,6 +608,7 @@ _TOOL_ACTIVITY_CLOSED = {
     "tool.approval_required",
 }
 _RUN_ACTIVITY_CLOSED = {
+    "run.process_interrupted",
     "run.paused",
     "run.steered",
     "run.autonomy_stopped",
