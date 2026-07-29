@@ -1514,10 +1514,13 @@ class AgentHarness:
             run.error = verdict.summary
             run.record("verification.uncertain", summary=verdict.summary)
         else:
-            run.plan = None
             run.status = RunStatus.PAUSED
             run.error = verdict.summary
-            run.record("verification.failed", summary=verdict.summary)
+            run.record(
+                "verification.failed",
+                summary=verdict.summary,
+                plan_reused=run.plan is not None,
+            )
         await self.store.save(run)
 
     async def _execute_pending(

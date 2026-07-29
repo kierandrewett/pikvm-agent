@@ -74,6 +74,21 @@ READ_ONLY_NAVIGATION_ACTION_TYPES = frozenset(
         "wait_for_stable_screen",
     }
 )
+READ_ONLY_NAVIGATION_KEYS = frozenset(
+    {
+        frozenset({"ALT", "TAB"}),
+        frozenset({"CTRL", "A"}),
+        frozenset({"CTRL", "C"}),
+        frozenset({"ENTER"}),
+        frozenset({"ESC"}),
+        frozenset({"META"}),
+        frozenset({"META", "R"}),
+        frozenset({"SHIFT", "TAB"}),
+        frozenset({"TAB"}),
+        frozenset({"WIN"}),
+        frozenset({"WIN", "R"}),
+    }
+)
 ApprovalDisposition = Literal["approve", "refuse", "wait"]
 
 
@@ -134,7 +149,18 @@ def approval_is_safe(
     if mutates_workspace:
         return True
     return all(
-        str(action.get("type") or "") in READ_ONLY_NAVIGATION_ACTION_TYPES
+        (
+            str(action.get("type") or "")
+            in READ_ONLY_NAVIGATION_ACTION_TYPES
+        )
+        or (
+            str(action.get("type") or "") == "key"
+            and frozenset(
+                str(key).upper()
+                for key in action.get("keys") or []
+            )
+            in READ_ONLY_NAVIGATION_KEYS
+        )
         for action in actions
     )
 

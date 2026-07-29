@@ -137,7 +137,7 @@ def test_workspace_approval_allowlist_rejects_communications_and_shutdown() -> N
     assert not approval_is_safe(shutdown, mutates_workspace=True)
 
 
-def test_read_only_campaign_can_approve_pointer_navigation_only() -> None:
+def test_read_only_campaign_approves_navigation_but_not_save_shortcut() -> None:
     click = {
         "approval_id": "approval-click",
         "risk": "local_file_edit",
@@ -157,6 +157,19 @@ def test_read_only_campaign_can_approve_pointer_navigation_only() -> None:
 
     assert approval_is_safe(click, mutates_workspace=False)
     assert not approval_is_safe(shortcut, mutates_workspace=False)
+
+
+def test_disposable_campaign_allows_bounded_navigation_keys() -> None:
+    enter = {
+        "approval_id": "approval-enter",
+        "risk": "unknown",
+        "reason": "bare Enter may commit the focused surface",
+        "proposed_action": {
+            "actions": [{"type": "key", "keys": ["ENTER"]}]
+        },
+    }
+
+    assert approval_is_safe(enter, mutates_workspace=False)
 
 
 def test_campaign_waits_while_an_approved_request_is_still_resolving() -> None:

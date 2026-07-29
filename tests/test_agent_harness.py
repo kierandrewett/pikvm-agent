@@ -341,6 +341,45 @@ class FailingVerifierProvider(ScriptedProvider):
         return await super().complete(request)
 
 
+class CorrectingVerifierProvider(ScriptedProvider):
+    def __init__(self) -> None:
+        super().__init__()
+        self.controller_calls = 0
+        self.verifier_calls = 0
+
+    async def complete(self, request: ModelRequest) -> ModelResponse:
+        if request.role == "controller":
+            self.controller_calls += 1
+            if self.controller_calls == 2:
+                self.requests.append(request)
+                return ModelResponse(
+                    provider=self.name,
+                    model="scripted-v1",
+                    data={
+                        "outcome": "act",
+                        "intent": "Correct the visibly mismatched text selection.",
+                        "actions": [{"type": "key", "keys": ["CTRL", "A"]}],
+                        "expected_evidence": [
+                            "The editor text is visibly selected for correction."
+                        ],
+                    },
+                )
+        if request.role == "verifier":
+            self.verifier_calls += 1
+            if self.verifier_calls == 1:
+                self.requests.append(request)
+                return ModelResponse(
+                    provider=self.name,
+                    model="scripted-v1",
+                    data={
+                        "verdict": "failed",
+                        "summary": "Typed text has the wrong letter case.",
+                        "evidence": ["Expected uppercase but observed lowercase."],
+                    },
+                )
+        return await super().complete(request)
+
+
 class InvalidThenRepairedControllerProvider(ScriptedProvider):
     def __init__(self) -> None:
         super().__init__()
@@ -3581,7 +3620,7 @@ async def test_continue_recovers_persisted_type_unverified_failure() -> None:
 
 
 @pytest.mark.asyncio
-async def test_verifier_failure_pauses_for_correction_instead_of_ending_run() -> None:
+async def test_verifier_failure_preserves_plan_for_a_faster_correction() -> None:
     provider = FailingVerifierProvider()
     computer = FakeComputer()
     harness = build_harness(provider, computer)
@@ -3589,11 +3628,12 @@ async def test_verifier_failure_pauses_for_correction_instead_of_ending_run() ->
     paused = await harness.start("Type hello world in the open editor.")
 
     assert paused.status is RunStatus.PAUSED
-    assert paused.plan is None
+    assert paused.plan is not None
     assert paused.next_action_index == 1
     assert paused.last_verification is not None
     assert paused.last_verification.verdict == "failed"
     assert paused.events[-1].kind == "verification.failed"
+    assert paused.events[-1].data["plan_reused"] is True
     verifier_prompt = next(
         request.prompt for request in provider.requests if request.role == "verifier"
     )
@@ -3602,6 +3642,21 @@ async def test_verifier_failure_pauses_for_correction_instead_of_ending_run() ->
     assert '"intent": "Type the requested text into the already-focused editor."' in (
         normalized_prompt
     )
+
+
+@pytest.mark.asyncio
+async def test_verifier_failure_correction_does_not_repeat_reasoning() -> None:
+    provider = CorrectingVerifierProvider()
+    computer = FakeComputer()
+    harness = build_harness(provider, computer)
+
+    paused = await harness.start("Type hello world in the open editor.")
+    completed = await harness.continue_run(paused.run_id)
+
+    assert paused.status is RunStatus.PAUSED
+    assert completed.status is RunStatus.COMPLETED
+    assert len(computer.bursts) == 2
+    assert sum(request.role == "reasoner" for request in provider.requests) == 1
 
 
 @pytest.mark.asyncio
