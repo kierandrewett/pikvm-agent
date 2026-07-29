@@ -2131,6 +2131,53 @@ async def test_auto_started_task_replans_after_failed_visual_verification(
     ]
 
 
+class ParallelDiscardAfterFailedVerificationHarness(FailedVerificationHarness):
+    async def continue_run(self, run_id: str) -> RunSnapshot:
+        run = await super().continue_run(run_id)
+        if run.status is RunStatus.PAUSED:
+            run.record(
+                "controller.parallel_discarded",
+                reason="verification did not authorize another action",
+                run_status="paused",
+                verification_verdict="failed",
+            )
+            await self.store.save(run)
+        return run
+
+
+@pytest.mark.asyncio
+async def test_parallel_bookkeeping_does_not_hide_failed_verification_resume(
+    tmp_path: Path,
+) -> None:
+    frame = tmp_path / "frame.jpg"
+    frame.write_bytes(b"frame")
+    store = InMemoryRunStore()
+    harness = ParallelDiscardAfterFailedVerificationHarness(store, frame)
+    app = create_harness_app(
+        harness=harness,  # type: ignore[arg-type]
+        store=store,
+        models=StubModels(),
+        access_token=TEST_ACCESS_TOKEN,
+        allowed_origins={"http://harness"},
+    )
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app),
+        base_url="http://harness",
+        headers={"authorization": f"Bearer {TEST_ACCESS_TOKEN}"},
+    ) as client:
+        await client.post(
+            "/api/runs",
+            json={"task": "Recover after parallel bookkeeping", "auto_start": True},
+        )
+        await asyncio.wait_for(harness.completed.wait(), timeout=1)
+
+    assert harness.calls == [
+        ("continue", "run_1"),
+        ("continue", "run_1"),
+    ]
+
+
 class StaleWorldHarness(StubHarness):
     def __init__(self, store: InMemoryRunStore, frame: Path) -> None:
         super().__init__(store, frame)

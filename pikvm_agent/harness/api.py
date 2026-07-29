@@ -125,6 +125,18 @@ def _autonomous_resume_reason(run: RunSnapshot) -> str | None:
     if run.status is not RunStatus.PAUSED or not run.events:
         return None
     event = run.events[-1]
+    if event.kind == "controller.parallel_discarded":
+        for candidate in reversed(run.events[-4:-1]):
+            if candidate.kind in _AUTONOMOUS_PAUSE_EVENTS:
+                return candidate.kind
+            if candidate.kind in {
+                "approval.required",
+                "run.aborted",
+                "run.blocked",
+                "run.paused",
+                "run.rejected",
+            }:
+                break
     if (
         event.kind == "action.stale_world_refreshed"
         and event.data.get("status") == "stale_world"
