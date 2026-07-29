@@ -29,9 +29,9 @@ TERMINAL_STATUSES = {"completed", "failed", "rejected", "blocked", "aborted"}
 CAMPAIGN_GUARD = """\
 This is one isolated acceptance task on a disposable Windows VM.
 Use the managed computer tools and visible Windows UI to perform the task.
-Begin from the surfaced Windows desktop. Launch any required app as a fresh
-instance with reliable keyboard navigation such as Win+R; do not hunt through
-restored taskbar windows or the Alt+Tab switcher.
+Begin from the surfaced Windows desktop. To launch an app, always use Win+R
+and type its executable; never use the bare Windows key, Start-menu clicks,
+taskbar icons, restored windows, or the Alt+Tab switcher.
 Do not use email, chat, social, cloud consoles, downloads, or external network
 services. Do not delete data. Any file mutation must remain strictly inside
 C:\\PiKVM-Harness\\workspace\\codex-50. Verify the result before finishing.
