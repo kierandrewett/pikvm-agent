@@ -17,6 +17,8 @@ from pikvm_agent.harness.showcase_runner import (
     HarnessCampaignClient,
     ShowcaseManifest,
     VncAdapter,
+    _merge_reboot_attempts,
+    _task_error_before_reboot,
     approval_disposition,
     approval_is_safe,
     load_showcase_manifest,
@@ -102,6 +104,30 @@ def test_campaign_writer_restores_existing_run_without_replacing_it(
     assert restored.task("task-1")["status"] == "running"
     assert restored.task("task-1")["run_id"] == "durable-run-7"
     assert restored.payload["current_run_id"] == "durable-run-7"
+
+
+def test_reboot_retry_preserves_task_error_and_prior_attempts() -> None:
+    record = {
+        "error": (
+            "task exceeded the campaign time limit; "
+            "reboot command did not produce a visible boot transition"
+        )
+    }
+
+    assert _task_error_before_reboot(record) == (
+        "task exceeded the campaign time limit"
+    )
+    assert _merge_reboot_attempts(
+        [{"attempt": 1, "transition_observed": False}],
+        [
+            {"attempt": 1, "transition_observed": False},
+            {"attempt": 2, "transition_observed": True},
+        ],
+    ) == [
+        {"attempt": 1, "transition_observed": False},
+        {"attempt": 2, "transition_observed": False},
+        {"attempt": 3, "transition_observed": True},
+    ]
 
 
 def test_workspace_approval_allowlist_rejects_communications_and_shutdown() -> None:

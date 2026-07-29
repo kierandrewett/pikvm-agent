@@ -96,6 +96,37 @@ def utc_now() -> str:
     return datetime.now(UTC).isoformat()
 
 
+def _task_error_before_reboot(record: dict[str, Any]) -> str | None:
+    task_error = record.get("task_error")
+    if task_error is not None:
+        return str(task_error) or None
+    error = str(record.get("error") or "")
+    for suffix in (
+        "; reboot command did not produce a visible boot transition",
+        "; reboot failed:",
+    ):
+        marker = error.find(suffix)
+        if marker >= 0:
+            error = error[:marker]
+            break
+    return error or None
+
+
+def _merge_reboot_attempts(
+    existing: list[dict[str, Any]],
+    latest: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    merged = [dict(attempt) for attempt in existing]
+    for attempt in latest:
+        merged.append(
+            {
+                **attempt,
+                "attempt": len(merged) + 1,
+            }
+        )
+    return merged
+
+
 class ShowcaseTaskSpec(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -206,6 +237,7 @@ class CampaignWriter:
                 "duration_ms": None,
                 "result": None,
                 "error": None,
+                "task_error": None,
                 "performance": None,
                 "approvals": [],
                 "recoveries": [],
@@ -734,12 +766,39 @@ async def run_showcase_campaign(
         for spec in manifest.tasks:
             record = writer.task(spec.task_id)
             record.setdefault("recoveries", [])
+            record.setdefault("task_error", _task_error_before_reboot(record))
             if (
                 record["status"] in {"passed", "failed"}
                 and record["reboot"]["status"] == "ready"
                 and record.get("recording")
             ):
                 continue
+            reboot_only = (
+                record["status"] in {"passed", "failed", "rebooting"}
+                and record["reboot"]["status"] != "ready"
+                and bool(record.get("run_id"))
+            )
+            existing_recording = (
+                writer.root / str(record["recording"])
+                if reboot_only and record.get("recording")
+                else None
+            )
+            existing_poster = (
+                writer.root / str(record["poster"])
+                if reboot_only and record.get("poster")
+                else None
+            )
+            preserve_recording = bool(
+                existing_recording is not None
+                and existing_recording.is_file()
+            )
+            prior_duration_ms = int(record.get("duration_ms") or 0)
+            prior_reboot_duration_ms = int(
+                record["reboot"].get("duration_ms") or 0
+            )
+            prior_reboot_attempts = list(
+                record["reboot"].get("attempts") or []
+            )
             task_started = time.monotonic()
             task_dir = writer.root / spec.task_id
             recorder = FrameRecorder(
@@ -748,16 +807,13 @@ async def run_showcase_campaign(
                 output_dir=task_dir,
                 interval_s=frame_interval_s,
             )
-            record["status"] = (
-                "rebooting"
-                if record["status"] == "rebooting"
-                else "running"
-            )
+            record["status"] = "rebooting" if reboot_only else "running"
             record["started_at"] = record.get("started_at") or utc_now()
             writer.payload["current_task_id"] = spec.task_id
             writer.payload["current_run_id"] = record.get("run_id")
             writer.flush()
-            await recorder.start()
+            if not preserve_recording:
+                await recorder.start()
             run_status = "failed"
             run_error: str | None = None
             try:
@@ -854,17 +910,21 @@ async def run_showcase_campaign(
                     record["performance"] = await harness.performance(run_id)
                     if run_status != "completed" and run_error is None:
                         run_error = str(run.get("error") or run_status)
+                    record["task_error"] = run_error
                 else:
                     run_status = str(
                         (record.get("result") or {}).get("status") or "failed"
                     )
-                    run_error = record.get("error")
+                    run_error = _task_error_before_reboot(record)
             except Exception as exc:  # noqa: BLE001 - retain failure evidence
                 run_error = f"{type(exc).__name__}: {exc}"
+                record["task_error"] = run_error
             record["status"] = "rebooting"
             record["error"] = run_error
             record["reboot"]["status"] = "running"
-            record["reboot"]["requested_at"] = utc_now()
+            record["reboot"]["requested_at"] = (
+                record["reboot"].get("requested_at") or utc_now()
+            )
             writer.flush()
             try:
                 reboot = await adapter.reboot_and_wait(
@@ -878,9 +938,14 @@ async def run_showcase_campaign(
                             else "failed"
                         ),
                         "ready_at": utc_now(),
-                        "duration_ms": reboot["duration_ms"],
+                        "duration_ms": (
+                            prior_reboot_duration_ms + reboot["duration_ms"]
+                        ),
                         "transition_observed": reboot["transition_observed"],
-                        "attempts": reboot["attempts"],
+                        "attempts": _merge_reboot_attempts(
+                            prior_reboot_attempts,
+                            reboot["attempts"],
+                        ),
                     }
                 )
                 writer.flush()
@@ -899,7 +964,10 @@ async def run_showcase_campaign(
                 run_error = (
                     f"{run_error}; " if run_error else ""
                 ) + f"reboot failed: {type(exc).__name__}: {exc}"
-            recording, poster = await recorder.stop()
+            if preserve_recording:
+                recording, poster = existing_recording, existing_poster
+            else:
+                recording, poster = await recorder.stop()
             record["recording"] = (
                 str(recording.relative_to(writer.root))
                 if recording is not None
@@ -910,7 +978,7 @@ async def run_showcase_campaign(
                 if poster is not None
                 else None
             )
-            record["duration_ms"] = round(
+            record["duration_ms"] = prior_duration_ms + round(
                 (time.monotonic() - task_started) * 1000
             )
             record["finished_at"] = utc_now()
