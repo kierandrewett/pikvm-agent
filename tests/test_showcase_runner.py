@@ -254,6 +254,60 @@ async def test_reboot_transition_accepts_a_console_resolution_change() -> None:
 
 
 @pytest.mark.asyncio
+async def test_reboot_transition_accepts_a_sustained_meaningful_frame_change() -> None:
+    baseline = Image.new("RGB", (1280, 800), "navy")
+    changed = Image.new("RGB", (1280, 800), "white")
+    baseline_buffer = BytesIO()
+    changed_buffer = BytesIO()
+    baseline.save(baseline_buffer, format="JPEG")
+    changed.save(changed_buffer, format="JPEG")
+    async with httpx.AsyncClient() as client:
+        adapter = VncAdapter(client, "http://127.0.0.1:48002")
+
+        async def changed_frame() -> bytes:
+            return changed_buffer.getvalue()
+
+        adapter.frame = changed_frame  # type: ignore[method-assign]
+        observed = await adapter._wait_for_boot_transition(
+            baseline=baseline_buffer.getvalue(),
+            timeout_s=2,
+        )
+
+    assert observed is True
+
+
+@pytest.mark.asyncio
+async def test_reboot_transition_rejects_a_transient_dialog_change() -> None:
+    baseline = Image.new("RGB", (1280, 800), "navy")
+    changed = Image.new("RGB", (1280, 800), "white")
+    baseline_buffer = BytesIO()
+    changed_buffer = BytesIO()
+    baseline.save(baseline_buffer, format="JPEG")
+    changed.save(changed_buffer, format="JPEG")
+    frames = iter(
+        (
+            changed_buffer.getvalue(),
+            changed_buffer.getvalue(),
+            baseline_buffer.getvalue(),
+            baseline_buffer.getvalue(),
+        )
+    )
+    async with httpx.AsyncClient() as client:
+        adapter = VncAdapter(client, "http://127.0.0.1:48002")
+
+        async def transient_frame() -> bytes:
+            return next(frames, baseline_buffer.getvalue())
+
+        adapter.frame = transient_frame  # type: ignore[method-assign]
+        observed = await adapter._wait_for_boot_transition(
+            baseline=baseline_buffer.getvalue(),
+            timeout_s=1.6,
+        )
+
+    assert observed is False
+
+
+@pytest.mark.asyncio
 async def test_same_run_recovery_uses_continue_without_creating_a_task() -> None:
     requests: list[httpx.Request] = []
 

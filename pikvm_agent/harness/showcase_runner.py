@@ -23,6 +23,8 @@ from PIL import Image, ImageStat
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from websockets.asyncio.client import connect as websocket_connect
 
+from pikvm_agent.vision.frame_diff import fingerprint, fp_meaningful_change
+
 TERMINAL_STATUSES = {"completed", "failed", "rejected", "blocked", "aborted"}
 CAMPAIGN_GUARD = """\
 This is one isolated acceptance task on a disposable Windows VM.
@@ -503,6 +505,8 @@ class VncAdapter:
     ) -> bool:
         baseline_image = Image.open(BytesIO(baseline))
         baseline_size = baseline_image.size
+        baseline_fingerprint = fingerprint(baseline)
+        meaningfully_changed_samples = 0
         deadline = time.monotonic() + timeout_s
         while time.monotonic() < deadline:
             try:
@@ -513,6 +517,15 @@ class VncAdapter:
                 image = source.convert("L")
                 if ImageStat.Stat(image).mean[0] < 7:
                     return True
+                if fp_meaningful_change(
+                    baseline_fingerprint,
+                    fingerprint(data),
+                ):
+                    meaningfully_changed_samples += 1
+                    if meaningfully_changed_samples >= 3:
+                        return True
+                else:
+                    meaningfully_changed_samples = 0
             except (httpx.HTTPError, OSError):
                 return True
             await asyncio.sleep(0.5)
