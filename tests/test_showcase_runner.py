@@ -276,6 +276,56 @@ def test_frame_recorder_encodes_browser_native_webm(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_reboot_replaces_any_existing_run_dialog_text(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    sent: list[dict[str, object]] = []
+    printed: list[str] = []
+
+    class Socket:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args: object) -> None:
+            return None
+
+        async def send(self, message: str) -> None:
+            sent.append(json.loads(message))
+
+    def connect(*_args: object, **_kwargs: object) -> Socket:
+        return Socket()
+
+    async def no_sleep(_seconds: float) -> None:
+        return None
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        printed.append(request.content.decode())
+        return httpx.Response(200)
+
+    monkeypatch.setattr(showcase_runner, "websocket_connect", connect)
+    monkeypatch.setattr(showcase_runner.asyncio, "sleep", no_sleep)
+    async with httpx.AsyncClient(
+        transport=httpx.MockTransport(handler)
+    ) as client:
+        await VncAdapter(client, "http://127.0.0.1:48002")._reboot()
+
+    key_events = [
+        item["event"]
+        for item in sent
+        if item.get("event_type") == "key"
+    ]
+    select_all = [
+        {"key": "ControlLeft", "state": True},
+        {"key": "KeyA", "state": True},
+        {"key": "KeyA", "state": False},
+        {"key": "ControlLeft", "state": False},
+    ]
+    start = key_events.index(select_all[0])
+    assert key_events[start : start + 4] == select_all
+    assert printed == ["shutdown /r /t 0 /f"]
+
+
+@pytest.mark.asyncio
 async def test_reboot_transition_accepts_a_console_resolution_change() -> None:
     baseline = Image.new("RGB", (1280, 800), "navy")
     changed = Image.new("RGB", (2048, 1280), "navy")

@@ -554,6 +554,20 @@ class VncAdapter:
                 )
             )
             await asyncio.sleep(0.8)
+            for key, state in (
+                ("ControlLeft", True),
+                ("KeyA", True),
+                ("KeyA", False),
+                ("ControlLeft", False),
+            ):
+                await socket.send(
+                    json.dumps(
+                        {
+                            "event_type": "key",
+                            "event": {"key": key, "state": state},
+                        }
+                    )
+                )
             response = await self.client.post(
                 f"{self.base_url}/api/hid/print",
                 content="shutdown /r /t 0 /f",
