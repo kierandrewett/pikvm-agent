@@ -38,7 +38,7 @@ def campaign_payload() -> dict[str, object]:
                 "prompt": "Describe the desktop.",
                 "status": "running",
                 "run_id": "run-1",
-                "recording": "screen-01/recording.mp4",
+                "recording": "screen-01/recording.webm",
                 "poster": "screen-01/poster.jpg",
             }
         ],
@@ -56,7 +56,7 @@ async def test_showcase_campaign_and_media_are_authenticated(tmp_path: Path) -> 
         json.dumps(campaign_payload()),
         encoding="utf-8",
     )
-    (task_dir / "recording.mp4").write_bytes(b"video")
+    (task_dir / "recording.webm").write_bytes(b"video")
     (task_dir / "poster.jpg").write_bytes(b"poster")
     store = InMemoryRunStore()
     app = create_harness_app(
@@ -88,6 +88,7 @@ async def test_showcase_campaign_and_media_are_authenticated(tmp_path: Path) -> 
     assert campaign.json()["current_run_id"] == "run-1"
     assert recording.status_code == 200
     assert recording.content == b"video"
+    assert recording.headers["content-type"] == "video/webm"
     assert recording.headers["cache-control"] == "no-store"
 
 

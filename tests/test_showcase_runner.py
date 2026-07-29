@@ -1,15 +1,21 @@
 from __future__ import annotations
 
 import json
+from io import BytesIO
 from pathlib import Path
 
+import httpx
+import pytest
+from PIL import Image
 from typer.testing import CliRunner
 
 from pikvm_agent.cli import app
 from pikvm_agent.harness import showcase_runner
 from pikvm_agent.harness.showcase_runner import (
     CampaignWriter,
+    FrameRecorder,
     ShowcaseManifest,
+    VncAdapter,
     approval_is_safe,
     load_showcase_manifest,
 )
@@ -179,3 +185,45 @@ tasks:
     assert result.exit_code == 0
     assert json.loads(result.stdout)["status"] == "completed"
     assert calls[0]["adapter_url"] == "http://127.0.0.1:48002"
+
+
+def test_frame_recorder_encodes_browser_native_webm(tmp_path: Path) -> None:
+    recorder = FrameRecorder(
+        client=None,  # type: ignore[arg-type]
+        frame_url="http://127.0.0.1/frame",
+        output_dir=tmp_path,
+        interval_s=0.5,
+    )
+    recorder.frames_dir.mkdir()
+    for index, color in enumerate(("navy", "white")):
+        Image.new("RGB", (320, 200), color).save(
+            recorder.frames_dir / f"frame-{index:06d}.jpg"
+        )
+
+    recorder._encode()
+
+    assert recorder.recording.suffix == ".webm"
+    assert recorder.recording.stat().st_size > 0
+
+
+@pytest.mark.asyncio
+async def test_reboot_transition_accepts_a_console_resolution_change() -> None:
+    baseline = Image.new("RGB", (1280, 800), "navy")
+    changed = Image.new("RGB", (2048, 1280), "navy")
+    baseline_buffer = BytesIO()
+    changed_buffer = BytesIO()
+    baseline.save(baseline_buffer, format="JPEG")
+    changed.save(changed_buffer, format="JPEG")
+    async with httpx.AsyncClient() as client:
+        adapter = VncAdapter(client, "http://127.0.0.1:48002")
+
+        async def changed_frame() -> bytes:
+            return changed_buffer.getvalue()
+
+        adapter.frame = changed_frame  # type: ignore[method-assign]
+        observed = await adapter._wait_for_boot_transition(
+            baseline=baseline_buffer.getvalue(),
+            timeout_s=1,
+        )
+
+    assert observed is True

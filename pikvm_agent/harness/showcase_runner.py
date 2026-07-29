@@ -249,7 +249,7 @@ class FrameRecorder:
         self.interval_s = interval_s
         self.frames_dir = output_dir / "frames"
         self.poster = output_dir / "poster.jpg"
-        self.recording = output_dir / "recording.mp4"
+        self.recording = output_dir / "recording.webm"
         self._stop = asyncio.Event()
         self._task: asyncio.Task[None] | None = None
         self._count = 0
@@ -279,7 +279,10 @@ class FrameRecorder:
             await self._task
         if self._count == 0:
             return None, self.poster if self.poster.is_file() else None
-        await asyncio.to_thread(self._encode)
+        try:
+            await asyncio.to_thread(self._encode)
+        except (OSError, subprocess.CalledProcessError):
+            return None, self.poster if self.poster.is_file() else None
         shutil.rmtree(self.frames_dir, ignore_errors=True)
         return (
             self.recording if self.recording.is_file() else None,
@@ -321,13 +324,15 @@ class FrameRecorder:
                 "-vf",
                 "scale=trunc(iw/2)*2:trunc(ih/2)*2,format=yuv420p",
                 "-c:v",
-                "libx264",
-                "-preset",
-                "veryfast",
+                "libvpx-vp9",
                 "-crf",
-                "28",
-                "-movflags",
-                "+faststart",
+                "36",
+                "-b:v",
+                "0",
+                "-deadline",
+                "realtime",
+                "-cpu-used",
+                "6",
                 str(self.recording),
             ],
             check=True,
@@ -390,9 +395,11 @@ class VncAdapter:
 
     async def reboot_and_wait(self, *, timeout_s: float) -> dict[str, Any]:
         started = time.monotonic()
+        baseline = await self.frame()
         await self._reboot()
         transition = await self._wait_for_boot_transition(
-            timeout_s=min(45, timeout_s / 2)
+            baseline=baseline,
+            timeout_s=min(45, timeout_s / 2),
         )
         ready = await self.wait_until_ready(
             timeout_s=max(10, timeout_s - (time.monotonic() - started)),
@@ -473,12 +480,22 @@ class VncAdapter:
                 )
             )
 
-    async def _wait_for_boot_transition(self, *, timeout_s: float) -> bool:
+    async def _wait_for_boot_transition(
+        self,
+        *,
+        baseline: bytes,
+        timeout_s: float,
+    ) -> bool:
+        baseline_image = Image.open(BytesIO(baseline))
+        baseline_size = baseline_image.size
         deadline = time.monotonic() + timeout_s
         while time.monotonic() < deadline:
             try:
                 data = await self.frame()
-                image = Image.open(BytesIO(data)).convert("L")
+                source = Image.open(BytesIO(data))
+                if source.size != baseline_size:
+                    return True
+                image = source.convert("L")
                 if ImageStat.Stat(image).mean[0] < 7:
                     return True
             except (httpx.HTTPError, OSError):
@@ -723,6 +740,7 @@ async def run_showcase_campaign(
                         "transition_observed": reboot["transition_observed"],
                     }
                 )
+                writer.flush()
                 if not reboot["transition_observed"]:
                     run_error = (
                         f"{run_error}; " if run_error else ""
@@ -734,6 +752,7 @@ async def run_showcase_campaign(
                         "ready_at": None,
                     }
                 )
+                writer.flush()
                 run_error = (
                     f"{run_error}; " if run_error else ""
                 ) + f"reboot failed: {type(exc).__name__}: {exc}"

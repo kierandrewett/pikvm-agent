@@ -836,7 +836,9 @@ def create_harness_app(
         return FileResponse(
             path,
             media_type=(
-                "video/mp4" if kind == "recording" else _image_mime(path)
+                _video_mime(path)
+                if kind == "recording"
+                else _image_mime(path)
             ),
             headers={"Cache-Control": "no-store"},
         )
@@ -1607,6 +1609,12 @@ def _image_mime(path: Path) -> str:
     if suffix == ".webp":
         return "image/webp"
     return "image/jpeg"
+
+
+def _video_mime(path: Path) -> str:
+    if path.suffix.lower() == ".webm":
+        return "video/webm"
+    return "video/mp4"
 
 
 def _verification_image_response(
