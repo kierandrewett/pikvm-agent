@@ -283,6 +283,8 @@ async def test_reboot_replaces_any_existing_run_dialog_text(
     printed: list[str] = []
 
     class Socket:
+        acknowledgement = 0
+
         async def __aenter__(self):
             return self
 
@@ -291,6 +293,15 @@ async def test_reboot_replaces_any_existing_run_dialog_text(
 
         async def send(self, message: str) -> None:
             sent.append(json.loads(message))
+            self.acknowledgement += 1
+
+        async def recv(self) -> str:
+            return json.dumps(
+                {
+                    "event_type": "lab_ack",
+                    "event": {"sequence": self.acknowledgement},
+                }
+            )
 
     def connect(*_args: object, **_kwargs: object) -> Socket:
         return Socket()

@@ -521,45 +521,7 @@ class VncAdapter:
             )
         )
         async with websocket_connect(websocket_url, open_timeout=10) as socket:
-            await socket.send(
-                json.dumps(
-                    {
-                        "event_type": "key",
-                        "event": {"key": "MetaLeft", "state": True},
-                    }
-                )
-            )
-            await socket.send(
-                json.dumps(
-                    {
-                        "event_type": "key",
-                        "event": {"key": "KeyR", "state": True},
-                    }
-                )
-            )
-            await socket.send(
-                json.dumps(
-                    {
-                        "event_type": "key",
-                        "event": {"key": "KeyR", "state": False},
-                    }
-                )
-            )
-            await socket.send(
-                json.dumps(
-                    {
-                        "event_type": "key",
-                        "event": {"key": "MetaLeft", "state": False},
-                    }
-                )
-            )
-            await asyncio.sleep(0.8)
-            for key, state in (
-                ("ControlLeft", True),
-                ("KeyA", True),
-                ("KeyA", False),
-                ("ControlLeft", False),
-            ):
+            async def send_key(key: str, state: bool) -> None:
                 await socket.send(
                     json.dumps(
                         {
@@ -568,28 +530,36 @@ class VncAdapter:
                         }
                     )
                 )
+                while True:
+                    response = json.loads(await socket.recv())
+                    if response.get("event_type") == "lab_ack":
+                        return
+
+            for key, state in (
+                ("Escape", True),
+                ("Escape", False),
+                ("MetaLeft", True),
+                ("KeyR", True),
+                ("KeyR", False),
+                ("MetaLeft", False),
+            ):
+                await send_key(key, state)
+            await asyncio.sleep(0.8)
+            for key, state in (
+                ("ControlLeft", True),
+                ("KeyA", True),
+                ("KeyA", False),
+                ("ControlLeft", False),
+            ):
+                await send_key(key, state)
             response = await self.client.post(
                 f"{self.base_url}/api/hid/print",
                 content="shutdown /r /t 0 /f",
             )
             response.raise_for_status()
             await asyncio.sleep(0.2)
-            await socket.send(
-                json.dumps(
-                    {
-                        "event_type": "key",
-                        "event": {"key": "Enter", "state": True},
-                    }
-                )
-            )
-            await socket.send(
-                json.dumps(
-                    {
-                        "event_type": "key",
-                        "event": {"key": "Enter", "state": False},
-                    }
-                )
-            )
+            await send_key("Enter", True)
+            await send_key("Enter", False)
 
     async def _wait_for_boot_transition(
         self,
