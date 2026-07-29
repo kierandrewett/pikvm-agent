@@ -17,6 +17,7 @@ import {
 import {
   ActivityIcon,
   BotIcon,
+  GalleryVerticalEndIcon,
   LogOutIcon,
   MenuIcon,
   MonitorIcon,
@@ -75,6 +76,11 @@ const ProviderConnectionsSheet = lazy(async () => {
     "@/components/workspace/provider-connections-sheet"
   );
   return { default: module.ProviderConnectionsSheet };
+});
+
+const ShowcaseSheet = lazy(async () => {
+  const module = await import("@/components/workspace/showcase-sheet");
+  return { default: module.ShowcaseSheet };
 });
 
 const useDeferredMount = (open: boolean) => {
@@ -163,9 +169,11 @@ export function WorkspaceShell() {
   const [modelsOpen, setModelsOpen] = useState(false);
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
   const [tasksOpen, setTasksOpen] = useState(false);
+  const [showcaseOpen, setShowcaseOpen] = useState(false);
   const computerMounted = useDeferredMount(computerOpen);
   const modelsMounted = useDeferredMount(modelsOpen);
   const diagnosticsMounted = useDeferredMount(diagnosticsOpen);
+  const showcaseMounted = useDeferredMount(showcaseOpen);
   const managedControl = usesManagedControlLoop(
     workspace.selectedRun?.origin,
   );
@@ -365,6 +373,14 @@ export function WorkspaceShell() {
                 <MonitorIcon />
               </TooltipIconButton>
               <TooltipIconButton
+                tooltip="Recorded proof"
+                aria-label="Open recorded task proof"
+                onClick={() => setShowcaseOpen(true)}
+                disabled={!workspace.connected}
+              >
+                <GalleryVerticalEndIcon />
+              </TooltipIconButton>
+              <TooltipIconButton
                 tooltip="Diagnostics"
                 aria-label="Open diagnostics"
                 onClick={() => setDiagnosticsOpen(true)}
@@ -495,6 +511,24 @@ export function WorkspaceShell() {
             open={diagnosticsOpen}
             onOpenChange={setDiagnosticsOpen}
             run={workspace.selectedRun}
+          />
+        </Suspense>
+      ) : null}
+      {showcaseMounted ? (
+        <Suspense
+          fallback={
+            <SheetLoading
+              open={showcaseOpen}
+              onOpenChange={setShowcaseOpen}
+              title="Recorded proof"
+              className="showcase-sheet"
+            />
+          }
+        >
+          <ShowcaseSheet
+            open={showcaseOpen}
+            onOpenChange={setShowcaseOpen}
+            token={workspace.token}
           />
         </Suspense>
       ) : null}

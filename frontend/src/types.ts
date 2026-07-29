@@ -35,6 +35,64 @@ export type ComputerConnection = {
   machineName: string;
 };
 
+export type ShowcaseTask = {
+  task_id: string;
+  title: string;
+  category: string;
+  prompt: string;
+  mutates_workspace: boolean;
+  status:
+    | "queued"
+    | "running"
+    | "rebooting"
+    | "passed"
+    | "failed";
+  run_id?: string | null;
+  started_at?: string | null;
+  finished_at?: string | null;
+  duration_ms?: number | null;
+  result?: {
+    status?: string;
+    error?: string | null;
+    event_count?: number;
+    active_activity?: Record<string, unknown> | null;
+  } | null;
+  error?: string | null;
+  performance?: Record<string, unknown> | null;
+  approvals?: Array<Record<string, unknown>>;
+  reboot: {
+    status: "pending" | "running" | "ready" | "failed";
+    requested_at?: string | null;
+    ready_at?: string | null;
+    duration_ms?: number | null;
+    transition_observed: boolean;
+  };
+  recording?: string | null;
+  poster?: string | null;
+};
+
+export type ShowcaseCampaign = {
+  schema_version: 1;
+  campaign_id: string;
+  title: string;
+  status: "queued" | "running" | "completed" | "failed";
+  model?: { provider?: string };
+  isolation?: {
+    reboot_after_every_task?: boolean;
+    ready_gate?: string;
+  };
+  total: number;
+  completed: number;
+  passed: number;
+  failed: number;
+  current_task_id?: string | null;
+  current_run_id?: string | null;
+  started_at?: string | null;
+  finished_at?: string | null;
+  updated_at: string;
+  tasks: ShowcaseTask[];
+};
+
 export type ModelRole = "reasoner" | "controller" | "verifier";
 
 export type ModelPreferences = Partial<Record<ModelRole, string>>;

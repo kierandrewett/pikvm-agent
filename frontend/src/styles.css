@@ -262,6 +262,100 @@ body,
     gap: 0;
   }
 
+  .showcase-sheet {
+    width: min(96vw, 96rem) !important;
+    max-width: none !important;
+    gap: 0;
+    overflow: hidden;
+  }
+
+  .showcase-header {
+    @apply flex min-h-14 shrink-0 flex-row items-center justify-between gap-4 border-b px-4 py-2 pr-12;
+  }
+
+  .showcase-summary {
+    @apply flex shrink-0 items-center gap-3 text-xs tabular-nums text-muted-foreground;
+  }
+
+  .showcase-loading {
+    @apply flex min-h-0 flex-1 flex-col items-center justify-center gap-5 p-8;
+  }
+
+  .showcase-empty {
+    @apply flex min-h-0 flex-1 flex-col items-center justify-center gap-2 px-8 text-center text-sm text-muted-foreground;
+  }
+
+  .showcase-layout {
+    @apply grid min-h-0 flex-1 grid-cols-[20rem_minmax(0,1fr)];
+  }
+
+  .showcase-task-list {
+    @apply min-h-0 overflow-y-auto border-r bg-sidebar py-1;
+  }
+
+  .showcase-task-row {
+    @apply flex w-full items-center gap-3 border-b border-transparent px-3 py-2.5 text-left outline-none transition-colors duration-150 hover:bg-accent/55 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring;
+  }
+
+  .showcase-task-row[data-selected="true"] {
+    @apply bg-accent text-accent-foreground;
+    box-shadow: inset 2px 0 var(--color-primary);
+  }
+
+  .showcase-task-number {
+    @apply font-mono text-[10px] tabular-nums text-muted-foreground;
+  }
+
+  .showcase-detail {
+    @apply min-h-0 overflow-y-auto bg-background;
+  }
+
+  .showcase-player {
+    @apply bg-black;
+  }
+
+  .showcase-player-bar {
+    @apply flex h-9 items-center justify-between border-b border-white/10 px-3 text-xs text-white/70;
+  }
+
+  .showcase-player-stage {
+    @apply flex aspect-video max-h-[68dvh] w-full items-center justify-center bg-black;
+  }
+
+  .showcase-player-stage img,
+  .showcase-player-stage video {
+    @apply block size-full object-contain;
+  }
+
+  .showcase-player-placeholder {
+    @apply flex size-full items-center justify-center px-8 text-center text-sm text-white/60;
+  }
+
+  .showcase-task-copy {
+    @apply mx-auto flex max-w-4xl flex-col gap-3 px-5 py-5 text-sm;
+  }
+
+  .showcase-task-copy > p {
+    @apply max-w-[72ch] leading-relaxed text-muted-foreground;
+    text-wrap: pretty;
+  }
+
+  .showcase-task-facts {
+    @apply flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground;
+  }
+
+  .showcase-task-facts > span {
+    @apply flex items-center gap-1.5;
+  }
+
+  .showcase-task-facts svg {
+    @apply size-3.5;
+  }
+
+  .showcase-task-error {
+    @apply rounded-md bg-destructive/10 px-3 py-2 text-destructive;
+  }
+
   .computer-action-list {
     counter-reset: computer-action;
   }
@@ -282,6 +376,26 @@ body,
 
     .aui-run-activity svg {
       animation: none;
+    }
+
+    .showcase-task-row,
+    .showcase-sheet [class*="animate-"] {
+      animation: none;
+      transition: none;
+    }
+  }
+
+  @media (max-width: 760px) {
+    .showcase-layout {
+      @apply grid-cols-1 grid-rows-[12rem_minmax(0,1fr)];
+    }
+
+    .showcase-task-list {
+      @apply border-r-0 border-b;
+    }
+
+    .showcase-summary {
+      @apply hidden;
     }
   }
 }
