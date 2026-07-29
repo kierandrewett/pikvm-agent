@@ -29,6 +29,9 @@ TERMINAL_STATUSES = {"completed", "failed", "rejected", "blocked", "aborted"}
 CAMPAIGN_GUARD = """\
 This is one isolated acceptance task on a disposable Windows VM.
 Use the managed computer tools and visible Windows UI to perform the task.
+Begin from the surfaced Windows desktop. Launch any required app as a fresh
+instance with reliable keyboard navigation such as Win+R; do not hunt through
+restored taskbar windows or the Alt+Tab switcher.
 Do not use email, chat, social, cloud consoles, downloads, or external network
 services. Do not delete data. Any file mutation must remain strictly inside
 C:\\PiKVM-Harness\\workspace\\codex-50. Verify the result before finishing.
@@ -262,6 +265,7 @@ class CampaignWriter:
             "model": {"provider": manifest.provider},
             "isolation": {
                 "reboot_after_every_task": True,
+                "desktop_surfaced_after_reboot": True,
                 "ready_gate": "stable non-blank Windows frame",
             },
             "total": len(manifest.tasks),
@@ -531,6 +535,16 @@ class VncAdapter:
             )
             if transition:
                 break
+        if attempts and attempts[-1]["transition_observed"]:
+            await self.show_desktop()
+            ready = await self.wait_until_ready(
+                timeout_s=max(
+                    10,
+                    timeout_s - (time.monotonic() - started),
+                ),
+                stable_s=2,
+            )
+            attempts[-1]["ready_frame_sha256"] = ready["frame_sha256"]
         return {
             **ready,
             "transition_observed": bool(
@@ -539,6 +553,56 @@ class VncAdapter:
             "duration_ms": round((time.monotonic() - started) * 1000),
             "attempts": attempts,
         }
+
+    async def show_desktop(self) -> None:
+        parsed = urlparse(self.base_url)
+        websocket_url = urlunparse(
+            (
+                "wss" if parsed.scheme == "https" else "ws",
+                parsed.netloc,
+                "/api/ws",
+                "",
+                "",
+                "",
+            )
+        )
+        async with websocket_connect(websocket_url, open_timeout=10) as socket:
+            acknowledgement = 0
+
+            async def send_key(key: str, state: bool) -> None:
+                nonlocal acknowledgement
+                acknowledgement += 1
+                await socket.send(
+                    json.dumps(
+                        {
+                            "event_type": "key",
+                            "event": {"key": key, "state": state},
+                        }
+                    )
+                )
+                while True:
+                    response = json.loads(await socket.recv())
+                    if (
+                        response.get("event_type") == "lab_ack"
+                        and int(
+                            (response.get("event") or {}).get(
+                                "sequence",
+                                acknowledgement,
+                            )
+                        )
+                        >= acknowledgement
+                    ):
+                        return
+
+            for key, state in (
+                ("Escape", True),
+                ("Escape", False),
+                ("MetaLeft", True),
+                ("KeyD", True),
+                ("KeyD", False),
+                ("MetaLeft", False),
+            ):
+                await send_key(key, state)
 
     async def _reboot(self) -> None:
         parsed = urlparse(self.base_url)
@@ -763,6 +827,11 @@ async def run_showcase_campaign(
         )
         adapter = VncAdapter(client, adapter_url)
         await adapter.wait_until_ready(timeout_s=reboot_timeout_s)
+        await adapter.show_desktop()
+        await adapter.wait_until_ready(
+            timeout_s=reboot_timeout_s,
+            stable_s=2,
+        )
         for spec in manifest.tasks:
             record = writer.task(spec.task_id)
             record.setdefault("recoveries", [])

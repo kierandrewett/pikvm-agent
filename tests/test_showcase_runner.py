@@ -363,6 +363,53 @@ async def test_reboot_replaces_any_existing_run_dialog_text(
 
 
 @pytest.mark.asyncio
+async def test_show_desktop_acknowledges_each_key_event(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    sent: list[dict[str, object]] = []
+
+    class Socket:
+        acknowledgement = 0
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args: object) -> None:
+            return None
+
+        async def send(self, message: str) -> None:
+            sent.append(json.loads(message))
+            self.acknowledgement += 1
+
+        async def recv(self) -> str:
+            return json.dumps(
+                {
+                    "event_type": "lab_ack",
+                    "event": {"sequence": self.acknowledgement},
+                }
+            )
+
+    def connect(*_args: object, **_kwargs: object) -> Socket:
+        return Socket()
+
+    monkeypatch.setattr(showcase_runner, "websocket_connect", connect)
+    async with httpx.AsyncClient() as client:
+        await VncAdapter(
+            client,
+            "http://127.0.0.1:48002",
+        ).show_desktop()
+
+    assert [item["event"] for item in sent] == [
+        {"key": "Escape", "state": True},
+        {"key": "Escape", "state": False},
+        {"key": "MetaLeft", "state": True},
+        {"key": "KeyD", "state": True},
+        {"key": "KeyD", "state": False},
+        {"key": "MetaLeft", "state": False},
+    ]
+
+
+@pytest.mark.asyncio
 async def test_reboot_transition_accepts_a_console_resolution_change() -> None:
     baseline = Image.new("RGB", (1280, 800), "navy")
     changed = Image.new("RGB", (2048, 1280), "navy")
@@ -467,10 +514,14 @@ async def test_reboot_retries_until_a_transition_is_proven() -> None:
                 "samples": 8,
             }
 
+        async def show_desktop() -> None:
+            return None
+
         adapter.frame = current_frame  # type: ignore[method-assign]
         adapter._reboot = reboot  # type: ignore[method-assign]
         adapter._wait_for_boot_transition = transition  # type: ignore[method-assign]
         adapter.wait_until_ready = ready  # type: ignore[method-assign]
+        adapter.show_desktop = show_desktop  # type: ignore[method-assign]
         result = await adapter.reboot_and_wait(timeout_s=30)
 
     assert reboot_calls == 2
