@@ -1575,6 +1575,7 @@ def harness_showcase_run(
     ),
 ) -> None:
     """Run Codex tasks one-by-one, record them, and reboot after every task."""
+    import asyncio
     import json
 
     from pikvm_agent.harness.showcase_runner import run_showcase_campaign
