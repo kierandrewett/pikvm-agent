@@ -66,6 +66,12 @@ export type ShowcaseTask = {
     ready_at?: string | null;
     duration_ms?: number | null;
     transition_observed: boolean;
+    attempts?: Array<{
+      attempt: number;
+      duration_ms: number;
+      transition_observed: boolean;
+      ready_frame_sha256: string;
+    }>;
   };
   recording?: string | null;
   poster?: string | null;

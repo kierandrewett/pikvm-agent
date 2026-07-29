@@ -309,6 +309,48 @@ async def test_reboot_transition_rejects_a_transient_dialog_change() -> None:
 
 
 @pytest.mark.asyncio
+async def test_reboot_retries_until_a_transition_is_proven() -> None:
+    frame = Image.new("RGB", (1280, 800), "navy")
+    buffer = BytesIO()
+    frame.save(buffer, format="JPEG")
+    transitions = iter((False, True))
+    reboot_calls = 0
+    async with httpx.AsyncClient() as client:
+        adapter = VncAdapter(client, "http://127.0.0.1:48002")
+
+        async def current_frame() -> bytes:
+            return buffer.getvalue()
+
+        async def reboot() -> None:
+            nonlocal reboot_calls
+            reboot_calls += 1
+
+        async def transition(**_kwargs) -> bool:
+            return next(transitions)
+
+        async def ready(**_kwargs):
+            return {
+                "ready": True,
+                "frame_sha256": "f" * 64,
+                "luminance": 20,
+                "samples": 8,
+            }
+
+        adapter.frame = current_frame  # type: ignore[method-assign]
+        adapter._reboot = reboot  # type: ignore[method-assign]
+        adapter._wait_for_boot_transition = transition  # type: ignore[method-assign]
+        adapter.wait_until_ready = ready  # type: ignore[method-assign]
+        result = await adapter.reboot_and_wait(timeout_s=30)
+
+    assert reboot_calls == 2
+    assert result["transition_observed"] is True
+    assert [attempt["transition_observed"] for attempt in result["attempts"]] == [
+        False,
+        True,
+    ]
+
+
+@pytest.mark.asyncio
 async def test_same_run_recovery_uses_continue_without_creating_a_task() -> None:
     requests: list[httpx.Request] = []
 

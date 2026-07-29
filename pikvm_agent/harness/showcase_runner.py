@@ -163,6 +163,7 @@ class CampaignWriter:
                     "ready_at": None,
                     "duration_ms": None,
                     "transition_observed": False,
+                    "attempts": [],
                 },
                 "recording": None,
                 "poster": None,
@@ -410,22 +411,49 @@ class VncAdapter:
             await asyncio.sleep(1)
         raise TimeoutError("Windows did not reach a stable non-blank frame")
 
-    async def reboot_and_wait(self, *, timeout_s: float) -> dict[str, Any]:
+    async def reboot_and_wait(
+        self,
+        *,
+        timeout_s: float,
+        max_attempts: int = 2,
+    ) -> dict[str, Any]:
         started = time.monotonic()
-        baseline = await self.frame()
-        await self._reboot()
-        transition = await self._wait_for_boot_transition(
-            baseline=baseline,
-            timeout_s=min(45, timeout_s / 2),
-        )
-        ready = await self.wait_until_ready(
-            timeout_s=max(10, timeout_s - (time.monotonic() - started)),
-            stable_s=8,
-        )
+        attempts: list[dict[str, Any]] = []
+        ready: dict[str, Any] = {}
+        for attempt in range(1, max_attempts + 1):
+            attempt_started = time.monotonic()
+            baseline = await self.frame()
+            await self._reboot()
+            transition = await self._wait_for_boot_transition(
+                baseline=baseline,
+                timeout_s=min(45, timeout_s / 2),
+            )
+            ready = await self.wait_until_ready(
+                timeout_s=max(
+                    10,
+                    timeout_s - (time.monotonic() - attempt_started),
+                ),
+                stable_s=8,
+            )
+            attempts.append(
+                {
+                    "attempt": attempt,
+                    "duration_ms": round(
+                        (time.monotonic() - attempt_started) * 1000
+                    ),
+                    "transition_observed": transition,
+                    "ready_frame_sha256": ready["frame_sha256"],
+                }
+            )
+            if transition:
+                break
         return {
             **ready,
-            "transition_observed": transition,
+            "transition_observed": bool(
+                attempts and attempts[-1]["transition_observed"]
+            ),
             "duration_ms": round((time.monotonic() - started) * 1000),
+            "attempts": attempts,
         }
 
     async def _reboot(self) -> None:
@@ -810,10 +838,15 @@ async def run_showcase_campaign(
                 )
                 record["reboot"].update(
                     {
-                        "status": "ready",
+                        "status": (
+                            "ready"
+                            if reboot["transition_observed"]
+                            else "failed"
+                        ),
                         "ready_at": utc_now(),
                         "duration_ms": reboot["duration_ms"],
                         "transition_observed": reboot["transition_observed"],
+                        "attempts": reboot["attempts"],
                     }
                 )
                 writer.flush()
