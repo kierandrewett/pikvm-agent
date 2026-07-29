@@ -128,7 +128,31 @@ class CampaignWriter:
         self.root = root / manifest.campaign_id
         self.path = self.root / "campaign.json"
         self.root.mkdir(parents=True, exist_ok=True)
-        self.payload: dict[str, Any] = {
+        expected_tasks = [
+            {
+                **task.model_dump(mode="json"),
+                "status": "queued",
+                "run_id": None,
+                "started_at": None,
+                "finished_at": None,
+                "duration_ms": None,
+                "result": None,
+                "error": None,
+                "performance": None,
+                "approvals": [],
+                "reboot": {
+                    "status": "pending",
+                    "requested_at": None,
+                    "ready_at": None,
+                    "duration_ms": None,
+                    "transition_observed": False,
+                },
+                "recording": None,
+                "poster": None,
+            }
+            for task in manifest.tasks
+        ]
+        initial: dict[str, Any] = {
             "schema_version": 1,
             "campaign_id": manifest.campaign_id,
             "title": manifest.title,
@@ -147,31 +171,38 @@ class CampaignWriter:
             "started_at": None,
             "finished_at": None,
             "updated_at": utc_now(),
-            "tasks": [
-                {
-                    **task.model_dump(mode="json"),
-                    "status": "queued",
-                    "run_id": None,
-                    "started_at": None,
-                    "finished_at": None,
-                    "duration_ms": None,
-                    "result": None,
-                    "error": None,
-                    "performance": None,
-                    "approvals": [],
-                    "reboot": {
-                        "status": "pending",
-                        "requested_at": None,
-                        "ready_at": None,
-                        "duration_ms": None,
-                        "transition_observed": False,
-                    },
-                    "recording": None,
-                    "poster": None,
-                }
-                for task in manifest.tasks
-            ],
+            "tasks": expected_tasks,
         }
+        if self.path.is_file():
+            existing = json.loads(self.path.read_text(encoding="utf-8"))
+            existing_identity = [
+                (
+                    task.get("task_id"),
+                    task.get("title"),
+                    task.get("prompt"),
+                    task.get("mutates_workspace"),
+                )
+                for task in existing.get("tasks", [])
+            ]
+            expected_identity = [
+                (
+                    task["task_id"],
+                    task["title"],
+                    task["prompt"],
+                    task["mutates_workspace"],
+                )
+                for task in expected_tasks
+            ]
+            if (
+                existing.get("campaign_id") != manifest.campaign_id
+                or existing_identity != expected_identity
+            ):
+                raise ValueError(
+                    "existing campaign does not match the supplied manifest"
+                )
+            self.payload = existing
+        else:
+            self.payload = initial
         self.flush()
 
     def task(self, task_id: str) -> dict[str, Any]:
@@ -182,6 +213,18 @@ class CampaignWriter:
         )
 
     def flush(self) -> None:
+        self.payload["completed"] = sum(
+            task["status"] in {"passed", "failed"}
+            for task in self.payload["tasks"]
+        )
+        self.payload["passed"] = sum(
+            task["status"] == "passed"
+            for task in self.payload["tasks"]
+        )
+        self.payload["failed"] = sum(
+            task["status"] == "failed"
+            for task in self.payload["tasks"]
+        )
         self.payload["updated_at"] = utc_now()
         temporary = self.path.with_suffix(".json.tmp")
         temporary.write_text(
@@ -214,6 +257,9 @@ class FrameRecorder:
     async def start(self) -> None:
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.frames_dir.mkdir(parents=True, exist_ok=True)
+        existing = sorted(self.frames_dir.glob("frame-*.jpg"))
+        if existing:
+            self._count = int(existing[-1].stem.rsplit("-", 1)[-1]) + 1
         self._task = asyncio.create_task(self._record())
 
     async def capture_poster(self) -> bool:
@@ -544,7 +590,8 @@ async def run_showcase_campaign(
     manifest = load_showcase_manifest(manifest_path)
     writer = CampaignWriter(manifest, output_root)
     writer.payload["status"] = "running"
-    writer.payload["started_at"] = utc_now()
+    writer.payload["started_at"] = writer.payload.get("started_at") or utc_now()
+    writer.payload["finished_at"] = None
     writer.flush()
     limits = httpx.Limits(max_connections=8, max_keepalive_connections=4)
     timeout = httpx.Timeout(30, connect=10)
@@ -560,6 +607,12 @@ async def run_showcase_campaign(
         await adapter.wait_until_ready(timeout_s=reboot_timeout_s)
         for spec in manifest.tasks:
             record = writer.task(spec.task_id)
+            if (
+                record["status"] in {"passed", "failed"}
+                and record["reboot"]["status"] == "ready"
+                and record.get("recording")
+            ):
+                continue
             task_started = time.monotonic()
             task_dir = writer.root / spec.task_id
             recorder = FrameRecorder(
@@ -568,70 +621,89 @@ async def run_showcase_campaign(
                 output_dir=task_dir,
                 interval_s=frame_interval_s,
             )
-            record["status"] = "running"
-            record["started_at"] = utc_now()
+            record["status"] = (
+                "rebooting"
+                if record["status"] == "rebooting"
+                else "running"
+            )
+            record["started_at"] = record.get("started_at") or utc_now()
             writer.payload["current_task_id"] = spec.task_id
+            writer.payload["current_run_id"] = record.get("run_id")
             writer.flush()
             await recorder.start()
             run_status = "failed"
             run_error: str | None = None
             try:
-                run = await harness.create(spec, manifest.provider)
-                run_id = str(run["run_id"])
-                record["run_id"] = run_id
-                writer.payload["current_run_id"] = run_id
-                writer.flush()
-                deadline = time.monotonic() + task_timeout_s
-                approved_ids: set[str] = set()
-                while time.monotonic() < deadline:
-                    run = await harness.get(run_id)
-                    run_status = str(run.get("status") or "")
-                    record["result"] = {
-                        "status": run_status,
-                        "error": run.get("error"),
-                        "event_count": run.get("event_count"),
-                        "active_activity": run.get("active_activity"),
+                run_id = str(record.get("run_id") or "")
+                if record["status"] != "rebooting":
+                    if run_id:
+                        run = await harness.get(run_id)
+                    else:
+                        run = await harness.create(spec, manifest.provider)
+                        run_id = str(run["run_id"])
+                        record["run_id"] = run_id
+                        writer.payload["current_run_id"] = run_id
+                        writer.flush()
+                    deadline = time.monotonic() + task_timeout_s
+                    approved_ids = {
+                        str(approval.get("approval_id") or "")
+                        for approval in record["approvals"]
                     }
-                    writer.flush()
-                    if run_status in TERMINAL_STATUSES:
-                        break
-                    if run_status == "needs_approval":
-                        pending = run.get("pending_approval")
-                        approval_id = (
-                            str(pending.get("approval_id") or "")
-                            if isinstance(pending, dict)
-                            else ""
-                        )
-                        if (
-                            approval_id
-                            and approval_id not in approved_ids
-                            and approval_is_safe(
-                                pending,
-                                mutates_workspace=spec.mutates_workspace,
-                            )
-                        ):
-                            await harness.approve(run_id, approval_id)
-                            approved_ids.add(approval_id)
-                            record["approvals"].append(
-                                {
-                                    "approval_id": approval_id,
-                                    "approved_at": utc_now(),
-                                    "scope": "bounded_workspace_edit",
-                                }
-                            )
-                            writer.flush()
-                        else:
-                            run_error = (
-                                "campaign stopped at a non-allowlisted approval"
-                            )
+                    while time.monotonic() < deadline:
+                        run = await harness.get(run_id)
+                        run_status = str(run.get("status") or "")
+                        record["result"] = {
+                            "status": run_status,
+                            "error": run.get("error"),
+                            "event_count": run.get("event_count"),
+                            "active_activity": run.get("active_activity"),
+                        }
+                        writer.flush()
+                        if run_status in TERMINAL_STATUSES:
                             break
-                    await asyncio.sleep(0.75)
+                        if run_status == "needs_approval":
+                            pending = run.get("pending_approval")
+                            approval_id = (
+                                str(pending.get("approval_id") or "")
+                                if isinstance(pending, dict)
+                                else ""
+                            )
+                            if (
+                                approval_id
+                                and approval_id not in approved_ids
+                                and approval_is_safe(
+                                    pending,
+                                    mutates_workspace=spec.mutates_workspace,
+                                )
+                            ):
+                                await harness.approve(run_id, approval_id)
+                                approved_ids.add(approval_id)
+                                record["approvals"].append(
+                                    {
+                                        "approval_id": approval_id,
+                                        "approved_at": utc_now(),
+                                        "scope": "bounded_workspace_edit",
+                                    }
+                                )
+                                writer.flush()
+                            else:
+                                run_error = (
+                                    "campaign stopped at a non-allowlisted "
+                                    "approval"
+                                )
+                                break
+                        await asyncio.sleep(0.75)
+                    else:
+                        run_error = "task exceeded the campaign time limit"
+                    await recorder.capture_poster()
+                    record["performance"] = await harness.performance(run_id)
+                    if run_status != "completed" and run_error is None:
+                        run_error = str(run.get("error") or run_status)
                 else:
-                    run_error = "task exceeded the campaign time limit"
-                await recorder.capture_poster()
-                record["performance"] = await harness.performance(run_id)
-                if run_status != "completed" and run_error is None:
-                    run_error = str(run.get("error") or run_status)
+                    run_status = str(
+                        (record.get("result") or {}).get("status") or "failed"
+                    )
+                    run_error = record.get("error")
             except Exception as exc:  # noqa: BLE001 - retain failure evidence
                 run_error = f"{type(exc).__name__}: {exc}"
             record["status"] = "rebooting"
@@ -688,8 +760,6 @@ async def run_showcase_campaign(
             )
             record["status"] = "passed" if passed else "failed"
             record["error"] = run_error
-            writer.payload["completed"] += 1
-            writer.payload["passed" if passed else "failed"] += 1
             writer.payload["current_task_id"] = None
             writer.payload["current_run_id"] = None
             writer.flush()

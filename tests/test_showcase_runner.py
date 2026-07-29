@@ -58,6 +58,39 @@ def test_campaign_writer_declares_reboot_isolation_before_first_task(
     assert not writer.path.with_suffix(".json.tmp").exists()
 
 
+def test_campaign_writer_restores_existing_run_without_replacing_it(
+    tmp_path: Path,
+) -> None:
+    manifest = ShowcaseManifest.model_validate(
+        {
+            "schema_version": 1,
+            "campaign_id": "campaign-1",
+            "title": "One task",
+            "provider": "codex-fast",
+            "tasks": [
+                {
+                    "task_id": "task-1",
+                    "title": "Observe",
+                    "category": "Observation",
+                    "prompt": "Describe the desktop.",
+                }
+            ],
+        }
+    )
+    first = CampaignWriter(manifest, tmp_path)
+    first.task("task-1")["status"] = "running"
+    first.task("task-1")["run_id"] = "durable-run-7"
+    first.payload["current_task_id"] = "task-1"
+    first.payload["current_run_id"] = "durable-run-7"
+    first.flush()
+
+    restored = CampaignWriter(manifest, tmp_path)
+
+    assert restored.task("task-1")["status"] == "running"
+    assert restored.task("task-1")["run_id"] == "durable-run-7"
+    assert restored.payload["current_run_id"] == "durable-run-7"
+
+
 def test_workspace_approval_allowlist_rejects_communications_and_shutdown() -> None:
     local_edit = {
         "approval_id": "approval-1",
