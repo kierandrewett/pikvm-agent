@@ -1,0 +1,243 @@
+schema_version: 1
+campaign_id: codex-windows-50
+title: 50 real Codex tasks on a clean Windows VM
+provider: codex-fast
+tasks:
+  - task_id: observe-01
+    title: Describe the clean desktop
+    category: Observation
+    prompt: Describe what is currently visible on the Windows desktop, including the active window and visible taskbar applications. Do not change anything.
+  - task_id: observe-02
+    title: Report the Windows edition
+    category: Observation
+    prompt: Open the Windows About settings page and report the Windows edition, version, and OS build shown. Do not change any setting.
+  - task_id: observe-03
+    title: Report display configuration
+    category: Observation
+    prompt: Open Display settings and report the selected display resolution, scale, and orientation. Do not change any setting.
+  - task_id: observe-04
+    title: Read CPU and memory summary
+    category: Observation
+    prompt: Open Task Manager's Performance view and report the CPU model, logical processor count, and installed memory shown. Do not end any process.
+  - task_id: observe-05
+    title: Read local drive capacity
+    category: Observation
+    prompt: Open File Explorer to This PC and report the visible local drive names and their displayed free-space values. Do not change any files.
+  - task_id: calc-01
+    title: Multiply 37 by 19
+    category: Calculator
+    prompt: Use Windows Calculator to compute 37 multiplied by 19. Leave the exact result visible and report it.
+  - task_id: calc-02
+    title: Evaluate a mixed expression
+    category: Calculator
+    prompt: Use Windows Calculator to compute 144 divided by 12, then add 7. Leave the exact result visible and report it.
+  - task_id: calc-03
+    title: Find a square root
+    category: Calculator
+    prompt: Use Windows Calculator to find the square root of 2025. Leave the exact result visible and report it.
+  - task_id: calc-04
+    title: Calculate a percentage
+    category: Calculator
+    prompt: Use Windows Calculator to calculate 17.5 percent of 864. Leave the exact result visible and report it.
+  - task_id: calc-05
+    title: Compute a power
+    category: Calculator
+    prompt: Use Windows Calculator to compute 13 to the power of 4. Leave the exact result visible and report it.
+  - task_id: calc-06
+    title: Subtract decimal values
+    category: Calculator
+    prompt: Use Windows Calculator to compute 1000.25 minus 378.49. Leave the exact result visible and report it.
+  - task_id: calc-07
+    title: Evaluate chained arithmetic
+    category: Calculator
+    prompt: Use Windows Calculator to compute 88 plus 12, multiply that result by 4, then divide by 5. Leave the exact result visible and report it.
+  - task_id: calc-08
+    title: Convert kilometres to miles
+    category: Calculator
+    prompt: Use Windows Calculator's unit conversion to convert 42 kilometres to miles. Leave the converted value visible and report it.
+  - task_id: calc-09
+    title: Convert Celsius to Fahrenheit
+    category: Calculator
+    prompt: Use Windows Calculator's temperature converter to convert 23 degrees Celsius to Fahrenheit. Leave the converted value visible and report it.
+  - task_id: calc-10
+    title: Compute a reciprocal
+    category: Calculator
+    prompt: Use Windows Calculator to compute the reciprocal of 64. Leave the exact result visible and report it.
+  - task_id: text-01
+    title: Save a short exact sentence
+    category: Text entry
+    mutates_workspace: true
+    prompt: In Notepad, type exactly `Reliable automation starts with observable evidence.` and save it as C:\PiKVM-Harness\workspace\codex-50\text-01.txt. Reopen the file and verify the sentence is exact.
+  - task_id: text-02
+    title: Preserve punctuation
+    category: Text entry
+    mutates_workspace: true
+    prompt: In Notepad, type exactly `Wait—did the agent type “smart quotes”, commas, and semicolons correctly? Yes.` and save it as C:\PiKVM-Harness\workspace\codex-50\text-02.txt. Reopen it and verify the text.
+  - task_id: text-03
+    title: Preserve two paragraphs
+    category: Text entry
+    mutates_workspace: true
+    prompt: >-
+      In Notepad, create C:\PiKVM-Harness\workspace\codex-50\text-03.txt with exactly two paragraphs. First paragraph: `A useful computer agent works quickly, but speed without evidence is guesswork.` Second paragraph: `Every action should be visible, attributable, and independently checkable.` Put one blank line between them, reopen the file, and verify it.
+  - task_id: text-04
+    title: Type a numbered checklist
+    category: Text entry
+    mutates_workspace: true
+    prompt: >-
+      In Notepad, create C:\PiKVM-Harness\workspace\codex-50\text-04.txt with these exact lines: `1. Observe` then `2. Act` then `3. Verify` then `4. Record`. Reopen it and verify all four lines.
+  - task_id: text-05
+    title: Type symbols and paths
+    category: Text entry
+    mutates_workspace: true
+    prompt: In Notepad, type exactly `Path=C:\PiKVM-Harness\workspace; threshold=99.95%; flags=[safe, fast, visible]` and save it as C:\PiKVM-Harness\workspace\codex-50\text-05.txt. Reopen it and verify every symbol.
+  - task_id: text-06
+    title: Type a Shakespeare paragraph
+    category: Text entry
+    mutates_workspace: true
+    prompt: In Notepad, write one original paragraph of 120 to 160 words explaining how ambition drives Macbeth's choices. Save it as C:\PiKVM-Harness\workspace\codex-50\text-06-macbeth.txt, reopen it, and confirm it is complete.
+  - task_id: text-07
+    title: Type a concise product brief
+    category: Text entry
+    mutates_workspace: true
+    prompt: In Notepad, write a concise product brief of 150 to 200 words for a transparent remote-computer agent. Include the headings `Problem`, `Users`, `Promise`, and `Proof`. Save it as C:\PiKVM-Harness\workspace\codex-50\text-07-brief.txt and verify the saved file.
+  - task_id: text-08
+    title: Type repeated whitespace safely
+    category: Text entry
+    mutates_workspace: true
+    prompt: >-
+      In Notepad, create C:\PiKVM-Harness\workspace\codex-50\text-08-spacing.txt containing exactly three lines: `alpha  beta` with two spaces, `gamma   delta` with three spaces, and `epsilon    zeta` with four spaces. Reopen it and verify the spacing visually.
+  - task_id: text-09
+    title: Type a CSV sample
+    category: Text entry
+    mutates_workspace: true
+    prompt: In Notepad, create C:\PiKVM-Harness\workspace\codex-50\text-09.csv with the header `quarter,revenue,cost` and rows `Q1,120000,84000`, `Q2,135000,91000`, `Q3,148000,96000`, and `Q4,162000,101000`. Reopen it and verify all values.
+  - task_id: text-10
+    title: Type a long exact payload
+    category: Text entry
+    mutates_workspace: true
+    prompt: In Notepad, type exactly `The quick brown fox jumps over the lazy dog. Pack my box with five dozen liquor jugs. Sphinx of black quartz, judge my vow. 0123456789 ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz.` and save it as C:\PiKVM-Harness\workspace\codex-50\text-10-exact.txt. Reopen it and verify the entire payload.
+  - task_id: code-01
+    title: Write a Python FizzBuzz function
+    category: Code entry
+    mutates_workspace: true
+    prompt: In Notepad, write a valid Python function named fizzbuzz(limit) that returns a list using Fizz, Buzz, and FizzBuzz rules. Save it as C:\PiKVM-Harness\workspace\codex-50\code-01.py. Reopen it and visually check indentation and punctuation.
+  - task_id: code-02
+    title: Write structured JSON
+    category: Code entry
+    mutates_workspace: true
+    prompt: In Notepad, create valid JSON at C:\PiKVM-Harness\workspace\codex-50\code-02.json with keys `name`, `enabled`, `retries`, and `models`; use values `pikvm-agent`, true, 3, and an array containing `reasoner`, `controller`, and `verifier`. Reopen it and verify the JSON.
+  - task_id: code-03
+    title: Write a PowerShell function
+    category: Code entry
+    mutates_workspace: true
+    prompt: In Notepad, write a PowerShell function Get-FileDigest that accepts a mandatory Path parameter and returns Get-FileHash -Algorithm SHA256 for that path. Save it as C:\PiKVM-Harness\workspace\codex-50\code-03.ps1 and verify the saved code.
+  - task_id: code-04
+    title: Write a SQL query
+    category: Code entry
+    mutates_workspace: true
+    prompt: In Notepad, write a readable SQL query that groups orders by customer_id, sums total_amount as lifetime_value, filters to completed orders, and orders descending by lifetime_value. Save it as C:\PiKVM-Harness\workspace\codex-50\code-04.sql and verify it.
+  - task_id: code-05
+    title: Write an accessible HTML form
+    category: Code entry
+    mutates_workspace: true
+    prompt: In Notepad, write a complete minimal HTML document containing an accessible labelled email input and a submit button labelled `Join waitlist`. Save it as C:\PiKVM-Harness\workspace\codex-50\code-05.html and verify the closing tags.
+  - task_id: code-06
+    title: Write a JavaScript debounce
+    category: Code entry
+    mutates_workspace: true
+    prompt: In Notepad, write a JavaScript debounce(fn, delay) function that preserves `this`, forwards arguments, and clears the previous timer. Save it as C:\PiKVM-Harness\workspace\codex-50\code-06.js and verify it.
+  - task_id: code-07
+    title: Write a YAML service definition
+    category: Code entry
+    mutates_workspace: true
+    prompt: In Notepad, create valid YAML defining a service named `observer` with image `observer:1.0`, restart policy `unless-stopped`, and environment entries `LOG_LEVEL=info` and `PORT=8080`. Save it as C:\PiKVM-Harness\workspace\codex-50\code-07.yaml and verify indentation.
+  - task_id: code-08
+    title: Write a batch health check
+    category: Code entry
+    mutates_workspace: true
+    prompt: In Notepad, write a Windows batch file that pings 127.0.0.1 once, prints `healthy` on success and `unhealthy` on failure, and returns the corresponding exit code. Save it as C:\PiKVM-Harness\workspace\codex-50\code-08.cmd and verify it.
+  - task_id: code-09
+    title: Write Markdown release notes
+    category: Code entry
+    mutates_workspace: true
+    prompt: In Notepad, create Markdown release notes with the heading `Release 1.0`, subheadings `Added`, `Changed`, and `Fixed`, and two concise bullet points under each. Save it as C:\PiKVM-Harness\workspace\codex-50\code-09.md and verify the structure.
+  - task_id: code-10
+    title: Write a Python dataclass
+    category: Code entry
+    mutates_workspace: true
+    prompt: In Notepad, write a Python dataclass named TaskResult with fields task_id:str, passed:bool, latency_ms:int, and error:str|None defaulting to None. Save it as C:\PiKVM-Harness\workspace\codex-50\code-10.py and verify the type syntax.
+  - task_id: files-01
+    title: Create an organised folder tree
+    category: File management
+    mutates_workspace: true
+    prompt: In File Explorer, create C:\PiKVM-Harness\workspace\codex-50\files-01 with three subfolders named input, output, and archive. Leave the parent open so all three folders are visible.
+  - task_id: files-02
+    title: Create and rename a text file
+    category: File management
+    mutates_workspace: true
+    prompt: In File Explorer and Notepad, create a text file containing `rename verified` inside C:\PiKVM-Harness\workspace\codex-50\files-02, then rename it from draft.txt to final.txt. Leave final.txt selected.
+  - task_id: files-03
+    title: Duplicate a local file
+    category: File management
+    mutates_workspace: true
+    prompt: In File Explorer and Notepad, create C:\PiKVM-Harness\workspace\codex-50\files-03\source.txt containing `copy integrity check`, then copy it to copy.txt in the same folder. Leave both files visible.
+  - task_id: files-04
+    title: Sort files by name
+    category: File management
+    mutates_workspace: true
+    prompt: In C:\PiKVM-Harness\workspace\codex-50\files-04 create three empty text files named charlie.txt, alpha.txt, and bravo.txt. Use File Explorer to sort the folder by Name ascending and leave the sorted list visible.
+  - task_id: files-05
+    title: Inspect file properties
+    category: File management
+    mutates_workspace: true
+    prompt: Create C:\PiKVM-Harness\workspace\codex-50\files-05\proof.txt containing `visible properties`, then open its Properties dialog and report the displayed file type, location, and size. Do not change its attributes.
+  - task_id: excel-01
+    title: Build a quarterly earnings sheet
+    category: Microsoft Excel
+    mutates_workspace: true
+    prompt: In Excel, create a workbook with columns Quarter, Revenue, Cost, and Profit; enter Q1 to Q4 with revenues 120000, 135000, 148000, 162000 and costs 84000, 91000, 96000, 101000; calculate Profit with formulas. Save as C:\PiKVM-Harness\workspace\codex-50\excel-01-quarterly.xlsx and leave the table visible.
+  - task_id: excel-02
+    title: Calculate an average
+    category: Microsoft Excel
+    mutates_workspace: true
+    prompt: In Excel, enter scores 72, 88, 91, 84, and 95 in cells A1:A5, label B1 `Average`, and put an AVERAGE formula in B2. Save as C:\PiKVM-Harness\workspace\codex-50\excel-02-average.xlsx and leave the result visible.
+  - task_id: excel-03
+    title: Format a small budget
+    category: Microsoft Excel
+    mutates_workspace: true
+    prompt: In Excel, create a two-column budget with Rent 1250, Utilities 180, Food 420, and Transport 160. Add a Total formula, format values as currency, bold the headers and Total row, and save as C:\PiKVM-Harness\workspace\codex-50\excel-03-budget.xlsx.
+  - task_id: excel-04
+    title: Sort a product table
+    category: Microsoft Excel
+    mutates_workspace: true
+    prompt: In Excel, create a table with Product and Units rows for Keyboard 12, Monitor 7, Mouse 25, Dock 9, and Webcam 14. Sort by Units descending and save as C:\PiKVM-Harness\workspace\codex-50\excel-04-products.xlsx. Leave the sorted table visible.
+  - task_id: excel-05
+    title: Create a simple chart
+    category: Microsoft Excel
+    mutates_workspace: true
+    prompt: In Excel, enter Month and Tickets data for Jan 18, Feb 24, Mar 21, and Apr 30. Insert a column chart titled `Tickets by month`, save as C:\PiKVM-Harness\workspace\codex-50\excel-05-chart.xlsx, and leave the chart visible.
+  - task_id: word-01
+    title: Write a Shakespeare mini-essay
+    category: Microsoft Word
+    mutates_workspace: true
+    prompt: In Word, write a 250 to 300 word mini-essay titled `Ambition and Consequence in Macbeth` with an introduction, two body paragraphs, and a conclusion. Save as C:\PiKVM-Harness\workspace\codex-50\word-01-macbeth.docx and leave the first page visible.
+  - task_id: word-02
+    title: Create a formatted meeting agenda
+    category: Microsoft Word
+    mutates_workspace: true
+    prompt: In Word, create a one-page document titled `Agent Reliability Review` with date `29 July 2026`, attendees Alice, Ben, and Cara, and a numbered agenda covering latency, accuracy, safety, and next steps. Save as C:\PiKVM-Harness\workspace\codex-50\word-02-agenda.docx.
+  - task_id: word-03
+    title: Create a two-column comparison table
+    category: Microsoft Word
+    mutates_workspace: true
+    prompt: In Word, create a document titled `Human and Agent Workflow` with a three-column table headed Stage, Human, Agent and rows Observe, Act, Verify, and Recover. Add concise comparison text in every cell and save as C:\PiKVM-Harness\workspace\codex-50\word-03-table.docx.
+  - task_id: word-04
+    title: Write a concise customer letter
+    category: Microsoft Word
+    mutates_workspace: true
+    prompt: In Word, write a professional 180 to 220 word customer letter explaining a scheduled maintenance window on 5 August 2026 from 22:00 to 23:00 BST, expected impact, and support contact instructions without inventing an email address. Save as C:\PiKVM-Harness\workspace\codex-50\word-04-letter.docx.
+  - task_id: word-05
+    title: Produce release notes
+    category: Microsoft Word
+    mutates_workspace: true
+    prompt: In Word, create release notes titled `PiKVM Agent 1.0` with sections Highlights, Reliability, Safety, and Known limitations. Use a short paragraph plus at least two bullets per section. Save as C:\PiKVM-Harness\workspace\codex-50\word-05-release-notes.docx.

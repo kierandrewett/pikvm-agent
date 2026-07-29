@@ -1,0 +1,704 @@
+"""Run and record an isolated campaign of real managed computer tasks."""
+
+from __future__ import annotations
+
+import asyncio
+import contextlib
+import hashlib
+import json
+import os
+import shutil
+import subprocess
+import time
+import uuid
+from datetime import UTC, datetime
+from io import BytesIO
+from pathlib import Path
+from typing import Any, Literal
+from urllib.parse import urlparse, urlunparse
+
+import httpx
+import yaml
+from PIL import Image, ImageStat
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+from websockets.asyncio.client import connect as websocket_connect
+
+TERMINAL_STATUSES = {"completed", "failed", "rejected", "blocked", "aborted"}
+CAMPAIGN_GUARD = """\
+This is one isolated acceptance task on a disposable Windows VM.
+Use the managed computer tools and visible Windows UI to perform the task.
+Do not use email, chat, social, cloud consoles, downloads, or external network
+services. Do not delete data. Any file mutation must remain strictly inside
+C:\\PiKVM-Harness\\workspace\\codex-50. Verify the result before finishing.
+"""
+FORBIDDEN_APPROVAL_TERMS = frozenset(
+    {
+        "delete",
+        "email",
+        "erase",
+        "format",
+        "message",
+        "network",
+        "registry",
+        "remove",
+        "send",
+        "shutdown",
+        "teams",
+        "upload",
+    }
+)
+ALLOWED_ACTION_TYPES = frozenset(
+    {
+        "click",
+        "double_click",
+        "key",
+        "move",
+        "scroll",
+        "spreadsheet_grid",
+        "type_text",
+        "wait",
+        "wait_for_change",
+        "wait_for_stable_screen",
+    }
+)
+
+
+def utc_now() -> str:
+    return datetime.now(UTC).isoformat()
+
+
+class ShowcaseTaskSpec(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    task_id: str = Field(pattern=r"^[a-z0-9][a-z0-9-]{0,63}$")
+    title: str = Field(min_length=1, max_length=160)
+    category: str = Field(min_length=1, max_length=80)
+    prompt: str = Field(min_length=1, max_length=20_000)
+    mutates_workspace: bool = False
+
+
+class ShowcaseManifest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: Literal[1] = 1
+    campaign_id: str = Field(pattern=r"^[a-z0-9][a-z0-9-]{0,63}$")
+    title: str = Field(min_length=1, max_length=200)
+    provider: str = Field(min_length=1, max_length=128)
+    tasks: list[ShowcaseTaskSpec] = Field(min_length=1, max_length=100)
+
+    @model_validator(mode="after")
+    def task_ids_are_unique(self) -> "ShowcaseManifest":
+        task_ids = [task.task_id for task in self.tasks]
+        if len(task_ids) != len(set(task_ids)):
+            raise ValueError("showcase task IDs must be unique")
+        return self
+
+
+def load_showcase_manifest(path: Path) -> ShowcaseManifest:
+    return ShowcaseManifest.model_validate(
+        yaml.safe_load(path.read_text(encoding="utf-8"))
+    )
+
+
+def approval_is_safe(
+    pending: dict[str, Any],
+    *,
+    mutates_workspace: bool,
+) -> bool:
+    if not mutates_workspace:
+        return False
+    serialized = json.dumps(pending, sort_keys=True).lower()
+    if any(term in serialized for term in FORBIDDEN_APPROVAL_TERMS):
+        return False
+    proposed = pending.get("proposed_action")
+    actions = proposed.get("actions") if isinstance(proposed, dict) else None
+    if not isinstance(actions, list) or not actions:
+        return False
+    for action in actions:
+        if not isinstance(action, dict):
+            return False
+        if str(action.get("type") or "") not in ALLOWED_ACTION_TYPES:
+            return False
+    return True
+
+
+class CampaignWriter:
+    def __init__(self, manifest: ShowcaseManifest, root: Path) -> None:
+        self.manifest = manifest
+        self.root = root / manifest.campaign_id
+        self.path = self.root / "campaign.json"
+        self.root.mkdir(parents=True, exist_ok=True)
+        self.payload: dict[str, Any] = {
+            "schema_version": 1,
+            "campaign_id": manifest.campaign_id,
+            "title": manifest.title,
+            "status": "queued",
+            "model": {"provider": manifest.provider},
+            "isolation": {
+                "reboot_after_every_task": True,
+                "ready_gate": "stable non-blank Windows frame",
+            },
+            "total": len(manifest.tasks),
+            "completed": 0,
+            "passed": 0,
+            "failed": 0,
+            "current_task_id": None,
+            "current_run_id": None,
+            "started_at": None,
+            "finished_at": None,
+            "updated_at": utc_now(),
+            "tasks": [
+                {
+                    **task.model_dump(mode="json"),
+                    "status": "queued",
+                    "run_id": None,
+                    "started_at": None,
+                    "finished_at": None,
+                    "duration_ms": None,
+                    "result": None,
+                    "error": None,
+                    "performance": None,
+                    "approvals": [],
+                    "reboot": {
+                        "status": "pending",
+                        "requested_at": None,
+                        "ready_at": None,
+                        "duration_ms": None,
+                        "transition_observed": False,
+                    },
+                    "recording": None,
+                    "poster": None,
+                }
+                for task in manifest.tasks
+            ],
+        }
+        self.flush()
+
+    def task(self, task_id: str) -> dict[str, Any]:
+        return next(
+            task
+            for task in self.payload["tasks"]
+            if task["task_id"] == task_id
+        )
+
+    def flush(self) -> None:
+        self.payload["updated_at"] = utc_now()
+        temporary = self.path.with_suffix(".json.tmp")
+        temporary.write_text(
+            json.dumps(self.payload, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        os.replace(temporary, self.path)
+
+
+class FrameRecorder:
+    def __init__(
+        self,
+        *,
+        client: httpx.AsyncClient,
+        frame_url: str,
+        output_dir: Path,
+        interval_s: float,
+    ) -> None:
+        self.client = client
+        self.frame_url = frame_url
+        self.output_dir = output_dir
+        self.interval_s = interval_s
+        self.frames_dir = output_dir / "frames"
+        self.poster = output_dir / "poster.jpg"
+        self.recording = output_dir / "recording.mp4"
+        self._stop = asyncio.Event()
+        self._task: asyncio.Task[None] | None = None
+        self._count = 0
+
+    async def start(self) -> None:
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        self.frames_dir.mkdir(parents=True, exist_ok=True)
+        self._task = asyncio.create_task(self._record())
+
+    async def capture_poster(self) -> bool:
+        try:
+            response = await self.client.get(self.frame_url)
+            response.raise_for_status()
+        except httpx.HTTPError:
+            return False
+        temporary = self.poster.with_suffix(".jpg.tmp")
+        temporary.write_bytes(response.content)
+        os.replace(temporary, self.poster)
+        return True
+
+    async def stop(self) -> tuple[Path | None, Path | None]:
+        self._stop.set()
+        if self._task is not None:
+            await self._task
+        if self._count == 0:
+            return None, self.poster if self.poster.is_file() else None
+        await asyncio.to_thread(self._encode)
+        shutil.rmtree(self.frames_dir, ignore_errors=True)
+        return (
+            self.recording if self.recording.is_file() else None,
+            self.poster if self.poster.is_file() else None,
+        )
+
+    async def _record(self) -> None:
+        while not self._stop.is_set():
+            started = time.monotonic()
+            try:
+                response = await self.client.get(self.frame_url)
+                response.raise_for_status()
+                Image.open(BytesIO(response.content)).verify()
+                path = self.frames_dir / f"frame-{self._count:06d}.jpg"
+                path.write_bytes(response.content)
+                self._count += 1
+            except (httpx.HTTPError, OSError):
+                pass
+            elapsed = time.monotonic() - started
+            with contextlib.suppress(asyncio.TimeoutError):
+                await asyncio.wait_for(
+                    self._stop.wait(),
+                    timeout=max(0.01, self.interval_s - elapsed),
+                )
+
+    def _encode(self) -> None:
+        frame_rate = max(1, round(1 / self.interval_s))
+        subprocess.run(
+            [
+                "ffmpeg",
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-y",
+                "-framerate",
+                str(frame_rate),
+                "-i",
+                str(self.frames_dir / "frame-%06d.jpg"),
+                "-vf",
+                "scale=trunc(iw/2)*2:trunc(ih/2)*2,format=yuv420p",
+                "-c:v",
+                "libx264",
+                "-preset",
+                "veryfast",
+                "-crf",
+                "28",
+                "-movflags",
+                "+faststart",
+                str(self.recording),
+            ],
+            check=True,
+        )
+
+
+class VncAdapter:
+    def __init__(self, client: httpx.AsyncClient, base_url: str) -> None:
+        self.client = client
+        self.base_url = base_url.rstrip("/")
+        self.frame_url = f"{self.base_url}/api/streamer/snapshot"
+
+    async def frame(self) -> bytes:
+        response = await self.client.get(self.frame_url)
+        response.raise_for_status()
+        return response.content
+
+    async def wait_until_ready(
+        self,
+        *,
+        timeout_s: float,
+        stable_s: float = 5.0,
+    ) -> dict[str, Any]:
+        deadline = time.monotonic() + timeout_s
+        stable_since: float | None = None
+        prior_signature: bytes | None = None
+        samples = 0
+        while time.monotonic() < deadline:
+            try:
+                data = await self.frame()
+                image = Image.open(BytesIO(data)).convert("RGB")
+                luminance = ImageStat.Stat(image.convert("L")).mean[0]
+                signature = image.resize((16, 10)).convert("L").tobytes()
+            except (httpx.HTTPError, OSError):
+                stable_since = None
+                prior_signature = None
+                await asyncio.sleep(1)
+                continue
+            samples += 1
+            difference = (
+                sum(abs(left - right) for left, right in zip(signature, prior_signature))
+                / len(signature)
+                if prior_signature is not None
+                else 255
+            )
+            if luminance >= 8 and difference <= 2.5:
+                stable_since = stable_since or time.monotonic()
+                if time.monotonic() - stable_since >= stable_s:
+                    return {
+                        "ready": True,
+                        "luminance": round(luminance, 2),
+                        "samples": samples,
+                        "frame_sha256": hashlib.sha256(data).hexdigest(),
+                    }
+            else:
+                stable_since = None
+            prior_signature = signature
+            await asyncio.sleep(1)
+        raise TimeoutError("Windows did not reach a stable non-blank frame")
+
+    async def reboot_and_wait(self, *, timeout_s: float) -> dict[str, Any]:
+        started = time.monotonic()
+        await self._reboot()
+        transition = await self._wait_for_boot_transition(
+            timeout_s=min(45, timeout_s / 2)
+        )
+        ready = await self.wait_until_ready(
+            timeout_s=max(10, timeout_s - (time.monotonic() - started)),
+            stable_s=8,
+        )
+        return {
+            **ready,
+            "transition_observed": transition,
+            "duration_ms": round((time.monotonic() - started) * 1000),
+        }
+
+    async def _reboot(self) -> None:
+        parsed = urlparse(self.base_url)
+        websocket_url = urlunparse(
+            (
+                "wss" if parsed.scheme == "https" else "ws",
+                parsed.netloc,
+                "/api/ws",
+                "",
+                "",
+                "",
+            )
+        )
+        async with websocket_connect(websocket_url, open_timeout=10) as socket:
+            await socket.send(
+                json.dumps(
+                    {
+                        "event_type": "key",
+                        "event": {"key": "MetaLeft", "state": True},
+                    }
+                )
+            )
+            await socket.send(
+                json.dumps(
+                    {
+                        "event_type": "key",
+                        "event": {"key": "KeyR", "state": True},
+                    }
+                )
+            )
+            await socket.send(
+                json.dumps(
+                    {
+                        "event_type": "key",
+                        "event": {"key": "KeyR", "state": False},
+                    }
+                )
+            )
+            await socket.send(
+                json.dumps(
+                    {
+                        "event_type": "key",
+                        "event": {"key": "MetaLeft", "state": False},
+                    }
+                )
+            )
+            await asyncio.sleep(0.8)
+            response = await self.client.post(
+                f"{self.base_url}/api/hid/print",
+                content="shutdown /r /t 0 /f",
+            )
+            response.raise_for_status()
+            await asyncio.sleep(0.2)
+            await socket.send(
+                json.dumps(
+                    {
+                        "event_type": "key",
+                        "event": {"key": "Enter", "state": True},
+                    }
+                )
+            )
+            await socket.send(
+                json.dumps(
+                    {
+                        "event_type": "key",
+                        "event": {"key": "Enter", "state": False},
+                    }
+                )
+            )
+
+    async def _wait_for_boot_transition(self, *, timeout_s: float) -> bool:
+        deadline = time.monotonic() + timeout_s
+        while time.monotonic() < deadline:
+            try:
+                data = await self.frame()
+                image = Image.open(BytesIO(data)).convert("L")
+                if ImageStat.Stat(image).mean[0] < 7:
+                    return True
+            except (httpx.HTTPError, OSError):
+                return True
+            await asyncio.sleep(0.5)
+        return False
+
+
+class HarnessCampaignClient:
+    def __init__(
+        self,
+        client: httpx.AsyncClient,
+        *,
+        base_url: str,
+        agent_token: str,
+        operator_token: str,
+        operator_origin: str,
+    ) -> None:
+        self.client = client
+        self.base_url = base_url.rstrip("/")
+        self.agent_headers = {
+            "Authorization": f"Bearer {agent_token}",
+        }
+        self.operator_headers = {
+            "Authorization": f"Bearer {operator_token}",
+            "Origin": operator_origin,
+        }
+
+    async def create(
+        self,
+        task: ShowcaseTaskSpec,
+        provider: str,
+    ) -> dict[str, Any]:
+        response = await self.client.post(
+            f"{self.base_url}/api/runs",
+            headers=self.agent_headers,
+            json={
+                "task": f"{CAMPAIGN_GUARD}\n\nTask:\n{task.prompt}",
+                "mode": "assistant",
+                "auto_start": True,
+                "model_preferences": {
+                    "reasoner": provider,
+                    "controller": provider,
+                    "verifier": provider,
+                },
+                "source_client": "codex-showcase",
+                "client_request_id": (
+                    f"showcase:{task.task_id}:{uuid.uuid4().hex}"
+                ),
+            },
+        )
+        response.raise_for_status()
+        return response.json()
+
+    async def get(self, run_id: str) -> dict[str, Any]:
+        response = await self.client.get(
+            f"{self.base_url}/api/runs/{run_id}",
+            headers=self.agent_headers,
+        )
+        response.raise_for_status()
+        return response.json()
+
+    async def performance(self, run_id: str) -> dict[str, Any] | None:
+        response = await self.client.get(
+            f"{self.base_url}/api/runs/{run_id}/performance",
+            headers=self.agent_headers,
+        )
+        return response.json() if response.is_success else None
+
+    async def approve(
+        self,
+        run_id: str,
+        approval_id: str,
+    ) -> dict[str, Any]:
+        response = await self.client.post(
+            (
+                f"{self.base_url}/api/runs/{run_id}/approvals/"
+                f"{approval_id}?background=true"
+            ),
+            headers={
+                **self.operator_headers,
+                "X-PiKVM-Approval-Intent": approval_id,
+            },
+            json={
+                "type": "approve",
+                "reason": (
+                    "pre-authorized bounded workspace edit in the disposable "
+                    "50-task Codex acceptance campaign"
+                ),
+            },
+        )
+        response.raise_for_status()
+        return response.json()
+
+
+async def run_showcase_campaign(
+    *,
+    manifest_path: Path,
+    output_root: Path,
+    harness_url: str,
+    adapter_url: str,
+    agent_token: str,
+    operator_token: str,
+    operator_origin: str,
+    task_timeout_s: float = 300,
+    reboot_timeout_s: float = 180,
+    frame_interval_s: float = 0.5,
+) -> dict[str, Any]:
+    manifest = load_showcase_manifest(manifest_path)
+    writer = CampaignWriter(manifest, output_root)
+    writer.payload["status"] = "running"
+    writer.payload["started_at"] = utc_now()
+    writer.flush()
+    limits = httpx.Limits(max_connections=8, max_keepalive_connections=4)
+    timeout = httpx.Timeout(30, connect=10)
+    async with httpx.AsyncClient(timeout=timeout, limits=limits) as client:
+        harness = HarnessCampaignClient(
+            client,
+            base_url=harness_url,
+            agent_token=agent_token,
+            operator_token=operator_token,
+            operator_origin=operator_origin,
+        )
+        adapter = VncAdapter(client, adapter_url)
+        await adapter.wait_until_ready(timeout_s=reboot_timeout_s)
+        for spec in manifest.tasks:
+            record = writer.task(spec.task_id)
+            task_started = time.monotonic()
+            task_dir = writer.root / spec.task_id
+            recorder = FrameRecorder(
+                client=client,
+                frame_url=adapter.frame_url,
+                output_dir=task_dir,
+                interval_s=frame_interval_s,
+            )
+            record["status"] = "running"
+            record["started_at"] = utc_now()
+            writer.payload["current_task_id"] = spec.task_id
+            writer.flush()
+            await recorder.start()
+            run_status = "failed"
+            run_error: str | None = None
+            try:
+                run = await harness.create(spec, manifest.provider)
+                run_id = str(run["run_id"])
+                record["run_id"] = run_id
+                writer.payload["current_run_id"] = run_id
+                writer.flush()
+                deadline = time.monotonic() + task_timeout_s
+                approved_ids: set[str] = set()
+                while time.monotonic() < deadline:
+                    run = await harness.get(run_id)
+                    run_status = str(run.get("status") or "")
+                    record["result"] = {
+                        "status": run_status,
+                        "error": run.get("error"),
+                        "event_count": run.get("event_count"),
+                        "active_activity": run.get("active_activity"),
+                    }
+                    writer.flush()
+                    if run_status in TERMINAL_STATUSES:
+                        break
+                    if run_status == "needs_approval":
+                        pending = run.get("pending_approval")
+                        approval_id = (
+                            str(pending.get("approval_id") or "")
+                            if isinstance(pending, dict)
+                            else ""
+                        )
+                        if (
+                            approval_id
+                            and approval_id not in approved_ids
+                            and approval_is_safe(
+                                pending,
+                                mutates_workspace=spec.mutates_workspace,
+                            )
+                        ):
+                            await harness.approve(run_id, approval_id)
+                            approved_ids.add(approval_id)
+                            record["approvals"].append(
+                                {
+                                    "approval_id": approval_id,
+                                    "approved_at": utc_now(),
+                                    "scope": "bounded_workspace_edit",
+                                }
+                            )
+                            writer.flush()
+                        else:
+                            run_error = (
+                                "campaign stopped at a non-allowlisted approval"
+                            )
+                            break
+                    await asyncio.sleep(0.75)
+                else:
+                    run_error = "task exceeded the campaign time limit"
+                await recorder.capture_poster()
+                record["performance"] = await harness.performance(run_id)
+                if run_status != "completed" and run_error is None:
+                    run_error = str(run.get("error") or run_status)
+            except Exception as exc:  # noqa: BLE001 - retain failure evidence
+                run_error = f"{type(exc).__name__}: {exc}"
+            record["status"] = "rebooting"
+            record["error"] = run_error
+            record["reboot"]["status"] = "running"
+            record["reboot"]["requested_at"] = utc_now()
+            writer.flush()
+            try:
+                reboot = await adapter.reboot_and_wait(
+                    timeout_s=reboot_timeout_s
+                )
+                record["reboot"].update(
+                    {
+                        "status": "ready",
+                        "ready_at": utc_now(),
+                        "duration_ms": reboot["duration_ms"],
+                        "transition_observed": reboot["transition_observed"],
+                    }
+                )
+                if not reboot["transition_observed"]:
+                    run_error = (
+                        f"{run_error}; " if run_error else ""
+                    ) + "reboot command did not produce a visible boot transition"
+            except Exception as exc:  # noqa: BLE001 - retain isolation failure
+                record["reboot"].update(
+                    {
+                        "status": "failed",
+                        "ready_at": None,
+                    }
+                )
+                run_error = (
+                    f"{run_error}; " if run_error else ""
+                ) + f"reboot failed: {type(exc).__name__}: {exc}"
+            recording, poster = await recorder.stop()
+            record["recording"] = (
+                str(recording.relative_to(writer.root))
+                if recording is not None
+                else None
+            )
+            record["poster"] = (
+                str(poster.relative_to(writer.root))
+                if poster is not None
+                else None
+            )
+            record["duration_ms"] = round(
+                (time.monotonic() - task_started) * 1000
+            )
+            record["finished_at"] = utc_now()
+            passed = (
+                run_status == "completed"
+                and run_error is None
+                and record["reboot"]["status"] == "ready"
+                and recording is not None
+            )
+            record["status"] = "passed" if passed else "failed"
+            record["error"] = run_error
+            writer.payload["completed"] += 1
+            writer.payload["passed" if passed else "failed"] += 1
+            writer.payload["current_task_id"] = None
+            writer.payload["current_run_id"] = None
+            writer.flush()
+            if record["reboot"]["status"] != "ready":
+                writer.payload["status"] = "failed"
+                writer.payload["finished_at"] = utc_now()
+                writer.flush()
+                return writer.payload
+    writer.payload["status"] = "completed"
+    writer.payload["finished_at"] = utc_now()
+    writer.flush()
+    return writer.payload

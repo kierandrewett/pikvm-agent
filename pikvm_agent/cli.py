@@ -1511,6 +1511,103 @@ def harness_support_bundle(
     )
 
 
+@harness_app.command("showcase-run")
+def harness_showcase_run(
+    manifest: Path = typer.Option(
+        ...,
+        "--manifest",
+        exists=True,
+        dir_okay=False,
+        readable=True,
+        help="Checked task manifest for the recorded campaign.",
+    ),
+    output_root: Path = typer.Option(
+        ...,
+        "--output-root",
+        file_okay=False,
+        help="Harness showcase artifact directory.",
+    ),
+    harness_url: str = typer.Option(
+        ...,
+        "--harness-url",
+        envvar="PIKVM_SHOWCASE_HARNESS_URL",
+        help="Authenticated managed-harness origin.",
+    ),
+    adapter_url: str = typer.Option(
+        ...,
+        "--adapter-url",
+        envvar="PIKVM_SHOWCASE_ADAPTER_URL",
+        help="Runtime-supplied local VNC adapter origin.",
+    ),
+    agent_token_env: str = typer.Option(
+        "PIKVM_HARNESS_AGENT_TOKEN",
+        "--agent-token-env",
+        help="Environment variable owning the managed task credential.",
+    ),
+    operator_token_env: str = typer.Option(
+        "PIKVM_HARNESS_TOKEN",
+        "--operator-token-env",
+        help="Environment variable owning explicit approval authority.",
+    ),
+    operator_origin: str = typer.Option(
+        ...,
+        "--operator-origin",
+        envvar="PIKVM_SHOWCASE_OPERATOR_ORIGIN",
+        help="Allowed harness origin attached to exact approval requests.",
+    ),
+    task_timeout_s: float = typer.Option(
+        300,
+        "--task-timeout-s",
+        min=30,
+        max=3_600,
+    ),
+    reboot_timeout_s: float = typer.Option(
+        180,
+        "--reboot-timeout-s",
+        min=30,
+        max=900,
+    ),
+    frame_interval_s: float = typer.Option(
+        0.5,
+        "--frame-interval-s",
+        min=0.2,
+        max=5,
+    ),
+) -> None:
+    """Run Codex tasks one-by-one, record them, and reboot after every task."""
+    import json
+
+    from pikvm_agent.harness.showcase_runner import run_showcase_campaign
+
+    agent_token = os.environ.get(agent_token_env, "")
+    operator_token = os.environ.get(operator_token_env, "")
+    if len(agent_token) < 32 or len(operator_token) < 32:
+        typer.echo(
+            "showcase run requires separate agent and operator credentials",
+            err=True,
+        )
+        raise typer.Exit(2)
+    try:
+        report = asyncio.run(
+            run_showcase_campaign(
+                manifest_path=manifest,
+                output_root=output_root,
+                harness_url=harness_url,
+                adapter_url=adapter_url,
+                agent_token=agent_token,
+                operator_token=operator_token,
+                operator_origin=operator_origin,
+                task_timeout_s=task_timeout_s,
+                reboot_timeout_s=reboot_timeout_s,
+                frame_interval_s=frame_interval_s,
+            )
+        )
+    except (OSError, RuntimeError, TimeoutError, ValueError) as exc:
+        typer.echo(f"showcase run failed: {exc}", err=True)
+        raise typer.Exit(1)
+    typer.echo(json.dumps(report, indent=2))
+
+
 @harness_app.command("client-acceptance")
 def harness_client_acceptance(
     output: Path = typer.Option(
