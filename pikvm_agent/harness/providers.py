@@ -25,6 +25,10 @@ from typing import Any, Protocol
 import httpx
 
 from pikvm_agent.harness.agent_models import ModelRequest, ModelResponse
+from pikvm_agent.harness.codex_app_server import (
+    CodexAppServerClient,
+    CodexAppServerSession,
+)
 
 
 def _json_object(value: Any) -> dict[str, Any]:
@@ -890,6 +894,65 @@ def _strict_json_schema(schema: dict[str, Any]) -> dict[str, Any]:
         return converted
 
     return convert(schema)
+
+
+class CodexAppServerProvider:
+    """Persistent Codex app-server bridge for provider-owned ChatGPT OAuth."""
+
+    def __init__(
+        self,
+        *,
+        name: str,
+        model: str = "gpt-5.6-luna",
+        executable: str = "codex",
+        session: CodexAppServerSession | None = None,
+        inherited_env: list[str] | None = None,
+        reasoning_effort: str = "low",
+        service_tier: str | None = None,
+        timeout_s: float = 90.0,
+    ) -> None:
+        if reasoning_effort not in {
+            "minimal",
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max",
+        }:
+            raise ValueError(
+                "Codex app-server reasoning_effort must be minimal, low, "
+                "medium, high, xhigh, or max"
+            )
+        self.name = name
+        self.model = model
+        self.reasoning_effort = reasoning_effort
+        self.service_tier = service_tier
+        self.timeout_s = timeout_s
+        self._session = session or CodexAppServerClient(
+            executable=executable,
+            inherited_env=inherited_env,
+        )
+
+    async def complete(self, request: ModelRequest) -> ModelResponse:
+        result = await self._session.complete(
+            prompt=request.prompt,
+            image_path=request.image_path,
+            output_schema=_strict_json_schema(request.output_schema),
+            model=self.model,
+            reasoning_effort=self.reasoning_effort,
+            service_tier=self.service_tier,
+            timeout_s=self.timeout_s,
+        )
+        return ModelResponse(
+            provider=self.name,
+            model=result.model,
+            data=_json_object(result.text),
+            usage=result.usage,
+            latency_ms=result.latency_ms,
+        )
+
+    async def aclose(self) -> None:
+        await self._session.aclose()
 
 
 class _HttpApiProvider:

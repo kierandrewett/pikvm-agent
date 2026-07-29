@@ -14,6 +14,7 @@ from pikvm_agent.harness.agent_models import (
     ModelResponse,
     PlanDecision,
 )
+from pikvm_agent.harness.codex_app_server import CodexAppServerTurnResult
 from pikvm_agent.harness.model_pool import (
     ModelPool,
     ModelPoolError,
@@ -25,6 +26,7 @@ from pikvm_agent.harness.providers import (
     AsyncioProcessRunner,
     CommandBearerAuth,
     ClaudeCodeProvider,
+    CodexAppServerProvider,
     CodexExecProvider,
     EnvironmentHeaderAuth,
     GeminiApiProvider,
@@ -526,6 +528,29 @@ class CodexRecordingRunner(RecordingRunner):
         schema_index = argv.index("--output-schema") + 1
         self.schema = json.loads(Path(argv[schema_index]).read_text())
         return await super().run(**kwargs)
+
+
+class CodexAppServerRecordingSession:
+    def __init__(self, response: dict[str, object]) -> None:
+        self.response = response
+        self.calls: list[dict[str, object]] = []
+        self.closed = False
+
+    async def complete(self, **kwargs: object) -> CodexAppServerTurnResult:
+        self.calls.append(kwargs)
+        return CodexAppServerTurnResult(
+            text=json.dumps(self.response),
+            model="gpt-5.6-luna",
+            usage={
+                "input_tokens": 80,
+                "cached_input_tokens": 20,
+                "output_tokens": 24,
+            },
+            latency_ms=321,
+        )
+
+    async def aclose(self) -> None:
+        self.closed = True
 
 
 class ClaudeRecordingRunner(RecordingRunner):
@@ -1080,6 +1105,53 @@ async def test_codex_schema_normalizes_discriminated_action_union(
     assert "discriminator" not in action_items
     assert "oneOf" not in action_items
     assert len(action_items["anyOf"]) == 9
+
+
+@pytest.mark.asyncio
+async def test_codex_app_server_provider_uses_persistent_oauth_session(
+    tmp_path: Path,
+) -> None:
+    image = tmp_path / "screen.jpg"
+    image.write_bytes(b"frame")
+    session = CodexAppServerRecordingSession(
+        {
+            "summary": "Codex app-server plan",
+            "steps": ["Inspect"],
+            "success_criteria": ["Visible evidence"],
+            "constraints": [],
+        }
+    )
+    provider = CodexAppServerProvider(
+        name="codex-app-server",
+        model="gpt-5.6-luna",
+        session=session,
+        reasoning_effort="low",
+        service_tier="priority",
+    )
+
+    response = await provider.complete(
+        request().model_copy(update={"image_path": str(image)})
+    )
+    await provider.aclose()
+
+    call = session.calls[0]
+    schema = call["output_schema"]
+    assert isinstance(schema, dict)
+    assert schema["additionalProperties"] is False
+    assert schema["required"] == [
+        "summary",
+        "steps",
+        "success_criteria",
+        "constraints",
+    ]
+    assert call["image_path"] == str(image)
+    assert call["model"] == "gpt-5.6-luna"
+    assert call["reasoning_effort"] == "low"
+    assert call["service_tier"] == "priority"
+    assert response.data["summary"] == "Codex app-server plan"
+    assert response.usage["cached_input_tokens"] == 20
+    assert response.latency_ms == 321
+    assert session.closed is True
 
 
 @pytest.mark.asyncio

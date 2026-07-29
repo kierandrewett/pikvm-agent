@@ -48,6 +48,10 @@ type SetupShape = {
 };
 
 const SETUP: Record<ConnectableProviderKind, SetupShape> = {
+  codex_app_server: {
+    label: "Codex app-server",
+    baseUrl: "none",
+  },
   codex_cli: {
     label: "Codex CLI",
     baseUrl: "none",

@@ -19,6 +19,7 @@ from pikvm_agent.harness.providers import (
     AnthropicApiProvider,
     CommandBearerAuth,
     ClaudeCodeProvider,
+    CodexAppServerProvider,
     EnvironmentHeaderAuth,
     GeminiApiProvider,
     GeminiCliProvider,
@@ -26,6 +27,41 @@ from pikvm_agent.harness.providers import (
     OpenAIResponsesProvider,
     SubprocessJsonProvider,
 )
+
+
+def test_codex_app_server_factory_uses_low_effort_persistent_oauth(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "pikvm_agent.harness.config.shutil.which",
+        lambda value: "/usr/bin/codex" if value == "codex" else None,
+    )
+    settings = HarnessSettings(
+        providers={
+            "codex-fast": {
+                "kind": "codex_app_server",
+                "model": "gpt-5.6-luna",
+                "reasoning_effort": "low",
+                "service_tier": "priority",
+            }
+        },
+        routes={
+            "reasoner": ["codex-fast"],
+            "controller": ["codex-fast"],
+            "verifier": ["codex-fast"],
+        },
+    )
+
+    pool = build_model_pool(settings)
+    status = check_provider_prerequisites(settings)["codex-fast"]
+
+    assert isinstance(pool.providers["codex-fast"], CodexAppServerProvider)
+    assert status["ready"] is True
+    assert status["credential"] == "owned-by-cli"
+    assert status["auth_mode"] == "saved_cli_login"
+    assert status["credential_source"] == "codex"
+    assert status["interface"] == "Codex app-server"
+    assert status["structured_output"] == "Strict JSON Schema"
 
 
 def test_gemini_cli_factory_requires_and_reports_a_dedicated_profile(

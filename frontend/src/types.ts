@@ -192,6 +192,7 @@ export type ProviderCatalogEntry = {
 
 export type ConnectableProviderKind =
   | "codex_cli"
+  | "codex_app_server"
   | "claude_cli"
   | "gemini_cli"
   | "openai_responses"

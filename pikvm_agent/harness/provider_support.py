@@ -9,6 +9,7 @@ from typing import Literal, Mapping
 ProviderKind = Literal[
     "subprocess_json",
     "codex_cli",
+    "codex_app_server",
     "claude_cli",
     "gemini_cli",
     "openai_compatible",
@@ -94,6 +95,15 @@ PROVIDER_SUPPORT: Mapping[str, ProviderSupport] = MappingProxyType(
             implementation_contract="first_party",
             interface="Codex exec",
             pixel_input="Native image attachment",
+            structured_output="Strict JSON Schema",
+            auth=_auth(("saved_cli_login", "provider_cli")),
+        ),
+        "codex_app_server": ProviderSupport(
+            kind="codex_app_server",
+            support_tier="beta",
+            implementation_contract="first_party",
+            interface="Codex app-server",
+            pixel_input="Native local image input",
             structured_output="Strict JSON Schema",
             auth=_auth(("saved_cli_login", "provider_cli")),
         ),

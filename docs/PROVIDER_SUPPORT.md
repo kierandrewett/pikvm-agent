@@ -30,6 +30,7 @@ provider/client version and configured model also have current live evidence.
 | Provider kind | Tier | Interface | Authentication and owner | Pixel input | Output contract |
 |---|---|---|---|---|---|
 | `codex_cli` | `stable` | Codex exec | saved CLI login; provider CLI | native image attachment | strict JSON Schema |
+| `codex_app_server` | `beta` | persistent Codex app-server | saved CLI login; provider CLI | native local image input | strict JSON Schema |
 | `claude_cli` | `stable` | Claude print mode | saved CLI login; provider CLI | isolated Read artifact | strict JSON Schema |
 | `gemini_cli` | `beta` | Gemini headless mode | saved CLI login; provider CLI | isolated `@` image artifact | harness-validated JSON |
 | `openai_responses` | `stable` | OpenAI Responses API | API-key environment; harness environment | native image input | strict JSON Schema |
@@ -47,10 +48,11 @@ every contract.
 
 ## Credential ownership
 
-The harness never reads or copies a saved CLI credential. Codex, Claude, and
-Gemini CLI processes own their login stores. API secrets are named by
-environment variable and are neither written to harness configuration nor
-returned by readiness, health, support-bundle, UI, or conformance endpoints.
+The harness never reads or copies a saved CLI credential. Codex app-server,
+Codex exec, Claude, and Gemini CLI processes own their login stores. API
+secrets are named by environment variable and are neither written to harness
+configuration nor returned by readiness, health, support-bundle, UI, or
+conformance endpoints.
 
 Azure and Vertex command credentials are obtained through an exact argument
 vector with empty standard input and an allow-listed environment. Only the
@@ -62,13 +64,13 @@ the bridge remains the bridge operator's responsibility.
 
 ## First-party connection flow
 
-The Models sheet provides an additive setup flow for the three provider-owned
-CLI logins (`codex_cli`, `claude_cli`, and `gemini_cli`) and four common API
-routes (`openai_responses`, `anthropic_api`, `gemini_api`, and
+The Models sheet provides an additive setup flow for the provider-owned Codex
+app-server/CLI, Claude CLI, and Gemini CLI logins and four common API routes
+(`openai_responses`, `anthropic_api`, `gemini_api`, and
 `openai_compatible`). The browser never accepts a credential value. It sends
 only a unique provider alias, model ID, optional safe base URL, and the name of
-the server environment variable that already owns an API credential. CLI
-providers continue to use their own login store.
+the server environment variable that already owns an API credential.
+Provider-owned login processes continue to use their own login store.
 
 New providers are written atomically to the harness configuration with mode
 `0600`, cannot replace an existing alias, become visible without silently
@@ -95,6 +97,13 @@ exact/schema accuracy, failure classes, usage, median latency, and p95 latency.
 The operator UI labels prerequisite-only state as unproven.
 
 ## Reasoning effort
+
+`codex_app_server` accepts `minimal`, `low`, `medium`, `high`, `xhigh`, or
+`max` and defaults to `low`. It can also forward an app-server
+`service_tier`, such as `priority`. The adapter keeps one authenticated Codex
+process alive while creating one ephemeral, tool-disabled thread per request.
+This removes repeated CLI startup but does not bypass model inference or
+guarantee that an account can use a particular model or service tier.
 
 `claude_cli` accepts an optional `reasoning_effort` value of `low`, `medium`,
 `high`, `xhigh`, or `max` and forwards it as the Claude CLI `--effort`

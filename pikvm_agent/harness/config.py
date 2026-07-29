@@ -30,6 +30,7 @@ from pikvm_agent.harness.providers import (
     AnthropicApiProvider,
     ClaudeCodeProvider,
     CommandBearerAuth,
+    CodexAppServerProvider,
     EnvironmentHeaderAuth,
     GeminiApiProvider,
     GeminiCliProvider,
@@ -124,6 +125,12 @@ class ProviderSpec(BaseModel):
     reasoning_effort: Literal[
         "none", "minimal", "low", "medium", "high", "xhigh", "max"
     ] | None = None
+    service_tier: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=64,
+        pattern=r"^[A-Za-z0-9_.:-]+$",
+    )
     failure_cooldown_s: float = Field(default=15.0, ge=0, le=900)
     headers: dict[str, str] = Field(default_factory=dict)
     billing: ProviderBillingSpec | None = None
@@ -145,6 +152,17 @@ class ProviderSpec(BaseModel):
             raise ValueError(
                 "claude_cli reasoning_effort must be low, medium, high, "
                 "xhigh, or max"
+            )
+        if self.kind == "codex_app_server" and self.reasoning_effort in {
+            "none",
+        }:
+            raise ValueError(
+                "codex_app_server reasoning_effort must be minimal, low, "
+                "medium, high, xhigh, or max"
+            )
+        if self.kind != "codex_app_server" and self.service_tier is not None:
+            raise ValueError(
+                "service_tier is only supported by codex_app_server"
             )
         if self.kind in {"azure_openai_responses", "vertex_gemini"}:
             if not self.base_url:
@@ -194,6 +212,7 @@ class ProviderSpec(BaseModel):
             not in {
                 "subprocess_json",
                 "codex_cli",
+                "codex_app_server",
                 "claude_cli",
                 "gemini_cli",
                 "azure_openai_responses",
@@ -563,7 +582,7 @@ def _provider_auth_metadata(spec: ProviderSpec) -> dict[str, str]:
             else ""
         )
         return {"auth_mode": mode, "credential_source": source}
-    if spec.kind == "codex_cli":
+    if spec.kind in {"codex_cli", "codex_app_server"}:
         return {
             "auth_mode": "saved_cli_login",
             "credential_source": spec.executable or "codex",
@@ -626,11 +645,12 @@ def check_provider_prerequisites(
                     status["error"] = "credential-env-missing"
         elif spec.kind in {
             "codex_cli",
+            "codex_app_server",
             "claude_cli",
             "gemini_cli",
             "subprocess_json",
         }:
-            if spec.kind == "codex_cli":
+            if spec.kind in {"codex_cli", "codex_app_server"}:
                 executable = spec.executable or "codex"
                 status["credential"] = "owned-by-cli"
             elif spec.kind == "claude_cli":
@@ -716,6 +736,14 @@ def build_model_pool(settings: HarnessSettings) -> ModelPool:
                 **common,
                 executable=spec.executable or "codex",
                 inherited_env=spec.inherited_env,
+            )
+        elif spec.kind == "codex_app_server":
+            providers[name] = CodexAppServerProvider(
+                **common,
+                executable=spec.executable or "codex",
+                inherited_env=spec.inherited_env,
+                reasoning_effort=spec.reasoning_effort or "low",
+                service_tier=spec.service_tier,
             )
         elif spec.kind == "claude_cli":
             providers[name] = ClaudeCodeProvider(

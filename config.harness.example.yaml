@@ -54,6 +54,22 @@ providers:
     billing:
       mode: "subscription"
 
+  # Uses the same saved Codex login through one persistent app-server process.
+  # Unlike codex_cli, this avoids CLI startup on every model call and supports
+  # explicit model, reasoning-effort, and service-tier selection. Each request
+  # still gets an ephemeral tool-disabled thread with only its prompt and
+  # screenshot. Keep this beta route behind a proven fallback until its live
+  # conformance and task evidence meet your release gates.
+  codex-fast:
+    kind: "codex_app_server"
+    model: "gpt-5.6-luna"
+    reasoning_effort: "low"
+    service_tier: "priority"
+    timeout_s: 90
+    failure_cooldown_s: 15
+    billing:
+      mode: "subscription"
+
   # Uses the existing Claude Code login. The adapter enables only Read inside
   # an ephemeral directory containing the current screenshot, turns on safe
   # mode, ignores MCP/config customisations, and requests validated structured
@@ -156,9 +172,9 @@ providers:
 routes:
   # Ordered fallback chains. A fallback can occur only before an action has
   # been accepted. Ambiguous HID calls retry the same durable idempotency key.
-  reasoner: ["claude-account", "codex-account", "gemini-account", "anthropic"]
-  controller: ["model-gateway-fast", "openai-native", "gemini", "gemini-account", "codex-account"]
-  verifier: ["gemini", "openai-native", "anthropic", "gemini-account", "codex-account"]
+  reasoner: ["claude-account", "codex-fast", "codex-account", "gemini-account", "anthropic"]
+  controller: ["model-gateway-fast", "codex-fast", "openai-native", "gemini", "gemini-account", "codex-account"]
+  verifier: ["gemini", "codex-fast", "openai-native", "anthropic", "gemini-account", "codex-account"]
 
 # Normal assistant capabilities are independent from PiKVM. Every MCP tool is
 # namespaced as <server>.<tool> in the model prompt and visible chat trace.

@@ -28,6 +28,7 @@ from pikvm_agent.harness.model_pool import ModelPool
 
 ConnectableProviderKind = Literal[
     "codex_cli",
+    "codex_app_server",
     "claude_cli",
     "gemini_cli",
     "openai_responses",
@@ -51,7 +52,12 @@ _API_KINDS = {
     "azure_openai_responses",
     "vertex_gemini",
 }
-_CLI_KINDS = {"codex_cli", "claude_cli", "gemini_cli"}
+_CLI_KINDS = {
+    "codex_cli",
+    "codex_app_server",
+    "claude_cli",
+    "gemini_cli",
+}
 _CLOUD_AUTH_KINDS = {"azure_openai_responses", "vertex_gemini"}
 _FIXED_CREDENTIAL_COMMANDS = {
     "azure_openai_responses": [
@@ -230,6 +236,8 @@ class ProviderConnectionRequest(BaseModel):
                 "kind": self.kind,
                 "model": self.model,
             }
+            if self.kind == "codex_app_server":
+                values["reasoning_effort"] = "low"
             if self.kind == "gemini_cli":
                 values["profile_home_env"] = self.profile_home_env
             return ProviderSpec.model_validate(values)

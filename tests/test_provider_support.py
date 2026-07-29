@@ -19,6 +19,7 @@ from pikvm_agent.harness.provider_support import (
 EXPECTED_SUPPORT_TIERS = {
     "subprocess_json": "bridge",
     "codex_cli": "stable",
+    "codex_app_server": "beta",
     "claude_cli": "stable",
     "gemini_cli": "beta",
     "openai_compatible": "bridge",
@@ -48,6 +49,9 @@ def test_provider_support_contracts_define_auth_ownership_without_secrets() -> N
     assert provider_support("codex_cli").auth_owner(
         "saved_cli_login"
     ) == "provider_cli"
+    assert provider_support("codex_app_server").auth_owner(
+        "saved_cli_login"
+    ) == "provider_cli"
     assert provider_support("openai_responses").auth_owner(
         "api_key_env"
     ) == "harness_environment"
@@ -74,6 +78,7 @@ def test_public_provider_catalog_is_complete_ordered_and_secret_free() -> None:
         "stable",
         "stable",
         "stable",
+        "beta",
         "beta",
         "beta",
         "beta",
