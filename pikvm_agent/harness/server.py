@@ -167,6 +167,7 @@ def build_harness_app(
         computer_control_enabled=daemon_url is not None,
         managed_mcp_name=settings.managed_mcp_name,
         computer_name=settings.computer_name,
+        showcase_dir=settings.artifact_dir / "showcases",
         lifespan=lifespan,
     )
     app.state.harness = harness

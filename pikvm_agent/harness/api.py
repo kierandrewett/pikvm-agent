@@ -13,6 +13,7 @@ from typing import Any, Literal, Protocol
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import (
+    FileResponse,
     JSONResponse,
     RedirectResponse,
     Response,
@@ -50,6 +51,7 @@ from pikvm_agent.harness.provider_connections import (
 )
 from pikvm_agent.harness.provider_support import public_provider_catalog
 from pikvm_agent.harness.redaction import redact_secrets
+from pikvm_agent.harness.showcase import ShowcaseRepository
 
 RUN_EVENT_TAIL_LIMIT = 500
 RUN_EVENT_PAGE_LIMIT = 500
@@ -370,6 +372,7 @@ class HarnessAuthMiddleware:
             (
                 path.startswith("/api/runs")
                 or path.startswith("/api/agent/")
+                or path.startswith("/api/showcases")
             )
             and not operator_only_path
             and not artifact_acceptance_path
@@ -460,6 +463,7 @@ def create_harness_app(
     computer_control_enabled: bool = True,
     managed_mcp_name: str = "Managed PiKVM MCP",
     computer_name: str = "Managed computer",
+    showcase_dir: Path | None = None,
     ui_dir: Path | None = None,
     lifespan: Callable[[FastAPI], AbstractAsyncContextManager[None]] | None = None,
 ) -> FastAPI:
@@ -775,6 +779,67 @@ def create_harness_app(
             "mcp_server_name": managed_mcp_name,
             "machine_name": computer_name,
         }
+
+    showcase_repository = (
+        ShowcaseRepository(showcase_dir)
+        if showcase_dir is not None
+        else None
+    )
+
+    @app.get("/api/showcases")
+    async def list_showcases() -> list[dict[str, Any]]:
+        if showcase_repository is None:
+            return []
+        return [
+            campaign.model_dump(mode="json")
+            for campaign in showcase_repository.list()
+        ]
+
+    @app.get("/api/showcases/current")
+    async def current_showcase() -> dict[str, Any]:
+        campaign = (
+            showcase_repository.current()
+            if showcase_repository is not None
+            else None
+        )
+        if campaign is None:
+            raise HTTPException(404, "no recorded campaign is available")
+        return campaign.model_dump(mode="json")
+
+    @app.get("/api/showcases/{campaign_id}")
+    async def get_showcase(campaign_id: str) -> dict[str, Any]:
+        campaign = (
+            showcase_repository.get(campaign_id)
+            if showcase_repository is not None
+            else None
+        )
+        if campaign is None:
+            raise HTTPException(404, "recorded campaign is unavailable")
+        return campaign.model_dump(mode="json")
+
+    @app.get(
+        "/api/showcases/{campaign_id}/tasks/{task_id}/{kind}",
+        response_class=FileResponse,
+    )
+    async def get_showcase_media(
+        campaign_id: str,
+        task_id: str,
+        kind: Literal["recording", "poster"],
+    ) -> FileResponse:
+        path = (
+            showcase_repository.media(campaign_id, task_id, kind)
+            if showcase_repository is not None
+            else None
+        )
+        if path is None:
+            raise HTTPException(404, "recorded task media is unavailable")
+        return FileResponse(
+            path,
+            media_type=(
+                "video/mp4" if kind == "recording" else _image_mime(path)
+            ),
+            headers={"Cache-Control": "no-store"},
+        )
 
     @app.get("/api/tools")
     async def assistant_tool_catalog() -> list[dict[str, Any]]:
