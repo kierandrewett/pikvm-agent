@@ -4,11 +4,16 @@ import type {
   RespondToToolApprovalOptions,
 } from "@assistant-ui/react";
 import {
+  clearPendingCreate,
+  clearStoredRunId,
   clearStoredToken,
   HarnessApiError,
   harnessEventStream,
   harnessJson,
+  pendingCreateRequestId,
+  readStoredRunId,
   readStoredToken,
+  storeRunId,
   storeToken,
 } from "@/lib/harness-api";
 import {
@@ -130,6 +135,7 @@ const defaultComputerConnection = (enabled: boolean): ComputerConnection => ({
 export const createRunPayload = (
   task: string,
   preferences: ModelPreferences,
+  clientRequestId: string,
 ) => ({
   task,
   mode: "assistant",
@@ -137,6 +143,7 @@ export const createRunPayload = (
   model_preferences:
     Object.keys(preferences).length > 0 ? preferences : null,
   source_client: "chat-workspace",
+  client_request_id: clientRequestId,
 });
 
 const messageText = (message: AppendMessage) => {
@@ -271,6 +278,7 @@ export function useHarnessWorkspace() {
       if (delegatedRun) {
         autoFollowExternalRunRef.current = false;
         selectedIdRef.current = delegatedRun.run_id;
+        storeRunId(delegatedRun.run_id);
         setSelectedId(delegatedRun.run_id);
         await loadRun(accessToken, delegatedRun.run_id);
       } else if (!runId) {
@@ -333,11 +341,31 @@ export function useHarnessWorkspace() {
             defaultComputerConnection(nextComputerControlEnabled),
         );
         setConnected(true);
-        const firstId = nextRuns[0]?.run_id ?? null;
-        autoFollowExternalRunRef.current = firstId === null;
-        selectedIdRef.current = firstId;
-        setSelectedId(firstId);
-        if (firstId) await loadRun(accessToken, firstId);
+        for (const run of nextRuns) {
+          const requestId = run.caller?.request_id;
+          if (typeof requestId === "string") {
+            clearPendingCreate(requestId);
+          }
+        }
+        const storedRunId = readStoredRunId();
+        const initialId = storedRunId || nextRuns[0]?.run_id || null;
+        autoFollowExternalRunRef.current = initialId === null;
+        selectedIdRef.current = initialId;
+        setSelectedId(initialId);
+        if (initialId) {
+          storeRunId(initialId);
+          try {
+            await loadRun(accessToken, initialId);
+          } catch (cause) {
+            if (mounted.current) {
+              setError(
+                cause instanceof Error
+                  ? cause.message
+                  : "Could not restore the selected task.",
+              );
+            }
+          }
+        }
       } catch (cause) {
         if (rejectsWorkspaceToken(cause)) clearStoredToken();
         if (!mounted.current) return;
@@ -513,6 +541,7 @@ export function useHarnessWorkspace() {
     async (runId: string) => {
       autoFollowExternalRunRef.current = false;
       selectedIdRef.current = runId;
+      storeRunId(runId);
       setSelectedId(runId);
       setSelectedRun(null);
       setError("");
@@ -530,6 +559,7 @@ export function useHarnessWorkspace() {
   const newThread = useCallback(() => {
     autoFollowExternalRunRef.current = false;
     selectedIdRef.current = null;
+    clearStoredRunId();
     setSelectedId(null);
     setSelectedRun(null);
     setError("");
@@ -546,6 +576,11 @@ export function useHarnessWorkspace() {
           selectedIdRef.current === selectedRun.run_id
             ? selectedRun
             : null;
+        if (selectedIdRef.current !== null && currentRun === null) {
+          throw new Error(
+            "The selected task could not be restored. No replacement task was started. Retry loading it or start a new task explicitly.",
+          );
+        }
         const reusableAssistant =
           currentRun != null &&
           (currentRun.conversation?.length ?? 0) > 0 &&
@@ -563,12 +598,17 @@ export function useHarnessWorkspace() {
             },
           );
         } else {
+          const clientRequestId = pendingCreateRequestId(task);
           run = await harnessJson<RunSnapshot>(token, "/api/runs", {
             method: "POST",
-            body: JSON.stringify(createRunPayload(task, modelPreferences)),
+            body: JSON.stringify(
+              createRunPayload(task, modelPreferences, clientRequestId),
+            ),
           });
+          clearPendingCreate(clientRequestId);
           autoFollowExternalRunRef.current = false;
           selectedIdRef.current = run.run_id;
+          storeRunId(run.run_id);
           setSelectedId(run.run_id);
         }
         setSelectedRun(run);
@@ -634,6 +674,7 @@ export function useHarnessWorkspace() {
 
   const disconnect = useCallback(() => {
     clearStoredToken();
+    clearStoredRunId();
     setToken("");
     setConnected(false);
     setRuns([]);

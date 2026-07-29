@@ -329,6 +329,182 @@ describe("useHarnessWorkspace authentication boundary", () => {
     expect(result.current.selectedRun?.run_id).toBe("second-run");
   });
 
+  it("restores the selected durable task after the workspace remounts", async () => {
+    sessionStorage.setItem("pikvm-harness-token", "desktop-managed");
+    sessionStorage.setItem("pikvm-harness-selected-run", "second-run");
+    sessionStorage.setItem(
+      "pikvm-harness-pending-create",
+      JSON.stringify({
+        task: "Task second-run",
+        requestId: "request-second-run",
+      }),
+    );
+    const snapshot = (runId: string) => ({
+      run_id: runId,
+      task: `Task ${runId}`,
+      status: "completed",
+      mode: "assistant",
+      origin: "managed",
+      caller: {
+        interface: "chat_workspace",
+        label: "chat-workspace",
+        ...(runId === "second-run"
+          ? { request_id: "request-second-run" }
+          : {}),
+      },
+      created_at: "2026-07-27T12:00:00Z",
+      updated_at: "2026-07-27T12:00:01Z",
+      event_count: 0,
+      event_cursor: 0,
+      operator_guidance: [],
+      conversation: [],
+      events: [],
+      events_truncated: false,
+    });
+    const firstRun = snapshot("first-run");
+    const secondRun = snapshot("second-run");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((path: string | URL | Request) => {
+        const url = String(path);
+        if (url === "/api/runs") {
+          return Promise.resolve(jsonResponse([firstRun, secondRun]));
+        }
+        if (url === "/api/runs/first-run") {
+          return Promise.resolve(jsonResponse(firstRun));
+        }
+        if (url === "/api/runs/second-run") {
+          return Promise.resolve(jsonResponse(secondRun));
+        }
+        if (url.includes("/stream?")) return new Promise<Response>(() => {});
+        if (
+          url === "/api/providers" ||
+          url === "/api/provider-catalog" ||
+          url === "/api/tools" ||
+          url === "/api/tool-servers"
+        ) {
+          return Promise.resolve(
+            jsonResponse(
+              url === "/api/providers" || url === "/api/tool-servers"
+                ? {}
+                : [],
+            ),
+          );
+        }
+        if (url === "/api/health") {
+          return Promise.resolve(
+            jsonResponse({ status: "ok", computer_control: "enabled" }),
+          );
+        }
+        if (url === "/api/computer-connection") {
+          return Promise.resolve(
+            jsonResponse({
+              enabled: true,
+              mcp_server_name: "PiKVM lab",
+              machine_name: "Windows acceptance VM",
+            }),
+          );
+        }
+        throw new Error(`Unexpected request: ${url}`);
+      }),
+    );
+
+    const { result } = renderHook(() => useHarnessWorkspace());
+
+    await waitFor(() =>
+      expect(result.current.selectedRun?.run_id).toBe("second-run"),
+    );
+    expect(result.current.selectedId).toBe("second-run");
+    expect(sessionStorage.getItem("pikvm-harness-pending-create")).toBeNull();
+  });
+
+  it("never replaces a temporarily unreadable selected task with a new run", async () => {
+    sessionStorage.setItem("pikvm-harness-token", "desktop-managed");
+    sessionStorage.setItem("pikvm-harness-selected-run", "durable-run");
+    const summary = {
+      run_id: "durable-run",
+      task: "what is on the screen",
+      status: "running",
+      mode: "assistant",
+      origin: "managed",
+      caller: { interface: "chat_workspace", label: "chat-workspace" },
+      created_at: "2026-07-27T12:00:00Z",
+      updated_at: "2026-07-27T12:00:01Z",
+      event_count: 1,
+      event_cursor: 1,
+    };
+    let createRequests = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((path: string | URL | Request, init?: RequestInit) => {
+        const url = String(path);
+        if (url === "/api/runs" && (init?.method ?? "GET") === "GET") {
+          return Promise.resolve(jsonResponse([summary]));
+        }
+        if (url === "/api/runs" && init?.method === "POST") {
+          createRequests += 1;
+          return Promise.resolve(
+            jsonResponse({ ...summary, run_id: "replacement-run" }),
+          );
+        }
+        if (url === "/api/runs/durable-run") {
+          return Promise.resolve(
+            jsonResponse({ detail: "Run is temporarily unavailable." }, 404),
+          );
+        }
+        if (
+          url === "/api/providers" ||
+          url === "/api/provider-catalog" ||
+          url === "/api/tools" ||
+          url === "/api/tool-servers"
+        ) {
+          return Promise.resolve(
+            jsonResponse(
+              url === "/api/providers" || url === "/api/tool-servers"
+                ? {}
+                : [],
+            ),
+          );
+        }
+        if (url === "/api/health") {
+          return Promise.resolve(
+            jsonResponse({ status: "ok", computer_control: "enabled" }),
+          );
+        }
+        if (url === "/api/computer-connection") {
+          return Promise.resolve(
+            jsonResponse({
+              enabled: true,
+              mcp_server_name: "PiKVM lab",
+              machine_name: "Windows acceptance VM",
+            }),
+          );
+        }
+        throw new Error(`Unexpected request: ${url}`);
+      }),
+    );
+
+    const { result } = renderHook(() => useHarnessWorkspace());
+    await waitFor(() => expect(result.current.selectedId).toBe("durable-run"));
+    await waitFor(() =>
+      expect(result.current.error).toBe("Run is temporarily unavailable."),
+    );
+
+    await expect(
+      result.current.onNew({
+        role: "user",
+        metadata: { custom: {} },
+        createdAt: new Date("2026-07-27T12:00:02Z"),
+        parentId: null,
+        sourceId: null,
+        runConfig: undefined,
+        content: [{ type: "text", text: "what is on the screen" }],
+      }),
+    ).rejects.toThrow("No replacement task was started");
+    expect(createRequests).toBe(0);
+    expect(result.current.selectedId).toBe("durable-run");
+  });
+
   it("keeps managed authentication when one persisted run cannot load", async () => {
     sessionStorage.setItem("pikvm-harness-token", "desktop-managed");
     vi.stubGlobal(

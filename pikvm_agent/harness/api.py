@@ -203,6 +203,10 @@ class CreateRunBody(BaseModel):
         default=None,
         pattern=r"^[A-Za-z0-9_-]{1,64}$",
     )
+    client_request_id: str | None = Field(
+        default=None,
+        pattern=r"^[A-Za-z0-9_.:-]{1,128}$",
+    )
 
     @model_validator(mode="after")
     def model_selection_is_unambiguous(self) -> "CreateRunBody":
@@ -841,8 +845,7 @@ def create_harness_app(
             "cursor": run.events[-1].sequence if run.events else 0,
         }
 
-    @app.post("/api/runs")
-    async def create_run(body: CreateRunBody) -> dict[str, Any]:
+    async def create_run_once(body: CreateRunBody) -> dict[str, Any]:
         if external_driver:
             raise HTTPException(
                 409,
@@ -883,15 +886,22 @@ def create_harness_app(
                     f"model provider is not ready: {exc.args[0]}",
                 ) from exc
         create_options: dict[str, Any] = {}
-        if body.source_client:
-            create_options["caller"] = {
-                "interface": (
-                    "chat_workspace"
-                    if body.source_client == "chat-workspace"
-                    else "managed_mcp"
-                ),
-                "label": body.source_client,
-            }
+        if body.source_client or body.client_request_id:
+            caller: dict[str, str] = {}
+            if body.source_client:
+                caller.update(
+                    {
+                        "interface": (
+                            "chat_workspace"
+                            if body.source_client == "chat-workspace"
+                            else "managed_mcp"
+                        ),
+                        "label": body.source_client,
+                    }
+                )
+            if body.client_request_id:
+                caller["request_id"] = body.client_request_id
+            create_options["caller"] = caller
         if body.model_provider:
             create_options["model_provider"] = body.model_provider
         if model_route is not None:
@@ -913,6 +923,23 @@ def create_harness_app(
         }:
             schedule(guarded_continue(run.run_id))
         return _visible_run(run)
+
+    @app.post("/api/runs")
+    async def create_run(body: CreateRunBody) -> dict[str, Any]:
+        request_id = body.client_request_id
+        if request_id is None:
+            return await create_run_once(body)
+        async with lock_for(f"client-create:{request_id}"):
+            for summary in await store.list_summaries(limit=10_000):
+                if summary.caller.get("request_id") != request_id:
+                    continue
+                if summary.task != body.task or summary.mode != body.mode:
+                    raise HTTPException(
+                        409,
+                        "client_request_id was already used for another task",
+                    )
+                return _visible_run(await store.get_state(summary.run_id))
+            return await create_run_once(body)
 
     @app.get("/api/runs")
     async def list_runs(

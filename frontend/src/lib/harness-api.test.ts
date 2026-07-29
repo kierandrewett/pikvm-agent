@@ -1,8 +1,15 @@
+// @vitest-environment jsdom
+
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  clearPendingCreate,
+  clearStoredRunId,
   clearStoredToken,
   harnessEventStream,
+  pendingCreateRequestId,
+  readStoredRunId,
   readStoredToken,
+  storeRunId,
   storeToken,
 } from "@/lib/harness-api";
 
@@ -25,6 +32,7 @@ const streamResponse = (...chunks: string[]) =>
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+  sessionStorage.clear();
 });
 
 describe("workspace token storage", () => {
@@ -52,6 +60,28 @@ describe("workspace token storage", () => {
     expect(readStoredToken()).toBe("");
     expect(() => storeToken("workspace-secret")).not.toThrow();
     expect(() => clearStoredToken()).not.toThrow();
+  });
+});
+
+describe("durable task identity", () => {
+  it("persists the selected run separately from the workspace token", () => {
+    storeRunId("run-42");
+
+    expect(readStoredRunId()).toBe("run-42");
+    expect(readStoredToken()).toBe("");
+
+    clearStoredRunId();
+    expect(readStoredRunId()).toBe("");
+  });
+
+  it("reuses an ambiguous create request until the server acknowledges it", () => {
+    const first = pendingCreateRequestId("what is on the screen");
+    const retry = pendingCreateRequestId("what is on the screen");
+
+    expect(retry).toBe(first);
+
+    clearPendingCreate(first);
+    expect(pendingCreateRequestId("what is on the screen")).not.toBe(first);
   });
 });
 

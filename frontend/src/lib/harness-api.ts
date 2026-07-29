@@ -1,4 +1,6 @@
 const TOKEN_KEY = "pikvm-harness-token";
+const SELECTED_RUN_KEY = "pikvm-harness-selected-run";
+const PENDING_CREATE_KEY = "pikvm-harness-pending-create";
 
 export class HarnessApiError extends Error {
   readonly status: number;
@@ -39,6 +41,89 @@ export const clearStoredToken = () => {
     browserSessionStorage()?.removeItem(TOKEN_KEY);
   } catch {
     // A blocked storage backend must not prevent an explicit disconnect.
+  }
+};
+
+export const readStoredRunId = () => {
+  try {
+    return browserSessionStorage()?.getItem(SELECTED_RUN_KEY) ?? "";
+  } catch {
+    return "";
+  }
+};
+
+export const storeRunId = (runId: string) => {
+  try {
+    browserSessionStorage()?.setItem(SELECTED_RUN_KEY, runId);
+  } catch {
+    // Session selection is best-effort; active React state still owns it.
+  }
+};
+
+export const clearStoredRunId = () => {
+  try {
+    browserSessionStorage()?.removeItem(SELECTED_RUN_KEY);
+  } catch {
+    // A blocked storage backend must not prevent explicit navigation.
+  }
+};
+
+type PendingCreate = {
+  task: string;
+  requestId: string;
+};
+
+const newRequestId = () => {
+  try {
+    if (typeof crypto !== "undefined" && crypto.randomUUID) {
+      return crypto.randomUUID();
+    }
+  } catch {
+    // Fall through to a browser-compatible opaque identifier.
+  }
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+};
+
+export const pendingCreateRequestId = (task: string) => {
+  const storage = browserSessionStorage();
+  try {
+    const stored = storage?.getItem(PENDING_CREATE_KEY);
+    if (stored) {
+      const pending = JSON.parse(stored) as Partial<PendingCreate>;
+      if (
+        pending.task === task &&
+        typeof pending.requestId === "string" &&
+        pending.requestId
+      ) {
+        return pending.requestId;
+      }
+    }
+  } catch {
+    // Replace malformed or unavailable state with a fresh request identity.
+  }
+  const requestId = newRequestId();
+  try {
+    storage?.setItem(
+      PENDING_CREATE_KEY,
+      JSON.stringify({ task, requestId } satisfies PendingCreate),
+    );
+  } catch {
+    // Server-side idempotency still applies for this in-memory request.
+  }
+  return requestId;
+};
+
+export const clearPendingCreate = (requestId: string) => {
+  const storage = browserSessionStorage();
+  try {
+    const stored = storage?.getItem(PENDING_CREATE_KEY);
+    if (!stored) return;
+    const pending = JSON.parse(stored) as Partial<PendingCreate>;
+    if (pending.requestId === requestId) {
+      storage?.removeItem(PENDING_CREATE_KEY);
+    }
+  } catch {
+    // A malformed best-effort replay marker can be ignored after success.
   }
 };
 

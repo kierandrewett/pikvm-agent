@@ -393,6 +393,45 @@ async def test_chat_workspace_creates_assistant_run_without_opening_computer(
 
 
 @pytest.mark.asyncio
+async def test_retried_chat_create_reuses_the_durable_run(
+    tmp_path: Path,
+) -> None:
+    frame = tmp_path / "frame.jpg"
+    frame.write_bytes(b"frame")
+    store = InMemoryRunStore()
+    computer = StubHarness(store, frame)
+    assistant = StubAssistant(store)
+    app = create_harness_app(
+        harness=computer,  # type: ignore[arg-type]
+        assistant=assistant,  # type: ignore[arg-type]
+        store=store,
+        models=StubModels(),
+        access_token=TEST_ACCESS_TOKEN,
+        allowed_origins={"http://harness"},
+    )
+    body = {
+        "task": "what is on the screen",
+        "mode": "assistant",
+        "auto_start": False,
+        "source_client": "chat-workspace",
+        "client_request_id": "request-20260729-001",
+    }
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app),
+        base_url="http://harness",
+        headers={"authorization": f"Bearer {TEST_ACCESS_TOKEN}"},
+    ) as client:
+        first = await client.post("/api/runs", json=body)
+        retried = await client.post("/api/runs", json=body)
+
+    assert first.status_code == 200
+    assert retried.status_code == 200
+    assert first.json()["run_id"] == retried.json()["run_id"]
+    assert assistant.calls == [("create", "what is on the screen")]
+
+
+@pytest.mark.asyncio
 async def test_completed_computer_handoff_routes_follow_up_back_to_assistant(
     tmp_path: Path,
 ) -> None:
@@ -1522,11 +1561,12 @@ async def test_harness_api_exposes_runs_events_frame_controls_and_provider_healt
     assert created["run_id"] == "run_1"
     assert unauthenticated.status_code == 401
     assert unauthenticated_catalog.status_code == 401
-    assert len(provider_catalog) == 10
+    assert len(provider_catalog) == 11
     assert {
         entry["kind"] for entry in provider_catalog
     } == {
         "subprocess_json",
+        "codex_app_server",
         "codex_cli",
         "claude_cli",
         "gemini_cli",

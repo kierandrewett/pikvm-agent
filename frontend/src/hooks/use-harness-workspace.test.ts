@@ -94,25 +94,32 @@ describe("loadHarnessHealth", () => {
 
 describe("createRunPayload", () => {
   it("keeps automatic routing explicit without using the legacy all-role pin", () => {
-    expect(createRunPayload("Open the report", {})).toEqual({
+    expect(createRunPayload("Open the report", {}, "request-123")).toEqual({
       task: "Open the report",
       mode: "assistant",
       auto_start: true,
       model_preferences: null,
       source_client: "chat-workspace",
+      client_request_id: "request-123",
     });
-    expect(createRunPayload("Open the report", {})).not.toHaveProperty(
+    expect(
+      createRunPayload("Open the report", {}, "request-123"),
+    ).not.toHaveProperty(
       "model_provider",
     );
   });
 
   it("sends independent role primaries", () => {
     expect(
-      createRunPayload("Build the workbook", {
-        reasoner: "strong-reasoner",
-        controller: "fast-controller",
-        verifier: "strong-reasoner",
-      }),
+      createRunPayload(
+        "Build the workbook",
+        {
+          reasoner: "strong-reasoner",
+          controller: "fast-controller",
+          verifier: "strong-reasoner",
+        },
+        "request-456",
+      ),
     ).toMatchObject({
       model_preferences: {
         reasoner: "strong-reasoner",
