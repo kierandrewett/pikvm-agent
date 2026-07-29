@@ -14,6 +14,7 @@ from pikvm_agent.harness import showcase_runner
 from pikvm_agent.harness.showcase_runner import (
     CampaignWriter,
     FrameRecorder,
+    HarnessCampaignClient,
     ShowcaseManifest,
     VncAdapter,
     approval_is_safe,
@@ -65,6 +66,7 @@ def test_campaign_writer_declares_reboot_isolation_before_first_task(
 
     assert payload["isolation"]["reboot_after_every_task"] is True
     assert payload["tasks"][0]["reboot"]["status"] == "pending"
+    assert payload["tasks"][0]["recoveries"] == []
     assert not writer.path.with_suffix(".json.tmp").exists()
 
 
@@ -227,3 +229,30 @@ async def test_reboot_transition_accepts_a_console_resolution_change() -> None:
         )
 
     assert observed is True
+
+
+@pytest.mark.asyncio
+async def test_same_run_recovery_uses_continue_without_creating_a_task() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(200, json={"run_id": "run-7", "status": "paused"})
+
+    async with httpx.AsyncClient(
+        transport=httpx.MockTransport(handler)
+    ) as client:
+        harness = HarnessCampaignClient(
+            client,
+            base_url="http://harness",
+            agent_token="a" * 32,
+            operator_token="b" * 32,
+            operator_origin="http://harness",
+        )
+        continued = await harness.continue_run("run-7")
+
+    assert continued is True
+    assert [request.url.path for request in requests] == [
+        "/api/runs/run-7/continue"
+    ]
+    assert requests[0].url.params["background"] == "true"

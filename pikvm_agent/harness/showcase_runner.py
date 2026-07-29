@@ -140,6 +140,7 @@ class CampaignWriter:
                 "error": None,
                 "performance": None,
                 "approvals": [],
+                "recoveries": [],
                 "reboot": {
                     "status": "pending",
                     "requested_at": None,
@@ -590,6 +591,16 @@ class HarnessCampaignClient:
         response.raise_for_status()
         return response.json()
 
+    async def continue_run(self, run_id: str) -> bool:
+        response = await self.client.post(
+            f"{self.base_url}/api/runs/{run_id}/continue?background=true",
+            headers=self.agent_headers,
+        )
+        if response.status_code == 409:
+            return False
+        response.raise_for_status()
+        return True
+
 
 async def run_showcase_campaign(
     *,
@@ -624,6 +635,7 @@ async def run_showcase_campaign(
         await adapter.wait_until_ready(timeout_s=reboot_timeout_s)
         for spec in manifest.tasks:
             record = writer.task(spec.task_id)
+            record.setdefault("recoveries", [])
             if (
                 record["status"] in {"passed", "failed"}
                 and record["reboot"]["status"] == "ready"
@@ -666,6 +678,7 @@ async def run_showcase_campaign(
                         str(approval.get("approval_id") or "")
                         for approval in record["approvals"]
                     }
+                    paused_cursor: int | None = None
                     while time.monotonic() < deadline:
                         run = await harness.get(run_id)
                         run_status = str(run.get("status") or "")
@@ -678,6 +691,32 @@ async def run_showcase_campaign(
                         writer.flush()
                         if run_status in TERMINAL_STATUSES:
                             break
+                        if run_status == "paused":
+                            event_count = int(run.get("event_count") or 0)
+                            if paused_cursor != event_count:
+                                paused_cursor = event_count
+                                await asyncio.sleep(0.75)
+                                continue
+                            if len(record["recoveries"]) >= 3:
+                                run_error = (
+                                    "same-run recovery limit reached at a "
+                                    "paused checkpoint"
+                                )
+                                break
+                            continued = await harness.continue_run(run_id)
+                            if continued:
+                                record["recoveries"].append(
+                                    {
+                                        "continued_at": utc_now(),
+                                        "event_count": event_count,
+                                        "error": run.get("error"),
+                                    }
+                                )
+                                writer.flush()
+                            paused_cursor = None
+                            await asyncio.sleep(0.75)
+                            continue
+                        paused_cursor = None
                         if run_status == "needs_approval":
                             pending = run.get("pending_approval")
                             approval_id = (
