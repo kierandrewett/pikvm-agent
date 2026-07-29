@@ -61,6 +61,17 @@ ALLOWED_ACTION_TYPES = frozenset(
         "wait_for_stable_screen",
     }
 )
+READ_ONLY_NAVIGATION_ACTION_TYPES = frozenset(
+    {
+        "click",
+        "double_click",
+        "move",
+        "scroll",
+        "wait",
+        "wait_for_change",
+        "wait_for_stable_screen",
+    }
+)
 
 
 def utc_now() -> str:
@@ -105,8 +116,6 @@ def approval_is_safe(
     *,
     mutates_workspace: bool,
 ) -> bool:
-    if not mutates_workspace:
-        return False
     serialized = json.dumps(pending, sort_keys=True).lower()
     if any(term in serialized for term in FORBIDDEN_APPROVAL_TERMS):
         return False
@@ -119,7 +128,12 @@ def approval_is_safe(
             return False
         if str(action.get("type") or "") not in ALLOWED_ACTION_TYPES:
             return False
-    return True
+    if mutates_workspace:
+        return True
+    return all(
+        str(action.get("type") or "") in READ_ONLY_NAVIGATION_ACTION_TYPES
+        for action in actions
+    )
 
 
 class CampaignWriter:

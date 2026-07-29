@@ -136,6 +136,28 @@ def test_workspace_approval_allowlist_rejects_communications_and_shutdown() -> N
     assert not approval_is_safe(shutdown, mutates_workspace=True)
 
 
+def test_read_only_campaign_can_approve_pointer_navigation_only() -> None:
+    click = {
+        "approval_id": "approval-click",
+        "risk": "local_file_edit",
+        "reason": "commit target requires human review",
+        "proposed_action": {
+            "actions": [
+                {"type": "click", "x": 605, "y": 722, "button": "left"}
+            ]
+        },
+    }
+    shortcut = {
+        **click,
+        "proposed_action": {
+            "actions": [{"type": "key", "keys": ["CTRL", "S"]}]
+        },
+    }
+
+    assert approval_is_safe(click, mutates_workspace=False)
+    assert not approval_is_safe(shortcut, mutates_workspace=False)
+
+
 def test_showcase_cli_runs_async_campaign(
     tmp_path: Path,
     monkeypatch,
