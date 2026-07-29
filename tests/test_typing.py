@@ -1360,13 +1360,15 @@ async def test_terminal_prefix_normalization_cannot_verify_a_stale_final_read(
         ),
     ],
 )
-async def test_terminal_exact_readback_recovers_only_from_grounded_complete_line(
+@pytest.mark.parametrize("context", ["terminal", "editor"])
+async def test_exact_readback_recovers_only_from_grounded_complete_line(
     monkeypatch: pytest.MonkeyPatch,
     line_bbox: list[int],
     line_suffix: str,
     poison_readback: bool,
     full_screen_misses: int,
     expected_status: str,
+    context: str,
 ) -> None:
     """A fresh grounded full-screen line can rescue a bad inferred OCR crop."""
 
@@ -1448,7 +1450,7 @@ async def test_terminal_exact_readback_recovers_only_from_grounded_complete_line
     result = await WatchedTyper(backend, ocr).type_text(
         intended,
         code=True,
-        context="terminal",
+        context=context,
     )
 
     assert result.status == expected_status
