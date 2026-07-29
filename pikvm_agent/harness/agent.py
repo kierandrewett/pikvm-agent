@@ -486,6 +486,10 @@ class AgentHarness:
         # ephemeral decision left behind by a cancelled prior coroutine.
         self._prefetched_controllers.pop(run_id, None)
         run = await self.store.get_control(run_id)
+        if self._computer_session_was_interrupted(run):
+            run = await self._reopen_after_process_restart(run)
+            if run.status is RunStatus.PAUSED:
+                return run
         retry_provider_cooldown = (
             run.status is RunStatus.PAUSED
             and bool(run.events)
@@ -540,6 +544,53 @@ class AgentHarness:
             run,
             retry_provider_cooldown=retry_provider_cooldown,
         )
+
+    @staticmethod
+    def _computer_session_was_interrupted(run: RunSnapshot) -> bool:
+        for event in reversed(run.events):
+            if event.kind == "computer.reopened_after_process_restart":
+                return False
+            if event.kind == "run.process_interrupted":
+                return True
+        return False
+
+    async def _reopen_after_process_restart(
+        self,
+        run: RunSnapshot,
+    ) -> RunSnapshot:
+        """Replace process-local computer state before resuming durable work."""
+
+        try:
+            observation = await self.computer.open(
+                run.computer_task or run.task
+            )
+        except Exception as exc:
+            run.status = RunStatus.PAUSED
+            run.error = f"computer reopen after process restart failed: {exc}"
+            run.record(
+                "computer.reopen_after_process_restart_failed",
+                error=str(exc),
+            )
+            await self.store.save(run)
+            return run
+        abandoned_action = run.pending_action
+        run.session_id = observation.session_id
+        run.observation = observation
+        run.pending_action = None
+        run.plan = None
+        run.last_controller = None
+        run.last_verification = None
+        run.status = RunStatus.RUNNING
+        run.error = None
+        run.record(
+            "computer.reopened_after_process_restart",
+            session_id=observation.session_id,
+            frame_id=observation.frame_id,
+            world_version=observation.world_version,
+            abandoned_pending_action=abandoned_action is not None,
+        )
+        await self.store.save(run)
+        return run
 
     async def pause(
         self, run_id: str, reason: str = "paused by operator"

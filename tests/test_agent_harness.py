@@ -905,6 +905,27 @@ class FlakyComputer(FakeComputer):
         )
 
 
+class RestartedComputer(FakeComputer):
+    def __init__(self) -> None:
+        super().__init__()
+        self.open_calls = 0
+
+    async def open(self, label: str) -> ComputerObservation:
+        self.open_calls += 1
+        return ComputerObservation(
+            session_id="s_reopened",
+            status="paused",
+            frame_id=1,
+            world_version=1,
+            control_epoch=0,
+            image_path="/tmp/frame-reopened.jpg",
+        )
+
+    async def burst(self, **kwargs: Any) -> ComputerObservation:
+        assert kwargs["session_id"] == "s_reopened"
+        return await super().burst(**kwargs)
+
+
 class FocusLostComputer(FakeComputer):
     async def burst(self, **kwargs: Any) -> ComputerObservation:
         self.bursts.append(kwargs)
@@ -2443,6 +2464,56 @@ async def test_ambiguous_transport_retry_reuses_checkpointed_action_and_key() ->
     ]
     assert all(event.data["tool"] == "pikvm_run_burst" for event in outcomes)
     assert all(event.data["latency_ms"] >= 0 for event in outcomes)
+
+
+@pytest.mark.asyncio
+async def test_process_restart_reopens_session_and_replans_before_input() -> None:
+    provider = ScriptedProvider()
+    computer = RestartedComputer()
+    harness = build_harness(provider, computer)
+    interrupted = RunSnapshot(
+        run_id="interrupted-run",
+        task="Type hello world in the open editor.",
+        status=RunStatus.PAUSED,
+        session_id="s_expired",
+        observation=ComputerObservation(
+            session_id="s_expired",
+            status="paused",
+            frame_id=7,
+            world_version=9,
+            control_epoch=2,
+            image_path="/tmp/frame-before-restart.jpg",
+        ),
+        pending_action=PendingAction(
+            index=0,
+            intent="Type into the old frame.",
+            actions=[{"type": "type_text", "text": "stale action"}],
+            based_on_world_version=9,
+            based_on_control_epoch=2,
+            idempotency_key="stale-action-key",
+        ),
+    )
+    interrupted.record(
+        "run.process_interrupted",
+        pending_action=True,
+        activity_kind="tool",
+    )
+    await harness.store.save(interrupted)
+
+    completed = await harness.continue_run(interrupted.run_id)
+
+    assert completed.status is RunStatus.COMPLETED
+    assert computer.open_calls == 1
+    assert [burst["session_id"] for burst in computer.bursts] == [
+        "s_reopened"
+    ]
+    assert [burst["idempotency_key"] for burst in computer.bursts] != [
+        "stale-action-key"
+    ]
+    assert any(
+        event.kind == "computer.reopened_after_process_restart"
+        for event in completed.events
+    )
 
 
 @pytest.mark.asyncio
