@@ -594,6 +594,7 @@ def write_lab_assets(
     ports.validate()
     root = root.expanduser().resolve()
     root.mkdir(parents=True, exist_ok=True)
+    root.chmod(0o700)
     state = root / "state"
     sessions = state / "sessions"
     sessions.mkdir(parents=True, exist_ok=True)

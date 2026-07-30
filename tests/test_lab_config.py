@@ -38,6 +38,7 @@ def test_lab_assets_point_only_at_isolated_adapter_and_daemon(tmp_path) -> None:
     assert config["omniparser"]["enabled"] is False
     assert assets.log_dir == tmp_path / "logs"
     assert assets.log_dir.is_dir()
+    assert stat.S_IMODE(assets.root.stat().st_mode) == 0o700
     assert "vnc" not in assets.config.read_text().lower()
 
     harness = yaml.safe_load(assets.harness_config.read_text())
