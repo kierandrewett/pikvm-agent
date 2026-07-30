@@ -2534,7 +2534,7 @@ async def test_ambiguous_transport_retry_reuses_checkpointed_action_and_key() ->
 
 
 @pytest.mark.asyncio
-async def test_process_restart_reopens_session_and_replans_before_input() -> None:
+async def test_process_restart_reopens_session_and_recontrols_before_input() -> None:
     provider = ScriptedProvider()
     computer = RestartedComputer()
     harness = build_harness(provider, computer)
@@ -2550,6 +2550,12 @@ async def test_process_restart_reopens_session_and_replans_before_input() -> Non
             world_version=9,
             control_epoch=2,
             image_path="/tmp/frame-before-restart.jpg",
+        ),
+        plan=PlanDecision(
+            summary="Enter the requested text.",
+            steps=["Type the text", "Verify it"],
+            success_criteria=["The requested text is visible."],
+            constraints=[],
         ),
         pending_action=PendingAction(
             index=0,
@@ -2577,10 +2583,16 @@ async def test_process_restart_reopens_session_and_replans_before_input() -> Non
     assert [burst["idempotency_key"] for burst in computer.bursts] != [
         "stale-action-key"
     ]
-    assert any(
-        event.kind == "computer.reopened_after_process_restart"
+    reopened = next(
+        event
         for event in completed.events
+        if event.kind == "computer.reopened_after_process_restart"
     )
+    assert reopened.data["plan_preserved"] is True
+    assert [request.role for request in provider.requests] == [
+        "controller",
+        "verifier",
+    ]
 
 
 @pytest.mark.asyncio

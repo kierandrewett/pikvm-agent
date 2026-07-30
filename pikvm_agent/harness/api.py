@@ -752,30 +752,52 @@ def create_harness_app(
 
     async def resume_automatic_runs() -> None:
         for summary in await store.list_summaries(limit=10_000):
-            if (
-                summary.status is RunStatus.RUNNING
-                and summary.origin == "managed"
-            ):
-                interrupted = await store.get_control(summary.run_id)
-                interrupted.status = RunStatus.PAUSED
-                interrupted.error = (
+            should_resume = False
+            if summary.status is RunStatus.RUNNING:
+                if summary.origin != "managed":
+                    continue
+                run = await store.get_control(summary.run_id)
+                should_resume = True
+                run.status = RunStatus.PAUSED
+                run.error = (
                     "local harness process restarted; resuming the durable "
                     "checkpoint"
                 )
-                interrupted.record(
+                run.record(
                     "run.process_interrupted",
-                    pending_action=interrupted.pending_action is not None,
+                    previous_status=summary.status.value,
+                    pending_action=run.pending_action is not None,
                     activity_kind=(
-                        interrupted.active_activity.kind
-                        if interrupted.active_activity is not None
+                        run.active_activity.kind
+                        if run.active_activity is not None
                         else None
                     ),
                 )
-                await store.save(interrupted)
-            elif summary.status is not RunStatus.PAUSED:
+                await store.save(run)
+            elif summary.status is RunStatus.PAUSED:
+                run = await store.get_control(summary.run_id)
+                should_resume = _autonomous_resume_reason(run) is not None
+                if summary.origin == "managed" and run.session_id:
+                    prior_error = run.error
+                    run.error = (
+                        "local harness process restarted; the durable task "
+                        "will reconnect before continuing"
+                    )
+                    run.record(
+                        "run.process_interrupted",
+                        previous_status=summary.status.value,
+                        previous_error=prior_error,
+                        pending_action=run.pending_action is not None,
+                        activity_kind=(
+                            run.active_activity.kind
+                            if run.active_activity is not None
+                            else None
+                        ),
+                    )
+                    await store.save(run)
+            else:
                 continue
-            run = await store.get_control(summary.run_id)
-            if _autonomous_resume_reason(run) is not None:
+            if should_resume:
                 schedule(guarded_continue(run.run_id))
 
     @app.exception_handler(RunNotFoundError)

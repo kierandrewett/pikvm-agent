@@ -2579,6 +2579,7 @@ async def test_process_start_recovers_only_internal_autonomous_yields(
         run_id="wait-for-operator",
         task="Do not guess",
         status=RunStatus.PAUSED,
+        session_id="s_expired",
         error="screen result uncertain",
     )
     uncertain.record(
@@ -2600,7 +2601,12 @@ async def test_process_start_recovers_only_internal_autonomous_yields(
         await asyncio.wait_for(harness.completed.wait(), timeout=1)
 
     assert harness.calls == [("continue", "resume-after-restart")]
-    assert (await store.get("wait-for-operator")).status is RunStatus.PAUSED
+    waiting = await store.get("wait-for-operator")
+    assert waiting.status is RunStatus.PAUSED
+    assert waiting.events[-1].kind == "run.process_interrupted"
+    assert waiting.events[-1].data["previous_error"] == (
+        "screen result uncertain"
+    )
 
 
 @pytest.mark.asyncio

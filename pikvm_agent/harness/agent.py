@@ -600,7 +600,7 @@ class AgentHarness:
         run.session_id = observation.session_id
         run.observation = observation
         run.pending_action = None
-        run.plan = None
+        run.pending_approval = None
         run.last_controller = None
         run.last_verification = None
         run.status = RunStatus.RUNNING
@@ -611,6 +611,7 @@ class AgentHarness:
             frame_id=observation.frame_id,
             world_version=observation.world_version,
             abandoned_pending_action=abandoned_action is not None,
+            plan_preserved=run.plan is not None,
         )
         await self.store.save(run)
         return run
