@@ -192,6 +192,84 @@ def test_run_dialog_shell_command_is_inferred_without_model_context() -> None:
     assert verdict.category == "terminal_mutating"
 
 
+@pytest.mark.parametrize(
+    "target",
+    ["ms-settings:about", "ms-settings:display", "notepad", "explorer"],
+)
+def test_verified_windows_run_launch_is_routine_local_navigation(
+    target: str,
+) -> None:
+    verdict = _classify(
+        [
+            {"type": "key", "keys": ["WIN", "R"]},
+            {"type": "wait", "ms": 500},
+            {
+                "type": "type_text",
+                "text": target,
+                "context": "field",
+                "verification": "exact",
+            },
+            {"type": "key", "keys": ["ENTER"]},
+            {"type": "wait_for_stable_screen", "timeout_ms": 8000},
+        ]
+    )
+
+    assert verdict.status == "allowed"
+
+
+@pytest.mark.parametrize(
+    ("actions", "expected_category"),
+    [
+        (
+            [
+                {
+                    "type": "type_text",
+                    "text": "ms-settings:about",
+                    "context": "field",
+                    "verification": "exact",
+                },
+                {"type": "key", "keys": ["ENTER"]},
+            ],
+            "unknown",
+        ),
+        (
+            [
+                {"type": "key", "keys": ["WIN", "R"]},
+                {
+                    "type": "type_text",
+                    "text": "ms-settings:about & cmd",
+                    "context": "field",
+                    "verification": "exact",
+                },
+                {"type": "key", "keys": ["ENTER"]},
+            ],
+            "terminal_mutating",
+        ),
+        (
+            [
+                {"type": "key", "keys": ["WIN", "R"]},
+                {
+                    "type": "type_text",
+                    "text": "ms-settings:about",
+                    "context": "terminal",
+                    "verification": "exact",
+                },
+                {"type": "key", "keys": ["ENTER"]},
+            ],
+            "terminal_mutating",
+        ),
+    ],
+)
+def test_windows_run_near_misses_still_require_human(
+    actions: list[dict],
+    expected_category: str,
+) -> None:
+    verdict = _classify(actions)
+
+    assert verdict.status == "approval_required"
+    assert verdict.category == expected_category
+
+
 def test_shell_launcher_is_inferred_without_context_metadata() -> None:
     verdict = _classify(
         [{"type": "type_text", "text": "cmd /c mkdir C:\\temporary-fixture"}]

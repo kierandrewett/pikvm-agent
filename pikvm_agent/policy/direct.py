@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 from pikvm_agent.config import PolicyConfig
+from pikvm_agent.core.windows_launch import is_verified_windows_run_launch
 from pikvm_agent.policy.risk import classify_command
 
 DirectStatus = Literal["allowed", "blocked", "approval_required"]
@@ -411,7 +412,11 @@ def classify_direct_burst(
     """
     candidates: list[tuple[str, str, str]] = []
     terminal_groups, grouped_terminal_indexes = _terminal_text_groups(actions)
-    for command in terminal_groups:
+    safe_windows_run_launch = is_verified_windows_run_launch(actions)
+    terminal_commands = (
+        [] if safe_windows_run_launch else terminal_groups
+    )
+    for command in terminal_commands:
         command_risk = classify_command(command)
         if command_risk == "dangerous":
             candidates.append(
@@ -511,7 +516,10 @@ def classify_direct_burst(
                         "application send shortcut requires human review",
                     )
                 )
-            if keys in ({"ENTER"}, {"RETURN"}):
+            if (
+                keys in ({"ENTER"}, {"RETURN"})
+                and not safe_windows_run_launch
+            ):
                 candidates.append(
                     (
                         "unknown",

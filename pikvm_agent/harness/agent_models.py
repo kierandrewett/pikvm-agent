@@ -7,7 +7,6 @@ neither owns run state, retries, approvals, or success.
 
 from __future__ import annotations
 
-import re
 from datetime import UTC, datetime
 from enum import Enum
 from typing import Annotated, Any, Literal
@@ -25,6 +24,7 @@ from pikvm_agent.core.spreadsheet_grid import (
     SpreadsheetGridError,
     validate_spreadsheet_grid,
 )
+from pikvm_agent.core.windows_launch import is_verified_windows_run_launch
 
 ModelRole = Literal["reasoner", "controller", "verifier"]
 RunMode = Literal["assistant", "computer"]
@@ -442,80 +442,6 @@ ComputerAction = Annotated[
     Field(discriminator="type"),
 ]
 
-_SAFE_WINDOWS_RUN_EXECUTABLES = frozenset(
-    {
-        "calc",
-        "excel",
-        "explorer",
-        "mspaint",
-        "notepad",
-        "taskmgr",
-        "winver",
-        "winword",
-        "write",
-    }
-)
-_SAFE_WINDOWS_SETTINGS_URI = re.compile(
-    r"ms-settings:[a-z0-9][a-z0-9-]{0,80}"
-)
-_WINDOWS_RUN_MODIFIERS = frozenset(
-    {"cmd", "meta", "super", "win", "windows"}
-)
-
-
-def _is_verified_windows_run_launch(
-    actions: list[ComputerAction],
-) -> bool:
-    """Recognise the one safe type-and-submit exception.
-
-    The full Windows Run focus gesture must be in the same burst. This prevents
-    an exact but misplaced string from being committed in chat, email, or any
-    other previously focused field.
-    """
-
-    passive_types = (
-        WaitAction,
-        WaitForStableScreenAction,
-        WaitForChangeAction,
-    )
-    active_actions = [
-        (index, action)
-        for index, action in enumerate(actions)
-        if not isinstance(action, passive_types)
-    ]
-    if len(active_actions) != 3:
-        return False
-    (run_index, run_key), (_, typed), (_, submit_key) = active_actions
-    if run_index != 0:
-        return False
-    if not (
-        isinstance(run_key, KeyAction)
-        and len(run_key.keys) == 2
-        and run_key.keys[0].casefold() in _WINDOWS_RUN_MODIFIERS
-        and run_key.keys[1].casefold() in {"keyr", "r"}
-    ):
-        return False
-    if not (
-        isinstance(typed, TypeTextAction)
-        and typed.context == "field"
-        and typed.verification == "exact"
-        and not typed.code
-        and not typed.secret
-    ):
-        return False
-    safe_text = (
-        typed.text.casefold() in _SAFE_WINDOWS_RUN_EXECUTABLES
-        or _SAFE_WINDOWS_SETTINGS_URI.fullmatch(typed.text) is not None
-    )
-    if not safe_text:
-        return False
-    return (
-        isinstance(submit_key, KeyAction)
-        and len(submit_key.keys) == 1
-        and submit_key.keys[0].casefold() in {"enter", "return"}
-    )
-
-
 class ControllerDecision(StrictModelDecision):
     outcome: Literal["act", "done", "replan", "blocked"]
     intent: str
@@ -536,8 +462,8 @@ class ControllerDecision(StrictModelDecision):
             WaitForStableScreenAction,
             WaitForChangeAction,
         )
-        verified_windows_run_launch = _is_verified_windows_run_launch(
-            self.actions
+        verified_windows_run_launch = is_verified_windows_run_launch(
+            [action.model_dump(mode="json") for action in self.actions]
         )
         spreadsheet_actions = [
             action
