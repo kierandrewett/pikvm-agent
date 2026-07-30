@@ -243,6 +243,7 @@ def recommended_runtime_ms(actions: list[dict[str, Any]]) -> int:
     not a delay: control-change and panic gates are still polled between typing chunks.
     """
     typed_characters = 0
+    exact_readbacks = 0
     navigation_actions = 0
     declared_wait_ms = 0
     for raw in actions:
@@ -250,6 +251,11 @@ def recommended_runtime_ms(actions: list[dict[str, Any]]) -> int:
         kind = action.get("type")
         if kind == "type_text":
             typed_characters += len(str(action.get("text", "")))
+            if (
+                action.get("verification") == "exact"
+                or action.get("code") is True
+            ):
+                exact_readbacks += 1
         elif kind == "spreadsheet_grid":
             try:
                 grid_contract = validate_spreadsheet_grid(
@@ -282,6 +288,7 @@ def recommended_runtime_ms(actions: list[dict[str, Any]]) -> int:
         AUTO_RUNTIME_FLOOR_MS
         + declared_wait_ms
         + typing_ms
+        + (exact_readbacks * 15_000)
         + (navigation_actions * 250)
     )
     return min(AUTO_RUNTIME_CEILING_MS, max(AUTO_RUNTIME_FLOOR_MS, estimate))

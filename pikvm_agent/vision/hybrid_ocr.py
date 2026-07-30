@@ -177,6 +177,21 @@ class HybridOcrProvider:
             secondary_result,
         )
 
+    async def warmup(self, image_path: Path) -> bool:
+        """Warm the heavy secondary worker without delaying an exact action."""
+
+        secondary_busy = getattr(self.secondary, "busy", None)
+        if callable(secondary_busy) and secondary_busy():
+            return False
+        try:
+            await asyncio.wait_for(
+                self.secondary.ocr(image_path),
+                timeout=self.secondary_timeout_s,
+            )
+        except (TimeoutError, RuntimeError):
+            return False
+        return True
+
     def diagnostics(self) -> dict[str, int]:
         """Expose aggregate engine participation without case text."""
 

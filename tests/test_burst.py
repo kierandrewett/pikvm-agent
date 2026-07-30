@@ -102,6 +102,26 @@ def test_auto_runtime_budget_counts_implicit_screen_wait_defaults() -> None:
     assert recommended_runtime_ms([{"type": "wait_for_change"}]) >= 12_000
 
 
+def test_auto_runtime_budget_covers_a_cold_exact_ocr_worker() -> None:
+    actions = [
+        {"type": "key", "keys": ["WIN", "R"]},
+        {"type": "wait", "ms": 500},
+        {
+            "type": "type_text",
+            "text": "ms-settings:about",
+            "verification": "exact",
+        },
+        {"type": "key", "keys": ["ENTER"]},
+        {
+            "type": "wait_for_stable_screen",
+            "stable_ms": 1200,
+            "timeout_ms": 8000,
+        },
+    ]
+
+    assert recommended_runtime_ms(actions) >= 40_000
+
+
 def test_auto_runtime_budget_counts_spreadsheet_grid_cells() -> None:
     rows = [
         [f"Q{row}", f"{120 + row}.8", f"={row + 2}*1.1", "Reviewed"]

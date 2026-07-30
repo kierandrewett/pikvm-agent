@@ -688,6 +688,24 @@ async def test_hybrid_precise_prefers_a_confident_single_line_secondary() -> Non
     ]
 
 
+async def test_hybrid_warmup_only_starts_the_secondary_worker(
+    tmp_path,
+) -> None:
+    image_path = tmp_path / "screen.png"
+    image_path.write_bytes(b"fixture")
+    primary = _ScriptedOcrProvider(
+        OCRResult(lines=[OCRLine(text="primary")])
+    )
+    secondary = _ScriptedOcrProvider(
+        OCRResult(lines=[OCRLine(text="secondary")])
+    )
+    provider = HybridOcrProvider(primary, secondary)
+
+    assert await provider.warmup(image_path) is True
+    assert primary.calls == []
+    assert secondary.calls == [("ocr", image_path, None)]
+
+
 async def test_hybrid_precise_read_skips_a_busy_secondary(
     tmp_path,
 ) -> None:

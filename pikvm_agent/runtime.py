@@ -10,11 +10,13 @@ the next approval interrupt or completion; ``submit_approval`` resumes it.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import copy
 import hashlib
 import json
 import logging
 import os
+import tempfile
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -288,6 +290,12 @@ class Runtime:
         self._executor = executor
         self._recovery = recovery
         self._ocr_provider = ocr_provider
+        warmup = getattr(ocr_provider, "warmup", None)
+        self._ocr_warmup_task = (
+            asyncio.create_task(self._warm_ocr_provider(warmup))
+            if callable(warmup)
+            else None
+        )
         self._omniparser = omniparser
         self._omniparser_started = False  # lazy: spawned on first perception/autonomous use
         self._sessions: dict[str, SessionRuntime] = {}
@@ -299,6 +307,32 @@ class Runtime:
         # /status is polled constantly by the readiness UI; cache it so each poll doesn't
         # re-run the (network) health probes and contend with real work.
         self._status_cache: tuple[float, dict[str, Any]] | None = None
+
+    async def _warm_ocr_provider(self, warmup: Any) -> None:
+        """Warm optional secondary OCR from one read-only captured frame."""
+
+        temporary_path: Path | None = None
+        try:
+            frame = await self.backend.screenshot()
+            if not frame or not frame.data:
+                return
+            temporary = tempfile.NamedTemporaryFile(
+                suffix=".jpg",
+                delete=False,
+            )
+            temporary_path = Path(temporary.name)
+            try:
+                temporary.write(frame.data)
+            finally:
+                temporary.close()
+            await warmup(temporary_path)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            return
+        finally:
+            if temporary_path is not None:
+                temporary_path.unlink(missing_ok=True)
 
     @classmethod
     async def from_config(
@@ -346,6 +380,11 @@ class Runtime:
                    capabilities=capabilities)
 
     async def aclose(self) -> None:
+        warmup_task = self._ocr_warmup_task
+        if warmup_task is not None and not warmup_task.done():
+            warmup_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await warmup_task
         try:
             await self.backend.aclose()
         finally:
