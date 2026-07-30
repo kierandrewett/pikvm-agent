@@ -32,6 +32,7 @@ def test_lab_assets_point_only_at_isolated_adapter_and_daemon(tmp_path) -> None:
 
     config = yaml.safe_load(assets.config.read_text())
     assert config["pikvm"]["base_url"] == "http://127.0.0.1:48140"
+    assert config["pikvm"]["machine_alias"] == "Disposable lab computer"
     assert config["daemon"]["listen"] == "127.0.0.1:48141"
     assert config["daemon"]["session_dir"].startswith(str(tmp_path))
     assert config["omniparser"]["enabled"] is False
@@ -175,6 +176,8 @@ def test_lab_assets_can_reuse_custom_provider_routes_without_target_leak(
     harness = yaml.safe_load(assets.harness_config.read_text())
     assert harness["listen"] == "127.0.0.1:48162"
     assert harness["daemon_url_env"] == "PIKVM_LAB_DAEMON_URL"
+    assert harness["managed_mcp_name"] == "PiKVM lab"
+    assert harness["computer_name"] == "Disposable lab computer"
     assert harness["provider_conformance_path"].startswith(
         str(tmp_path / "generated")
     )

@@ -497,6 +497,7 @@ def build_lab_config(
             "pikvm": {
                 "base_url": f"http://{api_host}:{api_port}",
                 "verify_tls": False,
+                "machine_alias": "Disposable lab computer",
                 "layout": "uk" if keymap.lower().startswith("en-gb") else "us",
             },
             "omniparser": {"enabled": False, "required": False},
@@ -570,8 +571,8 @@ def build_lab_harness_settings(
             ),
         }
     )
-    raw.setdefault("managed_mcp_name", "PiKVM lab")
-    raw.setdefault("computer_name", "Disposable lab computer")
+    raw["managed_mcp_name"] = "PiKVM lab"
+    raw["computer_name"] = "Disposable lab computer"
     return HarnessSettings.model_validate(raw)
 
 
