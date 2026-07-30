@@ -345,7 +345,13 @@ def precise_readback_candidate_region(
             1.0,
             line_width * (raw_end - raw_start) / line_length,
         )
-        vertical_padding = max(2, round(line_region.height * 0.15))
+        # Tiny exact-text rows need enough surrounding pixels for punctuation
+        # whose marks sit above/below the letter body.  A 16 px crop around a
+        # 12 px Windows Run row preserved the letters but clipped the two dots
+        # of ":"; Paddle then confidently read ``ms-settingsabout``.  Keep the
+        # refinement bounded to the same row, but retain at least six pixels of
+        # vertical context on either side.
+        vertical_padding = max(6, round(line_region.height * 0.50))
         x = max(
             0,
             math.floor(container.x + estimated_start - 2),
