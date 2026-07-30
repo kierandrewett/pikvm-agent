@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import importlib.util
+
 from pikvm_agent.config import AppConfig, OcrConfig, OmniParserConfig
 from pikvm_agent.pikvm.fake import FakeBackend
 from pikvm_agent.vision.omniparser_client import NullElementProvider, OmniParserProvider
@@ -15,6 +17,25 @@ from pikvm_agent.vision.providers import (
 )
 from pikvm_agent.vision.screen_parser import CompositeScreenParser
 from pikvm_agent.vision.tesseract_ocr import TesseractOcrProvider, tesseract_available
+
+
+def test_paddleocr_availability_requires_its_inference_runtime(
+    monkeypatch,
+) -> None:
+    modules: dict[str, object | None] = {
+        "paddleocr": object(),
+        "paddle": None,
+    }
+    monkeypatch.setattr(
+        importlib.util,
+        "find_spec",
+        lambda name: modules.get(name),
+    )
+
+    assert paddleocr_available() is False
+
+    modules["paddle"] = object()
+    assert paddleocr_available() is True
 
 
 def test_element_provider_selection() -> None:

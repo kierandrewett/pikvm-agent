@@ -1442,6 +1442,11 @@ class Runtime:
         ocr_provider = cfg.ocr.provider
         if ocr_provider == "paddleocr":
             ocr_available = paddleocr_available()
+        elif ocr_provider == "hybrid":
+            ocr_available = (
+                paddleocr_available()
+                and tesseract_available()
+            )
         elif ocr_provider == "tesseract":
             ocr_available = tesseract_available()
         else:  # "pikvm" — uses the target's built-in OCR, so it tracks pikvm reachability

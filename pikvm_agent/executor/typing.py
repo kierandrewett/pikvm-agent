@@ -261,6 +261,126 @@ def readback_region(
     )
 
 
+def precise_readback_candidate_region(
+    result: OCRResult,
+    intended: str,
+    container: Region,
+    dims: tuple[int, int],
+) -> Region | None:
+    """Narrow a noisy multi-control crop to the likely exact-text row.
+
+    Punctuation errors are allowed only for this read-only localization step.
+    The returned crop is deliberately wider than the OCR glyph box so a fresh
+    OCR pass sees field context and trailing characters. It never verifies text
+    or authorizes a follow-up action by itself.
+    """
+
+    target = "".join(
+        character.casefold()
+        for character in intended
+        if character.isalnum()
+    )
+    screen_width, screen_height = dims
+    if len(target) < LOCATE_MIN_CHARS or screen_width <= 0 or screen_height <= 0:
+        return None
+
+    for line in result.lines:
+        line_region = ocr_line_region(
+            line,
+            (
+                math.ceil(container.width),
+                math.ceil(container.height),
+            ),
+            pad=0,
+        )
+        if line_region is None or not line.text:
+            continue
+        source_positions = [
+            (character.casefold(), index)
+            for index, character in enumerate(line.text)
+            if character.isalnum()
+        ]
+        source = "".join(character for character, _index in source_positions)
+        target_index = source.find(target)
+        matched_length = len(target)
+        if target_index < 0:
+            # A noisy punctuation-free OCR pass may still identify which row to
+            # re-read. Keep this bounded to two alphanumeric edits and use it
+            # only for crop localization; the second OCR must independently
+            # match every intended character before the caller can continue.
+            tolerance = min(2, max(1, math.ceil(len(target) * 0.12)))
+            best: tuple[int, int, int] | None = None
+            for start in range(len(source)):
+                for candidate_length in range(
+                    max(1, len(target) - tolerance),
+                    min(
+                        len(source) - start,
+                        len(target) + tolerance,
+                    )
+                    + 1,
+                ):
+                    distance = levenshtein(
+                        target,
+                        source[start : start + candidate_length],
+                        tolerance,
+                    )
+                    candidate = (distance, start, candidate_length)
+                    if distance <= tolerance and (
+                        best is None or candidate < best
+                    ):
+                        best = candidate
+            if best is None:
+                continue
+            _distance, target_index, matched_length = best
+
+        raw_start = source_positions[target_index][1]
+        raw_end = (
+            source_positions[target_index + matched_length - 1][1] + 1
+        )
+        line_length = max(1, len(line.text))
+        line_x0 = float(line_region.x)
+        line_width = max(1.0, float(line_region.width))
+        estimated_start = line_x0 + line_width * raw_start / line_length
+        estimated_width = max(
+            1.0,
+            line_width * (raw_end - raw_start) / line_length,
+        )
+        vertical_padding = max(2, round(line_region.height * 0.15))
+        x = max(
+            0,
+            math.floor(container.x + estimated_start - 2),
+        )
+        y = max(
+            0,
+            math.floor(container.y + line_region.y - vertical_padding),
+        )
+        container_right = min(
+            screen_width,
+            math.ceil(container.x + container.width),
+        )
+        desired_width = max(
+            200,
+            math.ceil(estimated_width + 96),
+        )
+        x2 = min(container_right, x + desired_width)
+        y2 = min(
+            screen_height,
+            math.ceil(
+                container.y
+                + line_region.y
+                + line_region.height
+                + vertical_padding
+            ),
+        )
+        return Region(
+            x=x,
+            y=y,
+            width=max(1, x2 - x),
+            height=max(1, y2 - y),
+        )
+    return None
+
+
 # --------------------------------------------------------------------------- #
 # Chunking.
 # --------------------------------------------------------------------------- #
@@ -620,6 +740,24 @@ class WatchedTyper:
                 result = await precise_ocr(tmp, region=region)
             else:
                 result = await self.ocr.ocr(tmp, region=region)
+            if (
+                precise
+                and intended
+                and callable(precise_ocr)
+                and compute_verdict(intended, result.text, True)
+                != "match"
+            ):
+                refined_region = precise_readback_candidate_region(
+                    result,
+                    intended,
+                    region,
+                    self._dims(),
+                )
+                if refined_region is not None:
+                    result = await precise_ocr(
+                        tmp,
+                        region=refined_region,
+                    )
             self._last_field_ocr_result = result
             if (
                 precise
@@ -667,6 +805,16 @@ class WatchedTyper:
                 confidences
                 and sum(confidences) / len(confidences)
                 < minimum_confidence
+                and not (
+                    precise
+                    and intended
+                    and compute_verdict(
+                        intended,
+                        result.text,
+                        True,
+                    )
+                    == "match"
+                )
             ):
                 # Low-confidence OCR may still be useful to a human, but it is
                 # not strong enough evidence to clear/retype a field or stop a

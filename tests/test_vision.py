@@ -229,6 +229,37 @@ async def test_tesseract_general_profile_keeps_the_two_read_latency_budget(
     assert sorted(observed_sizes) == [(100, 50), (200, 100)]
 
 
+async def test_tesseract_precise_uses_sparse_text_mode_for_a_slender_field(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    image_path = tmp_path / "screen.png"
+    Image.new("RGB", (400, 200), "white").save(image_path)
+    observed_psms: list[int] = []
+
+    async def fake_tesseract(src, *, lang, psm):
+        del src, lang
+        observed_psms.append(psm)
+        return (
+            "level\tpage_num\tblock_num\tpar_num\tline_num\tword_num"
+            "\tleft\ttop\twidth\theight\tconf\ttext\n"
+            "5\t1\t1\t1\t1\t1\t1\t1\t80\t12\t95\tfield\n"
+        ).encode()
+
+    monkeypatch.setattr(
+        "pikvm_agent.vision.tesseract_ocr._run_tesseract",
+        fake_tesseract,
+    )
+
+    await TesseractOcrProvider(psm=6).ocr_precise(
+        image_path,
+        region=Region(x=20, y=80, width=240, height=24),
+    )
+
+    assert observed_psms
+    assert set(observed_psms) == {12}
+
+
 async def test_tesseract_region_adds_context_and_translates_boxes(
     tmp_path,
     monkeypatch,
@@ -623,6 +654,38 @@ async def test_hybrid_precise_read_retains_unique_secondary_evidence(
         "secondary_skipped_busy": 0,
         "secondary_failed_or_timed_out": 0,
     }
+
+
+async def test_hybrid_precise_prefers_a_confident_single_line_secondary() -> None:
+    primary = OCRResult(
+        lines=[
+            OCRLine(
+                text="ms-settingzaboutf",
+                confidence=0.80,
+                bbox=[4, 2, 72, 12],
+            )
+        ]
+    )
+    secondary = OCRResult(
+        lines=[
+            OCRLine(
+                text="ms-settings:about",
+                confidence=0.99,
+                bbox=[6, 3, 68, 12],
+            )
+        ]
+    )
+
+    result = await HybridOcrProvider(
+        _ScriptedOcrProvider(primary, precise=primary),
+        _ScriptedOcrProvider(secondary),
+    ).ocr_precise(Path("field.png"))
+
+    assert result.text == "ms-settings:about"
+    assert result.lines == secondary.lines
+    assert [candidate.text for candidate in result.alternatives] == [
+        "ms-settingzaboutf"
+    ]
 
 
 async def test_hybrid_precise_read_skips_a_busy_secondary(

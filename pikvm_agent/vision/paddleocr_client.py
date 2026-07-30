@@ -25,7 +25,10 @@ _WORKER_OUTPUT_LIMIT = 4 * 1024 * 1024
 def paddleocr_available() -> bool:
     import importlib.util
 
-    return importlib.util.find_spec("paddleocr") is not None
+    return (
+        importlib.util.find_spec("paddleocr") is not None
+        and importlib.util.find_spec("paddle") is not None
+    )
 
 
 class PaddleOCRProvider:

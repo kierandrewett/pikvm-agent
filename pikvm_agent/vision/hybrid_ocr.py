@@ -45,11 +45,29 @@ def _merge_precise_evidence(
     primary: OCRResult,
     secondary: OCRResult,
 ) -> OCRResult:
-    """Keep primary boxes while retaining every unique independent read."""
+    """Select an engine without ground truth and retain the other as evidence.
 
+    A high-confidence, single-line secondary read may replace a low-confidence
+    primary row. The choice depends only on OCR geometry/confidence, never the
+    intended string, so later exact-text comparison remains independent.
+    """
+
+    primary_confidence = _mean_confidence(primary)
+    secondary_confidence = _mean_confidence(secondary)
+    use_secondary = bool(
+        len(secondary.lines) == 1
+        and secondary_confidence is not None
+        and secondary_confidence >= 0.90
+        and (
+            primary_confidence is None
+            or secondary_confidence - primary_confidence >= 0.15
+        )
+    )
+    selected = secondary if use_secondary else primary
+    other = primary if use_secondary else secondary
     candidates: list[OCRCandidate] = []
-    seen = {primary.text}
-    for candidate in primary.alternatives:
+    seen = {selected.text}
+    for candidate in selected.alternatives:
         _append_candidate(
             candidates,
             seen,
@@ -60,10 +78,10 @@ def _merge_precise_evidence(
     _append_candidate(
         candidates,
         seen,
-        text=secondary.text,
-        mean_confidence=_mean_confidence(secondary),
+        text=other.text,
+        mean_confidence=_mean_confidence(other),
     )
-    for candidate in secondary.alternatives:
+    for candidate in other.alternatives:
         _append_candidate(
             candidates,
             seen,
@@ -72,18 +90,18 @@ def _merge_precise_evidence(
             evidence_kind=candidate.evidence_kind,
         )
     return OCRResult(
-        lines=primary.lines,
+        lines=selected.lines,
         alternatives=candidates,
-        spacing_evidence=primary.spacing_evidence,
+        spacing_evidence=selected.spacing_evidence,
     )
 
 
 class HybridOcrProvider:
     """Use a fast primary normally and both engines for exact read-back.
 
-    The secondary engine supplies evidence only. It cannot select text or
-    authorize a follow-up action. Known-intent verification compares every
-    independent candidate against the intended text and otherwise abstains.
+    The provider selects a canonical read using engine confidence and geometry
+    only. It never sees the intended text; the verifier remains the sole place
+    that can authorize a follow-up action.
     """
 
     def __init__(

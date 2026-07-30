@@ -654,6 +654,7 @@ class TesseractOcrProvider:
             primary_upscale=self.upscale,
             alternative_upscales=self.alternative_upscales,
             preserve_spacing=False,
+            psm=self.psm,
         )
 
     async def ocr_precise(
@@ -675,12 +676,22 @@ class TesseractOcrProvider:
             )
             if scale != primary_upscale
         )
+        precise_psm = (
+            12
+            if (
+                region is not None
+                and region.height <= 48
+                and region.width >= region.height * 4
+            )
+            else self.psm
+        )
         return await self._ocr(
             image_path,
             region=region,
             primary_upscale=primary_upscale,
             alternative_upscales=alternative_upscales,
             preserve_spacing=True,
+            psm=precise_psm,
         )
 
     async def _ocr(
@@ -691,6 +702,7 @@ class TesseractOcrProvider:
         primary_upscale: float,
         alternative_upscales: tuple[float, ...],
         preserve_spacing: bool,
+        psm: int,
     ) -> OCRResult:
         src = Path(image_path)
         tmp: Path | None = None
@@ -761,13 +773,13 @@ class TesseractOcrProvider:
                     _run_tesseract(
                         src,
                         lang=self.lang,
-                        psm=self.psm,
+                        psm=psm,
                     ),
                     *(
                         _run_tesseract(
                             prepared,
                             lang=self.lang,
-                            psm=self.psm,
+                            psm=psm,
                         )
                         for prepared, _scale in prepared_images
                     ),
@@ -867,7 +879,7 @@ class TesseractOcrProvider:
                 out = await _run_tesseract(
                     selected,
                     lang=self.lang,
-                    psm=self.psm,
+                    psm=psm,
                 )
                 lines = _parse_tsv(
                     out.decode("utf-8", "replace"),

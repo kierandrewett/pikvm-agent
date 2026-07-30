@@ -1867,6 +1867,74 @@ async def test_precise_field_read_uses_the_provider_precision_profile() -> None:
     assert ocr.regular_calls == 0
 
 
+async def test_precise_readback_refines_a_large_dialog_crop_to_its_field() -> None:
+    intended = "ms-settings:about"
+
+    class DelayedDialogOCR:
+        def __init__(self) -> None:
+            self.regions: list[Region | None] = []
+
+        async def ocr(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            return await self.ocr_precise(image_path, region=region)
+
+        async def ocr_precise(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path
+            self.regions.append(region)
+            if len(self.regions) == 1:
+                return OCRResult(
+                    lines=[
+                        OCRLine(
+                            text="Open: | ms-settingzaboutf",
+                            confidence=0.44,
+                            bbox=[18, 92, 118, 104],
+                        ),
+                        OCRLine(
+                            text=(
+                                "This task will be created with "
+                                "administrative privileges."
+                            ),
+                            confidence=0.82,
+                            bbox=[50, 110, 242, 119],
+                        ),
+                    ]
+                )
+            return OCRResult(
+                lines=[
+                    OCRLine(
+                        text=intended,
+                        confidence=0.26,
+                        bbox=[4, 2, 72, 12],
+                    )
+                ]
+            )
+
+    backend = FakeBackend(width=1280, height=800)
+    ocr = DelayedDialogOCR()
+    typer = WatchedTyper(backend, ocr)
+
+    observed = await typer._read_field(
+        Region(x=0, y=592, width=403, height=208),
+        intended=intended,
+        precise=True,
+    )
+
+    assert observed == intended
+    assert len(ocr.regions) == 2
+    refined = ocr.regions[1]
+    assert refined is not None
+    assert refined.height <= 32
+    assert refined.width >= 140
+    assert 675 <= refined.y <= 685
+
+
 async def test_uncalibrated_precise_ocr_cannot_verify_visible_spaces() -> None:
     intended = "exactly one space"
 
