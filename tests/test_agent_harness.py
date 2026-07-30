@@ -12,6 +12,8 @@ from pikvm_agent.harness.agent import (
     AgentHarness,
     _CONTROLLER_SYSTEM,
     _REASONER_SYSTEM,
+    _is_read_only_settings_request,
+    _normalize_native_settings_launch,
     _normalize_plan_safety_constraints,
 )
 from pikvm_agent.harness.agent_models import (
@@ -51,6 +53,115 @@ def test_controller_can_launch_a_standard_app_in_one_safe_burst() -> None:
     assert "Do not generalise this exception to web URLs" in _CONTROLLER_SYSTEM
     assert "the verifier's job, not a remaining computer" in _CONTROLLER_SYSTEM
     assert "set expects_task_completion true" in _CONTROLLER_SYSTEM
+
+
+def test_native_settings_launch_waits_through_splash_and_page_render() -> None:
+    actions = [
+        {"type": "key", "keys": ["META", "R"]},
+        {"type": "wait", "ms": 500},
+        {
+            "type": "type_text",
+            "text": "ms-settings:about",
+            "context": "field",
+            "verification": "exact",
+        },
+        {"type": "key", "keys": ["ENTER"]},
+        {"type": "wait_for_change", "timeout_ms": 5_000},
+        {
+            "type": "wait_for_stable_screen",
+            "stable_ms": 1_000,
+            "timeout_ms": 8_000,
+        },
+    ]
+
+    normalized, added = _normalize_native_settings_launch(
+        actions,
+        max_actions=8,
+    )
+
+    assert added == 1
+    assert normalized[4:7] == [
+        {"type": "wait_for_change", "timeout_ms": 5_000},
+        {"type": "wait_for_change", "timeout_ms": 10_000},
+        {
+            "type": "wait_for_stable_screen",
+            "stable_ms": 1_000,
+            "timeout_ms": 8_000,
+        },
+    ]
+
+
+def test_native_settings_launch_normalization_is_idempotent() -> None:
+    actions = [
+        {"type": "key", "keys": ["META", "R"]},
+        {
+            "type": "type_text",
+            "text": "ms-settings:display",
+            "context": "field",
+            "verification": "exact",
+        },
+        {"type": "key", "keys": ["ENTER"]},
+        {"type": "wait_for_change", "timeout_ms": 5_000},
+        {"type": "wait_for_change", "timeout_ms": 10_000},
+    ]
+
+    normalized, added = _normalize_native_settings_launch(
+        actions,
+        max_actions=8,
+    )
+
+    assert added == 0
+    assert normalized == actions
+
+
+def test_standard_app_launch_does_not_get_settings_splash_wait() -> None:
+    actions = [
+        {"type": "key", "keys": ["META", "R"]},
+        {
+            "type": "type_text",
+            "text": "notepad",
+            "context": "field",
+            "verification": "exact",
+        },
+        {"type": "key", "keys": ["ENTER"]},
+        {"type": "wait_for_change", "timeout_ms": 5_000},
+    ]
+
+    normalized, added = _normalize_native_settings_launch(
+        actions,
+        max_actions=8,
+    )
+
+    assert added == 0
+    assert normalized == actions
+
+
+@pytest.mark.parametrize(
+    ("task", "expected"),
+    [
+        (
+            "Open Windows About settings and report the edition. "
+            "Do not change any setting.",
+            True,
+        ),
+        ("Open Display settings and set scale to 125%.", False),
+        (
+            "Inspect Display settings without changing any settings.",
+            True,
+        ),
+    ],
+)
+def test_read_only_settings_request_detection(
+    task: str,
+    expected: bool,
+) -> None:
+    run = RunSnapshot(
+        run_id="settings-request",
+        task=task,
+        status=RunStatus.PAUSED,
+    )
+
+    assert _is_read_only_settings_request(run) is expected
 
 
 def test_reasoner_keeps_negative_safety_guards_out_of_success_criteria() -> None:

@@ -13,6 +13,7 @@ from typing import Any, Protocol
 
 from PIL import Image, ImageDraw, ImageOps, UnidentifiedImageError
 
+from pikvm_agent.core.windows_launch import is_verified_windows_run_launch
 from pikvm_agent.executor.burst import BurstError, validate_actions
 from pikvm_agent.harness.agent_models import (
     ComputerObservation,
@@ -199,6 +200,112 @@ def _normalize_plan_safety_constraints(
         ),
         len(moved_indices),
     )
+
+
+_READ_ONLY_SETTINGS_VERB = re.compile(
+    r"\b(?:check|describe|find|inspect|read|report|show|tell|view|what|which)\b",
+    re.IGNORECASE,
+)
+_MUTATING_SETTINGS_VERB = re.compile(
+    r"\b(?:adjust|change|choose|configure|disable|enable|select|set|toggle|"
+    r"turn\s+(?:off|on)|update)\b",
+    re.IGNORECASE,
+)
+_NEGATED_MUTATION_CLAUSE = re.compile(
+    r"\b(?:do\s+not|don't|without)\s+"
+    r"(?:make\s+any\s+)?(?:adjusting|changing|choosing|configuring|disabling|"
+    r"enabling|selecting|setting|toggling|turning|updating|change)\b[^.;]*",
+    re.IGNORECASE,
+)
+
+
+def _is_read_only_settings_request(run: RunSnapshot) -> bool:
+    """Recognise a literal read-only Settings inspection request."""
+
+    request = " ".join([run.task, *run.operator_guidance])
+    actionable_request = _NEGATED_MUTATION_CLAUSE.sub("", request)
+    return (
+        _READ_ONLY_SETTINGS_VERB.search(actionable_request) is not None
+        and _MUTATING_SETTINGS_VERB.search(actionable_request) is None
+    )
+
+
+def _normalize_native_settings_launch(
+    actions: list[dict[str, Any]],
+    *,
+    max_actions: int,
+) -> tuple[list[dict[str, Any]], int]:
+    """Wait for both the Settings splash and the requested page.
+
+    Windows Run first transitions to a stable Settings splash, then transitions
+    again when the requested page is rendered. A single change wait can
+    therefore make a fast controller verify the transient splash and pay for a
+    complete recovery turn.
+    """
+
+    normalized = [dict(action) for action in actions]
+    if not is_verified_windows_run_launch(normalized):
+        return normalized, 0
+    text = next(
+        (
+            str(action.get("text") or "")
+            for action in normalized
+            if action.get("type") == "type_text"
+        ),
+        "",
+    )
+    if not text.casefold().startswith("ms-settings:"):
+        return normalized, 0
+
+    submit_index = next(
+        (
+            index
+            for index, action in enumerate(normalized)
+            if action.get("type") == "key"
+            and [
+                str(key).casefold()
+                for key in (action.get("keys") or [])
+            ]
+            in (["enter"], ["return"])
+        ),
+        -1,
+    )
+    if submit_index < 0:
+        return normalized, 0
+
+    added = 0
+    while (
+        sum(
+            action.get("type") == "wait_for_change"
+            for action in normalized[submit_index + 1 :]
+        )
+        < 2
+        and len(normalized) < max_actions
+    ):
+        post_submit_change_indices = [
+            index
+            for index, action in enumerate(normalized)
+            if index > submit_index
+            and action.get("type") == "wait_for_change"
+        ]
+        if post_submit_change_indices:
+            insertion_index = post_submit_change_indices[-1] + 1
+        else:
+            insertion_index = next(
+                (
+                    index
+                    for index, action in enumerate(normalized)
+                    if index > submit_index
+                    and action.get("type") == "wait_for_stable_screen"
+                ),
+                submit_index + 1,
+            )
+        normalized.insert(
+            insertion_index,
+            {"type": "wait_for_change", "timeout_ms": 10_000},
+        )
+        added += 1
+    return normalized, added
 
 
 _CONTROLLER_SYSTEM = """\
@@ -1137,6 +1244,32 @@ class AgentHarness:
                 )
                 await self.store.save(run)
                 return run
+            normalized_actions, added_change_waits = (
+                _normalize_native_settings_launch(
+                    proposed_actions,
+                    max_actions=self.config.max_actions_per_burst,
+                )
+            )
+            completion_hint_added = (
+                added_change_waits > 0
+                and not controller.expects_task_completion
+                and _is_read_only_settings_request(run)
+            )
+            if added_change_waits or completion_hint_added:
+                controller_data = controller.model_dump(
+                    mode="json",
+                    exclude_none=True,
+                )
+                controller_data["actions"] = normalized_actions
+                if completion_hint_added:
+                    controller_data["expects_task_completion"] = True
+                controller = ControllerDecision.model_validate(controller_data)
+                proposed_actions = normalized_actions
+                run.record(
+                    "controller.native_settings_launch_normalized",
+                    added_change_waits=added_change_waits,
+                    completion_hint_added=completion_hint_added,
+                )
             run.last_controller = controller
             if controller.outcome == "blocked":
                 run.status = RunStatus.BLOCKED
