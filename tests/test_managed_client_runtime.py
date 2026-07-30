@@ -98,7 +98,12 @@ def test_active_runtime_path_is_stable_and_overrideable(
     ) == selected
     assert active_managed_client_runtime_path(
         environ={"XDG_RUNTIME_DIR": str(tmp_path)}
-    ) == tmp_path / "pikvm-agent" / "managed-client-runtime.json"
+    ) == (
+        tmp_path
+        / "pikvm-agent"
+        / "managed"
+        / "managed-client-runtime.json"
+    )
     with pytest.raises(ValueError, match="must be an absolute path"):
         active_managed_client_runtime_path(
             environ={ACTIVE_MANAGED_RUNTIME_ENV: "relative/runtime.json"}

@@ -18,6 +18,7 @@ from pikvm_agent.harness.config import (
 _MAX_RUNTIME_BYTES = 16 * 1024
 ACTIVE_MANAGED_RUNTIME_ENV = "PIKVM_MANAGED_CLIENT_RUNTIME"
 _ACTIVE_RUNTIME_DIRECTORY = "pikvm-agent"
+_ACTIVE_RUNTIME_SUBDIRECTORY = "managed"
 _ACTIVE_RUNTIME_NAME = "managed-client-runtime.json"
 
 
@@ -54,6 +55,7 @@ def active_managed_client_runtime_path(
         return (
             selected_runtime
             / _ACTIVE_RUNTIME_DIRECTORY
+            / _ACTIVE_RUNTIME_SUBDIRECTORY
             / _ACTIVE_RUNTIME_NAME
         )
 
