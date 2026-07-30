@@ -49,6 +49,8 @@ def test_controller_can_launch_a_standard_app_in_one_safe_burst() -> None:
     )
     assert "native ``ms-settings:`` URI" in _CONTROLLER_SYSTEM
     assert "Do not generalise this exception to web URLs" in _CONTROLLER_SYSTEM
+    assert "the verifier's job, not a remaining computer" in _CONTROLLER_SYSTEM
+    assert "set expects_task_completion true" in _CONTROLLER_SYSTEM
 
 
 def test_reasoner_keeps_negative_safety_guards_out_of_success_criteria() -> None:
@@ -1731,6 +1733,8 @@ async def test_start_runs_a_checkpointed_reason_act_verify_slice() -> None:
     assert "do not require a numeric zoom indicator" in controller_prompt
     verifier_prompt = " ".join(provider.requests[2].prompt.split())
     assert "Return verified only when every action assessment" in verifier_prompt
+    assert "is not another computer step" in verifier_prompt
+    assert "return complete rather than verified" in verifier_prompt
     assert "Do not return uncertain merely because the overall task" in verifier_prompt
     assert "visibly larger terminal glyphs are sufficient" in verifier_prompt
     assert "not require a numeric zoom percentage" in verifier_prompt

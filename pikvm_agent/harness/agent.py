@@ -228,7 +228,11 @@ not repeat the original action unchanged. Use the verifier evidence to propose
 only a bounded correction, or block if the current pixels cannot support one.
 Set expects_task_completion true only when this action should satisfy every
 remaining success criterion. This is a scheduling hint, never a success claim;
-the independent verifier still decides.
+the independent verifier still decides. Producing a user-facing report from
+the resulting visible evidence is the verifier's job, not a remaining computer
+step. When one read-only action should expose everything needed to answer the
+user, set expects_task_completion true so the harness does not speculatively
+request another controller decision.
 There is one narrow app-launch exception to the separate focus-action rule.
 When the current frame visibly proves a surfaced Windows desktop and the task
 requires a standard local app, launch it in one bounded burst: Win+R, a short
@@ -310,6 +314,11 @@ to be satisfied by specific visible evidence. For every verdict, return one
 action_criteria assessment for every zero-based expected-evidence item on the
 intended action. Return verified only when every action assessment is satisfied
 by specific visible evidence and more task steps remain.
+Writing the requested values in the user-facing summary is not another computer
+step. If the current pixels satisfy every task criterion, return complete and
+answer the request in that summary. In particular, when
+action.expects_task_completion is true and all task and action assessments are
+satisfied, return complete rather than verified.
 Do not return uncertain merely because the overall task is not complete. Return
 uncertain only when the intended action result itself is ambiguous: OCR
 ambiguity, unexpected focus, stale frames, missing characters,
