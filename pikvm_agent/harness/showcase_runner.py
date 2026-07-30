@@ -734,7 +734,7 @@ class HarnessCampaignClient:
             headers=self.agent_headers,
             json={
                 "task": f"{CAMPAIGN_GUARD}\n\nTask:\n{task.prompt}",
-                "mode": "assistant",
+                "mode": "computer",
                 "auto_start": True,
                 "model_preferences": {
                     "reasoner": provider,
@@ -799,6 +799,21 @@ class HarnessCampaignClient:
             return False
         response.raise_for_status()
         return True
+
+
+def paused_recovery_action(
+    *,
+    event_count: int,
+    observed_cursor: int | None,
+    continued_cursor: int | None,
+) -> Literal["observe", "continue", "wait"]:
+    """Schedule at most one continue request for one paused checkpoint."""
+
+    if observed_cursor != event_count:
+        return "observe"
+    if continued_cursor == event_count:
+        return "wait"
+    return "continue"
 
 
 async def run_showcase_campaign(
@@ -914,6 +929,7 @@ async def run_showcase_campaign(
                         for approval in record["approvals"]
                     }
                     paused_cursor: int | None = None
+                    continued_paused_cursor: int | None = None
                     while time.monotonic() < deadline:
                         run = await harness.get(run_id)
                         run_status = str(run.get("status") or "")
@@ -928,8 +944,17 @@ async def run_showcase_campaign(
                             break
                         if run_status == "paused":
                             event_count = int(run.get("event_count") or 0)
-                            if paused_cursor != event_count:
+                            recovery_action = paused_recovery_action(
+                                event_count=event_count,
+                                observed_cursor=paused_cursor,
+                                continued_cursor=continued_paused_cursor,
+                            )
+                            if recovery_action == "observe":
                                 paused_cursor = event_count
+                                continued_paused_cursor = None
+                                await asyncio.sleep(0.75)
+                                continue
+                            if recovery_action == "wait":
                                 await asyncio.sleep(0.75)
                                 continue
                             if (
@@ -943,6 +968,7 @@ async def run_showcase_campaign(
                                 break
                             continued = await harness.continue_run(run_id)
                             if continued:
+                                continued_paused_cursor = event_count
                                 record["recoveries"].append(
                                     {
                                         "continued_at": utc_now(),
@@ -951,10 +977,10 @@ async def run_showcase_campaign(
                                     }
                                 )
                                 writer.flush()
-                            paused_cursor = None
                             await asyncio.sleep(0.75)
                             continue
                         paused_cursor = None
+                        continued_paused_cursor = None
                         if run_status == "needs_approval":
                             pending = run.get("pending_approval")
                             approval_id = (

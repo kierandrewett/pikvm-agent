@@ -23,6 +23,7 @@ from pikvm_agent.harness.showcase_runner import (
     approval_disposition,
     approval_is_safe,
     load_showcase_manifest,
+    paused_recovery_action,
 )
 
 
@@ -580,3 +581,54 @@ async def test_same_run_recovery_uses_continue_without_creating_a_task() -> None
         "/api/runs/run-7/continue"
     ]
     assert requests[0].url.params["background"] == "true"
+
+
+@pytest.mark.asyncio
+async def test_showcase_creates_a_computer_run_without_assistant_routing() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(200, json={"run_id": "run-8", "status": "running"})
+
+    async with httpx.AsyncClient(
+        transport=httpx.MockTransport(handler)
+    ) as client:
+        harness = HarnessCampaignClient(
+            client,
+            base_url="http://harness",
+            agent_token="a" * 32,
+            operator_token="b" * 32,
+            operator_origin="http://harness",
+        )
+        task = load_showcase_manifest(
+            Path(__file__).parents[1] / "bench" / "codex-50-tasks.yaml"
+        ).tasks[0]
+        await harness.create(task, "codex-fast")
+
+    body = json.loads(requests[0].content)
+    assert body["mode"] == "computer"
+    assert body["task"].endswith(f"Task:\n{task.prompt}")
+
+
+def test_paused_checkpoint_is_continued_only_once_until_it_advances() -> None:
+    assert paused_recovery_action(
+        event_count=59,
+        observed_cursor=None,
+        continued_cursor=None,
+    ) == "observe"
+    assert paused_recovery_action(
+        event_count=59,
+        observed_cursor=59,
+        continued_cursor=None,
+    ) == "continue"
+    assert paused_recovery_action(
+        event_count=59,
+        observed_cursor=59,
+        continued_cursor=59,
+    ) == "wait"
+    assert paused_recovery_action(
+        event_count=64,
+        observed_cursor=59,
+        continued_cursor=59,
+    ) == "observe"

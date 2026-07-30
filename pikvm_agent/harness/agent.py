@@ -74,6 +74,8 @@ satisfies the local task and its resulting state can be independently verified.
 Never use this fallback for a long script, encoded payload, command chain,
 installer, package change, or unrelated system mutation. Preserve
 existing/default values unless the user explicitly asked to change them.
+When the task explicitly asks to inspect a read-only Windows Settings page,
+prefer the page's native ``ms-settings:`` URI over manually traversing Settings.
 Do not invent a GUI-only or no-terminal constraint merely because the first
 strategy uses the GUI. Constraints record authenticated user requirements, not
 the planner's preferred route. When an allowed short local fallback is needed
@@ -154,6 +156,12 @@ settle, wait for a stable screen, type only the app's executable name with no
 arguments, press Enter, then wait for a stable screen. Do not use this exception
 for a shell, terminal, URL, file path, command arguments, or any consequential
 operation. Verify the launched app as the burst's stable end state.
+For a task that explicitly asks to inspect a read-only Windows Settings page,
+the same bounded launch exception may type one native ``ms-settings:`` URI
+instead of an executable. It must begin exactly with ``ms-settings:``, contain
+no whitespace or shell metacharacters, and open only the requested local page.
+Do not generalise this exception to web URLs, file URIs, commands, or arbitrary
+protocol handlers.
 Prefer a bounded reversible burst that reaches a stable, directly legible local
 end state over stopping at a low-contrast or transient intermediate state. For
 short local calculations, enter the complete expression including the equals
@@ -273,6 +281,7 @@ _OBSERVATION_ONLY_REQUESTS = frozenset(
 )
 
 _EXPLICIT_OBSERVATION_PREFIXES = (
+    "describe",
     "observation only",
     "read only",
 )
@@ -296,11 +305,18 @@ _SENTENCE_INPUT_PATTERN = re.compile(
 _DIRECT_SCREEN_TARGET_PATTERN = re.compile(
     r"\b(?:desktop|screen|visible|window|vm)\b"
 )
+_TASK_SECTION_PATTERN = re.compile(
+    r"(?:^|\n)task:\s*\n",
+    re.IGNORECASE,
+)
 
 
 def is_observation_only_request(request: str) -> bool:
     """Return whether a literal request needs fresh pixels but no HID input."""
 
+    task_sections = list(_TASK_SECTION_PATTERN.finditer(request))
+    if task_sections:
+        request = request[task_sections[-1].end() :]
     normalized = re.sub(r"[^a-z0-9']+", " ", request.casefold()).strip()
     normalized = normalized.replace("'", "")
     if normalized in _OBSERVATION_ONLY_REQUESTS:

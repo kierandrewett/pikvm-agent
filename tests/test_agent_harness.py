@@ -39,6 +39,8 @@ def test_controller_can_launch_a_standard_app_in_one_safe_burst() -> None:
     assert "shell, terminal, URL, file path, command arguments" in (
         _CONTROLLER_SYSTEM
     )
+    assert "native ``ms-settings:`` URI" in _CONTROLLER_SYSTEM
+    assert "Do not generalise this exception to web URLs" in _CONTROLLER_SYSTEM
 
 
 class ScriptedProvider:
@@ -1709,6 +1711,23 @@ async def test_explicit_read_only_screen_description_skips_planning_and_input() 
         event.kind == "plan.observation_only"
         for event in result.events
     )
+
+
+@pytest.mark.asyncio
+async def test_campaign_guard_does_not_disable_observation_fast_path() -> None:
+    provider = ScriptedProvider()
+    computer = FakeComputer()
+    harness = build_harness(provider, computer)
+
+    result = await harness.start(
+        "To launch an app, always use Win+R and type its executable.\n\n"
+        "Task:\nDescribe what is currently visible on the Windows desktop. "
+        "Do not change anything."
+    )
+
+    assert result.status is RunStatus.COMPLETED
+    assert [request.role for request in provider.requests] == ["verifier"]
+    assert computer.bursts == []
 
 
 def test_read_only_prefix_does_not_hide_a_later_action_request() -> None:
