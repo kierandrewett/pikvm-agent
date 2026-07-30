@@ -992,18 +992,18 @@ class AgentHarness:
                 action.model_dump(mode="json", exclude_none=True)
                 for action in controller.actions
             ]
-            if self._unsafe_unverified_terminal_followup(
+            if self._unsafe_unverified_input_followup(
                 run,
                 proposed_actions,
             ):
                 run.record(
-                    "controller.unverified_terminal_followup_rejected",
+                    "controller.unverified_input_followup_rejected",
                     action_types=[
                         str(action.get("type") or "")
                         for action in proposed_actions
                     ],
                     reason=(
-                        "sender issued the full terminal draft but exact "
+                        "sender issued the full input draft but exact "
                         "screen readback was unavailable"
                     ),
                 )
@@ -1012,15 +1012,16 @@ class AgentHarness:
                     run,
                     controller_feedback={
                         "reason": (
-                            "The sender issued the entire terminal draft, but "
+                            "The sender issued the entire input draft, but "
                             "the screen did not prove an exact readback."
                         ),
                         "instruction": (
-                            "Do not append text and do not execute the draft. "
-                            "Choose one non-text reversible action: cancel the "
-                            "draft with Ctrl+C, or make the line legible. Text "
-                            "may be retyped only after Ctrl+C has completed "
-                            "and a clean prompt has been observed."
+                            "Do not append, retype, or execute the unread "
+                            "draft. Cancel a terminal draft with Ctrl+C, or "
+                            "dismiss a field draft with Esc, in one separate "
+                            "non-text action. Re-enter it only after that "
+                            "cancellation has completed and a clean surface "
+                            "has been observed."
                         ),
                     },
                 )
@@ -1030,18 +1031,18 @@ class AgentHarness:
                     action.model_dump(mode="json", exclude_none=True)
                     for action in controller.actions
                 ]
-                if self._unsafe_unverified_terminal_followup(
+                if self._unsafe_unverified_input_followup(
                     run,
                     proposed_actions,
                 ):
                     run.plan = None
                     run.status = RunStatus.PAUSED
                     run.error = (
-                        "controller tried to append or execute an unverified "
-                        "terminal draft"
+                        "controller tried to change or execute an unverified "
+                        "input draft"
                     )
                     run.record(
-                        "controller.unverified_terminal_correction_failed",
+                        "controller.unverified_input_correction_failed",
                         action_types=[
                             str(action.get("type") or "")
                             for action in proposed_actions
@@ -2884,14 +2885,14 @@ class AgentHarness:
         return False
 
     @staticmethod
-    def _unsafe_unverified_terminal_followup(
+    def _unsafe_unverified_input_followup(
         run: RunSnapshot,
         proposed_actions: list[dict[str, Any]],
     ) -> bool:
-        """Require cancellation before changing or executing an unread draft."""
+        """Require cancellation before changing or executing unread exact input."""
 
         checkpoints: dict[int, list[dict[str, Any]]] = {}
-        active_unverified_draft = False
+        active_unverified_surfaces: set[str] = set()
         for event in run.events:
             index = event.data.get("index")
             if not isinstance(index, int):
@@ -2907,16 +2908,23 @@ class AgentHarness:
                 continue
             checkpointed = checkpoints.get(index, [])
             if event.kind == "action.completed_unverified":
-                terminal_text_indexes = {
-                    action_index
+                exact_text_surfaces = {
+                    action_index: (
+                        "terminal"
+                        if action.get("context") == "terminal"
+                        else "field"
+                    )
                     for action_index, action in enumerate(checkpointed)
                     if (
                         action.get("type") == "type_text"
-                        and action.get("context") == "terminal"
+                        and (
+                            action.get("context") == "terminal"
+                            or action.get("verification") == "exact"
+                        )
                     )
                 }
                 receipts = event.data.get("input_receipts")
-                if not terminal_text_indexes or not isinstance(receipts, list):
+                if not exact_text_surfaces or not isinstance(receipts, list):
                     continue
                 for receipt in receipts:
                     if not isinstance(receipt, dict):
@@ -2925,8 +2933,9 @@ class AgentHarness:
                     issued = receipt.get("issued_characters")
                     requested_hash = receipt.get("requested_sha256")
                     issued_hash = receipt.get("issued_prefix_sha256")
+                    surface = exact_text_surfaces.get(receipt.get("index"))
                     if (
-                        receipt.get("index") in terminal_text_indexes
+                        surface is not None
                         and isinstance(requested, int)
                         and requested > 0
                         and issued == requested
@@ -2935,42 +2944,72 @@ class AgentHarness:
                         and issued_hash == requested_hash
                         and receipt.get("exact_readback_sha256_match") is not True
                     ):
-                        active_unverified_draft = True
-                        break
+                        active_unverified_surfaces.add(surface)
                 continue
-            if event.kind == "action.completed" and any(
-                action.get("type") == "key"
-                and {
-                    token
-                    for key in action.get("keys", [])
-                    if isinstance(key, str)
-                    for token in re.split(r"[+\s]+", key.upper())
-                    if token
-                }
-                == {"CTRL", "C"}
-                for action in checkpointed
-            ):
-                active_unverified_draft = False
-
-        if not active_unverified_draft:
-            return False
-        return any(
-            (
-                action.get("type") == "type_text"
-                and action.get("context") == "terminal"
-            )
-            or (
-                action.get("type") == "key"
-                and bool(
-                    {
-                        str(key).upper()
+            if event.kind == "action.completed":
+                completed_keysets = {
+                    frozenset(
+                        token
                         for key in action.get("keys", [])
                         if isinstance(key, str)
-                    }.intersection({"ENTER", "RETURN"})
+                        for token in re.split(r"[+\s]+", key.upper())
+                        if token
+                    )
+                    for action in checkpointed
+                    if action.get("type") == "key"
+                }
+                if frozenset({"CTRL", "C"}) in completed_keysets:
+                    active_unverified_surfaces.discard("terminal")
+                if frozenset({"ESC"}) in completed_keysets:
+                    active_unverified_surfaces.discard("field")
+
+        if not active_unverified_surfaces:
+            return False
+        for action in proposed_actions:
+            if (
+                "terminal" in active_unverified_surfaces
+                and (
+                    (
+                        action.get("type") == "type_text"
+                        and action.get("context") == "terminal"
+                    )
+                    or (
+                        action.get("type") == "key"
+                        and bool(
+                            {
+                                str(key).upper()
+                                for key in action.get("keys", [])
+                                if isinstance(key, str)
+                            }.intersection({"ENTER", "RETURN"})
+                        )
+                    )
                 )
-            )
-            for action in proposed_actions
-        )
+            ):
+                return True
+            if (
+                "field" in active_unverified_surfaces
+                and (
+                    (
+                        action.get("type") == "type_text"
+                        and (
+                            action.get("context") == "field"
+                            or action.get("verification") == "exact"
+                        )
+                    )
+                    or (
+                        action.get("type") == "key"
+                        and bool(
+                            {
+                                str(key).upper()
+                                for key in action.get("keys", [])
+                                if isinstance(key, str)
+                            }.intersection({"ENTER", "RETURN"})
+                        )
+                    )
+                )
+            ):
+                return True
+        return False
 
     @staticmethod
     def _long_terminal_draft_needs_legibility_step(

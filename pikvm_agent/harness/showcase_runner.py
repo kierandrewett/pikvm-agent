@@ -82,7 +82,6 @@ READ_ONLY_NAVIGATION_KEYS = frozenset(
         frozenset({"ALT", "TAB"}),
         frozenset({"CTRL", "A"}),
         frozenset({"CTRL", "C"}),
-        frozenset({"ENTER"}),
         frozenset({"ESC"}),
         frozenset({"META"}),
         frozenset({"META", "R"}),

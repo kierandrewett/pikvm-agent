@@ -3104,19 +3104,19 @@ def test_unverified_terminal_draft_blocks_suffixes_and_execution_until_cancelled
         ],
     )
 
-    assert AgentHarness._unsafe_unverified_terminal_followup(
+    assert AgentHarness._unsafe_unverified_input_followup(
         run,
         [{"type": "type_text", "text": "se", "code": True, "context": "terminal"}],
     )
-    assert AgentHarness._unsafe_unverified_terminal_followup(
+    assert AgentHarness._unsafe_unverified_input_followup(
         run,
         [{"type": "key", "keys": ["ENTER"]}],
     )
-    assert not AgentHarness._unsafe_unverified_terminal_followup(
+    assert not AgentHarness._unsafe_unverified_input_followup(
         run,
         [{"type": "key", "keys": ["CTRL", "C"]}],
     )
-    assert not AgentHarness._unsafe_unverified_terminal_followup(
+    assert not AgentHarness._unsafe_unverified_input_followup(
         run,
         [{"type": "key", "keys": ["META", "ARROWUP"]}],
     )
@@ -3128,7 +3128,7 @@ def test_unverified_terminal_draft_blocks_suffixes_and_execution_until_cancelled
     )
     run.record("action.completed", index=6)
 
-    assert not AgentHarness._unsafe_unverified_terminal_followup(
+    assert not AgentHarness._unsafe_unverified_input_followup(
         run,
         [
             {
@@ -3141,6 +3141,72 @@ def test_unverified_terminal_draft_blocks_suffixes_and_execution_until_cancelled
                 "context": "terminal",
             }
         ],
+    )
+
+
+def test_unverified_exact_field_blocks_enter_until_dismissed() -> None:
+    run = RunSnapshot(
+        run_id="unverified-exact-field",
+        task="Open Windows Display settings",
+        status=RunStatus.PAUSED,
+    )
+    run.record(
+        "action.checkpointed",
+        index=2,
+        actions=[
+            {
+                "type": "type_text",
+                "text": "ms-settings:display",
+                "context": "field",
+                "verification": "exact",
+            }
+        ],
+    )
+    run.record(
+        "action.completed_unverified",
+        index=2,
+        input_receipts=[
+            {
+                "index": 0,
+                "issued_characters": 19,
+                "requested_characters": 19,
+                "requested_sha256": "b" * 64,
+                "issued_prefix_sha256": "b" * 64,
+                "exact_readback_sha256_match": False,
+            }
+        ],
+    )
+
+    assert AgentHarness._unsafe_unverified_input_followup(
+        run,
+        [{"type": "key", "keys": ["ENTER"]}],
+    )
+    assert AgentHarness._unsafe_unverified_input_followup(
+        run,
+        [
+            {
+                "type": "type_text",
+                "text": "ms-settings:display",
+                "context": "field",
+                "verification": "exact",
+            }
+        ],
+    )
+    assert not AgentHarness._unsafe_unverified_input_followup(
+        run,
+        [{"type": "key", "keys": ["ESC"]}],
+    )
+
+    run.record(
+        "action.checkpointed",
+        index=3,
+        actions=[{"type": "key", "keys": ["ESC"]}],
+    )
+    run.record("action.completed", index=3)
+
+    assert not AgentHarness._unsafe_unverified_input_followup(
+        run,
+        [{"type": "key", "keys": ["ENTER"]}],
     )
 
 
@@ -3743,9 +3809,11 @@ async def test_unverified_terminal_suffix_is_replaced_with_cancel_before_hid() -
         if request.role == "controller"
     ]
     assert '"controller_feedback": {' in controller_prompts[1]
-    assert "Do not append text and do not execute the draft" in controller_prompts[1]
+    assert "Do not append, retype, or execute the unread draft" in (
+        controller_prompts[1]
+    )
     assert any(
-        event.kind == "controller.unverified_terminal_followup_rejected"
+        event.kind == "controller.unverified_input_followup_rejected"
         for event in result.events
     )
 

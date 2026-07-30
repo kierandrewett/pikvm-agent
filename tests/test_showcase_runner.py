@@ -207,7 +207,7 @@ def test_read_only_campaign_approves_navigation_but_not_save_shortcut() -> None:
     assert not approval_is_safe(shortcut, mutates_workspace=False)
 
 
-def test_disposable_campaign_allows_bounded_navigation_keys() -> None:
+def test_read_only_campaign_refuses_unknown_bare_enter() -> None:
     enter = {
         "approval_id": "approval-enter",
         "risk": "unknown",
@@ -217,7 +217,7 @@ def test_disposable_campaign_allows_bounded_navigation_keys() -> None:
         },
     }
 
-    assert approval_is_safe(enter, mutates_workspace=False)
+    assert not approval_is_safe(enter, mutates_workspace=False)
 
 
 def test_campaign_waits_while_an_approved_request_is_still_resolving() -> None:
