@@ -8,7 +8,12 @@ import pytest
 from PIL import Image
 from pydantic import ValidationError
 
-from pikvm_agent.harness.agent import AgentHarness, _CONTROLLER_SYSTEM
+from pikvm_agent.harness.agent import (
+    AgentHarness,
+    _CONTROLLER_SYSTEM,
+    _REASONER_SYSTEM,
+    _normalize_plan_safety_constraints,
+)
 from pikvm_agent.harness.agent_models import (
     ArtifactAcceptance,
     ArtifactAcceptanceState,
@@ -44,6 +49,73 @@ def test_controller_can_launch_a_standard_app_in_one_safe_burst() -> None:
     )
     assert "native ``ms-settings:`` URI" in _CONTROLLER_SYSTEM
     assert "Do not generalise this exception to web URLs" in _CONTROLLER_SYSTEM
+
+
+def test_reasoner_keeps_negative_safety_guards_out_of_success_criteria() -> None:
+    assert "negative safety guards" in _REASONER_SYSTEM
+    assert "constraints, not success_criteria" in _REASONER_SYSTEM
+    assert "do not require a later screenshot" in _REASONER_SYSTEM
+
+
+def test_generic_non_mutation_success_criteria_become_constraints() -> None:
+    plan = PlanDecision(
+        summary="Inspect Windows About without changing anything.",
+        steps=["Open About", "Read the requested values"],
+        success_criteria=[
+            "The Windows About page is visible.",
+            "The edition and version values are legible.",
+            "No settings or files were changed.",
+        ],
+        constraints=["Do not install software."],
+    )
+
+    normalized, moved = _normalize_plan_safety_constraints(plan)
+
+    assert moved == 1
+    assert normalized.success_criteria == [
+        "The Windows About page is visible.",
+        "The edition and version values are legible.",
+    ]
+    assert normalized.constraints == [
+        "Do not install software.",
+        "No settings or files were changed.",
+    ]
+
+
+@pytest.mark.parametrize(
+    "criterion",
+    [
+        "Notifications are disabled.",
+        "The dim-screen setting is not enabled.",
+        "No matching files are present in the folder.",
+    ],
+)
+def test_visible_negative_outcomes_remain_success_criteria(
+    criterion: str,
+) -> None:
+    plan = PlanDecision(
+        summary="Verify the requested negative state.",
+        steps=["Inspect the visible state"],
+        success_criteria=[criterion],
+    )
+
+    normalized, moved = _normalize_plan_safety_constraints(plan)
+
+    assert moved == 0
+    assert normalized == plan
+
+
+def test_normalization_preserves_at_least_one_success_criterion() -> None:
+    plan = PlanDecision(
+        summary="Avoid mutation.",
+        steps=["Inspect the current state"],
+        success_criteria=["Do not change settings or files."],
+    )
+
+    normalized, moved = _normalize_plan_safety_constraints(plan)
+
+    assert moved == 0
+    assert normalized == plan
 
 
 class ScriptedProvider:

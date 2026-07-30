@@ -98,9 +98,15 @@ was absent from the original task string. Do not invent exact values, delays,
 quantities, formats, or preferences absent from both the task and guidance.
 Every success criterion must be necessary to satisfy the user's literal request
 as amended by operator guidance, not a nicer or stricter task the planner made
-up. When the exact label is unavailable, a semantically equivalent visible
-control may be used only when its effect satisfies the amended request and can
-be verified. Do not add approval-request steps to the plan. The controller
+up. Put negative safety guards such as "do not change settings or files" in
+constraints, not success_criteria. The action ledger and policy enforce those
+guards; do not require a later screenshot to prove that no unrelated mutation
+occurred. Keep a negative statement in success_criteria only when that visible
+negative state is itself the requested outcome, such as a setting being disabled
+or a folder containing no matching files. When the exact label is unavailable,
+a semantically equivalent visible control may be used only when its effect
+satisfies the amended request and can be verified. Do not add approval-request
+steps to the plan. The controller
 proposes the next bounded action; the independent daemon policy decides whether
 that exact action requires human approval and exits the model loop if it does.
 Plan for minimum sufficient evidence. When a task requires saving and reopening,
@@ -120,6 +126,80 @@ and not screen proof. Do not blindly replay sender-finished text merely because
 OCR could not read invisible whitespace or a wrapped field. Re-observe first,
 then use a bounded application-level check. Require readback_exact or artifact
 evidence before claiming exact on-screen or saved content."""
+
+
+_NEGATIVE_MUTATION_GUARD_PREFIX = re.compile(
+    r"^(?:no\b|do\s+not\b|don't\b|without\b|nothing\b|preserve\b)",
+    re.IGNORECASE,
+)
+_NEGATIVE_MUTATION_GUARD_ACTION = re.compile(
+    r"\b(?:chang(?:e|ed|ing)|modif(?:y|ied|ying)|alter(?:ed|ing)?|"
+    r"mutat(?:e|ed|ing)|edit(?:ed|ing)?|writ(?:e|ten|ing)|sav(?:e|ed|ing)|"
+    r"send|sent|sending|submit(?:ted|ting)?|delet(?:e|ed|ing)|"
+    r"remov(?:e|ed|ing)|creat(?:e|ed|ing)|install(?:ed|ing)?)\b",
+    re.IGNORECASE,
+)
+_NEGATIVE_MUTATION_GUARD_TARGET = re.compile(
+    r"\b(?:settings?|files?|documents?|messages?|emails?|permissions?|"
+    r"accounts?|data|content|configuration|preferences?|system)\b",
+    re.IGNORECASE,
+)
+
+
+def _normalize_plan_safety_constraints(
+    plan: PlanDecision,
+) -> tuple[PlanDecision, int]:
+    """Move generic non-mutation guards out of pixel-verifiable outcomes."""
+
+    movable_indices = [
+        index
+        for index, criterion in enumerate(plan.success_criteria)
+        if _NEGATIVE_MUTATION_GUARD_PREFIX.search(criterion.strip())
+        and _NEGATIVE_MUTATION_GUARD_ACTION.search(criterion)
+        and (
+            _NEGATIVE_MUTATION_GUARD_TARGET.search(criterion)
+            or criterion.strip().lower().startswith("nothing")
+        )
+    ]
+    if (
+        not movable_indices
+        or len(movable_indices) == len(plan.success_criteria)
+    ):
+        return plan, 0
+
+    normalized_constraints = list(plan.constraints)
+    constraint_keys = {
+        " ".join(constraint.casefold().split())
+        for constraint in normalized_constraints
+    }
+    moved_indices: set[int] = set()
+    for index in movable_indices:
+        criterion = plan.success_criteria[index]
+        key = " ".join(criterion.casefold().split())
+        if key not in constraint_keys:
+            if len(normalized_constraints) >= 20:
+                continue
+            normalized_constraints.append(criterion)
+            constraint_keys.add(key)
+        moved_indices.add(index)
+
+    if not moved_indices:
+        return plan, 0
+    normalized_criteria = [
+        criterion
+        for index, criterion in enumerate(plan.success_criteria)
+        if index not in moved_indices
+    ]
+    return (
+        plan.model_copy(
+            update={
+                "success_criteria": normalized_criteria,
+                "constraints": normalized_constraints,
+            }
+        ),
+        len(moved_indices),
+    )
+
 
 _CONTROLLER_SYSTEM = """\
 You are the fast controller for a physical computer. Choose one bounded logical
@@ -1235,7 +1315,16 @@ class AgentHarness:
         except ModelPoolError as exc:
             await self._model_failed(run, "reasoner", exc)
             return False
+        plan, normalized_constraint_count = _normalize_plan_safety_constraints(
+            plan
+        )
         run.plan = plan
+        if normalized_constraint_count:
+            run.record(
+                "plan.constraints_normalized",
+                count=normalized_constraint_count,
+                source="generic_non_mutation_guard",
+            )
         run.record(
             "model.completed",
             role="reasoner",
