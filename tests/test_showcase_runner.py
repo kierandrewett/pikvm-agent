@@ -6,6 +6,7 @@ from pathlib import Path
 
 import httpx
 import pytest
+import yaml
 from PIL import Image
 from typer.testing import CliRunner
 
@@ -42,6 +43,26 @@ def test_public_showcase_manifest_contains_fifty_distinct_codex_tasks() -> None:
         "Microsoft Excel",
         "Microsoft Word",
     } == {task.category for task in manifest.tasks}
+
+
+def test_live_showcase_config_locks_every_role_to_codex_fast() -> None:
+    config = yaml.safe_load(
+        (
+            Path(__file__).parents[1]
+            / "bench"
+            / "configs"
+            / "codex-vnc-showcase.yaml"
+        ).read_text(encoding="utf-8")
+    )
+
+    assert config["providers"]["codex-fast"]["model"] == "gpt-5.6-terra"
+    assert config["providers"]["codex-fast"]["reasoning_effort"] == "low"
+    assert config["providers"]["codex-fast"]["service_tier"] == "priority"
+    assert config["routes"] == {
+        "reasoner": ["codex-fast"],
+        "controller": ["codex-fast"],
+        "verifier": ["codex-fast"],
+    }
 
 
 def test_campaign_writer_declares_reboot_isolation_before_first_task(
