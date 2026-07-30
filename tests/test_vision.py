@@ -689,6 +689,114 @@ async def test_hybrid_precise_prefers_a_confident_single_line_secondary() -> Non
     ]
 
 
+async def test_hybrid_precise_selects_the_aligned_row_from_secondary_noise() -> None:
+    primary = OCRResult(
+        lines=[
+            OCRLine(
+                text="ms-settingsidisplay",
+                confidence=0.72,
+                bbox=[5, 5, 75, 16],
+            )
+        ]
+    )
+    secondary = OCRResult(
+        lines=[
+            OCRLine(
+                text="ms-settings:display",
+                confidence=0.999,
+                bbox=[6, 6, 74, 16],
+            ),
+            OCRLine(
+                text="This task will be created with administrative privileges.",
+                confidence=0.994,
+                bbox=[20, 27, 200, 36],
+            ),
+        ]
+    )
+
+    result = await HybridOcrProvider(
+        _ScriptedOcrProvider(primary, precise=primary),
+        _ScriptedOcrProvider(secondary),
+    ).ocr_precise(Path("run-field.png"))
+
+    assert result.text == "ms-settings:display"
+    assert result.lines == [secondary.lines[0]]
+    assert [candidate.text for candidate in result.alternatives] == [
+        "ms-settingsidisplay"
+    ]
+
+
+async def test_hybrid_precise_does_not_select_an_unrelated_secondary_row() -> None:
+    primary = OCRResult(
+        lines=[
+            OCRLine(
+                text="ms-settingsidisplay",
+                confidence=0.72,
+                bbox=[5, 5, 75, 16],
+            )
+        ]
+    )
+    secondary = OCRResult(
+        lines=[
+            OCRLine(
+                text="Completely unrelated text",
+                confidence=0.999,
+                bbox=[6, 6, 74, 16],
+            ),
+            OCRLine(
+                text="Administrative privileges",
+                confidence=0.994,
+                bbox=[20, 27, 200, 36],
+            ),
+        ]
+    )
+
+    result = await HybridOcrProvider(
+        _ScriptedOcrProvider(primary, precise=primary),
+        _ScriptedOcrProvider(secondary),
+    ).ocr_precise(Path("run-field.png"))
+
+    assert result.text == "ms-settingsidisplay"
+    assert result.lines == primary.lines
+
+
+async def test_hybrid_precise_selects_the_single_central_secondary_row() -> None:
+    primary = OCRResult(
+        lines=[
+            OCRLine(
+                text="This tack will be crested with privileges.",
+                confidence=0.78,
+                bbox=[5, 26, 198, 35],
+            )
+        ]
+    )
+    secondary = OCRResult(
+        lines=[
+            OCRLine(
+                text="ms-settings:display",
+                confidence=0.989,
+                bbox=[6, 9, 74, 20],
+            ),
+            OCRLine(
+                text="This task will be created with administrative privileges.",
+                confidence=0.994,
+                bbox=[19, 26, 199, 35],
+            ),
+        ]
+    )
+
+    result = await HybridOcrProvider(
+        _ScriptedOcrProvider(primary, precise=primary),
+        _ScriptedOcrProvider(secondary),
+    ).ocr_precise(
+        Path("run-field.png"),
+        region=Region(x=45, y=675, width=210, height=35),
+    )
+
+    assert result.text == "ms-settings:display"
+    assert result.lines == [secondary.lines[0]]
+
+
 async def test_hybrid_warmup_only_starts_the_secondary_worker(
     tmp_path,
 ) -> None:

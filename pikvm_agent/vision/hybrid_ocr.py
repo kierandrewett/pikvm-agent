@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import asyncio
+from difflib import SequenceMatcher
 from pathlib import Path
 from typing import Literal
 
 from PIL import Image
 
-from pikvm_agent.core.models import OCRCandidate, OCRResult, Region
+from pikvm_agent.core.models import OCRCandidate, OCRLine, OCRResult, Region
 from pikvm_agent.core.ports import OCRProvider
 
 _SECONDARY_MAX_AREA_FRAC = 0.20
@@ -95,9 +96,127 @@ def _append_candidate(
     )
 
 
+def _line_rectangle(
+    line: OCRLine,
+) -> tuple[float, float, float, float] | None:
+    box = line.bbox
+    if not isinstance(box, list) or len(box) < 4:
+        return None
+    if all(isinstance(value, (int, float)) for value in box[:4]):
+        x1, y1, x2, y2 = (float(value) for value in box[:4])
+        return (x1, y1, x2, y2) if x2 > x1 and y2 > y1 else None
+    points = [
+        point
+        for point in box
+        if (
+            isinstance(point, list)
+            and len(point) >= 2
+            and isinstance(point[0], (int, float))
+            and isinstance(point[1], (int, float))
+        )
+    ]
+    if len(points) < 2:
+        return None
+    xs = [float(point[0]) for point in points]
+    ys = [float(point[1]) for point in points]
+    rectangle = (min(xs), min(ys), max(xs), max(ys))
+    return (
+        rectangle
+        if rectangle[2] > rectangle[0] and rectangle[3] > rectangle[1]
+        else None
+    )
+
+
+def _aligned_secondary_row(
+    primary: OCRResult,
+    secondary: OCRResult,
+    *,
+    region: Region | None,
+) -> OCRResult:
+    """Isolate one independently aligned row from a noisy secondary crop."""
+
+    if len(primary.lines) != 1 or len(secondary.lines) <= 1:
+        return secondary
+    primary_line = primary.lines[0]
+    primary_rectangle = _line_rectangle(primary_line)
+    central_matches: list[OCRLine] = []
+    if region is not None and region.height > 0:
+        region_midpoint = region.height / 2
+        for line in secondary.lines:
+            rectangle = _line_rectangle(line)
+            confidence = (
+                float(line.confidence)
+                if line.confidence is not None
+                else 0.0
+            )
+            if rectangle is None or confidence < 0.90:
+                continue
+            _x1, y1, _x2, y2 = rectangle
+            if (
+                abs(((y1 + y2) / 2) - region_midpoint)
+                <= region.height * 0.25
+                and y2 - y1 <= region.height * 0.60
+            ):
+                central_matches.append(line)
+    if len(central_matches) == 1:
+        return OCRResult(
+            lines=central_matches,
+            alternatives=secondary.alternatives,
+            spacing_evidence=secondary.spacing_evidence,
+        )
+
+    matches: list[OCRLine] = []
+    if primary_rectangle is not None and primary_line.text.strip():
+        px1, py1, px2, py2 = primary_rectangle
+        for line in secondary.lines:
+            rectangle = _line_rectangle(line)
+            confidence = (
+                float(line.confidence)
+                if line.confidence is not None
+                else 0.0
+            )
+            if (
+                rectangle is None
+                or confidence < 0.90
+                or SequenceMatcher(
+                    None,
+                    primary_line.text.strip().casefold(),
+                    line.text.strip().casefold(),
+                    autojunk=False,
+                ).ratio()
+                < 0.75
+            ):
+                continue
+            sx1, sy1, sx2, sy2 = rectangle
+            horizontal_overlap = max(
+                0.0,
+                min(px2, sx2) - max(px1, sx1),
+            )
+            vertical_overlap = max(
+                0.0,
+                min(py2, sy2) - max(py1, sy1),
+            )
+            if (
+                horizontal_overlap
+                >= min(px2 - px1, sx2 - sx1) * 0.60
+                and vertical_overlap
+                >= min(py2 - py1, sy2 - sy1) * 0.50
+            ):
+                matches.append(line)
+    if len(matches) != 1:
+        return secondary
+    return OCRResult(
+        lines=matches,
+        alternatives=secondary.alternatives,
+        spacing_evidence=secondary.spacing_evidence,
+    )
+
+
 def _merge_precise_evidence(
     primary: OCRResult,
     secondary: OCRResult,
+    *,
+    region: Region | None,
 ) -> OCRResult:
     """Select an engine without ground truth and retain the other as evidence.
 
@@ -106,10 +225,15 @@ def _merge_precise_evidence(
     intended string, so later exact-text comparison remains independent.
     """
 
+    aligned_secondary = _aligned_secondary_row(
+        primary,
+        secondary,
+        region=region,
+    )
     primary_confidence = _mean_confidence(primary)
-    secondary_confidence = _mean_confidence(secondary)
+    secondary_confidence = _mean_confidence(aligned_secondary)
     use_secondary = bool(
-        len(secondary.lines) == 1
+        len(aligned_secondary.lines) == 1
         and secondary_confidence is not None
         and secondary_confidence >= 0.90
         and (
@@ -117,7 +241,7 @@ def _merge_precise_evidence(
             or secondary_confidence - primary_confidence >= 0.15
         )
     )
-    selected = secondary if use_secondary else primary
+    selected = aligned_secondary if use_secondary else primary
     other = primary if use_secondary else secondary
     candidates: list[OCRCandidate] = []
     seen = {selected.text}
@@ -233,6 +357,7 @@ class HybridOcrProvider:
         return _merge_precise_evidence(
             primary_result,
             secondary_result,
+            region=region,
         )
 
     async def warmup(self, image_path: Path) -> bool:
