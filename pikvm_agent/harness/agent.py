@@ -153,11 +153,12 @@ There is one narrow app-launch exception to the separate focus-action rule.
 When the current frame visibly proves a surfaced Windows desktop and the task
 requires a standard local app, launch it in one bounded burst: Win+R, a short
 settle, wait for a stable screen, type only the app's executable name with no
-arguments using context ``field`` and verification ``exact``, press Enter, then
-wait for a stable screen. Keep Win+R, the exact text, and Enter in this same
-burst; do not reuse a field focused by an earlier burst. Do not use this exception
-for a shell, terminal, URL, file path, command arguments, or any consequential
-operation. Verify the launched app as the burst's stable end state.
+arguments using context ``field`` and verification ``exact``, press Enter, wait
+for the screen to change, then wait for a stable screen. Keep Win+R, the exact text, and Enter in this same
+burst; do not reuse a field focused by an earlier burst. Do not use this
+exception for a shell, terminal, URL, file path, command arguments, or any
+consequential operation. Verify the launched app as the burst's stable end
+state.
 For a task that explicitly asks to inspect a read-only Windows Settings page,
 the same bounded launch exception may type one native ``ms-settings:`` URI
 instead of an executable. It must begin exactly with ``ms-settings:``, contain

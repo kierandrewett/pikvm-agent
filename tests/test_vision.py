@@ -652,6 +652,7 @@ async def test_hybrid_precise_read_retains_unique_secondary_evidence(
         "secondary_attempted": 1,
         "secondary_completed": 1,
         "secondary_skipped_busy": 0,
+        "secondary_skipped_unbounded": 0,
         "secondary_failed_or_timed_out": 0,
     }
 
@@ -706,6 +707,45 @@ async def test_hybrid_warmup_only_starts_the_secondary_worker(
     assert secondary.calls == [("ocr", image_path, None)]
 
 
+async def test_hybrid_warmup_uses_a_bounded_crop_for_a_real_screen(
+    tmp_path,
+) -> None:
+    image_path = tmp_path / "screen.png"
+    Image.new("RGB", (1280, 800), "white").save(image_path)
+    primary = _ScriptedOcrProvider(OCRResult())
+    secondary = _ScriptedOcrProvider(OCRResult())
+    provider = HybridOcrProvider(primary, secondary)
+
+    assert await provider.warmup(image_path) is True
+
+    assert primary.calls == []
+    assert len(secondary.calls) == 1
+    _kind, _path, region = secondary.calls[0]
+    assert region is not None
+    assert region.width <= 384
+    assert region.height <= 160
+
+
+async def test_hybrid_precise_read_skips_secondary_for_unbounded_screen(
+    tmp_path,
+) -> None:
+    image_path = tmp_path / "screen.png"
+    Image.new("RGB", (1280, 800), "white").save(image_path)
+    primary = _ScriptedOcrProvider(
+        OCRResult(lines=[OCRLine(text="primary screen read")])
+    )
+    secondary = _ScriptedOcrProvider(
+        OCRResult(lines=[OCRLine(text="secondary must not run")])
+    )
+    provider = HybridOcrProvider(primary, secondary)
+
+    result = await provider.ocr_precise(image_path)
+
+    assert result.text == "primary screen read"
+    assert secondary.calls == []
+    assert provider.diagnostics()["secondary_skipped_unbounded"] == 1
+
+
 async def test_hybrid_precise_read_skips_a_busy_secondary(
     tmp_path,
 ) -> None:
@@ -737,6 +777,7 @@ async def test_hybrid_precise_read_skips_a_busy_secondary(
         "secondary_attempted": 0,
         "secondary_completed": 0,
         "secondary_skipped_busy": 1,
+        "secondary_skipped_unbounded": 0,
         "secondary_failed_or_timed_out": 0,
     }
 

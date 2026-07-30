@@ -1372,7 +1372,11 @@ class WatchedTyper:
         fast_print: bool = False,
     ) -> WatchedTypingResult:
         dims = self._dims()
-        chunks = chunk_text(text)
+        # Short exact fields (notably allowlisted Windows Run targets) are one
+        # bounded emission. Splitting a 17–20 character URI after character 16
+        # lets its own autocomplete popup look like external focus theft before
+        # the final glyph. Exact OCR still gates every following action.
+        chunks = [text] if precise and len(text) <= 20 else chunk_text(text)
         total = len(text)
         explicit_region = region is not None
         located = explicit_region

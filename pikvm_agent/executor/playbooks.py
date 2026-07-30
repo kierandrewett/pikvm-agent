@@ -63,6 +63,7 @@ PLAYBOOKS: dict[str, list[dict[str, Any]]] = {
         {"type": "wait_for_stable_screen", "stable_ms": 250, "timeout_ms": 1500},
         {"type": "type_text", "text": "{{command}}"},
         {"type": "key", "keys": ["ENTER"]},
+        {"type": "wait_for_change", "timeout_ms": 4000},
         {"type": "wait_for_stable_screen", "stable_ms": 400, "timeout_ms": 4000},
     ],
     "windows.run_dialog": [  # open Run + type the command but DON'T submit (review first)

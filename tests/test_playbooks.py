@@ -77,6 +77,8 @@ def test_windows_run_expands_and_waits_before_typing() -> None:
     assert "wait_for_stable_screen" in kinds[:ti]  # we settle before typing
     assert actions[ti]["text"] == "calc"
     assert {"type": "key", "keys": ["ENTER"]} in actions  # and submit
+    submit_index = actions.index({"type": "key", "keys": ["ENTER"]})
+    assert "wait_for_change" in kinds[submit_index + 1 :]
 
 
 def test_windows_run_dialog_does_not_submit() -> None:

@@ -6,8 +6,62 @@ import asyncio
 from pathlib import Path
 from typing import Literal
 
+from PIL import Image
+
 from pikvm_agent.core.models import OCRCandidate, OCRResult, Region
 from pikvm_agent.core.ports import OCRProvider
+
+_SECONDARY_MAX_AREA_FRAC = 0.20
+_SECONDARY_MAX_WIDTH_FRAC = 0.80
+_SECONDARY_MAX_HEIGHT_FRAC = 0.45
+_WARMUP_MAX_WIDTH = 384
+_WARMUP_MAX_HEIGHT = 160
+
+
+def _image_size(image_path: Path) -> tuple[int, int] | None:
+    try:
+        with Image.open(image_path) as image:
+            return image.size
+    except (OSError, ValueError):
+        return None
+
+
+def _secondary_region_is_bounded(
+    image_path: Path,
+    region: Region | None,
+) -> bool:
+    """Keep the heavyweight engine away from whole-screen OCR."""
+
+    size = _image_size(image_path)
+    if size is None:
+        # Synthetic providers and compatibility fixtures may not be real images.
+        return True
+    if region is None:
+        return False
+    width, height = size
+    if width <= 0 or height <= 0:
+        return False
+    return (
+        region.width * region.height
+        <= width * height * _SECONDARY_MAX_AREA_FRAC
+        and region.width <= width * _SECONDARY_MAX_WIDTH_FRAC
+        and region.height <= height * _SECONDARY_MAX_HEIGHT_FRAC
+    )
+
+
+def _warmup_region(image_path: Path) -> Region | None:
+    size = _image_size(image_path)
+    if size is None:
+        return None
+    width, height = size
+    crop_width = min(width, _WARMUP_MAX_WIDTH)
+    crop_height = min(height, _WARMUP_MAX_HEIGHT)
+    return Region(
+        x=max(0, (width - crop_width) // 2),
+        y=max(0, (height - crop_height) // 2),
+        width=crop_width,
+        height=crop_height,
+    )
 
 
 def _mean_confidence(result: OCRResult) -> float | None:
@@ -120,6 +174,7 @@ class HybridOcrProvider:
         self._secondary_attempted = 0
         self._secondary_completed = 0
         self._secondary_skipped_busy = 0
+        self._secondary_skipped_unbounded = 0
         self._secondary_failed_or_timed_out = 0
 
     async def ocr(
@@ -145,6 +200,9 @@ class HybridOcrProvider:
             if callable(primary_precise)
             else self.primary.ocr(image_path, region=region)
         )
+        if not _secondary_region_is_bounded(image_path, region):
+            self._secondary_skipped_unbounded += 1
+            return await primary_call
         secondary_busy = getattr(self.secondary, "busy", None)
         if callable(secondary_busy) and secondary_busy():
             self._secondary_skipped_busy += 1
@@ -185,7 +243,10 @@ class HybridOcrProvider:
             return False
         try:
             await asyncio.wait_for(
-                self.secondary.ocr(image_path),
+                self.secondary.ocr(
+                    image_path,
+                    region=_warmup_region(image_path),
+                ),
                 timeout=self.secondary_timeout_s,
             )
         except (TimeoutError, RuntimeError):
@@ -200,6 +261,9 @@ class HybridOcrProvider:
             "secondary_attempted": self._secondary_attempted,
             "secondary_completed": self._secondary_completed,
             "secondary_skipped_busy": self._secondary_skipped_busy,
+            "secondary_skipped_unbounded": (
+                self._secondary_skipped_unbounded
+            ),
             "secondary_failed_or_timed_out": (
                 self._secondary_failed_or_timed_out
             ),

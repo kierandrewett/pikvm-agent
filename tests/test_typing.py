@@ -2118,6 +2118,34 @@ async def test_typing_stops_before_next_chunk_after_out_of_field_screen_change()
     _assert_no_enter(backend)
 
 
+async def test_short_exact_field_text_uses_one_guarded_chunk() -> None:
+    backend = FakeBackend()
+    intended = "ms-settings:about"
+    assert CHUNK_TARGET < len(intended) <= 20
+    typer = WatchedTyper(backend, ScriptedOCR(intended))
+    base = _flat_grid().reshape(GRID_ROWS, GRID_COLS)
+    field = base.copy()
+    field[14:16, 2:10] = 200
+    grids = iter([base.reshape(-1), field.reshape(-1)])
+
+    async def changing_grid() -> np.ndarray:
+        return next(grids, field.reshape(-1))
+
+    typer._grid = changing_grid  # type: ignore[method-assign]
+    result = await typer.type_text(
+        intended,
+        code=True,
+    )
+
+    typed = [
+        call["text"]
+        for method, call in backend.calls
+        if method == "type_text"
+    ]
+    assert typed == [intended]
+    assert result.status == "verified_exact"
+
+
 async def test_type_text_runs_to_completion_when_control_held() -> None:
     # The same gate, but control is never revoked — the whole string types normally.
     backend = FakeBackend()
