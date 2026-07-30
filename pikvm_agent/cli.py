@@ -1521,11 +1521,14 @@ def harness_showcase_run(
         readable=True,
         help="Checked task manifest for the recorded campaign.",
     ),
-    output_root: Path = typer.Option(
-        ...,
+    output_root: Path | None = typer.Option(
+        None,
         "--output-root",
         file_okay=False,
-        help="Harness showcase artifact directory.",
+        help=(
+            "Durable showcase directory. Defaults to "
+            "$XDG_DATA_HOME/pikvm-agent/showcases."
+        ),
     ),
     harness_url: str = typer.Option(
         ...,
@@ -1585,7 +1588,10 @@ def harness_showcase_run(
     import asyncio
     import json
 
-    from pikvm_agent.harness.showcase_runner import run_showcase_campaign
+    from pikvm_agent.harness.showcase_runner import (
+        default_showcase_output_root,
+        run_showcase_campaign,
+    )
 
     agent_token = os.environ.get(agent_token_env, "")
     operator_token = os.environ.get(operator_token_env, "")
@@ -1599,7 +1605,7 @@ def harness_showcase_run(
         report = asyncio.run(
             run_showcase_campaign(
                 manifest_path=manifest,
-                output_root=output_root,
+                output_root=output_root or default_showcase_output_root(),
                 harness_url=harness_url,
                 adapter_url=adapter_url,
                 agent_token=agent_token,

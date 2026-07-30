@@ -261,8 +261,6 @@ tasks:
             "showcase-run",
             "--manifest",
             str(manifest_path),
-            "--output-root",
-            str(tmp_path / "output"),
             "--harness-url",
             "http://127.0.0.1:48001",
             "--adapter-url",
@@ -273,12 +271,16 @@ tasks:
         env={
             "PIKVM_HARNESS_AGENT_TOKEN": "a" * 32,
             "PIKVM_HARNESS_TOKEN": "b" * 32,
+            "XDG_DATA_HOME": str(tmp_path / "xdg"),
         },
     )
 
     assert result.exit_code == 0
     assert json.loads(result.stdout)["status"] == "completed"
     assert calls[0]["adapter_url"] == "http://127.0.0.1:48002"
+    assert calls[0]["output_root"] == (
+        tmp_path / "xdg" / "pikvm-agent" / "showcases"
+    )
     assert calls[0]["max_same_run_recoveries"] == 8
 
 

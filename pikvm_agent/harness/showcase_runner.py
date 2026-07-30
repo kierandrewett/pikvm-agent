@@ -99,6 +99,18 @@ def utc_now() -> str:
     return datetime.now(UTC).isoformat()
 
 
+def default_showcase_output_root() -> Path:
+    """Return durable per-user storage for campaign state and recordings."""
+
+    data_home = Path(
+        os.environ.get(
+            "XDG_DATA_HOME",
+            str(Path.home() / ".local" / "share"),
+        )
+    )
+    return data_home / "pikvm-agent" / "showcases"
+
+
 def _task_error_before_reboot(record: dict[str, Any]) -> str | None:
     task_error = record.get("task_error")
     if task_error is not None:
