@@ -170,6 +170,41 @@ class FocusTextAndCommitProvider:
         )
 
 
+class SafeSettingsLaunchProvider:
+    name = "safe-settings-launch"
+
+    def __init__(self) -> None:
+        self.calls = 0
+
+    async def complete(self, model_request: ModelRequest) -> ModelResponse:
+        self.calls += 1
+        return ModelResponse(
+            provider=self.name,
+            model="safe-controller",
+            data={
+                "outcome": "act",
+                "intent": "Open the read-only Windows About settings page.",
+                "actions": [
+                    {"type": "key", "keys": ["META", "R"]},
+                    {"type": "wait", "ms": 150},
+                    {
+                        "type": "type_text",
+                        "text": "ms-settings:about",
+                        "context": "field",
+                        "verification": "exact",
+                    },
+                    {"type": "key", "keys": ["ENTER"]},
+                    {
+                        "type": "wait_for_stable_screen",
+                        "stable_ms": 300,
+                        "timeout_ms": 3000,
+                    },
+                ],
+                "expected_evidence": ["The About settings page is visible."],
+            },
+        )
+
+
 @pytest.mark.asyncio
 async def test_model_pool_falls_back_only_before_schema_valid_output() -> None:
     pool = ModelPool(
@@ -286,6 +321,42 @@ async def test_model_pool_downgrades_text_plus_commit_to_a_visible_safe_draft() 
         "preserved_actions": 1,
         "dropped_actions": 1,
         "dropped_action_types": ["key"],
+    }
+
+
+@pytest.mark.asyncio
+async def test_model_pool_preserves_verified_windows_settings_launch() -> None:
+    provider = SafeSettingsLaunchProvider()
+    pool = ModelPool(
+        providers={provider.name: provider},
+        routes={"controller": RoleRoute(providers=[provider.name])},
+    )
+    events: list[tuple[str, dict[str, object]]] = []
+
+    async def record(kind: str, data: dict[str, object]) -> None:
+        events.append((kind, data))
+
+    decision, _response = await pool.complete(
+        ModelRequest(
+            role="controller",
+            prompt="Choose the next bounded action.",
+            output_schema=ControllerDecision.model_json_schema(),
+            run_id="run-controller-safe-settings",
+        ),
+        ControllerDecision,
+        on_event=record,
+    )
+
+    assert provider.calls == 1
+    assert [action.type for action in decision.actions] == [
+        "key",
+        "wait",
+        "type_text",
+        "key",
+        "wait_for_stable_screen",
+    ]
+    assert "provider_schema_safety_downgrade" not in {
+        kind for kind, _data in events
     }
 
 

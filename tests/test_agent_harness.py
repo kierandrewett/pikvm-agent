@@ -35,7 +35,10 @@ from pikvm_agent.harness.model_pool import ModelPool, RoleRoute
 def test_controller_can_launch_a_standard_app_in_one_safe_burst() -> None:
     assert "one narrow app-launch exception" in _CONTROLLER_SYSTEM
     assert "type only the app's executable name" in _CONTROLLER_SYSTEM
-    assert "arguments, press Enter" in _CONTROLLER_SYSTEM
+    assert "context ``field`` and verification ``exact``" in _CONTROLLER_SYSTEM
+    assert "Keep Win+R, the exact text, and Enter in this same" in (
+        _CONTROLLER_SYSTEM
+    )
     assert "shell, terminal, URL, file path, command arguments" in (
         _CONTROLLER_SYSTEM
     )
@@ -1497,6 +1500,126 @@ def test_controller_action_schema_allows_passive_evidence_after_text() -> None:
         "type_text",
         "wait_for_stable_screen",
     ]
+
+
+@pytest.mark.parametrize("text", ["ms-settings:about", "notepad"])
+def test_controller_action_schema_allows_verified_windows_run_launch(
+    text: str,
+) -> None:
+    decision = ControllerDecision.model_validate(
+        {
+            "outcome": "act",
+            "intent": "Open one safe local Windows surface.",
+            "actions": [
+                {"type": "key", "keys": ["META", "R"]},
+                {"type": "wait", "ms": 150},
+                {
+                    "type": "wait_for_stable_screen",
+                    "stable_ms": 150,
+                    "timeout_ms": 1500,
+                },
+                {
+                    "type": "type_text",
+                    "text": text,
+                    "context": "field",
+                    "verification": "exact",
+                },
+                {"type": "key", "keys": ["ENTER"]},
+                {
+                    "type": "wait_for_stable_screen",
+                    "stable_ms": 300,
+                    "timeout_ms": 3000,
+                },
+            ],
+            "expected_evidence": ["The requested local surface is visible."],
+        }
+    )
+
+    assert [action.type for action in decision.actions] == [
+        "key",
+        "wait",
+        "wait_for_stable_screen",
+        "type_text",
+        "key",
+        "wait_for_stable_screen",
+    ]
+
+
+@pytest.mark.parametrize(
+    ("prefix", "text_action"),
+    [
+        (
+            [],
+            {
+                "type": "type_text",
+                "text": "ms-settings:about",
+                "context": "field",
+                "verification": "exact",
+            },
+        ),
+        (
+            [{"type": "click", "x": 400, "y": 300}],
+            {
+                "type": "type_text",
+                "text": "ms-settings:about",
+                "context": "field",
+                "verification": "exact",
+            },
+        ),
+        (
+            [{"type": "key", "keys": ["META", "R"]}],
+            {
+                "type": "type_text",
+                "text": "https://example.com",
+                "context": "field",
+                "verification": "exact",
+            },
+        ),
+        (
+            [{"type": "key", "keys": ["META", "R"]}],
+            {
+                "type": "type_text",
+                "text": "ms-settings:about & cmd",
+                "context": "field",
+                "verification": "exact",
+            },
+        ),
+        (
+            [{"type": "key", "keys": ["META", "R"]}],
+            {
+                "type": "type_text",
+                "text": "ms-settings:about",
+                "context": "terminal",
+                "verification": "exact",
+            },
+        ),
+        (
+            [{"type": "key", "keys": ["META", "R"]}],
+            {
+                "type": "type_text",
+                "text": "ms-settings:about",
+                "context": "field",
+            },
+        ),
+    ],
+)
+def test_controller_action_schema_rejects_unsafe_windows_run_near_misses(
+    prefix: list[dict[str, object]],
+    text_action: dict[str, object],
+) -> None:
+    with pytest.raises(ValidationError, match="active follow-up"):
+        ControllerDecision.model_validate(
+            {
+                "outcome": "act",
+                "intent": "Try an unsafe launch shape.",
+                "actions": [
+                    *prefix,
+                    text_action,
+                    {"type": "key", "keys": ["ENTER"]},
+                ],
+                "expected_evidence": ["A surface is visible."],
+            }
+        )
 
 
 @pytest.mark.asyncio
