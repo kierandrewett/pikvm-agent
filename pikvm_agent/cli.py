@@ -1583,6 +1583,14 @@ def harness_showcase_run(
         max=50,
         help="Bounded paused-checkpoint recoveries before a task fails.",
     ),
+    stop_after_task_id: str | None = typer.Option(
+        None,
+        "--stop-after-task",
+        help=(
+            "Pause after this task's recording and mandatory reboot are "
+            "complete."
+        ),
+    ),
 ) -> None:
     """Run Codex tasks one-by-one, record them, and reboot after every task."""
     import asyncio
@@ -1615,6 +1623,7 @@ def harness_showcase_run(
                 reboot_timeout_s=reboot_timeout_s,
                 frame_interval_s=frame_interval_s,
                 max_same_run_recoveries=max_same_run_recoveries,
+                stop_after_task_id=stop_after_task_id,
             )
         )
     except (OSError, RuntimeError, TimeoutError, ValueError) as exc:

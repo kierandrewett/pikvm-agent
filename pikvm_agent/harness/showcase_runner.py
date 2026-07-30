@@ -829,10 +829,20 @@ async def run_showcase_campaign(
     reboot_timeout_s: float = 180,
     frame_interval_s: float = 0.5,
     max_same_run_recoveries: int = 8,
+    stop_after_task_id: str | None = None,
 ) -> dict[str, Any]:
     if max_same_run_recoveries < 1:
         raise ValueError("max_same_run_recoveries must be positive")
     manifest = load_showcase_manifest(manifest_path)
+    if (
+        stop_after_task_id is not None
+        and stop_after_task_id not in {
+            task.task_id for task in manifest.tasks
+        }
+    ):
+        raise ValueError(
+            f"stop-after task is not in manifest: {stop_after_task_id}"
+        )
     writer = CampaignWriter(manifest, output_root)
     writer.payload["limits"] = {
         "task_timeout_s": task_timeout_s,
@@ -1103,6 +1113,11 @@ async def run_showcase_campaign(
             if record["reboot"]["status"] != "ready":
                 writer.payload["status"] = "failed"
                 writer.payload["finished_at"] = utc_now()
+                writer.flush()
+                return writer.payload
+            if spec.task_id == stop_after_task_id:
+                writer.payload["status"] = "paused"
+                writer.payload["finished_at"] = None
                 writer.flush()
                 return writer.payload
     writer.payload["status"] = "completed"
