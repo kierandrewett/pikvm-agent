@@ -766,6 +766,28 @@ def test_bare_enter_on_confirmed_save_as_replacement_is_a_local_edit() -> None:
     )
 
 
+def test_measured_save_as_ocr_noise_still_identifies_local_replacement() -> None:
+    actions = [{"type": "key", "keys": ["ENTER"]}]
+    surface = (
+        "Confirm Save As\n"
+        "text-O1.otalreadycasts.\n"
+        "Do you want to replace at?\n"
+        "Yes No"
+    )
+
+    assert is_confirmed_local_file_overwrite_surface(actions, surface)
+    verdict = classify_direct_burst(
+        actions,
+        PolicyConfig(),
+        observed_surface_text=surface,
+    )
+
+    assert (verdict.status, verdict.category) == (
+        "approval_required",
+        "local_file_edit",
+    )
+
+
 @pytest.mark.parametrize(
     "surface",
     [

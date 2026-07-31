@@ -300,6 +300,7 @@ def is_confirmed_local_file_overwrite_surface(
         return False
     text = observed_surface_text.casefold().replace("’", "'")
     normalized = re.sub(r"[^a-z0-9.]+", " ", text).strip()
+    compact = re.sub(r"[^a-z0-9]+", "", text)
     dangerous_surface = any(
         pattern.search(text)
         for pattern in (
@@ -318,8 +319,12 @@ def is_confirmed_local_file_overwrite_surface(
     return bool(
         not dangerous_surface
         and "confirm save as" in normalized
-        and "already exists" in normalized
-        and "do you want to replace it" in normalized
+        and "already" in compact
+        and any(
+            marker in compact
+            for marker in ("exists", "easts", "casts")
+        )
+        and "doyouwanttoreplace" in compact
         and re.search(r"\byes\b", normalized)
         and re.search(r"\bno\b", normalized)
     )
