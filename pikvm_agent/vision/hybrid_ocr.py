@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 from difflib import SequenceMatcher
 from pathlib import Path
 from typing import Literal
@@ -23,6 +24,7 @@ _SECONDARY_MIN_CONFIDENCE = 0.90
 _GEOMETRIC_SPACING_MIN_CONFIDENCE = 0.90
 _SECONDARY_SINGLE_LINE_ADVANTAGE = 0.08
 _SECONDARY_MULTILINE_ADVANTAGE = 0.20
+_NUMBERED_LIST_MARKER = re.compile(r"\d{1,3}[.)]")
 
 
 def _image_size(image_path: Path) -> tuple[int, int] | None:
@@ -275,9 +277,20 @@ def _has_visible_single_space_gap(
         return False
     line = selected.lines[0]
     tokens = line.text.split(" ")
+    numbered_list = bool(
+        len(tokens) == 2
+        and _NUMBERED_LIST_MARKER.fullmatch(tokens[0]) is not None
+        and tokens[1].isalnum()
+    )
+    safe_tokens = (
+        len(tokens) == 2
+        and (
+            all(token.isalnum() for token in tokens)
+            or numbered_list
+        )
+    )
     if (
-        len(tokens) != 2
-        or not all(token.isalnum() for token in tokens)
+        not safe_tokens
         or line.confidence is None
         or float(line.confidence) < _GEOMETRIC_SPACING_MIN_CONFIDENCE
     ):
@@ -330,11 +343,19 @@ def _has_visible_single_space_gap(
     largest, gap_left, gap_right = gaps[0]
     runner_up = gaps[1][0] if len(gaps) > 1 else 0
     line_height = grayscale.shape[0]
-    if (
-        largest < max(2, round(line_height * 0.12))
-        or largest > max(3, round(line_height * 0.40))
-        or largest <= runner_up
-    ):
+    if numbered_list:
+        valid_gap_size = (
+            largest >= max(3, round(line_height * 0.28))
+            and largest <= max(4, round(line_height * 0.72))
+            and largest >= max(4, runner_up * 2)
+        )
+    else:
+        valid_gap_size = (
+            largest >= max(2, round(line_height * 0.12))
+            and largest <= max(3, round(line_height * 0.40))
+            and largest > runner_up
+        )
+    if not valid_gap_size:
         return False
 
     ink_left = int(active_columns[0])

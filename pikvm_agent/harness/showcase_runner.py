@@ -981,6 +981,25 @@ def paused_recovery_action(
     return "continue"
 
 
+def repeated_paused_error_limit_reached(
+    recoveries: list[dict[str, Any]],
+    *,
+    error: object,
+    limit: int = 2,
+) -> bool:
+    """Stop an unchanged paused loop before paying for another provider retry."""
+
+    current = str(error or "").strip()
+    if not current or limit < 1:
+        return False
+    consecutive = 0
+    for recovery in reversed(recoveries):
+        if str(recovery.get("error") or "").strip() != current:
+            break
+        consecutive += 1
+    return consecutive >= limit
+
+
 async def run_showcase_campaign(
     *,
     manifest_path: Path,
@@ -1148,6 +1167,16 @@ async def run_showcase_campaign(
                             if recovery_action == "wait":
                                 await asyncio.sleep(0.75)
                                 continue
+                            if repeated_paused_error_limit_reached(
+                                record["recoveries"],
+                                error=run.get("error"),
+                            ):
+                                run_error = (
+                                    "identical paused error repeated twice; "
+                                    "stopping before another provider retry: "
+                                    f"{run.get('error') or 'unknown pause'!s}"
+                                )
+                                break
                             if (
                                 len(record["recoveries"])
                                 >= max_same_run_recoveries

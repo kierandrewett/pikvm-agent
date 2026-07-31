@@ -788,17 +788,21 @@ async def test_hybrid_precise_does_not_verify_unaligned_space_consensus() -> Non
 
 
 @pytest.mark.parametrize(
-    ("rendered_text", "ocr_confidence", "expected_spacing"),
+    ("rendered_text", "ocr_text", "ocr_confidence", "expected_spacing"),
     [
-        ("This PC", 0.9316, "verified"),
-        ("This PC", 0.89, "not_evaluated"),
-        ("This  PC", 0.995, "not_evaluated"),
-        ("ThisPC", 0.995, "not_evaluated"),
+        ("This PC", "This PC", 0.9316, "verified"),
+        ("This PC", "This PC", 0.89, "not_evaluated"),
+        ("This  PC", "This PC", 0.995, "not_evaluated"),
+        ("ThisPC", "This PC", 0.995, "not_evaluated"),
+        ("1. Observe", "1. Observe", 0.995, "verified"),
+        ("1.  Observe", "1. Observe", 0.995, "not_evaluated"),
+        ("1.Observe", "1. Observe", 0.995, "not_evaluated"),
     ],
 )
 async def test_hybrid_precise_verifies_one_visible_geometric_gap(
     tmp_path,
     rendered_text: str,
+    ocr_text: str,
     ocr_confidence: float,
     expected_spacing: str,
 ) -> None:
@@ -830,7 +834,7 @@ async def test_hybrid_precise_verifies_one_visible_geometric_gap(
     secondary = OCRResult(
         lines=[
             OCRLine(
-                text="This PC",
+                text=ocr_text,
                 confidence=ocr_confidence,
                 bbox=local_box,
             )
@@ -842,7 +846,7 @@ async def test_hybrid_precise_verifies_one_visible_geometric_gap(
         _ScriptedOcrProvider(secondary),
     ).ocr_precise(image_path, region=region)
 
-    assert result.text == "This PC"
+    assert result.text == ocr_text
     assert result.spacing_evidence == expected_spacing
 
 
@@ -1248,16 +1252,20 @@ async def test_hybrid_precise_read_skips_a_busy_secondary(
 
 
 @pytest.mark.parametrize(
-    ("rendered_text", "expected_spacing"),
+    ("rendered_text", "ocr_text", "expected_spacing"),
     [
-        ("This PC", "verified"),
-        ("This  PC", "uncertain"),
-        ("ThisPC", "uncertain"),
+        ("This PC", "This PC", "verified"),
+        ("This  PC", "This PC", "uncertain"),
+        ("ThisPC", "This PC", "uncertain"),
+        ("1. Observe", "1. Observe", "verified"),
+        ("1.  Observe", "1. Observe", "uncertain"),
+        ("1.Observe", "1. Observe", "uncertain"),
     ],
 )
 async def test_hybrid_busy_secondary_retains_bounded_geometric_gap_evidence(
     tmp_path,
     rendered_text: str,
+    ocr_text: str,
     expected_spacing: str,
 ) -> None:
     image_path = tmp_path / "selected-field.png"
@@ -1272,7 +1280,7 @@ async def test_hybrid_busy_secondary_retains_bounded_geometric_gap_evidence(
     result = OCRResult(
         lines=[
             OCRLine(
-                text="This PC",
+                text=ocr_text,
                 confidence=0.995,
                 bbox=[
                     box[0] - int(region.x),
@@ -1303,7 +1311,7 @@ async def test_hybrid_busy_secondary_retains_bounded_geometric_gap_evidence(
         BusySecondary(),
     ).ocr_precise(image_path, region=region)
 
-    assert verified.text == "This PC"
+    assert verified.text == ocr_text
     assert verified.spacing_evidence == expected_spacing
 
 

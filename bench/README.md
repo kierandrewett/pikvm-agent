@@ -150,6 +150,20 @@ with two autonomous recoveries and 15/18 actions completed. Its mandatory
 reboot took 101.101s and observed a real transition. Accuracy now passes this
 gate; the extra recovery and model turns make speed an explicit failure.
 
+Text-04 v1 is retained as a failure. The controller issued `1. Observe`
+exactly once and repeated native OCR read it exactly with 0.9695–0.9879
+confidence, but the independent spacing gate could not verify the single gap:
+its geometric path allowed only alphanumeric tokens, so the `1.` list marker
+made a correct line permanently unverifiable. The safety gate then correctly
+blocked clicks and further typing, but the showcase runner spent 26 provider
+calls revisiting the same refusal before the run was deliberately aborted.
+The failed run took 281.108s, retained a 359.5s VP9 recording, and completed
+its mandatory reboot after a visible transition in 122.768s. The geometric
+verifier now has bounded numbered-marker coverage with explicit missing-space
+and doubled-space negatives, and unchanged paused errors stop before a third
+provider retry. Text-04 remains pending until that fix passes a clean live
+replay.
+
 Failure-inclusive metrics, canonical campaign digests, the 18 accepted task
 IDs, and the VP9 recording/poster hashes are retained in
 [`codex-50-progress.json`](results/2026-07-31/live-vnc/codex-50-progress.json).

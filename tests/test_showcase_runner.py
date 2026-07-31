@@ -20,14 +20,15 @@ from pikvm_agent.harness.showcase_runner import (
     HarnessCampaignClient,
     ShowcaseManifest,
     VncAdapter,
-    _windows_desktop_taskbar_visible,
     _merge_reboot_attempts,
     _repair_recovered_reboot_status,
     _task_error_before_reboot,
+    _windows_desktop_taskbar_visible,
     approval_disposition,
     approval_is_safe,
     load_showcase_manifest,
     paused_recovery_action,
+    repeated_paused_error_limit_reached,
 )
 
 
@@ -1020,3 +1021,23 @@ def test_paused_checkpoint_is_continued_only_once_until_it_advances() -> None:
         observed_cursor=59,
         continued_cursor=59,
     ) == "observe"
+
+
+def test_identical_paused_error_stops_before_a_third_provider_retry() -> None:
+    recoveries = [
+        {"error": "unverified exact input"},
+        {"error": "unverified exact input"},
+    ]
+
+    assert repeated_paused_error_limit_reached(
+        recoveries,
+        error="unverified exact input",
+    )
+    assert not repeated_paused_error_limit_reached(
+        recoveries,
+        error="different recoverable pause",
+    )
+    assert not repeated_paused_error_limit_reached(
+        recoveries[:1],
+        error="unverified exact input",
+    )

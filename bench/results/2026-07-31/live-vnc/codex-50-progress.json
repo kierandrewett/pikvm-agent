@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "report": "codex-50-live-progress",
-  "recorded_at": "2026-07-31T22:59:27Z",
+  "recorded_at": "2026-07-31T23:26:36Z",
   "manifest": "bench/codex-50-tasks.yaml",
   "environment": {
     "target": "authorized disposable Windows VNC VM",
@@ -588,10 +588,42 @@
       "campaign_sha256": "1ff02cfdaf5d7c434808aff091c93e53824de154967f85b166976dcc6d4b1718"
     }
   ],
+  "text_04_attempts": [
+    {
+      "campaign_id": "codex-text-entry-text04-v1-20260731",
+      "reported_status": "aborted",
+      "accepted_status": "failed",
+      "run_id": "fb334d4f-6edf-4de1-b11d-d213af1afc0b",
+      "reason": "The first exact line was issued once and repeatedly read back as `1. Observe`, but its list-marker punctuation prevented the single visible gap from receiving independent geometric spacing evidence. The exact-input safety gate correctly blocked all follow-up mutations; the unchanged refusal then consumed 26 provider calls before the diagnostic was deliberately aborted.",
+      "wall_clock_ms": 281108,
+      "provider_wait_ms": 162479,
+      "action_execution_ms": 108199,
+      "provider_calls": 26,
+      "actions_attempted": 6,
+      "actions_completed": 4,
+      "reboot_ms": 122768,
+      "reboot_transition_observed": true,
+      "recording": {
+        "relative_path": "codex-text-entry-text04-v1-20260731/text-04-numbered-checklist/recording.webm",
+        "sha256": "5a971c238c79cde610ce4f8c33c1556a9442f7d306f014519fec37055297341e",
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2,
+        "duration_ms": 359500,
+        "size_bytes": 855482
+      },
+      "poster": {
+        "relative_path": "codex-text-entry-text04-v1-20260731/text-04-numbered-checklist/poster.jpg",
+        "sha256": "7d4cb1f7add79f1eb346f151a3a2d38326c0fabcc8f9bf6a496a18c93c4b1a9f"
+      },
+      "campaign_sha256": "03e03493a622a4d23de8a3adaf905cce8405666a082236f18cd817bf7a68af81"
+    }
+  ],
   "verdict": {
     "accuracy": "Three exact text tasks now pass with independent reopen evidence. Text-03 includes a durable completed Ctrl+O transition and visible post-open paragraph verification.",
     "speed": "Failing product target: accepted text-03 v6 took 380.612 seconds before reboot and required two recoveries.",
     "dominant_cost": "Text-03 v6 provider waits consumed 208.161 seconds across 34 calls, while action execution consumed 243.335 seconds; overlapping work prevents these components from summing directly to wall time.",
-    "next": "Reduce delayed-video recovery turns and provider calls, then continue the blind text-entry batch."
+    "next": "Replay text-04 after the bounded numbered-marker spacing fix, while retaining the new two-identical-pause provider-call limit."
   }
 }
