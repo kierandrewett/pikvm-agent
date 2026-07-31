@@ -1368,6 +1368,7 @@ class WatchedTyper:
                 code=code,
                 secret=secret,
                 precise=precise,
+                single_line_field=context.casefold() == "field",
                 allow_semantic_spacing=allow_semantic_spacing,
                 should_continue=should_continue,
                 fast_print=True,
@@ -1379,6 +1380,7 @@ class WatchedTyper:
             code=code,
             secret=secret,
             precise=precise,
+            single_line_field=context.casefold() == "field",
             allow_semantic_spacing=allow_semantic_spacing,
             should_continue=should_continue,
         )
@@ -1393,6 +1395,7 @@ class WatchedTyper:
         code: bool,
         secret: bool,
         precise: bool,
+        single_line_field: bool,
         allow_semantic_spacing: bool,
         should_continue: Callable[[], bool] | None = None,
         fast_print: bool = False,
@@ -1483,6 +1486,7 @@ class WatchedTyper:
             )
             kind = classify_mismatch(intended_snapshot, read_back, precise)
             strong_precise_transport_mismatch = False
+            one_character_prefix_read = False
             if (
                 precise
                 and intended_snapshot == text
@@ -1508,7 +1512,78 @@ class WatchedTyper:
                     and float(canonical_lines[0].confidence) >= 0.95
                     and canonical_lines[0].text.strip() == read_back.strip()
                 )
-            if strong_precise_transport_mismatch:
+                one_character_prefix_read = (
+                    len(read_back) + 1 == len(intended_snapshot)
+                    and intended_snapshot.startswith(read_back)
+                )
+            if (
+                single_line_field
+                and (
+                    strong_precise_transport_mismatch
+                    or one_character_prefix_read
+                )
+            ):
+                # A focused single-line field can permanently include the
+                # caret in a remote framebuffer frame. Temporarily move focus
+                # to the next control, read the unchanged field without its
+                # caret, then restore focus. This is reversible and provides
+                # better evidence than erasing text based on one fused glyph
+                # or a one-character OCR truncation.
+                if should_continue is not None and not should_continue():
+                    return
+                moved_focus = False
+                try:
+                    await self.backend.keypress(["Tab"])
+                    moved_focus = True
+                    await asyncio.sleep(_CLEAR_SETTLE_S)
+                    rechecked = self._typed_candidate(
+                        await self._read_field(
+                            current_readback_region(),
+                            intended=intended_snapshot,
+                            precise=precise,
+                            allow_semantic_spacing=allow_semantic_spacing,
+                        ),
+                        intended_snapshot,
+                        precise,
+                    )
+                except Exception:
+                    rechecked = ""
+                finally:
+                    if moved_focus:
+                        with contextlib.suppress(Exception):
+                            await self.backend.keypress(["ShiftLeft", "Tab"])
+                        await asyncio.sleep(_CLEAR_SETTLE_S)
+                if (
+                    compute_verdict(
+                        intended_snapshot,
+                        rechecked,
+                        precise,
+                    )
+                    in {"match", "contains"}
+                ):
+                    last_read = rechecked
+                    if norm(intended_snapshot, precise) == norm(text, precise):
+                        verified_clean = True
+                    return
+                if one_character_prefix_read:
+                    last_read = rechecked or read_back
+                    return
+                repeated_lines = [
+                    line
+                    for line in self._last_field_ocr_result.lines
+                    if line.text.strip()
+                ]
+                strong_precise_transport_mismatch = (
+                    rechecked.strip() == read_back.strip()
+                    and len(repeated_lines) == 1
+                    and repeated_lines[0].confidence is not None
+                    and float(repeated_lines[0].confidence) >= 0.95
+                    and repeated_lines[0].text.strip() == rechecked.strip()
+                )
+                if not strong_precise_transport_mismatch:
+                    last_read = rechecked
+                    return
+            elif strong_precise_transport_mismatch:
                 # A focused Windows text field can visually fuse its blinking
                 # caret to the final glyph: ``calc|`` is then read as ``cald``
                 # with very high confidence. Never erase and replay from one
