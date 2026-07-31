@@ -44,6 +44,7 @@ from pikvm_agent.pikvm.fake import FakeBackend
 from pikvm_agent.policy.safety import SafetyPolicyEngine
 from pikvm_agent.policy.direct import (
     classify_direct_burst,
+    is_confirmed_calculator_surface,
     needs_calculator_surface_grounding,
 )
 from pikvm_agent.store.frames import FrameStore
@@ -1265,7 +1266,30 @@ class Runtime:
             observed = await ocr.ocr(Path(frame.image_path))
         except Exception:
             return ""
-        return str(observed.text or "")[:2_000]
+        observed_text = str(observed.text or "")[:2_000]
+        if is_confirmed_calculator_surface(observed_text):
+            return observed_text
+        precise_ocr = getattr(ocr, "ocr_precise", None)
+        if not callable(precise_ocr):
+            return observed_text
+        try:
+            precise = await precise_ocr(
+                Path(frame.image_path),
+                region=Region(
+                    x=0,
+                    y=0,
+                    width=frame.width,
+                    height=max(1, frame.height * 0.25),
+                ),
+            )
+        except Exception:
+            return observed_text
+        precise_text = str(precise.text or "")[:2_000]
+        return (
+            precise_text
+            if is_confirmed_calculator_surface(precise_text)
+            else observed_text
+        )
 
     # ---- on-demand perception (Layer 2 — OFF the hot path, opt-in) ------- #
 

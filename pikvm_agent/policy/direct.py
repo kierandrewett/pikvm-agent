@@ -216,7 +216,9 @@ def needs_calculator_surface_grounding(actions: list[dict]) -> bool:
     )
 
 
-def _calculator_surface_confirmed(observed_surface_text: str) -> bool:
+def is_confirmed_calculator_surface(observed_surface_text: str) -> bool:
+    """Return whether independent OCR identifies Windows Calculator."""
+
     text = " ".join(observed_surface_text.casefold().split())
     return (
         "calculator" in text
@@ -478,7 +480,7 @@ def classify_direct_burst(
     )
     verified_calculator_expression = (
         needs_calculator_surface_grounding(actions)
-        and _calculator_surface_confirmed(observed_surface_text)
+        and is_confirmed_calculator_surface(observed_surface_text)
     )
     for command in terminal_commands:
         command_risk = classify_command(command)

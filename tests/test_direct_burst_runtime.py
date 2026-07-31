@@ -581,6 +581,70 @@ async def test_grounded_calculator_expression_does_not_need_send_approval(
     ]
 
 
+async def test_calculator_surface_retries_precise_header_before_enter_approval(
+    runtime: Runtime,
+) -> None:
+    class CalculatorHeaderOCR:
+        def __init__(self) -> None:
+            self.precise_regions: list[Region] = []
+
+        async def ocr(self, image_path, region=None):
+            del image_path, region
+            return OCRResult(
+                lines=[OCRLine(text="= Standard", bbox=[40, 50, 110, 60])]
+            )
+
+        async def ocr_precise(self, image_path, region=None):
+            del image_path
+            assert region is not None
+            self.precise_regions.append(region)
+            return OCRResult(
+                lines=[
+                    OCRLine(text="Calculator", bbox=[40, 20, 100, 40]),
+                    OCRLine(text="Standard", bbox=[40, 50, 110, 60]),
+                    OCRLine(text="History Memory", bbox=[580, 50, 670, 60]),
+                ]
+            )
+
+    ocr = CalculatorHeaderOCR()
+    runtime._screen_parser.ocr = ocr
+    sid = (await runtime.start_session("direct"))["session_id"]
+    shot = await runtime.get_session_summary(sid, capture=True)
+    actions = [
+        {"type": "key", "keys": ["Digit3"]},
+        {"type": "key", "keys": ["Digit7"]},
+        {"type": "key", "keys": ["NumpadMultiply"]},
+        {"type": "key", "keys": ["Digit1"]},
+        {"type": "key", "keys": ["Digit9"]},
+        {"type": "key", "keys": ["Enter"]},
+    ]
+
+    result = await runtime.run_burst(
+        sid,
+        actions,
+        based_on_world_version=shot["world_version"],
+        based_on_control_epoch=shot["control_epoch"],
+        idempotency_key="precise-grounded-calculator-expression",
+    )
+
+    assert result["status"] == "completed"
+    assert len(ocr.precise_regions) == 1
+    assert ocr.precise_regions[0] == Region(
+        x=0,
+        y=0,
+        width=shot["width"],
+        height=shot["height"] * 0.25,
+    )
+    assert [call[1]["keys"] for call in _hid_calls(runtime)] == [
+        ["Digit3"],
+        ["Digit7"],
+        ["NumpadMultiply"],
+        ["Digit1"],
+        ["Digit9"],
+        ["Enter"],
+    ]
+
+
 async def test_small_ui_click_retries_precise_ocr_before_failing_closed(
     runtime: Runtime,
 ) -> None:
