@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from io import BytesIO
 from pathlib import Path
 
@@ -25,6 +26,56 @@ from pikvm_agent.harness.showcase_runner import (
     load_showcase_manifest,
     paused_recovery_action,
 )
+
+
+class _AcknowledgingSocket:
+    def __init__(self, sent: list[dict[str, object]]) -> None:
+        self.sent = sent
+        self.acknowledgement = 0
+
+    async def __aenter__(self) -> _AcknowledgingSocket:
+        return self
+
+    async def __aexit__(self, *_args: object) -> None:
+        return None
+
+    async def send(self, message: str) -> None:
+        self.sent.append(json.loads(message))
+        self.acknowledgement += 1
+
+    async def recv(self) -> str:
+        return json.dumps(
+            {
+                "event_type": "lab_ack",
+                "event": {"sequence": self.acknowledgement},
+            }
+        )
+
+
+def _socket_factory(
+    sent: list[dict[str, object]],
+) -> Callable[..., _AcknowledgingSocket]:
+    def connect(*_args: object, **_kwargs: object) -> _AcknowledgingSocket:
+        return _AcknowledgingSocket(sent)
+
+    return connect
+
+
+def _snapshot_handler(
+    printed: list[str],
+) -> Callable[[httpx.Request], httpx.Response]:
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/api/streamer/snapshot":
+            buffer = BytesIO()
+            Image.new("RGB", (320, 200), "navy").save(
+                buffer,
+                format="JPEG",
+            )
+            return httpx.Response(200, content=buffer.getvalue())
+        printed.append(request.content.decode())
+        return httpx.Response(200)
+
+    return handler
 
 
 def test_public_showcase_manifest_contains_fifty_distinct_codex_tasks() -> None:
@@ -371,43 +422,34 @@ async def test_reboot_replaces_any_existing_run_dialog_text(
     sent: list[dict[str, object]] = []
     printed: list[str] = []
 
-    class Socket:
-        acknowledgement = 0
-
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, *_args: object) -> None:
-            return None
-
-        async def send(self, message: str) -> None:
-            sent.append(json.loads(message))
-            self.acknowledgement += 1
-
-        async def recv(self) -> str:
-            return json.dumps(
-                {
-                    "event_type": "lab_ack",
-                    "event": {"sequence": self.acknowledgement},
-                }
-            )
-
-    def connect(*_args: object, **_kwargs: object) -> Socket:
-        return Socket()
-
     async def no_sleep(_seconds: float) -> None:
         return None
 
-    def handler(request: httpx.Request) -> httpx.Response:
-        printed.append(request.content.decode())
-        return httpx.Response(200)
-
-    monkeypatch.setattr(showcase_runner, "websocket_connect", connect)
+    monkeypatch.setattr(
+        showcase_runner,
+        "websocket_connect",
+        _socket_factory(sent),
+    )
     monkeypatch.setattr(showcase_runner.asyncio, "sleep", no_sleep)
     async with httpx.AsyncClient(
-        transport=httpx.MockTransport(handler)
+        transport=httpx.MockTransport(_snapshot_handler(printed))
     ) as client:
-        await VncAdapter(client, "http://127.0.0.1:48002")._reboot()
+        adapter = VncAdapter(client, "http://127.0.0.1:48002")
+
+        async def visible_transition(**_kwargs: object) -> bool:
+            return True
+
+        async def ready(**_kwargs: object) -> dict[str, object]:
+            return {
+                "ready": True,
+                "frame_sha256": "f" * 64,
+            }
+
+        adapter._wait_for_run_dialog = (  # type: ignore[method-assign]
+            visible_transition
+        )
+        adapter.wait_until_ready = ready  # type: ignore[method-assign]
+        await adapter._reboot()
 
     key_events = [
         item["event"]
@@ -426,36 +468,117 @@ async def test_reboot_replaces_any_existing_run_dialog_text(
 
 
 @pytest.mark.asyncio
+async def test_reboot_retries_run_until_the_dialog_visibly_opens(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    sent: list[dict[str, object]] = []
+    transitions = iter((False, True))
+    printed: list[str] = []
+
+    monkeypatch.setattr(
+        showcase_runner,
+        "websocket_connect",
+        _socket_factory(sent),
+    )
+    async with httpx.AsyncClient(
+        transport=httpx.MockTransport(_snapshot_handler(printed))
+    ) as client:
+        adapter = VncAdapter(client, "http://127.0.0.1:48002")
+
+        async def visible_transition(**_kwargs: object) -> bool:
+            return next(transitions)
+
+        async def ready(**_kwargs: object) -> dict[str, object]:
+            return {
+                "ready": True,
+                "frame_sha256": "f" * 64,
+            }
+
+        adapter._wait_for_run_dialog = (  # type: ignore[method-assign]
+            visible_transition
+        )
+        adapter.wait_until_ready = ready  # type: ignore[method-assign]
+        await adapter._reboot()
+
+    key_events = [
+        item["event"]
+        for item in sent
+        if item.get("event_type") == "key"
+    ]
+    assert sum(
+        event == {"key": "KeyR", "state": True}
+        for event in key_events
+    ) == 2
+    assert printed == ["shutdown /r /t 0 /f"]
+
+
+@pytest.mark.asyncio
+async def test_run_dialog_detection_accepts_a_sustained_lower_left_change() -> None:
+    baseline = Image.new("RGB", (1280, 800), "navy")
+    changed = baseline.copy()
+    changed.paste("white", (10, 610, 300, 790))
+    baseline_buffer = BytesIO()
+    changed_buffer = BytesIO()
+    baseline.save(baseline_buffer, format="JPEG")
+    changed.save(changed_buffer, format="JPEG")
+    frames = iter((changed_buffer.getvalue(), changed_buffer.getvalue()))
+    async with httpx.AsyncClient() as client:
+        adapter = VncAdapter(client, "http://127.0.0.1:48002")
+
+        async def changed_frame() -> bytes:
+            return next(frames, changed_buffer.getvalue())
+
+        adapter.frame = changed_frame  # type: ignore[method-assign]
+        observed = await adapter._wait_for_run_dialog(
+            baseline=baseline_buffer.getvalue(),
+            timeout_s=1,
+        )
+
+    assert observed is True
+
+
+@pytest.mark.asyncio
+async def test_run_dialog_detection_rejects_a_transient_lower_left_change() -> None:
+    baseline = Image.new("RGB", (1280, 800), "navy")
+    changed = baseline.copy()
+    changed.paste("white", (10, 610, 300, 790))
+    baseline_buffer = BytesIO()
+    changed_buffer = BytesIO()
+    baseline.save(baseline_buffer, format="JPEG")
+    changed.save(changed_buffer, format="JPEG")
+    frames = iter(
+        (
+            changed_buffer.getvalue(),
+            baseline_buffer.getvalue(),
+            baseline_buffer.getvalue(),
+        )
+    )
+    async with httpx.AsyncClient() as client:
+        adapter = VncAdapter(client, "http://127.0.0.1:48002")
+
+        async def transient_frame() -> bytes:
+            return next(frames, baseline_buffer.getvalue())
+
+        adapter.frame = transient_frame  # type: ignore[method-assign]
+        observed = await adapter._wait_for_run_dialog(
+            baseline=baseline_buffer.getvalue(),
+            timeout_s=0.8,
+        )
+
+    assert observed is False
+
+
+@pytest.mark.asyncio
 async def test_show_desktop_acknowledges_each_key_event(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     sent: list[dict[str, object]] = []
 
-    class Socket:
-        acknowledgement = 0
-
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, *_args: object) -> None:
-            return None
-
-        async def send(self, message: str) -> None:
-            sent.append(json.loads(message))
-            self.acknowledgement += 1
-
-        async def recv(self) -> str:
-            return json.dumps(
-                {
-                    "event_type": "lab_ack",
-                    "event": {"sequence": self.acknowledgement},
-                }
-            )
-
-    def connect(*_args: object, **_kwargs: object) -> Socket:
-        return Socket()
-
-    monkeypatch.setattr(showcase_runner, "websocket_connect", connect)
+    monkeypatch.setattr(
+        showcase_runner,
+        "websocket_connect",
+        _socket_factory(sent),
+    )
     async with httpx.AsyncClient() as client:
         await VncAdapter(
             client,

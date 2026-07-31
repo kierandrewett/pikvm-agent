@@ -642,16 +642,38 @@ class VncAdapter:
                     if response.get("event_type") == "lab_ack":
                         return
 
-            for key, state in (
-                ("Escape", True),
-                ("Escape", False),
-                ("MetaLeft", True),
-                ("KeyR", True),
-                ("KeyR", False),
-                ("MetaLeft", False),
-            ):
-                await send_key(key, state)
-            await asyncio.sleep(0.8)
+            await send_key("Escape", True)
+            await send_key("Escape", False)
+            await asyncio.sleep(0.2)
+            run_opened = False
+            for _attempt in range(3):
+                baseline = await self.frame()
+                await send_key("MetaLeft", True)
+                # Some VNC servers acknowledge the modifier before Windows has
+                # incorporated it. Without this dwell, R intermittently arrives
+                # as a bare key and the Run dialog never opens.
+                await asyncio.sleep(0.12)
+                await send_key("KeyR", True)
+                await asyncio.sleep(0.06)
+                await send_key("KeyR", False)
+                await asyncio.sleep(0.04)
+                await send_key("MetaLeft", False)
+                run_opened = await self._wait_for_run_dialog(
+                    baseline=baseline,
+                    timeout_s=4,
+                )
+                if run_opened:
+                    await self.wait_until_ready(
+                        timeout_s=8,
+                        stable_s=0.5,
+                    )
+                    break
+                await send_key("Escape", True)
+                await send_key("Escape", False)
+            if not run_opened:
+                raise TimeoutError(
+                    "Windows Run dialog did not visibly open for reboot"
+                )
             for key, state in (
                 ("ControlLeft", True),
                 ("KeyA", True),
@@ -667,6 +689,56 @@ class VncAdapter:
             await asyncio.sleep(0.2)
             await send_key("Enter", True)
             await send_key("Enter", False)
+
+    async def _wait_for_run_dialog(
+        self,
+        *,
+        baseline: bytes,
+        timeout_s: float,
+    ) -> bool:
+        """Prove a sustained lower-left dialog change before typing shutdown."""
+
+        def region_signature(data: bytes) -> tuple[tuple[int, int], bytes]:
+            image = Image.open(BytesIO(data)).convert("L")
+            width, height = image.size
+            region = image.crop(
+                (
+                    0,
+                    round(height * 0.55),
+                    round(width * 0.45),
+                    height,
+                )
+            )
+            return image.size, region.resize((48, 32)).tobytes()
+
+        baseline_size, baseline_signature = region_signature(baseline)
+        changed_samples = 0
+        deadline = time.monotonic() + timeout_s
+        while time.monotonic() < deadline:
+            try:
+                current_size, signature = region_signature(await self.frame())
+            except (httpx.HTTPError, OSError):
+                changed_samples = 0
+                await asyncio.sleep(0.25)
+                continue
+            if current_size != baseline_size:
+                changed_samples = 0
+                await asyncio.sleep(0.25)
+                continue
+            deltas = [
+                abs(left - right)
+                for left, right in zip(baseline_signature, signature)
+            ]
+            mean_delta = sum(deltas) / len(deltas) / 255
+            changed_fraction = sum(delta > 20 for delta in deltas) / len(deltas)
+            if mean_delta >= 0.015 or changed_fraction >= 0.035:
+                changed_samples += 1
+                if changed_samples >= 2:
+                    return True
+            else:
+                changed_samples = 0
+            await asyncio.sleep(0.25)
+        return False
 
     async def _wait_for_boot_transition(
         self,
