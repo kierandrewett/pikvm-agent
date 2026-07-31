@@ -428,6 +428,13 @@ async def test_model_pool_streams_each_attempt_repair_and_fallback() -> None:
         "attempt": 1,
         "repair": False,
     }
+    repair = events[4][1]
+    assert repair["validation_error_types"] == ["missing"]
+    assert repair["validation_error_locations"] == [
+        "steps",
+        "success_criteria",
+    ]
+    assert repair["validation_error_messages"] == ["Field required"]
     assert events[11][1]["provider"] == "valid"
     assert events[11][1]["route_index"] == 1
 

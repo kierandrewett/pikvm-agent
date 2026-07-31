@@ -2524,6 +2524,10 @@ async def test_controller_prompt_prefers_a_stable_legible_end_state() -> None:
     assert "modern Notepad restores an old tab" in normalized
     assert "use Ctrl+N to create a new blank document" in normalized
     assert "Do not click into or overwrite restored content" in normalized
+    assert (
+        "single type_text action with embedded newline characters" in normalized
+    )
+    assert "blank line as \\n\\n inside that text" in normalized
 
 
 async def test_reasoner_prompt_avoids_duplicate_pre_and_post_save_audits() -> None:

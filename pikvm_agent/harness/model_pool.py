@@ -559,12 +559,39 @@ class ModelPool:
                             include_context=False,
                             include_input=False,
                         )
+                        error_types = sorted(
+                            {
+                                str(error.get("type") or "unknown")
+                                for error in safe_errors
+                            }
+                        )
+                        error_locations = sorted(
+                            {
+                                ".".join(
+                                    str(part)
+                                    for part in error.get("loc") or ()
+                                )
+                                or "<root>"
+                                for error in safe_errors
+                            }
+                        )
+                        error_messages = sorted(
+                            {
+                                str(error.get("msg") or "validation failed")[
+                                    :160
+                                ]
+                                for error in safe_errors
+                            }
+                        )
                         await emit(
                             "provider_schema_repair",
                             provider=name,
                             route_index=route_index,
                             attempt=attempt + 1,
                             validation_errors=len(safe_errors),
+                            validation_error_types=error_types,
+                            validation_error_locations=error_locations,
+                            validation_error_messages=error_messages,
                         )
                         active_request = request.model_copy(
                             update={

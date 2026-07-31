@@ -1951,6 +1951,41 @@ async def test_autolocate_waits_for_second_delayed_remote_video_update() -> None
     assert typed == [intended]
 
 
+async def test_autolocate_waits_for_third_delayed_remote_video_update() -> None:
+    """A busy VNC guest may publish the first glyphs after both quick retries."""
+
+    backend = FakeBackend()
+    intended = "A useful"
+    ocr = ScriptedOCR(intended)
+    typer = WatchedTyper(backend, ocr)
+    flat = _flat_grid()
+    changed = flat.copy().reshape(GRID_ROWS, GRID_COLS)
+    changed[10:13, 20:24] = 200
+    grids = [
+        flat,  # before input
+        flat,  # immediate post-HID capture
+        flat,  # 200 ms retry
+        flat,  # 450 ms retry
+        changed.reshape(-1),  # final bounded slow-video retry
+    ]
+
+    async def delayed_grid() -> np.ndarray:
+        return grids.pop(0) if grids else changed.reshape(-1)
+
+    typer._grid = delayed_grid  # type: ignore[method-assign]
+
+    result = await typer.type_text(intended, code=True)
+
+    assert result.status == "verified_exact"
+    assert result.typed_characters == len(intended)
+    typed = [
+        call["text"]
+        for method, call in backend.calls
+        if method == "type_text"
+    ]
+    assert typed == [intended]
+
+
 async def test_autolocate_uses_grounded_ocr_when_video_grid_misses_text() -> None:
     backend = FakeBackend()
     intended = "HARNESSE2E42"

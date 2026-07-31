@@ -96,6 +96,7 @@ DENSE_MAX_HEIGHT = 64
 _PRINT_SETTLE_S = 0.45
 _CLEAR_SETTLE_S = 0.15
 _VIDEO_RETRY_SETTLE_S = 0.20
+_SLOW_VIDEO_RETRY_SETTLE_S = 1.00
 _CARET_BLINK_RECHECK_S = 0.65
 _PRECISE_READBACK_SETTLES_S = (0.45, 0.90, 1.80)
 _PRECISE_FULL_SCREEN_SETTLES_S = (0.0, 0.45, 0.90)
@@ -2257,6 +2258,7 @@ class WatchedTyper:
                     for settle_s in (
                         _VIDEO_RETRY_SETTLE_S,
                         _PRINT_SETTLE_S,
+                        _SLOW_VIDEO_RETRY_SETTLE_S,
                     ):
                         await asyncio.sleep(settle_s)
                         grid_retry = await self._grid()
