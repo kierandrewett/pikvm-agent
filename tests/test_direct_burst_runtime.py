@@ -859,6 +859,64 @@ async def test_exact_save_as_path_does_not_ground_enter_on_message_surface(
     assert not _hid_calls(runtime)
 
 
+async def test_confirmed_file_explorer_not_found_ok_dismisses_without_approval(
+    runtime: Runtime,
+) -> None:
+    class NotFoundDialogOCR:
+        def __init__(self) -> None:
+            self.precise_regions: list[Region] = []
+
+        async def ocr(self, image_path, region=None):
+            del image_path
+            if region is not None:
+                return OCRResult(
+                    lines=[
+                        OCRLine(
+                            text="(ox",
+                            bbox=[170, 35, 210, 55],
+                        )
+                    ]
+                )
+            return OCRResult(lines=[OCRLine(text="File Explorer")])
+
+        async def ocr_precise(self, image_path, region=None):
+            del image_path
+            assert region is not None
+            self.precise_regions.append(region)
+            return OCRResult(
+                lines=[
+                    OCRLine(text="File Explorer"),
+                    OCRLine(
+                        text=(
+                            "Viindows can’t find "
+                            r"'C:\PiKVM-Harness\workspace\codex-50'."
+                        )
+                    ),
+                    OCRLine(text="Check the spelling and try again"),
+                ]
+            )
+
+    ocr = NotFoundDialogOCR()
+    runtime._screen_parser.ocr = ocr
+    sid = (await runtime.start_session("direct"))["session_id"]
+    shot = await runtime.get_session_summary(sid, capture=True)
+
+    result = await runtime.run_burst(
+        sid,
+        [
+            {"type": "click", "x": 782, "y": 392, "button": "left"},
+            {"type": "wait_for_change", "timeout_ms": 3000},
+        ],
+        based_on_world_version=shot["world_version"],
+        based_on_control_epoch=shot["control_epoch"],
+        idempotency_key="dismiss-confirmed-file-explorer-not-found",
+    )
+
+    assert result["status"] == "completed"
+    assert _hid_calls(runtime)[0][0] == "click"
+    assert ocr.precise_regions
+
+
 async def test_exact_draft_does_not_ground_enter_on_a_message_surface(
     runtime: Runtime,
 ) -> None:

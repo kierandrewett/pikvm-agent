@@ -49,6 +49,7 @@ from pikvm_agent.policy.direct import (
     is_safe_local_navigation_target,
     needs_calculator_surface_grounding,
     needs_local_navigation_surface_grounding,
+    needs_safe_windows_error_dismissal_surface_grounding,
 )
 from pikvm_agent.store.frames import FrameStore
 from pikvm_agent.store.sqlite import SessionStore
@@ -1297,7 +1298,14 @@ class Runtime:
         """Read the visible app before exempting one bounded local commit."""
 
         calculator = needs_calculator_surface_grounding(actions)
-        if not calculator and not local_navigation_draft:
+        safe_error_dismissal = (
+            needs_safe_windows_error_dismissal_surface_grounding(actions)
+        )
+        if (
+            not calculator
+            and not local_navigation_draft
+            and not safe_error_dismissal
+        ):
             return ("", False)
         ocr = getattr(self._screen_parser, "ocr", None)
         if ocr is None:
@@ -1307,6 +1315,37 @@ class Runtime:
         except Exception:
             return ("", False)
         observed_text = str(observed.text or "")[:2_000]
+        if safe_error_dismissal:
+            precise_ocr = getattr(ocr, "ocr_precise", None)
+            if not callable(precise_ocr):
+                return (observed_text, False)
+            click = next(
+                action
+                for action in actions
+                if action.get("type") in {"click", "double_click"}
+            )
+            click_x = int(click["x"])
+            click_y = int(click["y"])
+            left = max(0, click_x - 400)
+            top = max(0, click_y - 160)
+            right = min(frame.width, click_x + 400)
+            bottom = min(frame.height, click_y + 160)
+            try:
+                precise = await precise_ocr(
+                    Path(frame.image_path),
+                    region=Region(
+                        x=left,
+                        y=top,
+                        width=max(1, right - left),
+                        height=max(1, bottom - top),
+                    ),
+                )
+            except Exception:
+                return (observed_text, False)
+            return (
+                f"{observed_text}\n{str(precise.text or '')[:2_000]}",
+                False,
+            )
         if calculator and is_confirmed_calculator_surface(observed_text):
             return (observed_text, False)
         if (

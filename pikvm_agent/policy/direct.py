@@ -445,6 +445,70 @@ def _token_distance(raw: str, expected: str) -> int:
     return distance
 
 
+def needs_safe_windows_error_dismissal_surface_grounding(
+    actions: list[dict],
+) -> bool:
+    """Identify one noisy OK click that still needs independent dialog OCR."""
+
+    active_actions = [
+        action
+        for action in actions
+        if action.get("type")
+        not in {"wait", "wait_for_change", "wait_for_stable_screen"}
+    ]
+    if (
+        len(active_actions) != 1
+        or active_actions[0].get("type") not in {"click", "double_click"}
+    ):
+        return False
+    tokens = re.findall(
+        r"[A-Za-z0-9]+",
+        _semantic_text(active_actions[0]),
+    )
+    return bool(
+        len(tokens) == 1
+        and len(tokens[0]) <= 3
+        and _token_distance(tokens[0], "ok") <= 1
+    )
+
+
+def is_confirmed_safe_windows_error_dismissal(
+    actions: list[dict],
+    observed_surface_text: str,
+) -> bool:
+    """Allow only the harmless OK on a fully identified Explorer error."""
+
+    if not needs_safe_windows_error_dismissal_surface_grounding(actions):
+        return False
+    text = observed_surface_text.casefold().replace("’", "'")
+    normalized = re.sub(r"[^a-z0-9]+", " ", text).strip()
+    compact = re.sub(r"[^a-z0-9]+", "", text)
+    dangerous_surface = any(
+        pattern.search(text)
+        for pattern in (
+            _COMMUNICATION,
+            _DELETE,
+            _FINANCIAL,
+            _PERMISSIONS,
+            _INSTALL,
+            _CREDENTIAL,
+            _CONSENT,
+            _EXTERNAL_UPLOAD,
+            _POWER,
+            _DISABLE_SECURITY,
+        )
+    )
+    return bool(
+        not dangerous_surface
+        and "file explorer" in normalized
+        and re.search(
+            r"\b[vw]i{1,2}ndows can(?:not| t) find\b",
+            normalized,
+        )
+        and "checkthespellingandtryagain" in compact
+    )
+
+
 def _fuzzy_phrase_category(text: str) -> tuple[str, str] | None:
     token_segments = [
         re.findall(r"[A-Za-z0-9]+", segment)
@@ -614,6 +678,12 @@ def classify_direct_burst(
         needs_calculator_surface_grounding(actions)
         and is_confirmed_calculator_surface(observed_surface_text)
     )
+    verified_safe_error_dismissal = (
+        is_confirmed_safe_windows_error_dismissal(
+            actions,
+            observed_surface_text,
+        )
+    )
     for command in terminal_commands:
         command_risk = classify_command(command)
         if command_risk == "dangerous":
@@ -742,7 +812,14 @@ def classify_direct_burst(
                 run_dialog_opened = True
 
         semantic = _category_from_semantics(_semantic_text(action))
-        if semantic is not None:
+        if (
+            semantic is not None
+            and not (
+                verified_safe_error_dismissal
+                and action.get("type") in {"click", "double_click"}
+                and semantic == ("unknown", "medium")
+            )
+        ):
             candidates.append((semantic[0], semantic[1], "commit target requires human review"))
         if (
             action.get("type") in {"click", "double_click"}

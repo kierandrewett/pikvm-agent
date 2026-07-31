@@ -6,6 +6,7 @@ from pikvm_agent.config import PolicyConfig
 from pikvm_agent.harness.lab import isolated_benchmark_policy
 from pikvm_agent.policy.direct import (
     classify_direct_burst,
+    is_confirmed_safe_windows_error_dismissal,
     is_confirmed_file_explorer_surface,
     is_safe_local_navigation_target,
 )
@@ -688,6 +689,54 @@ def test_real_world_commit_labels_require_human(
     assert (verdict.status, verdict.category) == (
         "approval_required",
         category,
+    )
+
+
+def test_noisy_ok_is_allowed_only_for_confirmed_file_explorer_not_found_error() -> None:
+    actions = [
+        {"type": "click", "observed_target_text": "(ox"},
+        {"type": "wait_for_change", "timeout_ms": 3000},
+    ]
+    surface = (
+        "File Explorer\n"
+        "Viindows can’t find "
+        r"'C:\PiKVM-Harness\workspace\codex-50'. "
+        "Check the spelling and try again"
+    )
+
+    assert is_confirmed_safe_windows_error_dismissal(actions, surface)
+    assert classify_direct_burst(
+        actions,
+        PolicyConfig(),
+        observed_surface_text=surface,
+    ).status == "allowed"
+
+
+@pytest.mark.parametrize(
+    "surface",
+    [
+        "Microsoft Teams New message Send",
+        "Confirm purchase Checkout Pay now",
+        "Windows Security Allow access",
+        "File Explorer Are you sure you want to delete this file?",
+        "File Explorer Windows can't find the item.",
+    ],
+)
+def test_noisy_ok_stays_gated_without_complete_safe_error_evidence(
+    surface: str,
+) -> None:
+    actions = [{"type": "click", "observed_target_text": "(ox"}]
+
+    assert not is_confirmed_safe_windows_error_dismissal(actions, surface)
+    verdict = classify_direct_burst(
+        actions,
+        PolicyConfig(),
+        observed_surface_text=surface,
+    )
+
+    assert (verdict.status, verdict.category) == (
+        "approval_required",
+        "unknown",
     )
 
 

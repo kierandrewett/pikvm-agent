@@ -34,7 +34,8 @@ and type its executable; never use the bare Windows key, Start-menu clicks,
 taskbar icons, restored windows, or the Alt+Tab switcher.
 Do not use email, chat, social, cloud consoles, downloads, or external network
 services. Do not delete data. Any file mutation must remain strictly inside
-C:\\PiKVM-Harness\\workspace\\codex-50. Verify the result before finishing.
+C:\\PiKVM-Harness\\workspace\\codex-50, which the harness prepares before
+mutating tasks. Verify the result before finishing.
 """
 FORBIDDEN_APPROVAL_TERMS = frozenset(
     {
@@ -272,6 +273,7 @@ class CampaignWriter:
                 "error": None,
                 "task_error": None,
                 "performance": None,
+                "preflight": None,
                 "approvals": [],
                 "recoveries": [],
                 "reboot": {
@@ -686,7 +688,59 @@ class VncAdapter:
             ):
                 await send_key(key, state)
 
-    async def _reboot(self) -> None:
+    @staticmethod
+    async def _send_key_and_wait(
+        socket: Any,
+        key: str,
+        state: bool,
+    ) -> None:
+        await socket.send(
+            json.dumps(
+                {
+                    "event_type": "key",
+                    "event": {"key": key, "state": state},
+                }
+            )
+        )
+        while True:
+            response = json.loads(await socket.recv())
+            if response.get("event_type") == "lab_ack":
+                return
+
+    async def _open_run_dialog(self, socket: Any) -> None:
+        async def send_key(key: str, state: bool) -> None:
+            await self._send_key_and_wait(socket, key, state)
+
+        await send_key("Escape", True)
+        await send_key("Escape", False)
+        await asyncio.sleep(0.5)
+        for _attempt in range(3):
+            baseline = await self.frame()
+            await send_key("MetaLeft", True)
+            # Some VNC servers acknowledge the modifier before Windows has
+            # incorporated it. Without this dwell, R intermittently arrives
+            # as a bare key and the Run dialog never opens.
+            await asyncio.sleep(0.25)
+            await send_key("KeyR", True)
+            await asyncio.sleep(0.1)
+            await send_key("KeyR", False)
+            await asyncio.sleep(0.1)
+            await send_key("MetaLeft", False)
+            if await self._wait_for_run_dialog(
+                baseline=baseline,
+                timeout_s=4,
+            ):
+                await self.wait_until_ready(
+                    timeout_s=8,
+                    stable_s=0.5,
+                )
+                return
+            await send_key("Escape", True)
+            await send_key("Escape", False)
+            await asyncio.sleep(0.5)
+        raise TimeoutError("Windows Run dialog did not visibly open")
+
+    async def _type_run_command(self, command: str) -> None:
         parsed = urlparse(self.base_url)
         websocket_url = urlunparse(
             (
@@ -699,68 +753,33 @@ class VncAdapter:
             )
         )
         async with websocket_connect(websocket_url, open_timeout=10) as socket:
-            async def send_key(key: str, state: bool) -> None:
-                await socket.send(
-                    json.dumps(
-                        {
-                            "event_type": "key",
-                            "event": {"key": key, "state": state},
-                        }
-                    )
-                )
-                while True:
-                    response = json.loads(await socket.recv())
-                    if response.get("event_type") == "lab_ack":
-                        return
-
-            await send_key("Escape", True)
-            await send_key("Escape", False)
-            await asyncio.sleep(0.5)
-            run_opened = False
-            for _attempt in range(3):
-                baseline = await self.frame()
-                await send_key("MetaLeft", True)
-                # Some VNC servers acknowledge the modifier before Windows has
-                # incorporated it. Without this dwell, R intermittently arrives
-                # as a bare key and the Run dialog never opens.
-                await asyncio.sleep(0.25)
-                await send_key("KeyR", True)
-                await asyncio.sleep(0.1)
-                await send_key("KeyR", False)
-                await asyncio.sleep(0.1)
-                await send_key("MetaLeft", False)
-                run_opened = await self._wait_for_run_dialog(
-                    baseline=baseline,
-                    timeout_s=4,
-                )
-                if run_opened:
-                    await self.wait_until_ready(
-                        timeout_s=8,
-                        stable_s=0.5,
-                    )
-                    break
-                await send_key("Escape", True)
-                await send_key("Escape", False)
-                await asyncio.sleep(0.5)
-            if not run_opened:
-                raise TimeoutError(
-                    "Windows Run dialog did not visibly open for reboot"
-                )
+            await self._open_run_dialog(socket)
             for key, state in (
                 ("ControlLeft", True),
                 ("KeyA", True),
                 ("KeyA", False),
                 ("ControlLeft", False),
             ):
-                await send_key(key, state)
+                await self._send_key_and_wait(socket, key, state)
             response = await self.client.post(
                 f"{self.base_url}/api/hid/print",
-                content="shutdown /r /t 0 /f",
+                content=command,
             )
             response.raise_for_status()
             await asyncio.sleep(0.2)
-            await send_key("Enter", True)
-            await send_key("Enter", False)
+            await self._send_key_and_wait(socket, "Enter", True)
+            await self._send_key_and_wait(socket, "Enter", False)
+
+    async def ensure_campaign_workspace(self) -> dict[str, Any]:
+        """Create only the fixed disposable campaign directory through Windows."""
+
+        path = r"C:\PiKVM-Harness\workspace\codex-50"
+        await self._type_run_command(f"cmd /c mkdir {path}")
+        ready = await self.wait_until_ready(timeout_s=15, stable_s=1)
+        return {**ready, "path": path, "method": "visible_windows_run"}
+
+    async def _reboot(self) -> None:
+        await self._type_run_command("shutdown /r /t 0 /f")
 
     async def _wait_for_run_dialog(
         self,
@@ -1070,6 +1089,20 @@ async def run_showcase_campaign(
             try:
                 run_id = str(record.get("run_id") or "")
                 if record["status"] != "rebooting":
+                    if spec.mutates_workspace:
+                        record["preflight"] = {
+                            "status": "running",
+                            "started_at": utc_now(),
+                        }
+                        writer.flush()
+                        workspace = await adapter.ensure_campaign_workspace()
+                        record["preflight"] = {
+                            "status": "ready",
+                            "started_at": record["preflight"]["started_at"],
+                            "ready_at": utc_now(),
+                            **workspace,
+                        }
+                        writer.flush()
                     if run_id:
                         run = await harness.get(run_id)
                     else:

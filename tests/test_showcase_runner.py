@@ -565,6 +565,49 @@ async def test_reboot_replaces_any_existing_run_dialog_text(
 
 
 @pytest.mark.asyncio
+async def test_campaign_workspace_preflight_uses_one_bounded_visible_command(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    sent: list[dict[str, object]] = []
+    printed: list[str] = []
+
+    monkeypatch.setattr(
+        showcase_runner,
+        "websocket_connect",
+        _socket_factory(sent),
+    )
+    async with httpx.AsyncClient(
+        transport=httpx.MockTransport(_snapshot_handler(printed))
+    ) as client:
+        adapter = VncAdapter(client, "http://127.0.0.1:48002")
+
+        async def visible_transition(**_kwargs: object) -> bool:
+            return True
+
+        async def ready(**_kwargs: object) -> dict[str, object]:
+            return {
+                "ready": True,
+                "frame_sha256": "f" * 64,
+            }
+
+        adapter._wait_for_run_dialog = (  # type: ignore[method-assign]
+            visible_transition
+        )
+        adapter.wait_until_ready = ready  # type: ignore[method-assign]
+        result = await adapter.ensure_campaign_workspace()
+
+    assert result["path"] == r"C:\PiKVM-Harness\workspace\codex-50"
+    assert result["ready"] is True
+    assert printed == [
+        r"cmd /c mkdir C:\PiKVM-Harness\workspace\codex-50"
+    ]
+    assert {
+        "key": "Enter",
+        "state": True,
+    } in [item["event"] for item in sent]
+
+
+@pytest.mark.asyncio
 async def test_reboot_retries_run_until_the_dialog_visibly_opens(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
