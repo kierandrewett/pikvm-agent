@@ -223,7 +223,7 @@ async def test_transport_uses_semantic_uppercase_for_shifted_letters() -> None:
     ]
 
 
-async def test_windows_transport_uses_alt_code_for_shifted_punctuation() -> None:
+async def test_windows_transport_uses_physical_chord_for_invariant_punctuation() -> None:
     class Client:
         def __init__(self) -> None:
             self.calls = []
@@ -251,10 +251,10 @@ async def test_windows_transport_uses_alt_code_for_shifted_punctuation() -> None
     await transport.key("ShiftLeft", False)
 
     assert client.calls == [
-        ("down", "alt"),
-        ("press", "kp5"),
-        ("press", "kp8"),
-        ("up", "alt"),
+        ("down", "shift"),
+        ("down", ";"),
+        ("up", ";"),
+        ("up", "shift"),
     ]
 
 
@@ -301,7 +301,7 @@ async def test_transport_uses_alt_codes_for_uk_symbols_windows_vnc_drops() -> No
     ]
 
 
-async def test_windows_transport_prints_shifted_punctuation_with_alt_code() -> None:
+async def test_windows_transport_prints_invariant_punctuation_physically() -> None:
     class Client:
         def __init__(self) -> None:
             self.calls = []
@@ -330,10 +330,10 @@ async def test_windows_transport_prints_shifted_punctuation_with_alt_code() -> N
         ("up", "A"),
         ("down", "a"),
         ("up", "a"),
-        ("down", "alt"),
-        ("press", "kp5"),
-        ("press", "kp8"),
-        ("up", "alt"),
+        ("down", "shift"),
+        ("down", ";"),
+        ("up", ";"),
+        ("up", "shift"),
         ("down", "alt"),
         ("press", "kp1"),
         ("press", "kp2"),

@@ -395,6 +395,32 @@ class VncDotoolTransport:
         finally:
             client.keyUp("alt")
 
+    @staticmethod
+    def _type_windows_physical_shifted_key(
+        client: Any,
+        key: str,
+    ) -> None:
+        """Deliver one layout-invariant Shift chord with real key spacing.
+
+        Windows accepts ``Shift+;`` for ``:`` on both US and UK layouts.  That
+        physical chord is deterministic across reboots, unlike numeric Alt
+        codes whose success depends on the guest's Num Lock state.  The small
+        pauses prevent RFB servers from coalescing the modifier and printable
+        key into an unshifted semicolon.
+        """
+
+        client.keyDown("shift")
+        try:
+            time.sleep(0.035)
+            client.keyDown(key)
+            try:
+                time.sleep(0.020)
+            finally:
+                client.keyUp(key)
+        finally:
+            time.sleep(0.035)
+            client.keyUp("shift")
+
     async def close(self) -> None:
         client, self._client = self._client, None
         self._invalidate_frame()
@@ -470,6 +496,26 @@ class VncDotoolTransport:
             if not down and code in self._synthetic_keyups:
                 self._synthetic_keyups.discard(code)
                 return
+            shifted_character = shifted_code_to_character(
+                code,
+                self.keymap,
+            )
+            if (
+                down
+                and self.keyboard_profile == "windows"
+                and self._shift_pending
+                and re.fullmatch(r"Key[A-Z]", code) is None
+                and shifted_character is not None
+                and shifted_character
+                == shifted_code_to_character(code, "en-us")
+            ):
+                self._synthetic_keyups.add(code)
+                await asyncio.to_thread(
+                    self._type_windows_physical_shifted_key,
+                    client,
+                    code_to_vnc_key(code),
+                )
+                return
             if (
                 down
                 and self.keyboard_profile == "windows"
@@ -488,10 +534,7 @@ class VncDotoolTransport:
                     )
                 )
             ):
-                character = shifted_code_to_character(
-                    code,
-                    self.keymap,
-                ) or (
+                character = shifted_character or (
                     "|" if self._shift_pending else "\\"
                 )
                 self._synthetic_keyups.add(code)
@@ -591,6 +634,26 @@ class VncDotoolTransport:
                         key = code_to_vnc_key(key_info.code)
                         if (
                             self.keyboard_profile == "windows"
+                            and key_info.shift
+                            and re.fullmatch(
+                                r"Key[A-Z]",
+                                key_info.code,
+                            )
+                            is None
+                            and char
+                            == shifted_code_to_character(
+                                key_info.code,
+                                "en-us",
+                            )
+                        ):
+                            self._type_windows_physical_shifted_key(
+                                client,
+                                key,
+                            )
+                            time.sleep(0.020)
+                            continue
+                        if (
+                            self.keyboard_profile == "windows"
                             and (
                                 key_info.code == "IntlBackslash"
                                 or (
@@ -609,8 +672,6 @@ class VncDotoolTransport:
                             )
                         ):
                             self._type_windows_alt_code(client, char)
-                            import time
-
                             time.sleep(0.020)
                             continue
                         semantic_shift = key_info.shift and (
@@ -631,8 +692,6 @@ class VncDotoolTransport:
                     # Some RFB servers silently coalesce/drop back-to-back key
                     # events. PiKVM's slow printer is about 20 ms/character, so
                     # preserve that timing contract in the emulator.
-                    import time
-
                     time.sleep(0.020)
 
             await asyncio.to_thread(type_all)
