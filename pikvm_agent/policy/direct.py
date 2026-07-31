@@ -312,7 +312,7 @@ def is_confirmed_file_explorer_surface(
         marker_text = f"{text}\n{top_band}"
         compact = re.sub(r"[^a-z0-9]+", "", marker_text)
         save_as_visible = bool(
-            re.search(r"\b(?:s?ave)\s+as\b", marker_text)
+            re.search(r"\b(?:s[a-z]?ve|ave)\s*as\b", marker_text)
             or "saveas" in compact
         )
         file_picker_markers = {
