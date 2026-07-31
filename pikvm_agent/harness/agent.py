@@ -1380,6 +1380,24 @@ class AgentHarness:
                 run.plan = None
                 run.status = RunStatus.PAUSED
                 run.record("controller.requested_replan", reason=controller.reason)
+                if run.session_id:
+                    try:
+                        refreshed = await self.computer.refresh(
+                            session_id=run.session_id,
+                        )
+                    except Exception as exc:
+                        run.record(
+                            "computer.refresh_after_replan_failed",
+                            error=str(exc),
+                        )
+                    else:
+                        run.observation = refreshed
+                        run.record(
+                            "computer.refreshed_after_replan",
+                            session_id=refreshed.session_id,
+                            frame_id=refreshed.frame_id,
+                            world_version=refreshed.world_version,
+                        )
                 await self.store.save(run)
                 return run
             if controller.outcome == "done":

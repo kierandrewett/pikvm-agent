@@ -1030,6 +1030,16 @@ class FakeComputer:
         return ComputerObservation(session_id=session_id, status="aborted")
 
 
+class RefreshTrackingComputer(FakeComputer):
+    def __init__(self) -> None:
+        super().__init__()
+        self.refreshes = 0
+
+    async def refresh(self, *, session_id: str) -> ComputerObservation:
+        self.refreshes += 1
+        return await super().refresh(session_id=session_id)
+
+
 class ApprovalComputer(FakeComputer):
     def __init__(self) -> None:
         super().__init__()
@@ -1423,6 +1433,47 @@ def build_harness(
         store=InMemoryRunStore(),
         config=HarnessConfig(max_actions_per_advance=1),
     )
+
+
+@pytest.mark.asyncio
+async def test_controller_replan_refreshes_the_screen_before_autonomous_resume() -> None:
+    class ReplanProvider(ScriptedProvider):
+        async def complete(self, request: ModelRequest) -> ModelResponse:
+            self.requests.append(request)
+            if request.role == "reasoner":
+                return ModelResponse(
+                    provider=self.name,
+                    model="scripted-v1",
+                    data={
+                        "summary": "Inspect the current screen.",
+                        "steps": ["Inspect the current screen."],
+                        "success_criteria": ["The visible state is known."],
+                        "constraints": ["Do not guess from a blank frame."],
+                    },
+                )
+            return ModelResponse(
+                provider=self.name,
+                model="scripted-v1",
+                data={
+                    "outcome": "replan",
+                    "intent": "Refresh a transient blank frame.",
+                    "actions": [],
+                    "expected_evidence": [],
+                    "reason": "The supplied frame is transiently blank.",
+                },
+            )
+
+    provider = ReplanProvider()
+    computer = RefreshTrackingComputer()
+    result = await build_harness(provider, computer).start(
+        "Open Calculator from the visible Windows desktop."
+    )
+
+    assert result.status is RunStatus.PAUSED
+    assert computer.refreshes == 1
+    assert result.observation is not None
+    assert result.observation.frame_id == 3
+    assert result.events[-1].kind == "computer.refreshed_after_replan"
 
 
 def test_controller_action_schema_rejects_unknown_hid_and_verification_bypass() -> None:
