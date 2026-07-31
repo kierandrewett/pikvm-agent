@@ -1124,6 +1124,10 @@ use Ctrl+L, draft the exact directory path, verify it, then commit that local
 navigation and enter only the short basename in the File name field. Never type
 a full absolute path into the File name field; narrow horizontally scrolling
 filename controls cannot provide reliable whole-path visual readback.
+After the destination and basename are independently verified, click the
+visibly labelled Save button as the bounded commit action. Never use bare Enter
+to commit a Save As dialog: an unlabelled Enter cannot be grounded to the
+intended local-file control and must remain behind the unknown-action gate.
 The File name field is normally pre-populated. After its focus is independently
 verified, use Ctrl+A immediately before the exact basename in the same
 reversible input burst. Never assume the default selection is still active:

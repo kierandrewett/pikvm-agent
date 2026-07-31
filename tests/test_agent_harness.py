@@ -2519,6 +2519,8 @@ async def test_controller_prompt_prefers_a_stable_legible_end_state() -> None:
     assert "complete expression including the equals key" in normalized
     assert "tiny expression-history text" in normalized
     assert "consequential commit actions" in normalized
+    assert "click the visibly labelled Save button" in normalized
+    assert "Never use bare Enter to commit a Save As dialog" in normalized
 
 
 async def test_reasoner_prompt_avoids_duplicate_pre_and_post_save_audits() -> None:
