@@ -305,6 +305,202 @@ def test_calculator_percentage_is_prepared_without_model_replanning() -> None:
     ]
 
 
+@pytest.mark.parametrize(
+    ("task", "expected_keys", "expected_result"),
+    [
+        (
+            "Use Windows Calculator to compute 13 to the power of 4. "
+            "Leave the exact result visible and report it.",
+            [
+                "Digit1",
+                "Digit3",
+                "NumpadMultiply",
+                "Digit1",
+                "Digit3",
+                "NumpadMultiply",
+                "Digit1",
+                "Digit3",
+                "NumpadMultiply",
+                "Digit1",
+                "Digit3",
+                "Enter",
+            ],
+            "28561",
+        ),
+        (
+            "Use Windows Calculator to compute 1000.25 minus 378.49. "
+            "Leave the exact result visible and report it.",
+            [
+                "Digit1",
+                "Digit0",
+                "Digit0",
+                "Digit0",
+                "NumpadDecimal",
+                "Digit2",
+                "Digit5",
+                "NumpadSubtract",
+                "Digit3",
+                "Digit7",
+                "Digit8",
+                "NumpadDecimal",
+                "Digit4",
+                "Digit9",
+                "Enter",
+            ],
+            "621.76",
+        ),
+        (
+            "Use Windows Calculator to compute 88 plus 12, multiply that "
+            "result by 4, then divide by 5. Leave the exact result visible "
+            "and report it.",
+            [
+                "Digit8",
+                "Digit8",
+                "NumpadAdd",
+                "Digit1",
+                "Digit2",
+                "NumpadMultiply",
+                "Digit4",
+                "NumpadDivide",
+                "Digit5",
+                "Enter",
+            ],
+            "80",
+        ),
+    ],
+)
+def test_more_literal_calculator_tasks_avoid_model_replanning(
+    task: str,
+    expected_keys: list[str],
+    expected_result: str,
+) -> None:
+    run = RunSnapshot(
+        run_id="calculator-more-literals",
+        task=task,
+        status=RunStatus.PAUSED,
+    )
+    launch = PendingAction(
+        index=0,
+        intent="Launch Calculator.",
+        actions=[
+            {"type": "key", "keys": ["WIN", "R"]},
+            {"type": "type_text", "text": "calc"},
+            {"type": "key", "keys": ["ENTER"]},
+        ],
+        based_on_world_version=1,
+        based_on_control_epoch=0,
+        idempotency_key="calculator-more-literals-launch",
+    )
+
+    controller = _calculator_task_controller(
+        run,
+        launch,
+        max_actions=20,
+    )
+
+    assert controller is not None
+    assert [
+        action.model_dump(mode="json", exclude_none=True)
+        for action in controller.actions
+    ] == [
+        *[{"type": "key", "keys": [key]} for key in expected_keys],
+        {"type": "wait_for_change", "timeout_ms": 2_000},
+        {
+            "type": "wait_for_stable_screen",
+            "stable_ms": 400,
+            "timeout_ms": 3_000,
+        },
+    ]
+    assert controller.expects_task_completion is True
+    assert controller.expected_evidence == [
+        "Calculator's main display visibly reads exactly "
+        f"{expected_result}."
+    ]
+
+
+def test_calculator_reciprocal_prepares_operand_for_visual_click() -> None:
+    run = RunSnapshot(
+        run_id="calculator-reciprocal",
+        task=(
+            "Use Windows Calculator to compute the reciprocal of 64. "
+            "Leave the exact result visible and report it."
+        ),
+        status=RunStatus.PAUSED,
+    )
+    launch = PendingAction(
+        index=0,
+        intent="Launch Calculator.",
+        actions=[
+            {"type": "key", "keys": ["WIN", "R"]},
+            {"type": "type_text", "text": "calc"},
+            {"type": "key", "keys": ["ENTER"]},
+        ],
+        based_on_world_version=1,
+        based_on_control_epoch=0,
+        idempotency_key="calculator-reciprocal-launch",
+    )
+
+    controller = _calculator_task_controller(
+        run,
+        launch,
+        max_actions=20,
+    )
+
+    assert controller is not None
+    assert [
+        action.model_dump(mode="json", exclude_none=True)
+        for action in controller.actions
+    ] == [
+        {"type": "key", "keys": ["Digit6"]},
+        {"type": "key", "keys": ["Digit4"]},
+        {"type": "wait_for_change", "timeout_ms": 2_000},
+        {
+            "type": "wait_for_stable_screen",
+            "stable_ms": 400,
+            "timeout_ms": 3_000,
+        },
+    ]
+    assert controller.expects_task_completion is False
+    assert controller.expected_evidence == [
+        "Calculator's main display visibly reads exactly 64 and the "
+        "reciprocal control is visible."
+    ]
+
+
+@pytest.mark.parametrize(
+    "task",
+    [
+        "Use Windows Calculator to compute 144 divided by 0, then add 7.",
+        (
+            "Use Windows Calculator to compute 88 plus 12, multiply that "
+            "result by 4, then divide by 0."
+        ),
+        "Use Windows Calculator to compute the reciprocal of 0.",
+    ],
+)
+def test_calculator_zero_division_is_left_to_the_grounded_controller(
+    task: str,
+) -> None:
+    run = RunSnapshot(
+        run_id="calculator-zero-division",
+        task=task,
+        status=RunStatus.PAUSED,
+    )
+    launch = PendingAction(
+        index=0,
+        intent="Launch Calculator.",
+        actions=[{"type": "type_text", "text": "calc"}],
+        based_on_world_version=1,
+        based_on_control_epoch=0,
+        idempotency_key="calculator-zero-division-launch",
+    )
+
+    assert (
+        _calculator_task_controller(run, launch, max_actions=20)
+        is None
+    )
+
+
 def test_controller_can_launch_a_standard_app_in_one_safe_burst() -> None:
     assert "one narrow app-launch exception" in _CONTROLLER_SYSTEM
     assert "type only the app's executable name" in _CONTROLLER_SYSTEM

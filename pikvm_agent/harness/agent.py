@@ -533,6 +533,26 @@ _CALCULATOR_PERCENTAGE_EXPRESSION = re.compile(
     r"percent\s+of\s+(?P<value>\d{1,12}(?:\.\d{1,6})?)\b",
     re.IGNORECASE,
 )
+_CALCULATOR_POWER_EXPRESSION = re.compile(
+    r"\bcompute\s+(?P<base>\d{1,6})\s+to\s+the\s+power\s+of\s+"
+    r"(?P<exponent>[1-8])\b",
+    re.IGNORECASE,
+)
+_CALCULATOR_SUBTRACTION_EXPRESSION = re.compile(
+    r"\bcompute\s+(?P<left>\d{1,12}(?:\.\d{1,6})?)\s+minus\s+"
+    r"(?P<right>\d{1,12}(?:\.\d{1,6})?)\b",
+    re.IGNORECASE,
+)
+_CALCULATOR_CHAIN_EXPRESSION = re.compile(
+    r"\bcompute\s+(?P<left>\d{1,6})\s+plus\s+(?P<right>\d{1,6}),?\s+"
+    r"multiply\s+that\s+result\s+by\s+(?P<factor>\d{1,6}),?\s+"
+    r"then\s+divide\s+by\s+(?P<divisor>\d{1,6})\b",
+    re.IGNORECASE,
+)
+_CALCULATOR_RECIPROCAL_EXPRESSION = re.compile(
+    r"\breciprocal\s+of\s+(?P<value>\d{1,12})\b",
+    re.IGNORECASE,
+)
 
 
 def _calculator_number_keys(value: str) -> list[str]:
@@ -558,6 +578,13 @@ def _calculator_key_actions(
     ]
 
 
+def _calculator_decimal_text(value: Decimal) -> str:
+    result = format(value, "f")
+    if "." in result:
+        result = result.rstrip("0").rstrip(".")
+    return result
+
+
 def _calculator_task_controller(
     run: RunSnapshot,
     action: PendingAction | None,
@@ -581,6 +608,10 @@ def _calculator_task_controller(
     mixed = _CALCULATOR_MIXED_EXPRESSION.search(run.task)
     square_root = _CALCULATOR_SQUARE_ROOT_EXPRESSION.search(run.task)
     percentage = _CALCULATOR_PERCENTAGE_EXPRESSION.search(run.task)
+    power = _CALCULATOR_POWER_EXPRESSION.search(run.task)
+    subtraction = _CALCULATOR_SUBTRACTION_EXPRESSION.search(run.task)
+    chain = _CALCULATOR_CHAIN_EXPRESSION.search(run.task)
+    reciprocal = _CALCULATOR_RECIPROCAL_EXPRESSION.search(run.task)
     expects_task_completion = True
     expected_evidence: list[str] | None = None
     if multiplication is not None:
@@ -601,7 +632,7 @@ def _calculator_task_controller(
         dividend = mixed.group("dividend")
         divisor = mixed.group("divisor")
         addend = mixed.group("addend")
-        if int(dividend) % int(divisor):
+        if int(divisor) == 0 or int(dividend) % int(divisor):
             return None
         keys = [
             *_calculator_number_keys(dividend),
@@ -646,12 +677,80 @@ def _calculator_task_controller(
             "Enter",
         ]
         result_value = Decimal(value) * Decimal(percent) / Decimal(100)
-        result = format(result_value, "f")
-        if "." in result:
-            result = result.rstrip("0").rstrip(".")
+        result = _calculator_decimal_text(result_value)
         intent = (
             "Evaluate the requested local Calculator percentage "
             f"{percent}% of {value}."
+        )
+    elif power is not None:
+        base = power.group("base")
+        exponent = int(power.group("exponent"))
+        factor_keys = _calculator_number_keys(base)
+        keys = []
+        for factor_index in range(exponent):
+            if factor_index:
+                keys.append("NumpadMultiply")
+            keys.extend(factor_keys)
+        keys.append("Enter")
+        result = str(int(base) ** exponent)
+        intent = (
+            "Evaluate the requested local Calculator expression "
+            f"{base}^{exponent}."
+        )
+    elif subtraction is not None:
+        left = subtraction.group("left")
+        right = subtraction.group("right")
+        keys = [
+            *_calculator_number_keys(left),
+            "NumpadSubtract",
+            *_calculator_number_keys(right),
+            "Enter",
+        ]
+        result = _calculator_decimal_text(Decimal(left) - Decimal(right))
+        intent = (
+            "Evaluate the requested local Calculator expression "
+            f"{left} − {right}."
+        )
+    elif chain is not None:
+        left = chain.group("left")
+        right = chain.group("right")
+        factor = chain.group("factor")
+        divisor = chain.group("divisor")
+        if int(divisor) == 0:
+            return None
+        keys = [
+            *_calculator_number_keys(left),
+            "NumpadAdd",
+            *_calculator_number_keys(right),
+            "NumpadMultiply",
+            *_calculator_number_keys(factor),
+            "NumpadDivide",
+            *_calculator_number_keys(divisor),
+            "Enter",
+        ]
+        result_value = (
+            (Decimal(left) + Decimal(right))
+            * Decimal(factor)
+            / Decimal(divisor)
+        )
+        result = _calculator_decimal_text(result_value)
+        intent = (
+            "Evaluate the requested local Calculator expression "
+            f"({left} + {right}) × {factor} ÷ {divisor}."
+        )
+    elif reciprocal is not None:
+        value = reciprocal.group("value")
+        if int(value) == 0:
+            return None
+        keys = _calculator_number_keys(value)
+        expects_task_completion = False
+        expected_evidence = [
+            f"Calculator's main display visibly reads exactly {int(value):,} "
+            "and the reciprocal control is visible."
+        ]
+        intent = (
+            "Prepare the requested local Calculator reciprocal "
+            f"1/{value} for a grounded click on the visible reciprocal control."
         )
     else:
         return None
