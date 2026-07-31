@@ -692,10 +692,26 @@ async def test_simple_exact_terminal_command_uses_guarded_fast_print() -> None:
     _assert_no_enter(backend)
 
 
-async def test_short_exact_field_stays_on_per_key_transport() -> None:
+@pytest.mark.parametrize("value", ["calc", "ms-settings:about"])
+async def test_short_exact_field_stays_on_per_key_transport(
+    value: str,
+) -> None:
     backend = FakeBackend()
     backend.guarded_exact_print = True  # type: ignore[attr-defined]
-    value = "ms-settings:about"
+
+    def field_frame(text: str) -> bytes:
+        image = Image.new("RGB", (1280, 720), (24, 28, 36))
+        draw = ImageDraw.Draw(image)
+        draw.rectangle(
+            [80, 100, 520, 150],
+            fill=(235, 235, 235) if text else (250, 250, 250),
+        )
+        draw.text((100, 115), text, fill=(20, 20, 20))
+        output = io.BytesIO()
+        image.save(output, format="JPEG", quality=95)
+        return output.getvalue()
+
+    backend.set_frame_bytes(field_frame(""))
     orig_type = backend.type_text
 
     async def typing(
@@ -705,7 +721,7 @@ async def test_short_exact_field_stays_on_per_key_transport() -> None:
         secret: bool = False,
     ) -> None:
         await orig_type(text, code=code, secret=secret)
-        backend.set_screen(value)
+        backend.set_frame_bytes(field_frame(value))
 
     backend.type_text = typing  # type: ignore[method-assign]
     result = await WatchedTyper(

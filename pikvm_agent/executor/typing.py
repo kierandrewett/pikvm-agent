@@ -1398,7 +1398,10 @@ class WatchedTyper:
         delivery_retries = 0
         last_read = ""
         verified_clean = False
-        can_vision = not secret and total > 4
+        can_vision = not secret and (
+            total > 4
+            or (precise and total >= 3)
+        )
         emitted_parts: list[str] = []
 
         async def emit_text(value: str) -> None:
@@ -1645,7 +1648,8 @@ class WatchedTyper:
 
             # Auto-locate the field from the changed pixels (skipped if the caller
             # gave an explicit region); grow the box each chunk so it spans the line.
-            if not explicit_region and len(typed_so_far) >= LOCATE_MIN_CHARS:
+            locate_min_chars = 4 if precise else LOCATE_MIN_CHARS
+            if not explicit_region and len(typed_so_far) >= locate_min_chars:
                 loc = chunk_change
                 if loc is not None:
                     # Search boxes and autocomplete fields can repaint a large
