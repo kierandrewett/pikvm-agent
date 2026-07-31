@@ -914,6 +914,88 @@ async def test_short_exact_field_reads_once_with_caret_blurred() -> None:
     _assert_no_enter(backend)
 
 
+@pytest.mark.parametrize(
+    ("blurred_read", "expected_status"),
+    [
+        ("taskmgr", "verified_exact"),
+        ("taskmngr", "unverified_ambiguous"),
+    ],
+)
+async def test_short_exact_field_rechecks_medium_confidence_one_edit_read(
+    blurred_read: str,
+    expected_status: str,
+) -> None:
+    backend = FakeBackend()
+    emissions = 0
+
+    def field_frame(text: str) -> bytes:
+        image = Image.new("RGB", (1280, 720), (24, 28, 36))
+        draw = ImageDraw.Draw(image)
+        draw.rectangle([80, 100, 520, 150], fill=(210, 210, 210))
+        draw.text((100, 115), text, fill=(20, 20, 20))
+        output = io.BytesIO()
+        image.save(output, format="JPEG", quality=95)
+        return output.getvalue()
+
+    class IntermittentOCR:
+        async def ocr(self, image_path, region=None):
+            return await self.ocr_precise(image_path, region=region)
+
+        async def ocr_precise(self, image_path, region=None):
+            del image_path, region
+            last_keypress = next(
+                (
+                    kwargs["keys"]
+                    for method, kwargs in reversed(backend.calls)
+                    if method == "keypress"
+                ),
+                [],
+            )
+            observed = (
+                blurred_read
+                if last_keypress == ["Tab"]
+                else "taskmngr"
+            )
+            return OCRResult(
+                lines=[
+                    OCRLine(
+                        text=observed,
+                        confidence=0.93,
+                        bbox=[100, 115, 180, 135],
+                    )
+                ]
+            )
+
+    original_type = backend.type_text
+    backend.set_frame_bytes(field_frame(""))
+
+    async def typing(
+        text: str,
+        *,
+        code: bool = False,
+        secret: bool = False,
+    ) -> None:
+        nonlocal emissions
+        await original_type(text, code=code, secret=secret)
+        emissions += 1
+        backend.set_frame_bytes(field_frame(text))
+
+    backend.type_text = typing  # type: ignore[method-assign]
+
+    result = await WatchedTyper(backend, IntermittentOCR()).type_text(
+        "taskmgr",
+        exact=True,
+        context="field",
+    )
+
+    assert result.status == expected_status, result
+    assert result.correction_count == 0
+    assert emissions == 1
+    assert ("keypress", {"keys": ["Tab"]}) in backend.calls
+    assert ("keypress", {"keys": ["ShiftLeft", "Tab"]}) in backend.calls
+    _assert_no_enter(backend)
+
+
 async def test_short_exact_field_with_whitespace_selects_for_caret_safe_readback(
 ) -> None:
     backend = FakeBackend()

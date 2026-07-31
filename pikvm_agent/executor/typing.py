@@ -78,6 +78,7 @@ FAST_PRINT_MIN = 120      # above this, plain text takes the (bursty) fast print
 FAST_TERMINAL_PRINT_MIN = 32  # exact simple argv can use PiKVM's guarded printer
 MIN_MISMATCH_OCR_CONFIDENCE = 0.78
 MIN_GROUNDED_EXACT_OCR_CONFIDENCE = 0.55
+MIN_ONE_EDIT_RECHECK_CONFIDENCE = 0.90
 MAX_AUTODETECTED_FIELD_HEIGHT = 80
 MAX_AUTODETECTED_FIELD_HEIGHT_FRAC = 0.15
 MAX_PROSE_EDGE_CONTEXT_CHARS = 96
@@ -1627,6 +1628,7 @@ class WatchedTyper:
             )
             kind = classify_mismatch(intended_snapshot, read_back, precise)
             strong_precise_transport_mismatch = False
+            credible_one_edit_read = False
             one_character_prefix_read = False
             if (
                 precise
@@ -1647,11 +1649,16 @@ class WatchedTyper:
                     for line in self._last_field_ocr_result.lines
                     if line.text.strip()
                 ]
-                strong_precise_transport_mismatch = (
+                credible_one_edit_read = (
                     len(canonical_lines) == 1
                     and canonical_lines[0].confidence is not None
-                    and float(canonical_lines[0].confidence) >= 0.95
+                    and float(canonical_lines[0].confidence)
+                    >= MIN_ONE_EDIT_RECHECK_CONFIDENCE
                     and canonical_lines[0].text.strip() == read_back.strip()
+                )
+                strong_precise_transport_mismatch = (
+                    credible_one_edit_read
+                    and float(canonical_lines[0].confidence) >= 0.95
                 )
                 one_character_prefix_read = (
                     len(read_back) + 1 == len(intended_snapshot)
@@ -1661,6 +1668,7 @@ class WatchedTyper:
                 single_line_field
                 and (
                     strong_precise_transport_mismatch
+                    or credible_one_edit_read
                     or one_character_prefix_read
                 )
             ):
@@ -1707,6 +1715,15 @@ class WatchedTyper:
                         verified_clean = True
                     return
                 if one_character_prefix_read:
+                    last_read = rechecked or read_back
+                    return
+                if (
+                    credible_one_edit_read
+                    and not strong_precise_transport_mismatch
+                ):
+                    # A medium-confidence one-edit mismatch is enough to
+                    # justify one reversible read with the caret blurred, but
+                    # never enough to erase or replay the field.
                     last_read = rechecked or read_back
                     return
                 repeated_lines = [
