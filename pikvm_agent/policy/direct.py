@@ -287,6 +287,7 @@ def is_confirmed_file_explorer_surface(
     *,
     draft_text: str = "This PC",
     top_band_text: str = "",
+    verified_same_frame_draft: bool = False,
 ) -> bool:
     """Confirm Explorer or Save As around one exact local-navigation draft."""
 
@@ -295,19 +296,23 @@ def is_confirmed_file_explorer_surface(
         return False
     if draft_text != "This PC":
         top_band = " ".join(top_band_text.casefold().split())
+        compact = re.sub(r"[^a-z0-9]+", "", text)
         file_picker_markers = {
             marker
-            for marker in (
-                "save as",
-                "file name",
-                "save as type",
-                "new folder",
-                "encoding",
+            for marker, compact_marker in (
+                ("save as", "saveas"),
+                ("file name", "filename"),
+                ("save as type", "saveastype"),
+                ("new folder", "newfolder"),
+                ("encoding", "encoding"),
             )
-            if marker in text
+            if marker in text or compact_marker in compact
         }
         return (
-            draft_text.casefold() in top_band
+            (
+                draft_text.casefold() in top_band
+                or verified_same_frame_draft
+            )
             and "save as" in file_picker_markers
             and len(file_picker_markers) >= 2
         )

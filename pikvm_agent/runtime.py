@@ -977,6 +977,9 @@ class Runtime:
                 if matching_local_navigation_draft
                 else ""
             ),
+            verified_same_frame_draft=(
+                matching_local_navigation_draft
+            ),
         )
         verdict = classify_direct_burst(
             grounded_actions,
@@ -1289,6 +1292,7 @@ class Runtime:
         frame: Any,
         *,
         local_navigation_draft: str = "",
+        verified_same_frame_draft: bool = False,
     ) -> tuple[str, bool]:
         """Read the visible app before exempting one bounded local commit."""
 
@@ -1345,6 +1349,7 @@ class Runtime:
                 ),
                 draft_text=local_navigation_draft,
                 top_band_text=precise_text,
+                verified_same_frame_draft=verified_same_frame_draft,
             )
             return (combined_text, confirmed)
         if is_confirmed_calculator_surface(precise_text):
@@ -1361,6 +1366,9 @@ class Runtime:
         frame_screen_hash = str(
             getattr(frame, "screen_hash", "") or ""
         ).lower()
+        frame_image_sha256 = str(
+            getattr(frame, "image_sha256", "") or ""
+        ).lower()
         return bool(
             draft
             and needs_local_navigation_surface_grounding(actions)
@@ -1368,6 +1376,9 @@ class Runtime:
                 str(draft.get("text") or "")
             )
             and draft.get("control_epoch") == sr.control_epoch
+            and len(frame_image_sha256) == 64
+            and draft.get("post_action_image_sha256")
+            == frame_image_sha256
             and len(frame_screen_hash) == 512
             and draft.get("frame_screen_hash") == frame_screen_hash
         )

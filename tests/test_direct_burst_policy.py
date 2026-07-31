@@ -524,6 +524,36 @@ def test_save_as_navigation_requires_safe_path_and_top_band_evidence() -> None:
     )
 
 
+def test_same_exact_frame_tolerates_real_save_as_ocr_noise() -> None:
+    path = r"C:\PiKVM-Harness\workspace\codex-50"
+    noisy_surface = (
+        "Recyele Saveas Origine New folder Filename: "
+        "Reluble sutomation starts with batt"
+    )
+    noisy_top_band = (
+        r"ave as > Y BB APKVi-Hermess\workspacei\codex-S0 "
+        "earch Document Rowse New folder"
+    )
+
+    assert is_confirmed_file_explorer_surface(
+        noisy_surface,
+        draft_text=path,
+        top_band_text=noisy_top_band,
+        verified_same_frame_draft=True,
+    )
+    assert not is_confirmed_file_explorer_surface(
+        noisy_surface,
+        draft_text=path,
+        top_band_text=noisy_top_band,
+    )
+    assert not is_confirmed_file_explorer_surface(
+        f"New message {path} Send",
+        draft_text=path,
+        top_band_text=noisy_top_band,
+        verified_same_frame_draft=True,
+    )
+
+
 def test_calculator_expression_requires_independent_surface_evidence() -> None:
     actions = [
         {"type": "key", "keys": ["Digit3"]},
