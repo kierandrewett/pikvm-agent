@@ -64,6 +64,7 @@ from pikvm_agent.vision.frame_diff import GRID_COLS, GRID_ROWS, grid
 CELL_DELTA = 18           # grayscale delta for a grid cell to count as changed
 MIN_CHANGED_CELLS = 2     # fewer (after prune) ⇒ nothing landed
 LOCATE_MIN_CHARS = 5      # only auto-locate once first chunk ≥ this
+PRECISE_LOCATE_MIN_CHARS = 4  # short allowlisted Run names still need proof
 ABORT_MIN_CHARS = 8       # only HARD-fail "no focus" when ≥ this typed
 MAX_BOX_HEIGHT_FRAC = 0.6  # a change taller than this frac of screen = repaint
 CHUNK_TARGET = 16         # word-boundary chunk target length
@@ -281,7 +282,11 @@ def precise_readback_candidate_region(
         if character.isalnum()
     )
     screen_width, screen_height = dims
-    if len(target) < LOCATE_MIN_CHARS or screen_width <= 0 or screen_height <= 0:
+    if (
+        len(target) < PRECISE_LOCATE_MIN_CHARS
+        or screen_width <= 0
+        or screen_height <= 0
+    ):
         return None
 
     for line in result.lines:
@@ -1463,7 +1468,33 @@ class WatchedTyper:
                 )
             )
             kind = classify_mismatch(intended_snapshot, read_back, precise)
-            if kind is None:
+            strong_precise_transport_mismatch = False
+            if (
+                precise
+                and intended_snapshot == text
+                and PRECISE_LOCATE_MIN_CHARS
+                <= len(intended_snapshot)
+                <= 20
+                and "\n" not in read_back
+                and levenshtein(
+                    norm(intended_snapshot, True),
+                    norm(read_back, True),
+                    1,
+                )
+                == 1
+            ):
+                canonical_lines = [
+                    line
+                    for line in self._last_field_ocr_result.lines
+                    if line.text.strip()
+                ]
+                strong_precise_transport_mismatch = (
+                    len(canonical_lines) == 1
+                    and canonical_lines[0].confidence is not None
+                    and float(canonical_lines[0].confidence) >= 0.95
+                    and canonical_lines[0].text.strip() == read_back.strip()
+                )
+            if kind is None and not strong_precise_transport_mismatch:
                 # A prefix-only OCR read has no confident mismatch kind, but it
                 # is not a clean verification. Only an actual match/containment
                 # can skip the final settled reread.
@@ -1477,10 +1508,15 @@ class WatchedTyper:
                 # A long prose mismatch is not permission to clear and replay
                 # an entire field. Stop with the observed evidence instead.
                 return
-            if precise and kind not in {"layout", "case"}:
+            if (
+                precise
+                and kind not in {"layout", "case"}
+                and not strong_precise_transport_mismatch
+            ):
                 # Exact code/commands are load-bearing, but noisy OCR is not
                 # permission to erase them. Only strong layout/case signatures
-                # may self-correct.
+                # or one strongly grounded short-field substitution may
+                # self-correct. The corrected field must still read back exact.
                 return
             if cur_region is None:
                 return  # nothing to crop against — leave it to the agent
@@ -1648,7 +1684,11 @@ class WatchedTyper:
 
             # Auto-locate the field from the changed pixels (skipped if the caller
             # gave an explicit region); grow the box each chunk so it spans the line.
-            locate_min_chars = 4 if precise else LOCATE_MIN_CHARS
+            locate_min_chars = (
+                PRECISE_LOCATE_MIN_CHARS
+                if precise
+                else LOCATE_MIN_CHARS
+            )
             if not explicit_region and len(typed_so_far) >= locate_min_chars:
                 loc = chunk_change
                 if loc is not None:
