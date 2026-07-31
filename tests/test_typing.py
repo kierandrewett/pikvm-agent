@@ -838,6 +838,72 @@ async def test_short_exact_field_corrects_one_strong_substitution_once() -> None
     _assert_no_enter(backend)
 
 
+async def test_short_exact_field_waits_out_a_caret_shaped_substitution() -> None:
+    backend = FakeBackend()
+    emissions = 0
+    ocr_calls = 0
+
+    def field_frame(text: str) -> bytes:
+        image = Image.new("RGB", (1280, 720), (24, 28, 36))
+        draw = ImageDraw.Draw(image)
+        draw.rectangle(
+            [80, 100, 520, 150],
+            fill=(210, 210, 210) if text else (250, 250, 250),
+        )
+        draw.text((100, 115), text, fill=(20, 20, 20))
+        output = io.BytesIO()
+        image.save(output, format="JPEG", quality=95)
+        return output.getvalue()
+
+    class CaretPhaseOCR:
+        async def ocr(self, image_path, region=None):
+            return await self.ocr_precise(image_path, region=region)
+
+        async def ocr_precise(self, image_path, region=None):
+            nonlocal ocr_calls
+            del image_path, region
+            ocr_calls += 1
+            observed = "cald" if ocr_calls == 1 else "calc"
+            return OCRResult(
+                lines=[
+                    OCRLine(
+                        text=observed,
+                        confidence=0.99,
+                        bbox=[100, 115, 150, 135],
+                    )
+                ],
+                spacing_evidence="verified",
+            )
+
+    original_type = backend.type_text
+    backend.set_frame_bytes(field_frame(""))
+
+    async def typing(
+        text: str,
+        *,
+        code: bool = False,
+        secret: bool = False,
+    ) -> None:
+        nonlocal emissions
+        await original_type(text, code=code, secret=secret)
+        emissions += 1
+        backend.set_frame_bytes(field_frame(text))
+
+    backend.type_text = typing  # type: ignore[method-assign]
+
+    result = await WatchedTyper(backend, CaretPhaseOCR()).type_text(
+        "calc",
+        exact=True,
+        context="field",
+    )
+
+    assert result.status == "verified_exact", result
+    assert result.correction_count == 0
+    assert emissions == 1
+    assert ocr_calls >= 2
+    _assert_no_enter(backend)
+
+
 async def test_terminal_metacharacters_stay_on_per_key_transport() -> None:
     backend = FakeBackend()
     command = "printf dangerous > local-file.txt"

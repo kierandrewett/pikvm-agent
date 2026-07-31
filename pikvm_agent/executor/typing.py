@@ -91,6 +91,7 @@ DENSE_MAX_HEIGHT = 64
 _PRINT_SETTLE_S = 0.45
 _CLEAR_SETTLE_S = 0.15
 _VIDEO_RETRY_SETTLE_S = 0.20
+_CARET_BLINK_RECHECK_S = 0.65
 _PRECISE_READBACK_SETTLES_S = (0.45, 0.90, 1.80)
 _PRECISE_FULL_SCREEN_SETTLES_S = (0.0, 0.45, 0.90)
 
@@ -1507,6 +1508,52 @@ class WatchedTyper:
                     and float(canonical_lines[0].confidence) >= 0.95
                     and canonical_lines[0].text.strip() == read_back.strip()
                 )
+            if strong_precise_transport_mismatch:
+                # A focused Windows text field can visually fuse its blinking
+                # caret to the final glyph: ``calc|`` is then read as ``cald``
+                # with very high confidence. Never erase and replay from one
+                # such frame. Sample a different caret phase first; an exact
+                # second read proves the original delivery without more HID,
+                # while a correction still requires the same strong mismatch
+                # to persist independently.
+                await asyncio.sleep(_CARET_BLINK_RECHECK_S)
+                rechecked = self._typed_candidate(
+                    await self._read_field(
+                        current_readback_region(),
+                        intended=intended_snapshot,
+                        precise=precise,
+                        allow_semantic_spacing=allow_semantic_spacing,
+                    ),
+                    intended_snapshot,
+                    precise,
+                )
+                if (
+                    compute_verdict(
+                        intended_snapshot,
+                        rechecked,
+                        precise,
+                    )
+                    in {"match", "contains"}
+                ):
+                    last_read = rechecked
+                    if norm(intended_snapshot, precise) == norm(text, precise):
+                        verified_clean = True
+                    return
+                repeated_lines = [
+                    line
+                    for line in self._last_field_ocr_result.lines
+                    if line.text.strip()
+                ]
+                strong_precise_transport_mismatch = (
+                    rechecked.strip() == read_back.strip()
+                    and len(repeated_lines) == 1
+                    and repeated_lines[0].confidence is not None
+                    and float(repeated_lines[0].confidence) >= 0.95
+                    and repeated_lines[0].text.strip() == rechecked.strip()
+                )
+                if not strong_precise_transport_mismatch:
+                    last_read = rechecked
+                    return
             if kind is None and not strong_precise_transport_mismatch:
                 # A prefix-only OCR read has no confident mismatch kind, but it
                 # is not a clean verification. Only an actual match/containment
