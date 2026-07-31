@@ -959,7 +959,7 @@ async def test_short_exact_field_reads_once_with_caret_blurred() -> None:
         (r"C:#PiKVM-Harness#workspace#codex-50", "failed_keyboard_layout"),
     ],
 )
-async def test_long_exact_field_blurs_layout_like_ocr_without_retyping(
+async def test_long_exact_field_selects_layout_like_ocr_without_retyping(
     blurred_read: str,
     expected_status: str,
 ) -> None:
@@ -984,7 +984,11 @@ async def test_long_exact_field_blurs_layout_like_ocr_without_retyping(
             )
             observed = emitted
             if emitted == intended:
-                observed = blurred_read if last_keypress == ["Tab"] else distorted
+                observed = (
+                    blurred_read
+                    if last_keypress == ["ControlLeft", "KeyA"]
+                    else distorted
+                )
             return OCRResult(
                 lines=[
                     OCRLine(
@@ -999,6 +1003,7 @@ async def test_long_exact_field_blurs_layout_like_ocr_without_retyping(
             )
 
     original_type = backend.type_text
+    original_keypress = backend.keypress
 
     async def typing(
         text: str,
@@ -1012,6 +1017,17 @@ async def test_long_exact_field_blurs_layout_like_ocr_without_retyping(
 
     backend.type_text = typing  # type: ignore[method-assign]
 
+    async def keypress(keys: list[str]) -> None:
+        nonlocal emitted
+        await original_keypress(keys)
+        if keys == ["Tab"]:
+            # Windows Save As cancels an unsubmitted address-bar draft when
+            # focus moves away; a "blur reread" would destroy the very input
+            # this verification transaction is meant to preserve.
+            emitted = "Documents"
+
+    backend.keypress = keypress  # type: ignore[method-assign]
+
     result = await WatchedTyper(backend, LayoutLikeCaretOCR()).type_text(
         intended,
         region=Region(x=80, y=100, width=500, height=50),
@@ -1024,8 +1040,9 @@ async def test_long_exact_field_blurs_layout_like_ocr_without_retyping(
     assert result.emitted_exactly_once is True
     assert emitted == intended
     assert backend.layout == "uk"
-    assert ("keypress", {"keys": ["Tab"]}) in backend.calls
-    assert ("keypress", {"keys": ["ShiftLeft", "Tab"]}) in backend.calls
+    assert ("keypress", {"keys": ["ControlLeft", "KeyA"]}) in backend.calls
+    assert ("keypress", {"keys": ["Tab"]}) not in backend.calls
+    assert ("keypress", {"keys": ["ShiftLeft", "Tab"]}) not in backend.calls
     assert not any(
         method == "press_key" and kwargs["code"] == "Backspace"
         for method, kwargs in backend.calls

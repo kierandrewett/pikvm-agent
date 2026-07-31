@@ -1560,13 +1560,12 @@ class WatchedTyper:
         stable_field_read_performed = False
 
         async def read_current_field(intended_snapshot: str) -> str:
-            """Read a short exact field once without its blinking caret.
+            """Read a complete exact field once without trusting its caret.
 
-            A focused Windows field can render ``calc|`` as ``cald``. Waiting
-            for several OCR passes makes the verifier both slow and dependent
-            on catching a favourable blink phase. Tab is a reversible focus
-            move for an explicitly declared single-line field: read while the
-            caret is absent, then restore focus before any caller may commit.
+            A focused Windows field can render ``calc|`` as ``cald``. Short
+            fields without spaces can move focus for an independent read, but
+            long drafts and fields with spaces are selected in place because a
+            Windows address bar may discard unsubmitted text on focus loss.
             """
 
             nonlocal stable_field_read_performed
@@ -1574,13 +1573,25 @@ class WatchedTyper:
             should_stabilize = (
                 precise
                 and single_line_field
-                and not explicit_region
                 and not stable_field_read_performed
-                and PRECISE_LOCATE_MIN_CHARS <= total <= 20
+                and intended_snapshot == text
+                and (
+                    (
+                        not explicit_region
+                        and PRECISE_LOCATE_MIN_CHARS <= total <= 20
+                    )
+                    or total > 20
+                )
             )
             should_select = bool(
                 should_stabilize
-                and any(character.isspace() for character in intended_snapshot)
+                and (
+                    total > 20
+                    or any(
+                        character.isspace()
+                        for character in intended_snapshot
+                    )
+                )
             )
             should_blur = should_stabilize and not should_select
             if not should_blur and not should_select:
@@ -1710,9 +1721,15 @@ class WatchedTyper:
             one_character_prefix_read = False
             long_precise_layout_like_read = (
                 precise
+                and single_line_field
                 and len(intended_snapshot) > 20
                 and kind in {"layout", "case"}
             )
+            if long_precise_layout_like_read:
+                # The final long single-line draft was already selected for a
+                # same-focus OCR pass. Never move focus or replay it: Windows
+                # Save As discards an unsubmitted address-bar draft on Tab.
+                return
             if (
                 precise
                 and intended_snapshot == text
@@ -1753,7 +1770,6 @@ class WatchedTyper:
                     strong_precise_transport_mismatch
                     or credible_one_edit_read
                     or one_character_prefix_read
-                    or long_precise_layout_like_read
                 )
             ):
                 # A focused single-line field can permanently include the
@@ -1797,15 +1813,6 @@ class WatchedTyper:
                     last_read = rechecked
                     if norm(intended_snapshot, precise) == norm(text, precise):
                         verified_clean = True
-                    return
-                if long_precise_layout_like_read:
-                    # Long exact fields are too costly to erase and replay from
-                    # OCR alone. Remote framebuffer anti-aliasing can make every
-                    # backslash resemble a hash (or invert apparent case) while
-                    # the guest text is already correct. Blur the caret once for
-                    # independent evidence, then fail closed and leave the field
-                    # untouched if the read remains ambiguous.
-                    last_read = rechecked or read_back
                     return
                 if one_character_prefix_read:
                     last_read = rechecked or read_back
