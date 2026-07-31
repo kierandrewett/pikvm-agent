@@ -1012,7 +1012,7 @@ def _notepad_fast_path(
     """Prepare a literal exact-text Notepad task without model planning."""
 
     payload = _notepad_exact_text_payload(run)
-    if payload is None or max_actions < 4:
+    if payload is None or max_actions < 7:
         return None
     plan = PlanDecision(
         summary="Create and verify the requested exact text file in Notepad.",
@@ -1047,6 +1047,17 @@ def _notepad_fast_path(
                 "verification": "exact",
             },
             {"type": "key", "keys": ["ENTER"]},
+            # Let the Run dialog finish closing before establishing the
+            # baseline. Windows 11 Notepad can take 20+ seconds to cold-start
+            # on the lab VM; waiting on pixels avoids an early verifier/model
+            # round trip while still returning as soon as the app surfaces.
+            {"type": "wait", "ms": 1_000},
+            {"type": "wait_for_change", "timeout_ms": 30_000},
+            {
+                "type": "wait_for_stable_screen",
+                "stable_ms": 500,
+                "timeout_ms": 5_000,
+            },
         ],
         expected_evidence=["Windows Notepad is visibly open."],
         expects_task_completion=False,

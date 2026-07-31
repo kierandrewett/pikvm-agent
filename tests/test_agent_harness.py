@@ -641,6 +641,29 @@ def test_exact_notepad_task_prepares_new_document_and_exact_text() -> None:
     assert plan.summary == (
         "Create and verify the requested exact text file in Notepad."
     )
+    assert [
+        action.model_dump(mode="json", exclude_none=True)
+        for action in launch_controller.actions
+    ] == [
+        {"type": "key", "keys": ["WIN", "R"]},
+        {"type": "wait", "ms": 300},
+        {
+            "type": "type_text",
+            "text": "notepad",
+            "code": False,
+            "secret": False,
+            "context": "field",
+            "verification": "exact",
+        },
+        {"type": "key", "keys": ["ENTER"]},
+        {"type": "wait", "ms": 1_000},
+        {"type": "wait_for_change", "timeout_ms": 30_000},
+        {
+            "type": "wait_for_stable_screen",
+            "stable_ms": 500,
+            "timeout_ms": 5_000,
+        },
+    ]
     assert launch_controller.expected_evidence == [
         "Windows Notepad is visibly open."
     ]
