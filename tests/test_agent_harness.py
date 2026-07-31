@@ -5536,6 +5536,64 @@ def test_later_verified_reopen_action_satisfies_reopen_completion_gate() -> None
     assert AgentHarness._completion_rejection_reason(run, verdict) is None
 
 
+def test_verified_overwrite_confirmation_counts_as_save_before_reopen() -> None:
+    run = RunSnapshot(
+        run_id="verified-overwrite-reopen-transition",
+        task=(
+            "Replace text-01.txt if it exists. Reopen the file and verify it."
+        ),
+        status=RunStatus.RUNNING,
+        plan=PlanDecision(
+            summary="Replace and reopen the file.",
+            steps=["Confirm replacement", "Reopen it", "Verify the text"],
+            success_criteria=["The reopened file contains the exact sentence."],
+            constraints=[],
+        ),
+    )
+    for index, intent, summary in (
+        (
+            12,
+            (
+                "Confirm replacement of the existing text-01.txt in the "
+                "visible Save As confirmation dialog."
+            ),
+            "The replacement was confirmed and Notepad shows the saved file.",
+        ),
+        (
+            13,
+            "Open the selected text-01.txt from the Open dialog to reopen it.",
+            "The saved file reopened and the exact sentence is visible.",
+        ),
+    ):
+        run.record(
+            "action.checkpointed",
+            index=index,
+            intent=intent,
+            actions=[{"type": "key", "keys": ["ENTER"]}],
+        )
+        run.record(
+            "model.completed",
+            role="verifier",
+            verdict="verified",
+            summary=summary,
+        )
+    verdict = VerificationDecision(
+        verdict="complete",
+        summary="Replaced and reopened text-01.txt.",
+        evidence=["The reopened file visibly contains the exact sentence."],
+        criteria=[
+            {
+                "criterion_index": 0,
+                "satisfied": True,
+                "evidence": "The reopened file visibly contains the sentence.",
+            }
+        ],
+        action_criteria=[],
+    )
+
+    assert AgentHarness._completion_rejection_reason(run, verdict) is None
+
+
 @pytest.mark.asyncio
 async def test_rejected_done_decision_forces_a_fresh_plan() -> None:
     provider = RejectedDoneProvider()

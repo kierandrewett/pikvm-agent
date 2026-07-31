@@ -4442,9 +4442,23 @@ class AgentHarness:
             if reopening:
                 reopen_indexes.append(action_index)
             save_without_dialog = intent.replace("save as", "")
+            confirmed_save_as_replacement = bool(
+                "save as" in intent
+                and re.search(
+                    r"\bconfirm(?:ed|ing)?\b.{0,80}"
+                    r"\breplac(?:e|ed|ement|ing)\b",
+                    intent,
+                )
+            )
             if (
                 not reopening
-                and re.search(r"\bsav(?:e|ed|ing)\b", save_without_dialog)
+                and (
+                    confirmed_save_as_replacement
+                    or re.search(
+                        r"\bsav(?:e|ed|ing)\b",
+                        save_without_dialog,
+                    )
+                )
             ):
                 save_indexes.append(action_index)
         return bool(
