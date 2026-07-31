@@ -105,7 +105,7 @@ reboot added 96.101s. This is a real accuracy improvement, not a speed success;
 the controller/verifier call count remains the dominant optimization target.
 
 The third text task requires two exact paragraphs with one blank line. Its
-first four attempts are retained: restored Notepad state made a blank-area
+first five attempts are retained: restored Notepad state made a blank-area
 focus click ungroundable, delayed video stopped after the first eight
 characters, and incorrect multi-line guidance conflicted with the
 control-character schema. v4 used a deterministic, independently
@@ -123,7 +123,14 @@ lanes. Nine of ten attempted actions completed; two same-run recoveries were
 needed because the verifier initially lacked visible path evidence. Its
 mandatory reboot took 94.193s and observed a real transition. The completion
 gate now requires a durable `action.completed` event before any checkpoint can
-count as verified; v4 remains in the denominator pending a genuine reopen.
+count as verified. v5 then stopped at a correctly refused `unknown` overwrite
+approval: the visible Yes button belonged to a confirmed local Save As
+replacement, but pointer classification did not yet inherit that surface
+evidence. The same run also reproduced 2–4 second VNC publication lag after
+the first text chunk. Confirmed overwrite clicks now retain the
+`local_file_edit` category only when the full replacement dialog is visible,
+and the at-most-once typer has one additional bounded read-only sample before
+declaring focus lost.
 
 Failure-inclusive metrics, canonical campaign digests, the 16 accepted task
 IDs, and the VP9 recording/poster hashes are retained in

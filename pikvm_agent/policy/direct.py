@@ -285,9 +285,27 @@ def needs_local_navigation_surface_grounding(
 def needs_local_file_overwrite_surface_grounding(
     actions: list[dict],
 ) -> bool:
-    """Return whether one bare commit may target a Save As replacement."""
+    """Return whether one grounded commit may target a Save As replacement."""
 
-    return needs_local_navigation_surface_grounding(actions)
+    if needs_local_navigation_surface_grounding(actions):
+        return True
+    active_actions = [
+        action
+        for action in actions
+        if action.get("type")
+        not in {"wait", "wait_for_change", "wait_for_stable_screen"}
+    ]
+    if (
+        len(active_actions) != 1
+        or active_actions[0].get("type") not in {"click", "double_click"}
+    ):
+        return False
+    target = re.sub(
+        r"[^a-z]+",
+        "",
+        str(active_actions[0].get("observed_target_text") or "").casefold(),
+    )
+    return target in {"yes", "replace"}
 
 
 def is_confirmed_local_file_overwrite_surface(
@@ -875,15 +893,33 @@ def classify_direct_burst(
                 run_dialog_opened = True
 
         semantic = _category_from_semantics(_semantic_text(action))
-        if (
-            semantic is not None
-            and not (
+        if semantic is not None:
+            safe_error_dismissal = (
                 verified_safe_error_dismissal
                 and action.get("type") in {"click", "double_click"}
                 and semantic == ("unknown", "medium")
             )
-        ):
-            candidates.append((semantic[0], semantic[1], "commit target requires human review"))
+            confirmed_overwrite_click = (
+                verified_local_file_overwrite
+                and action.get("type") in {"click", "double_click"}
+                and semantic == ("unknown", "medium")
+            )
+            if confirmed_overwrite_click:
+                candidates.append(
+                    (
+                        "local_file_edit",
+                        "medium",
+                        "file replacement requires human review",
+                    )
+                )
+            elif not safe_error_dismissal:
+                candidates.append(
+                    (
+                        semantic[0],
+                        semantic[1],
+                        "commit target requires human review",
+                    )
+                )
         if (
             action.get("type") in {"click", "double_click"}
             and not str(action.get("observed_target_text", "")).strip()

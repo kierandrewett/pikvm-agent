@@ -476,6 +476,20 @@
       "actions_completed": 9,
       "reboot_ms": 94193,
       "campaign_sha256": "28f7c6d579371d8e958809fc7b776a206ae8a045056f018524727357dd90919a"
+    },
+    {
+      "campaign_id": "codex-text-entry-text03-v5-20260731",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "reason": "The run stopped safely because a grounded Yes button on the existing-file replacement dialog was still classified as unknown. It also reproduced multi-second VNC publication lag after the first chunk of both paragraphs.",
+      "wall_clock_ms": 328031,
+      "provider_wait_ms": 190962,
+      "action_execution_ms": 123844,
+      "provider_calls": 32,
+      "actions_attempted": 16,
+      "actions_completed": 12,
+      "reboot_ms": 95490,
+      "campaign_sha256": "40857a10a170c093e5baa9a1365c8227ace698a92c8a861b9716416672a0505f"
     }
   ],
   "verdict": {

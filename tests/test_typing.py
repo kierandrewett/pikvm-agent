@@ -1986,6 +1986,42 @@ async def test_autolocate_waits_for_third_delayed_remote_video_update() -> None:
     assert typed == [intended]
 
 
+async def test_autolocate_waits_for_bounded_very_slow_vnc_update() -> None:
+    """The disposable Windows VNC path can trail the first HID chunk by seconds."""
+
+    backend = FakeBackend()
+    intended = "Every action"
+    ocr = ScriptedOCR(intended)
+    typer = WatchedTyper(backend, ocr)
+    flat = _flat_grid()
+    changed = flat.copy().reshape(GRID_ROWS, GRID_COLS)
+    changed[10:13, 20:24] = 200
+    grids = [
+        flat,  # before input
+        flat,  # immediate post-HID capture
+        flat,  # 200 ms retry
+        flat,  # 450 ms retry
+        flat,  # 1 second retry
+        changed.reshape(-1),  # bounded very-slow-video retry
+    ]
+
+    async def delayed_grid() -> np.ndarray:
+        return grids.pop(0) if grids else changed.reshape(-1)
+
+    typer._grid = delayed_grid  # type: ignore[method-assign]
+
+    result = await typer.type_text(intended, code=True)
+
+    assert result.status == "verified_exact"
+    assert result.typed_characters == len(intended)
+    typed = [
+        call["text"]
+        for method, call in backend.calls
+        if method == "type_text"
+    ]
+    assert typed == [intended]
+
+
 async def test_autolocate_uses_grounded_ocr_when_video_grid_misses_text() -> None:
     backend = FakeBackend()
     intended = "HARNESSE2E42"

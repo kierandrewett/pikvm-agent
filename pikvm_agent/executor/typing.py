@@ -97,6 +97,7 @@ _PRINT_SETTLE_S = 0.45
 _CLEAR_SETTLE_S = 0.15
 _VIDEO_RETRY_SETTLE_S = 0.20
 _SLOW_VIDEO_RETRY_SETTLE_S = 1.00
+_VERY_SLOW_VIDEO_RETRY_SETTLE_S = 2.50
 _CARET_BLINK_RECHECK_S = 0.65
 _PRECISE_READBACK_SETTLES_S = (0.45, 0.90, 1.80)
 _PRECISE_FULL_SCREEN_SETTLES_S = (0.0, 0.45, 0.90)
@@ -2250,8 +2251,8 @@ class WatchedTyper:
                     cur_region = union_region(cur_region, loc) if located else loc
                     located = True
                 elif not located and not secret and len(typed_so_far) >= ABORT_MIN_CHARS:
-                    # Remote VNC video can trail acknowledged HID by more than
-                    # one frame. Take two bounded, read-only samples before
+                    # Remote VNC video can trail acknowledged HID by seconds.
+                    # Take bounded, read-only samples before
                     # concluding that the field was not focused. Never emit
                     # more text here: continue only when pixels or exact
                     # grounded OCR prove that this first chunk landed.
@@ -2259,6 +2260,7 @@ class WatchedTyper:
                         _VIDEO_RETRY_SETTLE_S,
                         _PRINT_SETTLE_S,
                         _SLOW_VIDEO_RETRY_SETTLE_S,
+                        _VERY_SLOW_VIDEO_RETRY_SETTLE_S,
                     ):
                         await asyncio.sleep(settle_s)
                         grid_retry = await self._grid()
