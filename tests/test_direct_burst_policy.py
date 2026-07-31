@@ -226,6 +226,27 @@ def test_verified_windows_run_launch_is_routine_local_navigation(
     assert verdict.status == "allowed"
 
 
+def test_windows_run_focus_preflight_remains_routine_local_navigation() -> None:
+    verdict = _classify(
+        [
+            {"type": "key", "keys": ["ESC"]},
+            {"type": "wait", "ms": 250},
+            {"type": "key", "keys": ["WIN", "R"]},
+            {"type": "wait_for_change", "timeout_ms": 5_000},
+            {
+                "type": "type_text",
+                "text": "calc",
+                "context": "field",
+                "verification": "exact",
+            },
+            {"type": "key", "keys": ["ENTER"]},
+            {"type": "wait_for_stable_screen", "timeout_ms": 8_000},
+        ]
+    )
+
+    assert verdict.status == "allowed"
+
+
 @pytest.mark.parametrize(
     ("actions", "expected_category"),
     [

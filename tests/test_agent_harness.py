@@ -455,6 +455,37 @@ def test_standard_app_launch_waits_for_run_close_and_app_open() -> None:
     ]
 
 
+def test_standard_app_launch_adds_focus_preflight_when_budget_allows() -> None:
+    actions = [
+        {"type": "key", "keys": ["META", "R"]},
+        {
+            "type": "type_text",
+            "text": "calc",
+            "context": "field",
+            "verification": "exact",
+        },
+        {"type": "key", "keys": ["ENTER"]},
+        {"type": "wait_for_change", "timeout_ms": 5_000},
+    ]
+
+    normalized, _, settled = _normalize_windows_run_launch(
+        actions,
+        max_actions=20,
+    )
+
+    assert settled is True
+    assert normalized[:3] == [
+        {"type": "key", "keys": ["Escape"]},
+        {"type": "wait", "ms": 250},
+        actions[0],
+    ]
+    renormalized, _, _ = _normalize_windows_run_launch(
+        normalized,
+        max_actions=20,
+    )
+    assert renormalized == normalized
+
+
 @pytest.mark.parametrize(
     ("task", "expected"),
     [

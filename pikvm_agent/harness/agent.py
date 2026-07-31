@@ -15,7 +15,11 @@ from typing import Any, Protocol
 
 from PIL import Image, ImageDraw, ImageOps, UnidentifiedImageError
 
-from pikvm_agent.core.windows_launch import is_verified_windows_run_launch
+from pikvm_agent.core.windows_launch import (
+    is_verified_windows_run_launch,
+    is_windows_run_focus_preflight,
+    is_windows_run_key_action,
+)
 from pikvm_agent.executor.burst import BurstError, normalize_keys, validate_actions
 from pikvm_agent.harness.agent_models import (
     ComputerObservation,
@@ -258,12 +262,27 @@ def _normalize_windows_run_launch(
     )
     if text_index < 0:
         return normalized, 0, False
+    run_index = next(
+        (
+            index
+            for index, action in enumerate(normalized[:text_index])
+            if is_windows_run_key_action(action)
+        ),
+        -1,
+    )
     pre_type_settle_normalized = False
     pre_type_wait_indices = [
         index
-        for index, action in enumerate(normalized[:text_index])
+        for index, action in enumerate(
+            normalized[run_index + 1 : text_index],
+            start=run_index + 1,
+        )
         if action.get("type") == "wait"
     ]
+    pre_type_change_wait = any(
+        action.get("type") == "wait_for_change"
+        for action in normalized[run_index + 1 : text_index]
+    )
     if pre_type_wait_indices:
         wait_index = pre_type_wait_indices[-1]
         normalized[wait_index] = {
@@ -271,16 +290,16 @@ def _normalize_windows_run_launch(
             "timeout_ms": 5_000,
         }
         pre_type_settle_normalized = True
-    elif len(normalized) < max_actions:
+    elif not pre_type_change_wait and len(normalized) < max_actions:
         normalized.insert(
-            1,
+            run_index + 1,
             {"type": "wait_for_change", "timeout_ms": 5_000},
         )
         text_index += 1
         pre_type_settle_normalized = True
     pre_type_stable = any(
         action.get("type") == "wait_for_stable_screen"
-        for action in normalized[1:text_index]
+        for action in normalized[run_index + 1 : text_index]
     )
     if not pre_type_stable and len(normalized) < max_actions:
         normalized.insert(
@@ -379,7 +398,14 @@ def _normalize_windows_run_launch(
                 },
             )
             added += 1
-        return normalized, added, pre_type_settle_normalized
+        return (
+            _add_windows_run_focus_preflight(
+                normalized,
+                max_actions=max_actions,
+            ),
+            added,
+            pre_type_settle_normalized,
+        )
 
     if post_submit_change_indices:
         first_change_index = post_submit_change_indices[0]
@@ -398,7 +424,41 @@ def _normalize_windows_run_launch(
                 {"type": "wait", "ms": 5_000},
             )
             added += 1
-    return normalized, added, pre_type_settle_normalized
+    return (
+        _add_windows_run_focus_preflight(
+            normalized,
+            max_actions=max_actions,
+        ),
+        added,
+        pre_type_settle_normalized,
+    )
+
+
+def _add_windows_run_focus_preflight(
+    actions: list[dict[str, Any]],
+    *,
+    max_actions: int,
+) -> list[dict[str, Any]]:
+    """Warm remote focus before Win+R without broadening the launch grammar."""
+
+    active_actions = [
+        action
+        for action in actions
+        if action.get("type")
+        not in {"wait", "wait_for_change", "wait_for_stable_screen"}
+    ]
+    if (
+        active_actions
+        and is_windows_run_focus_preflight(active_actions[0])
+    ):
+        return actions
+    if len(actions) + 2 > max_actions:
+        return actions
+    return [
+        {"type": "key", "keys": ["Escape"]},
+        {"type": "wait", "ms": 250},
+        *actions,
+    ]
 
 
 _KEY_MODIFIER_CODES = {
