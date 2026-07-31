@@ -607,6 +607,49 @@ def _launched_calculator(action: PendingAction | None) -> bool:
     )
 
 
+def _switched_calculator_to_standard(
+    action: PendingAction | None,
+) -> bool:
+    if action is None:
+        return False
+    return any(
+        item.get("type") == "key"
+        and [str(key) for key in item.get("keys") or []]
+        == ["AltLeft", "Digit1"]
+        for item in action.actions
+    )
+
+
+def _calculator_standard_mode_controller(
+    action: PendingAction | None,
+    *,
+    max_actions: int,
+) -> ControllerDecision | None:
+    """Normalize Calculator mode in a separately verified safe burst."""
+
+    if not _launched_calculator(action):
+        return None
+    actions = [
+        {"type": "key", "keys": ["AltLeft", "Digit1"]},
+        {
+            "type": "wait_for_stable_screen",
+            "stable_ms": 300,
+            "timeout_ms": 3_000,
+        },
+    ]
+    if len(actions) > max_actions:
+        return None
+    return ControllerDecision(
+        outcome="act",
+        intent="Switch Windows Calculator to Standard mode.",
+        actions=actions,
+        expected_evidence=[
+            "Windows Calculator is visibly open in Standard mode."
+        ],
+        expects_task_completion=False,
+    )
+
+
 def _calculator_task_controller(
     run: RunSnapshot,
     action: PendingAction | None,
@@ -615,7 +658,10 @@ def _calculator_task_controller(
 ) -> ControllerDecision | None:
     """Prepare a deterministic literal expression after Calculator opens."""
 
-    if not _launched_calculator(action):
+    if not (
+        _launched_calculator(action)
+        or _switched_calculator_to_standard(action)
+    ):
         return None
 
     multiplication = _CALCULATOR_TASK_EXPRESSION.search(run.task)
@@ -771,12 +817,6 @@ def _calculator_task_controller(
 
     active_actions = _calculator_key_actions(keys)
     actions = [
-        {"type": "key", "keys": ["AltLeft", "Digit1"]},
-        {
-            "type": "wait_for_stable_screen",
-            "stable_ms": 300,
-            "timeout_ms": 3_000,
-        },
         *active_actions,
         {"type": "wait_for_change", "timeout_ms": 2_000},
         {
@@ -2908,11 +2948,20 @@ class AgentHarness:
         validation/checkpoint path adopts it.
         """
 
-        deterministic_controller = _calculator_task_controller(
+        expression_controller = _calculator_task_controller(
             run,
             action,
             max_actions=self.config.max_actions_per_burst,
         )
+        mode_controller = (
+            _calculator_standard_mode_controller(
+                action,
+                max_actions=self.config.max_actions_per_burst,
+            )
+            if expression_controller is not None
+            else None
+        )
+        deterministic_controller = mode_controller or expression_controller
         roles = (
             ["verifier", "deterministic_calculator"]
             if deterministic_controller is not None
@@ -2930,7 +2979,11 @@ class AgentHarness:
                 source="literal_calculator_task",
             )
             run.record(
-                "controller.calculator_expression_prepared",
+                (
+                    "controller.calculator_mode_prepared"
+                    if mode_controller is not None
+                    else "controller.calculator_expression_prepared"
+                ),
                 intent=deterministic_controller.intent,
                 source="literal_task_expression",
             )
