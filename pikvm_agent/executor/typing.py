@@ -763,6 +763,31 @@ class WatchedTyper:
                 result = await precise_ocr(tmp, region=region)
             else:
                 result = await self.ocr.ocr(tmp, region=region)
+            if precise and intended:
+                # Auto-located short fields may need surrounding dialog
+                # context because typing also enables a nearby button. If one
+                # complete canonical OCR row is already the exact intended
+                # text, retain that whole row instead of paying for a second
+                # refined OCR pass. This never carves a matching substring:
+                # ``calcc`` remains ``calcc`` and therefore cannot verify.
+                exact_rows = [
+                    line
+                    for line in result.lines
+                    if (
+                        line.text == intended
+                        and (
+                            line.confidence is None
+                            or float(line.confidence)
+                            >= MIN_GROUNDED_EXACT_OCR_CONFIDENCE
+                        )
+                    )
+                ]
+                if len(exact_rows) == 1:
+                    result = OCRResult(
+                        lines=exact_rows,
+                        alternatives=result.alternatives,
+                        spacing_evidence=result.spacing_evidence,
+                    )
             if (
                 precise
                 and intended
@@ -1457,6 +1482,55 @@ class WatchedTyper:
                 ),
             )
 
+        stable_field_read_performed = False
+
+        async def read_current_field(intended_snapshot: str) -> str:
+            """Read a short exact field once without its blinking caret.
+
+            A focused Windows field can render ``calc|`` as ``cald``. Waiting
+            for several OCR passes makes the verifier both slow and dependent
+            on catching a favourable blink phase. Tab is a reversible focus
+            move for an explicitly declared single-line field: read while the
+            caret is absent, then restore focus before any caller may commit.
+            """
+
+            nonlocal stable_field_read_performed
+            assert cur_region is not None
+            should_blur = (
+                precise
+                and single_line_field
+                and not explicit_region
+                and not stable_field_read_performed
+                and PRECISE_LOCATE_MIN_CHARS <= total <= 20
+                and "\n" not in intended_snapshot
+            )
+            if not should_blur:
+                return await self._read_field(
+                    current_readback_region(),
+                    intended=intended_snapshot,
+                    precise=precise,
+                    allow_semantic_spacing=allow_semantic_spacing,
+                )
+            if should_continue is not None and not should_continue():
+                return ""
+            stable_field_read_performed = True
+            moved_focus = False
+            try:
+                await self.backend.keypress(["Tab"])
+                moved_focus = True
+                await asyncio.sleep(_CLEAR_SETTLE_S)
+                return await self._read_field(
+                    current_readback_region(),
+                    intended=intended_snapshot,
+                    precise=precise,
+                    allow_semantic_spacing=allow_semantic_spacing,
+                )
+            finally:
+                if moved_focus:
+                    with contextlib.suppress(Exception):
+                        await self.backend.keypress(["ShiftLeft", "Tab"])
+                    await asyncio.sleep(_CLEAR_SETTLE_S)
+
         async def maybe_correct(read_back: str, intended_snapshot: str) -> None:
             nonlocal corrections, last_read, verified_clean
             read_back = self._typed_candidate(read_back, intended_snapshot, precise)
@@ -1919,12 +1993,7 @@ class WatchedTyper:
                 dense_prev = dense_now
 
             if cadence(i) and cur_region is not None:
-                rb = await self._read_field(
-                    current_readback_region(),
-                    intended=typed_so_far,
-                    precise=precise,
-                    allow_semantic_spacing=allow_semantic_spacing,
-                )
+                rb = await read_current_field(typed_so_far)
                 await maybe_correct(rb, typed_so_far)
                 if corrections > 0:
                     grid_prev = await self._grid()  # field changed under us
@@ -1933,12 +2002,7 @@ class WatchedTyper:
         # Final correctness check if we never got a clean read mid-stream.
         if not verified_clean and cur_region is not None and can_vision:
             corrections_before = corrections
-            rb = await self._read_field(
-                current_readback_region(),
-                intended=text,
-                precise=precise,
-                allow_semantic_spacing=allow_semantic_spacing,
-            )
+            rb = await read_current_field(text)
             await maybe_correct(rb, text)
             if corrections > corrections_before:
                 # The final read triggered a clear+retype — re-read so the verdict

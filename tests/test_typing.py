@@ -838,7 +838,7 @@ async def test_short_exact_field_corrects_one_strong_substitution_once() -> None
     _assert_no_enter(backend)
 
 
-async def test_short_exact_field_waits_out_a_caret_shaped_substitution() -> None:
+async def test_short_exact_field_reads_once_with_caret_blurred() -> None:
     backend = FakeBackend()
     emissions = 0
     ocr_calls = 0
@@ -863,7 +863,15 @@ async def test_short_exact_field_waits_out_a_caret_shaped_substitution() -> None
             nonlocal ocr_calls
             del image_path, region
             ocr_calls += 1
-            observed = "cald" if ocr_calls == 1 else "calc"
+            last_keypress = next(
+                (
+                    kwargs["keys"]
+                    for method, kwargs in reversed(backend.calls)
+                    if method == "keypress"
+                ),
+                [],
+            )
+            observed = "calc" if last_keypress == ["Tab"] else "cald"
             return OCRResult(
                 lines=[
                     OCRLine(
@@ -900,7 +908,84 @@ async def test_short_exact_field_waits_out_a_caret_shaped_substitution() -> None
     assert result.status == "verified_exact", result
     assert result.correction_count == 0
     assert emissions == 1
-    assert ocr_calls >= 2
+    assert ocr_calls == 1
+    assert ("keypress", {"keys": ["Tab"]}) in backend.calls
+    assert ("keypress", {"keys": ["ShiftLeft", "Tab"]}) in backend.calls
+    _assert_no_enter(backend)
+
+
+async def test_short_exact_field_accepts_one_complete_exact_context_row() -> None:
+    backend = FakeBackend()
+    ocr_calls = 0
+
+    def field_frame(text: str) -> bytes:
+        image = Image.new("RGB", (1280, 720), (24, 28, 36))
+        draw = ImageDraw.Draw(image)
+        draw.rectangle(
+            [80, 100, 520, 150],
+            fill=(210, 210, 210) if text else (250, 250, 250),
+        )
+        draw.text((100, 115), text, fill=(20, 20, 20))
+        output = io.BytesIO()
+        image.save(output, format="JPEG", quality=95)
+        return output.getvalue()
+
+    class ContextRowOCR:
+        async def ocr(self, image_path, region=None):
+            return await self.ocr_precise(image_path, region=region)
+
+        async def ocr_precise(self, image_path, region=None):
+            nonlocal ocr_calls
+            del image_path, region
+            ocr_calls += 1
+            if ocr_calls > 1:
+                return OCRResult(
+                    lines=[OCRLine(text="calc", confidence=0.999)],
+                    spacing_evidence="verified",
+                )
+            return OCRResult(
+                lines=[
+                    OCRLine(
+                        text="Open:",
+                        confidence=0.98,
+                        bbox=[10, 10, 55, 28],
+                    ),
+                    OCRLine(
+                        text="calc",
+                        confidence=0.999,
+                        bbox=[70, 10, 110, 28],
+                    ),
+                    OCRLine(
+                        text="Cancel",
+                        confidence=0.99,
+                        bbox=[120, 10, 180, 28],
+                    ),
+                ],
+                spacing_evidence="verified",
+            )
+
+    backend.set_frame_bytes(field_frame(""))
+    original_type = backend.type_text
+
+    async def typing(
+        text: str,
+        *,
+        code: bool = False,
+        secret: bool = False,
+    ) -> None:
+        await original_type(text, code=code, secret=secret)
+        backend.set_frame_bytes(field_frame(text))
+
+    backend.type_text = typing  # type: ignore[method-assign]
+    result = await WatchedTyper(backend, ContextRowOCR()).type_text(
+        "calc",
+        exact=True,
+        context="field",
+    )
+
+    assert result.status == "verified_exact", result
+    assert result.correction_count == 0
+    assert ocr_calls == 1
     _assert_no_enter(backend)
 
 
