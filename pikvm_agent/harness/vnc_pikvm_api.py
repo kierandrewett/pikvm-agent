@@ -543,9 +543,15 @@ class VncDotoolTransport:
                     )
                 )
             ):
-                character = shifted_character or (
-                    "|" if self._shift_pending else "\\"
-                )
+                character = (
+                    shifted_character
+                    if self._shift_pending
+                    else code_to_character(
+                        code,
+                        shifted=False,
+                        keymap=self.keymap,
+                    )
+                ) or ("\\" if code == "IntlBackslash" else key)
                 self._synthetic_keyups.add(code)
                 await asyncio.to_thread(
                     self._type_windows_alt_code,
