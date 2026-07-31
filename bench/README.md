@@ -51,8 +51,8 @@ support a claim of generally reliable autonomous Windows operation.
 
 ### Live 50-task Windows campaign
 
-The active disposable-Windows campaign has **16/50 unique accepted passes
-(32%)**. Every attempt is screen-recorded, every test ends with a VM reboot,
+The active disposable-Windows campaign has **17/50 unique accepted passes
+(34%)**. Every attempt is screen-recorded, every test ends with a VM reboot,
 and a pass is counted only once even when the same task is rerun during
 remediation. Production PiKVM was not contacted.
 
@@ -60,12 +60,12 @@ remediation. Production PiKVM was not contacted.
 | --- | ---: | ---: | --- |
 | Observation | 5 | 5 | Complete |
 | Calculator | 9 | 10 | `calc-09` pending |
-| Text entry | 2 | 10 | `text-01` and `text-02` accepted |
+| Text entry | 3 | 10 | `text-01` through `text-03` accepted |
 | Code entry | 0 | 10 | Pending |
 | File management | 0 | 5 | Pending |
 | Microsoft Excel | 0 | 5 | Pending |
 | Microsoft Word | 0 | 5 | Pending |
-| **Total** | **16** | **50** | **34 pending** |
+| **Total** | **17** | **50** | **33 pending** |
 
 The first exact text task required seven retained acceptance and speed attempts. v13
 reported success but is marked **invalid** because leaving Notepad open after
@@ -132,7 +132,17 @@ the first text chunk. Confirmed overwrite clicks now retain the
 and the at-most-once typer has one additional bounded read-only sample before
 declaring focus lost.
 
-Failure-inclusive metrics, canonical campaign digests, the 16 accepted task
+v6 is the first accepted text-03 run. It retained the at-most-once failures
+from both delayed first chunks, recovered from the visibly delivered prefixes,
+saved through the grounded replacement confirmation, invoked a real Ctrl+O
+Open dialog, selected the saved file, and independently verified both
+paragraphs with one blank line. The task took 380.612s before reboot:
+208.161s of provider wait across 34 calls and 243.335s of action execution,
+with two autonomous recoveries and 15/18 actions completed. Its mandatory
+reboot took 101.101s and observed a real transition. Accuracy now passes this
+gate; the extra recovery and model turns make speed an explicit failure.
+
+Failure-inclusive metrics, canonical campaign digests, the 17 accepted task
 IDs, and the VP9 recording/poster hashes are retained in
 [`codex-50-progress.json`](results/2026-07-31/live-vnc/codex-50-progress.json).
 The complete 50-task manifest is

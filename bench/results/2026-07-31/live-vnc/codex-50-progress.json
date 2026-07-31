@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "report": "codex-50-live-progress",
-  "recorded_at": "2026-07-31T22:05:21Z",
+  "recorded_at": "2026-07-31T22:52:25Z",
   "manifest": "bench/codex-50-tasks.yaml",
   "environment": {
     "target": "authorized disposable Windows VNC VM",
@@ -16,9 +16,9 @@
   },
   "progress": {
     "planned": 50,
-    "unique_passed": 16,
-    "pending": 34,
-    "completion_percent": 32.0,
+    "unique_passed": 17,
+    "pending": 33,
+    "completion_percent": 34.0,
     "categories": {
       "Observation": {
         "passed": 5,
@@ -29,7 +29,7 @@
         "planned": 10
       },
       "Text entry": {
-        "passed": 2,
+        "passed": 3,
         "planned": 10
       },
       "Code entry": {
@@ -65,7 +65,8 @@
       "calc-08",
       "calc-10",
       "text-01",
-      "text-02"
+      "text-02",
+      "text-03"
     ]
   },
   "canonical_campaigns": [
@@ -144,6 +145,13 @@
         "text-02"
       ],
       "campaign_sha256": "f588d1b79fa241b7dae387486cce91f88e125632b4166cbfb04ac0a1519a5cd4"
+    },
+    {
+      "campaign_id": "codex-text-entry-text03-v6-20260731",
+      "tasks": [
+        "text-03"
+      ],
+      "campaign_sha256": "1ff02cfdaf5d7c434808aff091c93e53824de154967f85b166976dcc6d4b1718"
     }
   ],
   "text_01_acceptance": {
@@ -426,6 +434,38 @@
     },
     "campaign_sha256": "28f7c6d579371d8e958809fc7b776a206ae8a045056f018524727357dd90919a"
   },
+  "text_03_acceptance": {
+    "task": "Preserve two exact paragraphs with one blank line through save and independent reopen",
+    "result": "passed",
+    "run_id": "504e343d-a8de-4e22-abde-9c5777230b1d",
+    "reason": "Both exact paragraph receipts were preserved, the file was saved through a grounded replacement confirmation, and a later completed Ctrl+O flow reopened the saved file for independent verification.",
+    "wall_clock_ms": 380612,
+    "provider_wait_ms": 208161,
+    "action_execution_ms": 243335,
+    "evidence_capture_ms": 3283,
+    "provider_calls": 34,
+    "actions_attempted": 18,
+    "actions_completed": 15,
+    "completion_efficiency": 0.8333333333333334,
+    "same_run_recoveries": 2,
+    "reboot_ms": 101101,
+    "reboot_transition_observed": true,
+    "recording": {
+      "relative_path": "codex-text-entry-text03-v6-20260731/text-03-two-paragraphs/recording.webm",
+      "sha256": "8cd07a5253afae35e5c76b4d5f5e5cbe04e45bc9c4a36f0ab36f8f51042aec14",
+      "codec": "vp9",
+      "width": 2048,
+      "height": 1280,
+      "fps": 2,
+      "duration_ms": 448500,
+      "size_bytes": 1399650
+    },
+    "poster": {
+      "relative_path": "codex-text-entry-text03-v6-20260731/text-03-two-paragraphs/poster.jpg",
+      "sha256": "06f355d14731416d9825eb9e0ac89938725e8e82439f1ce40c0c47e1f0d87760"
+    },
+    "campaign_sha256": "1ff02cfdaf5d7c434808aff091c93e53824de154967f85b166976dcc6d4b1718"
+  },
   "text_03_attempts": [
     {
       "campaign_id": "codex-text-entry-text03-v1-20260731",
@@ -490,12 +530,27 @@
       "actions_completed": 12,
       "reboot_ms": 95490,
       "campaign_sha256": "40857a10a170c093e5baa9a1365c8227ace698a92c8a861b9716416672a0505f"
+    },
+    {
+      "campaign_id": "codex-text-entry-text03-v6-20260731",
+      "reported_status": "passed",
+      "accepted_status": "passed",
+      "reason": "The saved document was reopened through a completed native Open flow and visibly verified with both exact paragraphs and one blank line. Two delayed-video focus failures were recovered without replaying either payload.",
+      "wall_clock_ms": 380612,
+      "provider_wait_ms": 208161,
+      "action_execution_ms": 243335,
+      "provider_calls": 34,
+      "actions_attempted": 18,
+      "actions_completed": 15,
+      "same_run_recoveries": 2,
+      "reboot_ms": 101101,
+      "campaign_sha256": "1ff02cfdaf5d7c434808aff091c93e53824de154967f85b166976dcc6d4b1718"
     }
   ],
   "verdict": {
-    "accuracy": "Two exact text tasks pass with independent reopen evidence. Text-03 has exact paragraph delivery but no accepted reopen yet.",
-    "speed": "Failing product target: invalid text-03 v4 still took 277.952 seconds before reboot.",
-    "dominant_cost": "Text-03 v4 provider waits consumed 141.648 seconds across 22 calls, while action execution consumed 204.741 seconds; overlapping work prevents these components from summing directly to wall time.",
-    "next": "Require a durable completed Open transition, rerun text-03, then continue the blind text-entry batch."
+    "accuracy": "Three exact text tasks now pass with independent reopen evidence. Text-03 includes a durable completed Ctrl+O transition and visible post-open paragraph verification.",
+    "speed": "Failing product target: accepted text-03 v6 took 380.612 seconds before reboot and required two recoveries.",
+    "dominant_cost": "Text-03 v6 provider waits consumed 208.161 seconds across 34 calls, while action execution consumed 243.335 seconds; overlapping work prevents these components from summing directly to wall time.",
+    "next": "Reduce delayed-video recovery turns and provider calls, then continue the blind text-entry batch."
   }
 }
