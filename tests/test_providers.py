@@ -8,6 +8,10 @@ from pikvm_agent.config import AppConfig, OcrConfig, OmniParserConfig
 from pikvm_agent.pikvm.fake import FakeBackend
 from pikvm_agent.vision.omniparser_client import NullElementProvider, OmniParserProvider
 from pikvm_agent.vision.hybrid_ocr import HybridOcrProvider
+from pikvm_agent.vision.model_ocr import (
+    BlindModelOcrProvider,
+    PreciseFallbackOcrProvider,
+)
 from pikvm_agent.vision.pikvm_ocr import PiKVMOcrProvider
 from pikvm_agent.vision.paddleocr_client import paddleocr_available
 from pikvm_agent.vision.providers import (
@@ -149,6 +153,41 @@ def test_hybrid_secondary_timeout_is_configurable(monkeypatch) -> None:
 
     assert isinstance(provider, HybridOcrProvider)
     assert provider.secondary_timeout_s == 1.25
+
+
+def test_blind_model_fallback_is_explicit_and_model_configured(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(
+        "pikvm_agent.vision.providers.tesseract_available",
+        lambda: True,
+    )
+
+    provider = build_ocr_provider(
+        AppConfig(
+            ocr=OcrConfig(
+                provider="tesseract",
+                blind_model_provider="codex_app_server",
+                blind_model="test-vision-model",
+                blind_model_reasoning_effort="minimal",
+                blind_model_service_tier="priority",
+                blind_model_timeout_s=12,
+                blind_model_min_confidence=0.98,
+                blind_model_samples=3,
+            )
+        ),
+        FakeBackend(),
+    )
+
+    assert isinstance(provider, PreciseFallbackOcrProvider)
+    assert isinstance(provider.primary, TesseractOcrProvider)
+    assert isinstance(provider.fallback, BlindModelOcrProvider)
+    assert provider.fallback.provider.model == "test-vision-model"
+    assert provider.fallback.provider.reasoning_effort == "minimal"
+    assert provider.fallback.provider.service_tier == "priority"
+    assert provider.fallback.provider.timeout_s == 12
+    assert provider.fallback.minimum_confidence == 0.98
+    assert provider.fallback.samples == 3
 
 
 def test_build_screen_parser_composes() -> None:

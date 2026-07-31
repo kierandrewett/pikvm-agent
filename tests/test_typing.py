@@ -1051,6 +1051,78 @@ async def test_long_exact_field_moves_caret_home_without_retyping(
     _assert_no_enter(backend)
 
 
+async def test_long_exact_field_uses_blind_ocr_only_after_local_mismatch(
+) -> None:
+    backend = FakeBackend(layout="uk")
+    intended = r"C:\PiKVM-Harness\workspace\codex-50"
+    emitted = ""
+
+    class LocalThenBlindOCR:
+        def __init__(self) -> None:
+            self.local_calls = 0
+            self.blind_calls = 0
+
+        async def ocr(self, image_path, region=None):
+            return await self.ocr_precise(image_path, region=region)
+
+        async def ocr_precise(self, image_path, region=None):
+            del image_path, region
+            self.local_calls += 1
+            return OCRResult(
+                lines=[
+                    OCRLine(
+                        text=r"C:\PiKVM-Hamess\workspace\.codex-50",
+                        confidence=0.94,
+                        bbox=[100, 115, 500, 135],
+                    )
+                ],
+            )
+
+        async def ocr_precise_fallback(self, image_path, region=None):
+            del image_path, region
+            self.blind_calls += 1
+            return OCRResult(
+                lines=[
+                    OCRLine(
+                        text=intended,
+                        confidence=0.98,
+                        bbox=[100, 115, 500, 135],
+                    )
+                ],
+            )
+
+    ocr = LocalThenBlindOCR()
+    original_type = backend.type_text
+
+    async def typing(
+        text: str,
+        *,
+        code: bool = False,
+        secret: bool = False,
+    ) -> None:
+        nonlocal emitted
+        await original_type(text, code=code, secret=secret)
+        emitted += text
+
+    backend.type_text = typing  # type: ignore[method-assign]
+
+    result = await WatchedTyper(backend, ocr).type_text(
+        intended,
+        region=Region(x=80, y=100, width=500, height=50),
+        exact=True,
+        context="field",
+    )
+
+    assert result.status == "verified_exact", result
+    assert result.field_text == intended
+    assert result.correction_count == 0
+    assert result.emitted_exactly_once is True
+    assert emitted == intended
+    assert ocr.local_calls >= 1
+    assert ocr.blind_calls == 1
+    _assert_no_enter(backend)
+
+
 @pytest.mark.parametrize(
     ("blurred_read", "expected_status"),
     [
@@ -2701,8 +2773,9 @@ async def test_at_most_once_emission_across_1000_stale_readbacks(
             intended: str | None = None,
             precise: bool = False,
             allow_semantic_spacing: bool = False,
+            allow_blind_fallback: bool = False,
         ) -> str:
-            del region, intended, precise, allow_semantic_spacing
+            del region, intended, precise, allow_semantic_spacing, allow_blind_fallback
             return chunks[0]
 
         typer._grid = unchanged_grid  # type: ignore[method-assign]

@@ -48,6 +48,47 @@ def _tesseract_provider(config: AppConfig) -> TesseractOcrProvider:
     )
 
 
+def _with_blind_model_fallback(
+    config: AppConfig,
+    primary: OCRProvider,
+) -> OCRProvider:
+    provider_kind = config.ocr.blind_model_provider
+    if provider_kind == "none":
+        return primary
+    if provider_kind != "codex_app_server":
+        raise ValueError(
+            "ocr.blind_model_provider must be none or codex_app_server"
+        )
+    if not config.ocr.blind_model:
+        raise ValueError(
+            "ocr.blind_model is required when blind model OCR is enabled"
+        )
+    from pikvm_agent.harness.providers import CodexAppServerProvider
+    from pikvm_agent.vision.model_ocr import (
+        BlindModelOcrProvider,
+        PreciseFallbackOcrProvider,
+    )
+
+    model = CodexAppServerProvider(
+        name="blind-ocr",
+        model=config.ocr.blind_model,
+        executable=config.ocr.blind_model_executable,
+        reasoning_effort=config.ocr.blind_model_reasoning_effort,
+        service_tier=config.ocr.blind_model_service_tier,
+        timeout_s=config.ocr.blind_model_timeout_s,
+    )
+    return PreciseFallbackOcrProvider(
+        primary,
+        BlindModelOcrProvider(
+            model,
+            minimum_confidence=(
+                config.ocr.blind_model_min_confidence
+            ),
+            samples=config.ocr.blind_model_samples,
+        ),
+    )
+
+
 def build_ocr_provider(config: AppConfig, backend: Any) -> OCRProvider:
     provider = config.ocr.provider
     if provider == "hybrid":
@@ -56,7 +97,7 @@ def build_ocr_provider(config: AppConfig, backend: Any) -> OCRProvider:
         if has_tesseract and has_paddle:
             from pikvm_agent.vision.paddleocr_client import PaddleOCRProvider
 
-            return HybridOcrProvider(
+            selected: OCRProvider = HybridOcrProvider(
                 _tesseract_provider(config),
                 PaddleOCRProvider(
                     lang=config.ocr.lang,
@@ -64,41 +105,60 @@ def build_ocr_provider(config: AppConfig, backend: Any) -> OCRProvider:
                 ),
                 secondary_timeout_s=config.ocr.hybrid_secondary_timeout_s,
             )
-        if has_paddle:
+        elif has_paddle:
             from pikvm_agent.vision.paddleocr_client import PaddleOCRProvider
 
             log.warning(
                 "ocr.provider=hybrid but tesseract is unavailable; "
                 "using PaddleOCR alone"
             )
-            return PaddleOCRProvider(
+            selected = PaddleOCRProvider(
                 lang=config.ocr.lang,
                 device=config.ocr.device,
             )
-        if has_tesseract:
+        elif has_tesseract:
             log.warning(
                 "ocr.provider=hybrid but PaddleOCR is unavailable; "
                 "using Tesseract alone"
             )
-            return _tesseract_provider(config)
-        log.warning(
-            "ocr.provider=hybrid but neither local engine is available; "
-            "falling back to live PiKVM OCR"
-        )
-        return PiKVMOcrProvider(backend)
-    if provider == "paddleocr":
+            selected = _tesseract_provider(config)
+        else:
+            log.warning(
+                "ocr.provider=hybrid but neither local engine is available; "
+                "falling back to live PiKVM OCR"
+            )
+            selected = PiKVMOcrProvider(backend)
+    elif provider == "paddleocr":
         if paddleocr_available():
             from pikvm_agent.vision.paddleocr_client import PaddleOCRProvider
 
-            return PaddleOCRProvider(lang=config.ocr.lang, device=config.ocr.device)
-        log.warning("ocr.provider=paddleocr but the [vision] extra is not installed; falling back")
+            selected = PaddleOCRProvider(
+                lang=config.ocr.lang,
+                device=config.ocr.device,
+            )
+        elif tesseract_available():
+            log.warning(
+                "ocr.provider=paddleocr but the [vision] extra is not "
+                "installed; falling back to Tesseract"
+            )
+            selected = _tesseract_provider(config)
+        else:
+            log.warning(
+                "ocr.provider=paddleocr but the [vision] extra is not "
+                "installed; falling back to live PiKVM OCR"
+            )
+            selected = PiKVMOcrProvider(backend)
     elif provider == "pikvm":
-        return PiKVMOcrProvider(backend)
-
-    if tesseract_available():
-        return _tesseract_provider(config)
-    log.warning("no local OCR engine available; falling back to live PiKVM OCR (text-only)")
-    return PiKVMOcrProvider(backend)
+        selected = PiKVMOcrProvider(backend)
+    elif tesseract_available():
+        selected = _tesseract_provider(config)
+    else:
+        log.warning(
+            "no local OCR engine available; falling back to live PiKVM OCR "
+            "(text-only)"
+        )
+        selected = PiKVMOcrProvider(backend)
+    return _with_blind_model_fallback(config, selected)
 
 
 def build_screen_parser(

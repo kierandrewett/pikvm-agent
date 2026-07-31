@@ -168,6 +168,22 @@ class OcrConfig(BaseModel):
     # indefinitely. A timeout degrades to primary OCR evidence; cancellation
     # still propagates so operator Pause/Stop retains authority.
     hybrid_secondary_timeout_s: float = Field(default=5.0, ge=0.1, le=60.0)
+    # Optional third lane for tiny exact fields that local OCR cannot resolve.
+    # The model receives only a context-preserving frame and an external region
+    # locator, never the intended text. It must produce a two-of-three blind
+    # transcription consensus before the typing verifier can compare it.
+    blind_model_provider: str = "none"
+    blind_model: str | None = None
+    blind_model_executable: str = "codex"
+    blind_model_reasoning_effort: str = "low"
+    blind_model_service_tier: str | None = None
+    blind_model_timeout_s: float = Field(default=30.0, ge=1.0, le=180.0)
+    blind_model_min_confidence: float = Field(
+        default=0.97,
+        ge=0.0,
+        le=1.0,
+    )
+    blind_model_samples: int = Field(default=3, ge=3, le=5)
     disable_doc_orientation: bool = True
     disable_doc_unwarping: bool = True
     disable_textline_orientation: bool = True

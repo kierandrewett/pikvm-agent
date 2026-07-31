@@ -47,6 +47,17 @@ ocr:
   ensemble: true
   syntax_aware_selection: true
   hybrid_secondary_timeout_s: 5.0
+  # Optional fail-closed fallback for tiny exact fields. The model sees the
+  # screen and target region but never the intended text; two blind reads must
+  # agree before the result is exposed to the typing verifier.
+  blind_model_provider: "none" # or "codex_app_server"
+  blind_model: null
+  blind_model_executable: "codex"
+  blind_model_reasoning_effort: "low"
+  blind_model_service_tier: null
+  blind_model_timeout_s: 30.0
+  blind_model_min_confidence: 0.97
+  blind_model_samples: 3
   disable_doc_orientation: true
   disable_doc_unwarping: true
   disable_textline_orientation: true

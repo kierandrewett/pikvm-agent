@@ -750,6 +750,7 @@ class WatchedTyper:
         intended: str | None = None,
         precise: bool = False,
         allow_semantic_spacing: bool = False,
+        allow_blind_fallback: bool = False,
         minimum_confidence: float = MIN_MISMATCH_OCR_CONFIDENCE,
     ) -> str:
         """OCR the field. Capture the FULL frame and pass the region to the OCR
@@ -840,6 +841,34 @@ class WatchedTyper:
                     # typing transaction instead of falling back to the noisy
                     # multi-control crop. It never verifies or submits text.
                     self._refined_readback_region = refined_region
+            if (
+                precise
+                and intended
+                and allow_blind_fallback
+                and compute_verdict(intended, result.text, True)
+                != "match"
+            ):
+                blind_precise_ocr = getattr(
+                    self.ocr,
+                    "ocr_precise_fallback",
+                    None,
+                )
+                if callable(blind_precise_ocr):
+                    try:
+                        blind_result = await blind_precise_ocr(
+                            tmp,
+                            region=refined_region or region,
+                        )
+                    except Exception:
+                        blind_result = OCRResult()
+                    if blind_result.text:
+                        result = blind_result
+                        DEBUG.event(
+                            "typing.field_readback_fallback",
+                            provider="blind_model_consensus",
+                            observed_characters=len(result.text),
+                            line_count=len(result.lines),
+                        )
             self._last_field_ocr_result = result
             confidences = [
                 float(line.confidence)
@@ -1601,6 +1630,7 @@ class WatchedTyper:
                     intended=intended_snapshot,
                     precise=precise,
                     allow_semantic_spacing=allow_semantic_spacing,
+                    allow_blind_fallback=intended_snapshot == text,
                 )
             if should_continue is not None and not should_continue():
                 return ""
@@ -1626,6 +1656,7 @@ class WatchedTyper:
                     intended=intended_snapshot,
                     precise=precise,
                     allow_semantic_spacing=allow_semantic_spacing,
+                    allow_blind_fallback=True,
                 )
                 selected_confidences = [
                     float(line.confidence)
@@ -1675,6 +1706,7 @@ class WatchedTyper:
                     intended=intended_snapshot,
                     precise=precise,
                     allow_semantic_spacing=allow_semantic_spacing,
+                    allow_blind_fallback=True,
                 )
                 DEBUG.event(
                     "typing.caret_stabilizer",
@@ -2205,6 +2237,7 @@ class WatchedTyper:
                     intended=text,
                     precise=precise,
                     allow_semantic_spacing=allow_semantic_spacing,
+                    allow_blind_fallback=True,
                 )
             elif (
                 precise
@@ -2246,6 +2279,7 @@ class WatchedTyper:
                             intended=text,
                             precise=precise,
                             allow_semantic_spacing=allow_semantic_spacing,
+                            allow_blind_fallback=True,
                         ),
                         text,
                         precise,
