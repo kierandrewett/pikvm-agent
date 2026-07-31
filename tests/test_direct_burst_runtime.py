@@ -917,6 +917,52 @@ async def test_confirmed_file_explorer_not_found_ok_dismisses_without_approval(
     assert ocr.precise_regions
 
 
+async def test_confirmed_save_as_replacement_enter_requests_local_edit_approval(
+    runtime: Runtime,
+) -> None:
+    class ConfirmSaveAsOCR:
+        def __init__(self) -> None:
+            self.precise_regions: list[Region] = []
+
+        async def ocr(self, image_path, region=None):
+            del image_path, region
+            return OCRResult(lines=[OCRLine(text="Confirm Save As")])
+
+        async def ocr_precise(self, image_path, region=None):
+            del image_path
+            assert region is not None
+            self.precise_regions.append(region)
+            return OCRResult(
+                lines=[
+                    OCRLine(text="Confirm Save As"),
+                    OCRLine(text="text-01.txt already exists."),
+                    OCRLine(text="Do you want to replace it?"),
+                    OCRLine(text="Yes No"),
+                ]
+            )
+
+    ocr = ConfirmSaveAsOCR()
+    runtime._screen_parser.ocr = ocr
+    sid = (await runtime.start_session("direct"))["session_id"]
+    shot = await runtime.get_session_summary(sid, capture=True)
+
+    result = await runtime.run_burst(
+        sid,
+        [
+            {"type": "key", "keys": ["ENTER"]},
+            {"type": "wait_for_change", "timeout_ms": 2000},
+        ],
+        based_on_world_version=shot["world_version"],
+        based_on_control_epoch=shot["control_epoch"],
+        idempotency_key="confirm-local-file-overwrite",
+    )
+
+    assert result["status"] == "needs_approval"
+    assert result["approval_request"]["risk"] == "local_file_edit"
+    assert ocr.precise_regions
+    assert not _hid_calls(runtime)
+
+
 async def test_exact_draft_does_not_ground_enter_on_a_message_surface(
     runtime: Runtime,
 ) -> None:

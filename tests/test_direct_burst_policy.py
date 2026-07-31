@@ -6,6 +6,7 @@ from pikvm_agent.config import PolicyConfig
 from pikvm_agent.harness.lab import isolated_benchmark_policy
 from pikvm_agent.policy.direct import (
     classify_direct_burst,
+    is_confirmed_local_file_overwrite_surface,
     is_confirmed_safe_windows_error_dismissal,
     is_confirmed_file_explorer_surface,
     is_safe_local_navigation_target,
@@ -728,6 +729,58 @@ def test_noisy_ok_stays_gated_without_complete_safe_error_evidence(
     actions = [{"type": "click", "observed_target_text": "(ox"}]
 
     assert not is_confirmed_safe_windows_error_dismissal(actions, surface)
+    verdict = classify_direct_burst(
+        actions,
+        PolicyConfig(),
+        observed_surface_text=surface,
+    )
+
+    assert (verdict.status, verdict.category) == (
+        "approval_required",
+        "unknown",
+    )
+
+
+def test_bare_enter_on_confirmed_save_as_replacement_is_a_local_edit() -> None:
+    actions = [
+        {"type": "key", "keys": ["ENTER"]},
+        {"type": "wait_for_change", "timeout_ms": 2000},
+    ]
+    surface = (
+        "Confirm Save As\n"
+        "text-01.txt already exists.\n"
+        "Do you want to replace it?\n"
+        "Yes No"
+    )
+
+    assert is_confirmed_local_file_overwrite_surface(actions, surface)
+    verdict = classify_direct_burst(
+        actions,
+        PolicyConfig(),
+        observed_surface_text=surface,
+    )
+
+    assert (verdict.status, verdict.category) == (
+        "approval_required",
+        "local_file_edit",
+    )
+
+
+@pytest.mark.parametrize(
+    "surface",
+    [
+        "Confirm purchase Pay now Yes No",
+        "Microsoft Teams Send message Yes No",
+        "File Explorer Delete this file? Yes No",
+        "Confirm Save As Do you want to replace it? Yes No",
+    ],
+)
+def test_bare_enter_stays_unknown_without_complete_overwrite_evidence(
+    surface: str,
+) -> None:
+    actions = [{"type": "key", "keys": ["ENTER"]}]
+
+    assert not is_confirmed_local_file_overwrite_surface(actions, surface)
     verdict = classify_direct_burst(
         actions,
         PolicyConfig(),

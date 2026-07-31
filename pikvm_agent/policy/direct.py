@@ -282,6 +282,49 @@ def needs_local_navigation_surface_grounding(
     return keys in ({"ENTER"}, {"RETURN"}, {"NUMPADENTER"})
 
 
+def needs_local_file_overwrite_surface_grounding(
+    actions: list[dict],
+) -> bool:
+    """Return whether one bare commit may target a Save As replacement."""
+
+    return needs_local_navigation_surface_grounding(actions)
+
+
+def is_confirmed_local_file_overwrite_surface(
+    actions: list[dict],
+    observed_surface_text: str,
+) -> bool:
+    """Identify the bounded Windows Save As replacement confirmation."""
+
+    if not needs_local_file_overwrite_surface_grounding(actions):
+        return False
+    text = observed_surface_text.casefold().replace("’", "'")
+    normalized = re.sub(r"[^a-z0-9.]+", " ", text).strip()
+    dangerous_surface = any(
+        pattern.search(text)
+        for pattern in (
+            _COMMUNICATION,
+            _DELETE,
+            _FINANCIAL,
+            _PERMISSIONS,
+            _INSTALL,
+            _CREDENTIAL,
+            _CONSENT,
+            _EXTERNAL_UPLOAD,
+            _POWER,
+            _DISABLE_SECURITY,
+        )
+    )
+    return bool(
+        not dangerous_surface
+        and "confirm save as" in normalized
+        and "already exists" in normalized
+        and "do you want to replace it" in normalized
+        and re.search(r"\byes\b", normalized)
+        and re.search(r"\bno\b", normalized)
+    )
+
+
 def is_confirmed_file_explorer_surface(
     observed_surface_text: str,
     *,
@@ -684,6 +727,12 @@ def classify_direct_burst(
             observed_surface_text,
         )
     )
+    verified_local_file_overwrite = (
+        is_confirmed_local_file_overwrite_surface(
+            actions,
+            observed_surface_text,
+        )
+    )
     for command in terminal_commands:
         command_risk = classify_command(command)
         if command_risk == "dangerous":
@@ -790,13 +839,22 @@ def classify_direct_burst(
                 and not verified_calculator_expression
                 and not verified_local_navigation_commit
             ):
-                candidates.append(
-                    (
-                        "unknown",
-                        "medium",
-                        "bare Enter/Return may commit the focused surface",
+                if verified_local_file_overwrite:
+                    candidates.append(
+                        (
+                            "local_file_edit",
+                            "medium",
+                            "file replacement requires human review",
+                        )
                     )
-                )
+                else:
+                    candidates.append(
+                        (
+                            "unknown",
+                            "medium",
+                            "bare Enter/Return may commit the focused surface",
+                        )
+                    )
             has_meta = bool(
                 keys
                 & {

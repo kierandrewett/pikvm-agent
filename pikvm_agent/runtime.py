@@ -48,6 +48,7 @@ from pikvm_agent.policy.direct import (
     is_confirmed_file_explorer_surface,
     is_safe_local_navigation_target,
     needs_calculator_surface_grounding,
+    needs_local_file_overwrite_surface_grounding,
     needs_local_navigation_surface_grounding,
     needs_safe_windows_error_dismissal_surface_grounding,
 )
@@ -1301,10 +1302,15 @@ class Runtime:
         safe_error_dismissal = (
             needs_safe_windows_error_dismissal_surface_grounding(actions)
         )
+        local_file_overwrite = (
+            not local_navigation_draft
+            and needs_local_file_overwrite_surface_grounding(actions)
+        )
         if (
             not calculator
             and not local_navigation_draft
             and not safe_error_dismissal
+            and not local_file_overwrite
         ):
             return ("", False)
         ocr = getattr(self._screen_parser, "ocr", None)
@@ -1315,6 +1321,26 @@ class Runtime:
         except Exception:
             return ("", False)
         observed_text = str(observed.text or "")[:2_000]
+        if local_file_overwrite:
+            precise_ocr = getattr(ocr, "ocr_precise", None)
+            if not callable(precise_ocr):
+                return (observed_text, False)
+            try:
+                precise = await precise_ocr(
+                    Path(frame.image_path),
+                    region=Region(
+                        x=frame.width * 0.20,
+                        y=frame.height * 0.20,
+                        width=frame.width * 0.60,
+                        height=frame.height * 0.60,
+                    ),
+                )
+            except Exception:
+                return (observed_text, False)
+            return (
+                f"{observed_text}\n{str(precise.text or '')[:2_000]}",
+                False,
+            )
         if safe_error_dismissal:
             precise_ocr = getattr(ocr, "ocr_precise", None)
             if not callable(precise_ocr):
