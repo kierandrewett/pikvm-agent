@@ -750,6 +750,15 @@ def test_controller_can_launch_a_standard_app_in_one_safe_burst() -> None:
     assert "full absolute path into the File name field" in (
         _CONTROLLER_SYSTEM
     )
+    assert "File name field is normally pre-populated" in (
+        _CONTROLLER_SYSTEM
+    )
+    assert "Ctrl+A immediately before the exact basename" in (
+        _CONTROLLER_SYSTEM
+    )
+    assert "default selection is still active" in (
+        _CONTROLLER_SYSTEM
+    )
     assert "Do not generalise this exception to web URLs" in _CONTROLLER_SYSTEM
     assert "the verifier's job, not a remaining computer" in _CONTROLLER_SYSTEM
     assert "set expects_task_completion true" in _CONTROLLER_SYSTEM

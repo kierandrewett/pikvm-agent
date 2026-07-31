@@ -1124,6 +1124,10 @@ use Ctrl+L, draft the exact directory path, verify it, then commit that local
 navigation and enter only the short basename in the File name field. Never type
 a full absolute path into the File name field; narrow horizontally scrolling
 filename controls cannot provide reliable whole-path visual readback.
+The File name field is normally pre-populated. After its focus is independently
+verified, use Ctrl+A immediately before the exact basename in the same
+reversible input burst. Never assume the default selection is still active:
+typing without Ctrl+A can append the basename to Notepad's generated title.
 In File Explorer, use Ctrl+L as a separate reversible focus action instead of
 guessing address-bar coordinates. After that focus is independently verified,
 preserve the selection created by Ctrl+L: do not click, refocus, move the
