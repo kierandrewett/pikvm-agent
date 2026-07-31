@@ -1229,6 +1229,11 @@ After the destination and basename are independently verified, click the
 visibly labelled Save button as the bounded commit action. Never use bare Enter
 to commit a Save As dialog: an unlabelled Enter cannot be grounded to the
 intended local-file control and must remain behind the unknown-action gate.
+When the task requires reopening a saved local artifact, immediately after the
+verified save use Ctrl+O to open the native Open dialog; do not refocus the
+editor first. Ctrl+Shift+S and Save As are not reopen actions. A reopen is
+complete only after a later completed Open-dialog action selects the saved file
+and the verifier sees the requested content in the reopened artifact.
 The File name field is normally pre-populated. After its focus is independently
 verified, use Ctrl+A immediately before the exact basename in the same
 reversible input burst. Never assume the default selection is still active:

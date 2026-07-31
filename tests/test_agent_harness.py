@@ -2685,6 +2685,10 @@ async def test_controller_prompt_prefers_a_stable_legible_end_state() -> None:
     assert "never put newline control characters inside type_text" in normalized
     assert "two separate Shift+Enter key actions" in normalized
     assert "non-submitting blank-line action" in normalized
+    assert "use Ctrl+O to open the native Open dialog" in normalized
+    assert "do not refocus the editor first" in normalized
+    assert "Ctrl+Shift+S and Save As are not reopen actions" in normalized
+    assert "completed Open-dialog action" in normalized
 
 
 async def test_reasoner_prompt_avoids_duplicate_pre_and_post_save_audits() -> None:
