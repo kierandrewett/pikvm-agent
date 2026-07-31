@@ -800,41 +800,6 @@ def _calculator_task_controller(
     )
 
 
-def _calculator_converter_controller(
-    run: RunSnapshot,
-    action: PendingAction | None,
-    *,
-    max_actions: int,
-) -> ControllerDecision | None:
-    """Open Calculator's converter without a fragile menu-coordinate click."""
-
-    if (
-        not _launched_calculator(action)
-        or _CALCULATOR_CONVERTER_TASK.search(run.task) is None
-    ):
-        return None
-    actions = [
-        {"type": "key", "keys": ["ControlLeft", "KeyU"]},
-        {"type": "wait_for_change", "timeout_ms": 5_000},
-        {
-            "type": "wait_for_stable_screen",
-            "stable_ms": 500,
-            "timeout_ms": 5_000,
-        },
-    ]
-    if len(actions) > max_actions:
-        return None
-    return ControllerDecision(
-        outcome="act",
-        intent="Open Calculator's unit converter using its keyboard command.",
-        actions=actions,
-        expected_evidence=[
-            "Windows Calculator visibly shows its unit converter view."
-        ],
-        expects_task_completion=False,
-    )
-
-
 def _calculator_fast_path(
     run: RunSnapshot,
     *,
@@ -862,14 +827,10 @@ def _calculator_fast_path(
         run,
         launch_probe,
         max_actions=max_actions,
-    ) or _calculator_converter_controller(
-        run,
-        launch_probe,
-        max_actions=max_actions,
     )
-    if calculator_followup is None:
-        return None
     converter_task = _CALCULATOR_CONVERTER_TASK.search(run.task) is not None
+    if calculator_followup is None and not converter_task:
+        return None
     plan = PlanDecision(
         summary=(
             "Open Windows Calculator and perform the requested conversion."
@@ -2947,18 +2908,10 @@ class AgentHarness:
         validation/checkpoint path adopts it.
         """
 
-        expression_controller = _calculator_task_controller(
+        deterministic_controller = _calculator_task_controller(
             run,
             action,
             max_actions=self.config.max_actions_per_burst,
-        )
-        deterministic_controller = (
-            expression_controller
-            or _calculator_converter_controller(
-                run,
-                action,
-                max_actions=self.config.max_actions_per_burst,
-            )
         )
         roles = (
             ["verifier", "deterministic_calculator"]
@@ -2976,12 +2929,11 @@ class AgentHarness:
                 intent=deterministic_controller.intent,
                 source="literal_calculator_task",
             )
-            if expression_controller is not None:
-                run.record(
-                    "controller.calculator_expression_prepared",
-                    intent=deterministic_controller.intent,
-                    source="literal_task_expression",
-                )
+            run.record(
+                "controller.calculator_expression_prepared",
+                intent=deterministic_controller.intent,
+                source="literal_task_expression",
+            )
         await self.store.save(run)
         verify_task = asyncio.create_task(
             self._verify(run, action=action, before=before),

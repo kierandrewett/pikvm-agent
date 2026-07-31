@@ -12,7 +12,6 @@ from pikvm_agent.harness.agent import (
     AgentHarness,
     _CONTROLLER_SYSTEM,
     _REASONER_SYSTEM,
-    _calculator_converter_controller,
     _calculator_fast_path,
     _is_read_only_settings_request,
     _calculator_task_controller,
@@ -534,7 +533,7 @@ def test_calculator_zero_division_is_left_to_the_grounded_controller(
         ),
     ],
 )
-def test_calculator_converter_uses_layout_independent_keyboard_navigation(
+def test_calculator_converter_skips_planning_without_guessing_navigation(
     task: str,
 ) -> None:
     run = RunSnapshot(
@@ -542,39 +541,25 @@ def test_calculator_converter_uses_layout_independent_keyboard_navigation(
         task=task,
         status=RunStatus.PAUSED,
     )
-    launch = PendingAction(
-        index=0,
-        intent="Launch Calculator.",
-        actions=[{"type": "type_text", "text": "calc"}],
-        based_on_world_version=1,
-        based_on_control_epoch=0,
-        idempotency_key="calculator-converter-launch",
-    )
+    fast_path = _calculator_fast_path(run, max_actions=20)
 
-    controller = _calculator_converter_controller(
-        run,
-        launch,
-        max_actions=20,
-    )
-
-    assert controller is not None
-    assert [
+    assert fast_path is not None
+    plan, controller = fast_path
+    actions = [
         action.model_dump(mode="json", exclude_none=True)
         for action in controller.actions
-    ] == [
-        {"type": "key", "keys": ["ControlLeft", "KeyU"]},
-        {"type": "wait_for_change", "timeout_ms": 5_000},
-        {
-            "type": "wait_for_stable_screen",
-            "stable_ms": 500,
-            "timeout_ms": 5_000,
-        },
     ]
+    assert plan.summary == (
+        "Open Windows Calculator and perform the requested conversion."
+    )
     assert controller.expects_task_completion is False
     assert controller.expected_evidence == [
-        "Windows Calculator visibly shows its unit converter view."
+        "Windows Calculator is visibly open."
     ]
-    assert _calculator_fast_path(run, max_actions=20) is not None
+    assert not any(
+        action.get("keys") == ["ControlLeft", "KeyU"]
+        for action in actions
+    )
 
 
 def test_calculator_fast_path_normalizes_persisted_mode_for_arithmetic() -> None:
