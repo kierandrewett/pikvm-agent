@@ -452,9 +452,15 @@ def _add_windows_run_focus_preflight(
         and is_windows_run_focus_preflight(active_actions[0])
     ):
         return actions
-    if len(actions) + 2 > max_actions:
+    if len(actions) + 3 > max_actions:
         return actions
     return [
+        # The showcase desktop can satisfy its initial ready gate before a
+        # delayed startup notification paints. Let that harmless late surface
+        # settle, then dismiss it before asking Windows to focus Run. This is
+        # far cheaper than emitting exact text into a moving post-login frame
+        # and paying for a full recovery turn.
+        {"type": "wait", "ms": 2_000},
         {"type": "key", "keys": ["Escape"]},
         {"type": "wait", "ms": 250},
         *actions,

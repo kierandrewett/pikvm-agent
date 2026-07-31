@@ -670,7 +670,8 @@ def test_standard_app_launch_adds_focus_preflight_when_budget_allows() -> None:
     )
 
     assert settled is True
-    assert normalized[:3] == [
+    assert normalized[:4] == [
+        {"type": "wait", "ms": 2_000},
         {"type": "key", "keys": ["Escape"]},
         {"type": "wait", "ms": 250},
         actions[0],
