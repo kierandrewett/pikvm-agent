@@ -1113,6 +1113,10 @@ focused by an earlier burst. Do not use this
 exception for a shell, terminal, URL, file path, command arguments, or any
 consequential operation. Verify the launched app as the burst's stable end
 state.
+When modern Notepad restores an old tab after launch and the task requires a
+new document, use Ctrl+N to create a new blank document as the next bounded
+action. Do not click into or overwrite restored content, and do not treat a
+restored tab as the requested new document.
 For a task that explicitly asks to inspect a read-only Windows Settings page,
 the same bounded launch exception may type one native ``ms-settings:`` URI
 instead of an executable. It must begin exactly with ``ms-settings:``, contain

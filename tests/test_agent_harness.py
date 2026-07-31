@@ -2521,6 +2521,9 @@ async def test_controller_prompt_prefers_a_stable_legible_end_state() -> None:
     assert "consequential commit actions" in normalized
     assert "click the visibly labelled Save button" in normalized
     assert "Never use bare Enter to commit a Save As dialog" in normalized
+    assert "modern Notepad restores an old tab" in normalized
+    assert "use Ctrl+N to create a new blank document" in normalized
+    assert "Do not click into or overwrite restored content" in normalized
 
 
 async def test_reasoner_prompt_avoids_duplicate_pre_and_post_save_audits() -> None:
