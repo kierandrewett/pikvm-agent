@@ -25,6 +25,9 @@ def test_normalize_keys_friendly_and_passthrough() -> None:
     assert normalize_keys(["ENTER"]) == ["Enter"]
     assert normalize_keys(["F11"]) == ["F11"]
     assert normalize_keys(["5"]) == ["Digit5"]
+    assert normalize_keys(["*"]) == ["NumpadMultiply"]
+    assert normalize_keys(["+"]) == ["NumpadAdd"]
+    assert normalize_keys(["/"]) == ["NumpadDivide"]
     assert normalize_keys(["ctrl+End"]) == ["ControlLeft", "End"]
     assert normalize_keys(["Ctrl + Shift + S"]) == [
         "ControlLeft",

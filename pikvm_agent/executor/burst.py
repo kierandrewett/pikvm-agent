@@ -56,8 +56,14 @@ _NAMED = {
     "PAGEUP": "PageUp", "PGUP": "PageUp", "PAGEDOWN": "PageDown", "PGDN": "PageDown",
     "UP": "ArrowUp", "DOWN": "ArrowDown", "LEFT": "ArrowLeft", "RIGHT": "ArrowRight",
     "INSERT": "Insert", "INS": "Insert", "CAPSLOCK": "CapsLock", "PRINTSCREEN": "PrintScreen",
-    "MINUS": "Minus", "EQUAL": "Equal", "PLUS": "Equal", "PERIOD": "Period", "DOT": "Period",
-    "COMMA": "Comma", "SLASH": "Slash", "BACKSLASH": "Backslash", "SEMICOLON": "Semicolon",
+    "MINUS": "Minus", "-": "Minus", "EQUAL": "Equal", "=": "Equal",
+    "PLUS": "NumpadAdd", "ADD": "NumpadAdd", "+": "NumpadAdd",
+    "MULTIPLY": "NumpadMultiply", "TIMES": "NumpadMultiply",
+    "ASTERISK": "NumpadMultiply", "*": "NumpadMultiply",
+    "DIVIDE": "NumpadDivide", "/": "NumpadDivide",
+    "PERIOD": "Period", "DOT": "Period", ".": "Period",
+    "COMMA": "Comma", ",": "Comma", "SLASH": "Slash",
+    "BACKSLASH": "Backslash", "SEMICOLON": "Semicolon",
 }
 _VALID_KEY_CODE = re.compile(
     r"(?:"
@@ -106,7 +112,7 @@ def normalize_keys(keys: list[str]) -> list[str]:
         # Models commonly spell a chord as ["ctrl+End"]. Canonicalise that
         # familiar notation before transport; a literal plus key remains
         # available as "PLUS" or "Equal" with Shift.
-        parts = token.split("+") if "+" in token else [token]
+        parts = token.split("+") if "+" in token and token != "+" else [token]
         if any(not part.strip() for part in parts):
             raise BurstError(
                 f"malformed composite key token {token!r}; "

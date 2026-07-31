@@ -187,6 +187,11 @@ def test_lock_and_system_keys_use_vncdotool_names() -> None:
     assert code_to_vnc_key("Pause") == "pause"
     assert code_to_vnc_key("PrintScreen") == "sysrq"
     assert code_to_vnc_key("NumpadEnter") == "kpenter"
+    assert code_to_vnc_key("NumpadAdd") == "+"
+    assert code_to_vnc_key("NumpadSubtract") == "-"
+    assert code_to_vnc_key("NumpadMultiply") == "*"
+    assert code_to_vnc_key("NumpadDivide") == "/"
+    assert code_to_vnc_key("NumpadDecimal") == "."
 
 
 def test_unknown_multicharacter_key_never_reaches_vncdotool() -> None:

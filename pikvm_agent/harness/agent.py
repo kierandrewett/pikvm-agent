@@ -14,7 +14,7 @@ from typing import Any, Protocol
 from PIL import Image, ImageDraw, ImageOps, UnidentifiedImageError
 
 from pikvm_agent.core.windows_launch import is_verified_windows_run_launch
-from pikvm_agent.executor.burst import BurstError, validate_actions
+from pikvm_agent.executor.burst import BurstError, normalize_keys, validate_actions
 from pikvm_agent.harness.agent_models import (
     ComputerObservation,
     ControllerDecision,
@@ -397,6 +397,57 @@ def _normalize_windows_run_launch(
             )
             added += 1
     return normalized, added, pre_type_settle_normalized
+
+
+_KEY_MODIFIER_CODES = {
+    "ControlLeft",
+    "ControlRight",
+    "ShiftLeft",
+    "ShiftRight",
+    "AltLeft",
+    "AltRight",
+    "MetaLeft",
+    "MetaRight",
+}
+
+
+def _normalize_sequential_key_actions(
+    actions: list[dict[str, Any]],
+    *,
+    max_actions: int,
+) -> tuple[list[dict[str, Any]], int, bool]:
+    """Expand modifier-free key lists into bounded sequential presses.
+
+    Controller schemas use a list for chords, but models naturally express
+    short calculator and navigation sequences as one list too. Pressing those
+    keys simultaneously is never the intended input. Canonicalise and split
+    only lists without a modifier; preserve real shortcuts verbatim.
+    """
+
+    normalized: list[dict[str, Any]] = []
+    split_actions = 0
+    for action in actions:
+        copied = dict(action)
+        if copied.get("type") != "key":
+            normalized.append(copied)
+            continue
+        keys = copied.get("keys") or (
+            [copied["key"]] if copied.get("key") else []
+        )
+        canonical = normalize_keys(keys)
+        if (
+            len(canonical) <= 1
+            or any(key in _KEY_MODIFIER_CODES for key in canonical)
+        ):
+            normalized.append(copied)
+            continue
+        split_actions += len(canonical) - 1
+        for key in canonical:
+            normalized.append({"type": "key", "keys": [key]})
+
+    if len(normalized) > max_actions:
+        return [dict(action) for action in actions], 0, True
+    return normalized, split_actions, False
 
 
 _CONTROLLER_SYSTEM = """\
@@ -1368,6 +1419,39 @@ class AgentHarness:
                     added_change_waits=added_change_waits,
                     pre_type_settle_normalized=pre_type_settle_normalized,
                     completion_hint_added=completion_hint_added,
+                )
+            (
+                normalized_actions,
+                split_key_actions,
+                key_sequence_overflow,
+            ) = _normalize_sequential_key_actions(
+                proposed_actions,
+                max_actions=self.config.max_actions_per_burst,
+            )
+            if key_sequence_overflow:
+                run.plan = None
+                run.status = RunStatus.PAUSED
+                run.error = (
+                    "controller key sequence exceeds the bounded action limit "
+                    "after safe expansion"
+                )
+                run.record(
+                    "controller.sequential_keys_action_limit",
+                    limit=self.config.max_actions_per_burst,
+                )
+                await self.store.save(run)
+                return run
+            if split_key_actions:
+                controller_data = controller.model_dump(
+                    mode="json",
+                    exclude_none=True,
+                )
+                controller_data["actions"] = normalized_actions
+                controller = ControllerDecision.model_validate(controller_data)
+                proposed_actions = normalized_actions
+                run.record(
+                    "controller.sequential_keys_normalized",
+                    added_actions=split_key_actions,
                 )
             run.last_controller = controller
             if controller.outcome == "blocked":

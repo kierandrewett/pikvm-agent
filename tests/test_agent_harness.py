@@ -13,6 +13,7 @@ from pikvm_agent.harness.agent import (
     _CONTROLLER_SYSTEM,
     _REASONER_SYSTEM,
     _is_read_only_settings_request,
+    _normalize_sequential_key_actions,
     _normalize_windows_run_launch,
     _normalize_plan_safety_constraints,
 )
@@ -37,6 +38,57 @@ from pikvm_agent.harness.model_budget import (
     ProviderCostTerms,
 )
 from pikvm_agent.harness.model_pool import ModelPool, RoleRoute
+
+
+def test_modifier_free_key_sequence_is_expanded_before_hid() -> None:
+    actions = [
+        {"type": "key", "keys": ["3", "7", "*", "1", "9", "ENTER"]},
+        {"type": "wait_for_change", "timeout_ms": 2_000},
+        {"type": "wait_for_stable_screen", "stable_ms": 400},
+    ]
+
+    normalized, added, overflow = _normalize_sequential_key_actions(
+        actions,
+        max_actions=8,
+    )
+
+    assert overflow is False
+    assert added == 5
+    assert normalized[:6] == [
+        {"type": "key", "keys": ["Digit3"]},
+        {"type": "key", "keys": ["Digit7"]},
+        {"type": "key", "keys": ["NumpadMultiply"]},
+        {"type": "key", "keys": ["Digit1"]},
+        {"type": "key", "keys": ["Digit9"]},
+        {"type": "key", "keys": ["Enter"]},
+    ]
+    assert normalized[6:] == actions[1:]
+
+
+def test_modifier_chord_is_not_expanded() -> None:
+    actions = [{"type": "key", "keys": ["CTRL", "SHIFT", "P"]}]
+
+    normalized, added, overflow = _normalize_sequential_key_actions(
+        actions,
+        max_actions=8,
+    )
+
+    assert normalized == actions
+    assert added == 0
+    assert overflow is False
+
+
+def test_sequential_key_expansion_fails_closed_at_action_limit() -> None:
+    actions = [{"type": "key", "keys": ["1", "2", "3"]}]
+
+    normalized, added, overflow = _normalize_sequential_key_actions(
+        actions,
+        max_actions=2,
+    )
+
+    assert normalized == actions
+    assert added == 0
+    assert overflow is True
 
 
 def test_controller_can_launch_a_standard_app_in_one_safe_burst() -> None:
