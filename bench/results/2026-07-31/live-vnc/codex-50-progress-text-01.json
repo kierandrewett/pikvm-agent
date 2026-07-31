@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "report": "codex-50-live-progress",
-  "recorded_at": "2026-07-31T18:45:47Z",
+  "recorded_at": "2026-07-31T19:17:35Z",
   "manifest": "bench/codex-50-tasks.yaml",
   "environment": {
     "target": "authorized disposable Windows VNC VM",
@@ -165,6 +165,37 @@
       "sha256": "6da80fa6f4ff6c1724059e24780d38f50022f4a0ef6265a41c2b88dc4f883c97"
     }
   },
+  "text_01_speed_validation": {
+    "task": "Repeat the accepted exact-text flow after filename-readback localization",
+    "result": "passed",
+    "run_id": "c007ab8e-ed3d-46ad-b3e3-663d7693196e",
+    "wall_clock_ms": 259245,
+    "provider_wait_ms": 129658,
+    "action_execution_ms": 123297,
+    "provider_calls": 25,
+    "actions_attempted": 13,
+    "actions_completed": 13,
+    "completion_efficiency": 1.0,
+    "longest_action_ms": 33207.672,
+    "reboot_ms": 76924,
+    "reboot_transition_observed": true,
+    "improvement_over_acceptance_percent": 45.48,
+    "recording": {
+      "relative_path": "codex-text-entry-v19-20260731/text-01-saveas-speed-recheck/recording.webm",
+      "sha256": "3760b15c3e7e13023faec6512c56354661b76ac805e69f17a8fc6fe83a3c278a",
+      "codec": "vp9",
+      "width": 2048,
+      "height": 1280,
+      "fps": 2,
+      "duration_ms": 319500,
+      "size_bytes": 1031796
+    },
+    "poster": {
+      "relative_path": "codex-text-entry-v19-20260731/text-01-saveas-speed-recheck/poster.jpg",
+      "sha256": "f95480144bfd7d4770e6eefc811d0f39c9a06eff8d9429896cd5f7ae9feafa28"
+    },
+    "campaign_sha256": "463c8bea4ff2198803715aedb3b30844167c9af66ac5d70e0bbf122597224e0d"
+  },
   "text_01_attempts": [
     {
       "campaign_id": "codex-text-entry-v13-20260731",
@@ -209,12 +240,38 @@
       "provider_wait_ms": 263924,
       "provider_calls": 30,
       "campaign_sha256": "7c6f8e70ee7dfa4f51e3b4fa71a5934a499170b743233acf03145ad3bcd49cb1"
+    },
+    {
+      "campaign_id": "codex-text-entry-v18-20260731",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "reason": "The filename was selected and replaced correctly, but the readback crop included the adjacent Save as type control and rejected the exact visible basename.",
+      "wall_clock_ms": 377666,
+      "provider_wait_ms": 193716,
+      "action_execution_ms": 175776,
+      "provider_calls": 36,
+      "reboot_ms": 132690,
+      "campaign_sha256": "6ee29ce4de5a48590e409d27de095e694a9b5cd9d1df88d5bfabd28793e39d0f"
+    },
+    {
+      "campaign_id": "codex-text-entry-v19-20260731",
+      "reported_status": "passed",
+      "accepted_status": "passed",
+      "reason": "The broad filename observation localized the matching stem, then a fresh independent OCR read of the refined crop verified the exact basename.",
+      "wall_clock_ms": 259245,
+      "provider_wait_ms": 129658,
+      "action_execution_ms": 123297,
+      "provider_calls": 25,
+      "actions_attempted": 13,
+      "actions_completed": 13,
+      "reboot_ms": 76924,
+      "campaign_sha256": "463c8bea4ff2198803715aedb3b30844167c9af66ac5d70e0bbf122597224e0d"
     }
   ],
   "verdict": {
     "accuracy": "The exact text task now passes, including independent reopen evidence.",
-    "speed": "Failing product target: 475.492 seconds of task wall time is slower than a human.",
-    "dominant_cost": "Provider waits consumed 263.924 seconds; exact-readback actions also reached 101.915 seconds.",
-    "next": "Reduce model and OCR calls before expanding the text-entry batch."
+    "speed": "Failing product target: the refined pass took 259.245 seconds, 45.48% faster than the accepted v17 run but still slower than a human.",
+    "dominant_cost": "Provider waits consumed 129.658 seconds and action execution consumed 123.297 seconds; the longest action took 33.208 seconds.",
+    "next": "Continue the blind text-entry batch while reducing the remaining 25 provider calls and duplicate verification rounds."
   }
 }

@@ -67,21 +67,26 @@ remediation. Production PiKVM was not contacted.
 | Microsoft Word | 0 | 5 | Pending |
 | **Total** | **15** | **50** | **35 pending** |
 
-The first exact text task required five retained acceptance attempts. v13
+The first exact text task required seven retained acceptance and speed attempts. v13
 reported success but is marked **invalid** because leaving Notepad open after
 Save was incorrectly treated as a reopen. v14 and v15 stopped safely on
 unresolved replacement confirmations. v16 genuinely saved and reopened the
 file but timed out because its in-memory completion gate did not recognize the
 verified overwrite transition. v17 passed only after a replacement save and a
-later, separately verified Open action.
+later, separately verified Open action. v18 proved that replacing the
+pre-populated basename was fixed, but a crop spanning the adjacent Save as type
+control caused exact readback to fail closed. v19 localized the filename stem,
+performed a fresh OCR read on the refined row, and passed with all 13 actions
+completed.
 
-The v17 task itself took 475.492s: 263.924s of provider wait, 381.636s of
-overlapping action execution, 30 provider calls, and 15 attempted actions.
-The longest exact-readback action took 101.915s. Its mandatory reboot took a
-further 200.654s and recorded a real screen transition. Accuracy has crossed
-this narrow gate; speed has not. A human can perform this task materially
-faster, so the next campaign slice targets model/OCR call count before broader
-text entry.
+The refined v19 task took 259.245s: 129.658s of provider wait, 123.297s of
+action execution, 25 provider calls, and 13 actions at 100% completion
+efficiency. The longest action took 33.208s. That is 45.48% faster than v17's
+475.492s accepted run. Its mandatory reboot took a further 76.924s and
+recorded a real screen transition. Accuracy has crossed this narrow gate;
+speed has not. A human can still perform this task materially faster, so the
+next campaign slice expands blind text entry while continuing to target
+provider and verification call count.
 
 Failure-inclusive metrics, canonical campaign digests, the 15 accepted task
 IDs, and the VP9 recording/poster hashes are retained in
