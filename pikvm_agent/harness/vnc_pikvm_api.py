@@ -205,11 +205,15 @@ _CODE_TO_VNC: dict[str, str] = {
     "MetaRight": "super",
     "Enter": "enter",
     "NumpadEnter": "kpenter",
-    "NumpadAdd": "+",
-    "NumpadSubtract": "-",
-    "NumpadMultiply": "*",
-    "NumpadDivide": "/",
-    "NumpadDecimal": ".",
+    # vncdotool accepts any single character by forwarding its ordinal as the
+    # RFB keysym.  Use the X11 keypad keysyms here rather than printable ASCII:
+    # Windows Calculator distinguishes keypad operators from text characters,
+    # and can ignore an ASCII "*" while still accepting the preceding digits.
+    "NumpadAdd": "\uffab",
+    "NumpadSubtract": "\uffad",
+    "NumpadMultiply": "\uffaa",
+    "NumpadDivide": "\uffaf",
+    "NumpadDecimal": "\uffae",
     "Escape": "esc",
     "Backspace": "bsp",
     "Delete": "del",
