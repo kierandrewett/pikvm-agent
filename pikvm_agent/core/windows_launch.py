@@ -39,6 +39,19 @@ def is_safe_windows_run_text(text: str) -> bool:
     )
 
 
+def is_windows_run_key_action(action: Mapping[str, Any]) -> bool:
+    """Return whether one action is the Windows Run shortcut."""
+
+    run_keys = action.get("keys")
+    return (
+        action.get("type") == "key"
+        and isinstance(run_keys, list)
+        and len(run_keys) == 2
+        and str(run_keys[0]).casefold() in _WINDOWS_RUN_MODIFIERS
+        and str(run_keys[1]).casefold() in {"keyr", "r"}
+    )
+
+
 def is_verified_windows_run_launch(
     actions: Sequence[Mapping[str, Any]],
 ) -> bool:
@@ -57,14 +70,9 @@ def is_verified_windows_run_launch(
     if len(active_actions) != 3:
         return False
     (run_index, run_key), (_, typed), (_, submit_key) = active_actions
-    run_keys = run_key.get("keys")
     if not (
         run_index == 0
-        and run_key.get("type") == "key"
-        and isinstance(run_keys, list)
-        and len(run_keys) == 2
-        and str(run_keys[0]).casefold() in _WINDOWS_RUN_MODIFIERS
-        and str(run_keys[1]).casefold() in {"keyr", "r"}
+        and is_windows_run_key_action(run_key)
     ):
         return False
     text = typed.get("text")

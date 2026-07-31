@@ -24,7 +24,10 @@ from pikvm_agent.core.spreadsheet_grid import (
     SpreadsheetGridError,
     validate_spreadsheet_grid,
 )
-from pikvm_agent.core.windows_launch import is_verified_windows_run_launch
+from pikvm_agent.core.windows_launch import (
+    is_verified_windows_run_launch,
+    is_windows_run_key_action,
+)
 
 ModelRole = Literal["reasoner", "controller", "verifier"]
 RunMode = Literal["assistant", "computer"]
@@ -465,6 +468,14 @@ class ControllerDecision(StrictModelDecision):
         verified_windows_run_launch = is_verified_windows_run_launch(
             [action.model_dump(mode="json") for action in self.actions]
         )
+        if not verified_windows_run_launch and any(
+            is_windows_run_key_action(action.model_dump(mode="json"))
+            for action in self.actions
+        ):
+            raise ValueError(
+                "Win+R must include the allowlisted exact field text and Enter "
+                "in the same atomic launch burst"
+            )
         spreadsheet_actions = [
             action
             for action in self.actions

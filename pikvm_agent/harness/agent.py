@@ -300,8 +300,7 @@ def _normalize_windows_run_launch(
         ),
         "",
     )
-    if not text.casefold().startswith("ms-settings:"):
-        return normalized, 0, pre_type_settle_normalized
+    is_settings_launch = text.casefold().startswith("ms-settings:")
 
     submit_index = next(
         (
@@ -320,37 +319,83 @@ def _normalize_windows_run_launch(
         return normalized, 0, pre_type_settle_normalized
 
     added = 0
-    while (
-        sum(
-            action.get("type") == "wait_for_change"
-            for action in normalized[submit_index + 1 :]
+    post_submit_change_indices = [
+        index
+        for index, action in enumerate(normalized)
+        if index > submit_index
+        and action.get("type") == "wait_for_change"
+    ]
+    if not post_submit_change_indices and len(normalized) < max_actions:
+        insertion_index = next(
+            (
+                index
+                for index, action in enumerate(normalized)
+                if index > submit_index
+                and action.get("type") == "wait_for_stable_screen"
+            ),
+            submit_index + 1,
         )
-        < 2
-        and len(normalized) < max_actions
-    ):
-        post_submit_change_indices = [
-            index
-            for index, action in enumerate(normalized)
-            if index > submit_index
-            and action.get("type") == "wait_for_change"
-        ]
-        if post_submit_change_indices:
-            insertion_index = post_submit_change_indices[-1] + 1
-        else:
-            insertion_index = next(
-                (
-                    index
-                    for index, action in enumerate(normalized)
-                    if index > submit_index
-                    and action.get("type") == "wait_for_stable_screen"
-                ),
-                submit_index + 1,
-            )
         normalized.insert(
             insertion_index,
             {"type": "wait_for_change", "timeout_ms": 10_000},
         )
+        post_submit_change_indices = [insertion_index]
         added += 1
+
+    if not is_settings_launch:
+        while (
+            len(post_submit_change_indices) < 2
+            and len(normalized) < max_actions
+        ):
+            insertion_index = (
+                post_submit_change_indices[-1] + 1
+                if post_submit_change_indices
+                else submit_index + 1
+            )
+            normalized.insert(
+                insertion_index,
+                {"type": "wait_for_change", "timeout_ms": 10_000},
+            )
+            post_submit_change_indices.append(insertion_index)
+            added += 1
+        post_submit_stable = any(
+            action.get("type") == "wait_for_stable_screen"
+            for action in normalized[submit_index + 1 :]
+        )
+        if not post_submit_stable and len(normalized) < max_actions:
+            insertion_index = (
+                post_submit_change_indices[-1] + 1
+                if post_submit_change_indices
+                else submit_index + 1
+            )
+            normalized.insert(
+                insertion_index,
+                {
+                    "type": "wait_for_stable_screen",
+                    "stable_ms": 500,
+                    "timeout_ms": 3_000,
+                },
+            )
+            added += 1
+        return normalized, added, pre_type_settle_normalized
+
+    if post_submit_change_indices:
+        first_change_index = post_submit_change_indices[0]
+        extra_change_indices = post_submit_change_indices[1:]
+        if extra_change_indices:
+            # The Settings splash animates enough to satisfy another raw
+            # change wait while the requested page is still unavailable. Hold
+            # a bounded render window after the first real launch transition.
+            normalized[extra_change_indices[0]] = {
+                "type": "wait",
+                "ms": 5_000,
+            }
+        elif len(normalized) < max_actions:
+            normalized.insert(
+                first_change_index + 1,
+                {"type": "wait", "ms": 5_000},
+            )
+            added += 1
     return normalized, added, pre_type_settle_normalized
 
 
@@ -392,7 +437,8 @@ requires a standard local app, launch it in one bounded burst: Win+R, a short
 settle, wait for a stable screen, type only the app's executable name with no
 arguments using context ``field`` and verification ``exact``, press Enter, wait
 for the screen to change, then wait for a stable screen. Keep Win+R, the exact text, and Enter in this same
-burst; do not reuse a field focused by an earlier burst. Do not use this
+burst; never issue Win+R as a standalone action, and do not reuse a field
+focused by an earlier burst. Do not use this
 exception for a shell, terminal, URL, file path, command arguments, or any
 consequential operation. Verify the launched app as the burst's stable end
 state.

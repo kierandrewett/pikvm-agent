@@ -46,6 +46,7 @@ def test_controller_can_launch_a_standard_app_in_one_safe_burst() -> None:
     assert "Keep Win+R, the exact text, and Enter in this same" in (
         _CONTROLLER_SYSTEM
     )
+    assert "never issue Win+R as a standalone action" in _CONTROLLER_SYSTEM
     assert "shell, terminal, URL, file path, command arguments" in (
         _CONTROLLER_SYSTEM
     )
@@ -92,7 +93,7 @@ def test_native_settings_launch_waits_through_splash_and_page_render() -> None:
     }
     assert normalized[5:8] == [
         {"type": "wait_for_change", "timeout_ms": 5_000},
-        {"type": "wait_for_change", "timeout_ms": 10_000},
+        {"type": "wait", "ms": 5_000},
         {
             "type": "wait_for_stable_screen",
             "stable_ms": 1_000,
@@ -130,10 +131,15 @@ def test_native_settings_launch_normalization_is_idempotent() -> None:
             "timeout_ms": 3_000,
         },
     ]
-    assert normalized[3:] == actions[1:]
+    assert normalized[3:] == [
+        actions[1],
+        actions[2],
+        actions[3],
+        {"type": "wait", "ms": 5_000},
+    ]
 
 
-def test_standard_app_launch_gets_only_the_pre_type_settle() -> None:
+def test_standard_app_launch_waits_for_run_close_and_app_open() -> None:
     actions = [
         {"type": "key", "keys": ["META", "R"]},
         {
@@ -151,7 +157,7 @@ def test_standard_app_launch_gets_only_the_pre_type_settle() -> None:
         max_actions=8,
     )
 
-    assert added == 0
+    assert added == 2
     assert settled is True
     assert normalized == [
         actions[0],
@@ -161,7 +167,15 @@ def test_standard_app_launch_gets_only_the_pre_type_settle() -> None:
             "stable_ms": 300,
             "timeout_ms": 3_000,
         },
-        *actions[1:],
+        actions[1],
+        actions[2],
+        actions[3],
+        {"type": "wait_for_change", "timeout_ms": 10_000},
+        {
+            "type": "wait_for_stable_screen",
+            "stable_ms": 500,
+            "timeout_ms": 3_000,
+        },
     ]
 
 
@@ -1759,6 +1773,21 @@ def test_controller_action_schema_allows_verified_windows_run_launch(
     ]
 
 
+def test_controller_action_schema_rejects_standalone_windows_run() -> None:
+    with pytest.raises(
+        ValueError,
+        match="same atomic launch burst",
+    ):
+        ControllerDecision.model_validate(
+            {
+                "outcome": "act",
+                "intent": "Open Run before deciding what to type.",
+                "actions": [{"type": "key", "keys": ["WIN", "R"]}],
+                "expected_evidence": ["The Run dialog is visible."],
+            }
+        )
+
+
 @pytest.mark.parametrize(
     ("prefix", "text_action"),
     [
@@ -1821,7 +1850,10 @@ def test_controller_action_schema_rejects_unsafe_windows_run_near_misses(
     prefix: list[dict[str, object]],
     text_action: dict[str, object],
 ) -> None:
-    with pytest.raises(ValidationError, match="active follow-up"):
+    with pytest.raises(
+        ValidationError,
+        match="active follow-up|same atomic launch burst",
+    ):
         ControllerDecision.model_validate(
             {
                 "outcome": "act",
