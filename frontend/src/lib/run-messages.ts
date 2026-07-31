@@ -376,7 +376,7 @@ const completionMarkdown = (run: RunSnapshot) => {
         "action still comes from the outer client."
       );
     }
-    const latestEvent = (run.timeline_events ?? run.events).at(-1);
+    const latestEvent = run.events.at(-1) ?? run.timeline_events?.at(-1);
     if (
       latestEvent?.kind === "run.process_interrupted" &&
       latestEvent.data.resume_required === true

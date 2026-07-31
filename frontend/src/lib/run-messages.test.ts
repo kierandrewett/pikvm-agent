@@ -1647,6 +1647,14 @@ describe("messagesForRun", () => {
             },
           },
         ],
+        timeline_events: [
+          {
+            sequence: 2,
+            at: "2026-07-27T12:00:01Z",
+            kind: "model.completed",
+            data: { role: "controller" },
+          },
+        ],
       }),
     ).at(-1);
     const serialized = JSON.stringify(assistant?.content);
