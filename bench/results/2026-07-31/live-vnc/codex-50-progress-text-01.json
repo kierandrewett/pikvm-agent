@@ -1,0 +1,220 @@
+{
+  "schema_version": 1,
+  "report": "codex-50-live-progress",
+  "recorded_at": "2026-07-31T18:45:47Z",
+  "manifest": "bench/codex-50-tasks.yaml",
+  "environment": {
+    "target": "authorized disposable Windows VNC VM",
+    "production_target_contacted": false,
+    "endpoint_retained": false,
+    "reboot_after_every_test": true
+  },
+  "model_route": {
+    "provider": "codex-fast",
+    "model": "gpt-5.6-terra",
+    "reasoning_effort": "low"
+  },
+  "progress": {
+    "planned": 50,
+    "unique_passed": 15,
+    "pending": 35,
+    "completion_percent": 30.0,
+    "categories": {
+      "Observation": {
+        "passed": 5,
+        "planned": 5
+      },
+      "Calculator": {
+        "passed": 9,
+        "planned": 10
+      },
+      "Text entry": {
+        "passed": 1,
+        "planned": 10
+      },
+      "Code entry": {
+        "passed": 0,
+        "planned": 10
+      },
+      "File management": {
+        "passed": 0,
+        "planned": 5
+      },
+      "Microsoft Excel": {
+        "passed": 0,
+        "planned": 5
+      },
+      "Microsoft Word": {
+        "passed": 0,
+        "planned": 5
+      }
+    },
+    "canonical_passes": [
+      "observe-01",
+      "observe-02",
+      "observe-03",
+      "observe-04",
+      "observe-05",
+      "calc-01",
+      "calc-02",
+      "calc-03",
+      "calc-04",
+      "calc-05",
+      "calc-06",
+      "calc-07",
+      "calc-08",
+      "calc-10",
+      "text-01"
+    ]
+  },
+  "canonical_campaigns": [
+    {
+      "campaign_id": "codex-windows-50-gate-after-warmup-fix-20260731",
+      "tasks": [
+        "observe-01",
+        "observe-02",
+        "observe-03"
+      ],
+      "campaign_sha256": "4d1508ec5758092a04ff692274857670931a4a02f5185322bcaef61c9ceea5bd"
+    },
+    {
+      "campaign_id": "codex-taskmgr-edge-fix-v1-20260731",
+      "tasks": [
+        "observe-04"
+      ],
+      "campaign_sha256": "1d33f4d5ddfee13bc75fbece06f263bad1ab35f78135eac28317583d4453823d"
+    },
+    {
+      "campaign_id": "codex-windows-explorer-exe-gate-v3-20260731",
+      "tasks": [
+        "observe-05"
+      ],
+      "campaign_sha256": "9ce1f21f4dcc7cdf3f6b3613cf90df983522899ddd9f8ba2ed87e28e84fbce59"
+    },
+    {
+      "campaign_id": "codex-windows-calc-primary-consensus-speed-gate-20260731",
+      "tasks": [
+        "calc-01"
+      ],
+      "campaign_sha256": "c97fb9fe9fe263ea2b76110064f1ea886f2686d4ad913da79527872ef04cd1cc"
+    },
+    {
+      "campaign_id": "codex-calculator-fastpath-v3-20260731",
+      "tasks": [
+        "calc-02",
+        "calc-03"
+      ],
+      "campaign_sha256": "8469ab35b5fc36943b641a16ceffa6231b5e39317888b192d0183f60060ff292"
+    },
+    {
+      "campaign_id": "codex-calculator-fastpath-v2-20260731",
+      "tasks": [
+        "calc-04"
+      ],
+      "campaign_sha256": "f7a4f89ba0900dd06e818c2996f3e70abc6e698996adeb648b54f164df664a10"
+    },
+    {
+      "campaign_id": "codex-calculator-fastpath-v4-20260731",
+      "tasks": [
+        "calc-05",
+        "calc-06",
+        "calc-07",
+        "calc-10"
+      ],
+      "campaign_sha256": "4a71bf51ea4a1762e45e723bd78c57eaffd802f17eea5119a8681140d39e6fa4"
+    },
+    {
+      "campaign_id": "codex-calculator-fastpath-v5-20260731",
+      "tasks": [
+        "calc-08"
+      ],
+      "campaign_sha256": "9f1f3d474a2ab8a7b5ccae8a6ffe70d2aaf85c0714ff8f42b36da68f8ab75772"
+    },
+    {
+      "campaign_id": "codex-text-entry-v17-20260731",
+      "tasks": [
+        "text-01"
+      ],
+      "campaign_sha256": "7c6f8e70ee7dfa4f51e3b4fa71a5934a499170b743233acf03145ad3bcd49cb1"
+    }
+  ],
+  "text_01_acceptance": {
+    "task": "Save a short exact sentence, reopen it, and verify it",
+    "result": "passed",
+    "run_id": "d69a96b2-6b36-4cb3-926f-12c2f818195e",
+    "wall_clock_ms": 475492,
+    "provider_wait_ms": 263924,
+    "action_execution_ms": 381636,
+    "provider_calls": 30,
+    "actions_attempted": 15,
+    "actions_completed": 12,
+    "reboot_ms": 200654,
+    "reboot_transition_observed": true,
+    "recording": {
+      "relative_path": "codex-text-entry-v17-20260731/text-01-fast-editor-recheck/recording.webm",
+      "sha256": "b6fbfc71c52e882c20872fd0ed19ec29a91e2a26920c00b1004aa7fe868a8542",
+      "codec": "vp9",
+      "width": 2048,
+      "height": 1280,
+      "fps": 2,
+      "duration_ms": 569000,
+      "size_bytes": 1320620
+    },
+    "poster": {
+      "relative_path": "codex-text-entry-v17-20260731/text-01-fast-editor-recheck/poster.jpg",
+      "sha256": "6da80fa6f4ff6c1724059e24780d38f50022f4a0ef6265a41c2b88dc4f883c97"
+    }
+  },
+  "text_01_attempts": [
+    {
+      "campaign_id": "codex-text-entry-v13-20260731",
+      "reported_status": "passed",
+      "accepted_status": "invalid",
+      "reason": "The application remaining open after Save was incorrectly accepted as a separate reopen.",
+      "wall_clock_ms": 211135,
+      "campaign_sha256": "c202a3336dddd51cc459f909227d15a1527559e53e83a40cb815c0200b606d4c"
+    },
+    {
+      "campaign_id": "codex-text-entry-v14-20260731",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "reason": "A delayed Save As replacement confirmation was not grounded, so the consequential Enter remained blocked.",
+      "wall_clock_ms": 369767,
+      "campaign_sha256": "7681a2f720dc95dd6467d1ca1f532e03aba4e04f3f1628541744ff0e65c48d1e"
+    },
+    {
+      "campaign_id": "codex-text-entry-v15-20260731",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "reason": "Noisy OCR of the replacement confirmation was correctly treated as unknown.",
+      "wall_clock_ms": 232527,
+      "campaign_sha256": "d9277c15ab33b08a5715b5bc52fd49c083fbfb0c982e5dbd34a6641439096f3e"
+    },
+    {
+      "campaign_id": "codex-text-entry-v16-20260731",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "reason": "The file was saved and genuinely reopened, but the running completion gate did not recognize the verified replacement-save transition and timed out.",
+      "wall_clock_ms": 898842,
+      "provider_wait_ms": 730959,
+      "provider_calls": 145,
+      "campaign_sha256": "4c44f5816d04d1342634ef4521a3e8ea4ebd6972a24f93dc4c04ae71aea82595"
+    },
+    {
+      "campaign_id": "codex-text-entry-v17-20260731",
+      "reported_status": "passed",
+      "accepted_status": "passed",
+      "reason": "A verified replacement save was followed by a later, separately verified Open action and exact visible sentence.",
+      "wall_clock_ms": 475492,
+      "provider_wait_ms": 263924,
+      "provider_calls": 30,
+      "campaign_sha256": "7c6f8e70ee7dfa4f51e3b4fa71a5934a499170b743233acf03145ad3bcd49cb1"
+    }
+  ],
+  "verdict": {
+    "accuracy": "The exact text task now passes, including independent reopen evidence.",
+    "speed": "Failing product target: 475.492 seconds of task wall time is slower than a human.",
+    "dominant_cost": "Provider waits consumed 263.924 seconds; exact-readback actions also reached 101.915 seconds.",
+    "next": "Reduce model and OCR calls before expanding the text-entry batch."
+  }
+}

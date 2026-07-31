@@ -5,7 +5,7 @@ harness. It records passing, failing, invalid, and infrastructure-blocked runs.
 A row is not a product claim unless its environment, upstream revision, model,
 sample size, and evaluator are all shown.
 
-Last updated: 2026-07-29.
+Last updated: 2026-07-31.
 
 ## Evidence rules
 
@@ -48,6 +48,46 @@ support a claim of generally reliable autonomous Windows operation.
 | A model can autonomously complete routine Office work | Portable Word/Excel contracts and semantic OOXML verification pass local tests. Excel r23 is the first clean canonical pass: the model saved, closed, reopened, and audited the workbook; the host recovered 9,437 bytes and passed 29/29 cell/formula checks. The five-attempt optimization series retains three incomplete/rejected runs and one scorer false negative before that pass. r23 still took 29m 32s, used 52 model calls, and repeated one formula audit; the action-evidence contract was hardened afterward. Word r29 recovered a 16,081-byte DOCX that passed 11/11 checks, but its original runner transaction remains `artifact_failed` | Clean Excel n=1; Word runner still not clean; latency failing product target |
 | Windows Agent Arena is supported | 154 tasks discovered; official golden image is absent | Not run |
 | Provider choice is portable | Codex and Claude OAuth CLIs live-tested; persistent Codex app-server now reuses the same provider-owned ChatGPT login and returned valid strict-schema output on 42/42 calls, with 37/42 exact, across the published Luna/Terra/Sol diagnostics with zero computer contact. Terra-low was the best first fast-lane candidate: 19/20 exact across two identical ten-case repeats, 4.990s combined median, and 7.474s combined p95. Dedicated-profile Gemini CLI OAuth, native OpenAI Responses, Azure OpenAI API-key/Entra modes, OpenAI-compatible, Anthropic, Gemini AI Studio, and Vertex AI adapters remain protocol-tested with mocks/source contracts. The live Anthropic Messages canary reached the provider with `claude-sonnet-5` but the environment-owned credential was rejected | Partial; Codex app-server OAuth is live and fast enough for task trials, but its 95% diagnostic accuracy is below the release gate and no API credential route has passed live yet |
+
+### Live 50-task Windows campaign
+
+The active disposable-Windows campaign has **15/50 unique accepted passes
+(30%)**. Every attempt is screen-recorded, every test ends with a VM reboot,
+and a pass is counted only once even when the same task is rerun during
+remediation. Production PiKVM was not contacted.
+
+| Category | Passed | Planned | Current state |
+| --- | ---: | ---: | --- |
+| Observation | 5 | 5 | Complete |
+| Calculator | 9 | 10 | `calc-09` pending |
+| Text entry | 1 | 10 | `text-01` accepted |
+| Code entry | 0 | 10 | Pending |
+| File management | 0 | 5 | Pending |
+| Microsoft Excel | 0 | 5 | Pending |
+| Microsoft Word | 0 | 5 | Pending |
+| **Total** | **15** | **50** | **35 pending** |
+
+The first exact text task required five retained acceptance attempts. v13
+reported success but is marked **invalid** because leaving Notepad open after
+Save was incorrectly treated as a reopen. v14 and v15 stopped safely on
+unresolved replacement confirmations. v16 genuinely saved and reopened the
+file but timed out because its in-memory completion gate did not recognize the
+verified overwrite transition. v17 passed only after a replacement save and a
+later, separately verified Open action.
+
+The v17 task itself took 475.492s: 263.924s of provider wait, 381.636s of
+overlapping action execution, 30 provider calls, and 15 attempted actions.
+The longest exact-readback action took 101.915s. Its mandatory reboot took a
+further 200.654s and recorded a real screen transition. Accuracy has crossed
+this narrow gate; speed has not. A human can perform this task materially
+faster, so the next campaign slice targets model/OCR call count before broader
+text entry.
+
+Failure-inclusive metrics, canonical campaign digests, the 15 accepted task
+IDs, and the VP9 recording/poster hashes are retained in
+[`codex-50-progress-text-01.json`](results/2026-07-31/live-vnc/codex-50-progress-text-01.json).
+The complete 50-task manifest is
+[`codex-50-tasks.yaml`](codex-50-tasks.yaml).
 
 Re-run the target-free HID payload corpus with:
 
