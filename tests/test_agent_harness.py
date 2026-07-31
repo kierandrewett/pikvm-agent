@@ -43,6 +43,16 @@ from pikvm_agent.harness.model_budget import (
 from pikvm_agent.harness.model_pool import ModelPool, RoleRoute
 
 
+_CALCULATOR_STANDARD_MODE_ACTIONS = [
+    {"type": "key", "keys": ["AltLeft", "Digit1"]},
+    {
+        "type": "wait_for_stable_screen",
+        "stable_ms": 300,
+        "timeout_ms": 3_000,
+    },
+]
+
+
 def test_default_harness_burst_budget_supports_full_local_workflows() -> None:
     assert HarnessConfig().max_actions_per_burst == 20
 
@@ -123,15 +133,16 @@ def test_literal_calculator_task_prepares_one_bounded_key_sequence() -> None:
     controller = _calculator_task_controller(
         run,
         launch,
-        max_actions=8,
+        max_actions=10,
     )
 
     assert controller is not None
     assert controller.expects_task_completion is True
     assert [
         action.model_dump(mode="json", exclude_none=True)
-        for action in controller.actions[:6]
+        for action in controller.actions[:8]
     ] == [
+        *_CALCULATOR_STANDARD_MODE_ACTIONS,
         {"type": "key", "keys": ["Digit3"]},
         {"type": "key", "keys": ["Digit7"]},
         {"type": "key", "keys": ["NumpadMultiply"]},
@@ -177,6 +188,7 @@ def test_calculator_mixed_expression_is_prepared_without_model_replanning() -> N
         action.model_dump(mode="json", exclude_none=True)
         for action in controller.actions
     ] == [
+        *_CALCULATOR_STANDARD_MODE_ACTIONS,
         {"type": "key", "keys": ["Digit1"]},
         {"type": "key", "keys": ["Digit4"]},
         {"type": "key", "keys": ["Digit4"]},
@@ -231,6 +243,7 @@ def test_calculator_square_root_is_prepared_without_model_replanning() -> None:
         action.model_dump(mode="json", exclude_none=True)
         for action in controller.actions
     ] == [
+        *_CALCULATOR_STANDARD_MODE_ACTIONS,
         {"type": "key", "keys": ["Digit2"]},
         {"type": "key", "keys": ["Digit0"]},
         {"type": "key", "keys": ["Digit2"]},
@@ -282,6 +295,7 @@ def test_calculator_percentage_is_prepared_without_model_replanning() -> None:
         action.model_dump(mode="json", exclude_none=True)
         for action in controller.actions
     ] == [
+        *_CALCULATOR_STANDARD_MODE_ACTIONS,
         {"type": "key", "keys": ["Digit8"]},
         {"type": "key", "keys": ["Digit6"]},
         {"type": "key", "keys": ["Digit4"]},
@@ -405,6 +419,7 @@ def test_more_literal_calculator_tasks_avoid_model_replanning(
         action.model_dump(mode="json", exclude_none=True)
         for action in controller.actions
     ] == [
+        *_CALCULATOR_STANDARD_MODE_ACTIONS,
         *[{"type": "key", "keys": [key]} for key in expected_keys],
         {"type": "wait_for_change", "timeout_ms": 2_000},
         {
@@ -453,6 +468,7 @@ def test_calculator_reciprocal_prepares_operand_for_visual_click() -> None:
         action.model_dump(mode="json", exclude_none=True)
         for action in controller.actions
     ] == [
+        *_CALCULATOR_STANDARD_MODE_ACTIONS,
         {"type": "key", "keys": ["Digit6"]},
         {"type": "key", "keys": ["Digit4"]},
         {"type": "wait_for_change", "timeout_ms": 2_000},
@@ -559,6 +575,63 @@ def test_calculator_converter_uses_layout_independent_keyboard_navigation(
         "Windows Calculator visibly shows its unit converter view."
     ]
     assert _calculator_fast_path(run, max_actions=20) is not None
+
+
+def test_calculator_fast_path_normalizes_persisted_mode_for_arithmetic() -> None:
+    run = RunSnapshot(
+        run_id="calculator-fast-path-mode",
+        task=(
+            "Use Windows Calculator to compute 13 to the power of 4. "
+            "Leave the exact result visible and report it."
+        ),
+        status=RunStatus.PAUSED,
+    )
+
+    fast_path = _calculator_fast_path(run, max_actions=20)
+
+    assert fast_path is not None
+    _, controller = fast_path
+    assert controller.expected_evidence == [
+        "Windows Calculator is visibly open."
+    ]
+    launch = PendingAction(
+        index=0,
+        intent="Launch Calculator.",
+        actions=[{"type": "type_text", "text": "calc"}],
+        based_on_world_version=1,
+        based_on_control_epoch=0,
+        idempotency_key="calculator-fast-path-mode-launch",
+    )
+    expression = _calculator_task_controller(
+        run,
+        launch,
+        max_actions=20,
+    )
+    assert expression is not None
+    assert [
+        action.model_dump(mode="json", exclude_none=True)
+        for action in expression.actions[:2]
+    ] == _CALCULATOR_STANDARD_MODE_ACTIONS
+
+
+def test_calculator_converter_launch_accepts_any_persisted_mode() -> None:
+    run = RunSnapshot(
+        run_id="calculator-fast-path-converter-mode",
+        task=(
+            "Use Windows Calculator's temperature converter to convert 23 "
+            "degrees Celsius to Fahrenheit. Leave the converted value visible "
+            "and report it."
+        ),
+        status=RunStatus.PAUSED,
+    )
+
+    fast_path = _calculator_fast_path(run, max_actions=20)
+
+    assert fast_path is not None
+    _, controller = fast_path
+    assert controller.expected_evidence == [
+        "Windows Calculator is visibly open."
+    ]
 
 
 def test_controller_can_launch_a_standard_app_in_one_safe_burst() -> None:
@@ -2094,7 +2167,7 @@ async def test_calculator_task_skips_reasoner_and_controller_round_trips() -> No
         store=InMemoryRunStore(),
         config=HarnessConfig(
             max_actions_per_advance=2,
-            max_actions_per_burst=8,
+            max_actions_per_burst=10,
         ),
     )
 
@@ -2111,6 +2184,7 @@ async def test_calculator_task_skips_reasoner_and_controller_round_trips() -> No
     assert provider.verifier_calls == 2
     assert len(computer.bursts) == 2
     assert computer.bursts[1]["actions"] == [
+        *_CALCULATOR_STANDARD_MODE_ACTIONS,
         {"type": "key", "keys": ["Digit3"]},
         {"type": "key", "keys": ["Digit7"]},
         {"type": "key", "keys": ["NumpadMultiply"]},

@@ -771,6 +771,12 @@ def _calculator_task_controller(
 
     active_actions = _calculator_key_actions(keys)
     actions = [
+        {"type": "key", "keys": ["AltLeft", "Digit1"]},
+        {
+            "type": "wait_for_stable_screen",
+            "stable_ms": 300,
+            "timeout_ms": 3_000,
+        },
         *active_actions,
         {"type": "wait_for_change", "timeout_ms": 2_000},
         {
@@ -909,7 +915,7 @@ def _calculator_fast_path(
             {"type": "key", "keys": ["ENTER"]},
         ],
         expected_evidence=[
-            "Windows Calculator is visibly open in Standard mode."
+            "Windows Calculator is visibly open."
         ],
         expects_task_completion=False,
     )
