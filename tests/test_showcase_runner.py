@@ -22,6 +22,7 @@ from pikvm_agent.harness.showcase_runner import (
     VncAdapter,
     _windows_desktop_taskbar_visible,
     _merge_reboot_attempts,
+    _repair_recovered_reboot_status,
     _task_error_before_reboot,
     approval_disposition,
     approval_is_safe,
@@ -215,6 +216,17 @@ def test_reboot_retry_preserves_task_error_and_prior_attempts() -> None:
     assert _task_error_before_reboot(record) == (
         "task exceeded the campaign time limit"
     )
+    assert (
+        _task_error_before_reboot(
+            {
+                "error": (
+                    "reboot failed: TimeoutError: Windows did not reach "
+                    "a stable desktop"
+                )
+            }
+        )
+        is None
+    )
     assert _merge_reboot_attempts(
         [{"attempt": 1, "transition_observed": False}],
         [
@@ -226,6 +238,25 @@ def test_reboot_retry_preserves_task_error_and_prior_attempts() -> None:
         {"attempt": 2, "transition_observed": False},
         {"attempt": 3, "transition_observed": True},
     ]
+
+
+def test_recovered_reboot_reconciles_completed_task_without_rerunning() -> None:
+    record = {
+        "status": "failed",
+        "error": (
+            "reboot failed: TimeoutError: Windows did not reach "
+            "a stable desktop"
+        ),
+        "task_error": None,
+        "result": {"status": "completed"},
+        "reboot": {"status": "ready", "transition_observed": True},
+        "recording": "task-1/recording.webm",
+    }
+
+    assert _repair_recovered_reboot_status(record) is True
+    assert record["status"] == "passed"
+    assert record["error"] is None
+    assert _repair_recovered_reboot_status(record) is False
 
 
 def test_workspace_approval_allowlist_rejects_communications_and_shutdown() -> None:

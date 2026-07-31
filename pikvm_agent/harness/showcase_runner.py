@@ -158,7 +158,30 @@ def _task_error_before_reboot(record: dict[str, Any]) -> str | None:
         if marker >= 0:
             error = error[:marker]
             break
+    if error.startswith(
+        (
+            "reboot command did not produce a visible boot transition",
+            "reboot failed:",
+        )
+    ):
+        return None
     return error or None
+
+
+def _repair_recovered_reboot_status(record: dict[str, Any]) -> bool:
+    """Reconcile a completed task after its reboot-only retry succeeds."""
+
+    if not (
+        record.get("status") == "failed"
+        and (record.get("reboot") or {}).get("status") == "ready"
+        and (record.get("result") or {}).get("status") == "completed"
+        and record.get("recording")
+        and _task_error_before_reboot(record) is None
+    ):
+        return False
+    record["status"] = "passed"
+    record["error"] = None
+    return True
 
 
 def _merge_reboot_attempts(
@@ -1032,6 +1055,8 @@ async def run_showcase_campaign(
             record = writer.task(spec.task_id)
             record.setdefault("recoveries", [])
             record.setdefault("task_error", _task_error_before_reboot(record))
+            if _repair_recovered_reboot_status(record):
+                writer.flush()
             if (
                 record["status"] in {"passed", "failed"}
                 and record["reboot"]["status"] == "ready"
