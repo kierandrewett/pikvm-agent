@@ -450,6 +450,63 @@ def _normalize_sequential_key_actions(
     return normalized, split_actions, False
 
 
+_CALCULATOR_TASK_EXPRESSION = re.compile(
+    r"\b(?P<left>\d{1,6})\s*"
+    r"(?P<operator>multiplied\s+by|times|\*)\s*"
+    r"(?P<right>\d{1,6})\b",
+    re.IGNORECASE,
+)
+
+
+def _calculator_task_controller(
+    run: RunSnapshot,
+    action: PendingAction | None,
+    *,
+    max_actions: int,
+) -> ControllerDecision | None:
+    """Prepare one deterministic integer multiplication after Calculator opens."""
+
+    if action is None:
+        return None
+    launched = any(
+        item.get("type") == "type_text"
+        and str(item.get("text") or "").strip().casefold()
+        in {"calc", "calc.exe", "calculator"}
+        for item in action.actions
+    )
+    match = _CALCULATOR_TASK_EXPRESSION.search(run.task)
+    if not launched or match is None:
+        return None
+    left = match.group("left")
+    right = match.group("right")
+    keys = [*left, "NumpadMultiply", *right, "Enter"]
+    actions: list[dict[str, Any]] = [
+        {"type": "key", "keys": keys},
+        {"type": "wait_for_change", "timeout_ms": 2_000},
+        {
+            "type": "wait_for_stable_screen",
+            "stable_ms": 400,
+            "timeout_ms": 3_000,
+        },
+    ]
+    expanded_count = len(keys) + len(actions) - 1
+    if expanded_count > max_actions:
+        return None
+    result = str(int(left) * int(right))
+    return ControllerDecision(
+        outcome="act",
+        intent=(
+            f"Evaluate the requested local Calculator expression "
+            f"{left} × {right}."
+        ),
+        actions=actions,
+        expected_evidence=[
+            f"Calculator's main display visibly reads exactly {result}."
+        ],
+        expects_task_completion=True,
+    )
+
+
 _CONTROLLER_SYSTEM = """\
 You are the fast controller for a physical computer. Choose one bounded logical
 burst against the supplied frame and checkpointed plan. A bounded burst is a
@@ -1398,6 +1455,13 @@ class AgentHarness:
             completion_hint_added = (
                 added_change_waits > 0
                 and not controller.expects_task_completion
+                and any(
+                    action.get("type") == "type_text"
+                    and str(action.get("text") or "")
+                    .casefold()
+                    .startswith("ms-settings:")
+                    for action in normalized_actions
+                )
                 and _is_read_only_settings_request(run)
             )
             if (
@@ -2441,35 +2505,61 @@ class AgentHarness:
         validation/checkpoint path adopts it.
         """
 
+        deterministic_controller = _calculator_task_controller(
+            run,
+            action,
+            max_actions=self.config.max_actions_per_burst,
+        )
+        roles = (
+            ["verifier", "deterministic_calculator"]
+            if deterministic_controller is not None
+            else ["verifier", "controller"]
+        )
         run.record(
             "controller.parallel_started",
             action_index=action.index if action is not None else None,
-            roles=["verifier", "controller"],
+            roles=roles,
         )
+        if deterministic_controller is not None:
+            run.record(
+                "controller.calculator_expression_prepared",
+                intent=deterministic_controller.intent,
+                source="literal_task_expression",
+            )
         await self.store.save(run)
         verify_task = asyncio.create_task(
             self._verify(run, action=action, before=before),
             name=f"harness-verify:{run.run_id}",
         )
-        control_task = asyncio.create_task(
-            self._control(run),
-            name=f"harness-control:{run.run_id}",
-        )
-        try:
-            _, controller = await asyncio.gather(
-                verify_task,
-                control_task,
+        if deterministic_controller is not None:
+            try:
+                await verify_task
+            except BaseException:
+                if not verify_task.done():
+                    verify_task.cancel()
+                await asyncio.gather(verify_task, return_exceptions=True)
+                raise
+            controller = deterministic_controller
+        else:
+            control_task = asyncio.create_task(
+                self._control(run),
+                name=f"harness-control:{run.run_id}",
             )
-        except BaseException:
-            for task in (verify_task, control_task):
-                if not task.done():
-                    task.cancel()
-            await asyncio.gather(
-                verify_task,
-                control_task,
-                return_exceptions=True,
-            )
-            raise
+            try:
+                _, controller = await asyncio.gather(
+                    verify_task,
+                    control_task,
+                )
+            except BaseException:
+                for task in (verify_task, control_task):
+                    if not task.done():
+                        task.cancel()
+                await asyncio.gather(
+                    verify_task,
+                    control_task,
+                    return_exceptions=True,
+                )
+                raise
 
         if (
             run.status is RunStatus.RUNNING

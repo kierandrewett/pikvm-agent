@@ -13,6 +13,7 @@ from pikvm_agent.harness.agent import (
     _CONTROLLER_SYSTEM,
     _REASONER_SYSTEM,
     _is_read_only_settings_request,
+    _calculator_task_controller,
     _normalize_sequential_key_actions,
     _normalize_windows_run_launch,
     _normalize_plan_safety_constraints,
@@ -89,6 +90,49 @@ def test_sequential_key_expansion_fails_closed_at_action_limit() -> None:
     assert normalized == actions
     assert added == 0
     assert overflow is True
+
+
+def test_literal_calculator_task_prepares_one_bounded_key_sequence() -> None:
+    run = RunSnapshot(
+        run_id="calculator-run",
+        task=(
+            "Use Windows Calculator to compute 37 multiplied by 19. "
+            "Leave the exact result visible and report it."
+        ),
+        status=RunStatus.PAUSED,
+    )
+    launch = PendingAction(
+        index=0,
+        intent="Launch Calculator.",
+        actions=[
+            {"type": "key", "keys": ["WIN", "R"]},
+            {"type": "type_text", "text": "calc"},
+            {"type": "key", "keys": ["ENTER"]},
+        ],
+        based_on_world_version=1,
+        based_on_control_epoch=0,
+        idempotency_key="calculator-launch",
+    )
+
+    controller = _calculator_task_controller(
+        run,
+        launch,
+        max_actions=8,
+    )
+
+    assert controller is not None
+    assert controller.expects_task_completion is True
+    assert controller.actions[0].keys == [
+        "3",
+        "7",
+        "NumpadMultiply",
+        "1",
+        "9",
+        "Enter",
+    ]
+    assert controller.expected_evidence == [
+        "Calculator's main display visibly reads exactly 703."
+    ]
 
 
 def test_controller_can_launch_a_standard_app_in_one_safe_burst() -> None:
@@ -1484,6 +1528,134 @@ def build_harness(
         models=pool,
         store=InMemoryRunStore(),
         config=HarnessConfig(max_actions_per_advance=1),
+    )
+
+
+@pytest.mark.asyncio
+async def test_calculator_followup_skips_another_controller_round_trip() -> None:
+    class CalculatorProvider(ScriptedProvider):
+        def __init__(self) -> None:
+            super().__init__()
+            self.controller_calls = 0
+            self.verifier_calls = 0
+
+        async def complete(self, request: ModelRequest) -> ModelResponse:
+            self.requests.append(request)
+            if request.role == "reasoner":
+                return ModelResponse(
+                    provider=self.name,
+                    model="scripted-v1",
+                    data={
+                        "summary": "Open Calculator and evaluate the expression.",
+                        "steps": ["Open Calculator", "Evaluate 37 times 19"],
+                        "success_criteria": [
+                            "Calculator visibly displays exactly 703."
+                        ],
+                        "constraints": [],
+                    },
+                )
+            if request.role == "controller":
+                self.controller_calls += 1
+                return ModelResponse(
+                    provider=self.name,
+                    model="scripted-v1",
+                    data={
+                        "outcome": "act",
+                        "intent": "Launch Calculator.",
+                        "actions": [
+                            {"type": "key", "keys": ["WIN", "R"]},
+                            {"type": "wait", "ms": 300},
+                            {
+                                "type": "type_text",
+                                "text": "calc",
+                                "context": "field",
+                                "verification": "exact",
+                            },
+                            {"type": "key", "keys": ["ENTER"]},
+                        ],
+                        "expected_evidence": [
+                            "Windows Calculator is visibly open."
+                        ],
+                    },
+                )
+            self.verifier_calls += 1
+            if self.verifier_calls == 1:
+                data = {
+                    "verdict": "verified",
+                    "summary": "Windows Calculator is visibly open.",
+                    "evidence": ["Calculator is foreground and displays 0."],
+                    "action_criteria": [
+                        {
+                            "criterion_index": 0,
+                            "satisfied": True,
+                            "evidence": "Calculator is foreground.",
+                        }
+                    ],
+                }
+            else:
+                data = {
+                    "verdict": "complete",
+                    "summary": "Calculator visibly displays exactly 703.",
+                    "evidence": ["The main display reads 703."],
+                    "criteria": [
+                        {
+                            "criterion_index": 0,
+                            "satisfied": True,
+                            "evidence": "The main display reads 703.",
+                        }
+                    ],
+                }
+            return ModelResponse(
+                provider=self.name,
+                model="scripted-v1",
+                data=data,
+            )
+
+    provider = CalculatorProvider()
+    computer = FakeComputer()
+    pool = ModelPool(
+        providers={provider.name: provider},
+        routes={
+            role: RoleRoute(providers=[provider.name])
+            for role in ("reasoner", "controller", "verifier")
+        },
+    )
+    harness = AgentHarness(
+        computer=computer,
+        models=pool,
+        store=InMemoryRunStore(),
+        config=HarnessConfig(
+            max_actions_per_advance=2,
+            max_actions_per_burst=8,
+        ),
+    )
+
+    completed = await harness.start(
+        "Use Windows Calculator to compute 37 multiplied by 19. "
+        "Leave the exact result visible and report it."
+    )
+
+    assert completed.status is RunStatus.COMPLETED
+    assert provider.controller_calls == 1
+    assert provider.verifier_calls == 2
+    assert len(computer.bursts) == 2
+    assert computer.bursts[1]["actions"] == [
+        {"type": "key", "keys": ["Digit3"]},
+        {"type": "key", "keys": ["Digit7"]},
+        {"type": "key", "keys": ["NumpadMultiply"]},
+        {"type": "key", "keys": ["Digit1"]},
+        {"type": "key", "keys": ["Digit9"]},
+        {"type": "key", "keys": ["Enter"]},
+        {"type": "wait_for_change", "timeout_ms": 2_000},
+        {
+            "type": "wait_for_stable_screen",
+            "stable_ms": 400,
+            "timeout_ms": 3_000,
+        },
+    ]
+    assert any(
+        event.kind == "controller.calculator_expression_prepared"
+        for event in completed.events
     )
 
 
