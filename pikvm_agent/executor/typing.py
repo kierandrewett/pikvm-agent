@@ -1708,6 +1708,11 @@ class WatchedTyper:
             strong_precise_transport_mismatch = False
             credible_one_edit_read = False
             one_character_prefix_read = False
+            long_precise_layout_like_read = (
+                precise
+                and len(intended_snapshot) > 20
+                and kind in {"layout", "case"}
+            )
             if (
                 precise
                 and intended_snapshot == text
@@ -1748,6 +1753,7 @@ class WatchedTyper:
                     strong_precise_transport_mismatch
                     or credible_one_edit_read
                     or one_character_prefix_read
+                    or long_precise_layout_like_read
                 )
             ):
                 # A focused single-line field can permanently include the
@@ -1791,6 +1797,15 @@ class WatchedTyper:
                     last_read = rechecked
                     if norm(intended_snapshot, precise) == norm(text, precise):
                         verified_clean = True
+                    return
+                if long_precise_layout_like_read:
+                    # Long exact fields are too costly to erase and replay from
+                    # OCR alone. Remote framebuffer anti-aliasing can make every
+                    # backslash resemble a hash (or invert apparent case) while
+                    # the guest text is already correct. Blur the caret once for
+                    # independent evidence, then fail closed and leave the field
+                    # untouched if the read remains ambiguous.
+                    last_read = rechecked or read_back
                     return
                 if one_character_prefix_read:
                     last_read = rechecked or read_back

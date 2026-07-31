@@ -955,6 +955,87 @@ async def test_short_exact_field_reads_once_with_caret_blurred() -> None:
 @pytest.mark.parametrize(
     ("blurred_read", "expected_status"),
     [
+        (r"C:\PiKVM-Harness\workspace\codex-50", "verified_exact"),
+        (r"C:#PiKVM-Harness#workspace#codex-50", "failed_keyboard_layout"),
+    ],
+)
+async def test_long_exact_field_blurs_layout_like_ocr_without_retyping(
+    blurred_read: str,
+    expected_status: str,
+) -> None:
+    backend = FakeBackend(layout="uk")
+    intended = r"C:\PiKVM-Harness\workspace\codex-50"
+    distorted = r"C:#PiKVM-Harness#workspace#codex-50"
+    emitted = ""
+
+    class LayoutLikeCaretOCR:
+        async def ocr(self, image_path, region=None):
+            return await self.ocr_precise(image_path, region=region)
+
+        async def ocr_precise(self, image_path, region=None):
+            del image_path, region
+            last_keypress = next(
+                (
+                    kwargs["keys"]
+                    for method, kwargs in reversed(backend.calls)
+                    if method == "keypress"
+                ),
+                [],
+            )
+            observed = emitted
+            if emitted == intended:
+                observed = blurred_read if last_keypress == ["Tab"] else distorted
+            return OCRResult(
+                lines=[
+                    OCRLine(
+                        text=observed,
+                        confidence=0.98,
+                        bbox=[100, 115, 500, 135],
+                    )
+                ]
+                if observed
+                else [],
+                spacing_evidence="verified",
+            )
+
+    original_type = backend.type_text
+
+    async def typing(
+        text: str,
+        *,
+        code: bool = False,
+        secret: bool = False,
+    ) -> None:
+        nonlocal emitted
+        await original_type(text, code=code, secret=secret)
+        emitted += text
+
+    backend.type_text = typing  # type: ignore[method-assign]
+
+    result = await WatchedTyper(backend, LayoutLikeCaretOCR()).type_text(
+        intended,
+        region=Region(x=80, y=100, width=500, height=50),
+        exact=True,
+        context="field",
+    )
+
+    assert result.status == expected_status, result
+    assert result.correction_count == 0
+    assert result.emitted_exactly_once is True
+    assert emitted == intended
+    assert backend.layout == "uk"
+    assert ("keypress", {"keys": ["Tab"]}) in backend.calls
+    assert ("keypress", {"keys": ["ShiftLeft", "Tab"]}) in backend.calls
+    assert not any(
+        method == "press_key" and kwargs["code"] == "Backspace"
+        for method, kwargs in backend.calls
+    )
+    _assert_no_enter(backend)
+
+
+@pytest.mark.parametrize(
+    ("blurred_read", "expected_status"),
+    [
         ("taskmgr", "verified_exact"),
         ("taskmngr", "unverified_ambiguous"),
     ],
