@@ -13,7 +13,7 @@ from pikvm_agent.harness.agent import (
     _CONTROLLER_SYSTEM,
     _REASONER_SYSTEM,
     _is_read_only_settings_request,
-    _normalize_native_settings_launch,
+    _normalize_windows_run_launch,
     _normalize_plan_safety_constraints,
 )
 from pikvm_agent.harness.agent_models import (
@@ -74,12 +74,14 @@ def test_native_settings_launch_waits_through_splash_and_page_render() -> None:
         },
     ]
 
-    normalized, added = _normalize_native_settings_launch(
+    normalized, added, settled = _normalize_windows_run_launch(
         actions,
         max_actions=8,
     )
 
     assert added == 1
+    assert settled is True
+    assert normalized[1] == {"type": "wait", "ms": 1_000}
     assert normalized[4:7] == [
         {"type": "wait_for_change", "timeout_ms": 5_000},
         {"type": "wait_for_change", "timeout_ms": 10_000},
@@ -105,16 +107,18 @@ def test_native_settings_launch_normalization_is_idempotent() -> None:
         {"type": "wait_for_change", "timeout_ms": 10_000},
     ]
 
-    normalized, added = _normalize_native_settings_launch(
+    normalized, added, settled = _normalize_windows_run_launch(
         actions,
         max_actions=8,
     )
 
     assert added == 0
-    assert normalized == actions
+    assert settled is True
+    assert normalized[1] == {"type": "wait", "ms": 1_000}
+    assert normalized[2:] == actions[1:]
 
 
-def test_standard_app_launch_does_not_get_settings_splash_wait() -> None:
+def test_standard_app_launch_gets_only_the_pre_type_settle() -> None:
     actions = [
         {"type": "key", "keys": ["META", "R"]},
         {
@@ -127,13 +131,18 @@ def test_standard_app_launch_does_not_get_settings_splash_wait() -> None:
         {"type": "wait_for_change", "timeout_ms": 5_000},
     ]
 
-    normalized, added = _normalize_native_settings_launch(
+    normalized, added, settled = _normalize_windows_run_launch(
         actions,
         max_actions=8,
     )
 
     assert added == 0
-    assert normalized == actions
+    assert settled is True
+    assert normalized == [
+        actions[0],
+        {"type": "wait", "ms": 1_000},
+        *actions[1:],
+    ]
 
 
 @pytest.mark.parametrize(

@@ -230,12 +230,12 @@ def _is_read_only_settings_request(run: RunSnapshot) -> bool:
     )
 
 
-def _normalize_native_settings_launch(
+def _normalize_windows_run_launch(
     actions: list[dict[str, Any]],
     *,
     max_actions: int,
-) -> tuple[list[dict[str, Any]], int]:
-    """Wait for both the Settings splash and the requested page.
+) -> tuple[list[dict[str, Any]], int, bool]:
+    """Settle Windows Run before typing and wait through Settings startup.
 
     Windows Run first transitions to a stable Settings splash, then transitions
     again when the requested page is rendered. A single change wait can
@@ -245,7 +245,34 @@ def _normalize_native_settings_launch(
 
     normalized = [dict(action) for action in actions]
     if not is_verified_windows_run_launch(normalized):
-        return normalized, 0
+        return normalized, 0, False
+    text_index = next(
+        (
+            index
+            for index, action in enumerate(normalized)
+            if action.get("type") == "type_text"
+        ),
+        -1,
+    )
+    if text_index < 0:
+        return normalized, 0, False
+    pre_type_settle_normalized = False
+    pre_type_wait_indices = [
+        index
+        for index, action in enumerate(normalized[:text_index])
+        if action.get("type") == "wait"
+    ]
+    if pre_type_wait_indices:
+        wait_index = pre_type_wait_indices[-1]
+        wait_ms = int(normalized[wait_index].get("ms") or 0)
+        if wait_ms < 1_000:
+            normalized[wait_index]["ms"] = 1_000
+            pre_type_settle_normalized = True
+    elif len(normalized) < max_actions:
+        normalized.insert(1, {"type": "wait", "ms": 1_000})
+        text_index += 1
+        pre_type_settle_normalized = True
+
     text = next(
         (
             str(action.get("text") or "")
@@ -255,7 +282,7 @@ def _normalize_native_settings_launch(
         "",
     )
     if not text.casefold().startswith("ms-settings:"):
-        return normalized, 0
+        return normalized, 0, pre_type_settle_normalized
 
     submit_index = next(
         (
@@ -271,7 +298,7 @@ def _normalize_native_settings_launch(
         -1,
     )
     if submit_index < 0:
-        return normalized, 0
+        return normalized, 0, pre_type_settle_normalized
 
     added = 0
     while (
@@ -305,7 +332,7 @@ def _normalize_native_settings_launch(
             {"type": "wait_for_change", "timeout_ms": 10_000},
         )
         added += 1
-    return normalized, added
+    return normalized, added, pre_type_settle_normalized
 
 
 _CONTROLLER_SYSTEM = """\
@@ -1244,18 +1271,24 @@ class AgentHarness:
                 )
                 await self.store.save(run)
                 return run
-            normalized_actions, added_change_waits = (
-                _normalize_native_settings_launch(
-                    proposed_actions,
-                    max_actions=self.config.max_actions_per_burst,
-                )
+            (
+                normalized_actions,
+                added_change_waits,
+                pre_type_settle_normalized,
+            ) = _normalize_windows_run_launch(
+                proposed_actions,
+                max_actions=self.config.max_actions_per_burst,
             )
             completion_hint_added = (
                 added_change_waits > 0
                 and not controller.expects_task_completion
                 and _is_read_only_settings_request(run)
             )
-            if added_change_waits or completion_hint_added:
+            if (
+                added_change_waits
+                or pre_type_settle_normalized
+                or completion_hint_added
+            ):
                 controller_data = controller.model_dump(
                     mode="json",
                     exclude_none=True,
@@ -1266,8 +1299,9 @@ class AgentHarness:
                 controller = ControllerDecision.model_validate(controller_data)
                 proposed_actions = normalized_actions
                 run.record(
-                    "controller.native_settings_launch_normalized",
+                    "controller.windows_run_launch_normalized",
                     added_change_waits=added_change_waits,
+                    pre_type_settle_normalized=pre_type_settle_normalized,
                     completion_hint_added=completion_hint_added,
                 )
             run.last_controller = controller
