@@ -1565,7 +1565,7 @@ def harness_showcase_run(
         max=3_600,
     ),
     reboot_timeout_s: float = typer.Option(
-        180,
+        300,
         "--reboot-timeout-s",
         min=30,
         max=900,

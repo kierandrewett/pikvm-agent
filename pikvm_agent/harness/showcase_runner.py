@@ -570,20 +570,46 @@ class VncAdapter:
                 baseline=baseline,
                 timeout_s=min(45, timeout_s / 2),
             )
-            ready = await self.wait_until_ready(
-                timeout_s=max(
-                    10,
-                    timeout_s - (time.monotonic() - attempt_started),
-                ),
-                stable_s=8,
-            )
-            attempts.append(
+            attempt_record = {
+                "attempt": attempt,
+                "duration_ms": 0,
+                "transition_observed": transition,
+                "ready_observed": False,
+                "ready_frame_sha256": None,
+            }
+            attempts.append(attempt_record)
+            try:
+                ready = await self.wait_until_ready(
+                    timeout_s=max(
+                        10,
+                        timeout_s - (time.monotonic() - attempt_started),
+                    ),
+                    stable_s=8,
+                )
+            except TimeoutError as exc:
+                attempt_record.update(
+                    {
+                        "duration_ms": round(
+                            (time.monotonic() - attempt_started) * 1000
+                        ),
+                        "error": str(exc),
+                    }
+                )
+                return {
+                    "ready": False,
+                    "transition_observed": transition,
+                    "duration_ms": round(
+                        (time.monotonic() - started) * 1000
+                    ),
+                    "attempts": attempts,
+                    "error": str(exc),
+                }
+            attempt_record.update(
                 {
-                    "attempt": attempt,
                     "duration_ms": round(
                         (time.monotonic() - attempt_started) * 1000
                     ),
-                    "transition_observed": transition,
+                    "ready_observed": True,
                     "ready_frame_sha256": ready["frame_sha256"],
                 }
             )
@@ -591,13 +617,31 @@ class VncAdapter:
                 break
         if attempts and attempts[-1]["transition_observed"]:
             await self.show_desktop()
-            ready = await self.wait_until_ready(
-                timeout_s=max(
-                    10,
-                    timeout_s - (time.monotonic() - started),
-                ),
-                stable_s=2,
-            )
+            try:
+                ready = await self.wait_until_ready(
+                    timeout_s=max(
+                        10,
+                        timeout_s - (time.monotonic() - started),
+                    ),
+                    stable_s=2,
+                )
+            except TimeoutError as exc:
+                attempts[-1].update(
+                    {
+                        "ready_observed": False,
+                        "ready_frame_sha256": None,
+                        "error": str(exc),
+                    }
+                )
+                return {
+                    "ready": False,
+                    "transition_observed": True,
+                    "duration_ms": round(
+                        (time.monotonic() - started) * 1000
+                    ),
+                    "attempts": attempts,
+                    "error": str(exc),
+                }
             attempts[-1]["ready_frame_sha256"] = ready["frame_sha256"]
         return {
             **ready,
@@ -941,7 +985,7 @@ async def run_showcase_campaign(
     operator_token: str,
     operator_origin: str,
     task_timeout_s: float = 300,
-    reboot_timeout_s: float = 180,
+    reboot_timeout_s: float = 300,
     frame_interval_s: float = 0.5,
     max_same_run_recoveries: int = 8,
     stop_after_task_id: str | None = None,
@@ -1166,10 +1210,18 @@ async def run_showcase_campaign(
                     {
                         "status": (
                             "ready"
-                            if reboot["transition_observed"]
+                            if (
+                                reboot["transition_observed"]
+                                and reboot["ready"]
+                            )
                             else "failed"
                         ),
-                        "ready_at": utc_now(),
+                        "ready_at": (
+                            utc_now()
+                            if reboot["transition_observed"]
+                            and reboot["ready"]
+                            else None
+                        ),
                         "duration_ms": (
                             prior_reboot_duration_ms + reboot["duration_ms"]
                         ),
@@ -1185,6 +1237,13 @@ async def run_showcase_campaign(
                     run_error = (
                         f"{run_error}; " if run_error else ""
                     ) + "reboot command did not produce a visible boot transition"
+                elif not reboot["ready"]:
+                    run_error = (
+                        f"{run_error}; " if run_error else ""
+                    ) + str(
+                        reboot.get("error")
+                        or "reboot did not reach a verified Windows desktop"
+                    )
             except Exception as exc:  # noqa: BLE001 - retain isolation failure
                 record["reboot"].update(
                     {

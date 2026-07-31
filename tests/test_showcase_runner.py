@@ -770,6 +770,47 @@ async def test_reboot_retries_until_a_transition_is_proven() -> None:
 
 
 @pytest.mark.asyncio
+async def test_reboot_preserves_transition_when_desktop_readiness_times_out() -> None:
+    frame = Image.new("RGB", (1280, 800), "navy")
+    buffer = BytesIO()
+    frame.save(buffer, format="JPEG")
+    async with httpx.AsyncClient() as client:
+        adapter = VncAdapter(client, "http://127.0.0.1:48002")
+
+        async def current_frame() -> bytes:
+            return buffer.getvalue()
+
+        async def reboot() -> None:
+            return None
+
+        async def transition(**_kwargs) -> bool:
+            return True
+
+        async def never_ready(**_kwargs):
+            raise TimeoutError("slow Windows boot")
+
+        adapter.frame = current_frame  # type: ignore[method-assign]
+        adapter._reboot = reboot  # type: ignore[method-assign]
+        adapter._wait_for_boot_transition = transition  # type: ignore[method-assign]
+        adapter.wait_until_ready = never_ready  # type: ignore[method-assign]
+        result = await adapter.reboot_and_wait(timeout_s=30)
+
+    assert result["ready"] is False
+    assert result["transition_observed"] is True
+    assert result["error"] == "slow Windows boot"
+    assert result["attempts"] == [
+        {
+            "attempt": 1,
+            "duration_ms": result["attempts"][0]["duration_ms"],
+            "transition_observed": True,
+            "ready_observed": False,
+            "ready_frame_sha256": None,
+            "error": "slow Windows boot",
+        }
+    ]
+
+
+@pytest.mark.asyncio
 async def test_same_run_recovery_uses_continue_without_creating_a_task() -> None:
     requests: list[httpx.Request] = []
 
