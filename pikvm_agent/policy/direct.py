@@ -296,18 +296,37 @@ def is_confirmed_file_explorer_surface(
         return False
     if draft_text != "This PC":
         top_band = " ".join(top_band_text.casefold().split())
-        compact = re.sub(r"[^a-z0-9]+", "", text)
+        communication_surface = (
+            any(
+                marker in text
+                for marker in (
+                    "new message",
+                    "replying to",
+                    "message compose",
+                )
+            )
+            and "send" in text
+        )
+        if communication_surface:
+            return False
+        marker_text = f"{text}\n{top_band}"
+        compact = re.sub(r"[^a-z0-9]+", "", marker_text)
+        save_as_visible = bool(
+            re.search(r"\b(?:s?ave)\s+as\b", marker_text)
+            or "saveas" in compact
+        )
         file_picker_markers = {
             marker
             for marker, compact_marker in (
-                ("save as", "saveas"),
                 ("file name", "filename"),
                 ("save as type", "saveastype"),
                 ("new folder", "newfolder"),
                 ("encoding", "encoding"),
             )
-            if marker in text or compact_marker in compact
+            if marker in marker_text or compact_marker in compact
         }
+        if save_as_visible:
+            file_picker_markers.add("save as")
         return (
             (
                 draft_text.casefold() in top_band

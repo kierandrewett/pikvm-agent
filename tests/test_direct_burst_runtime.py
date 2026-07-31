@@ -766,10 +766,10 @@ async def test_exact_same_frame_grounds_save_as_enter_despite_real_ocr_noise(
             del image_path, region
             return OCRResult(
                 lines=[
-                    OCRLine(text="Recyele Saveas"),
-                    OCRLine(text="Origine New folder"),
+                    OCRLine(text="Renee"),
+                    OCRLine(text="Oiginse New folder"),
                     OCRLine(
-                        text="Filename: Reluble sutomation starts with batt"
+                        text="Reluble sutomation starts with batt"
                     ),
                 ]
             )
@@ -781,8 +781,8 @@ async def test_exact_same_frame_grounds_save_as_enter_despite_real_ocr_noise(
                 lines=[
                     OCRLine(
                         text=(
-                            r"ave as > Y BB APKVi-Hermess"
-                            r"\workspacei\codex-S0"
+                            r"ave as > Y BB CAPKVM-Homess"
+                            r"\workspace\codex-0 Rowse New folder"
                         )
                     )
                 ]

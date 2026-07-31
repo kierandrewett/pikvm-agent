@@ -527,11 +527,11 @@ def test_save_as_navigation_requires_safe_path_and_top_band_evidence() -> None:
 def test_same_exact_frame_tolerates_real_save_as_ocr_noise() -> None:
     path = r"C:\PiKVM-Harness\workspace\codex-50"
     noisy_surface = (
-        "Recyele Saveas Origine New folder Filename: "
+        "Renee Oiginse New folder "
         "Reluble sutomation starts with batt"
     )
     noisy_top_band = (
-        r"ave as > Y BB APKVi-Hermess\workspacei\codex-S0 "
+        r"ave as > Y BB CAPKVM-Homess\workspace\codex-0 "
         "earch Document Rowse New folder"
     )
 
