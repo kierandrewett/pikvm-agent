@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "report": "codex-50-live-progress",
-  "recorded_at": "2026-07-31T19:17:35Z",
+  "recorded_at": "2026-07-31T20:48:15Z",
   "manifest": "bench/codex-50-tasks.yaml",
   "environment": {
     "target": "authorized disposable Windows VNC VM",
@@ -16,9 +16,9 @@
   },
   "progress": {
     "planned": 50,
-    "unique_passed": 15,
-    "pending": 35,
-    "completion_percent": 30.0,
+    "unique_passed": 16,
+    "pending": 34,
+    "completion_percent": 32.0,
     "categories": {
       "Observation": {
         "passed": 5,
@@ -29,7 +29,7 @@
         "planned": 10
       },
       "Text entry": {
-        "passed": 1,
+        "passed": 2,
         "planned": 10
       },
       "Code entry": {
@@ -64,7 +64,8 @@
       "calc-07",
       "calc-08",
       "calc-10",
-      "text-01"
+      "text-01",
+      "text-02"
     ]
   },
   "canonical_campaigns": [
@@ -136,6 +137,13 @@
         "text-01"
       ],
       "campaign_sha256": "7c6f8e70ee7dfa4f51e3b4fa71a5934a499170b743233acf03145ad3bcd49cb1"
+    },
+    {
+      "campaign_id": "codex-text-entry-text02-v6-20260731",
+      "tasks": [
+        "text-02"
+      ],
+      "campaign_sha256": "f588d1b79fa241b7dae387486cce91f88e125632b4166cbfb04ac0a1519a5cd4"
     }
   ],
   "text_01_acceptance": {
@@ -268,10 +276,114 @@
       "campaign_sha256": "463c8bea4ff2198803715aedb3b30844167c9af66ac5d70e0bbf122597224e0d"
     }
   ],
+  "text_02_acceptance": {
+    "task": "Preserve an em dash, curly quotes, commas, a semicolon, and ordinary prose through save and independent reopen",
+    "result": "passed",
+    "run_id": "5addb68d-9e42-40c6-a3ff-19f7e2ec0c1e",
+    "requested_characters": 78,
+    "native_readback_characters": 78,
+    "native_readback_verdict": "match",
+    "wall_clock_ms": 279940,
+    "provider_wait_ms": 175644,
+    "action_execution_ms": 149769,
+    "provider_calls": 28,
+    "actions_attempted": 13,
+    "actions_completed": 12,
+    "completion_efficiency": 0.9230769230769231,
+    "reboot_ms": 96101,
+    "reboot_transition_observed": true,
+    "recording": {
+      "relative_path": "codex-text-entry-text02-v6-20260731/text-02-punctuation/recording.webm",
+      "sha256": "b8e23ecf416d4cb05a94e5303398c0528e58acd8cc64bc75fad698b094c22cd0",
+      "codec": "vp9",
+      "width": 2048,
+      "height": 1280,
+      "fps": 2,
+      "duration_ms": 354000,
+      "size_bytes": 1043428
+    },
+    "poster": {
+      "relative_path": "codex-text-entry-text02-v6-20260731/text-02-punctuation/poster.jpg",
+      "sha256": "deefcdf502b537d8832348d0cc5bc2ddc92de037a7f150437f0715c8e2906e24"
+    },
+    "campaign_sha256": "f588d1b79fa241b7dae387486cce91f88e125632b4166cbfb04ac0a1519a5cd4"
+  },
+  "text_02_attempts": [
+    {
+      "campaign_id": "codex-text-entry-text02-v1-20260731",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "reason": "The visible Windows Run dialog did not open during preflight after three attempts; no task input was sent.",
+      "reboot_ms": 93738,
+      "campaign_sha256": "29abd481f0221433f0546d3834980bb0804c2b47bb77f25dd5abb181be91d0c6"
+    },
+    {
+      "campaign_id": "codex-text-entry-text02-v2-20260731",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "reason": "The VNC transport dropped the em dash and both curly quote characters; exact readback prevented the file from being accepted.",
+      "wall_clock_ms": 201877,
+      "provider_wait_ms": 77927,
+      "action_execution_ms": 118102,
+      "provider_calls": 13,
+      "reboot_ms": 72953,
+      "campaign_sha256": "6f6973fb457ecb2614bcd3686a7bba38ad376854969a3e048a65d70b818adafb"
+    },
+    {
+      "campaign_id": "codex-text-entry-text02-v3-20260731",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "reason": "CP1252 Alt-code transport preserved the punctuation, but the rapid ordinary-key stream dropped one letter; exact readback stopped before save.",
+      "wall_clock_ms": 144675,
+      "provider_wait_ms": 15449,
+      "action_execution_ms": 128288,
+      "provider_calls": 2,
+      "reboot_ms": 76936,
+      "campaign_sha256": "16b451dc2f5a5566adffdcc59c76217babd895138486c58ae2fa78dead9a4763"
+    },
+    {
+      "campaign_id": "codex-text-entry-text02-v4-20260731",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "reason": "Spaced ordinary-key delivery reached all 78 characters, but downscaled OCR repeatedly read the visible em dash as a hyphen; exact verification failed closed.",
+      "wall_clock_ms": 141125,
+      "provider_wait_ms": 16833,
+      "action_execution_ms": 123215,
+      "provider_calls": 2,
+      "reboot_ms": 97322,
+      "campaign_sha256": "636fb70235533980c74f272db5a1af706f8ff2abf55b6729fc7a7a78b07eec97"
+    },
+    {
+      "campaign_id": "codex-text-entry-text02-v5-20260731",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "reason": "Native field recapture achieved an exact 78-character match, but the model used bare Enter to commit Save As and the unknown-action safety gate correctly stopped it.",
+      "wall_clock_ms": 147421,
+      "provider_wait_ms": 69078,
+      "action_execution_ms": 76393,
+      "provider_calls": 10,
+      "reboot_ms": 108068,
+      "campaign_sha256": "011c40b2b4cbef01076f531f04d9da6d2b315f72c5ea302e57e10ac7ed643670"
+    },
+    {
+      "campaign_id": "codex-text-entry-text02-v6-20260731",
+      "reported_status": "passed",
+      "accepted_status": "passed",
+      "reason": "Native exact readback matched all 78 characters, a visibly labelled Save button grounded the commit, and a separate Open action restored the exact saved sentence.",
+      "wall_clock_ms": 279940,
+      "provider_wait_ms": 175644,
+      "action_execution_ms": 149769,
+      "provider_calls": 28,
+      "actions_attempted": 13,
+      "actions_completed": 12,
+      "reboot_ms": 96101,
+      "campaign_sha256": "f588d1b79fa241b7dae387486cce91f88e125632b4166cbfb04ac0a1519a5cd4"
+    }
+  ],
   "verdict": {
-    "accuracy": "The exact text task now passes, including independent reopen evidence.",
-    "speed": "Failing product target: the refined pass took 259.245 seconds, 45.48% faster than the accepted v17 run but still slower than a human.",
-    "dominant_cost": "Provider waits consumed 129.658 seconds and action execution consumed 123.297 seconds; the longest action took 33.208 seconds.",
-    "next": "Continue the blind text-entry batch while reducing the remaining 25 provider calls and duplicate verification rounds."
+    "accuracy": "Two exact text tasks now pass with independent reopen evidence; text-02 additionally preserves CP1252 punctuation and verifies all 78 visible characters from a native field crop.",
+    "speed": "Failing product target: text-02 took 279.940 seconds before reboot and remains slower than a human.",
+    "dominant_cost": "Text-02 provider waits consumed 175.644 seconds across 28 calls, while action execution consumed 149.769 seconds; overlapping work prevents these components from summing directly to wall time.",
+    "next": "Continue the blind text-entry batch while reducing controller/verifier round trips, especially the 28 provider calls used for a one-line save and reopen task."
   }
 }

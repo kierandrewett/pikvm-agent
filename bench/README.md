@@ -51,8 +51,8 @@ support a claim of generally reliable autonomous Windows operation.
 
 ### Live 50-task Windows campaign
 
-The active disposable-Windows campaign has **15/50 unique accepted passes
-(30%)**. Every attempt is screen-recorded, every test ends with a VM reboot,
+The active disposable-Windows campaign has **16/50 unique accepted passes
+(32%)**. Every attempt is screen-recorded, every test ends with a VM reboot,
 and a pass is counted only once even when the same task is rerun during
 remediation. Production PiKVM was not contacted.
 
@@ -60,12 +60,12 @@ remediation. Production PiKVM was not contacted.
 | --- | ---: | ---: | --- |
 | Observation | 5 | 5 | Complete |
 | Calculator | 9 | 10 | `calc-09` pending |
-| Text entry | 1 | 10 | `text-01` accepted |
+| Text entry | 2 | 10 | `text-01` and `text-02` accepted |
 | Code entry | 0 | 10 | Pending |
 | File management | 0 | 5 | Pending |
 | Microsoft Excel | 0 | 5 | Pending |
 | Microsoft Word | 0 | 5 | Pending |
-| **Total** | **15** | **50** | **35 pending** |
+| **Total** | **16** | **50** | **34 pending** |
 
 The first exact text task required seven retained acceptance and speed attempts. v13
 reported success but is marked **invalid** because leaving Notepad open after
@@ -88,9 +88,25 @@ speed has not. A human can still perform this task materially faster, so the
 next campaign slice expands blind text entry while continuing to target
 provider and verification call count.
 
-Failure-inclusive metrics, canonical campaign digests, the 15 accepted task
+The second text task exercised an em dash, curly quotes, commas, a semicolon,
+and ordinary prose. Its first five attempts exposed five distinct failures:
+transient Win+R delivery, dropped CP1252 punctuation, a dropped ordinary
+letter, downscaled OCR misclassifying an em dash as a hyphen, and an
+appropriately blocked bare-Enter Save commit. The accepted v6 run used CP1252
+Alt codes only for unsupported direct characters, paced ordinary VNC key
+events, recaptured the exact text row at its native 774×42 resolution, and
+clicked the visibly labelled Save button. It then reopened `text-02.txt` and
+verified all 78 characters. The mandatory reboot surfaced a stable desktop
+after a visible transition.
+
+Text-02 still took 279.940s before reboot: 175.644s of provider wait across 28
+calls and 149.769s of action execution, with the two lanes overlapping. Its
+reboot added 96.101s. This is a real accuracy improvement, not a speed success;
+the controller/verifier call count remains the dominant optimization target.
+
+Failure-inclusive metrics, canonical campaign digests, the 16 accepted task
 IDs, and the VP9 recording/poster hashes are retained in
-[`codex-50-progress-text-01.json`](results/2026-07-31/live-vnc/codex-50-progress-text-01.json).
+[`codex-50-progress.json`](results/2026-07-31/live-vnc/codex-50-progress.json).
 The complete 50-task manifest is
 [`codex-50-tasks.yaml`](codex-50-tasks.yaml).
 
