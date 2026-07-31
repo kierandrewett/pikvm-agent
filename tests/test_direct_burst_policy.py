@@ -499,6 +499,34 @@ def test_calculator_expression_requires_independent_surface_evidence() -> None:
     assert grounded.status == "allowed"
 
 
+def test_grounded_decimal_calculator_expression_is_allowed() -> None:
+    actions = [
+        {"type": "key", "keys": ["Digit8"]},
+        {"type": "key", "keys": ["Digit6"]},
+        {"type": "key", "keys": ["Digit4"]},
+        {"type": "key", "keys": ["NumpadMultiply"]},
+        {"type": "key", "keys": ["Digit1"]},
+        {"type": "key", "keys": ["Digit7"]},
+        {"type": "key", "keys": ["NumpadDecimal"]},
+        {"type": "key", "keys": ["Digit5"]},
+        {"type": "key", "keys": ["NumpadDivide"]},
+        {"type": "key", "keys": ["Digit1"]},
+        {"type": "key", "keys": ["Digit0"]},
+        {"type": "key", "keys": ["Digit0"]},
+        {"type": "key", "keys": ["Enter"]},
+    ]
+
+    grounded = classify_direct_burst(
+        actions,
+        PolicyConfig(),
+        observed_surface_text=(
+            "Standard  History  Memory  There's no history yet."
+        ),
+    )
+
+    assert grounded.status == "allowed"
+
+
 def test_arithmetic_looking_message_send_is_not_a_calculator_exception() -> None:
     actions = [
         {"type": "key", "keys": ["Digit3"]},

@@ -41,6 +41,10 @@ from pikvm_agent.harness.model_budget import (
 from pikvm_agent.harness.model_pool import ModelPool, RoleRoute
 
 
+def test_default_harness_burst_budget_supports_full_local_workflows() -> None:
+    assert HarnessConfig().max_actions_per_burst == 20
+
+
 def test_modifier_free_key_sequence_is_expanded_before_hid() -> None:
     actions = [
         {"type": "key", "keys": ["3", "7", "*", "1", "9", "ENTER"]},
@@ -122,16 +126,181 @@ def test_literal_calculator_task_prepares_one_bounded_key_sequence() -> None:
 
     assert controller is not None
     assert controller.expects_task_completion is True
-    assert controller.actions[0].keys == [
-        "3",
-        "7",
-        "NumpadMultiply",
-        "1",
-        "9",
-        "Enter",
+    assert [
+        action.model_dump(mode="json", exclude_none=True)
+        for action in controller.actions[:6]
+    ] == [
+        {"type": "key", "keys": ["Digit3"]},
+        {"type": "key", "keys": ["Digit7"]},
+        {"type": "key", "keys": ["NumpadMultiply"]},
+        {"type": "key", "keys": ["Digit1"]},
+        {"type": "key", "keys": ["Digit9"]},
+        {"type": "key", "keys": ["Enter"]},
     ]
     assert controller.expected_evidence == [
         "Calculator's main display visibly reads exactly 703."
+    ]
+
+
+def test_calculator_mixed_expression_is_prepared_without_model_replanning() -> None:
+    run = RunSnapshot(
+        run_id="calculator-mixed-expression",
+        task=(
+            "Use Windows Calculator to compute 144 divided by 12, then add 7. "
+            "Leave the exact result visible and report it."
+        ),
+        status=RunStatus.PAUSED,
+    )
+    launch = PendingAction(
+        index=0,
+        intent="Launch Calculator.",
+        actions=[
+            {"type": "key", "keys": ["WIN", "R"]},
+            {"type": "type_text", "text": "calc"},
+            {"type": "key", "keys": ["ENTER"]},
+        ],
+        based_on_world_version=1,
+        based_on_control_epoch=0,
+        idempotency_key="calculator-mixed-launch",
+    )
+
+    controller = _calculator_task_controller(
+        run,
+        launch,
+        max_actions=20,
+    )
+
+    assert controller is not None
+    assert [
+        action.model_dump(mode="json", exclude_none=True)
+        for action in controller.actions
+    ] == [
+        {"type": "key", "keys": ["Digit1"]},
+        {"type": "key", "keys": ["Digit4"]},
+        {"type": "key", "keys": ["Digit4"]},
+        {"type": "key", "keys": ["NumpadDivide"]},
+        {"type": "key", "keys": ["Digit1"]},
+        {"type": "key", "keys": ["Digit2"]},
+        {"type": "key", "keys": ["NumpadAdd"]},
+        {"type": "key", "keys": ["Digit7"]},
+        {"type": "key", "keys": ["Enter"]},
+        {"type": "wait_for_change", "timeout_ms": 2_000},
+        {
+            "type": "wait_for_stable_screen",
+            "stable_ms": 400,
+            "timeout_ms": 3_000,
+        },
+    ]
+    assert controller.expected_evidence == [
+        "Calculator's main display visibly reads exactly 19."
+    ]
+
+
+def test_calculator_square_root_is_prepared_without_model_replanning() -> None:
+    run = RunSnapshot(
+        run_id="calculator-square-root",
+        task=(
+            "Use Windows Calculator to find the square root of 2025. "
+            "Leave the exact result visible and report it."
+        ),
+        status=RunStatus.PAUSED,
+    )
+    launch = PendingAction(
+        index=0,
+        intent="Launch Calculator.",
+        actions=[
+            {"type": "key", "keys": ["WIN", "R"]},
+            {"type": "type_text", "text": "calc"},
+            {"type": "key", "keys": ["ENTER"]},
+        ],
+        based_on_world_version=1,
+        based_on_control_epoch=0,
+        idempotency_key="calculator-square-root-launch",
+    )
+
+    controller = _calculator_task_controller(
+        run,
+        launch,
+        max_actions=20,
+    )
+
+    assert controller is not None
+    assert [
+        action.model_dump(mode="json", exclude_none=True)
+        for action in controller.actions
+    ] == [
+        {"type": "key", "keys": ["Digit2"]},
+        {"type": "key", "keys": ["Digit0"]},
+        {"type": "key", "keys": ["Digit2"]},
+        {"type": "key", "keys": ["Digit5"]},
+        {"type": "key", "keys": ["ShiftLeft", "Quote"]},
+        {"type": "wait_for_change", "timeout_ms": 2_000},
+        {
+            "type": "wait_for_stable_screen",
+            "stable_ms": 400,
+            "timeout_ms": 3_000,
+        },
+    ]
+    assert controller.expected_evidence == [
+        "Calculator's main display visibly reads exactly 45."
+    ]
+
+
+def test_calculator_percentage_is_prepared_without_model_replanning() -> None:
+    run = RunSnapshot(
+        run_id="calculator-percentage",
+        task=(
+            "Use Windows Calculator to calculate 17.5 percent of 864. "
+            "Leave the exact result visible and report it."
+        ),
+        status=RunStatus.PAUSED,
+    )
+    launch = PendingAction(
+        index=0,
+        intent="Launch Calculator.",
+        actions=[
+            {"type": "key", "keys": ["WIN", "R"]},
+            {"type": "type_text", "text": "calc"},
+            {"type": "key", "keys": ["ENTER"]},
+        ],
+        based_on_world_version=1,
+        based_on_control_epoch=0,
+        idempotency_key="calculator-percentage-launch",
+    )
+
+    controller = _calculator_task_controller(
+        run,
+        launch,
+        max_actions=20,
+    )
+
+    assert controller is not None
+    assert [
+        action.model_dump(mode="json", exclude_none=True)
+        for action in controller.actions
+    ] == [
+        {"type": "key", "keys": ["Digit8"]},
+        {"type": "key", "keys": ["Digit6"]},
+        {"type": "key", "keys": ["Digit4"]},
+        {"type": "key", "keys": ["NumpadMultiply"]},
+        {"type": "key", "keys": ["Digit1"]},
+        {"type": "key", "keys": ["Digit7"]},
+        {"type": "key", "keys": ["NumpadDecimal"]},
+        {"type": "key", "keys": ["Digit5"]},
+        {"type": "key", "keys": ["NumpadDivide"]},
+        {"type": "key", "keys": ["Digit1"]},
+        {"type": "key", "keys": ["Digit0"]},
+        {"type": "key", "keys": ["Digit0"]},
+        {"type": "key", "keys": ["Enter"]},
+        {"type": "wait_for_change", "timeout_ms": 2_000},
+        {
+            "type": "wait_for_stable_screen",
+            "stable_ms": 400,
+            "timeout_ms": 3_000,
+        },
+    ]
+    assert controller.expected_evidence == [
+        "Calculator's main display visibly reads exactly 151.2."
     ]
 
 

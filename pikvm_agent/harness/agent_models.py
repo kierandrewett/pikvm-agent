@@ -184,7 +184,7 @@ class HarnessConfig(BaseModel):
     """Budgets owned by the harness, never by a model response."""
 
     max_actions_per_advance: int = Field(default=4, ge=1, le=32)
-    max_actions_per_burst: int = Field(default=8, ge=1, le=32)
+    max_actions_per_burst: int = Field(default=20, ge=1, le=32)
     parallel_post_action_control: bool = True
     max_total_actions: int = Field(default=100, ge=1)
     max_ungrounded_navigation_replans: int = Field(default=3, ge=1, le=16)

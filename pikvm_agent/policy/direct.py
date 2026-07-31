@@ -180,6 +180,7 @@ _CALCULATOR_OPERATOR_KEYS = {
     "NUMPADMULTIPLY",
     "NUMPADDIVIDE",
 }
+_CALCULATOR_DECIMAL_KEYS = {"NUMPADDECIMAL", "PERIOD"}
 _COMMIT_KEYS = {"ENTER", "RETURN", "NUMPADENTER"}
 
 
@@ -210,7 +211,12 @@ def needs_calculator_surface_grounding(actions: list[dict]) -> bool:
         and sum(key in _CALCULATOR_DIGIT_KEYS for key in expression_keys) >= 2
         and any(key in _CALCULATOR_OPERATOR_KEYS for key in expression_keys)
         and all(
-            key in _CALCULATOR_DIGIT_KEYS | _CALCULATOR_OPERATOR_KEYS
+            key
+            in (
+                _CALCULATOR_DIGIT_KEYS
+                | _CALCULATOR_OPERATOR_KEYS
+                | _CALCULATOR_DECIMAL_KEYS
+            )
             for key in expression_keys
         )
     )

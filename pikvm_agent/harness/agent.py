@@ -8,6 +8,8 @@ import json
 import re
 import time
 import uuid
+from decimal import Decimal
+from math import isqrt
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -456,6 +458,44 @@ _CALCULATOR_TASK_EXPRESSION = re.compile(
     r"(?P<right>\d{1,6})\b",
     re.IGNORECASE,
 )
+_CALCULATOR_MIXED_EXPRESSION = re.compile(
+    r"\b(?P<dividend>\d{1,6})\s+divided\s+by\s+"
+    r"(?P<divisor>\d{1,6}),?\s+then\s+add\s+"
+    r"(?P<addend>\d{1,6})\b",
+    re.IGNORECASE,
+)
+_CALCULATOR_SQUARE_ROOT_EXPRESSION = re.compile(
+    r"\bsquare\s+root\s+of\s+(?P<value>\d{1,12})\b",
+    re.IGNORECASE,
+)
+_CALCULATOR_PERCENTAGE_EXPRESSION = re.compile(
+    r"\bcalculate\s+(?P<percent>\d{1,6}(?:\.\d{1,6})?)\s+"
+    r"percent\s+of\s+(?P<value>\d{1,12}(?:\.\d{1,6})?)\b",
+    re.IGNORECASE,
+)
+
+
+def _calculator_number_keys(value: str) -> list[str]:
+    return [
+        (
+            "NumpadDecimal"
+            if character == "."
+            else f"Digit{character}"
+        )
+        for character in value
+    ]
+
+
+def _calculator_key_actions(
+    keys: list[str | list[str]],
+) -> list[dict[str, Any]]:
+    return [
+        {
+            "type": "key",
+            "keys": key if isinstance(key, list) else [key],
+        }
+        for key in keys
+    ]
 
 
 def _calculator_task_controller(
@@ -464,7 +504,7 @@ def _calculator_task_controller(
     *,
     max_actions: int,
 ) -> ControllerDecision | None:
-    """Prepare one deterministic integer multiplication after Calculator opens."""
+    """Prepare a deterministic literal expression after Calculator opens."""
 
     if action is None:
         return None
@@ -474,14 +514,87 @@ def _calculator_task_controller(
         in {"calc", "calc.exe", "calculator"}
         for item in action.actions
     )
-    match = _CALCULATOR_TASK_EXPRESSION.search(run.task)
-    if not launched or match is None:
+    if not launched:
         return None
-    left = match.group("left")
-    right = match.group("right")
-    keys = [*left, "NumpadMultiply", *right, "Enter"]
-    actions: list[dict[str, Any]] = [
-        {"type": "key", "keys": keys},
+
+    multiplication = _CALCULATOR_TASK_EXPRESSION.search(run.task)
+    mixed = _CALCULATOR_MIXED_EXPRESSION.search(run.task)
+    square_root = _CALCULATOR_SQUARE_ROOT_EXPRESSION.search(run.task)
+    percentage = _CALCULATOR_PERCENTAGE_EXPRESSION.search(run.task)
+    if multiplication is not None:
+        left = multiplication.group("left")
+        right = multiplication.group("right")
+        keys: list[str | list[str]] = [
+            *_calculator_number_keys(left),
+            "NumpadMultiply",
+            *_calculator_number_keys(right),
+            "Enter",
+        ]
+        intent = (
+            "Evaluate the requested local Calculator expression "
+            f"{left} × {right}."
+        )
+        result = str(int(left) * int(right))
+    elif mixed is not None:
+        dividend = mixed.group("dividend")
+        divisor = mixed.group("divisor")
+        addend = mixed.group("addend")
+        if int(dividend) % int(divisor):
+            return None
+        keys = [
+            *_calculator_number_keys(dividend),
+            "NumpadDivide",
+            *_calculator_number_keys(divisor),
+            "NumpadAdd",
+            *_calculator_number_keys(addend),
+            "Enter",
+        ]
+        intent = (
+            "Evaluate the requested local Calculator expression "
+            f"{dividend} ÷ {divisor} + {addend}."
+        )
+        result = str(int(dividend) // int(divisor) + int(addend))
+    elif square_root is not None:
+        value = square_root.group("value")
+        result_value = isqrt(int(value))
+        if result_value * result_value != int(value):
+            return None
+        intent = (
+            "Evaluate the requested local Calculator expression "
+            f"√{value}."
+        )
+        result = str(result_value)
+        keys = [
+            *_calculator_number_keys(value),
+            ["ShiftLeft", "Quote"],
+        ]
+    elif percentage is not None:
+        percent = percentage.group("percent")
+        value = percentage.group("value")
+        keys = [
+            *_calculator_number_keys(value),
+            "NumpadMultiply",
+            *_calculator_number_keys(percent),
+            "NumpadDivide",
+            "Digit1",
+            "Digit0",
+            "Digit0",
+            "Enter",
+        ]
+        result_value = Decimal(value) * Decimal(percent) / Decimal(100)
+        result = format(result_value, "f")
+        if "." in result:
+            result = result.rstrip("0").rstrip(".")
+        intent = (
+            "Evaluate the requested local Calculator percentage "
+            f"{percent}% of {value}."
+        )
+    else:
+        return None
+
+    active_actions = _calculator_key_actions(keys)
+    actions = [
+        *active_actions,
         {"type": "wait_for_change", "timeout_ms": 2_000},
         {
             "type": "wait_for_stable_screen",
@@ -489,16 +602,11 @@ def _calculator_task_controller(
             "timeout_ms": 3_000,
         },
     ]
-    expanded_count = len(keys) + len(actions) - 1
-    if expanded_count > max_actions:
+    if len(actions) > max_actions:
         return None
-    result = str(int(left) * int(right))
     return ControllerDecision(
         outcome="act",
-        intent=(
-            f"Evaluate the requested local Calculator expression "
-            f"{left} × {right}."
-        ),
+        intent=intent,
         actions=actions,
         expected_evidence=[
             f"Calculator's main display visibly reads exactly {result}."

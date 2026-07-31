@@ -376,7 +376,7 @@ class HarnessSettings(BaseModel):
     max_actions_per_advance: int = Field(default=4, ge=1, le=32)
     parallel_post_action_control: bool = True
     max_autonomous_resumes: int = Field(default=64, ge=1, le=10_000)
-    max_actions_per_burst: int = Field(default=8, ge=1, le=32)
+    max_actions_per_burst: int = Field(default=20, ge=1, le=32)
     max_total_actions: int = Field(default=100, ge=1)
     max_ungrounded_navigation_replans: int = Field(default=3, ge=1, le=16)
 
