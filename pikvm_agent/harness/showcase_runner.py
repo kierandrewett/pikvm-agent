@@ -66,31 +66,6 @@ ALLOWED_ACTION_TYPES = frozenset(
         "wait_for_stable_screen",
     }
 )
-READ_ONLY_NAVIGATION_ACTION_TYPES = frozenset(
-    {
-        "click",
-        "double_click",
-        "move",
-        "scroll",
-        "wait",
-        "wait_for_change",
-        "wait_for_stable_screen",
-    }
-)
-READ_ONLY_NAVIGATION_KEYS = frozenset(
-    {
-        frozenset({"ALT", "TAB"}),
-        frozenset({"CTRL", "A"}),
-        frozenset({"CTRL", "C"}),
-        frozenset({"ESC"}),
-        frozenset({"META"}),
-        frozenset({"META", "R"}),
-        frozenset({"SHIFT", "TAB"}),
-        frozenset({"TAB"}),
-        frozenset({"WIN"}),
-        frozenset({"WIN", "R"}),
-    }
-)
 ApprovalDisposition = Literal["approve", "refuse", "wait"]
 
 
@@ -240,6 +215,8 @@ def approval_is_safe(
     serialized = json.dumps(pending, sort_keys=True).lower()
     if any(term in serialized for term in FORBIDDEN_APPROVAL_TERMS):
         return False
+    if str(pending.get("risk") or "").casefold() == "unknown":
+        return False
     proposed = pending.get("proposed_action")
     actions = proposed.get("actions") if isinstance(proposed, dict) else None
     if not isinstance(actions, list) or not actions:
@@ -249,23 +226,7 @@ def approval_is_safe(
             return False
         if str(action.get("type") or "") not in ALLOWED_ACTION_TYPES:
             return False
-    if mutates_workspace:
-        return True
-    return all(
-        (
-            str(action.get("type") or "")
-            in READ_ONLY_NAVIGATION_ACTION_TYPES
-        )
-        or (
-            str(action.get("type") or "") == "key"
-            and frozenset(
-                str(key).upper()
-                for key in action.get("keys") or []
-            )
-            in READ_ONLY_NAVIGATION_KEYS
-        )
-        for action in actions
-    )
+    return mutates_workspace
 
 
 def approval_disposition(

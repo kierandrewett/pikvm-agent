@@ -292,7 +292,7 @@ def test_workspace_approval_allowlist_rejects_communications_and_shutdown() -> N
     assert not approval_is_safe(shutdown, mutates_workspace=True)
 
 
-def test_read_only_campaign_approves_navigation_but_not_save_shortcut() -> None:
+def test_read_only_campaign_never_auto_approves_navigation_or_save() -> None:
     click = {
         "approval_id": "approval-click",
         "risk": "local_file_edit",
@@ -310,7 +310,7 @@ def test_read_only_campaign_approves_navigation_but_not_save_shortcut() -> None:
         },
     }
 
-    assert approval_is_safe(click, mutates_workspace=False)
+    assert not approval_is_safe(click, mutates_workspace=False)
     assert not approval_is_safe(shortcut, mutates_workspace=False)
 
 
@@ -327,7 +327,7 @@ def test_read_only_campaign_refuses_unknown_bare_enter() -> None:
     assert not approval_is_safe(enter, mutates_workspace=False)
 
 
-def test_campaign_waits_while_an_approved_request_is_still_resolving() -> None:
+def test_campaign_refuses_a_new_unknown_click_approval() -> None:
     pending = {
         "approval_id": "approval-click",
         "risk": "unknown",
@@ -353,8 +353,23 @@ def test_campaign_waits_while_an_approved_request_is_still_resolving() -> None:
             approved_ids=set(),
             mutates_workspace=False,
         )
-        == "approve"
+        == "refuse"
     )
+
+
+def test_mutating_campaign_refuses_unknown_coordinate_click() -> None:
+    pending = {
+        "approval_id": "approval-unknown-click",
+        "risk": "unknown",
+        "reason": "commit target requires human review",
+        "proposed_action": {
+            "actions": [
+                {"type": "click", "x": 64, "y": 213, "button": "left"}
+            ]
+        },
+    }
+
+    assert not approval_is_safe(pending, mutates_workspace=True)
 
 
 def test_showcase_cli_runs_async_campaign(
