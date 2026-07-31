@@ -37,6 +37,7 @@ from pikvm_agent.executor.typing import (
     regions_overlap,
 )
 from pikvm_agent.pikvm.fake import FakeBackend
+from pikvm_agent.pikvm.screenshot import to_captured_frame
 from pikvm_agent.vision.frame_diff import grid
 
 _ENTER_KEYS = {"Enter", "NumpadEnter", "Return"}
@@ -1142,6 +1143,115 @@ async def test_autolocate_refines_dynamic_results_panel_to_typed_field() -> None
     assert None in ocr.regions
     assert any(
         region is not None and region.height <= 50
+        for region in ocr.regions
+    )
+    _assert_no_enter(backend)
+
+
+async def test_autolocate_uses_dimensions_from_the_first_captured_frame() -> None:
+    """A post-reboot resolution change must not move the OCR crop off-screen."""
+
+    intended = "ms-settings:about"
+    actual_width, actual_height = 1280, 800
+
+    class PostRebootBackend(FakeBackend):
+        guarded_exact_print = True
+
+        def __init__(self) -> None:
+            # Model the PiKVM websocket's stale pre-capture dimensions.
+            super().__init__(width=1920, height=1080, layout="uk")
+            self._frame = self._render(typed=False)
+
+        @staticmethod
+        def _render(*, typed: bool) -> bytes:
+            image = Image.new(
+                "RGB",
+                (actual_width, actual_height),
+                (24, 28, 36),
+            )
+            if typed:
+                draw = ImageDraw.Draw(image)
+                draw.rectangle(
+                    (48, 676, 248, 704),
+                    fill=(246, 246, 246),
+                )
+                draw.text(
+                    (52, 684),
+                    intended,
+                    fill=(24, 24, 24),
+                )
+            output = io.BytesIO()
+            image.save(output, "PNG")
+            return output.getvalue()
+
+        async def screenshot(
+            self,
+            region: Region | None = None,
+        ):
+            del region
+            # The first real frame corrects the backend's cached dimensions.
+            self.dims = {
+                "width": actual_width,
+                "height": actual_height,
+            }
+            return to_captured_frame(
+                self._frame,
+                actual_width,
+                actual_height,
+            )
+
+        async def print_text(self, text: str) -> None:
+            await super().print_text(text)
+            self._frame = self._render(typed=True)
+
+    class InBoundsFieldOCR:
+        def __init__(self) -> None:
+            self.regions: list[Region | None] = []
+
+        async def ocr(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            return await self.ocr_precise(image_path, region=region)
+
+        async def ocr_precise(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path
+            self.regions.append(region)
+            if (
+                region is not None
+                and region.y < actual_height
+                and region.y + region.height > 676
+            ):
+                return OCRResult(
+                    lines=[
+                        OCRLine(
+                            text=intended,
+                            confidence=0.99,
+                        )
+                    ],
+                    spacing_evidence="verified",
+                )
+            return OCRResult()
+
+    backend = PostRebootBackend()
+    ocr = InBoundsFieldOCR()
+    result = await WatchedTyper(backend, ocr).type_text(
+        intended,
+        exact=True,
+        context="field",
+    )
+
+    assert result.status == "verified_exact"
+    assert result.field_text == intended
+    assert any(
+        region is not None
+        and 0 <= region.y < actual_height
+        and region.y + region.height <= actual_height
         for region in ocr.regions
     )
     _assert_no_enter(backend)

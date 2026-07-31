@@ -1506,6 +1506,17 @@ class WatchedTyper:
 
         grid_prev = await self._grid()
         dense_prev = self._last_grid_frame
+        if (
+            dense_prev is not None
+            and dense_prev.width > 0
+            and dense_prev.height > 0
+        ):
+            # PiKVM/VNC may advertise the previous boot resolution until the
+            # first post-reboot frame arrives. Geometry derived from that stale
+            # cache can place an otherwise correct OCR crop below the real
+            # image. The captured frame is the source of truth for every
+            # changed-pixel coordinate used by this typing transaction.
+            dims = (dense_prev.width, dense_prev.height)
         emission_start_grid = grid_prev
         emission_start_frame = dense_prev
 
@@ -1613,6 +1624,12 @@ class WatchedTyper:
             typed_so_far += chunk
             grid_now = await self._grid()
             dense_now = self._last_grid_frame
+            if (
+                dense_now is not None
+                and dense_now.width > 0
+                and dense_now.height > 0
+            ):
+                dims = (dense_now.width, dense_now.height)
             chunk_change = (
                 locate_changed_bbox(grid_prev, grid_now, dims)
                 if grid_prev is not None and grid_now is not None
