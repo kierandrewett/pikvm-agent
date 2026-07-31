@@ -18,6 +18,7 @@ _SECONDARY_MAX_WIDTH_FRAC = 0.80
 _SECONDARY_MAX_HEIGHT_FRAC = 0.45
 _WARMUP_MAX_WIDTH = 384
 _WARMUP_MAX_HEIGHT = 160
+_SECONDARY_SELECTION_MIN_CONFIDENCE = 0.85
 _SECONDARY_MIN_CONFIDENCE = 0.90
 _GEOMETRIC_SPACING_MIN_CONFIDENCE = 0.90
 _SECONDARY_SINGLE_LINE_ADVANTAGE = 0.08
@@ -433,7 +434,7 @@ def _merge_precise_evidence(
     )
     use_secondary = bool(
         secondary_confidence is not None
-        and secondary_confidence >= _SECONDARY_MIN_CONFIDENCE
+        and secondary_confidence >= _SECONDARY_SELECTION_MIN_CONFIDENCE
         and (
             primary_confidence is None
             or (
