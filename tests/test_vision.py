@@ -42,6 +42,7 @@ from pikvm_agent.vision.tesseract_ocr import (
     TesseractOcrProvider,
     _choose_ocr_candidate,
     _parse_tsv,
+    _readable_font,
     render_text_image,
     tesseract_available,
 )
@@ -695,6 +696,154 @@ async def test_hybrid_precise_prefers_a_confident_single_line_secondary() -> Non
     ]
 
 
+async def test_hybrid_precise_verifies_one_space_from_aligned_engine_consensus() -> None:
+    primary = OCRResult(
+        lines=[
+            OCRLine(
+                text="This PC",
+                confidence=0.80,
+                bbox=[4, 8, 35, 24],
+            ),
+            OCRLine(text="h", confidence=0.42, bbox=[140, 40, 147, 51]),
+        ],
+        spacing_evidence="uncertain",
+    )
+    secondary = OCRResult(
+        lines=[
+            OCRLine(
+                text="This PC",
+                confidence=0.995,
+                bbox=[4, 9, 35, 21],
+            )
+        ]
+    )
+
+    result = await HybridOcrProvider(
+        _ScriptedOcrProvider(primary, precise=primary),
+        _ScriptedOcrProvider(secondary),
+    ).ocr_precise(Path("explorer-address.png"))
+
+    assert result.text == "This PC"
+    assert result.spacing_evidence == "verified"
+
+
+async def test_hybrid_precise_does_not_verify_repeated_space_consensus() -> None:
+    primary = OCRResult(
+        lines=[
+            OCRLine(
+                text="This  PC",
+                confidence=0.80,
+                bbox=[4, 8, 38, 24],
+            )
+        ],
+        spacing_evidence="uncertain",
+    )
+    secondary = OCRResult(
+        lines=[
+            OCRLine(
+                text="This  PC",
+                confidence=0.995,
+                bbox=[4, 9, 38, 21],
+            )
+        ]
+    )
+
+    result = await HybridOcrProvider(
+        _ScriptedOcrProvider(primary, precise=primary),
+        _ScriptedOcrProvider(secondary),
+    ).ocr_precise(Path("explorer-address.png"))
+
+    assert result.text == "This  PC"
+    assert result.spacing_evidence == "not_evaluated"
+
+
+async def test_hybrid_precise_does_not_verify_unaligned_space_consensus() -> None:
+    primary = OCRResult(
+        lines=[
+            OCRLine(
+                text="This PC",
+                confidence=0.80,
+                bbox=[140, 40, 171, 56],
+            )
+        ],
+        spacing_evidence="uncertain",
+    )
+    secondary = OCRResult(
+        lines=[
+            OCRLine(
+                text="This PC",
+                confidence=0.995,
+                bbox=[4, 9, 35, 21],
+            )
+        ]
+    )
+
+    result = await HybridOcrProvider(
+        _ScriptedOcrProvider(primary, precise=primary),
+        _ScriptedOcrProvider(secondary),
+    ).ocr_precise(Path("explorer-address.png"))
+
+    assert result.text == "This PC"
+    assert result.spacing_evidence == "not_evaluated"
+
+
+@pytest.mark.parametrize(
+    ("rendered_text", "expected_spacing"),
+    [
+        ("This PC", "verified"),
+        ("This  PC", "not_evaluated"),
+        ("ThisPC", "not_evaluated"),
+    ],
+)
+async def test_hybrid_precise_verifies_one_visible_geometric_gap(
+    tmp_path,
+    rendered_text: str,
+    expected_spacing: str,
+) -> None:
+    image_path = tmp_path / "selected-field.png"
+    image = Image.new("RGB", (500, 200), (24, 28, 36))
+    draw = ImageDraw.Draw(image)
+    font = _readable_font(20)
+    origin = (110, 90)
+    draw.text(origin, rendered_text, font=font, fill=(240, 245, 250))
+    box = draw.textbbox(origin, rendered_text, font=font)
+    image.save(image_path)
+    region = Region(x=100, y=80, width=220, height=50)
+    local_box = [
+        box[0] - int(region.x),
+        box[1] - int(region.y),
+        box[2] - int(region.x),
+        box[3] - int(region.y),
+    ]
+    primary = OCRResult(
+        lines=[
+            OCRLine(
+                text="unreadable",
+                confidence=0.40,
+                bbox=local_box,
+            )
+        ],
+        spacing_evidence="uncertain",
+    )
+    secondary = OCRResult(
+        lines=[
+            OCRLine(
+                text="This PC",
+                confidence=0.995,
+                bbox=local_box,
+            )
+        ]
+    )
+
+    result = await HybridOcrProvider(
+        _ScriptedOcrProvider(primary, precise=primary),
+        _ScriptedOcrProvider(secondary),
+    ).ocr_precise(image_path, region=region)
+
+    assert result.text == "This PC"
+    assert result.spacing_evidence == expected_spacing
+
+
 async def test_hybrid_precise_prefers_a_modestly_better_small_field_read() -> None:
     primary = OCRResult(
         lines=[
@@ -1062,6 +1211,167 @@ async def test_hybrid_precise_read_skips_a_busy_secondary(
         "secondary_timeout_restarts": 0,
         "secondary_timeout_retries": 0,
     }
+
+
+@pytest.mark.parametrize(
+    ("rendered_text", "expected_spacing"),
+    [
+        ("This PC", "verified"),
+        ("This  PC", "uncertain"),
+        ("ThisPC", "uncertain"),
+    ],
+)
+async def test_hybrid_busy_secondary_retains_bounded_geometric_gap_evidence(
+    tmp_path,
+    rendered_text: str,
+    expected_spacing: str,
+) -> None:
+    image_path = tmp_path / "selected-field.png"
+    image = Image.new("RGB", (500, 200), (24, 28, 36))
+    draw = ImageDraw.Draw(image)
+    font = _readable_font(20)
+    origin = (110, 90)
+    draw.text(origin, rendered_text, font=font, fill=(240, 245, 250))
+    box = draw.textbbox(origin, rendered_text, font=font)
+    image.save(image_path)
+    region = Region(x=100, y=80, width=220, height=50)
+    result = OCRResult(
+        lines=[
+            OCRLine(
+                text="This PC",
+                confidence=0.995,
+                bbox=[
+                    box[0] - int(region.x),
+                    box[1] - int(region.y),
+                    box[2] - int(region.x),
+                    box[3] - int(region.y),
+                ],
+            )
+        ],
+        spacing_evidence="uncertain",
+    )
+    primary = _ScriptedOcrProvider(result, precise=result)
+
+    class BusySecondary:
+        def busy(self) -> bool:
+            return True
+
+        async def ocr(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path, region
+            raise AssertionError("busy secondary must not be called")
+
+    verified = await HybridOcrProvider(
+        primary,
+        BusySecondary(),
+    ).ocr_precise(image_path, region=region)
+
+    assert verified.text == "This PC"
+    assert verified.spacing_evidence == expected_spacing
+
+
+async def test_hybrid_busy_secondary_attaches_gap_evidence_to_noisy_row(
+    tmp_path,
+) -> None:
+    image_path = tmp_path / "selected-field.png"
+    image = Image.new("RGB", (500, 200), (24, 28, 36))
+    draw = ImageDraw.Draw(image)
+    font = _readable_font(20)
+    origin = (110, 90)
+    draw.text(origin, "This PC", font=font, fill=(240, 245, 250))
+    box = draw.textbbox(origin, "This PC", font=font)
+    image.save(image_path)
+    region = Region(x=100, y=80, width=220, height=50)
+    result = OCRResult(
+        lines=[
+            OCRLine(text=">", confidence=0.42, bbox=[4, 2, 10, 9]),
+            OCRLine(
+                text="This PC",
+                confidence=0.995,
+                bbox=[
+                    box[0] - int(region.x),
+                    box[1] - int(region.y),
+                    box[2] - int(region.x),
+                    box[3] - int(region.y),
+                ],
+            ),
+        ],
+        spacing_evidence="uncertain",
+    )
+    primary = _ScriptedOcrProvider(result, precise=result)
+
+    class BusySecondary:
+        def busy(self) -> bool:
+            return True
+
+        async def ocr(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path, region
+            raise AssertionError("busy secondary must not be called")
+
+    observed = await HybridOcrProvider(
+        primary,
+        BusySecondary(),
+    ).ocr_precise(image_path, region=region)
+
+    assert observed.spacing_evidence == "uncertain"
+    assert [
+        candidate.text
+        for candidate in observed.alternatives
+        if candidate.evidence_kind == "spacing"
+    ] == ["This PC"]
+
+
+async def test_hybrid_merge_attaches_gap_evidence_to_noisy_selected_row(
+    tmp_path,
+) -> None:
+    image_path = tmp_path / "selected-field.png"
+    image = Image.new("RGB", (500, 200), (24, 28, 36))
+    draw = ImageDraw.Draw(image)
+    font = _readable_font(20)
+    origin = (110, 90)
+    draw.text(origin, "This PC", font=font, fill=(240, 245, 250))
+    box = draw.textbbox(origin, "This PC", font=font)
+    image.save(image_path)
+    region = Region(x=100, y=80, width=220, height=50)
+    primary = OCRResult(
+        lines=[
+            OCRLine(text=">", confidence=0.42, bbox=[4, 2, 10, 9]),
+            OCRLine(
+                text="This PC",
+                confidence=0.995,
+                bbox=[
+                    box[0] - int(region.x),
+                    box[1] - int(region.y),
+                    box[2] - int(region.x),
+                    box[3] - int(region.y),
+                ],
+            ),
+        ],
+        spacing_evidence="uncertain",
+    )
+    secondary = OCRResult(
+        lines=[OCRLine(text="unrelated", confidence=0.75, bbox=[8, 4, 40, 12])]
+    )
+
+    observed = await HybridOcrProvider(
+        _ScriptedOcrProvider(primary, precise=primary),
+        _ScriptedOcrProvider(secondary),
+    ).ocr_precise(image_path, region=region)
+
+    assert observed.lines == primary.lines
+    assert observed.spacing_evidence == "uncertain"
+    assert [
+        candidate.text
+        for candidate in observed.alternatives
+        if candidate.evidence_kind == "spacing"
+    ] == ["This PC"]
 
 
 async def test_hybrid_precise_restarts_and_retries_a_timed_out_worker(

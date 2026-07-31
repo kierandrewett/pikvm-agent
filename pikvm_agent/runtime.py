@@ -45,7 +45,9 @@ from pikvm_agent.policy.safety import SafetyPolicyEngine
 from pikvm_agent.policy.direct import (
     classify_direct_burst,
     is_confirmed_calculator_surface,
+    is_confirmed_file_explorer_surface,
     needs_calculator_surface_grounding,
+    needs_local_navigation_surface_grounding,
 )
 from pikvm_agent.store.frames import FrameStore
 from pikvm_agent.store.sqlite import SessionStore
@@ -273,6 +275,9 @@ class SessionRuntime:
     last_human_input_at: float | None = None
     observed_control_epoch: int = 0
     other_client_block_active: bool = False
+    # One exact, visible local-navigation draft may ground the immediately
+    # following bare Enter when the same frame independently shows Explorer.
+    verified_local_navigation_draft: dict[str, Any] | None = None
 
 
 class Runtime:
@@ -951,14 +956,28 @@ class Runtime:
         sr.other_client_block_active = False
 
         grounded_actions = await self._ground_click_targets(actions, frame)
+        matching_local_navigation_draft = (
+            self._has_matching_local_navigation_draft(
+                sr,
+                grounded_actions,
+                frame,
+            )
+        )
         observed_surface_text = await self._ground_keyboard_surface(
             grounded_actions,
             frame,
+            ground_file_explorer=matching_local_navigation_draft,
         )
         verdict = classify_direct_burst(
             grounded_actions,
             self.config.policy,
             observed_surface_text=observed_surface_text,
+            verified_local_navigation_commit=(
+                matching_local_navigation_draft
+                and is_confirmed_file_explorer_surface(
+                    observed_surface_text
+                )
+            ),
         )
         if verdict.status == "blocked":
             return {
@@ -1136,6 +1155,12 @@ class Runtime:
                 )
         else:
             final = sr.frames.latest()
+        self._update_verified_local_navigation_draft(
+            sr,
+            actions,
+            outcome.action_receipts,
+            final,
+        )
         # A concurrent abort/panic owns the terminal state. Never let the request that
         # was in flight overwrite that sticky brake with a resumable "paused" status.
         effective_status = outcome.status
@@ -1254,10 +1279,13 @@ class Runtime:
         self,
         actions: list[dict[str, Any]],
         frame: Any,
+        *,
+        ground_file_explorer: bool = False,
     ) -> str:
-        """Read the visible app before exempting one local calculator commit."""
+        """Read the visible app before exempting one bounded local commit."""
 
-        if not needs_calculator_surface_grounding(actions):
+        calculator = needs_calculator_surface_grounding(actions)
+        if not calculator and not ground_file_explorer:
             return ""
         ocr = getattr(self._screen_parser, "ocr", None)
         if ocr is None:
@@ -1267,28 +1295,125 @@ class Runtime:
         except Exception:
             return ""
         observed_text = str(observed.text or "")[:2_000]
-        if is_confirmed_calculator_surface(observed_text):
+        if (
+            calculator
+            and is_confirmed_calculator_surface(observed_text)
+        ) or (
+            ground_file_explorer
+            and is_confirmed_file_explorer_surface(observed_text)
+        ):
             return observed_text
         precise_ocr = getattr(ocr, "ocr_precise", None)
         if not callable(precise_ocr):
             return observed_text
+        if ground_file_explorer:
+            precise_region = Region(
+                x=frame.width * 0.10,
+                y=frame.height * 0.15,
+                width=frame.width * 0.80,
+                height=frame.height * 0.25,
+            )
+        else:
+            precise_region = Region(
+                x=0,
+                y=0,
+                width=frame.width,
+                height=max(1, frame.height * 0.25),
+            )
         try:
             precise = await precise_ocr(
                 Path(frame.image_path),
-                region=Region(
-                    x=0,
-                    y=0,
-                    width=frame.width,
-                    height=max(1, frame.height * 0.25),
-                ),
+                region=precise_region,
             )
         except Exception:
             return observed_text
         precise_text = str(precise.text or "")[:2_000]
-        return (
-            precise_text
-            if is_confirmed_calculator_surface(precise_text)
-            else observed_text
+        confirmed = (
+            is_confirmed_file_explorer_surface(precise_text)
+            if ground_file_explorer
+            else is_confirmed_calculator_surface(precise_text)
+        )
+        return precise_text if confirmed else observed_text
+
+    @staticmethod
+    def _has_matching_local_navigation_draft(
+        sr: SessionRuntime,
+        actions: list[dict[str, Any]],
+        frame: Any,
+    ) -> bool:
+        draft = sr.verified_local_navigation_draft
+        frame_screen_hash = str(
+            getattr(frame, "screen_hash", "") or ""
+        ).lower()
+        return bool(
+            draft
+            and needs_local_navigation_surface_grounding(actions)
+            and draft.get("text") == "This PC"
+            and draft.get("control_epoch") == sr.control_epoch
+            and len(frame_screen_hash) == 512
+            and draft.get("frame_screen_hash") == frame_screen_hash
+        )
+
+    @staticmethod
+    def _update_verified_local_navigation_draft(
+        sr: SessionRuntime,
+        actions: list[dict[str, Any]],
+        receipts: list[dict[str, Any]],
+        final_frame: Any | None,
+    ) -> None:
+        passive = {"wait", "wait_for_change", "wait_for_stable_screen"}
+        active = [
+            (index, action)
+            for index, action in enumerate(actions)
+            if action.get("type") not in passive
+        ]
+        if not active:
+            return
+        if len(active) != 1 or active[0][1].get("type") != "type_text":
+            sr.verified_local_navigation_draft = None
+            return
+        index, action = active[0]
+        receipt = next(
+            (
+                item
+                for item in receipts
+                if item.get("index") == index
+            ),
+            {},
+        )
+        frame_sha256 = str(
+            receipt.get("readback_frame_sha256") or ""
+        ).lower()
+        final_screen_hash = str(
+            getattr(final_frame, "screen_hash", "") or ""
+        ).lower()
+        final_image_sha256 = str(
+            getattr(final_frame, "image_sha256", "") or ""
+        ).lower()
+        exact = (
+            action.get("context") == "field"
+            and action.get("secret") is not True
+            and str(action.get("text") or "") == "This PC"
+            and receipt.get("status") == "verified_exact"
+            and receipt.get("verdict") == "match"
+            and receipt.get("focus_evidence") == "read_back_verified"
+            and receipt.get("exact_readback_sha256_match") is True
+            and receipt.get("emitted_exactly_once") is True
+            and receipt.get("observed_text") == "This PC"
+            and len(frame_sha256) == 64
+            and len(final_screen_hash) == 512
+            and len(final_image_sha256) == 64
+        )
+        sr.verified_local_navigation_draft = (
+            {
+                "text": "This PC",
+                "readback_frame_sha256": frame_sha256,
+                "post_action_image_sha256": final_image_sha256,
+                "frame_screen_hash": final_screen_hash,
+                "control_epoch": sr.control_epoch,
+            }
+            if exact
+            else None
         )
 
     # ---- on-demand perception (Layer 2 — OFF the hot path, opt-in) ------- #

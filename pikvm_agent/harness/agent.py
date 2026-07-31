@@ -556,6 +556,15 @@ instead of an executable. It must begin exactly with ``ms-settings:``, contain
 no whitespace or shell metacharacters, and open only the requested local page.
 Do not generalise this exception to web URLs, file URIs, commands, or arbitrary
 protocol handlers.
+In File Explorer, use Ctrl+L as a separate reversible focus action instead of
+guessing address-bar coordinates. After that focus is independently verified,
+preserve the selection created by Ctrl+L: do not click, refocus, move the
+pointer, or send another navigation key before the exact draft. Type the draft
+as the very next active input; otherwise repeat Ctrl+L before typing rather than
+appending to the current location. Then draft exactly ``This PC`` with context
+``field`` and verification ``exact`` to
+open the local drive view, never a ``shell:`` URI or another namespace alias.
+Enter must remain a later action gated by the exact draft readback.
 Prefer a bounded reversible burst that reaches a stable, directly legible local
 end state over stopping at a low-contrast or transient intermediate state. For
 short local calculations, enter the complete expression including the equals

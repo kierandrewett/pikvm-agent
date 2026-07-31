@@ -11,8 +11,10 @@ mismatch) is self-corrected inline — at most once — without burning an agent
 It is a pure orchestrator: every side effect (keystrokes, capture, OCR, layout)
 is reached through the injected ``backend``/``ocr``, so it is unit-testable and
 imports no I/O of its own. It NEVER emits Enter — the only keys it may press for a
-correction are Home / Delete / Backspace / End / CapsLock. Committing is the
-caller's job.
+correction are Home / Delete / Backspace / End / CapsLock. A short field
+readback may also move focus with Tab/Shift-Tab or select an existing draft with
+Ctrl+A solely to remove a blinking caret from OCR. Committing is the caller's
+job.
 
 The verdict/classification logic lives in :mod:`pikvm_agent.executor.verification`
 and is reused verbatim; this module owns only the *typing loop* + correction.
@@ -43,6 +45,7 @@ from pikvm_agent.core.models import (
     VerificationResult,
     VerificationStatus,
 )
+from pikvm_agent.debuglog import DEBUG
 from pikvm_agent.executor.verification import (
     Verdict,
     classify_mismatch,
@@ -783,10 +786,19 @@ class WatchedTyper:
                     )
                 ]
                 if len(exact_rows) == 1:
+                    exact_spacing_verified = any(
+                        candidate.evidence_kind == "spacing"
+                        and candidate.text == exact_rows[0].text
+                        for candidate in result.alternatives
+                    )
                     result = OCRResult(
                         lines=exact_rows,
                         alternatives=result.alternatives,
-                        spacing_evidence=result.spacing_evidence,
+                        spacing_evidence=(
+                            "verified"
+                            if exact_spacing_verified
+                            else result.spacing_evidence
+                        ),
                     )
             if (
                 precise
@@ -1496,15 +1508,19 @@ class WatchedTyper:
 
             nonlocal stable_field_read_performed
             assert cur_region is not None
-            should_blur = (
+            should_stabilize = (
                 precise
                 and single_line_field
                 and not explicit_region
                 and not stable_field_read_performed
                 and PRECISE_LOCATE_MIN_CHARS <= total <= 20
-                and not any(character.isspace() for character in intended_snapshot)
             )
-            if not should_blur:
+            should_select = bool(
+                should_stabilize
+                and any(character.isspace() for character in intended_snapshot)
+            )
+            should_blur = should_stabilize and not should_select
+            if not should_blur and not should_select:
                 return await self._read_field(
                     current_readback_region(),
                     intended=intended_snapshot,
@@ -1514,6 +1530,57 @@ class WatchedTyper:
             if should_continue is not None and not should_continue():
                 return ""
             stable_field_read_performed = True
+            if should_select:
+                # Some focused Windows fields draw the caret through the final
+                # glyph, while moving focus with Tab can discard an address-bar
+                # draft. Selecting the existing draft exposes every glyph
+                # without changing or submitting text. Exact OCR must still
+                # verify the whole field before any caller can press Enter.
+                DEBUG.event(
+                    "typing.caret_stabilizer",
+                    method="select_all",
+                    character_count=len(intended_snapshot),
+                    stage="started",
+                )
+                await self.backend.keypress(["ControlLeft", "KeyA"])
+                await asyncio.sleep(_CLEAR_SETTLE_S)
+                selected_region = current_readback_region()
+                selected_read = await self._read_field(
+                    selected_region,
+                    intended=intended_snapshot,
+                    precise=precise,
+                    allow_semantic_spacing=allow_semantic_spacing,
+                )
+                selected_confidences = [
+                    float(line.confidence)
+                    for line in self._last_field_ocr_result.lines
+                    if line.confidence is not None
+                ]
+                DEBUG.event(
+                    "typing.caret_stabilizer",
+                    method="select_all",
+                    character_count=len(intended_snapshot),
+                    stage="completed",
+                    readback_available=bool(selected_read),
+                    readback_region=selected_region.model_dump(),
+                    ocr_line_count=len(self._last_field_ocr_result.lines),
+                    ocr_character_count=len(
+                        self._last_field_ocr_result.text
+                    ),
+                    ocr_spacing_evidence=(
+                        self._last_field_ocr_result.spacing_evidence
+                    ),
+                    ocr_mean_confidence=(
+                        round(
+                            sum(selected_confidences)
+                            / len(selected_confidences),
+                            4,
+                        )
+                        if selected_confidences
+                        else None
+                    ),
+                )
+                return selected_read
             moved_focus = False
             try:
                 await self.backend.keypress(["Tab"])

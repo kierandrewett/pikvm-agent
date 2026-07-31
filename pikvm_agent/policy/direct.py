@@ -228,6 +228,62 @@ def is_confirmed_calculator_surface(observed_surface_text: str) -> bool:
         and "history" in text
         and "memory" in text
     )
+
+
+def needs_local_navigation_surface_grounding(
+    actions: list[dict],
+) -> bool:
+    """Return whether a burst is one bare commit plus passive observation."""
+
+    active_actions = [
+        action
+        for action in actions
+        if action.get("type")
+        not in {"wait", "wait_for_change", "wait_for_stable_screen"}
+    ]
+    if len(active_actions) != 1 or active_actions[0].get("type") != "key":
+        return False
+    keys = {
+        str(key).strip().upper()
+        for key in (
+            active_actions[0].get("keys")
+            or [active_actions[0].get("key")]
+        )
+        if key
+    }
+    return keys in ({"ENTER"}, {"RETURN"}, {"NUMPADENTER"})
+
+
+def is_confirmed_file_explorer_surface(
+    observed_surface_text: str,
+) -> bool:
+    """Return whether OCR identifies Explorer with the exact local draft visible."""
+
+    text = " ".join(observed_surface_text.casefold().split())
+    if "this pc" not in text:
+        return False
+    markers = {
+        marker
+        for marker in (
+            "home",
+            "gallery",
+            "onedrive",
+            "downloads",
+            "documents",
+            "desktop",
+            "pictures",
+            "this pc",
+            "search home",
+        )
+        if marker in text
+    }
+    return (
+        "file explorer" in text and len(markers) >= 2
+    ) or (
+        "quick access" in text and len(markers) >= 3
+    )
+
+
 _SHELL_LAUNCHER = re.compile(
     r"^\s*(?:"
     r"(?:powershell|pwsh|cmd)(?:\.exe)?\b|"
@@ -465,6 +521,7 @@ def classify_direct_burst(
     policy: PolicyConfig,
     *,
     observed_surface_text: str = "",
+    verified_local_navigation_commit: bool = False,
 ) -> DirectBurstVerdict:
     """Classify a burst independently of the model-provided intent.
 
@@ -586,6 +643,7 @@ def classify_direct_burst(
                 keys in ({"ENTER"}, {"RETURN"}, {"NUMPADENTER"})
                 and not safe_windows_run_launch
                 and not verified_calculator_expression
+                and not verified_local_navigation_commit
             ):
                 candidates.append(
                     (

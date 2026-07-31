@@ -7,6 +7,7 @@ from difflib import SequenceMatcher
 from pathlib import Path
 from typing import Literal
 
+import numpy as np
 from PIL import Image
 
 from pikvm_agent.core.models import OCRCandidate, OCRLine, OCRResult, Region
@@ -215,10 +216,199 @@ def _aligned_secondary_row(
     )
 
 
+def _has_aligned_single_space_consensus(
+    selected: OCRResult,
+    other: OCRResult,
+) -> bool:
+    """Accept one ordinary space only when two engines independently agree."""
+
+    if len(selected.lines) != 1:
+        return False
+    selected_line = selected.lines[0]
+    if (
+        selected_line.text.count(" ") != 1
+        or selected_line.text.strip() != selected_line.text
+        or any(character in selected_line.text for character in "\t\r\n")
+        or selected_line.confidence is None
+        or float(selected_line.confidence) < _SECONDARY_MIN_CONFIDENCE
+    ):
+        return False
+    selected_rectangle = _line_rectangle(selected_line)
+    if selected_rectangle is None:
+        return False
+
+    matches = [
+        line
+        for line in other.lines
+        if (
+            line.text == selected_line.text
+            and line.confidence is not None
+            and float(line.confidence) >= 0.75
+        )
+    ]
+    if len(matches) != 1:
+        return False
+    other_rectangle = _line_rectangle(matches[0])
+    if other_rectangle is None:
+        return False
+
+    sx1, sy1, sx2, sy2 = selected_rectangle
+    ox1, oy1, ox2, oy2 = other_rectangle
+    horizontal_overlap = max(0.0, min(sx2, ox2) - max(sx1, ox1))
+    vertical_overlap = max(0.0, min(sy2, oy2) - max(sy1, oy1))
+    return (
+        horizontal_overlap >= min(sx2 - sx1, ox2 - ox1) * 0.80
+        and vertical_overlap >= min(sy2 - sy1, oy2 - oy1) * 0.60
+    )
+
+
+def _has_visible_single_space_gap(
+    image_path: Path,
+    region: Region | None,
+    selected: OCRResult,
+) -> bool:
+    """Confirm one OCR space from an independently visible glyph gap."""
+
+    if len(selected.lines) != 1:
+        return False
+    line = selected.lines[0]
+    tokens = line.text.split(" ")
+    if (
+        len(tokens) != 2
+        or not all(token.isalnum() for token in tokens)
+        or line.confidence is None
+        or float(line.confidence) < 0.95
+    ):
+        return False
+    rectangle = _line_rectangle(line)
+    if rectangle is None:
+        return False
+    x1, y1, x2, y2 = rectangle
+    offset_x = float(region.x) if region is not None else 0.0
+    offset_y = float(region.y) if region is not None else 0.0
+    try:
+        with Image.open(image_path) as image:
+            left = max(0, round(offset_x + x1))
+            top = max(0, round(offset_y + y1))
+            right = min(image.width, round(offset_x + x2))
+            bottom = min(image.height, round(offset_y + y2))
+            if right - left < 8 or bottom - top < 6:
+                return False
+            grayscale = np.asarray(
+                image.convert("L").crop((left, top, right, bottom)),
+                dtype=np.float32,
+            )
+    except (OSError, ValueError):
+        return False
+
+    background = float(np.median(grayscale))
+    ink = np.abs(grayscale - background) >= 28
+    minimum_column_ink = max(2, round(grayscale.shape[0] * 0.12))
+    active = np.count_nonzero(ink, axis=0) >= minimum_column_ink
+    if active.size < 3:
+        return False
+    active[0] = False
+    active[-1] = False
+    active_columns = np.flatnonzero(active)
+    if active_columns.size < 4:
+        return False
+
+    gaps = [
+        (int(right_column - left_column - 1), left_column, right_column)
+        for left_column, right_column in zip(
+            active_columns,
+            active_columns[1:],
+            strict=False,
+        )
+        if right_column > left_column + 1
+    ]
+    if not gaps:
+        return False
+    gaps.sort(reverse=True)
+    largest, gap_left, gap_right = gaps[0]
+    runner_up = gaps[1][0] if len(gaps) > 1 else 0
+    line_height = grayscale.shape[0]
+    if (
+        largest < max(2, round(line_height * 0.12))
+        or largest > max(3, round(line_height * 0.40))
+        or largest <= runner_up
+    ):
+        return False
+
+    ink_left = int(active_columns[0])
+    ink_right = int(active_columns[-1])
+    ink_width = ink_right - ink_left
+    if ink_width <= 0:
+        return False
+    observed_gap_position = (
+        ((gap_left + gap_right) / 2) - ink_left
+    ) / ink_width
+    expected_gap_position = len(tokens[0]) / sum(map(len, tokens))
+    return abs(observed_gap_position - expected_gap_position) <= 0.18
+
+
+def _with_visible_spacing_evidence(
+    result: OCRResult,
+    *,
+    image_path: Path,
+    region: Region | None,
+) -> OCRResult:
+    """Retain bounded pixel-gap proof when the second engine is unavailable."""
+
+    if (
+        region is None
+        or result.spacing_evidence == "verified"
+    ):
+        return result
+    if _has_visible_single_space_gap(image_path, region, result):
+        return OCRResult(
+            lines=result.lines,
+            alternatives=result.alternatives,
+            spacing_evidence="verified",
+        )
+
+    alternatives = list(result.alternatives)
+    known_spacing = {
+        candidate.text
+        for candidate in alternatives
+        if candidate.evidence_kind == "spacing"
+    }
+    for line in result.lines:
+        isolated = OCRResult(lines=[line])
+        if (
+            line.text not in known_spacing
+            and _has_visible_single_space_gap(
+                image_path,
+                region,
+                isolated,
+            )
+        ):
+            alternatives.append(
+                OCRCandidate(
+                    text=line.text,
+                    mean_confidence=(
+                        float(line.confidence)
+                        if line.confidence is not None
+                        else None
+                    ),
+                    evidence_kind="spacing",
+                )
+            )
+            known_spacing.add(line.text)
+    if alternatives == result.alternatives:
+        return result
+    return OCRResult(
+        lines=result.lines,
+        alternatives=alternatives,
+        spacing_evidence=result.spacing_evidence,
+    )
+
+
 def _merge_precise_evidence(
     primary: OCRResult,
     secondary: OCRResult,
     *,
+    image_path: Path,
     region: Region | None,
 ) -> OCRResult:
     """Select an engine without ground truth and retain the other as evidence.
@@ -286,10 +476,28 @@ def _merge_precise_evidence(
             mean_confidence=candidate.mean_confidence,
             evidence_kind=candidate.evidence_kind,
         )
-    return OCRResult(
+    spacing_evidence = selected.spacing_evidence
+    if (
+        spacing_evidence != "verified"
+        and (
+            _has_aligned_single_space_consensus(selected, other)
+            or _has_visible_single_space_gap(
+                image_path,
+                region,
+                selected,
+            )
+        )
+    ):
+        spacing_evidence = "verified"
+    merged = OCRResult(
         lines=selected.lines,
         alternatives=candidates,
-        spacing_evidence=selected.spacing_evidence,
+        spacing_evidence=spacing_evidence,
+    )
+    return _with_visible_spacing_evidence(
+        merged,
+        image_path=image_path,
+        region=region,
     )
 
 
@@ -373,7 +581,11 @@ class HybridOcrProvider:
         secondary_busy = getattr(self.secondary, "busy", None)
         if callable(secondary_busy) and secondary_busy():
             self._secondary_skipped_busy += 1
-            return await primary_call
+            return _with_visible_spacing_evidence(
+                await primary_call,
+                image_path=image_path,
+                region=region,
+            )
         self._secondary_attempted += 1
         primary_result, secondary_result = await asyncio.gather(
             primary_call,
@@ -413,12 +625,21 @@ class HybridOcrProvider:
         if isinstance(primary_result, BaseException):
             if isinstance(secondary_result, BaseException):
                 raise primary_result
-            return secondary_result
+            return _with_visible_spacing_evidence(
+                secondary_result,
+                image_path=image_path,
+                region=region,
+            )
         if isinstance(secondary_result, BaseException):
-            return primary_result
+            return _with_visible_spacing_evidence(
+                primary_result,
+                image_path=image_path,
+                region=region,
+            )
         return _merge_precise_evidence(
             primary_result,
             secondary_result,
+            image_path=image_path,
             region=region,
         )
 

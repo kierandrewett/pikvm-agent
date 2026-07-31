@@ -152,6 +152,16 @@ def test_controller_can_launch_a_standard_app_in_one_safe_burst() -> None:
     assert "set expects_task_completion true" in _CONTROLLER_SYSTEM
 
 
+def test_controller_uses_the_safe_explorer_location_shortcut() -> None:
+    assert "In File Explorer, use Ctrl+L" in _CONTROLLER_SYSTEM
+    assert "preserve the selection created by Ctrl+L" in _CONTROLLER_SYSTEM
+    assert "do not click, refocus, move the" in _CONTROLLER_SYSTEM
+    assert "as the very next active input" in _CONTROLLER_SYSTEM
+    assert "repeat Ctrl+L before typing" in _CONTROLLER_SYSTEM
+    assert 'draft exactly ``This PC``' in _CONTROLLER_SYSTEM
+    assert "never a ``shell:`` URI" in _CONTROLLER_SYSTEM
+
+
 def test_native_settings_launch_waits_through_splash_and_page_render() -> None:
     actions = [
         {"type": "key", "keys": ["META", "R"]},

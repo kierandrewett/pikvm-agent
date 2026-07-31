@@ -914,7 +914,7 @@ async def test_short_exact_field_reads_once_with_caret_blurred() -> None:
     _assert_no_enter(backend)
 
 
-async def test_short_exact_field_with_whitespace_does_not_blur_and_discard_draft(
+async def test_short_exact_field_with_whitespace_selects_for_caret_safe_readback(
 ) -> None:
     backend = FakeBackend()
     field_value = ""
@@ -934,15 +934,24 @@ async def test_short_exact_field_with_whitespace_does_not_blur_and_discard_draft
 
         async def ocr_precise(self, image_path, region=None):
             del image_path, region
+            last_keypress = next(
+                (
+                    kwargs["keys"]
+                    for method, kwargs in reversed(backend.calls)
+                    if method == "keypress"
+                ),
+                [],
+            )
+            selected = last_keypress == ["ControlLeft", "KeyA"]
             return OCRResult(
                 lines=[
                     OCRLine(
-                        text=field_value,
+                        text=field_value if selected else "This Pd",
                         confidence=0.99,
                         bbox=[100, 115, 180, 135],
                     )
                 ],
-                spacing_evidence="verified",
+                spacing_evidence="verified" if selected else "uncertain",
             )
 
     original_type = backend.type_text
@@ -979,6 +988,10 @@ async def test_short_exact_field_with_whitespace_does_not_blur_and_discard_draft
     assert result.status == "verified_exact", result
     assert result.field_text == "This PC"
     assert ("keypress", {"keys": ["Tab"]}) not in backend.calls
+    assert (
+        "keypress",
+        {"keys": ["ControlLeft", "KeyA"]},
+    ) in backend.calls
     _assert_no_enter(backend)
 
 
@@ -1054,6 +1067,64 @@ async def test_short_exact_field_accepts_one_complete_exact_context_row() -> Non
     assert result.status == "verified_exact", result
     assert result.correction_count == 0
     assert ocr_calls == 1
+    _assert_no_enter(backend)
+
+
+async def test_short_exact_field_accepts_geometrically_verified_context_row(
+) -> None:
+    backend = FakeBackend()
+
+    def field_frame(text: str) -> bytes:
+        image = Image.new("RGB", (1280, 720), (24, 28, 36))
+        draw = ImageDraw.Draw(image)
+        draw.rectangle([80, 100, 520, 150], fill=(210, 210, 210))
+        draw.text((100, 115), text, fill=(20, 20, 20))
+        output = io.BytesIO()
+        image.save(output, format="JPEG", quality=95)
+        return output.getvalue()
+
+    class ContextRowOCR:
+        async def ocr(self, image_path, region=None):
+            return await self.ocr_precise(image_path, region=region)
+
+        async def ocr_precise(self, image_path, region=None):
+            del image_path, region
+            return OCRResult(
+                lines=[
+                    OCRLine(text=">", confidence=0.42),
+                    OCRLine(text="This PC", confidence=0.995),
+                ],
+                alternatives=[
+                    OCRCandidate(
+                        text="This PC",
+                        mean_confidence=0.995,
+                        evidence_kind="spacing",
+                    )
+                ],
+                spacing_evidence="uncertain",
+            )
+
+    backend.set_frame_bytes(field_frame("Home"))
+    original_type = backend.type_text
+
+    async def typing(
+        text: str,
+        *,
+        code: bool = False,
+        secret: bool = False,
+    ) -> None:
+        await original_type(text, code=code, secret=secret)
+        backend.set_frame_bytes(field_frame(text))
+
+    backend.type_text = typing  # type: ignore[method-assign]
+    result = await WatchedTyper(backend, ContextRowOCR()).type_text(
+        "This PC",
+        exact=True,
+        context="field",
+    )
+
+    assert result.status == "verified_exact", result
+    assert result.field_text == "This PC"
     _assert_no_enter(backend)
 
 

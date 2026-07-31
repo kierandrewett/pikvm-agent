@@ -581,6 +581,168 @@ async def test_grounded_calculator_expression_does_not_need_send_approval(
     ]
 
 
+async def test_exact_explorer_receipt_records_post_action_screen_fingerprint(
+    runtime: Runtime,
+) -> None:
+    sid = (await runtime.start_session("direct"))["session_id"]
+    shot = await runtime.get_session_summary(sid, capture=True)
+    sr = runtime._get(sid)
+    final_frame = sr.frames.latest()
+    assert final_frame is not None
+
+    runtime._update_verified_local_navigation_draft(
+        sr,
+        [
+            {
+                "type": "type_text",
+                "text": "This PC",
+                "context": "field",
+                "verification": "exact",
+            }
+        ],
+        [
+            {
+                "index": 0,
+                "status": "verified_exact",
+                "verdict": "match",
+                "focus_evidence": "read_back_verified",
+                "exact_readback_sha256_match": True,
+                "emitted_exactly_once": True,
+                "observed_text": "This PC",
+                "readback_frame_sha256": "f" * 64,
+            }
+        ],
+        final_frame,
+    )
+
+    assert sr.verified_local_navigation_draft == {
+        "text": "This PC",
+        "readback_frame_sha256": "f" * 64,
+        "post_action_image_sha256": shot["image_sha256"],
+        "frame_screen_hash": shot["screen_hash"],
+        "control_epoch": shot["control_epoch"],
+    }
+
+
+async def test_matching_exact_explorer_draft_grounds_one_local_enter(
+    runtime: Runtime,
+) -> None:
+    class ExplorerOCR:
+        async def ocr(self, image_path, region=None):
+            del image_path, region
+            return OCRResult(
+                lines=[
+                    OCRLine(text="Home"),
+                    OCRLine(text="This PC"),
+                    OCRLine(text="Quick access"),
+                    OCRLine(text="Downloads"),
+                ]
+            )
+
+    runtime._screen_parser.ocr = ExplorerOCR()
+    sid = (await runtime.start_session("direct"))["session_id"]
+    shot = await runtime.get_session_summary(sid, capture=True)
+    runtime._get(sid).verified_local_navigation_draft = {
+        "text": "This PC",
+        "readback_frame_sha256": "f" * 64,
+        "post_action_image_sha256": "e" * 64,
+        "frame_screen_hash": shot["screen_hash"],
+        "control_epoch": shot["control_epoch"],
+    }
+
+    result = await runtime.run_burst(
+        sid,
+        [{"type": "key", "keys": ["ENTER"]}],
+        based_on_world_version=shot["world_version"],
+        based_on_control_epoch=shot["control_epoch"],
+        idempotency_key="grounded-explorer-navigation",
+    )
+
+    assert result["status"] == "completed"
+    assert [call[1]["keys"] for call in _hid_calls(runtime)] == [["Enter"]]
+    assert runtime._get(sid).verified_local_navigation_draft is None
+
+
+async def test_exact_draft_does_not_ground_enter_on_a_message_surface(
+    runtime: Runtime,
+) -> None:
+    class MessageOCR:
+        async def ocr(self, image_path, region=None):
+            del image_path, region
+            return OCRResult(
+                lines=[
+                    OCRLine(text="New message"),
+                    OCRLine(text="This PC"),
+                    OCRLine(text="Send"),
+                ]
+            )
+
+        async def ocr_precise(self, image_path, region=None):
+            return await self.ocr(image_path, region)
+
+    runtime._screen_parser.ocr = MessageOCR()
+    sid = (await runtime.start_session("direct"))["session_id"]
+    shot = await runtime.get_session_summary(sid, capture=True)
+    runtime._get(sid).verified_local_navigation_draft = {
+        "text": "This PC",
+        "readback_frame_sha256": shot["image_sha256"],
+        "post_action_image_sha256": shot["image_sha256"],
+        "frame_screen_hash": shot["screen_hash"],
+        "control_epoch": shot["control_epoch"],
+    }
+
+    result = await runtime.run_burst(
+        sid,
+        [{"type": "key", "keys": ["ENTER"]}],
+        based_on_world_version=shot["world_version"],
+        based_on_control_epoch=shot["control_epoch"],
+        idempotency_key="message-surface-stays-gated",
+    )
+
+    assert result["status"] == "needs_approval"
+    assert result["approval_request"]["risk"] == "unknown"
+    assert not _hid_calls(runtime)
+
+
+async def test_exact_explorer_draft_rejects_a_changed_screen_fingerprint(
+    runtime: Runtime,
+) -> None:
+    class ExplorerOCR:
+        async def ocr(self, image_path, region=None):
+            del image_path, region
+            return OCRResult(
+                lines=[
+                    OCRLine(text="Home"),
+                    OCRLine(text="This PC"),
+                    OCRLine(text="Quick access"),
+                    OCRLine(text="Downloads"),
+                ]
+            )
+
+    runtime._screen_parser.ocr = ExplorerOCR()
+    sid = (await runtime.start_session("direct"))["session_id"]
+    shot = await runtime.get_session_summary(sid, capture=True)
+    runtime._get(sid).verified_local_navigation_draft = {
+        "text": "This PC",
+        "readback_frame_sha256": shot["image_sha256"],
+        "post_action_image_sha256": shot["image_sha256"],
+        "frame_screen_hash": "0" * 512,
+        "control_epoch": shot["control_epoch"],
+    }
+
+    result = await runtime.run_burst(
+        sid,
+        [{"type": "key", "keys": ["ENTER"]}],
+        based_on_world_version=shot["world_version"],
+        based_on_control_epoch=shot["control_epoch"],
+        idempotency_key="changed-explorer-screen-stays-gated",
+    )
+
+    assert result["status"] == "needs_approval"
+    assert result["approval_request"]["risk"] == "unknown"
+    assert not _hid_calls(runtime)
+
+
 async def test_calculator_surface_retries_precise_header_before_enter_approval(
     runtime: Runtime,
 ) -> None:

@@ -4,7 +4,10 @@ import pytest
 
 from pikvm_agent.config import PolicyConfig
 from pikvm_agent.harness.lab import isolated_benchmark_policy
-from pikvm_agent.policy.direct import classify_direct_burst
+from pikvm_agent.policy.direct import (
+    classify_direct_burst,
+    is_confirmed_file_explorer_surface,
+)
 
 
 def _classify(actions: list[dict]):
@@ -441,6 +444,32 @@ def test_numpad_enter_also_fails_closed_on_an_unknown_surface() -> None:
     assert (verdict.status, verdict.category) == (
         "approval_required",
         "unknown",
+    )
+
+
+def test_verified_local_navigation_commit_requires_explicit_grounding() -> None:
+    actions = [
+        {"type": "key", "keys": ["ENTER"]},
+        {"type": "wait_for_change", "timeout_ms": 5000},
+    ]
+
+    assert _classify(actions).status == "approval_required"
+    assert classify_direct_burst(
+        actions,
+        PolicyConfig(),
+        verified_local_navigation_commit=True,
+    ).status == "allowed"
+
+
+def test_file_explorer_surface_requires_multiple_independent_markers() -> None:
+    assert is_confirmed_file_explorer_surface(
+        "Home  This PC  Search Home  Quick access  Downloads"
+    )
+    assert not is_confirmed_file_explorer_surface(
+        "Home  Search Home  Quick access  Downloads  Documents"
+    )
+    assert not is_confirmed_file_explorer_surface(
+        "New message  This PC  Send"
     )
 
 
