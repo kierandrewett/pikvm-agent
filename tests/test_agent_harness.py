@@ -15,6 +15,9 @@ from pikvm_agent.harness.agent import (
     _calculator_fast_path,
     _is_read_only_settings_request,
     _calculator_task_controller,
+    _notepad_exact_text_controller,
+    _notepad_fast_path,
+    _notepad_new_document_controller,
     _normalize_sequential_key_actions,
     _normalize_windows_run_launch,
     _normalize_plan_safety_constraints,
@@ -619,6 +622,96 @@ def test_calculator_converter_launch_accepts_any_persisted_mode() -> None:
     ]
 
 
+def test_exact_notepad_task_prepares_new_document_and_exact_text() -> None:
+    run = RunSnapshot(
+        run_id="notepad-fast-path",
+        task=(
+            "In Notepad, type exactly `Reliable automation starts with "
+            "observable evidence.` and save it as "
+            "C:\\PiKVM-Harness\\workspace\\codex-50\\text-01.txt. "
+            "Reopen the file and verify the sentence is exact."
+        ),
+        status=RunStatus.PAUSED,
+    )
+
+    fast_path = _notepad_fast_path(run, max_actions=20)
+
+    assert fast_path is not None
+    plan, launch_controller = fast_path
+    assert plan.summary == (
+        "Create and verify the requested exact text file in Notepad."
+    )
+    assert launch_controller.expected_evidence == [
+        "Windows Notepad is visibly open."
+    ]
+    launch = PendingAction(
+        index=0,
+        intent=launch_controller.intent,
+        actions=[
+            action.model_dump(mode="json", exclude_none=True)
+            for action in launch_controller.actions
+        ],
+        based_on_world_version=1,
+        based_on_control_epoch=0,
+        idempotency_key="notepad-launch",
+    )
+    new_document = _notepad_new_document_controller(
+        run,
+        launch,
+        max_actions=20,
+    )
+    assert new_document is not None
+    assert [
+        action.model_dump(mode="json", exclude_none=True)
+        for action in new_document.actions
+    ] == [
+        {"type": "key", "keys": ["ControlLeft", "KeyN"]},
+        {"type": "wait_for_change", "timeout_ms": 3_000},
+        {
+            "type": "wait_for_stable_screen",
+            "stable_ms": 400,
+            "timeout_ms": 3_000,
+        },
+    ]
+    document = PendingAction(
+        index=1,
+        intent=new_document.intent,
+        actions=[
+            action.model_dump(mode="json", exclude_none=True)
+            for action in new_document.actions
+        ],
+        based_on_world_version=2,
+        based_on_control_epoch=0,
+        idempotency_key="notepad-new-document",
+    )
+    exact_text = _notepad_exact_text_controller(
+        run,
+        document,
+        max_actions=20,
+    )
+    assert exact_text is not None
+    assert [
+        action.model_dump(mode="json", exclude_none=True)
+        for action in exact_text.actions
+    ] == [
+        {
+            "type": "type_text",
+            "text": (
+                "Reliable automation starts with observable evidence."
+                ),
+                "code": False,
+                "secret": False,
+                "context": "editor",
+            "verification": "exact",
+        },
+        {
+            "type": "wait_for_stable_screen",
+            "stable_ms": 400,
+            "timeout_ms": 3_000,
+        },
+    ]
+
+
 def test_controller_can_launch_a_standard_app_in_one_safe_burst() -> None:
     assert "one narrow app-launch exception" in _CONTROLLER_SYSTEM
     assert "type only the app's executable name" in _CONTROLLER_SYSTEM
@@ -631,6 +724,9 @@ def test_controller_can_launch_a_standard_app_in_one_safe_burst() -> None:
         _CONTROLLER_SYSTEM
     )
     assert "native ``ms-settings:`` URI" in _CONTROLLER_SYSTEM
+    assert "full absolute path into the File name field" in (
+        _CONTROLLER_SYSTEM
+    )
     assert "Do not generalise this exception to web URLs" in _CONTROLLER_SYSTEM
     assert "the verifier's job, not a remaining computer" in _CONTROLLER_SYSTEM
     assert "set expects_task_completion true" in _CONTROLLER_SYSTEM

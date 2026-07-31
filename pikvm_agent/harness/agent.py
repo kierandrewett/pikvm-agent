@@ -564,6 +564,10 @@ _CALCULATOR_CONVERTER_TASK = re.compile(
     r"(?:unit\s+conversion|temperature\s+converter)\s+to\s+convert\b",
     re.IGNORECASE,
 )
+_NOTEPAD_EXACT_TEXT_TASK = re.compile(
+    r"\bIn\s+Notepad,\s*type\s+exactly\s+`(?P<text>[^`\r\n]{1,240})`",
+    re.IGNORECASE,
+)
 
 
 def _calculator_number_keys(value: str) -> list[str]:
@@ -892,6 +896,164 @@ def _calculator_fast_path(
     return plan, controller
 
 
+def _notepad_exact_text_payload(run: RunSnapshot) -> str | None:
+    match = _NOTEPAD_EXACT_TEXT_TASK.search(run.task)
+    return match.group("text") if match is not None else None
+
+
+def _launched_notepad(action: PendingAction | None) -> bool:
+    if action is None:
+        return False
+    return any(
+        item.get("type") == "type_text"
+        and str(item.get("text") or "").strip().casefold()
+        in {"notepad", "notepad.exe"}
+        for item in action.actions
+    )
+
+
+def _created_new_notepad_document(
+    action: PendingAction | None,
+) -> bool:
+    if action is None:
+        return False
+    return any(
+        item.get("type") == "key"
+        and {
+            str(key).strip().casefold()
+            for key in item.get("keys") or []
+        }
+        in (
+            {"controlleft", "keyn"},
+            {"ctrl", "n"},
+        )
+        for item in action.actions
+    )
+
+
+def _notepad_new_document_controller(
+    run: RunSnapshot,
+    action: PendingAction | None,
+    *,
+    max_actions: int,
+) -> ControllerDecision | None:
+    """Create a fresh focused tab after Notepad restores old session state."""
+
+    if (
+        _notepad_exact_text_payload(run) is None
+        or not _launched_notepad(action)
+    ):
+        return None
+    actions = [
+        {"type": "key", "keys": ["ControlLeft", "KeyN"]},
+        {"type": "wait_for_change", "timeout_ms": 3_000},
+        {
+            "type": "wait_for_stable_screen",
+            "stable_ms": 400,
+            "timeout_ms": 3_000,
+        },
+    ]
+    if len(actions) > max_actions:
+        return None
+    return ControllerDecision(
+        outcome="act",
+        intent="Create a fresh blank Notepad document.",
+        actions=actions,
+        expected_evidence=[
+            "Notepad visibly shows a fresh blank editable document."
+        ],
+        expects_task_completion=False,
+    )
+
+
+def _notepad_exact_text_controller(
+    run: RunSnapshot,
+    action: PendingAction | None,
+    *,
+    max_actions: int,
+) -> ControllerDecision | None:
+    """Type one literal payload only after a fresh Notepad tab is verified."""
+
+    payload = _notepad_exact_text_payload(run)
+    if payload is None or not _created_new_notepad_document(action):
+        return None
+    actions = [
+        {
+            "type": "type_text",
+            "text": payload,
+            "code": False,
+            "context": "editor",
+            "verification": "exact",
+        },
+        {
+            "type": "wait_for_stable_screen",
+            "stable_ms": 400,
+            "timeout_ms": 3_000,
+        },
+    ]
+    if len(actions) > max_actions:
+        return None
+    return ControllerDecision(
+        outcome="act",
+        intent="Enter the requested exact text in the fresh Notepad document.",
+        actions=actions,
+        expected_evidence=[
+            f"Notepad visibly contains exactly `{payload}`."
+        ],
+        expects_task_completion=False,
+    )
+
+
+def _notepad_fast_path(
+    run: RunSnapshot,
+    *,
+    max_actions: int,
+) -> tuple[PlanDecision, ControllerDecision] | None:
+    """Prepare a literal exact-text Notepad task without model planning."""
+
+    payload = _notepad_exact_text_payload(run)
+    if payload is None or max_actions < 4:
+        return None
+    plan = PlanDecision(
+        summary="Create and verify the requested exact text file in Notepad.",
+        steps=[
+            "Open Windows Notepad using the bounded local app launcher.",
+            "Create a fresh blank document instead of reusing restored tabs.",
+            "Enter and independently verify the exact requested text.",
+            "Save inside the permitted lab workspace, reopen, and verify it.",
+        ],
+        success_criteria=[
+            "The requested file exists inside the permitted lab workspace.",
+            f"The reopened file visibly contains exactly `{payload}`.",
+        ],
+        constraints=[
+            (
+                "Keep every file mutation inside "
+                "C:\\PiKVM-Harness\\workspace\\codex-50."
+            ),
+            "Do not interact with communications or external applications.",
+        ],
+    )
+    controller = ControllerDecision(
+        outcome="act",
+        intent="Launch Windows Notepad.",
+        actions=[
+            {"type": "key", "keys": ["WIN", "R"]},
+            {"type": "wait", "ms": 300},
+            {
+                "type": "type_text",
+                "text": "notepad",
+                "context": "field",
+                "verification": "exact",
+            },
+            {"type": "key", "keys": ["ENTER"]},
+        ],
+        expected_evidence=["Windows Notepad is visibly open."],
+        expects_task_completion=False,
+    )
+    return plan, controller
+
+
 _CONTROLLER_SYSTEM = """\
 You are the fast controller for a physical computer. Choose one bounded logical
 burst against the supplied frame and checkpointed plan. A bounded burst is a
@@ -941,6 +1103,11 @@ instead of an executable. It must begin exactly with ``ms-settings:``, contain
 no whitespace or shell metacharacters, and open only the requested local page.
 Do not generalise this exception to web URLs, file URIs, commands, or arbitrary
 protocol handlers.
+In a Windows Save As dialog, navigate to the destination directory separately:
+use Ctrl+L, draft the exact directory path, verify it, then commit that local
+navigation and enter only the short basename in the File name field. Never type
+a full absolute path into the File name field; narrow horizontally scrolling
+filename controls cannot provide reliable whole-path visual readback.
 In File Explorer, use Ctrl+L as a separate reversible focus action instead of
 guessing address-bar coordinates. After that focus is independently verified,
 preserve the selection created by Ctrl+L: do not click, refocus, move the
@@ -1624,14 +1791,36 @@ class AgentHarness:
                     if run.next_action_index == 0
                     else None
                 )
-                if calculator_fast_path is not None:
-                    run.plan, launch_controller = calculator_fast_path
+                notepad_fast_path = (
+                    _notepad_fast_path(
+                        run,
+                        max_actions=self.config.max_actions_per_burst,
+                    )
+                    if (
+                        run.next_action_index == 0
+                        and calculator_fast_path is None
+                    )
+                    else None
+                )
+                literal_fast_path = (
+                    calculator_fast_path or notepad_fast_path
+                )
+                if literal_fast_path is not None:
+                    run.plan, launch_controller = literal_fast_path
                     self._prefetched_controllers[run.run_id] = (
                         launch_controller
                     )
                     run.record(
-                        "plan.calculator_fast_path",
-                        source="literal_task_expression",
+                        (
+                            "plan.calculator_fast_path"
+                            if calculator_fast_path is not None
+                            else "plan.notepad_fast_path"
+                        ),
+                        source=(
+                            "literal_task_expression"
+                            if calculator_fast_path is not None
+                            else "literal_exact_text_task"
+                        ),
                     )
                     await self.store.save(run)
                 elif not await self._plan(
@@ -2917,13 +3106,35 @@ class AgentHarness:
         validation/checkpoint path adopts it.
         """
 
-        deterministic_controller = _calculator_task_controller(
+        calculator_controller = _calculator_task_controller(
             run,
             action,
             max_actions=self.config.max_actions_per_burst,
         )
+        notepad_controller = (
+            _notepad_new_document_controller(
+                run,
+                action,
+                max_actions=self.config.max_actions_per_burst,
+            )
+            or _notepad_exact_text_controller(
+                run,
+                action,
+                max_actions=self.config.max_actions_per_burst,
+            )
+        )
+        deterministic_controller = (
+            calculator_controller or notepad_controller
+        )
         roles = (
-            ["verifier", "deterministic_calculator"]
+            [
+                "verifier",
+                (
+                    "deterministic_calculator"
+                    if calculator_controller is not None
+                    else "deterministic_notepad"
+                ),
+            ]
             if deterministic_controller is not None
             else ["verifier", "controller"]
         )
@@ -2934,14 +3145,17 @@ class AgentHarness:
         )
         if deterministic_controller is not None:
             run.record(
-                "controller.calculator_followup_prepared",
+                (
+                    "controller.calculator_expression_prepared"
+                    if calculator_controller is not None
+                    else "controller.notepad_followup_prepared"
+                ),
                 intent=deterministic_controller.intent,
-                source="literal_calculator_task",
-            )
-            run.record(
-                "controller.calculator_expression_prepared",
-                intent=deterministic_controller.intent,
-                source="literal_task_expression",
+                source=(
+                    "literal_task_expression"
+                    if calculator_controller is not None
+                    else "literal_exact_text_task"
+                ),
             )
         await self.store.save(run)
         verify_task = asyncio.create_task(
@@ -2956,18 +3170,17 @@ class AgentHarness:
                     verify_task.cancel()
                 await asyncio.gather(verify_task, return_exceptions=True)
                 raise
-            if (
+            verified = (
                 run.status is RunStatus.RUNNING
                 and run.last_verification is not None
                 and run.last_verification.verdict == "verified"
-                and _verification_confirms_standard_calculator(run)
+            )
+            if verified and (
+                calculator_controller is None
+                or _verification_confirms_standard_calculator(run)
             ):
                 controller = deterministic_controller
-            elif (
-                run.status is RunStatus.RUNNING
-                and run.last_verification is not None
-                and run.last_verification.verdict == "verified"
-            ):
+            elif verified and calculator_controller is not None:
                 run.record(
                     "controller.calculator_expression_discarded",
                     reason="verifier did not confirm Standard mode",
