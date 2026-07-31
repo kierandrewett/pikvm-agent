@@ -416,6 +416,61 @@ def test_bare_enter_fails_closed_because_it_can_submit_the_focused_surface() -> 
     assert "commit" in verdict.reason
 
 
+def test_numpad_enter_also_fails_closed_on_an_unknown_surface() -> None:
+    verdict = _classify([{"type": "key", "keys": ["NumpadEnter"]}])
+
+    assert (verdict.status, verdict.category) == (
+        "approval_required",
+        "unknown",
+    )
+
+
+def test_calculator_expression_requires_independent_surface_evidence() -> None:
+    actions = [
+        {"type": "key", "keys": ["Digit3"]},
+        {"type": "key", "keys": ["Digit7"]},
+        {"type": "key", "keys": ["NumpadMultiply"]},
+        {"type": "key", "keys": ["Digit1"]},
+        {"type": "key", "keys": ["Digit9"]},
+        {"type": "key", "keys": ["Enter"]},
+    ]
+
+    ungrounded = _classify(actions)
+    grounded = classify_direct_burst(
+        actions,
+        PolicyConfig(),
+        observed_surface_text=(
+            "Standard  History  Memory  There's no history yet."
+        ),
+    )
+
+    assert (ungrounded.status, ungrounded.category) == (
+        "approval_required",
+        "unknown",
+    )
+    assert grounded.status == "allowed"
+
+
+def test_arithmetic_looking_message_send_is_not_a_calculator_exception() -> None:
+    actions = [
+        {"type": "key", "keys": ["Digit3"]},
+        {"type": "key", "keys": ["NumpadMultiply"]},
+        {"type": "key", "keys": ["Digit9"]},
+        {"type": "key", "keys": ["Enter"]},
+    ]
+
+    verdict = classify_direct_burst(
+        actions,
+        PolicyConfig(),
+        observed_surface_text="New message  To  Subject  Send",
+    )
+
+    assert (verdict.status, verdict.category) == (
+        "approval_required",
+        "unknown",
+    )
+
+
 def test_read_only_terminal_text_does_not_bypass_enter_focus_gate() -> None:
     verdict = _classify(
         [

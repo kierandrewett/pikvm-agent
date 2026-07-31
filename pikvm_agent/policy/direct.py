@@ -169,6 +169,63 @@ _FUZZY_COMMIT_PHRASES: tuple[tuple[str, str, str], ...] = (
     ("done", "unknown", "medium"),
     ("ok", "unknown", "medium"),
 )
+
+_CALCULATOR_DIGIT_KEYS = {
+    *(f"DIGIT{digit}" for digit in range(10)),
+    *(f"NUMPAD{digit}" for digit in range(10)),
+}
+_CALCULATOR_OPERATOR_KEYS = {
+    "NUMPADADD",
+    "NUMPADSUBTRACT",
+    "NUMPADMULTIPLY",
+    "NUMPADDIVIDE",
+}
+_COMMIT_KEYS = {"ENTER", "RETURN", "NUMPADENTER"}
+
+
+def needs_calculator_surface_grounding(actions: list[dict]) -> bool:
+    """Return whether a key-only burst resembles one calculator expression."""
+
+    active_actions = [
+        action
+        for action in actions
+        if action.get("type")
+        not in {"wait", "wait_for_change", "wait_for_stable_screen"}
+    ]
+    if not active_actions or any(
+        action.get("type") != "key" for action in active_actions
+    ):
+        return False
+    keys = [
+        str(key).strip().upper()
+        for action in active_actions
+        for key in (action.get("keys") or [action.get("key")])
+        if key
+    ]
+    if not keys or keys[-1] not in _COMMIT_KEYS:
+        return False
+    expression_keys = keys[:-1]
+    return (
+        len(keys) == len(active_actions)
+        and sum(key in _CALCULATOR_DIGIT_KEYS for key in expression_keys) >= 2
+        and any(key in _CALCULATOR_OPERATOR_KEYS for key in expression_keys)
+        and all(
+            key in _CALCULATOR_DIGIT_KEYS | _CALCULATOR_OPERATOR_KEYS
+            for key in expression_keys
+        )
+    )
+
+
+def _calculator_surface_confirmed(observed_surface_text: str) -> bool:
+    text = " ".join(observed_surface_text.casefold().split())
+    return (
+        "calculator" in text
+        and "standard" in text
+    ) or (
+        "standard" in text
+        and "history" in text
+        and "memory" in text
+    )
 _SHELL_LAUNCHER = re.compile(
     r"^\s*(?:"
     r"(?:powershell|pwsh|cmd)(?:\.exe)?\b|"
@@ -402,7 +459,10 @@ def _medium_terminal_candidate(command: str) -> tuple[str, str, str]:
 
 
 def classify_direct_burst(
-    actions: list[dict], policy: PolicyConfig
+    actions: list[dict],
+    policy: PolicyConfig,
+    *,
+    observed_surface_text: str = "",
 ) -> DirectBurstVerdict:
     """Classify a burst independently of the model-provided intent.
 
@@ -415,6 +475,10 @@ def classify_direct_burst(
     safe_windows_run_launch = is_verified_windows_run_launch(actions)
     terminal_commands = (
         [] if safe_windows_run_launch else terminal_groups
+    )
+    verified_calculator_expression = (
+        needs_calculator_surface_grounding(actions)
+        and _calculator_surface_confirmed(observed_surface_text)
     )
     for command in terminal_commands:
         command_risk = classify_command(command)
@@ -517,8 +581,9 @@ def classify_direct_burst(
                     )
                 )
             if (
-                keys in ({"ENTER"}, {"RETURN"})
+                keys in ({"ENTER"}, {"RETURN"}, {"NUMPADENTER"})
                 and not safe_windows_run_launch
+                and not verified_calculator_expression
             ):
                 candidates.append(
                     (

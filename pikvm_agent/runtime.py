@@ -42,7 +42,10 @@ from pikvm_agent.operator.fake import FakeOperator
 from pikvm_agent.pikvm.client import PiKVMBackend
 from pikvm_agent.pikvm.fake import FakeBackend
 from pikvm_agent.policy.safety import SafetyPolicyEngine
-from pikvm_agent.policy.direct import classify_direct_burst
+from pikvm_agent.policy.direct import (
+    classify_direct_burst,
+    needs_calculator_surface_grounding,
+)
 from pikvm_agent.store.frames import FrameStore
 from pikvm_agent.store.sqlite import SessionStore
 from pikvm_agent.store.trace import TraceLog
@@ -947,7 +950,15 @@ class Runtime:
         sr.other_client_block_active = False
 
         grounded_actions = await self._ground_click_targets(actions, frame)
-        verdict = classify_direct_burst(grounded_actions, self.config.policy)
+        observed_surface_text = await self._ground_keyboard_surface(
+            grounded_actions,
+            frame,
+        )
+        verdict = classify_direct_burst(
+            grounded_actions,
+            self.config.policy,
+            observed_surface_text=observed_surface_text,
+        )
         if verdict.status == "blocked":
             return {
                 "session_id": session_id,
@@ -1237,6 +1248,24 @@ class Runtime:
             except Exception as exc:  # noqa: BLE001 - missing OCR must not break navigation
                 log.debug("click target OCR failed: %s", exc)
         return grounded
+
+    async def _ground_keyboard_surface(
+        self,
+        actions: list[dict[str, Any]],
+        frame: Any,
+    ) -> str:
+        """Read the visible app before exempting one local calculator commit."""
+
+        if not needs_calculator_surface_grounding(actions):
+            return ""
+        ocr = getattr(self._screen_parser, "ocr", None)
+        if ocr is None:
+            return ""
+        try:
+            observed = await ocr.ocr(Path(frame.image_path))
+        except Exception:
+            return ""
+        return str(observed.text or "")[:2_000]
 
     # ---- on-demand perception (Layer 2 — OFF the hot path, opt-in) ------- #
 

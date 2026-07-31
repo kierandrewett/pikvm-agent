@@ -536,6 +536,51 @@ async def test_dangerous_click_pauses_for_approval_then_executes_once(
     assert len([call for call in _hid_calls(runtime) if call[0] == "click"]) == 1
 
 
+async def test_grounded_calculator_expression_does_not_need_send_approval(
+    runtime: Runtime,
+) -> None:
+    class CalculatorOCR:
+        async def ocr(self, image_path, region=None):
+            del image_path, region
+            return OCRResult(
+                lines=[
+                    OCRLine(text="Standard", bbox=[20, 20, 100, 50]),
+                    OCRLine(text="History", bbox=[500, 20, 570, 50]),
+                    OCRLine(text="Memory", bbox=[580, 20, 650, 50]),
+                ]
+            )
+
+    runtime._screen_parser.ocr = CalculatorOCR()
+    sid = (await runtime.start_session("direct"))["session_id"]
+    shot = await runtime.get_session_summary(sid, capture=True)
+    actions = [
+        {"type": "key", "keys": ["Digit3"]},
+        {"type": "key", "keys": ["Digit7"]},
+        {"type": "key", "keys": ["NumpadMultiply"]},
+        {"type": "key", "keys": ["Digit1"]},
+        {"type": "key", "keys": ["Digit9"]},
+        {"type": "key", "keys": ["Enter"]},
+    ]
+
+    result = await runtime.run_burst(
+        sid,
+        actions,
+        based_on_world_version=shot["world_version"],
+        based_on_control_epoch=shot["control_epoch"],
+        idempotency_key="grounded-calculator-expression",
+    )
+
+    assert result["status"] == "completed"
+    assert [call[1]["keys"] for call in _hid_calls(runtime)] == [
+        ["Digit3"],
+        ["Digit7"],
+        ["NumpadMultiply"],
+        ["Digit1"],
+        ["Digit9"],
+        ["Enter"],
+    ]
+
+
 async def test_small_ui_click_retries_precise_ocr_before_failing_closed(
     runtime: Runtime,
 ) -> None:
