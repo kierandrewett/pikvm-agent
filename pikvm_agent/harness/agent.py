@@ -580,6 +580,12 @@ _NOTEPAD_TWO_PARAGRAPH_TASK = re.compile(
     r"Put\s+one\s+blank\s+line\s+between\s+them\b",
     re.IGNORECASE,
 )
+_NOTEPAD_EXACT_LINES_TASK = re.compile(
+    r"\bIn\s+Notepad,.*?\bwith\s+these\s+exact\s+lines:\s*"
+    r"(?P<body>`[^`\r\n]{1,240}`"
+    r"(?:\s+then\s+`[^`\r\n]{1,240}`){1,19})",
+    re.IGNORECASE,
+)
 
 
 def _calculator_number_keys(value: str) -> list[str]:
@@ -918,9 +924,20 @@ def _notepad_exact_text_segments(run: RunSnapshot) -> tuple[str, ...]:
     if payload is not None:
         return (payload,)
     match = _NOTEPAD_TWO_PARAGRAPH_TASK.search(run.task)
-    if match is None:
+    if match is not None:
+        return (match.group("first"), match.group("second"))
+    line_match = _NOTEPAD_EXACT_LINES_TASK.search(run.task)
+    if line_match is None:
         return ()
-    return (match.group("first"), match.group("second"))
+    return tuple(re.findall(r"`([^`\r\n]{1,240})`", line_match.group("body")))
+
+
+def _notepad_segment_break_count(run: RunSnapshot) -> int:
+    if _NOTEPAD_TWO_PARAGRAPH_TASK.search(run.task) is not None:
+        return 2
+    if _NOTEPAD_EXACT_LINES_TASK.search(run.task) is not None:
+        return 1
+    return 0
 
 
 def _launched_notepad(action: PendingAction | None) -> bool:
@@ -1000,39 +1017,75 @@ def _notepad_exact_text_controller(
     if not segments:
         return None
     payload: str | None = None
+    payload_index: int | None = None
     if _created_new_notepad_document(action):
+        payload_index = 0
         payload = segments[0]
-    elif len(segments) == 2 and _typed_exact_editor_text(
-        action,
-        segments[0],
-    ):
-        actions = [
-            {"type": "key", "keys": ["SHIFT", "ENTER"]},
-            {"type": "key", "keys": ["SHIFT", "ENTER"]},
-            {
-                "type": "wait_for_stable_screen",
-                "stable_ms": 400,
-                "timeout_ms": 3_000,
-            },
-        ]
-        if len(actions) > max_actions:
-            return None
-        return ControllerDecision(
-            outcome="act",
-            intent="Insert the requested single blank line in Notepad.",
-            actions=actions,
-            expected_evidence=[
-                (
-                    "Notepad visibly keeps the exact first paragraph and "
-                    "places the caret after one blank line."
-                )
-            ],
-            expects_task_completion=False,
+    else:
+        typed_index = next(
+            (
+                index
+                for index, segment in enumerate(segments[:-1])
+                if _typed_exact_editor_text(action, segment)
+            ),
+            None,
         )
-    elif len(segments) == 2 and _inserted_notepad_blank_line(action):
-        payload = segments[1]
+        break_count = _notepad_segment_break_count(run)
+        if typed_index is not None and break_count:
+            actions = [
+                {"type": "key", "keys": ["SHIFT", "ENTER"]}
+                for _ in range(break_count)
+            ]
+            actions.append(
+                {
+                    "type": "wait_for_stable_screen",
+                    "stable_ms": 400,
+                    "timeout_ms": 3_000,
+                }
+            )
+            if len(actions) > max_actions:
+                return None
+            separator = (
+                "single blank line"
+                if break_count == 2
+                else "line break"
+            )
+            return ControllerDecision(
+                outcome="act",
+                intent=(
+                    f"Insert the requested {separator} after exact segment "
+                    f"{typed_index + 1} of {len(segments)} in Notepad."
+                ),
+                actions=actions,
+                expected_evidence=[
+                    (
+                        "Notepad visibly keeps the exact preceding segment "
+                        f"and places the caret after the requested {separator}."
+                    )
+                ],
+                expects_task_completion=False,
+            )
+        break_match = re.fullmatch(
+            r"Insert the requested (?:single blank line|line break) after "
+            r"exact segment (?P<index>\d+) of (?P<count>\d+) in Notepad\.",
+            action.intent if action is not None else "",
+        )
+        if break_match is not None:
+            prior_index = int(break_match.group("index")) - 1
+            expected_breaks = _notepad_segment_break_count(run)
+            if (
+                int(break_match.group("count")) == len(segments)
+                and 0 <= prior_index < len(segments) - 1
+                and _inserted_notepad_line_breaks(
+                    action,
+                    expected_breaks,
+                )
+            ):
+                payload_index = prior_index + 1
+                payload = segments[payload_index]
     if payload is None:
         return None
+    assert payload_index is not None
     actions = [
         {
             "type": "type_text",
@@ -1051,7 +1104,14 @@ def _notepad_exact_text_controller(
         return None
     return ControllerDecision(
         outcome="act",
-        intent="Enter the requested exact text in the fresh Notepad document.",
+        intent=(
+            "Enter the requested exact text in the fresh Notepad document."
+            if len(segments) == 1
+            else (
+                f"Enter exact segment {payload_index + 1} of {len(segments)} "
+                "in the fresh Notepad document."
+            )
+        ),
         actions=actions,
         expected_evidence=[
             f"Notepad visibly contains exactly `{payload}`."
@@ -1075,8 +1135,9 @@ def _typed_exact_editor_text(
     )
 
 
-def _inserted_notepad_blank_line(
+def _inserted_notepad_line_breaks(
     action: PendingAction | None,
+    count: int,
 ) -> bool:
     if action is None:
         return False
@@ -1088,7 +1149,7 @@ def _inserted_notepad_blank_line(
         for item in action.actions
         if item.get("type") == "key"
     ]
-    return line_breaks.count({"shift", "enter"}) == 2
+    return line_breaks.count({"shift", "enter"}) == count
 
 
 def _notepad_fast_path(
@@ -1101,7 +1162,12 @@ def _notepad_fast_path(
     segments = _notepad_exact_text_segments(run)
     if not segments or max_actions < 7:
         return None
-    paragraph_task = len(segments) == 2
+    paragraph_task = (
+        _NOTEPAD_TWO_PARAGRAPH_TASK.search(run.task) is not None
+    )
+    exact_lines_task = (
+        _NOTEPAD_EXACT_LINES_TASK.search(run.task) is not None
+    )
     plan = PlanDecision(
         summary="Create and verify the requested exact text file in Notepad.",
         steps=[
@@ -1117,8 +1183,13 @@ def _notepad_fast_path(
                 "paragraphs with one blank line between them."
                 if paragraph_task
                 else (
-                    "The reopened file visibly contains exactly "
-                    f"`{segments[0]}`."
+                    "The reopened file visibly contains exactly the requested "
+                    f"{len(segments)} lines."
+                    if exact_lines_task
+                    else (
+                        "The reopened file visibly contains exactly "
+                        f"`{segments[0]}`."
+                    )
                 )
             ),
         ],

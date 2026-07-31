@@ -16,6 +16,7 @@ from pikvm_agent.harness.agent import (
     _is_read_only_settings_request,
     _calculator_task_controller,
     _notepad_exact_text_controller,
+    _notepad_exact_text_segments,
     _notepad_fast_path,
     _notepad_new_document_controller,
     _normalize_sequential_key_actions,
@@ -891,6 +892,91 @@ def test_exact_notepad_paragraphs_use_separate_verified_text_and_line_breaks() -
             "timeout_ms": 3_000,
         },
     ]
+
+
+def test_exact_notepad_lines_use_one_verified_break_between_each_line() -> None:
+    lines = ("1. Observe", "2. Act", "3. Verify", "4. Record")
+    run = RunSnapshot(
+        run_id="notepad-exact-lines-fast-path",
+        task=(
+            "In Notepad, create "
+            "C:\\PiKVM-Harness\\workspace\\codex-50\\text-04.txt with these "
+            "exact lines: `1. Observe` then `2. Act` then `3. Verify` then "
+            "`4. Record`. Reopen it and verify all four lines."
+        ),
+        status=RunStatus.PAUSED,
+    )
+    assert _notepad_exact_text_segments(run) == lines
+
+    prior = PendingAction(
+        index=1,
+        intent="Create a fresh blank Notepad document.",
+        actions=[{"type": "key", "keys": ["ControlLeft", "KeyN"]}],
+        based_on_world_version=2,
+        based_on_control_epoch=0,
+        idempotency_key="notepad-lines-new-document",
+    )
+    for index, expected in enumerate(lines):
+        text_decision = _notepad_exact_text_controller(
+            run,
+            prior,
+            max_actions=20,
+        )
+        assert text_decision is not None
+        typed = [
+            action.model_dump(mode="json", exclude_none=True)
+            for action in text_decision.actions
+        ]
+        assert typed[0] == {
+            "type": "type_text",
+            "text": expected,
+            "code": False,
+            "secret": False,
+            "context": "editor",
+            "verification": "exact",
+        }
+        prior = PendingAction(
+            index=2 + index * 2,
+            intent=text_decision.intent,
+            actions=typed,
+            based_on_world_version=3 + index * 2,
+            based_on_control_epoch=0,
+            idempotency_key=f"notepad-lines-text-{index}",
+        )
+        if index == len(lines) - 1:
+            assert (
+                _notepad_exact_text_controller(
+                    run,
+                    prior,
+                    max_actions=20,
+                )
+                is None
+            )
+            break
+        line_break = _notepad_exact_text_controller(
+            run,
+            prior,
+            max_actions=20,
+        )
+        assert line_break is not None
+        break_actions = [
+            action.model_dump(mode="json", exclude_none=True)
+            for action in line_break.actions
+        ]
+        assert break_actions[:1] == [
+            {"type": "key", "keys": ["SHIFT", "ENTER"]}
+        ]
+        assert sum(
+            action.get("type") == "key" for action in break_actions
+        ) == 1
+        prior = PendingAction(
+            index=3 + index * 2,
+            intent=line_break.intent,
+            actions=break_actions,
+            based_on_world_version=4 + index * 2,
+            based_on_control_epoch=0,
+            idempotency_key=f"notepad-lines-break-{index}",
+        )
 
 
 def test_controller_can_launch_a_standard_app_in_one_safe_burst() -> None:
