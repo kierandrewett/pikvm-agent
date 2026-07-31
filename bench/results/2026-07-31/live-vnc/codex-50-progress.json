@@ -16,9 +16,9 @@
   },
   "progress": {
     "planned": 50,
-    "unique_passed": 17,
-    "pending": 33,
-    "completion_percent": 34.0,
+    "unique_passed": 16,
+    "pending": 34,
+    "completion_percent": 32.0,
     "categories": {
       "Observation": {
         "passed": 5,
@@ -29,7 +29,7 @@
         "planned": 10
       },
       "Text entry": {
-        "passed": 3,
+        "passed": 2,
         "planned": 10
       },
       "Code entry": {
@@ -65,8 +65,7 @@
       "calc-08",
       "calc-10",
       "text-01",
-      "text-02",
-      "text-03"
+      "text-02"
     ]
   },
   "canonical_campaigns": [
@@ -145,13 +144,6 @@
         "text-02"
       ],
       "campaign_sha256": "f588d1b79fa241b7dae387486cce91f88e125632b4166cbfb04ac0a1519a5cd4"
-    },
-    {
-      "campaign_id": "codex-text-entry-text03-v4-20260731",
-      "tasks": [
-        "text-03"
-      ],
-      "campaign_sha256": "28f7c6d579371d8e958809fc7b776a206ae8a045056f018524727357dd90919a"
     }
   ],
   "text_01_acceptance": {
@@ -388,9 +380,10 @@
       "campaign_sha256": "f588d1b79fa241b7dae387486cce91f88e125632b4166cbfb04ac0a1519a5cd4"
     }
   ],
-  "text_03_acceptance": {
+  "text_03_invalid_v4": {
     "task": "Preserve two exact paragraphs with one blank line through save and independent reopen",
-    "result": "passed",
+    "result": "invalid",
+    "invalid_reason": "The run never executed an actual Open action. An unexecuted checkpoint whose intent mentioned reopening was incorrectly associated with later verification and satisfied the old completion gate.",
     "run_id": "e462ff6b-0f20-42b0-8c2a-d1db3c01a32e",
     "first_paragraph": {
       "requested_characters": 79,
@@ -473,8 +466,8 @@
     {
       "campaign_id": "codex-text-entry-text03-v4-20260731",
       "reported_status": "passed",
-      "accepted_status": "passed",
-      "reason": "Each paragraph received exact at-most-once visual readback, two Shift+Enter actions created the blank line without a submit-capable bare Enter, and the saved file was reopened from the requested workspace.",
+      "accepted_status": "invalid",
+      "reason": "The paragraph receipts and save were valid, but no actual Open action occurred; an unexecuted checkpoint containing the word reopening was incorrectly accepted as durable transition evidence.",
       "wall_clock_ms": 277952,
       "provider_wait_ms": 141648,
       "action_execution_ms": 204741,
@@ -486,9 +479,9 @@
     }
   ],
   "verdict": {
-    "accuracy": "Three exact text tasks now pass with independent reopen evidence; text-03 verified 79/79 and 74/74 characters with one blank line.",
-    "speed": "Failing product target: text-03 took 277.952 seconds before reboot and remains slower than a human.",
-    "dominant_cost": "Text-03 provider waits consumed 141.648 seconds across 22 calls, while action execution consumed 204.741 seconds; overlapping work prevents these components from summing directly to wall time.",
-    "next": "Reduce save/reopen proof round trips and continue the blind text-entry batch."
+    "accuracy": "Two exact text tasks pass with independent reopen evidence. Text-03 has exact paragraph delivery but no accepted reopen yet.",
+    "speed": "Failing product target: invalid text-03 v4 still took 277.952 seconds before reboot.",
+    "dominant_cost": "Text-03 v4 provider waits consumed 141.648 seconds across 22 calls, while action execution consumed 204.741 seconds; overlapping work prevents these components from summing directly to wall time.",
+    "next": "Require a durable completed Open transition, rerun text-03, then continue the blind text-entry batch."
   }
 }

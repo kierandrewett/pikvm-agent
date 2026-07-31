@@ -4622,6 +4622,7 @@ def test_long_terminal_draft_requires_a_verified_legibility_step() -> None:
         intent="Maximize the terminal before entering the exact command.",
         actions=[{"type": "key", "keys": ["META", "UP"]}],
     )
+    run.record("action.completed", index=4, status="completed")
     run.record(
         "model.completed",
         role="verifier",
@@ -4640,6 +4641,7 @@ def test_long_terminal_draft_requires_a_verified_legibility_step() -> None:
         intent="Increase the terminal text size before entering the exact command.",
         actions=[{"type": "key", "keys": ["CTRL", "SHIFT", "EQUAL"]}],
     )
+    run.record("action.completed", index=5, status="completed")
     run.record(
         "model.completed",
         role="verifier",
@@ -4735,6 +4737,7 @@ def test_long_terminal_draft_requires_a_verified_legibility_step() -> None:
         intent="Increase the terminal text size after the unreadable draft.",
         actions=[{"type": "key", "keys": ["CTRL", "SHIFT", "EQUAL"]}],
     )
+    run.record("action.completed", index=9, status="completed")
     run.record(
         "model.completed",
         role="verifier",
@@ -4754,6 +4757,7 @@ def test_long_terminal_draft_requires_a_verified_legibility_step() -> None:
             intent=f"Perform unrelated verified recovery step {index}.",
             actions=[{"type": "wait", "ms": 100}],
         )
+        run.record("action.completed", index=index, status="completed")
         run.record(
             "model.completed",
             role="verifier",
@@ -4772,6 +4776,7 @@ def test_long_terminal_draft_requires_a_verified_legibility_step() -> None:
         intent="Open a new terminal window.",
         actions=[{"type": "key", "keys": ["CTRL", "ALT", "T"]}],
     )
+    run.record("action.completed", index=19, status="completed")
     run.record(
         "model.completed",
         role="verifier",
@@ -5202,6 +5207,7 @@ def test_recent_verified_actions_keep_bounded_durable_task_evidence() -> None:
         intent="Select B8 and inspect its stored formula.",
         actions=[{"type": "click", "x": 100, "y": 200}],
     )
+    run.record("action.completed", index=3, status="completed")
     run.record(
         "model.completed",
         role="verifier",
@@ -5214,6 +5220,7 @@ def test_recent_verified_actions_keep_bounded_durable_task_evidence() -> None:
         intent="Focus the filename field.",
         actions=[{"type": "key", "keys": ["alt+n"]}],
     )
+    run.record("action.completed", index=4, status="completed")
     run.record(
         "model.completed",
         role="verifier",
@@ -5688,6 +5695,7 @@ def test_later_verified_reopen_action_satisfies_reopen_completion_gate() -> None
             intent=intent,
             actions=[{"type": "click", "x": 587, "y": 425}],
         )
+        run.record("action.completed", index=index, status="completed")
         run.record(
             "model.completed",
             role="verifier",
@@ -5709,6 +5717,67 @@ def test_later_verified_reopen_action_satisfies_reopen_completion_gate() -> None
     )
 
     assert AgentHarness._completion_rejection_reason(run, verdict) is None
+
+
+def test_unexecuted_reopen_intent_cannot_satisfy_completion_gate() -> None:
+    run = RunSnapshot(
+        run_id="unexecuted-reopen-transition",
+        task="Save text-03.txt. Reopen the file and verify it.",
+        status=RunStatus.RUNNING,
+        plan=PlanDecision(
+            summary="Save and reopen the file.",
+            steps=["Save the file", "Reopen it", "Verify the text"],
+            success_criteria=["The reopened file contains the exact text."],
+            constraints=[],
+        ),
+    )
+    run.record(
+        "action.checkpointed",
+        index=7,
+        intent="Save the verified filename in the permitted workspace.",
+        actions=[{"type": "click", "x": 667, "y": 506}],
+    )
+    run.record("action.completed", index=7, status="completed")
+    run.record(
+        "model.completed",
+        role="verifier",
+        verdict="verified",
+        summary="The file is saved and remains open in Notepad.",
+    )
+    run.record(
+        "action.checkpointed",
+        index=8,
+        intent="Establish editor focus before reopening the saved file.",
+        actions=[{"type": "click", "x": 600, "y": 300}],
+    )
+    run.record(
+        "action.ungrounded_refreshed",
+        reason="coordinate click target could not be independently read",
+    )
+    run.record(
+        "model.completed",
+        role="verifier",
+        verdict="verified",
+        summary="The file is still visibly open in Notepad.",
+    )
+    verdict = VerificationDecision(
+        verdict="complete",
+        summary="Saved and reopened text-03.txt.",
+        evidence=["The requested text is visible."],
+        criteria=[
+            {
+                "criterion_index": 0,
+                "satisfied": True,
+                "evidence": "The requested text is visible.",
+            }
+        ],
+        action_criteria=[],
+    )
+
+    rejection = AgentHarness._completion_rejection_reason(run, verdict)
+
+    assert rejection is not None
+    assert "separately verified reopen action after save" in rejection
 
 
 def test_verified_overwrite_confirmation_counts_as_save_before_reopen() -> None:
@@ -5746,6 +5815,7 @@ def test_verified_overwrite_confirmation_counts_as_save_before_reopen() -> None:
             intent=intent,
             actions=[{"type": "key", "keys": ["ENTER"]}],
         )
+        run.record("action.completed", index=index, status="completed")
         run.record(
             "model.completed",
             role="verifier",

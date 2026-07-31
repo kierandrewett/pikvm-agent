@@ -3893,14 +3893,36 @@ class AgentHarness:
                     current_action = {
                         "action_index": index,
                         "intent": intent[:500],
+                        "_completed": False,
                     }
                 else:
                     current_action = None
                 continue
             if (
+                event.kind == "action.completed"
+                and current_action is not None
+                and event.data.get("index")
+                == current_action.get("action_index")
+            ):
+                current_action["_completed"] = True
+                continue
+            if (
+                event.kind
+                in {
+                    "action.completed_unverified",
+                    "action.failed",
+                    "action.recoverable_failure",
+                    "action.ungrounded_refreshed",
+                }
+                and current_action is not None
+            ):
+                current_action["_completed"] = False
+                continue
+            if (
                 event.kind != "model.completed"
                 or event.data.get("role") != "verifier"
                 or current_action is None
+                or current_action.get("_completed") is not True
             ):
                 continue
             verdict = str(event.data.get("verdict") or "")
@@ -3912,7 +3934,8 @@ class AgentHarness:
                 continue
             verified.append(
                 {
-                    **current_action,
+                    "action_index": current_action["action_index"],
+                    "intent": current_action["intent"],
                     "verdict": verdict,
                     "summary": summary[:500],
                 }
