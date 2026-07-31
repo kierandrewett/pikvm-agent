@@ -103,6 +103,9 @@ _PRECISE_FULL_SCREEN_SETTLES_S = (0.0, 0.45, 0.90)
 _SIMPLE_TERMINAL_ARGV = re.compile(
     r"[A-Za-z0-9_./:@=+-]+(?: [A-Za-z0-9_./:@=+-]+)*"
 )
+_SAFE_FILENAME = re.compile(
+    r'[^\\/:*?"<>|\r\n]{1,180}\.[A-Za-z0-9]{1,12}'
+)
 
 NO_FOCUS_SUMMARY = (
     "Typed but the screen did not change — the field isn't focused. STOP: do not "
@@ -332,8 +335,35 @@ def precise_readback_candidate_region(
             if character.isalnum()
         ]
         source = "".join(character for character, _index in source_positions)
-        target_index = source.find(target)
-        matched_length = len(target)
+        intended_filename = (
+            intended.rsplit(".", 1)
+            if _SAFE_FILENAME.fullmatch(intended)
+            else None
+        )
+        observed_text = line.text.strip()
+        observed_filename = (
+            observed_text.rsplit(".", 1)
+            if _SAFE_FILENAME.fullmatch(observed_text)
+            else None
+        )
+        same_filename_stem = bool(
+            intended_filename is not None
+            and observed_filename is not None
+            and intended_filename[0].casefold()
+            == observed_filename[0].casefold()
+        )
+        if same_filename_stem:
+            # Low-resolution Save As crops repeatedly preserve the basename
+            # while confusing every short extension glyph (for example the
+            # measured ``text-01.bd`` for ``text-01.txt``). Use that exact,
+            # safe stem only to localize the filename row. The next OCR pass
+            # still has to independently read the complete intended filename;
+            # this branch never verifies or submits it.
+            target_index = 0
+            matched_length = len(source)
+        else:
+            target_index = source.find(target)
+            matched_length = len(target)
         if target_index < 0:
             # A noisy punctuation-free OCR pass may still identify which row to
             # re-read. Keep this bounded to two alphanumeric edits and use it
@@ -1249,10 +1279,7 @@ class WatchedTyper:
         """
         if (
             precise
-            and re.fullmatch(
-                r'[^\\/:*?"<>|\r\n]{1,180}\.[A-Za-z0-9]{1,12}',
-                intended,
-            )
+            and _SAFE_FILENAME.fullmatch(intended)
         ):
             lines = [
                 line.strip()

@@ -33,6 +33,7 @@ from pikvm_agent.executor.typing import (
     locate_capture_change,
     locate_changed_bbox,
     locate_dense_changed_bbox,
+    precise_readback_candidate_region,
     readback_region,
     regions_overlap,
 )
@@ -2965,6 +2966,43 @@ async def test_precise_readback_refines_a_large_dialog_crop_to_its_field() -> No
     assert refined.height >= 26
     assert refined.width >= 140
     assert 675 <= refined.y <= 678
+
+
+def test_precise_readback_localizes_measured_save_as_filename_noise() -> None:
+    intended = "text-01.txt"
+    result = OCRResult(
+        lines=[
+            OCRLine(
+                text="Filegame:",
+                confidence=0.9817,
+                bbox=[61, 22, 98, 32],
+            ),
+            OCRLine(
+                text="text-01.bd",
+                confidence=0.9577,
+                bbox=[102, 21, 138, 31],
+            ),
+            OCRLine(
+                text="Save as bvoec",
+                confidence=0.7865,
+                bbox=[55, 40, 98, 45],
+            ),
+            OCRLine(
+                text='Tet documents (".bt)',
+                confidence=0.9155,
+                bbox=[100, 38, 174, 45],
+            ),
+        ]
+    )
+
+    refined = precise_readback_candidate_region(
+        result,
+        intended,
+        Region(x=117, y=414, width=339, height=46),
+        (1280, 800),
+    )
+
+    assert refined == Region(x=217, y=429, width=200, height=24)
 
 
 async def test_uncalibrated_precise_ocr_cannot_verify_visible_spaces() -> None:
