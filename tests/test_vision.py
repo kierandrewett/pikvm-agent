@@ -654,6 +654,8 @@ async def test_hybrid_precise_read_retains_unique_secondary_evidence(
         "secondary_skipped_busy": 0,
         "secondary_skipped_unbounded": 0,
         "secondary_failed_or_timed_out": 0,
+        "secondary_timeout_restarts": 0,
+        "secondary_timeout_retries": 0,
     }
 
 
@@ -887,6 +889,69 @@ async def test_hybrid_precise_read_skips_a_busy_secondary(
         "secondary_skipped_busy": 1,
         "secondary_skipped_unbounded": 0,
         "secondary_failed_or_timed_out": 0,
+        "secondary_timeout_restarts": 0,
+        "secondary_timeout_retries": 0,
+    }
+
+
+async def test_hybrid_precise_restarts_and_retries_a_timed_out_worker(
+    tmp_path,
+) -> None:
+    image_path = tmp_path / "screen.png"
+    image_path.write_bytes(b"fixture")
+    primary = _ScriptedOcrProvider(
+        OCRResult(
+            lines=[OCRLine(text="ms-settingz:about", confidence=0.70)]
+        )
+    )
+
+    class RecoveringSecondary:
+        def __init__(self) -> None:
+            self.calls = 0
+            self.restarts = 0
+
+        async def ocr(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path, region
+            self.calls += 1
+            if self.calls == 1:
+                await asyncio.Event().wait()
+            return OCRResult(
+                lines=[
+                    OCRLine(
+                        text="ms-settings:about",
+                        confidence=0.99,
+                    )
+                ]
+            )
+
+        async def restart_after_timeout(self) -> None:
+            self.restarts += 1
+
+    secondary = RecoveringSecondary()
+    provider = HybridOcrProvider(
+        primary,
+        secondary,
+        secondary_timeout_s=0.01,
+    )
+
+    result = await provider.ocr_precise(image_path)
+
+    assert result.text == "ms-settings:about"
+    assert secondary.calls == 2
+    assert secondary.restarts == 1
+    assert provider.diagnostics() == {
+        "precise_calls": 1,
+        "secondary_attempted": 1,
+        "secondary_completed": 1,
+        "secondary_skipped_busy": 0,
+        "secondary_skipped_unbounded": 0,
+        "secondary_failed_or_timed_out": 0,
+        "secondary_timeout_restarts": 1,
+        "secondary_timeout_retries": 1,
     }
 
 

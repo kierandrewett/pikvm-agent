@@ -300,6 +300,8 @@ class HybridOcrProvider:
         self._secondary_skipped_busy = 0
         self._secondary_skipped_unbounded = 0
         self._secondary_failed_or_timed_out = 0
+        self._secondary_timeout_restarts = 0
+        self._secondary_timeout_retries = 0
 
     async def ocr(
         self,
@@ -344,6 +346,25 @@ class HybridOcrProvider:
             raise primary_result
         if isinstance(secondary_result, asyncio.CancelledError):
             raise secondary_result
+        if isinstance(secondary_result, TimeoutError):
+            restart = getattr(
+                self.secondary,
+                "restart_after_timeout",
+                None,
+            )
+            if callable(restart):
+                self._secondary_timeout_restarts += 1
+                try:
+                    await restart()
+                    self._secondary_timeout_retries += 1
+                    secondary_result = await asyncio.wait_for(
+                        self.secondary.ocr(image_path, region=region),
+                        timeout=self.secondary_timeout_s,
+                    )
+                except asyncio.CancelledError:
+                    raise
+                except Exception as exc:
+                    secondary_result = exc
         if isinstance(secondary_result, BaseException):
             self._secondary_failed_or_timed_out += 1
         else:
@@ -391,6 +412,12 @@ class HybridOcrProvider:
             ),
             "secondary_failed_or_timed_out": (
                 self._secondary_failed_or_timed_out
+            ),
+            "secondary_timeout_restarts": (
+                self._secondary_timeout_restarts
+            ),
+            "secondary_timeout_retries": (
+                self._secondary_timeout_retries
             ),
         }
 

@@ -177,7 +177,20 @@ class PaddleOCRProvider:
     async def aclose(self) -> None:
         """Cancel the bounded request and terminate the native worker."""
 
+        await self.restart_after_timeout()
+
+    async def restart_after_timeout(self) -> None:
+        """Discard one timed-out inference so later exact reads can recover.
+
+        ``ocr()`` shields native inference because cancelling Paddle in a
+        thread is unsafe.  The worker process is our cancellation boundary:
+        after the hybrid verifier's bounded timeout, terminate that worker and
+        clear the retained task instead of leaving every later precise read to
+        observe ``busy()`` forever.
+        """
+
         task = self._inflight
+        self._inflight = None
         if task is not None and not task.done():
             task.cancel()
             try:
