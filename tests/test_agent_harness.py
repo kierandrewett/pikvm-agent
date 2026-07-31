@@ -888,6 +888,41 @@ def test_standard_app_launch_waits_for_run_close_and_app_open() -> None:
     ]
 
 
+def test_standard_app_launch_keeps_one_long_post_submit_change_wait() -> None:
+    actions = [
+        {"type": "key", "keys": ["META", "R"]},
+        {
+            "type": "type_text",
+            "text": "notepad",
+            "context": "field",
+            "verification": "exact",
+        },
+        {"type": "key", "keys": ["ENTER"]},
+        {"type": "wait", "ms": 1_000},
+        {"type": "wait_for_change", "timeout_ms": 30_000},
+        {
+            "type": "wait_for_stable_screen",
+            "stable_ms": 500,
+            "timeout_ms": 5_000,
+        },
+    ]
+
+    normalized, added, settled = _normalize_windows_run_launch(
+        actions,
+        max_actions=20,
+    )
+
+    submit_index = normalized.index(actions[2])
+    post_submit = normalized[submit_index + 1 :]
+    assert added == 0
+    assert settled is True
+    assert [
+        action
+        for action in post_submit
+        if action["type"] == "wait_for_change"
+    ] == [{"type": "wait_for_change", "timeout_ms": 30_000}]
+
+
 def test_standard_app_launch_adds_focus_preflight_when_budget_allows() -> None:
     actions = [
         {"type": "key", "keys": ["META", "R"]},

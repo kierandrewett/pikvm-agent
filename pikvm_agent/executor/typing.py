@@ -76,6 +76,7 @@ MAX_BACKSPACES = 400      # safety cap on a correction's clear
 FAST_PRINT_MIN = 120      # above this, plain text takes the (bursty) fast print path;
                           # shorter text stays on the fully-humanized per-key path
 FAST_TERMINAL_PRINT_MIN = 32  # exact simple argv can use PiKVM's guarded printer
+FAST_EDITOR_PRINT_MIN = 32  # verified editor focus can use the same guarded printer
 MIN_MISMATCH_OCR_CONFIDENCE = 0.78
 MIN_GROUNDED_EXACT_OCR_CONFIDENCE = 0.55
 MIN_ONE_EDIT_RECHECK_CONFIDENCE = 0.90
@@ -1424,6 +1425,19 @@ class WatchedTyper:
             and (prose or not is_exact_text(delivery_text))
             and total > FAST_PRINT_MIN
         )
+        guarded_editor_print = (
+            precise
+            and not code
+            and context.casefold() == "editor"
+            and total >= FAST_EDITOR_PRINT_MIN
+            and bool(
+                getattr(
+                    self.backend,
+                    "guarded_exact_print",
+                    False,
+                )
+            )
+        )
         if should_continue is not None and not should_continue():
             await self._release_all_quietly()
             return self._halted_result(
@@ -1441,6 +1455,7 @@ class WatchedTyper:
             and not secret
             and (
                 guarded_terminal_print
+                or guarded_editor_print
                 or guarded_prose_print
             )
             and caps_on is not True

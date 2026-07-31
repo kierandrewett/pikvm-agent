@@ -195,6 +195,7 @@ AUTO_RUNTIME_FLOOR_MS = 4_000
 AUTO_RUNTIME_CEILING_MS = 110_000
 DEFAULT_STABLE_TIMEOUT_MS = 1_500
 DEFAULT_CHANGE_TIMEOUT_MS = 8_000
+EXACT_READBACK_OVERHEAD_MS = 30_000
 
 _DENSE_BASE64_TOKEN = re.compile(
     r"(?<![A-Za-z0-9+/])[A-Za-z0-9+/]{64,}={0,2}(?![A-Za-z0-9+/=])"
@@ -294,7 +295,9 @@ def recommended_runtime_ms(actions: list[dict[str, Any]]) -> int:
         AUTO_RUNTIME_FLOOR_MS
         + declared_wait_ms
         + typing_ms
-        + (exact_readbacks * 15_000)
+        # Hybrid OCR can cold-start both recognisers before comparing exact
+        # text. This is deadline headroom only; it does not add any delay.
+        + (exact_readbacks * EXACT_READBACK_OVERHEAD_MS)
         + (navigation_actions * 250)
     )
     return min(AUTO_RUNTIME_CEILING_MS, max(AUTO_RUNTIME_FLOOR_MS, estimate))

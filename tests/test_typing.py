@@ -693,6 +693,34 @@ async def test_editor_prose_semicolon_can_use_guarded_fast_path() -> None:
     _assert_no_enter(backend)
 
 
+async def test_short_exact_editor_text_uses_guarded_fast_print() -> None:
+    backend = FakeBackend()
+    backend.guarded_exact_print = True  # type: ignore[attr-defined]
+    sentence = "Reliable automation starts with observable evidence."
+    orig_print = backend.print_text
+
+    async def printing(text: str) -> None:
+        await orig_print(text)
+        backend.set_screen(sentence)
+
+    backend.print_text = printing  # type: ignore[method-assign]
+    result = await WatchedTyper(
+        backend,
+        ScriptedOCR(sentence),
+    ).type_text(
+        sentence,
+        exact=True,
+        context="editor",
+    )
+
+    assert result.used_fast_path is True
+    assert result.status == "verified_exact"
+    assert result.emitted_exactly_once is True
+    assert any(method == "print_text" for method, _ in backend.calls)
+    assert not any(method == "type_text" for method, _ in backend.calls)
+    _assert_no_enter(backend)
+
+
 async def test_simple_exact_terminal_command_uses_guarded_fast_print() -> None:
     backend = FakeBackend()
     backend.guarded_exact_print = True  # type: ignore[attr-defined]

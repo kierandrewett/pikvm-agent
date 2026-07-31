@@ -364,8 +364,13 @@ def _normalize_windows_run_launch(
         added += 1
 
     if not is_settings_launch:
+        long_post_submit_change_wait = any(
+            int(normalized[index].get("timeout_ms") or 0) >= 20_000
+            for index in post_submit_change_indices
+        )
         while (
             len(post_submit_change_indices) < 2
+            and not long_post_submit_change_wait
             and len(normalized) < max_actions
         ):
             insertion_index = (

@@ -125,6 +125,24 @@ def test_auto_runtime_budget_covers_a_cold_exact_ocr_worker() -> None:
     assert recommended_runtime_ms(actions) >= 40_000
 
 
+def test_auto_runtime_budget_covers_exact_editor_readback() -> None:
+    actions = [
+        {
+            "type": "type_text",
+            "text": "Reliable automation starts with observable evidence.",
+            "verification": "exact",
+            "context": "editor",
+        },
+        {
+            "type": "wait_for_stable_screen",
+            "stable_ms": 400,
+            "timeout_ms": 3_000,
+        },
+    ]
+
+    assert recommended_runtime_ms(actions) >= 60_000
+
+
 def test_auto_runtime_budget_counts_spreadsheet_grid_cells() -> None:
     rows = [
         [f"Q{row}", f"{120 + row}.8", f"={row + 2}*1.1", "Reviewed"]
