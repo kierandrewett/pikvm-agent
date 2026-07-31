@@ -607,49 +607,6 @@ def _launched_calculator(action: PendingAction | None) -> bool:
     )
 
 
-def _switched_calculator_to_standard(
-    action: PendingAction | None,
-) -> bool:
-    if action is None:
-        return False
-    return any(
-        item.get("type") == "key"
-        and [str(key) for key in item.get("keys") or []]
-        == ["AltLeft", "Digit1"]
-        for item in action.actions
-    )
-
-
-def _calculator_standard_mode_controller(
-    action: PendingAction | None,
-    *,
-    max_actions: int,
-) -> ControllerDecision | None:
-    """Normalize Calculator mode in a separately verified safe burst."""
-
-    if not _launched_calculator(action):
-        return None
-    actions = [
-        {"type": "key", "keys": ["AltLeft", "Digit1"]},
-        {
-            "type": "wait_for_stable_screen",
-            "stable_ms": 300,
-            "timeout_ms": 3_000,
-        },
-    ]
-    if len(actions) > max_actions:
-        return None
-    return ControllerDecision(
-        outcome="act",
-        intent="Switch Windows Calculator to Standard mode.",
-        actions=actions,
-        expected_evidence=[
-            "Windows Calculator is visibly open in Standard mode."
-        ],
-        expects_task_completion=False,
-    )
-
-
 def _calculator_task_controller(
     run: RunSnapshot,
     action: PendingAction | None,
@@ -658,10 +615,7 @@ def _calculator_task_controller(
 ) -> ControllerDecision | None:
     """Prepare a deterministic literal expression after Calculator opens."""
 
-    if not (
-        _launched_calculator(action)
-        or _switched_calculator_to_standard(action)
-    ):
+    if not _launched_calculator(action):
         return None
 
     multiplication = _CALCULATOR_TASK_EXPRESSION.search(run.task)
@@ -838,6 +792,21 @@ def _calculator_task_controller(
         expected_evidence=expected_evidence,
         expects_task_completion=expects_task_completion,
     )
+
+
+def _verification_confirms_standard_calculator(
+    run: RunSnapshot,
+) -> bool:
+    """Require model evidence of Standard mode before arithmetic fast-path HID."""
+
+    verification = run.last_verification
+    if verification is None or verification.verdict != "verified":
+        return False
+    text = json.dumps(
+        verification.model_dump(mode="json", exclude_none=True),
+        sort_keys=True,
+    ).casefold()
+    return "calculator" in text and "standard" in text
 
 
 def _calculator_fast_path(
@@ -2948,20 +2917,11 @@ class AgentHarness:
         validation/checkpoint path adopts it.
         """
 
-        expression_controller = _calculator_task_controller(
+        deterministic_controller = _calculator_task_controller(
             run,
             action,
             max_actions=self.config.max_actions_per_burst,
         )
-        mode_controller = (
-            _calculator_standard_mode_controller(
-                action,
-                max_actions=self.config.max_actions_per_burst,
-            )
-            if expression_controller is not None
-            else None
-        )
-        deterministic_controller = mode_controller or expression_controller
         roles = (
             ["verifier", "deterministic_calculator"]
             if deterministic_controller is not None
@@ -2979,11 +2939,7 @@ class AgentHarness:
                 source="literal_calculator_task",
             )
             run.record(
-                (
-                    "controller.calculator_mode_prepared"
-                    if mode_controller is not None
-                    else "controller.calculator_expression_prepared"
-                ),
+                "controller.calculator_expression_prepared",
                 intent=deterministic_controller.intent,
                 source="literal_task_expression",
             )
@@ -3000,7 +2956,26 @@ class AgentHarness:
                     verify_task.cancel()
                 await asyncio.gather(verify_task, return_exceptions=True)
                 raise
-            controller = deterministic_controller
+            if (
+                run.status is RunStatus.RUNNING
+                and run.last_verification is not None
+                and run.last_verification.verdict == "verified"
+                and _verification_confirms_standard_calculator(run)
+            ):
+                controller = deterministic_controller
+            elif (
+                run.status is RunStatus.RUNNING
+                and run.last_verification is not None
+                and run.last_verification.verdict == "verified"
+            ):
+                run.record(
+                    "controller.calculator_expression_discarded",
+                    reason="verifier did not confirm Standard mode",
+                )
+                await self.store.save(run)
+                controller = await self._control(run)
+            else:
+                controller = deterministic_controller
         else:
             control_task = asyncio.create_task(
                 self._control(run),

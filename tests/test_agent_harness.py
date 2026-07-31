@@ -13,12 +13,12 @@ from pikvm_agent.harness.agent import (
     _CONTROLLER_SYSTEM,
     _REASONER_SYSTEM,
     _calculator_fast_path,
-    _calculator_standard_mode_controller,
     _is_read_only_settings_request,
     _calculator_task_controller,
     _normalize_sequential_key_actions,
     _normalize_windows_run_launch,
     _normalize_plan_safety_constraints,
+    _verification_confirms_standard_calculator,
 )
 from pikvm_agent.harness.agent_models import (
     ArtifactAcceptance,
@@ -41,16 +41,6 @@ from pikvm_agent.harness.model_budget import (
     ProviderCostTerms,
 )
 from pikvm_agent.harness.model_pool import ModelPool, RoleRoute
-
-
-_CALCULATOR_STANDARD_MODE_ACTIONS = [
-    {"type": "key", "keys": ["AltLeft", "Digit1"]},
-    {
-        "type": "wait_for_stable_screen",
-        "stable_ms": 300,
-        "timeout_ms": 3_000,
-    },
-]
 
 
 def test_default_harness_burst_budget_supports_full_local_workflows() -> None:
@@ -557,7 +547,7 @@ def test_calculator_converter_skips_planning_without_guessing_navigation(
     )
 
 
-def test_calculator_fast_path_normalizes_persisted_mode_for_arithmetic() -> None:
+def test_calculator_fast_path_requires_verified_standard_mode_for_arithmetic() -> None:
     run = RunSnapshot(
         run_id="calculator-fast-path-mode",
         task=(
@@ -582,29 +572,9 @@ def test_calculator_fast_path_normalizes_persisted_mode_for_arithmetic() -> None
         based_on_control_epoch=0,
         idempotency_key="calculator-fast-path-mode-launch",
     )
-    mode_controller = _calculator_standard_mode_controller(
-        launch,
-        max_actions=20,
-    )
-    assert mode_controller is not None
-    assert [
-        action.model_dump(mode="json", exclude_none=True)
-        for action in mode_controller.actions
-    ] == _CALCULATOR_STANDARD_MODE_ACTIONS
-    mode_switch = PendingAction(
-        index=1,
-        intent=mode_controller.intent,
-        actions=[
-            action.model_dump(mode="json", exclude_none=True)
-            for action in mode_controller.actions
-        ],
-        based_on_world_version=2,
-        based_on_control_epoch=0,
-        idempotency_key="calculator-fast-path-mode-switch",
-    )
     expression = _calculator_task_controller(
         run,
-        mode_switch,
+        launch,
         max_actions=20,
     )
     assert expression is not None
@@ -615,6 +585,18 @@ def test_calculator_fast_path_normalizes_persisted_mode_for_arithmetic() -> None
         {"type": "key", "keys": ["Digit1"]},
         {"type": "key", "keys": ["Digit3"]},
     ]
+    run.last_verification = VerificationDecision(
+        verdict="verified",
+        summary="Windows Calculator is visibly open in Temperature mode.",
+        evidence=["The mode heading reads Temperature."],
+    )
+    assert not _verification_confirms_standard_calculator(run)
+    run.last_verification = VerificationDecision(
+        verdict="verified",
+        summary="Windows Calculator is visibly open in Standard mode.",
+        evidence=["The mode heading reads Standard."],
+    )
+    assert _verification_confirms_standard_calculator(run)
 
 
 def test_calculator_converter_launch_accepts_any_persisted_mode() -> None:
@@ -2123,11 +2105,9 @@ async def test_calculator_task_skips_reasoner_and_controller_round_trips() -> No
                     },
                 )
             self.verifier_calls += 1
-            if self.verifier_calls < 3:
+            if self.verifier_calls == 1:
                 summary = (
-                    "Windows Calculator is visibly open."
-                    if self.verifier_calls == 1
-                    else "Windows Calculator is visibly in Standard mode."
+                    "Windows Calculator is visibly open in Standard mode."
                 )
                 data = {
                     "verdict": "verified",
@@ -2174,7 +2154,7 @@ async def test_calculator_task_skips_reasoner_and_controller_round_trips() -> No
         models=pool,
         store=InMemoryRunStore(),
         config=HarnessConfig(
-            max_actions_per_advance=3,
+            max_actions_per_advance=2,
             max_actions_per_burst=8,
         ),
     )
@@ -2187,14 +2167,11 @@ async def test_calculator_task_skips_reasoner_and_controller_round_trips() -> No
     assert completed.status is RunStatus.COMPLETED
     assert [
         request.role for request in provider.requests
-    ] == ["verifier", "verifier", "verifier"]
+    ] == ["verifier", "verifier"]
     assert provider.controller_calls == 0
-    assert provider.verifier_calls == 3
-    assert len(computer.bursts) == 3
-    assert computer.bursts[1]["actions"] == (
-        _CALCULATOR_STANDARD_MODE_ACTIONS
-    )
-    assert computer.bursts[2]["actions"] == [
+    assert provider.verifier_calls == 2
+    assert len(computer.bursts) == 2
+    assert computer.bursts[1]["actions"] == [
         {"type": "key", "keys": ["Digit3"]},
         {"type": "key", "keys": ["Digit7"]},
         {"type": "key", "keys": ["NumpadMultiply"]},
@@ -2210,10 +2187,6 @@ async def test_calculator_task_skips_reasoner_and_controller_round_trips() -> No
     ]
     assert any(
         event.kind == "controller.calculator_expression_prepared"
-        for event in completed.events
-    )
-    assert any(
-        event.kind == "controller.calculator_mode_prepared"
         for event in completed.events
     )
     assert any(
