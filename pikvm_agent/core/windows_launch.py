@@ -33,8 +33,11 @@ _PASSIVE_ACTION_TYPES = frozenset(
 def is_safe_windows_run_text(text: str) -> bool:
     """Return whether text is one allowlisted executable or Settings URI."""
 
+    executable = text.casefold()
+    if executable.endswith(".exe"):
+        executable = executable[:-4]
     return (
-        text.casefold() in SAFE_WINDOWS_RUN_EXECUTABLES
+        executable in SAFE_WINDOWS_RUN_EXECUTABLES
         or _SAFE_WINDOWS_SETTINGS_URI.fullmatch(text) is not None
     )
 

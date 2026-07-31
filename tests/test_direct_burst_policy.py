@@ -194,7 +194,13 @@ def test_run_dialog_shell_command_is_inferred_without_model_context() -> None:
 
 @pytest.mark.parametrize(
     "target",
-    ["ms-settings:about", "ms-settings:display", "notepad", "explorer"],
+    [
+        "ms-settings:about",
+        "ms-settings:display",
+        "notepad",
+        "explorer",
+        "explorer.exe",
+    ],
 )
 def test_verified_windows_run_launch_is_routine_local_navigation(
     target: str,
@@ -238,6 +244,19 @@ def test_verified_windows_run_launch_is_routine_local_navigation(
                 {
                     "type": "type_text",
                     "text": "ms-settings:about & cmd",
+                    "context": "field",
+                    "verification": "exact",
+                },
+                {"type": "key", "keys": ["ENTER"]},
+            ],
+            "terminal_mutating",
+        ),
+        (
+            [
+                {"type": "key", "keys": ["WIN", "R"]},
+                {
+                    "type": "type_text",
+                    "text": "explorer.exe shell:MyComputerFolder",
                     "context": "field",
                     "verification": "exact",
                 },

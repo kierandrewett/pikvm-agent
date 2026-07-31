@@ -914,6 +914,74 @@ async def test_short_exact_field_reads_once_with_caret_blurred() -> None:
     _assert_no_enter(backend)
 
 
+async def test_short_exact_field_with_whitespace_does_not_blur_and_discard_draft(
+) -> None:
+    backend = FakeBackend()
+    field_value = ""
+
+    def field_frame(text: str) -> bytes:
+        image = Image.new("RGB", (1280, 720), (24, 28, 36))
+        draw = ImageDraw.Draw(image)
+        draw.rectangle([80, 100, 520, 150], fill=(210, 210, 210))
+        draw.text((100, 115), text, fill=(20, 20, 20))
+        output = io.BytesIO()
+        image.save(output, format="JPEG", quality=95)
+        return output.getvalue()
+
+    class AddressBarOCR:
+        async def ocr(self, image_path, region=None):
+            return await self.ocr_precise(image_path, region=region)
+
+        async def ocr_precise(self, image_path, region=None):
+            del image_path, region
+            return OCRResult(
+                lines=[
+                    OCRLine(
+                        text=field_value,
+                        confidence=0.99,
+                        bbox=[100, 115, 180, 135],
+                    )
+                ],
+                spacing_evidence="verified",
+            )
+
+    original_type = backend.type_text
+    original_keypress = backend.keypress
+    backend.set_frame_bytes(field_frame("Home"))
+
+    async def typing(
+        text: str,
+        *,
+        code: bool = False,
+        secret: bool = False,
+    ) -> None:
+        nonlocal field_value
+        await original_type(text, code=code, secret=secret)
+        field_value = text
+        backend.set_frame_bytes(field_frame(text))
+
+    async def keypress(keys: list[str]) -> None:
+        nonlocal field_value
+        await original_keypress(keys)
+        if keys == ["Tab"]:
+            field_value = "Home"
+            backend.set_frame_bytes(field_frame(field_value))
+
+    backend.type_text = typing  # type: ignore[method-assign]
+    backend.keypress = keypress  # type: ignore[method-assign]
+
+    result = await WatchedTyper(backend, AddressBarOCR()).type_text(
+        "This PC",
+        exact=True,
+        context="field",
+    )
+
+    assert result.status == "verified_exact", result
+    assert result.field_text == "This PC"
+    assert ("keypress", {"keys": ["Tab"]}) not in backend.calls
+    _assert_no_enter(backend)
+
+
 async def test_short_exact_field_accepts_one_complete_exact_context_row() -> None:
     backend = FakeBackend()
     ocr_calls = 0

@@ -1502,7 +1502,7 @@ class WatchedTyper:
                 and not explicit_region
                 and not stable_field_read_performed
                 and PRECISE_LOCATE_MIN_CHARS <= total <= 20
-                and "\n" not in intended_snapshot
+                and not any(character.isspace() for character in intended_snapshot)
             )
             if not should_blur:
                 return await self._read_field(

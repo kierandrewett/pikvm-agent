@@ -2005,7 +2005,10 @@ def test_controller_action_schema_allows_passive_evidence_after_text() -> None:
     ]
 
 
-@pytest.mark.parametrize("text", ["ms-settings:about", "notepad"])
+@pytest.mark.parametrize(
+    "text",
+    ["ms-settings:about", "notepad", "explorer.exe"],
+)
 def test_controller_action_schema_allows_verified_windows_run_launch(
     text: str,
 ) -> None:
@@ -2098,6 +2101,15 @@ def test_controller_action_schema_rejects_standalone_windows_run() -> None:
             {
                 "type": "type_text",
                 "text": "ms-settings:about & cmd",
+                "context": "field",
+                "verification": "exact",
+            },
+        ),
+        (
+            [{"type": "key", "keys": ["META", "R"]}],
+            {
+                "type": "type_text",
+                "text": "explorer.exe shell:MyComputerFolder",
                 "context": "field",
                 "verification": "exact",
             },
