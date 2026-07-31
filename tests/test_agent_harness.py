@@ -1939,7 +1939,7 @@ def build_harness(
 
 
 @pytest.mark.asyncio
-async def test_calculator_followup_skips_another_controller_round_trip() -> None:
+async def test_calculator_task_skips_reasoner_and_controller_round_trips() -> None:
     class CalculatorProvider(ScriptedProvider):
         def __init__(self) -> None:
             super().__init__()
@@ -2043,7 +2043,10 @@ async def test_calculator_followup_skips_another_controller_round_trip() -> None
     )
 
     assert completed.status is RunStatus.COMPLETED
-    assert provider.controller_calls == 1
+    assert [
+        request.role for request in provider.requests
+    ] == ["verifier", "verifier"]
+    assert provider.controller_calls == 0
     assert provider.verifier_calls == 2
     assert len(computer.bursts) == 2
     assert computer.bursts[1]["actions"] == [
@@ -2062,6 +2065,10 @@ async def test_calculator_followup_skips_another_controller_round_trip() -> None
     ]
     assert any(
         event.kind == "controller.calculator_expression_prepared"
+        for event in completed.events
+    )
+    assert any(
+        event.kind == "plan.calculator_fast_path"
         for event in completed.events
     )
 

@@ -780,6 +780,78 @@ def _calculator_task_controller(
     )
 
 
+def _calculator_fast_path(
+    run: RunSnapshot,
+    *,
+    max_actions: int,
+) -> tuple[PlanDecision, ControllerDecision] | None:
+    """Prepare a known local Calculator task without two model round trips."""
+
+    launch_probe = PendingAction(
+        index=0,
+        intent="Launch Windows Calculator.",
+        actions=[{"type": "type_text", "text": "calc"}],
+        based_on_world_version=(
+            run.observation.world_version
+            if run.observation is not None
+            else None
+        ),
+        based_on_control_epoch=(
+            run.observation.control_epoch
+            if run.observation is not None
+            else None
+        ),
+        idempotency_key=f"{run.run_id}:calculator-fast-path-probe",
+    )
+    if (
+        _calculator_task_controller(
+            run,
+            launch_probe,
+            max_actions=max_actions,
+        )
+        is None
+    ):
+        return None
+    plan = PlanDecision(
+        summary="Open Windows Calculator and evaluate the literal expression.",
+        steps=[
+            "Open Windows Calculator using the bounded local app launcher.",
+            "Enter the parsed expression with inspectable HID key events.",
+            "Verify the exact visible result before reporting it.",
+        ],
+        success_criteria=[
+            (
+                "Windows Calculator visibly displays the exact result "
+                "requested by the task."
+            )
+        ],
+        constraints=[
+            "Use only the local Windows Calculator application.",
+            "Do not interact with any communication or external application.",
+        ],
+    )
+    controller = ControllerDecision(
+        outcome="act",
+        intent="Launch Windows Calculator.",
+        actions=[
+            {"type": "key", "keys": ["WIN", "R"]},
+            {"type": "wait", "ms": 300},
+            {
+                "type": "type_text",
+                "text": "calc",
+                "context": "field",
+                "verification": "exact",
+            },
+            {"type": "key", "keys": ["ENTER"]},
+        ],
+        expected_evidence=[
+            "Windows Calculator is visibly open in Standard mode."
+        ],
+        expects_task_completion=False,
+    )
+    return plan, controller
+
+
 _CONTROLLER_SYSTEM = """\
 You are the fast controller for a physical computer. Choose one bounded logical
 burst against the supplied frame and checkpointed plan. A bounded burst is a
@@ -1504,7 +1576,25 @@ class AgentHarness:
                 return run
 
             if run.plan is None:
-                if not await self._plan(
+                calculator_fast_path = (
+                    _calculator_fast_path(
+                        run,
+                        max_actions=self.config.max_actions_per_burst,
+                    )
+                    if run.next_action_index == 0
+                    else None
+                )
+                if calculator_fast_path is not None:
+                    run.plan, launch_controller = calculator_fast_path
+                    self._prefetched_controllers[run.run_id] = (
+                        launch_controller
+                    )
+                    run.record(
+                        "plan.calculator_fast_path",
+                        source="literal_task_expression",
+                    )
+                    await self.store.save(run)
+                elif not await self._plan(
                     run,
                     bypass_cooldown=retry_provider_cooldown,
                 ):
