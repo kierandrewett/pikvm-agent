@@ -1319,6 +1319,18 @@ class WatchedTyper:
                 )
             )
         )
+        guarded_field_print = (
+            precise
+            and context.casefold() == "field"
+            and total <= 64
+            and bool(
+                getattr(
+                    self.backend,
+                    "guarded_exact_print",
+                    False,
+                )
+            )
+        )
         guarded_prose_print = (
             not code
             and (prose or not is_exact_text(delivery_text))
@@ -1339,7 +1351,11 @@ class WatchedTyper:
         if (
             callable(print_text)
             and not secret
-            and (guarded_terminal_print or guarded_prose_print)
+            and (
+                guarded_terminal_print
+                or guarded_field_print
+                or guarded_prose_print
+            )
             and caps_on is not True
         ):
             return await self._humanized(

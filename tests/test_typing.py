@@ -691,6 +691,34 @@ async def test_simple_exact_terminal_command_uses_guarded_fast_print() -> None:
     _assert_no_enter(backend)
 
 
+async def test_short_exact_field_uses_guarded_fast_print() -> None:
+    backend = FakeBackend()
+    backend.guarded_exact_print = True  # type: ignore[attr-defined]
+    value = "ms-settings:about"
+    orig_print = backend.print_text
+
+    async def printing(text: str) -> None:
+        await orig_print(text)
+        backend.set_screen(value)
+
+    backend.print_text = printing  # type: ignore[method-assign]
+    result = await WatchedTyper(
+        backend,
+        ScriptedOCR(value),
+    ).type_text(
+        value,
+        exact=True,
+        context="field",
+    )
+
+    assert result.used_fast_path is True
+    assert result.status == "verified_exact"
+    assert result.emitted_exactly_once is True
+    assert any(method == "print_text" for method, _ in backend.calls)
+    assert not any(method == "type_text" for method, _ in backend.calls)
+    _assert_no_enter(backend)
+
+
 async def test_terminal_metacharacters_stay_on_per_key_transport() -> None:
     backend = FakeBackend()
     command = "printf dangerous > local-file.txt"
