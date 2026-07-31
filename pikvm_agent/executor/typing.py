@@ -241,6 +241,7 @@ def readback_region(
     dims: tuple[int, int],
     *,
     explicit: bool,
+    vertical_context: bool = False,
 ) -> Region:
     """Add OCR context without weakening the narrower focus-theft guard."""
 
@@ -252,8 +253,16 @@ def readback_region(
     margin_x = max(16, round(width * AUTODETECTED_READBACK_MARGIN_X_FRAC))
     x = max(0, int(region.x) - margin_x)
     x2 = min(width, math.ceil(region.x + region.width) + margin_x)
-    y = max(0, int(region.y))
-    y2 = min(height, math.ceil(region.y + region.height))
+    margin_y = (
+        max(12, min(40, round(region.height)))
+        if vertical_context
+        else 0
+    )
+    y = max(0, int(region.y) - margin_y)
+    y2 = min(
+        height,
+        math.ceil(region.y + region.height) + margin_y,
+    )
     return Region(
         x=x,
         y=y,
@@ -1438,6 +1447,11 @@ class WatchedTyper:
                 cur_region,
                 dims,
                 explicit=explicit_region,
+                vertical_context=(
+                    precise
+                    and not explicit_region
+                    and total <= PRECISE_LOCATE_MIN_CHARS
+                ),
             )
 
         async def maybe_correct(read_back: str, intended_snapshot: str) -> None:

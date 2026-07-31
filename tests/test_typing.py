@@ -299,6 +299,12 @@ def test_autodetected_readback_region_adds_context_without_changing_explicit() -
         (1280, 720),
         explicit=True,
     ) == located
+    assert readback_region(
+        located,
+        (1280, 720),
+        explicit=False,
+        vertical_context=True,
+    ) == Region(x=104, y=180, width=412, height=60)
 
 
 def test_locate_full_repaint_returns_none() -> None:
