@@ -22,10 +22,10 @@ from PIL import Image, ImageDraw
 from pikvm_agent.core.models import OCRCandidate, OCRLine, OCRResult, Region
 from pikvm_agent.executor.typing import (
     CHUNK_TARGET,
-    GRID_COLS,
-    GRID_ROWS,
     FAST_PRINT_MIN,
     FAST_TERMINAL_PRINT_MIN,
+    GRID_COLS,
+    GRID_ROWS,
     WatchedTyper,
     WatchedTypingResult,
     _substantial_change_outside_region,
@@ -1914,6 +1914,42 @@ async def test_autolocate_retries_once_for_delayed_video_update() -> None:
     assert result.status != "failed_focus_lost"
     assert result.verdict == "match"
     assert result.ok is True
+
+
+async def test_short_exact_editor_retries_delayed_video_before_unverified(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def no_sleep(_seconds: float) -> None:
+        return None
+
+    monkeypatch.setattr(asyncio, "sleep", no_sleep)
+    backend = FakeBackend()
+    intended = "2. Act"
+    ocr = ScriptedOCR(intended)
+    typer = WatchedTyper(backend, ocr)
+    flat = _flat_grid()
+    changed = flat.copy().reshape(GRID_ROWS, GRID_COLS)
+    changed[10:13, 20:24] = 200
+    grids = [flat, flat, changed.reshape(-1)]
+
+    async def delayed_grid() -> np.ndarray:
+        return grids.pop(0) if grids else changed.reshape(-1)
+
+    typer._grid = delayed_grid  # type: ignore[method-assign]
+
+    result = await typer.type_text(
+        intended,
+        exact=True,
+        context="editor",
+    )
+
+    assert result.status == "verified_exact"
+    assert result.typed_characters == len(intended)
+    assert [
+        call["text"]
+        for method, call in backend.calls
+        if method == "type_text"
+    ] == [intended]
 
 
 async def test_autolocate_waits_for_second_delayed_remote_video_update() -> None:

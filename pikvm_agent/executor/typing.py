@@ -2250,7 +2250,11 @@ class WatchedTyper:
                     )
                     cur_region = union_region(cur_region, loc) if located else loc
                     located = True
-                elif not located and not secret and len(typed_so_far) >= ABORT_MIN_CHARS:
+                elif (
+                    not located
+                    and not secret
+                    and len(typed_so_far) >= locate_min_chars
+                ):
                     # Remote VNC video can trail acknowledged HID by seconds.
                     # Take bounded, read-only samples before
                     # concluding that the field was not focused. Never emit
@@ -2302,7 +2306,10 @@ class WatchedTyper:
                             located = True
                             break
 
-                    if not located:
+                    if (
+                        not located
+                        and len(typed_so_far) >= ABORT_MIN_CHARS
+                    ):
                         # No pixel or OCR evidence ⇒ wrong target.
                         return self._halted_result(
                             status="failed_focus_lost",

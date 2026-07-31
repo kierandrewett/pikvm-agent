@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "report": "codex-50-live-progress",
-  "recorded_at": "2026-07-31T23:26:36Z",
+  "recorded_at": "2026-07-31T23:38:45Z",
   "manifest": "bench/codex-50-tasks.yaml",
   "environment": {
     "target": "authorized disposable Windows VNC VM",
@@ -618,12 +618,44 @@
         "sha256": "7d4cb1f7add79f1eb346f151a3a2d38326c0fabcc8f9bf6a496a18c93c4b1a9f"
       },
       "campaign_sha256": "03e03493a622a4d23de8a3adaf905cce8405666a082236f18cd817bf7a68af81"
+    },
+    {
+      "campaign_id": "codex-text-entry-text04-v2-20260731",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "run_id": "a0307b24-f94a-4cff-a207-5b752011385e",
+      "reason": "The numbered-marker spacing fix verified `1. Observe` and its line break. The six-character `2. Act` payload was then issued exactly once, but its video delta arrived after the immediate capture and the old delayed-localization threshold did not cover exact payloads below eight characters. A guarded undo removed Notepad's grouped edit, including the first line, and the controller stopped without replaying an unknown draft.",
+      "wall_clock_ms": 143924,
+      "provider_wait_ms": 98502,
+      "action_execution_ms": 40421,
+      "provider_calls": 13,
+      "actions_attempted": 6,
+      "actions_completed": 5,
+      "completion_efficiency": 0.8333333333333334,
+      "same_run_recoveries": 4,
+      "reboot_ms": 97802,
+      "reboot_transition_observed": true,
+      "recording": {
+        "relative_path": "codex-text-entry-text04-v2-20260731/text-04/recording.webm",
+        "sha256": "01666ceb68e0f50c00fd427111d8b9fd54d37d2fca285b00665256b16e661662",
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2,
+        "duration_ms": 233500,
+        "size_bytes": 651722
+      },
+      "poster": {
+        "relative_path": "codex-text-entry-text04-v2-20260731/text-04/poster.jpg",
+        "sha256": "b4c4a5f85acfebbbba58a498cd2c263b609ef7206c7d71028578858f8ee3a525"
+      },
+      "campaign_sha256": "f1768c15f3b3abb9f3dde77a329d00341cbc8324e8822f65501ad372f14ce14d"
     }
   ],
   "verdict": {
     "accuracy": "Three exact text tasks now pass with independent reopen evidence. Text-03 includes a durable completed Ctrl+O transition and visible post-open paragraph verification.",
     "speed": "Failing product target: accepted text-03 v6 took 380.612 seconds before reboot and required two recoveries.",
     "dominant_cost": "Text-03 v6 provider waits consumed 208.161 seconds across 34 calls, while action execution consumed 243.335 seconds; overlapping work prevents these components from summing directly to wall time.",
-    "next": "Replay text-04 after the bounded numbered-marker spacing fix, while retaining the new two-identical-pause provider-call limit."
+    "next": "Replay text-04 after extending bounded delayed-frame localization to short exact editor payloads."
   }
 }

@@ -161,8 +161,21 @@ The failed run took 281.108s, retained a 359.5s VP9 recording, and completed
 its mandatory reboot after a visible transition in 122.768s. The geometric
 verifier now has bounded numbered-marker coverage with explicit missing-space
 and doubled-space negatives, and unchanged paused errors stop before a third
-provider retry. Text-04 remains pending until that fix passes a clean live
-replay.
+provider retry.
+
+Text-04 v2 proved that remediation but exposed the next boundary. The first
+line and its line break verified successfully. `2. Act` was then emitted
+exactly once, but its six-character video delta arrived after the initial
+capture. Delayed-frame localization was only attempted once an exact payload
+reached eight characters, so the line remained unverified. A guarded Ctrl+Z
+cancel removed the grouped Notepad edit, including the previous line, and the
+controller then stopped without replaying an unknown draft. The run failed
+after 143.924s, 13 provider calls, and 5/6 completed actions; its mandatory
+reboot observed a real transition and reached a ready desktop after 97.802s.
+The typer now performs bounded delayed-pixel/OCR localization at the existing
+four-character exact-text threshold while retaining the eight-character
+threshold for declaring focus lost. Text-04 remains pending until that second
+fix passes a clean live replay.
 
 Failure-inclusive metrics, canonical campaign digests, the 18 accepted task
 IDs, and the VP9 recording/poster hashes are retained in
