@@ -692,17 +692,22 @@ async def test_simple_exact_terminal_command_uses_guarded_fast_print() -> None:
     _assert_no_enter(backend)
 
 
-async def test_short_exact_field_uses_guarded_fast_print() -> None:
+async def test_short_exact_field_stays_on_per_key_transport() -> None:
     backend = FakeBackend()
     backend.guarded_exact_print = True  # type: ignore[attr-defined]
     value = "ms-settings:about"
-    orig_print = backend.print_text
+    orig_type = backend.type_text
 
-    async def printing(text: str) -> None:
-        await orig_print(text)
+    async def typing(
+        text: str,
+        *,
+        code: bool = False,
+        secret: bool = False,
+    ) -> None:
+        await orig_type(text, code=code, secret=secret)
         backend.set_screen(value)
 
-    backend.print_text = printing  # type: ignore[method-assign]
+    backend.type_text = typing  # type: ignore[method-assign]
     result = await WatchedTyper(
         backend,
         ScriptedOCR(value),
@@ -712,11 +717,11 @@ async def test_short_exact_field_uses_guarded_fast_print() -> None:
         context="field",
     )
 
-    assert result.used_fast_path is True
+    assert result.used_fast_path is False
     assert result.status == "verified_exact"
     assert result.emitted_exactly_once is True
-    assert any(method == "print_text" for method, _ in backend.calls)
-    assert not any(method == "type_text" for method, _ in backend.calls)
+    assert any(method == "type_text" for method, _ in backend.calls)
+    assert not any(method == "print_text" for method, _ in backend.calls)
     _assert_no_enter(backend)
 
 
@@ -1200,8 +1205,14 @@ async def test_autolocate_uses_dimensions_from_the_first_captured_frame() -> Non
                 actual_height,
             )
 
-        async def print_text(self, text: str) -> None:
-            await super().print_text(text)
+        async def type_text(
+            self,
+            text: str,
+            *,
+            code: bool = False,
+            secret: bool = False,
+        ) -> None:
+            await super().type_text(text, code=code, secret=secret)
             self._frame = self._render(typed=True)
 
     class InBoundsFieldOCR:
@@ -2006,7 +2017,7 @@ async def test_precise_field_read_uses_the_provider_precision_profile() -> None:
 
 
 async def test_precise_readback_refines_a_large_dialog_crop_to_its_field() -> None:
-    intended = "ms-settings:about"
+    intended = "taskmgr"
 
     class DelayedDialogOCR:
         def __init__(self) -> None:
@@ -2030,7 +2041,7 @@ async def test_precise_readback_refines_a_large_dialog_crop_to_its_field() -> No
                 return OCRResult(
                     lines=[
                         OCRLine(
-                            text="Open: | ms-settingzaboutf",
+                            text="Open: | askmg",
                             confidence=0.44,
                             bbox=[18, 92, 118, 104],
                         ),

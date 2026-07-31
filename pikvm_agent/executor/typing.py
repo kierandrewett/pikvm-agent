@@ -308,7 +308,7 @@ def precise_readback_candidate_region(
             # re-read. Keep this bounded to two alphanumeric edits and use it
             # only for crop localization; the second OCR must independently
             # match every intended character before the caller can continue.
-            tolerance = min(2, max(1, math.ceil(len(target) * 0.12)))
+            tolerance = min(2, max(1, math.ceil(len(target) * 0.20)))
             best: tuple[int, int, int] | None = None
             for start in range(len(source)):
                 for candidate_length in range(
@@ -1322,18 +1322,6 @@ class WatchedTyper:
                 )
             )
         )
-        guarded_field_print = (
-            precise
-            and context.casefold() == "field"
-            and total <= 64
-            and bool(
-                getattr(
-                    self.backend,
-                    "guarded_exact_print",
-                    False,
-                )
-            )
-        )
         guarded_prose_print = (
             not code
             and (prose or not is_exact_text(delivery_text))
@@ -1356,7 +1344,6 @@ class WatchedTyper:
             and not secret
             and (
                 guarded_terminal_print
-                or guarded_field_print
                 or guarded_prose_print
             )
             and caps_on is not True
