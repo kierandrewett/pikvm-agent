@@ -81,8 +81,16 @@ def test_native_settings_launch_waits_through_splash_and_page_render() -> None:
 
     assert added == 1
     assert settled is True
-    assert normalized[1] == {"type": "wait", "ms": 1_000}
-    assert normalized[4:7] == [
+    assert normalized[1] == {
+        "type": "wait_for_change",
+        "timeout_ms": 5_000,
+    }
+    assert normalized[2] == {
+        "type": "wait_for_stable_screen",
+        "stable_ms": 300,
+        "timeout_ms": 3_000,
+    }
+    assert normalized[5:8] == [
         {"type": "wait_for_change", "timeout_ms": 5_000},
         {"type": "wait_for_change", "timeout_ms": 10_000},
         {
@@ -114,8 +122,15 @@ def test_native_settings_launch_normalization_is_idempotent() -> None:
 
     assert added == 0
     assert settled is True
-    assert normalized[1] == {"type": "wait", "ms": 1_000}
-    assert normalized[2:] == actions[1:]
+    assert normalized[1:3] == [
+        {"type": "wait_for_change", "timeout_ms": 5_000},
+        {
+            "type": "wait_for_stable_screen",
+            "stable_ms": 300,
+            "timeout_ms": 3_000,
+        },
+    ]
+    assert normalized[3:] == actions[1:]
 
 
 def test_standard_app_launch_gets_only_the_pre_type_settle() -> None:
@@ -140,7 +155,12 @@ def test_standard_app_launch_gets_only_the_pre_type_settle() -> None:
     assert settled is True
     assert normalized == [
         actions[0],
-        {"type": "wait", "ms": 1_000},
+        {"type": "wait_for_change", "timeout_ms": 5_000},
+        {
+            "type": "wait_for_stable_screen",
+            "stable_ms": 300,
+            "timeout_ms": 3_000,
+        },
         *actions[1:],
     ]
 

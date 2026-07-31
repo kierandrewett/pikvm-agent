@@ -500,6 +500,7 @@ async def run_burst(
         "wait_for_change",
         "wait_for_stable_screen",
     }
+    pending_change_baseline: Any = None
     for i, raw in enumerate(actions):
         stop = _stop()
         if stop is not None:
@@ -515,13 +516,34 @@ async def run_burst(
         a = raw if isinstance(raw, dict) else dict(raw)
         kind = a.get("type")
         try:
+            if (
+                i + 1 < total
+                and kind not in passive_evidence_actions
+                and (
+                    actions[i + 1]
+                    if isinstance(actions[i + 1], dict)
+                    else dict(actions[i + 1])
+                ).get("type")
+                == "wait_for_change"
+            ):
+                # Capture before the input. If the guest paints quickly, taking
+                # the baseline only after the key/click races the very
+                # transition the caller asked us to observe.
+                pending_change_baseline = await _capture_screen_grid(backend)
             action_receipt = await _dispatch(
                 a,
                 kind,
                 backend=backend,
                 typer=typer,
                 should_continue=lambda: _stop() is None,
+                change_baseline=(
+                    pending_change_baseline
+                    if kind == "wait_for_change"
+                    else None
+                ),
             )
+            if kind == "wait_for_change":
+                pending_change_baseline = None
             if action_receipt is not None:
                 action_receipts.append({"index": i, **action_receipt})
         except BurstError:
@@ -833,6 +855,7 @@ async def _dispatch(
     backend: Any,
     typer: Any,
     should_continue: ShouldContinue | None,
+    change_baseline: Any = None,
 ) -> dict[str, Any] | None:
     if kind == "key":
         keys = normalize_keys(a.get("keys") or ([a["key"]] if a.get("key") else []))
@@ -993,7 +1016,8 @@ async def _dispatch(
         await wait_for_screen_change(backend, timeout_ms=int(a.get(
                                          "timeout_ms", DEFAULT_CHANGE_TIMEOUT_MS
                                      )),
-                                     should_continue=should_continue)
+                                     should_continue=should_continue,
+                                     base_grid=change_baseline)
     else:
         raise BurstError(f"unsupported burst action: {kind!r}")
 
@@ -1006,14 +1030,16 @@ async def wait_for_screen_change(
     *,
     timeout_ms: int = DEFAULT_CHANGE_TIMEOUT_MS,
     poll_ms: int = 150,
-                                 should_continue: ShouldContinue | None = None) -> bool:
+    should_continue: ShouldContinue | None = None,
+    base_grid: Any = None,
+) -> bool:
     """Block until the screen CHANGES from how it looks right now (an app launching, a remote
     desktop connecting, a page loading), or ``timeout_ms`` elapses — so a burst can say 'wait
     for it to appear' instead of guessing a blind 20s wait. Returns True if it changed."""
     import numpy as np
 
     deadline = time.monotonic() * 1000 + max(0, timeout_ms)
-    base = None
+    base = base_grid
     while True:
         if should_continue is not None and not should_continue():
             return False
@@ -1032,6 +1058,18 @@ async def wait_for_screen_change(
         if time.monotonic() * 1000 >= deadline:
             return False
         await asyncio.sleep(poll_ms / 1000.0)
+
+
+async def _capture_screen_grid(backend: Any) -> Any:
+    """Best-effort frame fingerprint immediately before an input action."""
+
+    try:
+        frame = await backend.screenshot()
+        if frame and frame.data:
+            return await asyncio.to_thread(grid, frame.data)
+    except Exception:  # noqa: BLE001
+        pass
+    return None
 
 
 async def wait_for_stable_screen(

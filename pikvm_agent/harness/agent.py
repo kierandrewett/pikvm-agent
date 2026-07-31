@@ -235,7 +235,7 @@ def _normalize_windows_run_launch(
     *,
     max_actions: int,
 ) -> tuple[list[dict[str, Any]], int, bool]:
-    """Settle Windows Run before typing and wait through Settings startup.
+    """Wait for Windows Run before typing and through Settings startup.
 
     Windows Run first transitions to a stable Settings splash, then transitions
     again when the requested page is rendered. A single change wait can
@@ -264,12 +264,31 @@ def _normalize_windows_run_launch(
     ]
     if pre_type_wait_indices:
         wait_index = pre_type_wait_indices[-1]
-        wait_ms = int(normalized[wait_index].get("ms") or 0)
-        if wait_ms < 1_000:
-            normalized[wait_index]["ms"] = 1_000
-            pre_type_settle_normalized = True
+        normalized[wait_index] = {
+            "type": "wait_for_change",
+            "timeout_ms": 5_000,
+        }
+        pre_type_settle_normalized = True
     elif len(normalized) < max_actions:
-        normalized.insert(1, {"type": "wait", "ms": 1_000})
+        normalized.insert(
+            1,
+            {"type": "wait_for_change", "timeout_ms": 5_000},
+        )
+        text_index += 1
+        pre_type_settle_normalized = True
+    pre_type_stable = any(
+        action.get("type") == "wait_for_stable_screen"
+        for action in normalized[1:text_index]
+    )
+    if not pre_type_stable and len(normalized) < max_actions:
+        normalized.insert(
+            text_index,
+            {
+                "type": "wait_for_stable_screen",
+                "stable_ms": 300,
+                "timeout_ms": 3_000,
+            },
+        )
         text_index += 1
         pre_type_settle_normalized = True
 

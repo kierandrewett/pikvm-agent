@@ -166,6 +166,34 @@ async def test_run_burst_executes_in_order() -> None:
     assert receipt["exact_readback_sha256_match"] is False
 
 
+async def test_wait_for_change_uses_the_frame_before_the_input() -> None:
+    class TransitionBackend(FakeBackend):
+        def __init__(self) -> None:
+            super().__init__()
+            self.screenshot_calls = 0
+
+        async def screenshot(self, region=None):
+            self.screenshot_calls += 1
+            return await super().screenshot(region)
+
+        async def keypress(self, keys: list[str]) -> None:
+            await super().keypress(keys)
+            self.set_screen("Run dialog")
+
+    backend = TransitionBackend()
+
+    result = await run_burst(
+        [
+            {"type": "key", "keys": ["WIN", "R"]},
+            {"type": "wait_for_change", "timeout_ms": 1},
+        ],
+        backend=backend,
+    )
+
+    assert result.status == "completed"
+    assert backend.screenshot_calls == 2
+
+
 async def test_spreadsheet_grid_enters_rows_from_the_active_cell() -> None:
     backend = FakeBackend()
 
