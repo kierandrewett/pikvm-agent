@@ -462,6 +462,14 @@ def test_bare_enter_fails_closed_because_it_can_submit_the_focused_surface() -> 
     assert "commit" in verdict.reason
 
 
+def test_shift_enter_remains_a_non_submitting_editor_line_break() -> None:
+    verdict = _classify(
+        [{"type": "key", "keys": ["SHIFT", "ENTER"]}]
+    )
+
+    assert verdict.status == "allowed"
+
+
 def test_numpad_enter_also_fails_closed_on_an_unknown_surface() -> None:
     verdict = _classify([{"type": "key", "keys": ["NumpadEnter"]}])
 

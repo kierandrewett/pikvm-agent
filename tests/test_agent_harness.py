@@ -735,6 +735,164 @@ def test_exact_notepad_task_prepares_new_document_and_exact_text() -> None:
     ]
 
 
+def test_exact_notepad_paragraphs_use_separate_verified_text_and_line_breaks() -> None:
+    first = (
+        "A useful computer agent works quickly, but speed without evidence "
+        "is guesswork."
+    )
+    second = (
+        "Every action should be visible, attributable, and independently "
+        "checkable."
+    )
+    run = RunSnapshot(
+        run_id="notepad-two-paragraph-fast-path",
+        task=(
+            "In Notepad, create "
+            "C:\\PiKVM-Harness\\workspace\\codex-50\\text-03.txt with exactly "
+            f"two paragraphs. First paragraph: `{first}` Second paragraph: "
+            f"`{second}` Put one blank line between them, reopen the file, "
+            "and verify it."
+        ),
+        status=RunStatus.PAUSED,
+    )
+
+    fast_path = _notepad_fast_path(run, max_actions=20)
+
+    assert fast_path is not None
+    plan, launch_controller = fast_path
+    assert plan.success_criteria == [
+        (
+            "The requested file exists inside the permitted lab workspace."
+        ),
+        (
+            "The reopened file visibly contains exactly the requested two "
+            "paragraphs with one blank line between them."
+        ),
+    ]
+    launch = PendingAction(
+        index=0,
+        intent=launch_controller.intent,
+        actions=[
+            action.model_dump(mode="json", exclude_none=True)
+            for action in launch_controller.actions
+        ],
+        based_on_world_version=1,
+        based_on_control_epoch=0,
+        idempotency_key="notepad-two-paragraph-launch",
+    )
+    new_document = _notepad_new_document_controller(
+        run,
+        launch,
+        max_actions=20,
+    )
+    assert new_document is not None
+    document = PendingAction(
+        index=1,
+        intent=new_document.intent,
+        actions=[
+            action.model_dump(mode="json", exclude_none=True)
+            for action in new_document.actions
+        ],
+        based_on_world_version=2,
+        based_on_control_epoch=0,
+        idempotency_key="notepad-two-paragraph-new-document",
+    )
+
+    first_paragraph = _notepad_exact_text_controller(
+        run,
+        document,
+        max_actions=20,
+    )
+
+    assert first_paragraph is not None
+    assert [
+        action.model_dump(mode="json", exclude_none=True)
+        for action in first_paragraph.actions
+    ] == [
+        {
+            "type": "type_text",
+            "text": first,
+            "code": False,
+            "secret": False,
+            "context": "editor",
+            "verification": "exact",
+        },
+        {
+            "type": "wait_for_stable_screen",
+            "stable_ms": 400,
+            "timeout_ms": 3_000,
+        },
+    ]
+    first_action = PendingAction(
+        index=2,
+        intent=first_paragraph.intent,
+        actions=[
+            action.model_dump(mode="json", exclude_none=True)
+            for action in first_paragraph.actions
+        ],
+        based_on_world_version=3,
+        based_on_control_epoch=0,
+        idempotency_key="notepad-two-paragraph-first",
+    )
+
+    blank_line = _notepad_exact_text_controller(
+        run,
+        first_action,
+        max_actions=20,
+    )
+
+    assert blank_line is not None
+    assert [
+        action.model_dump(mode="json", exclude_none=True)
+        for action in blank_line.actions
+    ] == [
+        {"type": "key", "keys": ["SHIFT", "ENTER"]},
+        {"type": "key", "keys": ["SHIFT", "ENTER"]},
+        {
+            "type": "wait_for_stable_screen",
+            "stable_ms": 400,
+            "timeout_ms": 3_000,
+        },
+    ]
+    line_break_action = PendingAction(
+        index=3,
+        intent=blank_line.intent,
+        actions=[
+            action.model_dump(mode="json", exclude_none=True)
+            for action in blank_line.actions
+        ],
+        based_on_world_version=4,
+        based_on_control_epoch=0,
+        idempotency_key="notepad-two-paragraph-line-break",
+    )
+
+    second_paragraph = _notepad_exact_text_controller(
+        run,
+        line_break_action,
+        max_actions=20,
+    )
+
+    assert second_paragraph is not None
+    assert [
+        action.model_dump(mode="json", exclude_none=True)
+        for action in second_paragraph.actions
+    ] == [
+        {
+            "type": "type_text",
+            "text": second,
+            "code": False,
+            "secret": False,
+            "context": "editor",
+            "verification": "exact",
+        },
+        {
+            "type": "wait_for_stable_screen",
+            "stable_ms": 400,
+            "timeout_ms": 3_000,
+        },
+    ]
+
+
 def test_controller_can_launch_a_standard_app_in_one_safe_burst() -> None:
     assert "one narrow app-launch exception" in _CONTROLLER_SYSTEM
     assert "type only the app's executable name" in _CONTROLLER_SYSTEM
@@ -2524,10 +2682,9 @@ async def test_controller_prompt_prefers_a_stable_legible_end_state() -> None:
     assert "modern Notepad restores an old tab" in normalized
     assert "use Ctrl+N to create a new blank document" in normalized
     assert "Do not click into or overwrite restored content" in normalized
-    assert (
-        "single type_text action with embedded newline characters" in normalized
-    )
-    assert "blank line as \\n\\n inside that text" in normalized
+    assert "never put newline control characters inside type_text" in normalized
+    assert "two separate Shift+Enter key actions" in normalized
+    assert "non-submitting blank-line action" in normalized
 
 
 async def test_reasoner_prompt_avoids_duplicate_pre_and_post_save_audits() -> None:

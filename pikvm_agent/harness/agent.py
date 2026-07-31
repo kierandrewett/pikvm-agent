@@ -573,6 +573,13 @@ _NOTEPAD_EXACT_TEXT_TASK = re.compile(
     r"\bIn\s+Notepad,\s*type\s+exactly\s+`(?P<text>[^`\r\n]{1,240})`",
     re.IGNORECASE,
 )
+_NOTEPAD_TWO_PARAGRAPH_TASK = re.compile(
+    r"\bIn\s+Notepad,.*?\bwith\s+exactly\s+two\s+paragraphs\.\s*"
+    r"First\s+paragraph:\s*`(?P<first>[^`\r\n]{1,240})`\s*"
+    r"Second\s+paragraph:\s*`(?P<second>[^`\r\n]{1,240})`\s*"
+    r"Put\s+one\s+blank\s+line\s+between\s+them\b",
+    re.IGNORECASE,
+)
 
 
 def _calculator_number_keys(value: str) -> list[str]:
@@ -906,6 +913,16 @@ def _notepad_exact_text_payload(run: RunSnapshot) -> str | None:
     return match.group("text") if match is not None else None
 
 
+def _notepad_exact_text_segments(run: RunSnapshot) -> tuple[str, ...]:
+    payload = _notepad_exact_text_payload(run)
+    if payload is not None:
+        return (payload,)
+    match = _NOTEPAD_TWO_PARAGRAPH_TASK.search(run.task)
+    if match is None:
+        return ()
+    return (match.group("first"), match.group("second"))
+
+
 def _launched_notepad(action: PendingAction | None) -> bool:
     if action is None:
         return False
@@ -945,7 +962,7 @@ def _notepad_new_document_controller(
     """Create a fresh focused tab after Notepad restores old session state."""
 
     if (
-        _notepad_exact_text_payload(run) is None
+        not _notepad_exact_text_segments(run)
         or not _launched_notepad(action)
     ):
         return None
@@ -977,10 +994,44 @@ def _notepad_exact_text_controller(
     *,
     max_actions: int,
 ) -> ControllerDecision | None:
-    """Type one literal payload only after a fresh Notepad tab is verified."""
+    """Advance one exact Notepad text segment after verified local input."""
 
-    payload = _notepad_exact_text_payload(run)
-    if payload is None or not _created_new_notepad_document(action):
+    segments = _notepad_exact_text_segments(run)
+    if not segments:
+        return None
+    payload: str | None = None
+    if _created_new_notepad_document(action):
+        payload = segments[0]
+    elif len(segments) == 2 and _typed_exact_editor_text(
+        action,
+        segments[0],
+    ):
+        actions = [
+            {"type": "key", "keys": ["SHIFT", "ENTER"]},
+            {"type": "key", "keys": ["SHIFT", "ENTER"]},
+            {
+                "type": "wait_for_stable_screen",
+                "stable_ms": 400,
+                "timeout_ms": 3_000,
+            },
+        ]
+        if len(actions) > max_actions:
+            return None
+        return ControllerDecision(
+            outcome="act",
+            intent="Insert the requested single blank line in Notepad.",
+            actions=actions,
+            expected_evidence=[
+                (
+                    "Notepad visibly keeps the exact first paragraph and "
+                    "places the caret after one blank line."
+                )
+            ],
+            expects_task_completion=False,
+        )
+    elif len(segments) == 2 and _inserted_notepad_blank_line(action):
+        payload = segments[1]
+    if payload is None:
         return None
     actions = [
         {
@@ -1009,6 +1060,37 @@ def _notepad_exact_text_controller(
     )
 
 
+def _typed_exact_editor_text(
+    action: PendingAction | None,
+    payload: str,
+) -> bool:
+    if action is None:
+        return False
+    return any(
+        item.get("type") == "type_text"
+        and str(item.get("text") or "") == payload
+        and str(item.get("context") or "") == "editor"
+        and str(item.get("verification") or "") == "exact"
+        for item in action.actions
+    )
+
+
+def _inserted_notepad_blank_line(
+    action: PendingAction | None,
+) -> bool:
+    if action is None:
+        return False
+    line_breaks = [
+        {
+            str(key).strip().casefold()
+            for key in item.get("keys") or []
+        }
+        for item in action.actions
+        if item.get("type") == "key"
+    ]
+    return line_breaks.count({"shift", "enter"}) == 2
+
+
 def _notepad_fast_path(
     run: RunSnapshot,
     *,
@@ -1016,9 +1098,10 @@ def _notepad_fast_path(
 ) -> tuple[PlanDecision, ControllerDecision] | None:
     """Prepare a literal exact-text Notepad task without model planning."""
 
-    payload = _notepad_exact_text_payload(run)
-    if payload is None or max_actions < 7:
+    segments = _notepad_exact_text_segments(run)
+    if not segments or max_actions < 7:
         return None
+    paragraph_task = len(segments) == 2
     plan = PlanDecision(
         summary="Create and verify the requested exact text file in Notepad.",
         steps=[
@@ -1029,7 +1112,15 @@ def _notepad_fast_path(
         ],
         success_criteria=[
             "The requested file exists inside the permitted lab workspace.",
-            f"The reopened file visibly contains exactly `{payload}`.",
+            (
+                "The reopened file visibly contains exactly the requested two "
+                "paragraphs with one blank line between them."
+                if paragraph_task
+                else (
+                    "The reopened file visibly contains exactly "
+                    f"`{segments[0]}`."
+                )
+            ),
         ],
         constraints=[
             (
@@ -1117,10 +1208,12 @@ When modern Notepad restores an old tab after launch and the task requires a
 new document, use Ctrl+N to create a new blank document as the next bounded
 action. Do not click into or overwrite restored content, and do not treat a
 restored tab as the requested new document.
-For exact multi-line content in a verified local editor, use one single
-type_text action with embedded newline characters. Represent one required blank
-line as \\n\\n inside that text. Never split prose into a type_text action
-followed by active Enter-key actions; that unsafe suffix is rejected before HID.
+For exact multi-line content in a verified local editor, never put newline
+control characters inside type_text. Enter each text segment with a separate
+exact type_text action and verify it. Then create one required blank line with
+two separate Shift+Enter key actions in a later bounded action; verify that
+non-submitting blank-line action before entering the next exact text segment.
+Never put active key actions after type_text in the same burst.
 For a task that explicitly asks to inspect a read-only Windows Settings page,
 the same bounded launch exception may type one native ``ms-settings:`` URI
 instead of an executable. It must begin exactly with ``ms-settings:``, contain
