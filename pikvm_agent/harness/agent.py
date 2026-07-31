@@ -22,6 +22,7 @@ from pikvm_agent.core.windows_launch import (
 )
 from pikvm_agent.executor.burst import BurstError, normalize_keys, validate_actions
 from pikvm_agent.harness.agent_models import (
+    TERMINAL_RUN_STATUSES,
     ComputerObservation,
     ControllerDecision,
     HarnessConfig,
@@ -32,7 +33,6 @@ from pikvm_agent.harness.agent_models import (
     RunModelRoute,
     RunSnapshot,
     RunStatus,
-    TERMINAL_RUN_STATUSES,
     VerificationDecision,
     VerificationImageArtifact,
 )
@@ -4189,7 +4189,7 @@ class AgentHarness:
         run: RunSnapshot,
         proposed_actions: list[dict[str, Any]],
     ) -> bool:
-        """Require cancellation before changing or executing unread exact input."""
+        """Require surface-safe cancellation before changing unread exact input."""
 
         checkpoints: dict[int, list[dict[str, Any]]] = {}
         active_unverified_surfaces: set[str] = set()
@@ -4215,7 +4215,11 @@ class AgentHarness:
                     action_index: (
                         "terminal"
                         if action.get("context") == "terminal"
-                        else "field"
+                        else (
+                            "editor"
+                            if action.get("context") == "editor"
+                            else "field"
+                        )
                     )
                     for action_index, action in enumerate(checkpointed)
                     if (
@@ -4290,7 +4294,9 @@ class AgentHarness:
             ):
                 return True
             if (
-                "field" in active_unverified_surfaces
+                {"field", "editor"}.intersection(
+                    active_unverified_surfaces
+                )
                 and (
                     (
                         action.get("type") == "type_text"

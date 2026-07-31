@@ -9,19 +9,19 @@ from PIL import Image
 from pydantic import ValidationError
 
 from pikvm_agent.harness.agent import (
-    AgentHarness,
     _CONTROLLER_SYSTEM,
     _REASONER_SYSTEM,
+    AgentHarness,
     _calculator_fast_path,
-    _is_read_only_settings_request,
     _calculator_task_controller,
+    _is_read_only_settings_request,
+    _normalize_plan_safety_constraints,
+    _normalize_sequential_key_actions,
+    _normalize_windows_run_launch,
     _notepad_exact_text_controller,
     _notepad_exact_text_segments,
     _notepad_fast_path,
     _notepad_new_document_controller,
-    _normalize_sequential_key_actions,
-    _normalize_windows_run_launch,
-    _normalize_plan_safety_constraints,
     _verification_confirms_standard_calculator,
 )
 from pikvm_agent.harness.agent_models import (
@@ -4625,6 +4625,62 @@ def test_unverified_exact_field_blocks_enter_until_dismissed() -> None:
     assert not AgentHarness._unsafe_unverified_input_followup(
         run,
         [{"type": "key", "keys": ["ENTER"]}],
+    )
+
+
+def test_unverified_exact_editor_is_not_dismissed_by_escape() -> None:
+    run = RunSnapshot(
+        run_id="unverified-exact-editor",
+        task="Type an exact Notepad line",
+        status=RunStatus.PAUSED,
+    )
+    run.record(
+        "action.checkpointed",
+        index=2,
+        actions=[
+            {
+                "type": "type_text",
+                "text": "2. Act",
+                "context": "editor",
+                "verification": "exact",
+            }
+        ],
+    )
+    run.record(
+        "action.completed_unverified",
+        index=2,
+        input_receipts=[
+            {
+                "index": 0,
+                "issued_characters": 6,
+                "requested_characters": 6,
+                "requested_sha256": "d" * 64,
+                "issued_prefix_sha256": "d" * 64,
+                "exact_readback_sha256_match": False,
+            }
+        ],
+    )
+    run.record(
+        "action.checkpointed",
+        index=3,
+        actions=[{"type": "key", "keys": ["ESC"]}],
+    )
+    run.record("action.completed", index=3)
+
+    assert AgentHarness._unsafe_unverified_input_followup(
+        run,
+        [
+            {
+                "type": "type_text",
+                "text": "3. Verify",
+                "context": "editor",
+                "verification": "exact",
+            }
+        ],
+    )
+    assert AgentHarness._unsafe_unverified_input_followup(
+        run,
+        [{"type": "click", "x": 100, "y": 100, "button": "left"}],
     )
 
 

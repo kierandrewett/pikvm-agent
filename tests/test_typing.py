@@ -1952,6 +1952,70 @@ async def test_short_exact_editor_retries_delayed_video_before_unverified(
     ] == [intended]
 
 
+async def test_short_exact_editor_uses_precise_ocr_when_grid_misses_text(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def no_sleep(_seconds: float) -> None:
+        return None
+
+    monkeypatch.setattr(asyncio, "sleep", no_sleep)
+    backend = FakeBackend()
+    intended = "2. Act"
+
+    class PreciseGroundedOCR:
+        def __init__(self) -> None:
+            self.precise_calls = 0
+
+        async def ocr(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path, region
+            return OCRResult()
+
+        async def ocr_precise(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path, region
+            self.precise_calls += 1
+            return OCRResult(
+                lines=[
+                    OCRLine(
+                        text=intended,
+                        confidence=0.99,
+                        bbox=[20, 100, 100, 122],
+                    )
+                ],
+                spacing_evidence="verified",
+            )
+
+    ocr = PreciseGroundedOCR()
+    typer = WatchedTyper(backend, ocr)
+    flat = _flat_grid()
+
+    async def unchanged_grid() -> np.ndarray:
+        return flat
+
+    typer._grid = unchanged_grid  # type: ignore[method-assign]
+
+    result = await typer.type_text(
+        intended,
+        exact=True,
+        context="editor",
+    )
+
+    assert result.status == "verified_exact"
+    assert ocr.precise_calls >= 1
+    assert [
+        call["text"]
+        for method, call in backend.calls
+        if method == "type_text"
+    ] == [intended]
+
+
 async def test_autolocate_waits_for_second_delayed_remote_video_update() -> None:
     """A remote Word repaint can arrive later than the first 200 ms sample."""
 

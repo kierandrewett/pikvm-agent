@@ -174,8 +174,20 @@ after 143.924s, 13 provider calls, and 5/6 completed actions; its mandatory
 reboot observed a real transition and reached a ready desktop after 97.802s.
 The typer now performs bounded delayed-pixel/OCR localization at the existing
 four-character exact-text threshold while retaining the eight-character
-threshold for declaring focus lost. Text-04 remains pending until that second
-fix passes a clean live replay.
+threshold for declaring focus lost.
+
+Text-04 v3 confirmed that the bounded delayed loop ran, but ordinary
+full-screen OCR still missed the visibly present six-character second line.
+The run then exposed a separate safety flaw: Escape was treated as cancelling
+any unverified non-terminal draft. Escape can dismiss a Windows launcher
+field, but it does not remove text already emitted into Notepad. That false
+cancellation let the model move on to `3. Verify` without a verified line
+break; the follow-up stopped as an unverified focus failure. v3 failed after
+221.300s, 18 provider calls, and 5/7 completed actions, then rebooted to a
+verified ready desktop in 94.108s. Exact delayed localization now invokes the
+precise OCR profile, and editor drafts have their own safety surface: Escape
+cannot clear an unverified editor receipt. Text-04 remains pending until both
+changes pass a clean live replay.
 
 Failure-inclusive metrics, canonical campaign digests, the 18 accepted task
 IDs, and the VP9 recording/poster hashes are retained in

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "report": "codex-50-live-progress",
-  "recorded_at": "2026-07-31T23:38:45Z",
+  "recorded_at": "2026-07-31T23:51:51Z",
   "manifest": "bench/codex-50-tasks.yaml",
   "environment": {
     "target": "authorized disposable Windows VNC VM",
@@ -650,12 +650,44 @@
         "sha256": "b4c4a5f85acfebbbba58a498cd2c263b609ef7206c7d71028578858f8ee3a525"
       },
       "campaign_sha256": "f1768c15f3b3abb9f3dde77a329d00341cbc8324e8822f65501ad372f14ce14d"
+    },
+    {
+      "campaign_id": "codex-text-entry-text04-v3-20260731",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "run_id": "957daed1-d2d5-4133-b21f-a8685e18bcc0",
+      "reason": "The delayed localization loop ran for the visibly present `2. Act`, but its ordinary full-screen OCR fallback missed the small second line. A later Escape was incorrectly treated as cancelling the unverified editor draft even though Escape does not remove text already emitted into Notepad; this allowed an unsafe progression toward `3. Verify` without a verified line break. The next exact input stopped unverified and no payload was replayed.",
+      "wall_clock_ms": 221300,
+      "provider_wait_ms": 143225,
+      "action_execution_ms": 70902,
+      "provider_calls": 18,
+      "actions_attempted": 7,
+      "actions_completed": 5,
+      "completion_efficiency": 0.7142857142857143,
+      "same_run_recoveries": 4,
+      "reboot_ms": 94108,
+      "reboot_transition_observed": true,
+      "recording": {
+        "relative_path": "codex-text-entry-text04-v3-20260731/text-04/recording.webm",
+        "sha256": "068a6c0af0ccb57114e3708d05ee9ed5ee83fb3caa31d97b23ba808ebcd9e1e3",
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2,
+        "duration_ms": 291000,
+        "size_bytes": 778270
+      },
+      "poster": {
+        "relative_path": "codex-text-entry-text04-v3-20260731/text-04/poster.jpg",
+        "sha256": "d4d29a1502caf0765ac634dd9ca290efc81f1abd03958811adbb4d6c6f587cb4"
+      },
+      "campaign_sha256": "30bc7623e458111b8772e2776a62624416ceaf3083d5c4f7eedb5f27ba3667b9"
     }
   ],
   "verdict": {
     "accuracy": "Three exact text tasks now pass with independent reopen evidence. Text-03 includes a durable completed Ctrl+O transition and visible post-open paragraph verification.",
     "speed": "Failing product target: accepted text-03 v6 took 380.612 seconds before reboot and required two recoveries.",
     "dominant_cost": "Text-03 v6 provider waits consumed 208.161 seconds across 34 calls, while action execution consumed 243.335 seconds; overlapping work prevents these components from summing directly to wall time.",
-    "next": "Replay text-04 after extending bounded delayed-frame localization to short exact editor payloads."
+    "next": "Replay text-04 with precise delayed OCR and editor-specific unverified-input cancellation semantics."
   }
 }

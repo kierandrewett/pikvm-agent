@@ -2296,7 +2296,7 @@ class WatchedTyper:
                         # changes below the grid threshold. Accept only grounded
                         # OCR evidence that the just-typed text is on screen.
                         ocr_loc = self._locate_ocr_candidate(
-                            await self._read_screen(),
+                            await self._read_screen(precise=precise),
                             typed_so_far,
                             dims,
                             precise=precise,
