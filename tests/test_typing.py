@@ -1124,6 +1124,66 @@ async def test_long_exact_field_uses_blind_ocr_only_after_local_mismatch(
     _assert_no_enter(backend)
 
 
+async def test_blind_exact_fallback_recaptures_native_field_crop() -> None:
+    intended = "Wait—did the agent type “smart quotes” exactly."
+    region = Region(x=40, y=74, width=520, height=45)
+
+    class NativeCropBackend(FakeBackend):
+        def __init__(self) -> None:
+            super().__init__(width=1280, height=800, layout="uk")
+            self.requested_regions: list[Region | None] = []
+
+        async def screenshot(self, region=None):
+            self.requested_regions.append(region)
+            if region is None:
+                return await super().screenshot()
+            output = io.BytesIO()
+            Image.new("RGB", (832, 72), "navy").save(output, "JPEG")
+            return to_captured_frame(output.getvalue(), 832, 72)
+
+    class LocalThenBlindOCR:
+        def __init__(self) -> None:
+            self.blind_image_size = None
+            self.blind_region = None
+
+        async def ocr(self, image_path, region=None):
+            return await self.ocr_precise(image_path, region=region)
+
+        async def ocr_precise(self, image_path, region=None):
+            del image_path, region
+            return OCRResult(
+                lines=[
+                    OCRLine(
+                        text="Wait-did the agent type “smart quotes” exactly.",
+                        confidence=0.99,
+                    )
+                ]
+            )
+
+        async def ocr_precise_fallback(self, image_path, region=None):
+            self.blind_image_size = Image.open(image_path).size
+            self.blind_region = region
+            return OCRResult(
+                lines=[OCRLine(text=intended, confidence=0.99)],
+                spacing_evidence="verified",
+            )
+
+    backend = NativeCropBackend()
+    ocr = LocalThenBlindOCR()
+
+    observed = await WatchedTyper(backend, ocr)._read_field(
+        region,
+        intended=intended,
+        precise=True,
+        allow_blind_fallback=True,
+    )
+
+    assert observed == intended
+    assert backend.requested_regions == [None, region]
+    assert ocr.blind_image_size == (832, 72)
+    assert ocr.blind_region == Region(x=0, y=0, width=832, height=72)
+
+
 @pytest.mark.parametrize(
     ("blurred_read", "expected_status"),
     [

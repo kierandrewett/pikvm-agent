@@ -43,7 +43,12 @@ _PROMPT = (
     "lower panel is an enlarged copy of that same target. The rectangles are "
     "only locators and are not text. Preserve case and punctuation. Do not "
     "normalize, autocorrect, complete, or infer a likely value. Return "
-    "zero-based character positions that are genuinely unclear."
+    "zero-based character positions that are genuinely unclear. Distinguish "
+    "straight from curly quotation marks and distinguish the visible glyphs "
+    "hyphen-minus (-), en dash (–), and em dash (—); never substitute one for "
+    "another. In monospaced editor text, a horizontal dash that spans most of "
+    "one character cell is an em dash, even when the font renders it shorter "
+    "than its typographic name suggests."
 )
 _LOCATOR_PADDING = 12
 _LOCATOR_WIDTH = 2
@@ -304,7 +309,8 @@ class BlindModelOcrProvider:
                                 math.ceil(region.y + region.height),
                             ],
                         )
-                    ]
+                    ],
+                    spacing_evidence="verified",
                 )
             self._cache[key] = result
             self._cache.move_to_end(key)

@@ -886,13 +886,47 @@ class WatchedTyper:
                     None,
                 )
                 if callable(blind_precise_ocr):
+                    blind_region = refined_region or region
+                    blind_path = tmp
+                    native_tmp: Path | None = None
                     try:
+                        native_frame = await self.backend.screenshot(
+                            region=blind_region,
+                        )
+                        if (
+                            native_frame
+                            and native_frame.data
+                            and native_frame.width > 0
+                            and native_frame.height > 0
+                        ):
+                            native_file = tempfile.NamedTemporaryFile(
+                                suffix=".png",
+                                delete=False,
+                            )
+                            native_file.write(native_frame.data)
+                            native_file.close()
+                            native_tmp = Path(native_file.name)
+                            blind_path = native_tmp
+                            blind_region = Region(
+                                x=0,
+                                y=0,
+                                width=native_frame.width,
+                                height=native_frame.height,
+                            )
+                            DEBUG.event(
+                                "typing.field_readback_native_fallback",
+                                width=native_frame.width,
+                                height=native_frame.height,
+                            )
                         blind_result = await blind_precise_ocr(
-                            tmp,
-                            region=refined_region or region,
+                            blind_path,
+                            region=blind_region,
                         )
                     except Exception:
                         blind_result = OCRResult()
+                    finally:
+                        if native_tmp is not None:
+                            native_tmp.unlink(missing_ok=True)
                     if blind_result.text:
                         result = blind_result
                         DEBUG.event(

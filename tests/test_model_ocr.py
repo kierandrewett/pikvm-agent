@@ -66,6 +66,7 @@ async def test_blind_model_ocr_requires_two_matching_transcriptions(
     assert result.text == r"C:\PiKVM-Harness\workspace\codex-50"
     assert result.lines[0].confidence == 0.98
     assert result.lines[0].bbox == [40, 50, 220, 78]
+    assert result.spacing_evidence == "verified"
     assert len(provider.requests) == 3
     assert all(request.image_path != str(image_path) for request in provider.requests)
     assert all(
@@ -74,6 +75,14 @@ async def test_blind_model_ocr_requires_two_matching_transcriptions(
     )
     assert all(
         request.metadata["image_detail"] == "original"
+        for request in provider.requests
+    )
+    assert all(
+        "hyphen-minus (-), en dash (–), and em dash (—)" in request.prompt
+        for request in provider.requests
+    )
+    assert all(
+        "spans most of one character cell" in request.prompt
         for request in provider.requests
     )
 
