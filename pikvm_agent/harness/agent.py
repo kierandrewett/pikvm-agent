@@ -559,6 +559,11 @@ _CALCULATOR_RECIPROCAL_EXPRESSION = re.compile(
     r"\breciprocal\s+of\s+(?P<value>\d{1,12})\b",
     re.IGNORECASE,
 )
+_CALCULATOR_CONVERTER_TASK = re.compile(
+    r"\bWindows\s+Calculator(?:'s)?\s+"
+    r"(?:unit\s+conversion|temperature\s+converter)\s+to\s+convert\b",
+    re.IGNORECASE,
+)
 
 
 def _calculator_number_keys(value: str) -> list[str]:
@@ -591,6 +596,17 @@ def _calculator_decimal_text(value: Decimal) -> str:
     return result
 
 
+def _launched_calculator(action: PendingAction | None) -> bool:
+    if action is None:
+        return False
+    return any(
+        item.get("type") == "type_text"
+        and str(item.get("text") or "").strip().casefold()
+        in {"calc", "calc.exe", "calculator"}
+        for item in action.actions
+    )
+
+
 def _calculator_task_controller(
     run: RunSnapshot,
     action: PendingAction | None,
@@ -599,15 +615,7 @@ def _calculator_task_controller(
 ) -> ControllerDecision | None:
     """Prepare a deterministic literal expression after Calculator opens."""
 
-    if action is None:
-        return None
-    launched = any(
-        item.get("type") == "type_text"
-        and str(item.get("text") or "").strip().casefold()
-        in {"calc", "calc.exe", "calculator"}
-        for item in action.actions
-    )
-    if not launched:
+    if not _launched_calculator(action):
         return None
 
     multiplication = _CALCULATOR_TASK_EXPRESSION.search(run.task)
@@ -786,6 +794,41 @@ def _calculator_task_controller(
     )
 
 
+def _calculator_converter_controller(
+    run: RunSnapshot,
+    action: PendingAction | None,
+    *,
+    max_actions: int,
+) -> ControllerDecision | None:
+    """Open Calculator's converter without a fragile menu-coordinate click."""
+
+    if (
+        not _launched_calculator(action)
+        or _CALCULATOR_CONVERTER_TASK.search(run.task) is None
+    ):
+        return None
+    actions = [
+        {"type": "key", "keys": ["ControlLeft", "KeyU"]},
+        {"type": "wait_for_change", "timeout_ms": 5_000},
+        {
+            "type": "wait_for_stable_screen",
+            "stable_ms": 500,
+            "timeout_ms": 5_000,
+        },
+    ]
+    if len(actions) > max_actions:
+        return None
+    return ControllerDecision(
+        outcome="act",
+        intent="Open Calculator's unit converter using its keyboard command.",
+        actions=actions,
+        expected_evidence=[
+            "Windows Calculator visibly shows its unit converter view."
+        ],
+        expects_task_completion=False,
+    )
+
+
 def _calculator_fast_path(
     run: RunSnapshot,
     *,
@@ -809,20 +852,35 @@ def _calculator_fast_path(
         ),
         idempotency_key=f"{run.run_id}:calculator-fast-path-probe",
     )
-    if (
-        _calculator_task_controller(
-            run,
-            launch_probe,
-            max_actions=max_actions,
-        )
-        is None
-    ):
+    calculator_followup = _calculator_task_controller(
+        run,
+        launch_probe,
+        max_actions=max_actions,
+    ) or _calculator_converter_controller(
+        run,
+        launch_probe,
+        max_actions=max_actions,
+    )
+    if calculator_followup is None:
         return None
+    converter_task = _CALCULATOR_CONVERTER_TASK.search(run.task) is not None
     plan = PlanDecision(
-        summary="Open Windows Calculator and evaluate the literal expression.",
+        summary=(
+            "Open Windows Calculator and perform the requested conversion."
+            if converter_task
+            else "Open Windows Calculator and evaluate the literal expression."
+        ),
         steps=[
             "Open Windows Calculator using the bounded local app launcher.",
-            "Enter the parsed expression with inspectable HID key events.",
+            (
+                "Open the unit converter with its keyboard command, then use "
+                "the visible controls to select the requested units."
+                if converter_task
+                else (
+                    "Enter the parsed expression with inspectable HID key "
+                    "events."
+                )
+            ),
             "Verify the exact visible result before reporting it.",
         ],
         success_criteria=[
@@ -2883,10 +2941,18 @@ class AgentHarness:
         validation/checkpoint path adopts it.
         """
 
-        deterministic_controller = _calculator_task_controller(
+        expression_controller = _calculator_task_controller(
             run,
             action,
             max_actions=self.config.max_actions_per_burst,
+        )
+        deterministic_controller = (
+            expression_controller
+            or _calculator_converter_controller(
+                run,
+                action,
+                max_actions=self.config.max_actions_per_burst,
+            )
         )
         roles = (
             ["verifier", "deterministic_calculator"]
@@ -2900,10 +2966,16 @@ class AgentHarness:
         )
         if deterministic_controller is not None:
             run.record(
-                "controller.calculator_expression_prepared",
+                "controller.calculator_followup_prepared",
                 intent=deterministic_controller.intent,
-                source="literal_task_expression",
+                source="literal_calculator_task",
             )
+            if expression_controller is not None:
+                run.record(
+                    "controller.calculator_expression_prepared",
+                    intent=deterministic_controller.intent,
+                    source="literal_task_expression",
+                )
         await self.store.save(run)
         verify_task = asyncio.create_task(
             self._verify(run, action=action, before=before),
