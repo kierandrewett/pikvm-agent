@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "report": "codex-50-live-progress",
-  "recorded_at": "2026-07-31T22:52:25Z",
+  "recorded_at": "2026-07-31T22:59:27Z",
   "manifest": "bench/codex-50-tasks.yaml",
   "environment": {
     "target": "authorized disposable Windows VNC VM",
@@ -16,16 +16,16 @@
   },
   "progress": {
     "planned": 50,
-    "unique_passed": 17,
-    "pending": 33,
-    "completion_percent": 34.0,
+    "unique_passed": 18,
+    "pending": 32,
+    "completion_percent": 36.0,
     "categories": {
       "Observation": {
         "passed": 5,
         "planned": 5
       },
       "Calculator": {
-        "passed": 9,
+        "passed": 10,
         "planned": 10
       },
       "Text entry": {
@@ -63,6 +63,7 @@
       "calc-06",
       "calc-07",
       "calc-08",
+      "calc-09",
       "calc-10",
       "text-01",
       "text-02",
@@ -133,6 +134,13 @@
       "campaign_sha256": "9f1f3d474a2ab8a7b5ccae8a6ffe70d2aaf85c0714ff8f42b36da68f8ab75772"
     },
     {
+      "campaign_id": "codex-calculator-calc09-v1-20260731",
+      "tasks": [
+        "calc-09"
+      ],
+      "campaign_sha256": "e3bd27b932397f7fcdeecf429427f6be9c5e723b697e9bbdbbbee0b029391c84"
+    },
+    {
       "campaign_id": "codex-text-entry-v17-20260731",
       "tasks": [
         "text-01"
@@ -154,6 +162,39 @@
       "campaign_sha256": "1ff02cfdaf5d7c434808aff091c93e53824de154967f85b166976dcc6d4b1718"
     }
   ],
+  "calc_09_acceptance": {
+    "task": "Convert 23 degrees Celsius to Fahrenheit in Windows Calculator",
+    "result": "passed",
+    "run_id": "a3bea594-9eef-4f91-a3e0-1d60fd4d00a0",
+    "visible_result": "23 °C = 73.4 °F",
+    "reason": "The final Calculator frame visibly showed the requested Celsius input and Fahrenheit conversion after verifier-detected recovery from one ineffective mode click and one incomplete numeric entry.",
+    "wall_clock_ms": 141228,
+    "provider_wait_ms": 75412,
+    "action_execution_ms": 62054,
+    "evidence_capture_ms": 1911,
+    "provider_calls": 15,
+    "actions_attempted": 7,
+    "actions_completed": 7,
+    "completion_efficiency": 1.0,
+    "same_run_recoveries": 2,
+    "reboot_ms": 102497,
+    "reboot_transition_observed": true,
+    "recording": {
+      "relative_path": "codex-calculator-calc09-v1-20260731/calc-09/recording.webm",
+      "sha256": "2bb55ea939df76e57f5604a9c1a3c8b1cab5a21584fa7d5759e1038791ccf68d",
+      "codec": "vp9",
+      "width": 2048,
+      "height": 1280,
+      "fps": 2,
+      "duration_ms": 222000,
+      "size_bytes": 724540
+    },
+    "poster": {
+      "relative_path": "codex-calculator-calc09-v1-20260731/calc-09/poster.jpg",
+      "sha256": "c1846e05f1fa548e891605c70bdc1b2cfbffcd85f86fd47c58402ea5224994dd"
+    },
+    "campaign_sha256": "e3bd27b932397f7fcdeecf429427f6be9c5e723b697e9bbdbbbee0b029391c84"
+  },
   "text_01_acceptance": {
     "task": "Save a short exact sentence, reopen it, and verify it",
     "result": "passed",

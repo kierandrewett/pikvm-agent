@@ -51,21 +51,29 @@ support a claim of generally reliable autonomous Windows operation.
 
 ### Live 50-task Windows campaign
 
-The active disposable-Windows campaign has **17/50 unique accepted passes
-(34%)**. Every attempt is screen-recorded, every test ends with a VM reboot,
+The active disposable-Windows campaign has **18/50 unique accepted passes
+(36%)**. Every attempt is screen-recorded, every test ends with a VM reboot,
 and a pass is counted only once even when the same task is rerun during
 remediation. Production PiKVM was not contacted.
 
 | Category | Passed | Planned | Current state |
 | --- | ---: | ---: | --- |
 | Observation | 5 | 5 | Complete |
-| Calculator | 9 | 10 | `calc-09` pending |
+| Calculator | 10 | 10 | Complete |
 | Text entry | 3 | 10 | `text-01` through `text-03` accepted |
 | Code entry | 0 | 10 | Pending |
 | File management | 0 | 5 | Pending |
 | Microsoft Excel | 0 | 5 | Pending |
 | Microsoft Word | 0 | 5 | Pending |
-| **Total** | **17** | **50** | **33 pending** |
+| **Total** | **18** | **50** | **32 pending** |
+
+The Calculator category is complete. The final temperature-conversion task
+visibly produced `23 °C = 73.4 °F`, completed 7/7 actions, and rebooted the VM
+after a real screen transition. It took 141.228s before reboot: 75.412s of
+provider wait across 15 calls and 62.054s of action execution. Verification
+caught both a mode-selection click that initially left Standard mode visible
+and an intermediate `3 °C = 37.4 °F` entry before the controller corrected it.
+The accepted result is accurate, but this remains far slower than a human.
 
 The first exact text task required seven retained acceptance and speed attempts. v13
 reported success but is marked **invalid** because leaving Notepad open after
@@ -142,7 +150,7 @@ with two autonomous recoveries and 15/18 actions completed. Its mandatory
 reboot took 101.101s and observed a real transition. Accuracy now passes this
 gate; the extra recovery and model turns make speed an explicit failure.
 
-Failure-inclusive metrics, canonical campaign digests, the 17 accepted task
+Failure-inclusive metrics, canonical campaign digests, the 18 accepted task
 IDs, and the VP9 recording/poster hashes are retained in
 [`codex-50-progress.json`](results/2026-07-31/live-vnc/codex-50-progress.json).
 The complete 50-task manifest is
