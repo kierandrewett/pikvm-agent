@@ -19,6 +19,7 @@ _SECONDARY_MAX_HEIGHT_FRAC = 0.45
 _WARMUP_MAX_WIDTH = 384
 _WARMUP_MAX_HEIGHT = 160
 _SECONDARY_MIN_CONFIDENCE = 0.90
+_GEOMETRIC_SPACING_MIN_CONFIDENCE = 0.90
 _SECONDARY_SINGLE_LINE_ADVANTAGE = 0.08
 _SECONDARY_MULTILINE_ADVANTAGE = 0.20
 
@@ -277,7 +278,7 @@ def _has_visible_single_space_gap(
         len(tokens) != 2
         or not all(token.isalnum() for token in tokens)
         or line.confidence is None
-        or float(line.confidence) < 0.95
+        or float(line.confidence) < _GEOMETRIC_SPACING_MIN_CONFIDENCE
     ):
         return False
     rectangle = _line_rectangle(line)

@@ -788,16 +788,18 @@ async def test_hybrid_precise_does_not_verify_unaligned_space_consensus() -> Non
 
 
 @pytest.mark.parametrize(
-    ("rendered_text", "expected_spacing"),
+    ("rendered_text", "ocr_confidence", "expected_spacing"),
     [
-        ("This PC", "verified"),
-        ("This  PC", "not_evaluated"),
-        ("ThisPC", "not_evaluated"),
+        ("This PC", 0.9316, "verified"),
+        ("This PC", 0.89, "not_evaluated"),
+        ("This  PC", 0.995, "not_evaluated"),
+        ("ThisPC", 0.995, "not_evaluated"),
     ],
 )
 async def test_hybrid_precise_verifies_one_visible_geometric_gap(
     tmp_path,
     rendered_text: str,
+    ocr_confidence: float,
     expected_spacing: str,
 ) -> None:
     image_path = tmp_path / "selected-field.png"
@@ -829,7 +831,7 @@ async def test_hybrid_precise_verifies_one_visible_geometric_gap(
         lines=[
             OCRLine(
                 text="This PC",
-                confidence=0.995,
+                confidence=ocr_confidence,
                 bbox=local_box,
             )
         ]
