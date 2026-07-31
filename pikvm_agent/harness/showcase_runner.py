@@ -644,7 +644,7 @@ class VncAdapter:
 
             await send_key("Escape", True)
             await send_key("Escape", False)
-            await asyncio.sleep(0.2)
+            await asyncio.sleep(0.5)
             run_opened = False
             for _attempt in range(3):
                 baseline = await self.frame()
@@ -652,11 +652,11 @@ class VncAdapter:
                 # Some VNC servers acknowledge the modifier before Windows has
                 # incorporated it. Without this dwell, R intermittently arrives
                 # as a bare key and the Run dialog never opens.
-                await asyncio.sleep(0.12)
+                await asyncio.sleep(0.25)
                 await send_key("KeyR", True)
-                await asyncio.sleep(0.06)
+                await asyncio.sleep(0.1)
                 await send_key("KeyR", False)
-                await asyncio.sleep(0.04)
+                await asyncio.sleep(0.1)
                 await send_key("MetaLeft", False)
                 run_opened = await self._wait_for_run_dialog(
                     baseline=baseline,
@@ -670,6 +670,7 @@ class VncAdapter:
                     break
                 await send_key("Escape", True)
                 await send_key("Escape", False)
+                await asyncio.sleep(0.5)
             if not run_opened:
                 raise TimeoutError(
                     "Windows Run dialog did not visibly open for reboot"

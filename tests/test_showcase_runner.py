@@ -421,9 +421,10 @@ async def test_reboot_replaces_any_existing_run_dialog_text(
 ) -> None:
     sent: list[dict[str, object]] = []
     printed: list[str] = []
+    slept: list[float] = []
 
-    async def no_sleep(_seconds: float) -> None:
-        return None
+    async def no_sleep(seconds: float) -> None:
+        slept.append(seconds)
 
     monkeypatch.setattr(
         showcase_runner,
@@ -464,6 +465,7 @@ async def test_reboot_replaces_any_existing_run_dialog_text(
     ]
     start = key_events.index(select_all[0])
     assert key_events[start : start + 4] == select_all
+    assert slept[:4] == [0.5, 0.25, 0.1, 0.1]
     assert printed == ["shutdown /r /t 0 /f"]
 
 

@@ -308,14 +308,14 @@ class Runtime:
         # re-run the (network) health probes and contend with real work.
         self._status_cache: tuple[float, dict[str, Any]] | None = None
 
-    async def _warm_ocr_provider(self, warmup: Any) -> None:
+    async def _warm_ocr_provider(self, warmup: Any) -> bool:
         """Warm optional secondary OCR from one read-only captured frame."""
 
         temporary_path: Path | None = None
         try:
             frame = await self.backend.screenshot()
             if not frame or not frame.data:
-                return
+                return False
             temporary = tempfile.NamedTemporaryFile(
                 suffix=".jpg",
                 delete=False,
@@ -325,11 +325,11 @@ class Runtime:
                 temporary.write(frame.data)
             finally:
                 temporary.close()
-            await warmup(temporary_path)
+            return bool(await warmup(temporary_path))
         except asyncio.CancelledError:
             raise
         except Exception:
-            return
+            return False
         finally:
             if temporary_path is not None:
                 temporary_path.unlink(missing_ok=True)
@@ -1491,6 +1491,30 @@ class Runtime:
         else:  # "pikvm" — uses the target's built-in OCR, so it tracks pikvm reachability
             ocr_available = True
 
+        warmup_task = self._ocr_warmup_task
+        if warmup_task is None:
+            ocr_warmup = "not_supported"
+        elif not warmup_task.done():
+            ocr_warmup = "warming"
+        elif warmup_task.cancelled():
+            ocr_warmup = "cancelled"
+        else:
+            try:
+                ocr_warmup = "ready" if warmup_task.result() else "degraded"
+            except Exception:
+                ocr_warmup = "degraded"
+        ocr_dependency: dict[str, Any] = {
+            "provider": ocr_provider,
+            "available": ocr_available,
+            "warmup": ocr_warmup,
+        }
+        diagnostics = getattr(self._ocr_provider, "diagnostics", None)
+        if callable(diagnostics):
+            try:
+                ocr_dependency["diagnostics"] = diagnostics()
+            except Exception:
+                pass
+
         deps: dict[str, Any] = {
             "pikvm": {"reachable": pikvm_ok},
             "omniparser": {
@@ -1499,7 +1523,7 @@ class Runtime:
                 "reachable": omni_ok,
             },
             "operator": operator,
-            "ocr": {"provider": ocr_provider, "available": ocr_available},
+            "ocr": ocr_dependency,
             "store": {"connected": True},
         }
         # Burst-first: the daemon can drive the machine the moment the TARGET is reachable.

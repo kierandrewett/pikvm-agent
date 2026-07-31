@@ -288,12 +288,25 @@ class HybridOcrProvider:
         secondary: OCRProvider,
         *,
         secondary_timeout_s: float = 5.0,
+        warmup_timeout_s: float | None = None,
     ) -> None:
         if secondary_timeout_s <= 0:
             raise ValueError("secondary_timeout_s must be positive")
+        if warmup_timeout_s is not None and warmup_timeout_s <= 0:
+            raise ValueError("warmup_timeout_s must be positive")
         self.primary = primary
         self.secondary = secondary
         self.secondary_timeout_s = secondary_timeout_s
+        self.warmup_timeout_s = (
+            warmup_timeout_s
+            if warmup_timeout_s is not None
+            else max(60.0, secondary_timeout_s * 4)
+        )
+        self._warmup_started = False
+        self._warmup_complete = asyncio.Event()
+        self._warmup_succeeded = False
+        self._warmup_timed_out = 0
+        self._precise_waited_for_warmup = 0
         self._precise_calls = 0
         self._secondary_attempted = 0
         self._secondary_completed = 0
@@ -329,6 +342,15 @@ class HybridOcrProvider:
         if not _secondary_region_is_bounded(image_path, region):
             self._secondary_skipped_unbounded += 1
             return await primary_call
+        if self._warmup_started and not self._warmup_complete.is_set():
+            self._precise_waited_for_warmup += 1
+            try:
+                await asyncio.wait_for(
+                    self._warmup_complete.wait(),
+                    timeout=self.warmup_timeout_s + 1,
+                )
+            except TimeoutError:
+                pass
         secondary_busy = getattr(self.secondary, "busy", None)
         if callable(secondary_busy) and secondary_busy():
             self._secondary_skipped_busy += 1
@@ -384,8 +406,12 @@ class HybridOcrProvider:
     async def warmup(self, image_path: Path) -> bool:
         """Warm the heavy secondary worker without delaying an exact action."""
 
+        self._warmup_started = True
+        self._warmup_succeeded = False
+        self._warmup_complete.clear()
         secondary_busy = getattr(self.secondary, "busy", None)
         if callable(secondary_busy) and secondary_busy():
+            self._warmup_complete.set()
             return False
         try:
             await asyncio.wait_for(
@@ -393,16 +419,39 @@ class HybridOcrProvider:
                     image_path,
                     region=_warmup_region(image_path),
                 ),
-                timeout=self.secondary_timeout_s,
+                timeout=self.warmup_timeout_s,
             )
-        except (TimeoutError, RuntimeError):
+        except TimeoutError:
+            self._warmup_timed_out += 1
+            restart = getattr(
+                self.secondary,
+                "restart_after_timeout",
+                None,
+            )
+            if callable(restart):
+                try:
+                    await restart()
+                except asyncio.CancelledError:
+                    raise
+                except Exception:
+                    pass
             return False
-        return True
+        except RuntimeError:
+            return False
+        else:
+            self._warmup_succeeded = True
+            return True
+        finally:
+            self._warmup_complete.set()
 
     def diagnostics(self) -> dict[str, int]:
         """Expose aggregate engine participation without case text."""
 
         return {
+            "warmup_started": int(self._warmup_started),
+            "warmup_succeeded": int(self._warmup_succeeded),
+            "warmup_timed_out": self._warmup_timed_out,
+            "precise_waited_for_warmup": self._precise_waited_for_warmup,
             "precise_calls": self._precise_calls,
             "secondary_attempted": self._secondary_attempted,
             "secondary_completed": self._secondary_completed,

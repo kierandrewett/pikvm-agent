@@ -648,6 +648,10 @@ async def test_hybrid_precise_read_retains_unique_secondary_evidence(
     assert primary.calls == [("precise", image_path, region)]
     assert secondary.calls == [("ocr", image_path, region)]
     assert provider.diagnostics() == {
+        "warmup_started": 0,
+        "warmup_succeeded": 0,
+        "warmup_timed_out": 0,
+        "precise_waited_for_warmup": 0,
         "precise_calls": 1,
         "secondary_attempted": 1,
         "secondary_completed": 1,
@@ -836,6 +840,99 @@ async def test_hybrid_warmup_uses_a_bounded_crop_for_a_real_screen(
     assert region.height <= 160
 
 
+async def test_hybrid_warmup_terminates_a_timed_out_worker(
+    tmp_path,
+) -> None:
+    image_path = tmp_path / "screen.png"
+    image_path.write_bytes(b"fixture")
+    primary = _ScriptedOcrProvider(OCRResult())
+
+    class HungSecondary:
+        def __init__(self) -> None:
+            self.restarts = 0
+
+        async def ocr(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path, region
+            await asyncio.Event().wait()
+            return OCRResult()
+
+        async def restart_after_timeout(self) -> None:
+            self.restarts += 1
+
+    secondary = HungSecondary()
+    provider = HybridOcrProvider(
+        primary,
+        secondary,
+        warmup_timeout_s=0.01,
+    )
+
+    assert await provider.warmup(image_path) is False
+    assert secondary.restarts == 1
+    assert provider.diagnostics()["warmup_timed_out"] == 1
+
+
+async def test_hybrid_precise_read_waits_for_in_progress_warmup(
+    tmp_path,
+) -> None:
+    image_path = tmp_path / "screen.png"
+    image_path.write_bytes(b"fixture")
+    primary = _ScriptedOcrProvider(
+        OCRResult(lines=[OCRLine(text="primary", confidence=0.70)])
+    )
+
+    class WarmingSecondary:
+        def __init__(self) -> None:
+            self.calls = 0
+            self.started = asyncio.Event()
+            self.release = asyncio.Event()
+            self.running = False
+
+        def busy(self) -> bool:
+            return self.running
+
+        async def ocr(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path, region
+            self.calls += 1
+            if self.calls == 1:
+                self.running = True
+                self.started.set()
+                await self.release.wait()
+                self.running = False
+            return OCRResult(
+                lines=[OCRLine(text="secondary", confidence=0.99)]
+            )
+
+    secondary = WarmingSecondary()
+    provider = HybridOcrProvider(
+        primary,
+        secondary,
+        secondary_timeout_s=0.5,
+        warmup_timeout_s=1,
+    )
+    warmup = asyncio.create_task(provider.warmup(image_path))
+    await secondary.started.wait()
+    precise = asyncio.create_task(provider.ocr_precise(image_path))
+    await asyncio.sleep(0)
+
+    assert precise.done() is False
+
+    secondary.release.set()
+    assert await warmup is True
+    result = await precise
+
+    assert result.text == "secondary"
+    assert secondary.calls == 2
+    assert provider.diagnostics()["precise_waited_for_warmup"] == 1
+
+
 async def test_hybrid_precise_read_skips_secondary_for_unbounded_screen(
     tmp_path,
 ) -> None:
@@ -883,6 +980,10 @@ async def test_hybrid_precise_read_skips_a_busy_secondary(
 
     assert result.text == "primary without delay"
     assert provider.diagnostics() == {
+        "warmup_started": 0,
+        "warmup_succeeded": 0,
+        "warmup_timed_out": 0,
+        "precise_waited_for_warmup": 0,
         "precise_calls": 1,
         "secondary_attempted": 0,
         "secondary_completed": 0,
@@ -944,6 +1045,10 @@ async def test_hybrid_precise_restarts_and_retries_a_timed_out_worker(
     assert secondary.calls == 2
     assert secondary.restarts == 1
     assert provider.diagnostics() == {
+        "warmup_started": 0,
+        "warmup_succeeded": 0,
+        "warmup_timed_out": 0,
+        "precise_waited_for_warmup": 0,
         "precise_calls": 1,
         "secondary_attempted": 1,
         "secondary_completed": 1,
