@@ -94,6 +94,41 @@ READ_ONLY_NAVIGATION_KEYS = frozenset(
 ApprovalDisposition = Literal["approve", "refuse", "wait"]
 
 
+def _windows_desktop_taskbar_visible(image: Image.Image) -> bool:
+    """Reject boot/login frames until a real Windows taskbar is visible."""
+
+    grayscale = image.convert("L")
+    width, height = grayscale.size
+    if width < 200 or height < 100:
+        return False
+    band_height = max(28, round(height * 0.08))
+    band = grayscale.crop((0, height - band_height, width, height))
+    pixels = band.tobytes()
+    if not pixels:
+        return False
+    horizontal_edges = sum(
+        abs(pixels[index] - pixels[index - 1]) > 15
+        for row in range(band_height)
+        for index in range(row * width + 1, (row + 1) * width)
+    )
+    vertical_edges = sum(
+        abs(pixels[index] - pixels[index - width]) > 15
+        for index in range(width, len(pixels))
+    )
+    horizontal_fraction = horizontal_edges / max(
+        1,
+        band_height * (width - 1),
+    )
+    vertical_fraction = vertical_edges / max(
+        1,
+        (band_height - 1) * width,
+    )
+    return bool(
+        ImageStat.Stat(band).stddev[0] >= 10
+        and max(horizontal_fraction, vertical_fraction) >= 0.01
+    )
+
+
 def utc_now() -> str:
     return datetime.now(UTC).isoformat()
 
@@ -277,7 +312,7 @@ class CampaignWriter:
             "isolation": {
                 "reboot_after_every_task": True,
                 "desktop_surfaced_after_reboot": True,
-                "ready_gate": "stable non-blank Windows frame",
+                "ready_gate": "stable Windows desktop with visible taskbar",
             },
             "total": len(manifest.tasks),
             "completed": 0,
@@ -488,6 +523,7 @@ class VncAdapter:
                 image = Image.open(BytesIO(data)).convert("RGB")
                 luminance = ImageStat.Stat(image.convert("L")).mean[0]
                 signature = image.resize((16, 10)).convert("L").tobytes()
+                desktop_ready = _windows_desktop_taskbar_visible(image)
             except (httpx.HTTPError, OSError):
                 stable_since = None
                 prior_signature = None
@@ -500,7 +536,7 @@ class VncAdapter:
                 if prior_signature is not None
                 else 255
             )
-            if luminance >= 8 and difference <= 2.5:
+            if luminance >= 8 and difference <= 2.5 and desktop_ready:
                 stable_since = stable_since or time.monotonic()
                 if time.monotonic() - stable_since >= stable_s:
                     return {
@@ -513,7 +549,9 @@ class VncAdapter:
                 stable_since = None
             prior_signature = signature
             await asyncio.sleep(1)
-        raise TimeoutError("Windows did not reach a stable non-blank frame")
+        raise TimeoutError(
+            "Windows did not reach a stable desktop with a visible taskbar"
+        )
 
     async def reboot_and_wait(
         self,

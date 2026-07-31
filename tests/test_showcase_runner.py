@@ -9,7 +9,7 @@ from pathlib import Path
 import httpx
 import pytest
 import yaml
-from PIL import Image
+from PIL import Image, ImageDraw
 from typer.testing import CliRunner
 
 from pikvm_agent.cli import app
@@ -20,6 +20,7 @@ from pikvm_agent.harness.showcase_runner import (
     HarnessCampaignClient,
     ShowcaseManifest,
     VncAdapter,
+    _windows_desktop_taskbar_visible,
     _merge_reboot_attempts,
     _task_error_before_reboot,
     approval_disposition,
@@ -142,9 +143,32 @@ def test_campaign_writer_declares_reboot_isolation_before_first_task(
     payload = json.loads(writer.path.read_text(encoding="utf-8"))
 
     assert payload["isolation"]["reboot_after_every_task"] is True
+    assert payload["isolation"]["ready_gate"] == (
+        "stable Windows desktop with visible taskbar"
+    )
     assert payload["tasks"][0]["reboot"]["status"] == "pending"
     assert payload["tasks"][0]["recoveries"] == []
     assert not writer.path.with_suffix(".json.tmp").exists()
+
+
+def test_windows_desktop_gate_rejects_login_and_black_frames() -> None:
+    login = Image.new("RGB", (1280, 800), (14, 44, 105))
+    login_draw = ImageDraw.Draw(login)
+    login_draw.ellipse((600, 250, 680, 330), fill=(235, 235, 240))
+    black = Image.new("RGB", (1280, 800), (20, 20, 20))
+
+    assert not _windows_desktop_taskbar_visible(login)
+    assert not _windows_desktop_taskbar_visible(black)
+
+
+def test_windows_desktop_gate_accepts_a_visible_taskbar() -> None:
+    desktop = Image.new("RGB", (1280, 800), (20, 55, 120))
+    draw = ImageDraw.Draw(desktop)
+    draw.rectangle((0, 760, 1279, 799), fill=(18, 20, 24))
+    for left in (12, 55, 100, 145, 190):
+        draw.rectangle((left, 770, left + 18, 790), fill=(210, 220, 235))
+
+    assert _windows_desktop_taskbar_visible(desktop)
 
 
 def test_campaign_writer_restores_existing_run_without_replacing_it(
