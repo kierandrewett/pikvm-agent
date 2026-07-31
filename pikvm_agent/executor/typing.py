@@ -720,6 +720,7 @@ class WatchedTyper:
         self._last_read_screen_frame: CapturedFrame | None = None
         self._last_field_ocr_result = OCRResult()
         self._refined_readback_region: Region | None = None
+        self._refined_readback_intended = ""
 
     # ---- capture/read helpers -------------------------------------------- #
 
@@ -841,6 +842,7 @@ class WatchedTyper:
                     # typing transaction instead of falling back to the noisy
                     # multi-control crop. It never verifies or submits text.
                     self._refined_readback_region = refined_region
+                    self._refined_readback_intended = intended
             if (
                 precise
                 and intended
@@ -1418,6 +1420,7 @@ class WatchedTyper:
         self._last_read_semantic_spacing = False
         self._last_read_screen_frame = None
         self._refined_readback_region = None
+        self._refined_readback_intended = ""
         precise = (
             exact
             if exact is not None
@@ -1571,9 +1574,19 @@ class WatchedTyper:
                 return False  # short: first + final only
             return i % 3 == 0  # longer: periodic
 
-        def current_readback_region() -> Region:
+        def current_readback_region(
+            intended_snapshot: str | None = None,
+        ) -> Region:
             assert cur_region is not None
-            if self._refined_readback_region is not None:
+            desired_text = (
+                text
+                if intended_snapshot is None
+                else intended_snapshot
+            )
+            if (
+                self._refined_readback_region is not None
+                and self._refined_readback_intended == desired_text
+            ):
                 return self._refined_readback_region
             return readback_region(
                 cur_region,
@@ -1626,7 +1639,7 @@ class WatchedTyper:
             should_blur = should_stabilize and not should_reposition_caret
             if not should_blur and not should_reposition_caret:
                 return await self._read_field(
-                    current_readback_region(),
+                    current_readback_region(intended_snapshot),
                     intended=intended_snapshot,
                     precise=precise,
                     allow_semantic_spacing=allow_semantic_spacing,
@@ -1650,7 +1663,9 @@ class WatchedTyper:
                 )
                 await self.backend.press_key("Home")
                 await asyncio.sleep(_CLEAR_SETTLE_S)
-                repositioned_region = current_readback_region()
+                repositioned_region = current_readback_region(
+                    intended_snapshot
+                )
                 repositioned_read = await self._read_field(
                     repositioned_region,
                     intended=intended_snapshot,
@@ -1690,7 +1705,9 @@ class WatchedTyper:
                 return repositioned_read
             moved_focus = False
             try:
-                blurred_region = current_readback_region()
+                blurred_region = current_readback_region(
+                    intended_snapshot
+                )
                 DEBUG.event(
                     "typing.caret_stabilizer",
                     method="blur",
@@ -1821,7 +1838,7 @@ class WatchedTyper:
                     await asyncio.sleep(_CLEAR_SETTLE_S)
                     rechecked = self._typed_candidate(
                         await self._read_field(
-                            current_readback_region(),
+                            current_readback_region(intended_snapshot),
                             intended=intended_snapshot,
                             precise=precise,
                             allow_semantic_spacing=allow_semantic_spacing,
@@ -1886,7 +1903,7 @@ class WatchedTyper:
                 await asyncio.sleep(_CARET_BLINK_RECHECK_S)
                 rechecked = self._typed_candidate(
                     await self._read_field(
-                        current_readback_region(),
+                        current_readback_region(intended_snapshot),
                         intended=intended_snapshot,
                         precise=precise,
                         allow_semantic_spacing=allow_semantic_spacing,

@@ -1251,6 +1251,7 @@ async def test_short_exact_field_reuses_a_refined_crop_for_its_recheck() -> None
                 ]
             )
             typer._refined_readback_region = refined
+            typer._refined_readback_intended = "taskmgr"
             return "taskmngr"
         typer._last_field_ocr_result = OCRResult(
             lines=[
@@ -1276,6 +1277,53 @@ async def test_short_exact_field_reuses_a_refined_crop_for_its_recheck() -> None
     assert emissions == 1
     assert len(observed_regions) == 2
     assert observed_regions[1] == refined
+    _assert_no_enter(backend)
+
+
+async def test_refined_crop_is_not_reused_after_intended_text_grows() -> None:
+    backend = FakeBackend()
+    intended = "Reliable automation starts with observable evidence."
+    full_region = Region(x=40, y=70, width=760, height=55)
+    first_chunk_region = Region(x=42, y=82, width=200, height=27)
+    observed: list[tuple[Region, str]] = []
+    typer = WatchedTyper(backend, ScriptedOCR())
+
+    async def scripted_read(
+        region: Region,
+        *,
+        intended: str | None = None,
+        **_kwargs,
+    ) -> str:
+        observed.append((region, intended or ""))
+        typer._last_field_ocr_result = OCRResult(
+            lines=[
+                OCRLine(
+                    text=intended or "",
+                    confidence=0.99,
+                    bbox=[2, 2, 180, 22],
+                )
+            ]
+        )
+        if len(observed) == 1:
+            typer._refined_readback_region = first_chunk_region
+            typer._refined_readback_intended = intended or ""
+        return intended or ""
+
+    typer._read_field = scripted_read  # type: ignore[method-assign]
+
+    result = await typer.type_text(
+        intended,
+        region=full_region,
+        exact=True,
+        context="editor",
+    )
+
+    assert result.status == "verified_exact", result
+    assert len(observed) >= 2
+    assert observed[0][0] == full_region
+    assert observed[1][1] != observed[0][1]
+    assert observed[1][0] == full_region
+    assert observed[1][0] != first_chunk_region
     _assert_no_enter(backend)
 
 
