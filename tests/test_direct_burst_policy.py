@@ -7,6 +7,7 @@ from pikvm_agent.harness.lab import isolated_benchmark_policy
 from pikvm_agent.policy.direct import (
     classify_direct_burst,
     is_confirmed_file_explorer_surface,
+    is_safe_local_navigation_target,
 )
 
 
@@ -491,6 +492,35 @@ def test_file_explorer_surface_requires_multiple_independent_markers() -> None:
     )
     assert not is_confirmed_file_explorer_surface(
         "New message  This PC  Send"
+    )
+
+
+def test_save_as_navigation_requires_safe_path_and_top_band_evidence() -> None:
+    path = r"C:\PiKVM-Harness\workspace\codex-50"
+    surface = (
+        "Save as  New folder  File name: text-01.txt  "
+        "Save as type: Text documents"
+    )
+
+    assert is_safe_local_navigation_target(path)
+    assert not is_safe_local_navigation_target(r"C:\workspace\..\Windows")
+    assert not is_safe_local_navigation_target(
+        r"C:\workspace\codex-50\*.txt"
+    )
+    assert is_confirmed_file_explorer_surface(
+        surface,
+        draft_text=path,
+        top_band_text=path,
+    )
+    assert not is_confirmed_file_explorer_surface(
+        surface,
+        draft_text=path,
+        top_band_text="Documents",
+    )
+    assert not is_confirmed_file_explorer_surface(
+        f"New message {path} Send",
+        draft_text=path,
+        top_band_text=path,
     )
 
 

@@ -46,6 +46,7 @@ from pikvm_agent.policy.direct import (
     classify_direct_burst,
     is_confirmed_calculator_surface,
     is_confirmed_file_explorer_surface,
+    is_safe_local_navigation_target,
     needs_calculator_surface_grounding,
     needs_local_navigation_surface_grounding,
 )
@@ -963,10 +964,19 @@ class Runtime:
                 frame,
             )
         )
-        observed_surface_text = await self._ground_keyboard_surface(
+        draft_state = sr.verified_local_navigation_draft or {}
+        local_navigation_draft = str(draft_state.get("text") or "")
+        (
+            observed_surface_text,
+            verified_local_navigation_surface,
+        ) = await self._ground_keyboard_surface(
             grounded_actions,
             frame,
-            ground_file_explorer=matching_local_navigation_draft,
+            local_navigation_draft=(
+                local_navigation_draft
+                if matching_local_navigation_draft
+                else ""
+            ),
         )
         verdict = classify_direct_burst(
             grounded_actions,
@@ -974,9 +984,7 @@ class Runtime:
             observed_surface_text=observed_surface_text,
             verified_local_navigation_commit=(
                 matching_local_navigation_draft
-                and is_confirmed_file_explorer_surface(
-                    observed_surface_text
-                )
+                and verified_local_navigation_surface
             ),
         )
         if verdict.status == "blocked":
@@ -1280,37 +1288,36 @@ class Runtime:
         actions: list[dict[str, Any]],
         frame: Any,
         *,
-        ground_file_explorer: bool = False,
-    ) -> str:
+        local_navigation_draft: str = "",
+    ) -> tuple[str, bool]:
         """Read the visible app before exempting one bounded local commit."""
 
         calculator = needs_calculator_surface_grounding(actions)
-        if not calculator and not ground_file_explorer:
-            return ""
+        if not calculator and not local_navigation_draft:
+            return ("", False)
         ocr = getattr(self._screen_parser, "ocr", None)
         if ocr is None:
-            return ""
+            return ("", False)
         try:
             observed = await ocr.ocr(Path(frame.image_path))
         except Exception:
-            return ""
+            return ("", False)
         observed_text = str(observed.text or "")[:2_000]
+        if calculator and is_confirmed_calculator_surface(observed_text):
+            return (observed_text, False)
         if (
-            calculator
-            and is_confirmed_calculator_surface(observed_text)
-        ) or (
-            ground_file_explorer
+            local_navigation_draft == "This PC"
             and is_confirmed_file_explorer_surface(observed_text)
         ):
-            return observed_text
+            return (observed_text, True)
         precise_ocr = getattr(ocr, "ocr_precise", None)
         if not callable(precise_ocr):
-            return observed_text
-        if ground_file_explorer:
+            return (observed_text, False)
+        if local_navigation_draft:
             precise_region = Region(
-                x=frame.width * 0.10,
-                y=frame.height * 0.15,
-                width=frame.width * 0.80,
+                x=frame.width * 0.05,
+                y=0,
+                width=frame.width * 0.90,
                 height=frame.height * 0.25,
             )
         else:
@@ -1326,14 +1333,23 @@ class Runtime:
                 region=precise_region,
             )
         except Exception:
-            return observed_text
+            return (observed_text, False)
         precise_text = str(precise.text or "")[:2_000]
-        confirmed = (
-            is_confirmed_file_explorer_surface(precise_text)
-            if ground_file_explorer
-            else is_confirmed_calculator_surface(precise_text)
-        )
-        return precise_text if confirmed else observed_text
+        if local_navigation_draft:
+            combined_text = f"{observed_text}\n{precise_text}"
+            confirmed = is_confirmed_file_explorer_surface(
+                (
+                    combined_text
+                    if local_navigation_draft == "This PC"
+                    else observed_text
+                ),
+                draft_text=local_navigation_draft,
+                top_band_text=precise_text,
+            )
+            return (combined_text, confirmed)
+        if is_confirmed_calculator_surface(precise_text):
+            return (precise_text, False)
+        return (observed_text, False)
 
     @staticmethod
     def _has_matching_local_navigation_draft(
@@ -1348,7 +1364,9 @@ class Runtime:
         return bool(
             draft
             and needs_local_navigation_surface_grounding(actions)
-            and draft.get("text") == "This PC"
+            and is_safe_local_navigation_target(
+                str(draft.get("text") or "")
+            )
             and draft.get("control_epoch") == sr.control_epoch
             and len(frame_screen_hash) == 512
             and draft.get("frame_screen_hash") == frame_screen_hash
@@ -1384,6 +1402,7 @@ class Runtime:
         frame_sha256 = str(
             receipt.get("readback_frame_sha256") or ""
         ).lower()
+        text = str(action.get("text") or "")
         final_screen_hash = str(
             getattr(final_frame, "screen_hash", "") or ""
         ).lower()
@@ -1393,20 +1412,20 @@ class Runtime:
         exact = (
             action.get("context") == "field"
             and action.get("secret") is not True
-            and str(action.get("text") or "") == "This PC"
+            and is_safe_local_navigation_target(text)
             and receipt.get("status") == "verified_exact"
             and receipt.get("verdict") == "match"
             and receipt.get("focus_evidence") == "read_back_verified"
             and receipt.get("exact_readback_sha256_match") is True
             and receipt.get("emitted_exactly_once") is True
-            and receipt.get("observed_text") == "This PC"
+            and receipt.get("observed_text") == text
             and len(frame_sha256) == 64
             and len(final_screen_hash) == 512
             and len(final_image_sha256) == 64
         )
         sr.verified_local_navigation_draft = (
             {
-                "text": "This PC",
+                "text": text,
                 "readback_frame_sha256": frame_sha256,
                 "post_action_image_sha256": final_image_sha256,
                 "frame_screen_hash": final_screen_hash,

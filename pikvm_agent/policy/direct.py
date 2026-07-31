@@ -182,6 +182,28 @@ _CALCULATOR_OPERATOR_KEYS = {
 }
 _CALCULATOR_DECIMAL_KEYS = {"NUMPADDECIMAL", "PERIOD"}
 _COMMIT_KEYS = {"ENTER", "RETURN", "NUMPADENTER"}
+_WINDOWS_LOCAL_PATH = re.compile(
+    r"^[A-Za-z]:\\[^<>:\"/|?*\x00-\x1f]{1,256}$"
+)
+
+
+def is_safe_local_navigation_target(text: str) -> bool:
+    """Recognise one bounded, absolute Windows location without traversal."""
+
+    if text == "This PC":
+        return True
+    if _WINDOWS_LOCAL_PATH.fullmatch(text) is None:
+        return False
+    parts = text[3:].split("\\")
+    return bool(
+        parts
+        and all(
+            part
+            and part not in {".", ".."}
+            and not part.endswith((" ", "."))
+            for part in parts
+        )
+    )
 
 
 def needs_calculator_surface_grounding(actions: list[dict]) -> bool:
@@ -262,10 +284,33 @@ def needs_local_navigation_surface_grounding(
 
 def is_confirmed_file_explorer_surface(
     observed_surface_text: str,
+    *,
+    draft_text: str = "This PC",
+    top_band_text: str = "",
 ) -> bool:
-    """Return whether OCR identifies Explorer with the exact local draft visible."""
+    """Confirm Explorer or Save As around one exact local-navigation draft."""
 
     text = " ".join(observed_surface_text.casefold().split())
+    if not is_safe_local_navigation_target(draft_text):
+        return False
+    if draft_text != "This PC":
+        top_band = " ".join(top_band_text.casefold().split())
+        file_picker_markers = {
+            marker
+            for marker in (
+                "save as",
+                "file name",
+                "save as type",
+                "new folder",
+                "encoding",
+            )
+            if marker in text
+        }
+        return (
+            draft_text.casefold() in top_band
+            and "save as" in file_picker_markers
+            and len(file_picker_markers) >= 2
+        )
     if "this pc" not in text:
         return False
     markers = {

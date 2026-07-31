@@ -624,6 +624,50 @@ async def test_exact_explorer_receipt_records_post_action_screen_fingerprint(
     }
 
 
+async def test_exact_save_as_path_receipt_records_local_navigation_draft(
+    runtime: Runtime,
+) -> None:
+    path = r"C:\PiKVM-Harness\workspace\codex-50"
+    sid = (await runtime.start_session("direct"))["session_id"]
+    shot = await runtime.get_session_summary(sid, capture=True)
+    sr = runtime._get(sid)
+    final_frame = sr.frames.latest()
+    assert final_frame is not None
+
+    runtime._update_verified_local_navigation_draft(
+        sr,
+        [
+            {
+                "type": "type_text",
+                "text": path,
+                "context": "field",
+                "verification": "exact",
+            }
+        ],
+        [
+            {
+                "index": 0,
+                "status": "verified_exact",
+                "verdict": "match",
+                "focus_evidence": "read_back_verified",
+                "exact_readback_sha256_match": True,
+                "emitted_exactly_once": True,
+                "observed_text": path,
+                "readback_frame_sha256": "f" * 64,
+            }
+        ],
+        final_frame,
+    )
+
+    assert sr.verified_local_navigation_draft == {
+        "text": path,
+        "readback_frame_sha256": "f" * 64,
+        "post_action_image_sha256": shot["image_sha256"],
+        "frame_screen_hash": shot["screen_hash"],
+        "control_epoch": shot["control_epoch"],
+    }
+
+
 async def test_matching_exact_explorer_draft_grounds_one_local_enter(
     runtime: Runtime,
 ) -> None:
@@ -661,6 +705,99 @@ async def test_matching_exact_explorer_draft_grounds_one_local_enter(
     assert result["status"] == "completed"
     assert [call[1]["keys"] for call in _hid_calls(runtime)] == [["Enter"]]
     assert runtime._get(sid).verified_local_navigation_draft is None
+
+
+async def test_matching_exact_save_as_path_grounds_one_local_enter(
+    runtime: Runtime,
+) -> None:
+    path = r"C:\PiKVM-Harness\workspace\codex-50"
+
+    class SaveAsOCR:
+        async def ocr(self, image_path, region=None):
+            del image_path, region
+            return OCRResult(
+                lines=[
+                    OCRLine(text="Save as"),
+                    OCRLine(text="New folder"),
+                    OCRLine(text="File name: text-01.txt"),
+                    OCRLine(text="Save as type: Text documents"),
+                ]
+            )
+
+        async def ocr_precise(self, image_path, region=None):
+            del image_path
+            assert region is not None
+            return OCRResult(lines=[OCRLine(text=path)])
+
+    runtime._screen_parser.ocr = SaveAsOCR()
+    sid = (await runtime.start_session("direct"))["session_id"]
+    shot = await runtime.get_session_summary(sid, capture=True)
+    runtime._get(sid).verified_local_navigation_draft = {
+        "text": path,
+        "readback_frame_sha256": "f" * 64,
+        "post_action_image_sha256": shot["image_sha256"],
+        "frame_screen_hash": shot["screen_hash"],
+        "control_epoch": shot["control_epoch"],
+    }
+
+    result = await runtime.run_burst(
+        sid,
+        [
+            {"type": "key", "keys": ["ENTER"]},
+            {"type": "wait_for_change", "timeout_ms": 5000},
+        ],
+        based_on_world_version=shot["world_version"],
+        based_on_control_epoch=shot["control_epoch"],
+        idempotency_key="grounded-save-as-navigation",
+    )
+
+    assert result["status"] == "completed"
+    assert [call[1]["keys"] for call in _hid_calls(runtime)] == [["Enter"]]
+    assert runtime._get(sid).verified_local_navigation_draft is None
+
+
+async def test_exact_save_as_path_does_not_ground_enter_on_message_surface(
+    runtime: Runtime,
+) -> None:
+    path = r"C:\PiKVM-Harness\workspace\codex-50"
+
+    class MessageOCR:
+        async def ocr(self, image_path, region=None):
+            del image_path, region
+            return OCRResult(
+                lines=[
+                    OCRLine(text="New message"),
+                    OCRLine(text=path),
+                    OCRLine(text="Send"),
+                ]
+            )
+
+        async def ocr_precise(self, image_path, region=None):
+            del image_path, region
+            return OCRResult(lines=[OCRLine(text=path)])
+
+    runtime._screen_parser.ocr = MessageOCR()
+    sid = (await runtime.start_session("direct"))["session_id"]
+    shot = await runtime.get_session_summary(sid, capture=True)
+    runtime._get(sid).verified_local_navigation_draft = {
+        "text": path,
+        "readback_frame_sha256": shot["image_sha256"],
+        "post_action_image_sha256": shot["image_sha256"],
+        "frame_screen_hash": shot["screen_hash"],
+        "control_epoch": shot["control_epoch"],
+    }
+
+    result = await runtime.run_burst(
+        sid,
+        [{"type": "key", "keys": ["ENTER"]}],
+        based_on_world_version=shot["world_version"],
+        based_on_control_epoch=shot["control_epoch"],
+        idempotency_key="message-path-surface-stays-gated",
+    )
+
+    assert result["status"] == "needs_approval"
+    assert result["approval_request"]["risk"] == "unknown"
+    assert not _hid_calls(runtime)
 
 
 async def test_exact_draft_does_not_ground_enter_on_a_message_surface(
