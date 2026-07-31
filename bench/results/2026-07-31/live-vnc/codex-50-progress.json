@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "report": "codex-50-live-progress",
-  "recorded_at": "2026-07-31T20:48:15Z",
+  "recorded_at": "2026-07-31T22:05:21Z",
   "manifest": "bench/codex-50-tasks.yaml",
   "environment": {
     "target": "authorized disposable Windows VNC VM",
@@ -16,9 +16,9 @@
   },
   "progress": {
     "planned": 50,
-    "unique_passed": 16,
-    "pending": 34,
-    "completion_percent": 32.0,
+    "unique_passed": 17,
+    "pending": 33,
+    "completion_percent": 34.0,
     "categories": {
       "Observation": {
         "passed": 5,
@@ -29,7 +29,7 @@
         "planned": 10
       },
       "Text entry": {
-        "passed": 2,
+        "passed": 3,
         "planned": 10
       },
       "Code entry": {
@@ -65,7 +65,8 @@
       "calc-08",
       "calc-10",
       "text-01",
-      "text-02"
+      "text-02",
+      "text-03"
     ]
   },
   "canonical_campaigns": [
@@ -144,6 +145,13 @@
         "text-02"
       ],
       "campaign_sha256": "f588d1b79fa241b7dae387486cce91f88e125632b4166cbfb04ac0a1519a5cd4"
+    },
+    {
+      "campaign_id": "codex-text-entry-text03-v4-20260731",
+      "tasks": [
+        "text-03"
+      ],
+      "campaign_sha256": "28f7c6d579371d8e958809fc7b776a206ae8a045056f018524727357dd90919a"
     }
   ],
   "text_01_acceptance": {
@@ -380,10 +388,107 @@
       "campaign_sha256": "f588d1b79fa241b7dae387486cce91f88e125632b4166cbfb04ac0a1519a5cd4"
     }
   ],
+  "text_03_acceptance": {
+    "task": "Preserve two exact paragraphs with one blank line through save and independent reopen",
+    "result": "passed",
+    "run_id": "e462ff6b-0f20-42b0-8c2a-d1db3c01a32e",
+    "first_paragraph": {
+      "requested_characters": 79,
+      "issued_characters": 79,
+      "observed_characters": 79,
+      "verdict": "match",
+      "sha256": "2f5f2880ff39fc3da25fb67af22a4c637f0d7363b52e33ee8009e0ed0ef3b76a"
+    },
+    "second_paragraph": {
+      "requested_characters": 74,
+      "issued_characters": 74,
+      "observed_characters": 74,
+      "verdict": "match",
+      "sha256": "c441d8ca209414945288809385dd0996971ea2678a4d7de4b8a3eeecd3ebdc38"
+    },
+    "wall_clock_ms": 277952,
+    "provider_wait_ms": 141648,
+    "action_execution_ms": 204741,
+    "evidence_capture_ms": 22916,
+    "provider_calls": 22,
+    "actions_attempted": 10,
+    "actions_completed": 9,
+    "completion_efficiency": 0.9,
+    "same_run_recoveries": 2,
+    "reboot_ms": 94193,
+    "reboot_transition_observed": true,
+    "recording": {
+      "relative_path": "codex-text-entry-text03-v4-20260731/text-03-two-paragraphs/recording.webm",
+      "sha256": "ef2288a312cb0832d520ed71cbcc22a163a7551d6a729bb7bd397024464c304d",
+      "codec": "vp9",
+      "width": 2048,
+      "height": 1280,
+      "fps": 2,
+      "duration_ms": 353500,
+      "size_bytes": 1043659
+    },
+    "poster": {
+      "relative_path": "codex-text-entry-text03-v4-20260731/text-03-two-paragraphs/poster.jpg",
+      "sha256": "f68470c670633c8619d30ed9f2e58e7b9669eaebeff9135a20837d89035fd818"
+    },
+    "campaign_sha256": "28f7c6d579371d8e958809fc7b776a206ae8a045056f018524727357dd90919a"
+  },
+  "text_03_attempts": [
+    {
+      "campaign_id": "codex-text-entry-text03-v1-20260731",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "reason": "Modern Notepad restored an earlier tab; the controller refused to overwrite it, then could not ground a blank-area focus click.",
+      "wall_clock_ms": 55296,
+      "provider_wait_ms": 30803,
+      "action_execution_ms": 23820,
+      "provider_calls": 5,
+      "reboot_ms": 90120,
+      "campaign_sha256": "b6d27bcfd5e3535534fc321f10f534e0976ad93eb3f39580e983c383422a9afa"
+    },
+    {
+      "campaign_id": "codex-text-entry-text03-v2-20260731",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "reason": "The first eight characters landed after delayed VNC video, but focus verification stopped the remaining text and the model exhausted structured-output recovery.",
+      "wall_clock_ms": 256615,
+      "provider_wait_ms": 184617,
+      "action_execution_ms": 222929,
+      "provider_calls": 29,
+      "reboot_ms": 79416,
+      "campaign_sha256": "0e98b16f10d03ab6840bb2d06b80da3646ac7f5733fc63d71199f61714d74818"
+    },
+    {
+      "campaign_id": "codex-text-entry-text03-v3-20260731",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "reason": "The diagnostic exposed that embedded newlines violate the type_text control-character schema; no unsafe relaxation or blind retry was allowed.",
+      "wall_clock_ms": 238927,
+      "provider_wait_ms": 186912,
+      "action_execution_ms": 40664,
+      "provider_calls": 28,
+      "reboot_ms": 79605,
+      "campaign_sha256": "d3fa7b1e682040b669a46c766f29acc484809c456e3335873daa23b389065aa1"
+    },
+    {
+      "campaign_id": "codex-text-entry-text03-v4-20260731",
+      "reported_status": "passed",
+      "accepted_status": "passed",
+      "reason": "Each paragraph received exact at-most-once visual readback, two Shift+Enter actions created the blank line without a submit-capable bare Enter, and the saved file was reopened from the requested workspace.",
+      "wall_clock_ms": 277952,
+      "provider_wait_ms": 141648,
+      "action_execution_ms": 204741,
+      "provider_calls": 22,
+      "actions_attempted": 10,
+      "actions_completed": 9,
+      "reboot_ms": 94193,
+      "campaign_sha256": "28f7c6d579371d8e958809fc7b776a206ae8a045056f018524727357dd90919a"
+    }
+  ],
   "verdict": {
-    "accuracy": "Two exact text tasks now pass with independent reopen evidence; text-02 additionally preserves CP1252 punctuation and verifies all 78 visible characters from a native field crop.",
-    "speed": "Failing product target: text-02 took 279.940 seconds before reboot and remains slower than a human.",
-    "dominant_cost": "Text-02 provider waits consumed 175.644 seconds across 28 calls, while action execution consumed 149.769 seconds; overlapping work prevents these components from summing directly to wall time.",
-    "next": "Continue the blind text-entry batch while reducing controller/verifier round trips, especially the 28 provider calls used for a one-line save and reopen task."
+    "accuracy": "Three exact text tasks now pass with independent reopen evidence; text-03 verified 79/79 and 74/74 characters with one blank line.",
+    "speed": "Failing product target: text-03 took 277.952 seconds before reboot and remains slower than a human.",
+    "dominant_cost": "Text-03 provider waits consumed 141.648 seconds across 22 calls, while action execution consumed 204.741 seconds; overlapping work prevents these components from summing directly to wall time.",
+    "next": "Reduce save/reopen proof round trips and continue the blind text-entry batch."
   }
 }

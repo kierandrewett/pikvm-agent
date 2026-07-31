@@ -51,8 +51,8 @@ support a claim of generally reliable autonomous Windows operation.
 
 ### Live 50-task Windows campaign
 
-The active disposable-Windows campaign has **16/50 unique accepted passes
-(32%)**. Every attempt is screen-recorded, every test ends with a VM reboot,
+The active disposable-Windows campaign has **17/50 unique accepted passes
+(34%)**. Every attempt is screen-recorded, every test ends with a VM reboot,
 and a pass is counted only once even when the same task is rerun during
 remediation. Production PiKVM was not contacted.
 
@@ -60,12 +60,12 @@ remediation. Production PiKVM was not contacted.
 | --- | ---: | ---: | --- |
 | Observation | 5 | 5 | Complete |
 | Calculator | 9 | 10 | `calc-09` pending |
-| Text entry | 2 | 10 | `text-01` and `text-02` accepted |
+| Text entry | 3 | 10 | `text-01` through `text-03` accepted |
 | Code entry | 0 | 10 | Pending |
 | File management | 0 | 5 | Pending |
 | Microsoft Excel | 0 | 5 | Pending |
 | Microsoft Word | 0 | 5 | Pending |
-| **Total** | **16** | **50** | **34 pending** |
+| **Total** | **17** | **50** | **33 pending** |
 
 The first exact text task required seven retained acceptance and speed attempts. v13
 reported success but is marked **invalid** because leaving Notepad open after
@@ -104,7 +104,25 @@ calls and 149.769s of action execution, with the two lanes overlapping. Its
 reboot added 96.101s. This is a real accuracy improvement, not a speed success;
 the controller/verifier call count remains the dominant optimization target.
 
-Failure-inclusive metrics, canonical campaign digests, the 16 accepted task
+The third text task required two exact paragraphs with one blank line. Its
+first three attempts are retained: restored Notepad state made a blank-area
+focus click ungroundable, delayed video stopped after the first eight
+characters, and incorrect multi-line guidance conflicted with the
+control-character schema. The accepted v4 used a deterministic, independently
+verified sequence: first paragraph, two non-submitting Shift+Enter line
+breaks, then the second paragraph. Exact receipts matched 79/79 and 74/74
+characters with identical requested, issued, emitted, and readback hashes.
+The file was saved, reopened, and visually verified in the requested workspace.
+
+Text-03 took 277.952s before reboot: 141.648s of provider wait across 22 calls,
+204.741s of action execution, and 22.916s of evidence capture, with overlapping
+lanes. Nine of ten attempted actions completed; two same-run recoveries were
+needed because the verifier initially lacked visible path evidence. Its
+mandatory reboot took 94.193s and observed a real transition. The exact text
+path is now deterministic, but the save/reopen proof still needs fewer model
+round trips.
+
+Failure-inclusive metrics, canonical campaign digests, the 17 accepted task
 IDs, and the VP9 recording/poster hashes are retained in
 [`codex-50-progress.json`](results/2026-07-31/live-vnc/codex-50-progress.json).
 The complete 50-task manifest is
