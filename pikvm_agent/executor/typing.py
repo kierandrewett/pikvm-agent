@@ -79,6 +79,8 @@ MAX_AUTODETECTED_FIELD_HEIGHT = 80
 MAX_AUTODETECTED_FIELD_HEIGHT_FRAC = 0.15
 MAX_PROSE_EDGE_CONTEXT_CHARS = 96
 AUTODETECTED_READBACK_MARGIN_X_FRAC = 0.075
+SHORT_FIELD_CONTEXT_ABOVE_PX = 80
+SHORT_FIELD_CONTEXT_BELOW_PX = 24
 DENSE_PIXEL_DELTA = 10
 DENSE_MIN_CHANGED_PIXELS = 80
 DENSE_MIN_WIDTH = 8
@@ -253,15 +255,12 @@ def readback_region(
     margin_x = max(16, round(width * AUTODETECTED_READBACK_MARGIN_X_FRAC))
     x = max(0, int(region.x) - margin_x)
     x2 = min(width, math.ceil(region.x + region.width) + margin_x)
-    margin_y = (
-        max(12, min(40, round(region.height)))
-        if vertical_context
-        else 0
-    )
-    y = max(0, int(region.y) - margin_y)
+    margin_y_above = SHORT_FIELD_CONTEXT_ABOVE_PX if vertical_context else 0
+    margin_y_below = SHORT_FIELD_CONTEXT_BELOW_PX if vertical_context else 0
+    y = max(0, int(region.y) - margin_y_above)
     y2 = min(
         height,
-        math.ceil(region.y + region.height) + margin_y,
+        math.ceil(region.y + region.height) + margin_y_below,
     )
     return Region(
         x=x,

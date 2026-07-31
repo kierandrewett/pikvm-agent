@@ -3355,6 +3355,10 @@ def test_unverified_exact_field_blocks_enter_until_dismissed() -> None:
     )
     assert AgentHarness._unsafe_unverified_input_followup(
         run,
+        [{"type": "click", "x": 104, "y": 743, "button": "left"}],
+    )
+    assert AgentHarness._unsafe_unverified_input_followup(
+        run,
         [
             {
                 "type": "type_text",
@@ -3379,6 +3383,50 @@ def test_unverified_exact_field_blocks_enter_until_dismissed() -> None:
     assert not AgentHarness._unsafe_unverified_input_followup(
         run,
         [{"type": "key", "keys": ["ENTER"]}],
+    )
+
+
+def test_recoverable_exact_field_failure_blocks_pointer_commit() -> None:
+    run = RunSnapshot(
+        run_id="recoverable-unverified-exact-field",
+        task="Open Windows Calculator",
+        status=RunStatus.PAUSED,
+    )
+    run.record(
+        "action.checkpointed",
+        index=0,
+        actions=[
+            {
+                "type": "type_text",
+                "text": "calc",
+                "context": "field",
+                "verification": "exact",
+            }
+        ],
+    )
+    run.record(
+        "action.recoverable_failure",
+        index=0,
+        reason="type_unverified",
+        input_receipts=[
+            {
+                "index": 0,
+                "issued_characters": 4,
+                "requested_characters": 4,
+                "requested_sha256": "c" * 64,
+                "issued_prefix_sha256": "c" * 64,
+                "exact_readback_sha256_match": False,
+            }
+        ],
+    )
+
+    assert AgentHarness._unsafe_unverified_input_followup(
+        run,
+        [{"type": "click", "x": 104, "y": 743, "button": "left"}],
+    )
+    assert not AgentHarness._unsafe_unverified_input_followup(
+        run,
+        [{"type": "key", "keys": ["ESC"]}],
     )
 
 

@@ -304,7 +304,24 @@ def test_autodetected_readback_region_adds_context_without_changing_explicit() -
         (1280, 720),
         explicit=False,
         vertical_context=True,
-    ) == Region(x=104, y=180, width=412, height=60)
+    ) == Region(x=104, y=120, width=412, height=124)
+
+
+def test_short_field_context_reaches_from_run_buttons_to_command_field() -> None:
+    # A coarse VNC delta can anchor on Run's repainted OK/Cancel row even
+    # though the only HID input was in the field above it. Preserve enough
+    # read-only context to let precise OCR localize and reread the command.
+    button_row = Region(x=78, y=736, width=170, height=18)
+
+    expanded = readback_region(
+        button_row,
+        (1280, 800),
+        explicit=False,
+        vertical_context=True,
+    )
+
+    assert expanded.y <= 680
+    assert expanded.y + expanded.height >= 754
 
 
 def test_locate_full_repaint_returns_none() -> None:

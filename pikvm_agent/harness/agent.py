@@ -3139,7 +3139,10 @@ class AgentHarness:
                     ]
                 continue
             checkpointed = checkpoints.get(index, [])
-            if event.kind == "action.completed_unverified":
+            if event.kind in {
+                "action.completed_unverified",
+                "action.recoverable_failure",
+            }:
                 exact_text_surfaces = {
                     action_index: (
                         "terminal"
@@ -3238,6 +3241,10 @@ class AgentHarness:
                             }.intersection({"ENTER", "RETURN"})
                         )
                     )
+                    or action.get("type") in {
+                        "click",
+                        "double_click",
+                    }
                 )
             ):
                 return True
