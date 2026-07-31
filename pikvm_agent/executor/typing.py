@@ -758,6 +758,8 @@ class WatchedTyper:
         )
         tmp: Path | None = None
         try:
+            requested_region = region
+            refined_region: Region | None = None
             fd = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
             fd.write(frame.data)
             fd.close()
@@ -820,6 +822,35 @@ class WatchedTyper:
                         region=refined_region,
                     )
             self._last_field_ocr_result = result
+            confidences = [
+                float(line.confidence)
+                for line in result.lines
+                if line.confidence is not None
+            ]
+            DEBUG.event(
+                "typing.field_readback",
+                precise=precise,
+                intended_characters=len(intended or ""),
+                observed_characters=len(result.text),
+                line_count=len(result.lines),
+                alternative_count=len(result.alternatives),
+                mean_confidence=(
+                    round(sum(confidences) / len(confidences), 4)
+                    if confidences
+                    else None
+                ),
+                verdict=(
+                    compute_verdict(intended, result.text, precise)
+                    if intended
+                    else None
+                ),
+                requested_region=requested_region.model_dump(),
+                refined_region=(
+                    refined_region.model_dump()
+                    if refined_region is not None
+                    else None
+                ),
+            )
             if (
                 precise
                 and intended
@@ -857,11 +888,6 @@ class WatchedTyper:
                         # quoting or shell syntax is the sole exception because
                         # repeated token separators are semantically identical.
                         return ""
-            confidences = [
-                float(line.confidence)
-                for line in result.lines
-                if line.confidence is not None
-            ]
             if (
                 confidences
                 and sum(confidences) / len(confidences)
@@ -1584,15 +1610,31 @@ class WatchedTyper:
                 return selected_read
             moved_focus = False
             try:
+                blurred_region = current_readback_region()
+                DEBUG.event(
+                    "typing.caret_stabilizer",
+                    method="blur",
+                    character_count=len(intended_snapshot),
+                    stage="started",
+                    readback_region=blurred_region.model_dump(),
+                )
                 await self.backend.keypress(["Tab"])
                 moved_focus = True
                 await asyncio.sleep(_CLEAR_SETTLE_S)
-                return await self._read_field(
-                    current_readback_region(),
+                blurred_read = await self._read_field(
+                    blurred_region,
                     intended=intended_snapshot,
                     precise=precise,
                     allow_semantic_spacing=allow_semantic_spacing,
                 )
+                DEBUG.event(
+                    "typing.caret_stabilizer",
+                    method="blur",
+                    character_count=len(intended_snapshot),
+                    stage="completed",
+                    readback_available=bool(blurred_read),
+                )
+                return blurred_read
             finally:
                 if moved_focus:
                     with contextlib.suppress(Exception):
@@ -2004,6 +2046,13 @@ class WatchedTyper:
                         )
                         if ocr_loc is not None:
                             loc = ocr_loc
+                    DEBUG.event(
+                        "typing.field_located",
+                        precise=precise,
+                        typed_characters=len(typed_so_far),
+                        suspicious_tall=loc.height > max_field_height,
+                        region=loc.model_dump(),
+                    )
                     cur_region = union_region(cur_region, loc) if located else loc
                     located = True
                 elif not located and not secret and len(typed_so_far) >= ABORT_MIN_CHARS:
