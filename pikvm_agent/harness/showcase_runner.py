@@ -418,6 +418,11 @@ class FrameRecorder:
                 self._count += 1
             except (httpx.HTTPError, OSError):
                 pass
+            except RuntimeError:
+                # The campaign client can close first during Ctrl-C or process
+                # shutdown. End the recorder quietly instead of leaking a
+                # background-task exception after the runner has stopped.
+                return
             elapsed = time.monotonic() - started
             with contextlib.suppress(asyncio.TimeoutError):
                 await asyncio.wait_for(

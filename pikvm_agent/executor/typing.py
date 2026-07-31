@@ -350,7 +350,9 @@ def precise_readback_candidate_region(
         # 12 px Windows Run row preserved the letters but clipped the two dots
         # of ":"; Paddle then confidently read ``ms-settingsabout``.  Keep the
         # refinement bounded to the same row, but retain at least six pixels of
-        # vertical context on either side.
+        # vertical context on either side. Keep two additional pixels below the
+        # row because a Windows field border at the crop edge can make Paddle
+        # merge the final narrow glyph into its neighbour.
         vertical_padding = max(6, round(line_region.height * 0.50))
         x = max(
             0,
@@ -376,6 +378,7 @@ def precise_readback_candidate_region(
                 + line_region.y
                 + line_region.height
                 + vertical_padding
+                + 2
             ),
         )
         return Region(

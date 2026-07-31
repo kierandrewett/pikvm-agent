@@ -695,6 +695,75 @@ async def test_hybrid_precise_prefers_a_confident_single_line_secondary() -> Non
     ]
 
 
+async def test_hybrid_precise_prefers_a_modestly_better_small_field_read() -> None:
+    primary = OCRResult(
+        lines=[
+            OCRLine(
+                text="task",
+                confidence=0.829,
+                bbox=[4, 9, 18, 15],
+            )
+        ]
+    )
+    secondary = OCRResult(
+        lines=[
+            OCRLine(
+                text="taskmgr",
+                confidence=0.923,
+                bbox=[6, 4, 37, 14],
+            )
+        ]
+    )
+
+    result = await HybridOcrProvider(
+        _ScriptedOcrProvider(primary, precise=primary),
+        _ScriptedOcrProvider(secondary),
+    ).ocr_precise(
+        Path("run-field.png"),
+        region=Region(x=49, y=678, width=200, height=24),
+    )
+
+    assert result.text == "taskmgr"
+    assert result.lines == secondary.lines
+    assert [candidate.text for candidate in result.alternatives] == ["task"]
+
+
+async def test_hybrid_precise_prefers_a_clearly_better_bounded_dialog_read() -> None:
+    primary = OCRResult(
+        lines=[
+            OCRLine(text="Open: | taskmgd", confidence=0.53),
+            OCRLine(
+                text="This task will be crested with privileges.",
+                confidence=0.76,
+            ),
+        ]
+    )
+    secondary = OCRResult(
+        lines=[
+            OCRLine(text="Open:", confidence=0.96),
+            OCRLine(text="taskmgr", confidence=0.95),
+            OCRLine(
+                text="This task will be created with privileges.",
+                confidence=0.99,
+            ),
+        ]
+    )
+
+    result = await HybridOcrProvider(
+        _ScriptedOcrProvider(primary, precise=primary),
+        _ScriptedOcrProvider(secondary),
+    ).ocr_precise(
+        Path("run-dialog.png"),
+        region=Region(x=0, y=592, width=403, height=208),
+    )
+
+    assert result.text == secondary.text
+    assert result.lines == secondary.lines
+    assert [candidate.text for candidate in result.alternatives] == [
+        primary.text
+    ]
+
+
 async def test_hybrid_precise_selects_the_aligned_row_from_secondary_noise() -> None:
     primary = OCRResult(
         lines=[

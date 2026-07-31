@@ -2069,7 +2069,7 @@ async def test_precise_readback_refines_a_large_dialog_crop_to_its_field() -> No
     refined = ocr.regions[1]
     assert refined is not None
     assert refined.height <= 32
-    assert refined.height >= 24
+    assert refined.height >= 26
     assert refined.width >= 140
     assert 675 <= refined.y <= 678
 

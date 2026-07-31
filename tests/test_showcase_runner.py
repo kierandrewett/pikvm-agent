@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 from collections.abc import Callable
 from io import BytesIO
@@ -413,6 +414,30 @@ def test_frame_recorder_encodes_browser_native_webm(tmp_path: Path) -> None:
 
     assert recorder.recording.suffix == ".webm"
     assert recorder.recording.stat().st_size > 0
+
+
+@pytest.mark.asyncio
+async def test_frame_recorder_exits_quietly_when_client_closes(
+    tmp_path: Path,
+) -> None:
+    class ClosedClient:
+        async def get(self, _url: str):
+            raise RuntimeError(
+                "Cannot send a request, as the client has been closed."
+            )
+
+    recorder = FrameRecorder(
+        client=ClosedClient(),  # type: ignore[arg-type]
+        frame_url="http://adapter.test/frame",
+        output_dir=tmp_path,
+        interval_s=0.01,
+    )
+
+    await recorder.start()
+    assert recorder._task is not None
+    await asyncio.wait_for(recorder._task, timeout=0.5)
+
+    assert recorder._task.exception() is None
 
 
 @pytest.mark.asyncio

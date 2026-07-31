@@ -17,6 +17,9 @@ _SECONDARY_MAX_WIDTH_FRAC = 0.80
 _SECONDARY_MAX_HEIGHT_FRAC = 0.45
 _WARMUP_MAX_WIDTH = 384
 _WARMUP_MAX_HEIGHT = 160
+_SECONDARY_MIN_CONFIDENCE = 0.90
+_SECONDARY_SINGLE_LINE_ADVANTAGE = 0.08
+_SECONDARY_MULTILINE_ADVANTAGE = 0.20
 
 
 def _image_size(image_path: Path) -> tuple[int, int] | None:
@@ -232,13 +235,29 @@ def _merge_precise_evidence(
     )
     primary_confidence = _mean_confidence(primary)
     secondary_confidence = _mean_confidence(aligned_secondary)
+    confidence_advantage = (
+        None
+        if primary_confidence is None or secondary_confidence is None
+        else secondary_confidence - primary_confidence
+    )
     use_secondary = bool(
-        len(aligned_secondary.lines) == 1
-        and secondary_confidence is not None
-        and secondary_confidence >= 0.90
+        secondary_confidence is not None
+        and secondary_confidence >= _SECONDARY_MIN_CONFIDENCE
         and (
             primary_confidence is None
-            or secondary_confidence - primary_confidence >= 0.15
+            or (
+                len(aligned_secondary.lines) == 1
+                and confidence_advantage is not None
+                and confidence_advantage
+                >= _SECONDARY_SINGLE_LINE_ADVANTAGE
+            )
+            or (
+                region is not None
+                and len(aligned_secondary.lines) > 1
+                and confidence_advantage is not None
+                and confidence_advantage
+                >= _SECONDARY_MULTILINE_ADVANTAGE
+            )
         )
     )
     selected = aligned_secondary if use_secondary else primary
