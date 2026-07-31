@@ -714,7 +714,10 @@ class VncAdapter:
         await send_key("Escape", True)
         await send_key("Escape", False)
         await asyncio.sleep(0.5)
-        for _attempt in range(3):
+        # A cold desktop has produced four consecutive acknowledged modifier
+        # misses over VNC before the identical fifth chord succeeded. Keep the
+        # retry bounded, while allowing that observed transient to recover.
+        for _attempt in range(5):
             baseline = await self.frame()
             await send_key("MetaLeft", True)
             # Some VNC servers acknowledge the modifier before Windows has

@@ -653,6 +653,51 @@ async def test_reboot_retries_run_until_the_dialog_visibly_opens(
 
 
 @pytest.mark.asyncio
+async def test_run_dialog_survives_four_transient_vnc_modifier_misses(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    sent: list[dict[str, object]] = []
+    transitions = iter((False, False, False, False, True))
+    printed: list[str] = []
+
+    monkeypatch.setattr(
+        showcase_runner,
+        "websocket_connect",
+        _socket_factory(sent),
+    )
+    async with httpx.AsyncClient(
+        transport=httpx.MockTransport(_snapshot_handler(printed))
+    ) as client:
+        adapter = VncAdapter(client, "http://127.0.0.1:48002")
+
+        async def visible_transition(**_kwargs: object) -> bool:
+            return next(transitions)
+
+        async def ready(**_kwargs: object) -> dict[str, object]:
+            return {
+                "ready": True,
+                "frame_sha256": "f" * 64,
+            }
+
+        adapter._wait_for_run_dialog = (  # type: ignore[method-assign]
+            visible_transition
+        )
+        adapter.wait_until_ready = ready  # type: ignore[method-assign]
+        await adapter._reboot()
+
+    key_events = [
+        item["event"]
+        for item in sent
+        if item.get("event_type") == "key"
+    ]
+    assert sum(
+        event == {"key": "KeyR", "state": True}
+        for event in key_events
+    ) == 5
+    assert printed == ["shutdown /r /t 0 /f"]
+
+
+@pytest.mark.asyncio
 async def test_run_dialog_detection_accepts_a_sustained_lower_left_change() -> None:
     baseline = Image.new("RGB", (1280, 800), "navy")
     changed = baseline.copy()
