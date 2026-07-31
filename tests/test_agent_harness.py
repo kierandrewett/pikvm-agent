@@ -5435,6 +5435,107 @@ async def test_contradictory_complete_verdict_cannot_end_the_task() -> None:
     assert len(computer.bursts) == 1
 
 
+def test_reopen_completion_requires_a_later_verified_reopen_action() -> None:
+    run = RunSnapshot(
+        run_id="reopen-transition-gate",
+        task=(
+            "Save the sentence as text-01.txt. Reopen the file and verify it."
+        ),
+        status=RunStatus.RUNNING,
+        plan=PlanDecision(
+            summary="Save and reopen the file.",
+            steps=["Save the file", "Reopen it", "Verify the text"],
+            success_criteria=["The reopened file contains the exact sentence."],
+            constraints=[],
+        ),
+    )
+    run.record(
+        "action.checkpointed",
+        index=9,
+        intent="Save the verified filename in the permitted workspace.",
+        actions=[{"type": "click", "x": 587, "y": 425}],
+    )
+    run.record(
+        "model.completed",
+        role="verifier",
+        verdict="verified",
+        summary="The Save As dialog closed and Notepad remains open.",
+    )
+    verdict = VerificationDecision(
+        verdict="complete",
+        summary="Saved text-01.txt and reopened it.",
+        evidence=["Notepad visibly shows the sentence."],
+        criteria=[
+            {
+                "criterion_index": 0,
+                "satisfied": True,
+                "evidence": "The sentence is visible in Notepad.",
+            }
+        ],
+        action_criteria=[],
+    )
+
+    rejection = AgentHarness._completion_rejection_reason(run, verdict)
+
+    assert rejection is not None
+    assert "separately verified reopen action after save" in rejection
+
+
+def test_later_verified_reopen_action_satisfies_reopen_completion_gate() -> None:
+    run = RunSnapshot(
+        run_id="verified-reopen-transition",
+        task=(
+            "Save the sentence as text-01.txt. Reopen the file and verify it."
+        ),
+        status=RunStatus.RUNNING,
+        plan=PlanDecision(
+            summary="Save and reopen the file.",
+            steps=["Save the file", "Reopen it", "Verify the text"],
+            success_criteria=["The reopened file contains the exact sentence."],
+            constraints=[],
+        ),
+    )
+    for index, intent, summary in (
+        (
+            9,
+            "Save the verified filename in the permitted workspace.",
+            "The Save As dialog closed and the file is saved.",
+        ),
+        (
+            10,
+            "Reopen the saved text-01.txt file from the workspace.",
+            "The saved file reopened and the exact sentence is visible.",
+        ),
+    ):
+        run.record(
+            "action.checkpointed",
+            index=index,
+            intent=intent,
+            actions=[{"type": "click", "x": 587, "y": 425}],
+        )
+        run.record(
+            "model.completed",
+            role="verifier",
+            verdict="verified",
+            summary=summary,
+        )
+    verdict = VerificationDecision(
+        verdict="complete",
+        summary="Saved and reopened text-01.txt.",
+        evidence=["The reopened file visibly contains the exact sentence."],
+        criteria=[
+            {
+                "criterion_index": 0,
+                "satisfied": True,
+                "evidence": "The reopened file visibly contains the sentence.",
+            }
+        ],
+        action_criteria=[],
+    )
+
+    assert AgentHarness._completion_rejection_reason(run, verdict) is None
+
+
 @pytest.mark.asyncio
 async def test_rejected_done_decision_forces_a_fresh_plan() -> None:
     provider = RejectedDoneProvider()

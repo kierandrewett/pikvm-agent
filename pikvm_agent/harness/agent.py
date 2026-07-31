@@ -1210,6 +1210,9 @@ transition/hover styling, or an unexplained UI change. Never infer success from
 the controller's claim and never call a state-changing toggle failed merely
 because its colour has not settled when its geometry visibly changed to the
 intended state.
+When the task requires reopening a saved artifact, the application remaining
+open immediately after Save is not a reopen. Return complete only after a
+later, separately verified action visibly opens the saved artifact again.
 For an internal terminal legibility action, visibly larger terminal glyphs are
 sufficient when the before/after comparison directly proves the increase and a
 clean prompt remains visible. Do not require a numeric zoom percentage unless
@@ -4402,7 +4405,53 @@ class AgentHarness:
                 "complete verdict contradicts its own evidence near "
                 f"{contradiction.group(0)!r}"
             )
+        task = " ".join(
+            str(run.computer_task or run.task).casefold().split()
+        )
+        if (
+            re.search(r"\breopen(?:ed|ing)?\b", task)
+            and not AgentHarness._has_verified_reopen_after_save(run)
+        ):
+            return (
+                "task requires a separately verified reopen action after save"
+            )
         return None
+
+    @staticmethod
+    def _has_verified_reopen_after_save(run: RunSnapshot) -> bool:
+        """Require a durable reopen transition after a durable save action."""
+
+        verified = AgentHarness._recent_verified_actions(run, limit=None)
+        save_indexes: list[int] = []
+        reopen_indexes: list[int] = []
+        for item in verified:
+            action_index = item.get("action_index")
+            if not isinstance(action_index, int):
+                continue
+            intent = " ".join(
+                str(item.get("intent") or "").casefold().split()
+            )
+            reopening = bool(
+                re.search(r"\breopen(?:ed|ing)?\b", intent)
+                or re.search(
+                    r"\bopen(?:ed|ing)?\b.{0,80}"
+                    r"\b(?:saved|file|document|workbook)\b",
+                    intent,
+                )
+            )
+            if reopening:
+                reopen_indexes.append(action_index)
+            save_without_dialog = intent.replace("save as", "")
+            if (
+                not reopening
+                and re.search(r"\bsav(?:e|ed|ing)\b", save_without_dialog)
+            ):
+                save_indexes.append(action_index)
+        return bool(
+            save_indexes
+            and reopen_indexes
+            and max(reopen_indexes) > max(save_indexes)
+        )
 
     @staticmethod
     def _verified_action_rejection_reason(
