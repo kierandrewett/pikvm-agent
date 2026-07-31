@@ -8,6 +8,7 @@ import httpx
 import pytest
 from PIL import Image
 
+from pikvm_agent.harness import vnc_pikvm_api
 from pikvm_agent.harness.vnc_pikvm_api import (
     VncDotoolTransport,
     code_to_character,
@@ -433,6 +434,33 @@ async def test_windows_transport_prints_cp1252_unicode_with_alt_codes() -> None:
         ("press", "kp8"),
         ("up", "alt"),
     ]
+
+
+async def test_windows_transport_spaces_each_plain_character(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class Client:
+        def __init__(self) -> None:
+            self.calls = []
+
+        def keyDown(self, key) -> None:
+            self.calls.append(("down", key))
+
+        def keyUp(self, key) -> None:
+            self.calls.append(("up", key))
+
+    sleeps: list[float] = []
+    monkeypatch.setattr(vnc_pikvm_api.time, "sleep", sleeps.append)
+    transport = VncDotoolTransport(
+        "unused:5900",
+        keymap="en-gb",
+        keyboard_profile="windows",
+    )
+    transport._client = Client()
+
+    await transport.print_text("ab")
+
+    assert sleeps == [0.010, 0.025, 0.010, 0.025]
 
 
 async def test_transport_releases_stale_modifiers_on_connection() -> None:

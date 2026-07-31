@@ -718,14 +718,24 @@ class VncDotoolTransport:
                             client.keyDown("shift")
                         try:
                             client.keyDown(key)
-                            client.keyUp(key)
+                            try:
+                                if self.keyboard_profile == "windows":
+                                    time.sleep(0.010)
+                            finally:
+                                client.keyUp(key)
                         finally:
                             if key_info.shift and not semantic_shift:
                                 client.keyUp("shift")
                     # Some RFB servers silently coalesce/drop back-to-back key
                     # events. PiKVM's slow printer is about 20 ms/character, so
-                    # preserve that timing contract in the emulator.
-                    time.sleep(0.020)
+                    # preserve that timing contract in the emulator. Windows
+                    # needs a slightly wider gap plus the short key hold above;
+                    # live 20 ms runs dropped ordinary characters.
+                    time.sleep(
+                        0.025
+                        if self.keyboard_profile == "windows"
+                        else 0.020
+                    )
 
             await asyncio.to_thread(type_all)
 
