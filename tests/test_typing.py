@@ -3016,6 +3016,26 @@ def test_precise_readback_retains_duplicate_suffix_before_hashing() -> None:
     ) == "quarterly earningss"
 
 
+def test_precise_filename_readback_excludes_only_known_save_as_type_chrome() -> None:
+    intended = "text-01.txt"
+
+    assert WatchedTyper._typed_candidate(
+        f"{intended}\nText documents (*.txt)",
+        intended,
+        True,
+    ) == intended
+    assert WatchedTyper._typed_candidate(
+        f"{intended}\nAll files (*.*)",
+        intended,
+        True,
+    ) == intended
+    assert WatchedTyper._typed_candidate(
+        f"{intended}\nUnexpected adjacent text",
+        intended,
+        True,
+    ) == f"{intended}\nUnexpected adjacent text"
+
+
 async def test_precise_ocr_noise_stops_without_destructive_retype() -> None:
     backend = FakeBackend()
     intended = "const retry = (attempt, limit) => attempt < limit;"

@@ -1243,9 +1243,32 @@ class WatchedTyper:
         Earlier code carved an intended substring out of surrounding OCR. That
         made a duplicate suffix disappear before hashing. Precise verification
         must see every character returned for the grounded field, even when
-        that makes the result conservatively ambiguous.
+        that makes the result conservatively ambiguous. The sole exception is
+        a filename field whose next OCR row is one exact, known Save As file-
+        type control; that row is dialog chrome rather than editable content.
         """
-        del intended, precise
+        if (
+            precise
+            and re.fullmatch(
+                r'[^\\/:*?"<>|\r\n]{1,180}\.[A-Za-z0-9]{1,12}',
+                intended,
+            )
+        ):
+            lines = [
+                line.strip()
+                for line in read_back.splitlines()
+                if line.strip()
+            ]
+            known_save_as_type_rows = {
+                "all files (*.*)",
+                "text documents (*.txt)",
+            }
+            if (
+                len(lines) == 2
+                and lines[0] == intended
+                and lines[1].casefold() in known_save_as_type_rows
+            ):
+                return intended
         return read_back
 
     @staticmethod
