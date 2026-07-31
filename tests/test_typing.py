@@ -953,14 +953,14 @@ async def test_short_exact_field_reads_once_with_caret_blurred() -> None:
 
 
 @pytest.mark.parametrize(
-    ("blurred_read", "expected_status"),
+    ("stabilized_read", "expected_status"),
     [
         (r"C:\PiKVM-Harness\workspace\codex-50", "verified_exact"),
         (r"C:#PiKVM-Harness#workspace#codex-50", "failed_keyboard_layout"),
     ],
 )
-async def test_long_exact_field_selects_layout_like_ocr_without_retyping(
-    blurred_read: str,
+async def test_long_exact_field_moves_caret_home_without_retyping(
+    stabilized_read: str,
     expected_status: str,
 ) -> None:
     backend = FakeBackend(layout="uk")
@@ -974,19 +974,19 @@ async def test_long_exact_field_selects_layout_like_ocr_without_retyping(
 
         async def ocr_precise(self, image_path, region=None):
             del image_path, region
-            last_keypress = next(
+            caret_home = next(
                 (
-                    kwargs["keys"]
+                    True
                     for method, kwargs in reversed(backend.calls)
-                    if method == "keypress"
+                    if method == "press_key" and kwargs["code"] == "Home"
                 ),
-                [],
+                False,
             )
             observed = emitted
             if emitted == intended:
                 observed = (
-                    blurred_read
-                    if last_keypress == ["ControlLeft", "KeyA"]
+                    stabilized_read
+                    if caret_home
                     else distorted
                 )
             return OCRResult(
@@ -1040,7 +1040,8 @@ async def test_long_exact_field_selects_layout_like_ocr_without_retyping(
     assert result.emitted_exactly_once is True
     assert emitted == intended
     assert backend.layout == "uk"
-    assert ("keypress", {"keys": ["ControlLeft", "KeyA"]}) in backend.calls
+    assert ("press_key", {"code": "Home"}) in backend.calls
+    assert ("keypress", {"keys": ["ControlLeft", "KeyA"]}) not in backend.calls
     assert ("keypress", {"keys": ["Tab"]}) not in backend.calls
     assert ("keypress", {"keys": ["ShiftLeft", "Tab"]}) not in backend.calls
     assert not any(
@@ -1206,7 +1207,7 @@ async def test_short_exact_field_reuses_a_refined_crop_for_its_recheck() -> None
     _assert_no_enter(backend)
 
 
-async def test_short_exact_field_with_whitespace_selects_for_caret_safe_readback(
+async def test_short_exact_field_with_whitespace_moves_caret_for_safe_readback(
 ) -> None:
     backend = FakeBackend()
     field_value = ""
@@ -1226,24 +1227,23 @@ async def test_short_exact_field_with_whitespace_selects_for_caret_safe_readback
 
         async def ocr_precise(self, image_path, region=None):
             del image_path, region
-            last_keypress = next(
+            caret_home = next(
                 (
-                    kwargs["keys"]
+                    True
                     for method, kwargs in reversed(backend.calls)
-                    if method == "keypress"
+                    if method == "press_key" and kwargs["code"] == "Home"
                 ),
-                [],
+                False,
             )
-            selected = last_keypress == ["ControlLeft", "KeyA"]
             return OCRResult(
                 lines=[
                     OCRLine(
-                        text=field_value if selected else "This Pd",
+                        text=field_value if caret_home else "This Pd",
                         confidence=0.99,
                         bbox=[100, 115, 180, 135],
                     )
                 ],
-                spacing_evidence="verified" if selected else "uncertain",
+                spacing_evidence="verified" if caret_home else "uncertain",
             )
 
     original_type = backend.type_text
@@ -1280,10 +1280,8 @@ async def test_short_exact_field_with_whitespace_selects_for_caret_safe_readback
     assert result.status == "verified_exact", result
     assert result.field_text == "This PC"
     assert ("keypress", {"keys": ["Tab"]}) not in backend.calls
-    assert (
-        "keypress",
-        {"keys": ["ControlLeft", "KeyA"]},
-    ) in backend.calls
+    assert ("press_key", {"code": "Home"}) in backend.calls
+    assert ("keypress", {"keys": ["ControlLeft", "KeyA"]}) not in backend.calls
     _assert_no_enter(backend)
 
 

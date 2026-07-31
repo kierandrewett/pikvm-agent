@@ -1564,8 +1564,9 @@ class WatchedTyper:
 
             A focused Windows field can render ``calc|`` as ``cald``. Short
             fields without spaces can move focus for an independent read, but
-            long drafts and fields with spaces are selected in place because a
-            Windows address bar may discard unsubmitted text on focus loss.
+            long drafts and fields with spaces move their caret to the start
+            because a Windows address bar may discard unsubmitted text on
+            focus loss and selected text is materially harder to OCR.
             """
 
             nonlocal stable_field_read_performed
@@ -1583,7 +1584,7 @@ class WatchedTyper:
                     or total > 20
                 )
             )
-            should_select = bool(
+            should_reposition_caret = bool(
                 should_stabilize
                 and (
                     total > 20
@@ -1593,8 +1594,8 @@ class WatchedTyper:
                     )
                 )
             )
-            should_blur = should_stabilize and not should_select
-            if not should_blur and not should_select:
+            should_blur = should_stabilize and not should_reposition_caret
+            if not should_blur and not should_reposition_caret:
                 return await self._read_field(
                     current_readback_region(),
                     intended=intended_snapshot,
@@ -1604,23 +1605,24 @@ class WatchedTyper:
             if should_continue is not None and not should_continue():
                 return ""
             stable_field_read_performed = True
-            if should_select:
+            if should_reposition_caret:
                 # Some focused Windows fields draw the caret through the final
                 # glyph, while moving focus with Tab can discard an address-bar
-                # draft. Selecting the existing draft exposes every glyph
-                # without changing or submitting text. Exact OCR must still
-                # verify the whole field before any caller can press Enter.
+                # draft. Move the caret before the first glyph without changing,
+                # selecting, or submitting text. This preserves normal text
+                # contrast for OCR. Exact OCR must still verify the whole field
+                # before any caller can press Enter.
                 DEBUG.event(
                     "typing.caret_stabilizer",
-                    method="select_all",
+                    method="caret_home",
                     character_count=len(intended_snapshot),
                     stage="started",
                 )
-                await self.backend.keypress(["ControlLeft", "KeyA"])
+                await self.backend.press_key("Home")
                 await asyncio.sleep(_CLEAR_SETTLE_S)
-                selected_region = current_readback_region()
-                selected_read = await self._read_field(
-                    selected_region,
+                repositioned_region = current_readback_region()
+                repositioned_read = await self._read_field(
+                    repositioned_region,
                     intended=intended_snapshot,
                     precise=precise,
                     allow_semantic_spacing=allow_semantic_spacing,
@@ -1632,11 +1634,11 @@ class WatchedTyper:
                 ]
                 DEBUG.event(
                     "typing.caret_stabilizer",
-                    method="select_all",
+                    method="caret_home",
                     character_count=len(intended_snapshot),
                     stage="completed",
-                    readback_available=bool(selected_read),
-                    readback_region=selected_region.model_dump(),
+                    readback_available=bool(repositioned_read),
+                    readback_region=repositioned_region.model_dump(),
                     ocr_line_count=len(self._last_field_ocr_result.lines),
                     ocr_character_count=len(
                         self._last_field_ocr_result.text
@@ -1654,7 +1656,7 @@ class WatchedTyper:
                         else None
                     ),
                 )
-                return selected_read
+                return repositioned_read
             moved_focus = False
             try:
                 blurred_region = current_readback_region()
