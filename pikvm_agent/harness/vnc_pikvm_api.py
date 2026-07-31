@@ -494,11 +494,12 @@ class VncDotoolTransport:
                     character,
                 )
                 return
-            semantic_shift = (
-                code[-1].upper()
-                if re.fullmatch(r"Key[A-Z]", code)
-                else None
-            )
+            semantic_shift = shifted_code_to_character(code, self.keymap)
+            if (
+                self.keyboard_profile != "windows"
+                and re.fullmatch(r"Key[A-Z]", code) is None
+            ):
+                semantic_shift = None
             if (
                 down
                 and self._shift_pending
@@ -597,16 +598,10 @@ class VncDotoolTransport:
 
                             time.sleep(0.020)
                             continue
-                        semantic_shift = (
-                            key_info.shift
-                            and (
-                                re.fullmatch(r"Key[A-Z]", key_info.code)
-                                is not None
-                                or (
-                                    key_info.code == "IntlBackslash"
-                                    and layout == "uk"
-                                )
-                            )
+                        semantic_shift = key_info.shift and (
+                            re.fullmatch(r"Key[A-Z]", key_info.code)
+                            is not None
+                            or self.keyboard_profile == "windows"
                         )
                         if semantic_shift:
                             key = char
