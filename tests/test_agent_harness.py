@@ -233,7 +233,6 @@ def test_calculator_square_root_is_prepared_without_model_replanning() -> None:
         {"type": "key", "keys": ["Digit0"]},
         {"type": "key", "keys": ["Digit2"]},
         {"type": "key", "keys": ["Digit5"]},
-        {"type": "key", "keys": ["ShiftLeft", "Quote"]},
         {"type": "wait_for_change", "timeout_ms": 2_000},
         {
             "type": "wait_for_stable_screen",
@@ -241,8 +240,10 @@ def test_calculator_square_root_is_prepared_without_model_replanning() -> None:
             "timeout_ms": 3_000,
         },
     ]
+    assert controller.expects_task_completion is False
     assert controller.expected_evidence == [
-        "Calculator's main display visibly reads exactly 45."
+        "Calculator's main display visibly reads exactly 2,025 and the "
+        "square-root control is visible."
     ]
 
 

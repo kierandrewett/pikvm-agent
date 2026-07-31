@@ -521,6 +521,8 @@ def _calculator_task_controller(
     mixed = _CALCULATOR_MIXED_EXPRESSION.search(run.task)
     square_root = _CALCULATOR_SQUARE_ROOT_EXPRESSION.search(run.task)
     percentage = _CALCULATOR_PERCENTAGE_EXPRESSION.search(run.task)
+    expects_task_completion = True
+    expected_evidence: list[str] | None = None
     if multiplication is not None:
         left = multiplication.group("left")
         right = multiplication.group("right")
@@ -564,9 +566,11 @@ def _calculator_task_controller(
             f"√{value}."
         )
         result = str(result_value)
-        keys = [
-            *_calculator_number_keys(value),
-            ["ShiftLeft", "Quote"],
+        keys = _calculator_number_keys(value)
+        expects_task_completion = False
+        expected_evidence = [
+            f"Calculator's main display visibly reads exactly "
+            f"{int(value):,} and the square-root control is visible."
         ]
     elif percentage is not None:
         percent = percentage.group("percent")
@@ -604,14 +608,16 @@ def _calculator_task_controller(
     ]
     if len(actions) > max_actions:
         return None
+    if expected_evidence is None:
+        expected_evidence = [
+            f"Calculator's main display visibly reads exactly {result}."
+        ]
     return ControllerDecision(
         outcome="act",
         intent=intent,
         actions=actions,
-        expected_evidence=[
-            f"Calculator's main display visibly reads exactly {result}."
-        ],
-        expects_task_completion=True,
+        expected_evidence=expected_evidence,
+        expects_task_completion=expects_task_completion,
     )
 
 
