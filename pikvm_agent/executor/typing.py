@@ -258,8 +258,20 @@ def readback_region(
     if width <= 0 or height <= 0:
         return region
     margin_x = max(16, round(width * AUTODETECTED_READBACK_MARGIN_X_FRAC))
-    x = max(0, int(region.x) - margin_x)
-    x2 = min(width, math.ceil(region.x + region.width) + margin_x)
+    raw_x = int(region.x) - margin_x
+    raw_x2 = math.ceil(region.x + region.width) + margin_x
+    desired_width = min(width, max(1, raw_x2 - raw_x))
+    x = max(0, raw_x)
+    x2 = min(width, raw_x2)
+    # Preserve the intended amount of read-only context when a field touches
+    # either screen edge. Clamping only one coordinate made the Windows Run
+    # field's crop 55 px narrower and repeatedly forced exact OCR back onto the
+    # surrounding dialog.
+    if x2 - x < desired_width:
+        if x == 0:
+            x2 = min(width, desired_width)
+        elif x2 == width:
+            x = max(0, width - desired_width)
     margin_y_above = SHORT_FIELD_CONTEXT_ABOVE_PX if vertical_context else 0
     margin_y_below = SHORT_FIELD_CONTEXT_BELOW_PX if vertical_context else 0
     y = max(0, int(region.y) - margin_y_above)
@@ -706,6 +718,7 @@ class WatchedTyper:
         self._last_grid_frame: CapturedFrame | None = None
         self._last_read_screen_frame: CapturedFrame | None = None
         self._last_field_ocr_result = OCRResult()
+        self._refined_readback_region: Region | None = None
 
     # ---- capture/read helpers -------------------------------------------- #
 
@@ -821,6 +834,11 @@ class WatchedTyper:
                         tmp,
                         region=refined_region,
                     )
+                    # The refinement is read-only geometry derived from the
+                    # current field crop. Reuse it for later OCR passes in this
+                    # typing transaction instead of falling back to the noisy
+                    # multi-control crop. It never verifies or submits text.
+                    self._refined_readback_region = refined_region
             self._last_field_ocr_result = result
             confidences = [
                 float(line.confidence)
@@ -1369,6 +1387,7 @@ class WatchedTyper:
         self._semantic_spacing_normalized = False
         self._last_read_semantic_spacing = False
         self._last_read_screen_frame = None
+        self._refined_readback_region = None
         precise = (
             exact
             if exact is not None
@@ -1510,6 +1529,8 @@ class WatchedTyper:
 
         def current_readback_region() -> Region:
             assert cur_region is not None
+            if self._refined_readback_region is not None:
+                return self._refined_readback_region
             return readback_region(
                 cur_region,
                 dims,

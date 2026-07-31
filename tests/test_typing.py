@@ -305,6 +305,16 @@ def test_autodetected_readback_region_adds_context_without_changing_explicit() -
         explicit=False,
         vertical_context=True,
     ) == Region(x=104, y=120, width=412, height=124)
+    assert readback_region(
+        Region(x=40, y=666, width=53, height=45),
+        (1280, 800),
+        explicit=False,
+    ) == Region(x=0, y=666, width=245, height=45)
+    assert readback_region(
+        Region(x=1240, y=200, width=30, height=20),
+        (1280, 800),
+        explicit=False,
+    ) == Region(x=1058, y=200, width=222, height=20)
 
 
 def test_short_field_context_reaches_from_run_buttons_to_command_field() -> None:
@@ -993,6 +1003,80 @@ async def test_short_exact_field_rechecks_medium_confidence_one_edit_read(
     assert emissions == 1
     assert ("keypress", {"keys": ["Tab"]}) in backend.calls
     assert ("keypress", {"keys": ["ShiftLeft", "Tab"]}) in backend.calls
+    _assert_no_enter(backend)
+
+
+async def test_short_exact_field_reuses_a_refined_crop_for_its_recheck() -> None:
+    backend = FakeBackend()
+    emissions = 0
+    observed_regions: list[Region] = []
+    refined = Region(x=47, y=673, width=198, height=34)
+
+    def field_frame(text: str) -> bytes:
+        image = Image.new("RGB", (1280, 800), (24, 28, 36))
+        draw = ImageDraw.Draw(image)
+        draw.rectangle([40, 666, 250, 712], fill=(210, 210, 210))
+        draw.text((51, 680), text, fill=(20, 20, 20))
+        output = io.BytesIO()
+        image.save(output, format="JPEG", quality=95)
+        return output.getvalue()
+
+    original_type = backend.type_text
+    backend.set_frame_bytes(field_frame(""))
+    typer = WatchedTyper(backend, ScriptedOCR())
+
+    async def typing(
+        text: str,
+        *,
+        code: bool = False,
+        secret: bool = False,
+    ) -> None:
+        nonlocal emissions
+        await original_type(text, code=code, secret=secret)
+        emissions += 1
+        backend.set_frame_bytes(field_frame(text))
+
+    async def scripted_read(
+        region: Region,
+        **_kwargs,
+    ) -> str:
+        observed_regions.append(region)
+        if len(observed_regions) == 1:
+            typer._last_field_ocr_result = OCRResult(
+                lines=[
+                    OCRLine(
+                        text="taskmngr",
+                        confidence=0.93,
+                        bbox=[4, 2, 80, 20],
+                    )
+                ]
+            )
+            typer._refined_readback_region = refined
+            return "taskmngr"
+        typer._last_field_ocr_result = OCRResult(
+            lines=[
+                OCRLine(
+                    text="taskmgr",
+                    confidence=0.98,
+                    bbox=[4, 2, 80, 20],
+                )
+            ]
+        )
+        return "taskmgr"
+
+    backend.type_text = typing  # type: ignore[method-assign]
+    typer._read_field = scripted_read  # type: ignore[method-assign]
+
+    result = await typer.type_text(
+        "taskmgr",
+        exact=True,
+        context="field",
+    )
+
+    assert result.status == "verified_exact", result
+    assert emissions == 1
+    assert len(observed_regions) == 2
+    assert observed_regions[1] == refined
     _assert_no_enter(backend)
 
 
@@ -2631,6 +2715,7 @@ async def test_precise_readback_refines_a_large_dialog_crop_to_its_field() -> No
     assert len(ocr.regions) == 2
     refined = ocr.regions[1]
     assert refined is not None
+    assert typer._refined_readback_region == refined
     assert refined.height <= 32
     assert refined.height >= 26
     assert refined.width >= 140
