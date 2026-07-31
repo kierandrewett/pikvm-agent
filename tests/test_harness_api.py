@@ -2563,7 +2563,7 @@ class RestartRecoveryHarness(StubHarness):
 
 
 @pytest.mark.asyncio
-async def test_process_start_recovers_only_internal_autonomous_yields(
+async def test_process_start_requires_explicit_resume_for_all_durable_yields(
     tmp_path: Path,
 ) -> None:
     frame = tmp_path / "frame.jpg"
@@ -2598,19 +2598,25 @@ async def test_process_start_recovers_only_internal_autonomous_yields(
     )
 
     async with app.router.lifespan_context(app):
-        await asyncio.wait_for(harness.completed.wait(), timeout=1)
+        for _ in range(10):
+            await asyncio.sleep(0)
 
-    assert harness.calls == [("continue", "resume-after-restart")]
+    assert harness.calls == []
+    resumable_waiting = await store.get("resume-after-restart")
+    assert resumable_waiting.status is RunStatus.PAUSED
+    assert resumable_waiting.events[-1].kind == "run.process_interrupted"
+    assert resumable_waiting.events[-1].data["resume_required"] is True
     waiting = await store.get("wait-for-operator")
     assert waiting.status is RunStatus.PAUSED
     assert waiting.events[-1].kind == "run.process_interrupted"
+    assert waiting.events[-1].data["resume_required"] is True
     assert waiting.events[-1].data["previous_error"] == (
         "screen result uncertain"
     )
 
 
 @pytest.mark.asyncio
-async def test_process_start_recovers_a_slice_scheduled_just_before_crash(
+async def test_process_start_does_not_replay_a_slice_scheduled_before_crash(
     tmp_path: Path,
 ) -> None:
     frame = tmp_path / "frame.jpg"
@@ -2638,13 +2644,18 @@ async def test_process_start_recovers_a_slice_scheduled_just_before_crash(
     )
 
     async with app.router.lifespan_context(app):
-        await asyncio.wait_for(harness.completed.wait(), timeout=1)
+        for _ in range(10):
+            await asyncio.sleep(0)
 
-    assert harness.calls == [("continue", "scheduled-before-crash")]
+    waiting = await store.get("scheduled-before-crash")
+    assert harness.calls == []
+    assert waiting.status is RunStatus.PAUSED
+    assert waiting.events[-1].kind == "run.process_interrupted"
+    assert waiting.events[-1].data["resume_required"] is True
 
 
 @pytest.mark.asyncio
-async def test_process_start_recovers_an_orphaned_running_activity(
+async def test_process_start_pauses_an_orphaned_running_activity_without_resuming(
     tmp_path: Path,
 ) -> None:
     frame = tmp_path / "frame.jpg"
@@ -2672,15 +2683,15 @@ async def test_process_start_recovers_an_orphaned_running_activity(
     )
 
     async with app.router.lifespan_context(app):
-        await asyncio.wait_for(harness.completed.wait(), timeout=1)
+        for _ in range(10):
+            await asyncio.sleep(0)
 
-    recovered = await store.get("interrupted-tool")
-    assert harness.calls == [("continue", "interrupted-tool")]
-    assert [event.kind for event in recovered.events[-2:]] == [
-        "run.process_interrupted",
-        "run.completed",
-    ]
-    assert recovered.active_activity is None
+    interrupted = await store.get("interrupted-tool")
+    assert harness.calls == []
+    assert interrupted.status is RunStatus.PAUSED
+    assert interrupted.events[-1].kind == "run.process_interrupted"
+    assert interrupted.events[-1].data["resume_required"] is True
+    assert interrupted.active_activity is None
 
 
 class RestartLoopHarness(StubHarness):
@@ -2699,7 +2710,7 @@ class RestartLoopHarness(StubHarness):
 
 
 @pytest.mark.asyncio
-async def test_restart_does_not_reset_the_durable_autonomous_resume_limit(
+async def test_restart_preserves_the_resume_limit_without_replaying_work(
     tmp_path: Path,
 ) -> None:
     frame = tmp_path / "frame.jpg"
@@ -2729,17 +2740,21 @@ async def test_restart_does_not_reset_the_durable_autonomous_resume_limit(
     )
 
     async with app.router.lifespan_context(app):
-        await asyncio.wait_for(harness.attempted.wait(), timeout=1)
         for _ in range(10):
-            latest = await store.get("resume-limit-before-crash")
-            if latest.events[-1].kind == "run.autonomy_stopped":
-                break
             await asyncio.sleep(0)
 
     latest = await store.get("resume-limit-before-crash")
-    assert harness.calls == [("continue", "resume-limit-before-crash")]
-    assert latest.events[-1].kind == "run.autonomy_stopped"
-    assert latest.events[-1].data["limit"] == 2
+    assert harness.calls == []
+    assert latest.status is RunStatus.PAUSED
+    assert latest.events[-1].kind == "run.process_interrupted"
+    assert latest.events[-1].data["resume_required"] is True
+    assert (
+        sum(
+            event.kind == "run.autonomous_resume"
+            for event in latest.events
+        )
+        == 2
+    )
 
 
 def test_harness_api_uses_the_same_32_character_token_floor_as_launcher(

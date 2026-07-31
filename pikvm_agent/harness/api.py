@@ -534,7 +534,7 @@ def create_harness_app(
     async def managed_lifespan(app: FastAPI) -> AsyncIterator[None]:
         @asynccontextmanager
         async def active() -> AsyncIterator[None]:
-            await resume_automatic_runs()
+            await pause_interrupted_runs()
             try:
                 yield
             finally:
@@ -750,55 +750,47 @@ def create_harness_app(
         active_tasks.add(task)
         task.add_done_callback(active_tasks.discard)
 
-    async def resume_automatic_runs() -> None:
+    async def pause_interrupted_runs() -> None:
         for summary in await store.list_summaries(limit=10_000):
-            should_resume = False
+            if summary.origin != "managed":
+                continue
+            autonomous_reason: str | None = None
             if summary.status is RunStatus.RUNNING:
-                if summary.origin != "managed":
-                    continue
                 run = await store.get_control(summary.run_id)
-                should_resume = True
-                run.status = RunStatus.PAUSED
-                run.error = (
-                    "local harness process restarted; resuming the durable "
-                    "checkpoint"
-                )
-                run.record(
-                    "run.process_interrupted",
-                    previous_status=summary.status.value,
-                    pending_action=run.pending_action is not None,
-                    activity_kind=(
-                        run.active_activity.kind
-                        if run.active_activity is not None
-                        else None
-                    ),
-                )
-                await store.save(run)
             elif summary.status is RunStatus.PAUSED:
                 run = await store.get_control(summary.run_id)
-                should_resume = _autonomous_resume_reason(run) is not None
-                if summary.origin == "managed" and run.session_id:
-                    prior_error = run.error
-                    run.error = (
-                        "local harness process restarted; the durable task "
-                        "will reconnect before continuing"
-                    )
-                    run.record(
-                        "run.process_interrupted",
-                        previous_status=summary.status.value,
-                        previous_error=prior_error,
-                        pending_action=run.pending_action is not None,
-                        activity_kind=(
-                            run.active_activity.kind
-                            if run.active_activity is not None
-                            else None
-                        ),
-                    )
-                    await store.save(run)
+                autonomous_reason = _autonomous_resume_reason(run)
+                if autonomous_reason is None and not run.session_id:
+                    continue
             else:
                 continue
-            if should_resume:
-                schedule(guarded_continue(run.run_id))
+            if (
+                run.status is RunStatus.PAUSED
+                and run.events
+                and run.events[-1].kind == "run.process_interrupted"
+            ):
+                continue
+            prior_error = run.error
+            activity_kind = (
+                run.active_activity.kind
+                if run.active_activity is not None
+                else None
+            )
+            run.status = RunStatus.PAUSED
+            run.error = (
+                "local harness process restarted; explicit operator resume "
+                "is required"
+            )
+            run.record(
+                "run.process_interrupted",
+                previous_status=summary.status.value,
+                previous_error=prior_error,
+                pending_action=run.pending_action is not None,
+                activity_kind=activity_kind,
+                autonomous_resume_reason=autonomous_reason,
+                resume_required=True,
+            )
+            await store.save(run)
 
     @app.exception_handler(RunNotFoundError)
     async def not_found(_: Request, exc: RunNotFoundError) -> JSONResponse:

@@ -376,6 +376,17 @@ const completionMarkdown = (run: RunSnapshot) => {
         "action still comes from the outer client."
       );
     }
+    const latestEvent = (run.timeline_events ?? run.events).at(-1);
+    if (
+      latestEvent?.kind === "run.process_interrupted" &&
+      latestEvent.data.resume_required === true
+    ) {
+      return (
+        "Paused safely after the local harness restarted. No model or " +
+        "computer input was replayed. Open Computer and choose Continue to " +
+        "resume this exact saved task."
+      );
+    }
     return run.error
       ? `Paused: ${run.error}. Retry, choose another model, or give a correction.`
       : "Paused at a durable checkpoint. You can continue or give a correction.";

@@ -1630,6 +1630,32 @@ describe("messagesForRun", () => {
     );
   });
 
+  it("explains that restart recovery is inert until explicit resume", () => {
+    const assistant = messagesForRun(
+      run({
+        status: "paused",
+        error:
+          "local harness process restarted; explicit operator resume is required",
+        events: [
+          {
+            sequence: 3,
+            at: "2026-07-27T12:00:02Z",
+            kind: "run.process_interrupted",
+            data: {
+              previous_status: "running",
+              resume_required: true,
+            },
+          },
+        ],
+      }),
+    ).at(-1);
+    const serialized = JSON.stringify(assistant?.content);
+
+    expect(serialized).toContain("No model or computer input was replayed");
+    expect(serialized).toContain("Continue");
+    expect(serialized).not.toContain("Retry, choose another model");
+  });
+
   it("shows a stale-world refusal as safe recovery, not a running input", () => {
     const snapshot = run({
       events: [
