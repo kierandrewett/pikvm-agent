@@ -389,6 +389,52 @@ async def test_windows_transport_prints_invariant_punctuation_physically() -> No
     ]
 
 
+async def test_windows_transport_prints_cp1252_unicode_with_alt_codes() -> None:
+    class Client:
+        def __init__(self) -> None:
+            self.calls = []
+
+        def keyPress(self, key) -> None:
+            self.calls.append(("press", key))
+
+        def keyDown(self, key) -> None:
+            self.calls.append(("down", key))
+
+        def keyUp(self, key) -> None:
+            self.calls.append(("up", key))
+
+    transport = VncDotoolTransport(
+        "unused:5900",
+        keymap="en-gb",
+        keyboard_profile="windows",
+    )
+    client = Client()
+    transport._client = client
+
+    await transport.print_text("—“”")
+
+    assert client.calls == [
+        ("down", "alt"),
+        ("press", "kp0"),
+        ("press", "kp1"),
+        ("press", "kp5"),
+        ("press", "kp1"),
+        ("up", "alt"),
+        ("down", "alt"),
+        ("press", "kp0"),
+        ("press", "kp1"),
+        ("press", "kp4"),
+        ("press", "kp7"),
+        ("up", "alt"),
+        ("down", "alt"),
+        ("press", "kp0"),
+        ("press", "kp1"),
+        ("press", "kp4"),
+        ("press", "kp8"),
+        ("up", "alt"),
+    ]
+
+
 async def test_transport_releases_stale_modifiers_on_connection() -> None:
     class Client:
         def __init__(self) -> None:

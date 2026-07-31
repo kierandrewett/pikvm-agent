@@ -397,9 +397,24 @@ class VncDotoolTransport:
 
     @staticmethod
     def _type_windows_alt_code(client: Any, character: str) -> None:
+        if ord(character) > 127:
+            try:
+                encoded = character.encode("cp1252")
+            except UnicodeEncodeError as exc:
+                raise ValueError(
+                    "Windows VNC keyboard transport cannot safely type "
+                    f"{character!r}"
+                ) from exc
+            if len(encoded) != 1:
+                raise ValueError(
+                    "Windows VNC keyboard transport requires one CP1252 byte"
+                )
+            digits = f"0{encoded[0]:03d}"
+        else:
+            digits = str(ord(character))
         client.keyDown("alt")
         try:
-            for digit in str(ord(character)):
+            for digit in digits:
                 client.keyPress(f"kp{digit}")
         finally:
             client.keyUp("alt")
@@ -644,7 +659,10 @@ class VncDotoolTransport:
                 for char in text:
                     key_info = ks.key_for(char, layout)
                     if key_info is None:
-                        client.keyPress(char)
+                        if self.keyboard_profile == "windows":
+                            self._type_windows_alt_code(client, char)
+                        else:
+                            client.keyPress(char)
                     else:
                         key = code_to_vnc_key(key_info.code)
                         if (
