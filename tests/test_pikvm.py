@@ -10,6 +10,7 @@ from pikvm_agent.config import PikvmConfig
 from pikvm_agent.core.models import Region
 from pikvm_agent.core.ports import ComputerBackend
 from pikvm_agent.pikvm import keyboard_state as ks
+from pikvm_agent.pikvm import client as client_module
 from pikvm_agent.pikvm.client import PiKVMBackend
 from pikvm_agent.pikvm.fake import FakeBackend
 from pikvm_agent.pikvm.hid import clamp_norm, to_norm
@@ -105,6 +106,36 @@ def test_backend_conforms_and_derives_origins() -> None:
     assert b.get_layout() == "uk"
     b2 = PiKVMBackend(PikvmConfig(base_url="http://10.0.0.5:8080"))
     assert b2._ws_url() == "ws://10.0.0.5:8080/api/ws"
+
+
+async def test_windows_run_chord_uses_a_stable_modifier_dwell(
+    monkeypatch,
+) -> None:
+    backend = PiKVMBackend(
+        PikvmConfig(base_url="http://127.0.0.1:48020")
+    )
+    events: list[tuple[str, bool]] = []
+    sleeps: list[float] = []
+
+    class Hid:
+        async def key(self, code: str, state: bool) -> None:
+            events.append((code, state))
+
+    async def record_sleep(milliseconds: float) -> None:
+        sleeps.append(milliseconds)
+
+    backend.hid = Hid()  # type: ignore[assignment]
+    monkeypatch.setattr(client_module, "_sleep", record_sleep)
+
+    await backend.keypress(["MetaLeft", "KeyR"])
+
+    assert events == [
+        ("MetaLeft", True),
+        ("KeyR", True),
+        ("KeyR", False),
+        ("MetaLeft", False),
+    ]
+    assert sleeps == [250, 100, 100]
 
 
 def test_fake_backend_conforms_and_records() -> None:

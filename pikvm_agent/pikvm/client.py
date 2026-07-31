@@ -266,6 +266,20 @@ class PiKVMBackend:
         """Press a chord: hold each key down in order, then release in reverse.
         Keys are staggered (a human presses modifier→key, not all in one instant)
         and the hold is randomized."""
+        if keys == ["MetaLeft", "KeyR"]:
+            # Windows behind several RFB servers acknowledges Meta before the
+            # guest has incorporated it. A normal human-timing chord can then
+            # arrive as a bare ``r`` and leave later typing on the desktop.
+            # Use the empirically stable dwell for the Run shortcut; the extra
+            # 0.2 s is far cheaper than an unsafe recovery after typing.
+            await self.hid.key("MetaLeft", True)
+            await _sleep(250)
+            await self.hid.key("KeyR", True)
+            await _sleep(100)
+            await self.hid.key("KeyR", False)
+            await _sleep(100)
+            await self.hid.key("MetaLeft", False)
+            return
         for i, c in enumerate(keys):
             if i:
                 await _sleep(timing.chord_stagger_ms())
