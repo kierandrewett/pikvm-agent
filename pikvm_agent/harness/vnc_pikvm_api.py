@@ -480,12 +480,19 @@ class VncDotoolTransport:
                         and self._shift_pending
                         and ks.keymap_to_layout(self.keymap) == "uk"
                     )
+                    or (
+                        self._shift_pending
+                        and re.fullmatch(r"Key[A-Z]", code) is None
+                        and shifted_code_to_character(code, self.keymap)
+                        is not None
+                    )
                 )
             ):
-                character = (
-                    "~"
-                    if code == "Backslash"
-                    else "|" if self._shift_pending else "\\"
+                character = shifted_code_to_character(
+                    code,
+                    self.keymap,
+                ) or (
+                    "|" if self._shift_pending else "\\"
                 )
                 self._synthetic_keyups.add(code)
                 await asyncio.to_thread(
@@ -590,6 +597,14 @@ class VncDotoolTransport:
                                     key_info.code == "Backslash"
                                     and char == "~"
                                     and layout == "uk"
+                                )
+                                or (
+                                    key_info.shift
+                                    and re.fullmatch(
+                                        r"Key[A-Z]",
+                                        key_info.code,
+                                    )
+                                    is None
                                 )
                             )
                         ):

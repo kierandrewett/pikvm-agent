@@ -223,7 +223,7 @@ async def test_transport_uses_semantic_uppercase_for_shifted_letters() -> None:
     ]
 
 
-async def test_windows_transport_uses_semantic_shifted_punctuation() -> None:
+async def test_windows_transport_uses_alt_code_for_shifted_punctuation() -> None:
     class Client:
         def __init__(self) -> None:
             self.calls = []
@@ -233,6 +233,9 @@ async def test_windows_transport_uses_semantic_shifted_punctuation() -> None:
 
         def keyUp(self, key) -> None:
             self.calls.append(("up", key))
+
+        def keyPress(self, key) -> None:
+            self.calls.append(("press", key))
 
     transport = VncDotoolTransport(
         "unused:5900",
@@ -248,8 +251,10 @@ async def test_windows_transport_uses_semantic_shifted_punctuation() -> None:
     await transport.key("ShiftLeft", False)
 
     assert client.calls == [
-        ("down", ":"),
-        ("up", ":"),
+        ("down", "alt"),
+        ("press", "kp5"),
+        ("press", "kp8"),
+        ("up", "alt"),
     ]
 
 
@@ -296,7 +301,7 @@ async def test_transport_uses_alt_codes_for_uk_symbols_windows_vnc_drops() -> No
     ]
 
 
-async def test_windows_transport_prints_shifted_punctuation_semantically() -> None:
+async def test_windows_transport_prints_shifted_punctuation_with_alt_code() -> None:
     class Client:
         def __init__(self) -> None:
             self.calls = []
@@ -325,8 +330,10 @@ async def test_windows_transport_prints_shifted_punctuation_semantically() -> No
         ("up", "A"),
         ("down", "a"),
         ("up", "a"),
-        ("down", ":"),
-        ("up", ":"),
+        ("down", "alt"),
+        ("press", "kp5"),
+        ("press", "kp8"),
+        ("up", "alt"),
         ("down", "alt"),
         ("press", "kp1"),
         ("press", "kp2"),
