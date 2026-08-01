@@ -86,6 +86,9 @@ MAX_AUTODETECTED_FIELD_HEIGHT = 80
 MAX_AUTODETECTED_FIELD_HEIGHT_FRAC = 0.15
 MAX_PROSE_EDGE_CONTEXT_CHARS = 96
 MAX_EDITOR_STATUS_VERTICAL_GAP_FRAC = 0.50
+MAX_EDITOR_STATUS_SEARCH_HEIGHT_FRAC = 0.45
+EDITOR_STATUS_SEARCH_WIDTH_FRAC = 0.40
+EDITOR_STATUS_SEARCH_LEFT_CONTEXT_PX = 32
 AUTODETECTED_READBACK_MARGIN_X_FRAC = 0.075
 SHORT_FIELD_CONTEXT_ABOVE_PX = 80
 SHORT_FIELD_CONTEXT_BELOW_PX = 24
@@ -227,6 +230,8 @@ def editor_caret_column_proves_leading_whitespace(
     intended: str,
     row_region: Region,
     dims: tuple[int, int],
+    *,
+    container_region: Region | None = None,
 ) -> bool:
     """Confirm invisible leading spaces from the nearest editor status row.
 
@@ -262,7 +267,16 @@ def editor_caret_column_proves_leading_whitespace(
             and float(line.confidence) < MIN_MISMATCH_OCR_CONFIDENCE
         ):
             continue
-        status_region = ocr_line_region(line, dims, pad=0)
+        status_region = (
+            ocr_line_screen_region(
+                line,
+                container_region,
+                dims,
+                pad=0,
+            )
+            if container_region is not None
+            else ocr_line_region(line, dims, pad=0)
+        )
         if status_region is None:
             continue
         vertical_gap = status_region.y - row_bottom
@@ -284,6 +298,55 @@ def editor_caret_column_proves_leading_whitespace(
         return False
     _gap, _offset, nearest_column = min(candidates)
     return nearest_column == expected_column
+
+
+def editor_status_search_region(
+    row_region: Region,
+    dims: tuple[int, int],
+) -> Region | None:
+    """Return a bounded status-band crop below the causal editor row.
+
+    Full-screen Tesseract can omit or badly mangle the foreground Notepad
+    status row.  Derive this crop from screen and causal-row geometry only, so
+    a bounded precise read can use the independent secondary OCR engine
+    without selecting a region from expected text or unreliable OCR.
+    """
+
+    width, height = dims
+    if width <= 0 or height <= 0:
+        return None
+    row_bottom = row_region.y + row_region.height
+    available_height = height - row_bottom
+    if available_height <= 0:
+        return None
+    search_depth = min(
+        available_height,
+        max(1, math.floor(height * MAX_EDITOR_STATUS_VERTICAL_GAP_FRAC)),
+    )
+    crop_height = min(
+        search_depth,
+        max(1, math.floor(height * MAX_EDITOR_STATUS_SEARCH_HEIGHT_FRAC)),
+    )
+    crop_width = min(
+        width,
+        max(1, math.floor(width * EDITOR_STATUS_SEARCH_WIDTH_FRAC)),
+    )
+    x = max(
+        0,
+        min(
+            width - crop_width,
+            math.floor(row_region.x) - EDITOR_STATUS_SEARCH_LEFT_CONTEXT_PX,
+        ),
+    )
+    # Preserve the deepest part of the allowed search band. A Notepad status
+    # row sits at the bottom of its window, not immediately below the text.
+    y = row_bottom + search_depth - crop_height
+    return Region(
+        x=x,
+        y=y,
+        width=crop_width,
+        height=crop_height,
+    )
 
 
 def is_standalone_i_autocorrect(intended: str, observed: str) -> bool:
@@ -1450,8 +1513,13 @@ class WatchedTyper:
             if tmp is not None:
                 tmp.unlink(missing_ok=True)
 
-    async def _read_screen(self, *, precise: bool = False) -> OCRResult:
-        """OCR one exact full-frame capture for localization/readback fallback."""
+    async def _read_screen(
+        self,
+        *,
+        precise: bool = False,
+        region: Region | None = None,
+    ) -> OCRResult:
+        """OCR one capture for localization or a bounded exact re-read."""
         self._last_read_screen_frame = None
         try:
             frame = await self.backend.screenshot()
@@ -1474,8 +1542,8 @@ class WatchedTyper:
             tmp = Path(fd.name)
             precise_ocr = getattr(self.ocr, "ocr_precise", None)
             if precise and callable(precise_ocr):
-                return await precise_ocr(tmp)
-            return await self.ocr.ocr(tmp)
+                return await precise_ocr(tmp, region=region)
+            return await self.ocr.ocr(tmp, region=region)
         except Exception:
             return OCRResult()
         finally:
@@ -3492,19 +3560,36 @@ class WatchedTyper:
             # exact spaces were issued once. Keep this editor-only and
             # fail-closed when the status row is absent, distant, low
             # confidence, or reports a conflicting column.
-            status_result = await self._read_screen(precise=True)
-            status_proved = editor_caret_column_proves_leading_whitespace(
-                status_result,
-                text,
+            status_region = editor_status_search_region(
                 cur_region,
                 dims,
             )
+            status_proved = False
+            if status_region is not None:
+                bounded_status = await self._read_screen(
+                    precise=True,
+                    region=status_region,
+                )
+                status_proved = (
+                    editor_caret_column_proves_leading_whitespace(
+                        bounded_status,
+                        text,
+                        cur_region,
+                        dims,
+                        container_region=status_region,
+                    )
+                )
             DEBUG.event(
                 "typing.editor_leading_whitespace_status",
                 proved=status_proved,
                 leading_spaces=leading_spaces,
                 expected_column=len(text) + 1,
                 region=cur_region.model_dump(),
+                status_region=(
+                    status_region.model_dump()
+                    if status_region is not None
+                    else None
+                ),
             )
             if status_proved:
                 last_read = text

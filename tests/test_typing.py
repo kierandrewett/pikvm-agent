@@ -33,6 +33,7 @@ from pikvm_agent.executor.typing import (
     _substantial_change_outside_region,
     chunk_text,
     editor_caret_column_proves_leading_whitespace,
+    editor_status_search_region,
     is_caps_lock_case_inversion,
     is_standalone_i_autocorrect,
     locate_capture_change,
@@ -195,6 +196,38 @@ def test_conflicting_nearest_editor_status_row_fails_closed() -> None:
         intended,
         row,
         (1280, 800),
+    )
+
+
+def test_editor_status_search_region_is_bounded_below_causal_row() -> None:
+    row = Region(x=65, y=100, width=58, height=14)
+
+    region = editor_status_search_region(
+        row,
+        (1280, 800),
+    )
+
+    assert region == Region(x=33, y=154, width=512, height=360)
+    bounded = OCRResult(
+        lines=[
+            OCRLine(
+                text="Ln 2, Col 16",
+                confidence=0.94,
+                bbox=[15, 329, 57, 341],
+            ),
+            OCRLine(
+                text="Ln 5, Col 17",
+                confidence=0.97,
+                bbox=[32, 347, 81, 357],
+            )
+        ]
+    )
+    assert editor_caret_column_proves_leading_whitespace(
+        bounded,
+        "    result = []",
+        row,
+        (1280, 800),
+        container_region=region,
     )
 
 
@@ -2937,6 +2970,7 @@ async def test_precise_autolocate_rechecks_noisy_editor_punctuation(
     class NoisyFullScreenExactCropOCR:
         def __init__(self) -> None:
             self.screen_calls = 0
+            self.regions: list[Region | None] = []
 
         async def ocr_precise(
             self,
@@ -2944,15 +2978,16 @@ async def test_precise_autolocate_rechecks_noisy_editor_punctuation(
             region: Region | None = None,
         ) -> OCRResult:
             del image_path
+            self.regions.append(region)
             if region is None:
                 self.screen_calls += 1
                 if self.screen_calls > 1:
                     return OCRResult(
                         lines=[
                             OCRLine(
-                                text="Ln 2, Col 16",
-                                confidence=0.99,
-                                bbox=[48, 470, 94, 482],
+                                text="in2,Colt6 36 characters",
+                                confidence=0.57,
+                                bbox=[50, 470, 149, 484],
                             )
                         ]
                     )
@@ -2965,6 +3000,26 @@ async def test_precise_autolocate_rechecks_noisy_editor_punctuation(
                         )
                     ],
                     spacing_evidence="not_evaluated",
+                )
+            if (
+                region is not None
+                and region.width == 512
+                and region.height == 360
+                and region.y > 140
+            ):
+                return OCRResult(
+                    lines=[
+                        OCRLine(
+                            text="Ln 2, Col 16",
+                            confidence=0.94,
+                            bbox=[15, 329, 57, 341],
+                        ),
+                        OCRLine(
+                            text="Ln 5, Col 17",
+                            confidence=0.97,
+                            bbox=[32, 347, 81, 357],
+                        )
+                    ]
                 )
             return OCRResult(
                 lines=[
@@ -2986,6 +3041,7 @@ async def test_precise_autolocate_rechecks_noisy_editor_punctuation(
     monkeypatch.setattr(asyncio, "sleep", no_sleep)
     backend = FakeBackend()
     typer = WatchedTyper(backend, NoisyFullScreenExactCropOCR())
+    ocr = typer.ocr
     flat = _flat_grid()
 
     async def unchanged_grid() -> np.ndarray:
@@ -3001,9 +3057,16 @@ async def test_precise_autolocate_rechecks_noisy_editor_punctuation(
         context="editor",
     )
 
-    assert result.status == "verified_exact"
+    assert result.status == "verified_exact", ocr.regions
     assert result.field_text == intended
     assert result.emitted_exactly_once is True
+    assert any(
+        region is not None
+        and region.width == 512
+        and region.height == 360
+        and region.y > 140
+        for region in ocr.regions
+    )
     assert [
         kwargs
         for method, kwargs in backend.calls
