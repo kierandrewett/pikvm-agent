@@ -2923,6 +2923,19 @@ class WatchedTyper:
                     full_screen_frame,
                     dims,
                 )
+                causal_change_candidates: list[Region] = []
+                if (
+                    emission_start_frame is not None
+                    and emission_start_frame.data
+                    and full_screen_frame is not None
+                    and full_screen_frame.data
+                ):
+                    causal_change_candidates = await asyncio.to_thread(
+                        locate_dense_changed_candidates,
+                        emission_start_frame.data,
+                        full_screen_frame.data,
+                        dims,
+                    )
 
                 def grounded(candidate_region: Region) -> bool:
                     return (
@@ -2936,6 +2949,13 @@ class WatchedTyper:
                                 candidate_region,
                                 capture_change,
                             )
+                        )
+                        or any(
+                            regions_overlap(
+                                candidate_region,
+                                causal_candidate,
+                            )
+                            for causal_candidate in causal_change_candidates
                         )
                     )
 

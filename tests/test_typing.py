@@ -3325,6 +3325,81 @@ async def test_exact_readback_recovers_only_from_grounded_complete_line(
     _assert_no_enter(backend)
 
 
+async def test_exact_editor_readback_grounds_to_secondary_causal_delta(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Editor status-bar churn must not hide the exact changed text row."""
+
+    async def no_sleep(_seconds: float) -> None:
+        return None
+
+    status_region = Region(x=72, y=474, width=88, height=30)
+    text_region = Region(x=36, y=160, width=84, height=54)
+    monkeypatch.setattr(asyncio, "sleep", no_sleep)
+    monkeypatch.setattr(
+        "pikvm_agent.executor.typing.readback_region",
+        lambda *_args, **_kwargs: status_region,
+    )
+    monkeypatch.setattr(
+        "pikvm_agent.executor.typing.locate_capture_change",
+        lambda *_args, **_kwargs: status_region,
+    )
+    monkeypatch.setattr(
+        "pikvm_agent.executor.typing.locate_dense_changed_candidates",
+        lambda *_args, **_kwargs: [status_region, text_region],
+    )
+
+    class VisibleEditorBackend(FakeBackend):
+        async def type_text(
+            self,
+            text: str,
+            *,
+            code: bool = False,
+            secret: bool = False,
+        ) -> None:
+            await super().type_text(text, code=code, secret=secret)
+            self.set_screen(text)
+
+    class ExactScreenOCR:
+        async def ocr(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path, region
+            return OCRResult()
+
+        async def ocr_precise(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path
+            if region is not None:
+                return OCRResult()
+            return OCRResult(
+                lines=[
+                    OCRLine(
+                        text="Proof",
+                        confidence=0.99,
+                        bbox=[42, 190, 78, 207],
+                    )
+                ]
+            )
+
+    backend = VisibleEditorBackend()
+    result = await WatchedTyper(backend, ExactScreenOCR()).type_text(
+        "Proof",
+        exact=True,
+        context="editor",
+    )
+
+    assert result.status == "verified_exact"
+    assert result.field_text == "Proof"
+    assert result.emitted_exactly_once is True
+    _assert_no_enter(backend)
+
+
 async def test_terminal_wrapped_readback_reocrs_the_causal_rows(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
