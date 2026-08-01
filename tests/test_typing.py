@@ -2158,6 +2158,13 @@ async def test_exact_fast_editor_append_localizes_suffix_from_full_document() ->
         "his ambition overwhelms his conscience. He chooses"
     )
     full_document = prefix + continuation
+    wrapped_document = full_document.replace(
+        "loyalty and judgment. Lady Macbeth",
+        "loyalty and judgment.\nLady Macbeth",
+    ).replace(
+        "generous king and loyal guest, his ambition",
+        "generous king and loyal guest,\nhis ambition",
+    )
 
     typer = WatchedTyper(
         backend,
@@ -2181,21 +2188,16 @@ async def test_exact_fast_editor_append_localizes_suffix_from_full_document() ->
             allow_blind_fallback,
             minimum_confidence,
         )
-        return full_document
+        return wrapped_document
 
-    async def full_screen_read(*, precise: bool = False) -> OCRResult:
+    async def unexpected_screen_read(*, precise: bool = False) -> OCRResult:
         del precise
-        return OCRResult(
-            lines=[
-                OCRLine(
-                    text=full_document,
-                    confidence=0.99,
-                )
-            ]
+        raise AssertionError(
+            "grounded field evidence must be localized before screen OCR"
         )
 
     typer._read_field = full_field_read  # type: ignore[method-assign]
-    typer._read_screen = full_screen_read  # type: ignore[method-assign]
+    typer._read_screen = unexpected_screen_read  # type: ignore[method-assign]
 
     result = await typer.type_text(
         continuation,

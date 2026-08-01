@@ -1468,7 +1468,7 @@ class WatchedTyper:
                     if region is None
                     else union_region(region, line_region)
                 )
-                if self._full_screen_prose_candidate(
+                if self._bounded_prose_candidate(
                     OCRResult(lines=window),
                     probe,
                 ):
@@ -1516,18 +1516,19 @@ class WatchedTyper:
         return read_back
 
     @staticmethod
-    def _full_screen_prose_candidate(
+    def _bounded_prose_candidate(
         result: OCRResult,
         intended: str,
     ) -> str:
         """Select a bounded OCR line window for long natural-language prose.
 
         A word processor can wrap one print burst across several lines while
-        the grid-diff crop still covers only the first changed line. Full-screen
-        OCR may also join adjacent words or confuse a few small glyphs. Search
-        only consecutive line windows near the intended length and retain the
-        normal prose verifier's eight-percent edit ceiling. This path is never
-        used for precise code, commands, paths, URLs, or secrets.
+        the grid-diff crop still covers only the first changed line. Grounded
+        field or full-screen OCR may also join adjacent words or confuse a few
+        small glyphs. Search only consecutive line windows near the intended
+        length and retain the normal prose verifier's eight-percent edit
+        ceiling. This path is never used for precise code, commands, paths,
+        URLs, or secrets.
         """
 
         visible_intended = " ".join(intended.split())
@@ -2934,7 +2935,7 @@ class WatchedTyper:
                     self._semantic_spacing_normalized = cropped_match[2]
                     break
 
-        needs_full_screen_prose = (
+        needs_bounded_prose_localization = (
             compute_verdict(text, last_read, precise) != "match"
             or (
                 precise
@@ -2943,21 +2944,41 @@ class WatchedTyper:
                 and "\r" not in text
             )
         )
-        if fast_print and needs_full_screen_prose:
+        if fast_print and needs_bounded_prose_localization:
             # Rich editors wrap prose beyond the first changed-line crop. Do
-            # one read-only full-screen pass even when semantic normalization
-            # calls an OCR-inserted visual word-wrap newline a match, or the
-            # initial crop contains a previously proven editor prefix. Precise
-            # input is canonicalized only when the bounded candidate recreates
-            # every requested byte and the request had no intentional newline.
-            screen_candidate = self._full_screen_prose_candidate(
-                await self._read_screen(),
-                text,
+            # the bounded suffix search against the current grounded field
+            # before paying for another screen OCR pass. This covers an
+            # OCR-inserted visual word-wrap newline and an exact append whose
+            # field crop also includes the previously proven prefix.
+            grounded_candidate = (
+                self._bounded_prose_candidate(
+                    OCRResult(
+                        lines=[
+                            OCRLine(
+                                text=last_read,
+                                confidence=1.0,
+                            )
+                        ]
+                    ),
+                    text,
+                )
+                if precise and last_read
+                else ""
             )
-            if screen_candidate and (
-                not precise or screen_candidate == text
-            ):
-                last_read = screen_candidate
+            if grounded_candidate == text:
+                last_read = grounded_candidate
+            else:
+                # Precise input is canonicalized only when a bounded candidate
+                # recreates every requested delivery byte. Non-precise prose
+                # keeps its existing conservative edit-distance verifier.
+                screen_candidate = self._bounded_prose_candidate(
+                    await self._read_screen(),
+                    text,
+                )
+                if screen_candidate and (
+                    not precise or screen_candidate == text
+                ):
+                    last_read = screen_candidate
 
         verdict = compute_verdict(text, last_read, precise)
         if self._semantic_spacing_normalized:
