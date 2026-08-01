@@ -51,8 +51,8 @@ support a claim of generally reliable autonomous Windows operation.
 
 ### Live 50-task Windows campaign
 
-The active disposable-Windows campaign has **18/50 unique accepted passes
-(36%)**. Every attempt is screen-recorded, every test ends with a VM reboot,
+The active disposable-Windows campaign has **19/50 unique accepted passes
+(38%)**. Every attempt is screen-recorded, every test ends with a VM reboot,
 and a pass is counted only once even when the same task is rerun during
 remediation. Production PiKVM was not contacted.
 
@@ -60,12 +60,12 @@ remediation. Production PiKVM was not contacted.
 | --- | ---: | ---: | --- |
 | Observation | 5 | 5 | Complete |
 | Calculator | 10 | 10 | Complete |
-| Text entry | 3 | 10 | `text-01` through `text-03` accepted |
+| Text entry | 4 | 10 | `text-01` through `text-04` accepted |
 | Code entry | 0 | 10 | Pending |
 | File management | 0 | 5 | Pending |
 | Microsoft Excel | 0 | 5 | Pending |
 | Microsoft Word | 0 | 5 | Pending |
-| **Total** | **18** | **50** | **32 pending** |
+| **Total** | **19** | **50** | **31 pending** |
 
 The Calculator category is complete. The final temperature-conversion task
 visibly produced `23 °C = 73.4 °F`, completed 7/7 actions, and rebooted the VM
@@ -347,7 +347,28 @@ with verified visible spacing is now retained as the terminal receipt; no
 second OCR call is made and no additional HID is emitted. Text-04 remains
 pending until this direct causal-proof path passes a clean live replay.
 
-Failure-inclusive metrics, canonical campaign digests, the 18 accepted task
+Text-04 v13 is the first accepted checklist run. All four numbered lines and
+`text-04.txt` received `verified_exact` receipts with exact character counts,
+single emissions, and matching requested, delivery, issued, emitted, and
+readback hashes. The completed native flow saved through an existing-file
+replacement, opened the Open dialog, selected the saved file, committed the
+selection, and finished only after the verifier saw the reopened four-line
+document. The bounded delayed-frame handoff rejected stale Save/Open frames,
+recalled the verifier only when the image bytes changed, and discarded
+speculative controller output tied to those old frames. All 16 actions
+completed with no same-run retyping recovery and one expected
+`bounded_workspace_edit` approval.
+
+The accepted run took 276.097s before reboot: 163.741s of provider wait across
+30 calls and 105.278s of action execution, with 29.620s of provider-lane
+overlap. Direct causal proof completed `2. Act` in 8.228s versus 46.235s in
+v12's redundant-read path. The mandatory reboot then observed a real
+transition and reached a ready desktop after 76.818s. The VP9 evidence is
+337.0s at 2048×1280 and 2 fps. This is 53.78% faster than v10's 597.410s
+near-complete run, but provider wait still consumes 59.31% of wall time, so
+speed remains below the product target.
+
+Failure-inclusive metrics, canonical campaign digests, the 19 accepted task
 IDs, and the VP9 recording/poster hashes are retained in
 [`codex-50-progress.json`](results/2026-07-31/live-vnc/codex-50-progress.json).
 The complete 50-task manifest is
