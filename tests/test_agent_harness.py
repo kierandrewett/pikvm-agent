@@ -2465,6 +2465,370 @@ def build_harness(
 
 
 @pytest.mark.asyncio
+async def test_failed_verifier_rechecks_one_fresh_delayed_frame(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    before_path = tmp_path / "before.png"
+    stale_path = tmp_path / "stale.png"
+    fresh_path = tmp_path / "fresh.png"
+    Image.new("RGB", (64, 48), "black").save(before_path)
+    Image.new("RGB", (64, 48), "navy").save(stale_path)
+    Image.new("RGB", (64, 48), "green").save(fresh_path)
+
+    class DelayedFrameProvider(ScriptedProvider):
+        def __init__(self) -> None:
+            super().__init__()
+            self.verifier_calls = 0
+
+        async def complete(self, request: ModelRequest) -> ModelResponse:
+            assert request.role == "verifier"
+            self.requests.append(request)
+            self.verifier_calls += 1
+            verified = self.verifier_calls == 2
+            return ModelResponse(
+                provider=self.name,
+                model="scripted-v1",
+                data={
+                    "verdict": "verified" if verified else "failed",
+                    "summary": (
+                        "The dialog is closed in the fresh frame."
+                        if verified
+                        else "The stale frame still shows the dialog."
+                    ),
+                    "evidence": ["The visible dialog state was inspected."],
+                    "action_criteria": [
+                        {
+                            "criterion_index": 0,
+                            "satisfied": verified,
+                            "evidence": (
+                                "The dialog is visibly closed."
+                                if verified
+                                else "The dialog is still visible."
+                            ),
+                        }
+                    ],
+                },
+            )
+
+    class DelayedFrameComputer(FakeComputer):
+        def __init__(self) -> None:
+            super().__init__()
+            self.refreshes = 0
+
+        async def refresh(self, *, session_id: str) -> ComputerObservation:
+            self.refreshes += 1
+            return ComputerObservation(
+                session_id=session_id,
+                status="paused",
+                frame_id=3,
+                world_version=8,
+                control_epoch=2,
+                image_path=str(fresh_path),
+                image_sha256="c" * 64,
+                screen_hash="d" * 512,
+            )
+
+    async def no_sleep(_seconds: float) -> None:
+        return None
+
+    monkeypatch.setattr(asyncio, "sleep", no_sleep)
+    provider = DelayedFrameProvider()
+    computer = DelayedFrameComputer()
+    harness = build_harness(provider, computer)
+    before = ComputerObservation(
+        session_id="s_1",
+        status="paused",
+        frame_id=1,
+        world_version=7,
+        control_epoch=2,
+        image_path=str(before_path),
+        image_sha256="a" * 64,
+        screen_hash="b" * 512,
+    )
+    run = RunSnapshot(
+        run_id="delayed-frame-recheck",
+        task="Save the file.",
+        status=RunStatus.RUNNING,
+        session_id="s_1",
+        observation=ComputerObservation(
+            session_id="s_1",
+            status="completed",
+            frame_id=2,
+            world_version=8,
+            control_epoch=2,
+            image_path=str(stale_path),
+            image_sha256="b" * 64,
+            screen_hash="c" * 512,
+        ),
+    )
+    action = PendingAction(
+        index=1,
+        intent="Save the verified file.",
+        actions=[{"type": "click", "x": 50, "y": 40}],
+        expected_evidence=["The dialog closes."],
+        based_on_world_version=7,
+        based_on_control_epoch=2,
+        idempotency_key="delayed-frame-save",
+    )
+
+    await harness._verify(run, action=action, before=before)
+
+    assert provider.verifier_calls == 2
+    assert computer.refreshes == 1
+    assert run.status is RunStatus.RUNNING
+    assert run.last_verification is not None
+    assert run.last_verification.verdict == "verified"
+    assert any(
+        event.kind == "verification.delayed_frame_observed"
+        for event in run.events
+    )
+
+
+@pytest.mark.asyncio
+async def test_failed_verifier_does_not_recall_model_for_unchanged_frame(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    frame_path = tmp_path / "unchanged.png"
+    Image.new("RGB", (64, 48), "navy").save(frame_path)
+
+    class FailedProvider(ScriptedProvider):
+        def __init__(self) -> None:
+            super().__init__()
+            self.verifier_calls = 0
+
+        async def complete(self, request: ModelRequest) -> ModelResponse:
+            assert request.role == "verifier"
+            self.verifier_calls += 1
+            return ModelResponse(
+                provider=self.name,
+                model="scripted-v1",
+                data={
+                    "verdict": "failed",
+                    "summary": "The dialog remains open.",
+                    "evidence": ["The visible frame is unchanged."],
+                    "action_criteria": [
+                        {
+                            "criterion_index": 0,
+                            "satisfied": False,
+                            "evidence": "The dialog is still visible.",
+                        }
+                    ],
+                },
+            )
+
+    class UnchangedComputer(FakeComputer):
+        def __init__(self) -> None:
+            super().__init__()
+            self.refreshes = 0
+
+        async def refresh(self, *, session_id: str) -> ComputerObservation:
+            self.refreshes += 1
+            return ComputerObservation(
+                session_id=session_id,
+                status="paused",
+                frame_id=2 + self.refreshes,
+                world_version=8,
+                control_epoch=2,
+                image_path=str(frame_path),
+                image_sha256="b" * 64,
+                screen_hash="c" * 512,
+            )
+
+    async def no_sleep(_seconds: float) -> None:
+        return None
+
+    monkeypatch.setattr(asyncio, "sleep", no_sleep)
+    provider = FailedProvider()
+    computer = UnchangedComputer()
+    harness = build_harness(provider, computer)
+    observation = ComputerObservation(
+        session_id="s_1",
+        status="completed",
+        frame_id=2,
+        world_version=8,
+        control_epoch=2,
+        image_path=str(frame_path),
+        image_sha256="b" * 64,
+        screen_hash="c" * 512,
+    )
+    run = RunSnapshot(
+        run_id="unchanged-frame-no-recheck",
+        task="Save the file.",
+        status=RunStatus.RUNNING,
+        session_id="s_1",
+        observation=observation,
+    )
+    action = PendingAction(
+        index=1,
+        intent="Save the verified file.",
+        actions=[{"type": "click", "x": 50, "y": 40}],
+        expected_evidence=["The dialog closes."],
+        based_on_world_version=7,
+        based_on_control_epoch=2,
+        idempotency_key="unchanged-frame-save",
+    )
+
+    await harness._verify(run, action=action, before=observation)
+
+    assert provider.verifier_calls == 1
+    assert computer.refreshes == 3
+    assert run.status is RunStatus.PAUSED
+    assert any(
+        event.kind == "verification.delayed_frame_unchanged"
+        for event in run.events
+    )
+
+
+@pytest.mark.asyncio
+async def test_delayed_verification_frame_discards_speculative_controller(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    before_path = tmp_path / "before.png"
+    stale_path = tmp_path / "stale.png"
+    fresh_path = tmp_path / "fresh.png"
+    Image.new("RGB", (64, 48), "black").save(before_path)
+    Image.new("RGB", (64, 48), "navy").save(stale_path)
+    Image.new("RGB", (64, 48), "green").save(fresh_path)
+
+    class DelayedParallelProvider(ScriptedProvider):
+        def __init__(self) -> None:
+            super().__init__()
+            self.verifier_calls = 0
+
+        async def complete(self, request: ModelRequest) -> ModelResponse:
+            self.requests.append(request)
+            if request.role == "controller":
+                return ModelResponse(
+                    provider=self.name,
+                    model="scripted-v1",
+                    data={
+                        "outcome": "act",
+                        "intent": "Click the stale-frame follow-up.",
+                        "actions": [{"type": "click", "x": 30, "y": 20}],
+                        "expected_evidence": ["The stale control changes."],
+                    },
+                )
+            assert request.role == "verifier"
+            self.verifier_calls += 1
+            verified = self.verifier_calls == 2
+            return ModelResponse(
+                provider=self.name,
+                model="scripted-v1",
+                data={
+                    "verdict": "verified" if verified else "failed",
+                    "summary": (
+                        "The fresh frame proves the prior action."
+                        if verified
+                        else "The stale frame does not prove the prior action."
+                    ),
+                    "evidence": ["The visible frame was inspected."],
+                    "criteria": [
+                        {
+                            "criterion_index": 0,
+                            "satisfied": False,
+                            "evidence": "The overall task is not complete.",
+                        }
+                    ],
+                    "action_criteria": [
+                        {
+                            "criterion_index": 0,
+                            "satisfied": verified,
+                            "evidence": (
+                                "The fresh frame proves the transition."
+                                if verified
+                                else "The stale frame does not prove it."
+                            ),
+                        }
+                    ],
+                },
+            )
+
+    class DelayedParallelComputer(FakeComputer):
+        async def refresh(self, *, session_id: str) -> ComputerObservation:
+            return ComputerObservation(
+                session_id=session_id,
+                status="paused",
+                frame_id=3,
+                world_version=8,
+                control_epoch=2,
+                image_path=str(fresh_path),
+                image_sha256="c" * 64,
+                screen_hash="d" * 512,
+            )
+
+    async def no_sleep(_seconds: float) -> None:
+        return None
+
+    monkeypatch.setattr(asyncio, "sleep", no_sleep)
+    provider = DelayedParallelProvider()
+    computer = DelayedParallelComputer()
+    harness = build_harness(provider, computer)
+    before = ComputerObservation(
+        session_id="s_1",
+        status="paused",
+        frame_id=1,
+        world_version=7,
+        control_epoch=2,
+        image_path=str(before_path),
+        image_sha256="a" * 64,
+        screen_hash="b" * 512,
+    )
+    run = RunSnapshot(
+        run_id="delayed-frame-prefetch-discard",
+        task="Save the file and continue.",
+        status=RunStatus.RUNNING,
+        session_id="s_1",
+        plan=PlanDecision(
+            summary="Save the file and continue.",
+            steps=["Save the file", "Continue from the fresh state"],
+            success_criteria=["The file is saved."],
+        ),
+        observation=ComputerObservation(
+            session_id="s_1",
+            status="completed",
+            frame_id=2,
+            world_version=8,
+            control_epoch=2,
+            image_path=str(stale_path),
+            image_sha256="b" * 64,
+            screen_hash="c" * 512,
+        ),
+    )
+    action = PendingAction(
+        index=1,
+        intent="Save the verified file.",
+        actions=[{"type": "click", "x": 50, "y": 40}],
+        expected_evidence=["The dialog closes."],
+        based_on_world_version=7,
+        based_on_control_epoch=2,
+        idempotency_key="delayed-frame-parallel-save",
+    )
+
+    await harness._verify_and_prefetch_control(
+        run,
+        action=action,
+        before=before,
+    )
+
+    assert provider.verifier_calls == 2
+    assert run.status is RunStatus.RUNNING
+    assert run.run_id not in harness._prefetched_controllers
+    discarded = [
+        event
+        for event in run.events
+        if event.kind == "controller.parallel_discarded"
+    ]
+    assert discarded
+    assert (
+        discarded[-1].data["reason"]
+        == "delayed verification frame invalidated the speculative controller"
+    )
+
+
+@pytest.mark.asyncio
 async def test_calculator_task_skips_reasoner_and_controller_round_trips() -> None:
     class CalculatorProvider(ScriptedProvider):
         def __init__(self) -> None:

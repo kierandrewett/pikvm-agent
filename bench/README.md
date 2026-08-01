@@ -297,6 +297,23 @@ action that never reached HID. These changes pass 318 focused typing, burst,
 and managed-agent tests; text-04 still remains pending until a clean live
 replay.
 
+Text-04 v10 proved the exact-receipt remediation live. All four numbered lines
+and `text-04.txt` were emitted once with matching requested, emitted, and
+observed hashes. Save, overwrite confirmation, Ctrl+O, and the file selection
+also reached the disposable VM, and a later frame showed the reopened four-line
+document. The run still failed: immediate action verification repeatedly saw
+the pre-click frame, so neither Save nor overwrite acquired durable verification
+in the current run. The completion gate correctly refused to credit the older
+file. v10 took 597.410s before reboot: 443.365s of provider wait and 441.687s
+of overlapping action execution across 87 calls, with 15/16 actions completed.
+Its mandatory reboot observed a real transition and reached a ready desktop
+after 77.360s. Failed or uncertain action verification now performs a bounded,
+read-only frame refresh and recalls the verifier once only if the image bytes
+changed. A delayed frame also invalidates the speculative next controller;
+unchanged pixels trigger no extra model call. The combined remediation passes
+321 focused typing, burst, and managed-agent tests. Text-04 remains pending
+until this bounded delayed-frame handoff passes a clean live replay.
+
 Failure-inclusive metrics, canonical campaign digests, the 18 accepted task
 IDs, and the VP9 recording/poster hashes are retained in
 [`codex-50-progress.json`](results/2026-07-31/live-vnc/codex-50-progress.json).

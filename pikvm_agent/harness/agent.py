@@ -151,6 +151,7 @@ _NEGATIVE_MUTATION_GUARD_TARGET = re.compile(
     r"accounts?|data|content|configuration|preferences?|system)\b",
     re.IGNORECASE,
 )
+_DELAYED_VERIFICATION_REFRESH_DELAYS_S = (0.0, 0.45, 0.90)
 
 
 def _normalize_plan_safety_constraints(
@@ -2613,6 +2614,7 @@ class AgentHarness:
         *,
         action: PendingAction | None,
         before: ComputerObservation | None,
+        _allow_delayed_frame_retry: bool = True,
     ) -> None:
         after = run.observation
         after_image = Path(after.image_path) if after and after.image_path else None
@@ -2811,6 +2813,25 @@ class AgentHarness:
                 for item in verdict.action_criteria
             ],
         )
+        if (
+            _allow_delayed_frame_retry
+            and action is not None
+            and verdict.verdict in {"failed", "uncertain"}
+        ):
+            refreshed = await self._delayed_verification_observation(
+                run,
+                baseline=run.observation,
+            )
+            if run.status in TERMINAL_RUN_STATUSES:
+                return
+            if refreshed is not None:
+                await self._verify(
+                    run,
+                    action=action,
+                    before=before,
+                    _allow_delayed_frame_retry=False,
+                )
+                return
         if legibility_normalization is not None:
             run.record(
                 "verification.internal_legibility_normalized",
@@ -2851,6 +2872,94 @@ class AgentHarness:
                 plan_reused=run.plan is not None,
             )
         await self.store.save(run)
+
+    async def _delayed_verification_observation(
+        self,
+        run: RunSnapshot,
+        *,
+        baseline: ComputerObservation | None,
+    ) -> ComputerObservation | None:
+        """Poll pixels once before paying models to recover from a stale frame."""
+
+        baseline_sha256 = (
+            str(baseline.image_sha256 or "") if baseline is not None else ""
+        )
+        session_id = run.session_id or (
+            baseline.session_id if baseline is not None else ""
+        )
+        if len(baseline_sha256) != 64 or not session_id:
+            return None
+        baseline_fingerprint = str(
+            (baseline.machine if baseline is not None else {}).get(
+                "fingerprint"
+            )
+            or ""
+        )
+        attempts = 0
+        for delay_s in _DELAYED_VERIFICATION_REFRESH_DELAYS_S:
+            if delay_s:
+                await asyncio.sleep(delay_s)
+            attempts += 1
+            try:
+                refreshed = await self.computer.refresh(
+                    session_id=session_id,
+                )
+            except Exception as exc:
+                run.record(
+                    "verification.delayed_frame_refresh_failed",
+                    attempt=attempts,
+                    error=str(exc),
+                )
+                await self.store.save(run)
+                return None
+            refreshed_fingerprint = str(
+                refreshed.machine.get("fingerprint") or ""
+            )
+            if (
+                baseline_fingerprint
+                and refreshed_fingerprint
+                and baseline_fingerprint != refreshed_fingerprint
+            ):
+                run.observation = refreshed
+                run.plan = None
+                run.status = RunStatus.BLOCKED
+                run.error = (
+                    "target identity changed during delayed verification "
+                    "refresh"
+                )
+                run.record(
+                    "target.identity_changed",
+                    previous_fingerprint=baseline_fingerprint,
+                    current_fingerprint=refreshed_fingerprint,
+                    source="harness_delayed_verification_refresh",
+                )
+                await self.store.save(run)
+                return None
+            refreshed_sha256 = str(refreshed.image_sha256 or "")
+            if (
+                len(refreshed_sha256) == 64
+                and refreshed_sha256 != baseline_sha256
+            ):
+                run.observation = refreshed
+                run.record(
+                    "verification.delayed_frame_observed",
+                    attempt=attempts,
+                    previous_frame_id=(
+                        baseline.frame_id if baseline is not None else None
+                    ),
+                    fresh_frame_id=refreshed.frame_id,
+                    previous_image_sha256=baseline_sha256,
+                    fresh_image_sha256=refreshed_sha256,
+                )
+                await self.store.save(run)
+                return refreshed
+        run.record(
+            "verification.delayed_frame_unchanged",
+            attempts=attempts,
+            image_sha256=baseline_sha256,
+        )
+        await self.store.save(run)
+        return None
 
     async def _execute_pending(
         self,
@@ -3310,6 +3419,10 @@ class AgentHarness:
         validation/checkpoint path adopts it.
         """
 
+        verification_frame_sha256 = str(
+            (run.observation.image_sha256 if run.observation else None)
+            or ""
+        )
         calculator_controller = _calculator_task_controller(
             run,
             action,
@@ -3414,11 +3527,19 @@ class AgentHarness:
                 )
                 raise
 
+        verification_frame_changed = bool(
+            verification_frame_sha256
+            and run.observation is not None
+            and run.observation.image_sha256
+            and run.observation.image_sha256
+            != verification_frame_sha256
+        )
         if (
             run.status is RunStatus.RUNNING
             and controller is not None
             and run.last_verification is not None
             and run.last_verification.verdict == "verified"
+            and not verification_frame_changed
         ):
             if self._same_controller_actions(
                 run.last_controller,
@@ -3444,7 +3565,12 @@ class AgentHarness:
             run.record(
                 "controller.parallel_discarded",
                 reason=(
-                    "verification did not authorize another action"
+                    (
+                        "delayed verification frame invalidated the "
+                        "speculative controller"
+                    )
+                    if verification_frame_changed
+                    else "verification did not authorize another action"
                     if controller is not None
                     else "controller did not return a usable decision"
                 ),
