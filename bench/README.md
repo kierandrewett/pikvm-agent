@@ -51,8 +51,8 @@ support a claim of generally reliable autonomous Windows operation.
 
 ### Live 50-task Windows campaign
 
-The active disposable-Windows campaign has **23/50 unique accepted passes
-(46%)**. Every attempt is screen-recorded, every test ends with a VM reboot,
+The active disposable-Windows campaign has **24/50 unique accepted passes
+(48%)**. Every attempt is screen-recorded, every test ends with a VM reboot,
 and a pass is counted only once even when the same task is rerun during
 remediation. Production PiKVM was not contacted.
 
@@ -60,12 +60,12 @@ remediation. Production PiKVM was not contacted.
 | --- | ---: | ---: | --- |
 | Observation | 5 | 5 | Complete |
 | Calculator | 10 | 10 | Complete |
-| Text entry | 8 | 10 | `text-01` through `text-08` accepted |
+| Text entry | 9 | 10 | `text-01` through `text-09` accepted |
 | Code entry | 0 | 10 | Pending |
 | File management | 0 | 5 | Pending |
 | Microsoft Excel | 0 | 5 | Pending |
 | Microsoft Word | 0 | 5 | Pending |
-| **Total** | **23** | **50** | **27 pending** |
+| **Total** | **24** | **50** | **26 pending** |
 
 The Calculator category is complete. The final temperature-conversion task
 visibly produced `23 °C = 73.4 °F`, completed 7/7 actions, and rebooted the VM
@@ -635,7 +635,38 @@ equivalent. The 373s VP9 recording is 2048×1280 at 2 fps. This is a clean
 accuracy pass and a substantial reduction from Text-07's 809.359s, but 5m
 28.464s before reboot remains a failing product-speed result for 43 characters.
 
-Failure-inclusive metrics, canonical campaign digests, the 23 accepted task
+Text-09 required a freshly typed five-line CSV file, a committed Save As, and
+an independent native Open before success could count. Six attempts are
+retained:
+
+| Attempt | Accepted | Wall before reboot | Reboot ready | Failure or result |
+| --- | --- | ---: | ---: | --- |
+| v1 | No | 828.931s | 75.389s | The file was correct and reopened, but committed Save As and native Open intents were not recognized; the provider loop was manually aborted after 1,371 events |
+| v2 | No | 222.767s | 136.686s | A continuation had already started Ctrl+O, but the outer campaign runner reacted to stale paused state and aborted the active action |
+| v3 | No | 290.063s | 87.461s | The existing filename raised a non-allowlisted replacement approval; the run stopped safely without overwriting it |
+| v4 | **Invalid** | 207.162s | 72.832s | Reported pass, but Notepad restored the exact existing CSV and no fresh editor payload was typed |
+| v5 | No | 73.079s | 72.389s | A restored missing-file tab produced a file-not-found dialog whose OK click was not allowlisted; the run stopped fail-closed |
+| v6 | **Yes** | **441.397s** | **78.573s** | Five fresh exact editor receipts, committed Save As, independent Open, 21/22 actions, and final visible five-line proof |
+
+The first failure hardened completion classification for committed native Save
+As and Open actions. The second fixed the campaign runner so an active
+continuation always wins over a stale paused snapshot. v4 then exposed a
+benchmark-validity problem rather than a product pass: restored content could
+satisfy the outcome without testing input. Text and code campaign tasks now
+require a new blank document and fresh exact input receipts covering every
+requested character in the current run.
+
+The accepted v6 run freshly typed `quarter,revenue,cost` and all four requested
+rows. Each line had identical requested, issued, emitted, observed, and
+readback SHA-256 values, zero edit distance, and exact-once delivery. The final
+verifier saw the reopened `text-09.csv` tab with all five lines. The run took
+441.397s before reboot: 268.139s of provider wait across 52 calls and 421.126s
+of overlapping action execution. It completed 21 of 22 attempted actions,
+needed three autonomous continuations, used one bounded workspace approval,
+quiesced cleanly, and reached a ready desktop after a real reboot transition
+in another 78.573s. Accuracy is accepted; speed still fails the product target.
+
+Failure-inclusive metrics, canonical campaign digests, the 24 accepted task
 IDs, and the VP9 recording/poster hashes are retained in
 [`codex-50-progress.json`](results/2026-07-31/live-vnc/codex-50-progress.json).
 The complete 50-task manifest is

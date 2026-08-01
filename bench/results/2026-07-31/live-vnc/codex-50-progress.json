@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "report": "codex-50-live-progress",
-  "recorded_at": "2026-08-01T17:48:04Z",
+  "recorded_at": "2026-08-01T19:29:24Z",
   "manifest": "bench/codex-50-tasks.yaml",
   "environment": {
     "target": "authorized disposable Windows VNC VM",
@@ -16,9 +16,9 @@
   },
   "progress": {
     "planned": 50,
-    "unique_passed": 23,
-    "pending": 27,
-    "completion_percent": 46.0,
+    "unique_passed": 24,
+    "pending": 26,
+    "completion_percent": 48.0,
     "categories": {
       "Observation": {
         "passed": 5,
@@ -29,7 +29,7 @@
         "planned": 10
       },
       "Text entry": {
-        "passed": 8,
+        "passed": 9,
         "planned": 10
       },
       "Code entry": {
@@ -72,7 +72,8 @@
       "text-05",
       "text-06",
       "text-07",
-      "text-08"
+      "text-08",
+      "text-09"
     ]
   },
   "canonical_campaigns": [
@@ -200,6 +201,13 @@
         "text-08"
       ],
       "campaign_sha256": "b11703b2ad01f6a12cb1252bf4ff22ab9180a4e06aadc1678b95f2faadcfdbe8"
+    },
+    {
+      "campaign_id": "codex-text-entry-text09-v6-20260801",
+      "tasks": [
+        "text-09"
+      ],
+      "campaign_sha256": "69e652c33bb7ecd243a7b7af42dfba0f95577557c3f5f869a82e50414dfa0f94"
     }
   ],
   "calc_09_acceptance": {
@@ -2155,10 +2163,347 @@
       "campaign_sha256": "b11703b2ad01f6a12cb1252bf4ff22ab9180a4e06aadc1678b95f2faadcfdbe8"
     }
   ],
+  "text_09_acceptance": {
+    "task": "Create, save, reopen, and verify a five-line CSV sample",
+    "result": "passed",
+    "run_id": "7a3f0ee9-8acb-466f-9935-fff6673af7c7",
+    "visible_result": [
+      "quarter,revenue,cost",
+      "Q1,120000,84000",
+      "Q2,135000,91000",
+      "Q3,148000,96000",
+      "Q4,162000,101000"
+    ],
+    "reason": "Five fresh editor transactions covered every requested CSV character with zero edit distance, exact-once emission, and matching requested, delivery, issued, emitted, observed, and readback hashes. Save As was committed, native Open independently reopened text-09.csv, and the final verifier visibly confirmed the header and all four rows. Quiescence was confirmed before the mandatory reboot.",
+    "wall_clock_ms": 441397,
+    "model_active_ms": 369291,
+    "provider_wait_ms": 268139,
+    "provider_serial_equivalent_ms": 369621,
+    "provider_overlap_ms": 101482,
+    "action_execution_ms": 421126,
+    "evidence_capture_ms": 5235,
+    "provider_calls": 52,
+    "controller_calls": 25,
+    "verifier_calls": 23,
+    "reasoner_calls": 4,
+    "actions_attempted": 22,
+    "actions_completed": 21,
+    "completion_efficiency": 0.9545454545454546,
+    "autonomous_resumes": 3,
+    "same_run_recoveries": 3,
+    "approval_count": 1,
+    "approval_scopes": [
+      "bounded_workspace_edit"
+    ],
+    "quiescence_status": "confirmed",
+    "reboot_ms": 78573,
+    "reboot_transition_observed": true,
+    "ready_frame_sha256": "cd88aa021a63489c83c876f5c625a85b775aede935d8b028f78622fbaf4c4a87",
+    "fresh_editor_receipts": [
+      {
+        "text": "quarter,revenue,cost",
+        "sha256": "1ec6de20d9688881fe2fafb43432db5069ca42326dbadde08c07a927ffd725e2",
+        "result": "verified_exact",
+        "edit_distance": 0,
+        "emitted_exactly_once": true
+      },
+      {
+        "text": "Q1,120000,84000",
+        "sha256": "5b65c19ff42c6af730c5b48b6fbf159112e926b9c09a9db2de489cab6f8bdcad",
+        "result": "verified_exact",
+        "edit_distance": 0,
+        "emitted_exactly_once": true
+      },
+      {
+        "text": "Q2,135000,91000",
+        "sha256": "adb221c2455aa8faed613e35f92311303ecf3af3457103c4455a02ab14755b38",
+        "result": "verified_exact",
+        "edit_distance": 0,
+        "emitted_exactly_once": true
+      },
+      {
+        "text": "Q3,148000,96000",
+        "sha256": "519bbdb3ad83e7ea946e198b82f3a1f8fa7b26e91db8d3d75b395fda2d067769",
+        "result": "verified_exact",
+        "edit_distance": 0,
+        "emitted_exactly_once": true
+      },
+      {
+        "text": "Q4,162000,101000",
+        "sha256": "f2707dd08e5ab7b99356d39811cc8c20fe78ee4d0030b6efc860b9ae49f2d1c6",
+        "result": "verified_exact",
+        "edit_distance": 0,
+        "emitted_exactly_once": true
+      }
+    ],
+    "recording": {
+      "relative_path": "codex-text-entry-text09-v6-20260801/text-09/recording.webm",
+      "sha256": "74c36f1537fc9367375aed1c55234d26073a1f129b42840d157d9370c58f76a9",
+      "codec": "vp9",
+      "width": 2048,
+      "height": 1280,
+      "fps": 2,
+      "duration_ms": 475000,
+      "size_bytes": 1429915
+    },
+    "poster": {
+      "relative_path": "codex-text-entry-text09-v6-20260801/text-09/poster.jpg",
+      "sha256": "9a7308d2bbd48cbc61a316b30587f147dc77bb06a5f2bb8775d1c6a3b114953a"
+    },
+    "campaign_sha256": "69e652c33bb7ecd243a7b7af42dfba0f95577557c3f5f869a82e50414dfa0f94"
+  },
+  "text_09_attempts": [
+    {
+      "campaign_id": "codex-text-entry-text09-v1-20260801",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "run_id": "21dee080-ffcd-4b0f-b7db-b598dcf63a80",
+      "reason": "The CSV was freshly typed, saved, reopened, and visibly correct, but the completion gate did not classify either the committed Save As intent or opening a file from the native Open dialog as lifecycle evidence. It rejected completion repeatedly until the 1,371-event provider loop was manually aborted. The run then quiesced and rebooted cleanly.",
+      "wall_clock_ms": 828931,
+      "provider_wait_ms": 699748,
+      "provider_serial_equivalent_ms": 779292,
+      "provider_overlap_ms": 79544,
+      "action_execution_ms": 802859,
+      "evidence_capture_ms": 3924,
+      "provider_calls": 136,
+      "actions_attempted": 19,
+      "actions_completed": 18,
+      "completion_efficiency": 0.9473684210526315,
+      "same_run_recoveries": 0,
+      "approval_count": 1,
+      "approval_scopes": [
+        "bounded_workspace_edit"
+      ],
+      "quiescence_status": "manual_abort_then_confirmed",
+      "reboot_ms": 75389,
+      "reboot_transition_observed": true,
+      "recording": {
+        "relative_path": "codex-text-entry-text09-v1-20260801/text-09/recording.webm",
+        "sha256": "f73991e862dee116b0f02936870d24305b16ab284c4ccc28e50fb62a1288ca37",
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2,
+        "duration_ms": 749000,
+        "size_bytes": 1731962
+      },
+      "poster": {
+        "relative_path": "codex-text-entry-text09-v1-20260801/text-09/poster.jpg",
+        "sha256": "9c749e57f6ffe171947ea0b9182aefa590469c53d1553593b4abce6b4ae408f5"
+      },
+      "campaign_sha256": "3b28326b261af7b23ff7d2b28670eae60c88cb534f858abc5ba34e66ce12bfa0"
+    },
+    {
+      "campaign_id": "codex-text-entry-text09-v2-20260801",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "run_id": "d0e2d0d2-687d-4256-9d83-3f6a3368dc2c",
+      "reason": "The lifecycle classifier fix passed, but the outer campaign runner read an older paused error while an autonomous continuation was already executing Ctrl+O. It reacted to that stale state and aborted the active managed action. Active activity now takes precedence over paused-state recovery.",
+      "wall_clock_ms": 222767,
+      "provider_wait_ms": 166378,
+      "provider_serial_equivalent_ms": 186782,
+      "provider_overlap_ms": 20404,
+      "action_execution_ms": 196462,
+      "evidence_capture_ms": 939,
+      "provider_calls": 23,
+      "actions_attempted": 8,
+      "actions_completed": 6,
+      "completion_efficiency": 0.75,
+      "same_run_recoveries": 4,
+      "approval_count": 3,
+      "approval_scopes": [
+        "bounded_workspace_edit",
+        "bounded_workspace_edit",
+        "bounded_workspace_edit"
+      ],
+      "quiescence_status": "confirmed",
+      "reboot_ms": 136686,
+      "reboot_attempts": 2,
+      "reboot_transition_observed": true,
+      "recording": {
+        "relative_path": "codex-text-entry-text09-v2-20260801/text-09/recording.webm",
+        "sha256": "ecce87f38282ecf1fadabfd94274da02d31158fae09410cedc40334b9390f80f",
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2,
+        "duration_ms": 326000,
+        "size_bytes": 1184999
+      },
+      "poster": {
+        "relative_path": "codex-text-entry-text09-v2-20260801/text-09/poster.jpg",
+        "sha256": "14fd45cf53c2988d5ed8545349442facc69901639e1d92c19bba294c039d3551"
+      },
+      "campaign_sha256": "555a1f58b1025828d996e22e03845031bd9810e91fcba52f1817778d3e7cea7d"
+    },
+    {
+      "campaign_id": "codex-text-entry-text09-v3-20260801",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "run_id": "387ed7c7-4421-4a9e-85bf-3768c64ee990",
+      "reason": "The CSV content was freshly typed, but the target file already existed. The replacement confirmation was not covered by the campaign allowlist, so the run correctly stopped fail-closed without silently overwriting the file.",
+      "wall_clock_ms": 290063,
+      "provider_wait_ms": 187471,
+      "provider_serial_equivalent_ms": 259500,
+      "provider_overlap_ms": 72029,
+      "action_execution_ms": 262646,
+      "evidence_capture_ms": 3149,
+      "provider_calls": 36,
+      "actions_attempted": 17,
+      "actions_completed": 15,
+      "completion_efficiency": 0.8823529411764706,
+      "same_run_recoveries": 1,
+      "approval_count": 1,
+      "approval_scopes": [
+        "bounded_workspace_edit"
+      ],
+      "quiescence_status": "confirmed",
+      "reboot_ms": 87461,
+      "reboot_transition_observed": true,
+      "recording": {
+        "relative_path": "codex-text-entry-text09-v3-20260801/text-09/recording.webm",
+        "sha256": "da58a29df609eb84663a730d635754905e12f02a3c093cdf6effcf949e66c088",
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2,
+        "duration_ms": 356000,
+        "size_bytes": 1004490
+      },
+      "poster": {
+        "relative_path": "codex-text-entry-text09-v3-20260801/text-09/poster.jpg",
+        "sha256": "602bb3e1ab3614ec3889593066f25061b58dfb69f5be3856afa5e755c4f44c69"
+      },
+      "campaign_sha256": "a35917d6594eddec9410910870711f9172957217390a6b482e676cea9e92b91e"
+    },
+    {
+      "campaign_id": "codex-text-entry-text09-v4-20260801",
+      "reported_status": "passed",
+      "accepted_status": "invalid",
+      "run_id": "e42ac654-bb67-48ea-8bed-71fa57ac22af",
+      "reason": "The run saved and reopened the exact requested CSV, but Notepad had restored that complete content from a prior attempt. Only launcher and filename text were entered in the current run; there were no fresh editor receipts for the CSV payload. This reported pass is retained but excluded from the score. Text and code campaigns now require fresh exact input coverage.",
+      "wall_clock_ms": 207162,
+      "provider_wait_ms": 142281,
+      "provider_serial_equivalent_ms": 192847,
+      "provider_overlap_ms": 50566,
+      "action_execution_ms": 59115,
+      "evidence_capture_ms": 2511,
+      "provider_calls": 28,
+      "actions_attempted": 11,
+      "actions_completed": 11,
+      "completion_efficiency": 1.0,
+      "same_run_recoveries": 1,
+      "approval_count": 1,
+      "approval_scopes": [
+        "bounded_workspace_edit"
+      ],
+      "quiescence_status": "confirmed",
+      "reboot_ms": 72832,
+      "reboot_transition_observed": true,
+      "recording": {
+        "relative_path": "codex-text-entry-text09-v4-20260801/text-09/recording.webm",
+        "sha256": "03438b61fb7fd3e0416f1bb836940fb0ec71c5d9063c268aaa7d8ca2b7bd11ca",
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2,
+        "duration_ms": 265000,
+        "size_bytes": 1129103
+      },
+      "poster": {
+        "relative_path": "codex-text-entry-text09-v4-20260801/text-09/poster.jpg",
+        "sha256": "e64ec1534c4036bad7e369ac448e399b57218021b31c86b627bae6b5d7006772"
+      },
+      "campaign_sha256": "c29a9081ed1f3ec3fcc0bda8a3f7f60775de9f47fab06c421e046edc4514ccd7"
+    },
+    {
+      "campaign_id": "codex-text-entry-text09-v5-20260801",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "run_id": "7a3b76d7-c72c-4c21-9f8e-d8b11670690e",
+      "reason": "After the old CSV was recoverably archived, Notepad restored a tab pointing to the missing path and showed a file-not-found dialog. Dismissing its OK button was grounded but not allowlisted for autonomous mutation, so the run stopped fail-closed before any editor payload.",
+      "wall_clock_ms": 73079,
+      "provider_wait_ms": 36944,
+      "provider_serial_equivalent_ms": 48011,
+      "provider_overlap_ms": 11067,
+      "action_execution_ms": 30221,
+      "evidence_capture_ms": 581,
+      "provider_calls": 7,
+      "actions_attempted": 3,
+      "actions_completed": 2,
+      "completion_efficiency": 0.6666666666666666,
+      "same_run_recoveries": 0,
+      "approval_count": 0,
+      "approval_scopes": [],
+      "quiescence_status": "confirmed",
+      "reboot_ms": 72389,
+      "reboot_transition_observed": true,
+      "recording": {
+        "relative_path": "codex-text-entry-text09-v5-20260801/text-09/recording.webm",
+        "sha256": "bf77fa3f3d1ffdcab1d85e5fbd8db8b004907ec2c1ef9ed4b7d58cb128cb4574",
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2,
+        "duration_ms": 140000,
+        "size_bytes": 713191
+      },
+      "poster": {
+        "relative_path": "codex-text-entry-text09-v5-20260801/text-09/poster.jpg",
+        "sha256": "937cddd4a05633c0368166cb2502e682827f2215e1a7b0ff4f1c237cfcb7746f"
+      },
+      "campaign_sha256": "67247ef3a8e3de3b719be4b4aee91a8e791c105e67d10c3b758d3e75e5910f40"
+    },
+    {
+      "campaign_id": "codex-text-entry-text09-v6-20260801",
+      "reported_status": "passed",
+      "accepted_status": "passed",
+      "run_id": "7a3f0ee9-8acb-466f-9935-fff6673af7c7",
+      "reason": "The fresh-input guard held: a new blank editor received all five requested CSV lines in five exact-once transactions, each with zero edit distance and matching hashes. Save As committed text-09.csv, native Open independently reopened it, the final verifier visibly confirmed all values, quiescence was confirmed, and the mandatory reboot reached readiness after a real transition.",
+      "wall_clock_ms": 441397,
+      "model_active_ms": 369291,
+      "provider_wait_ms": 268139,
+      "provider_serial_equivalent_ms": 369621,
+      "provider_overlap_ms": 101482,
+      "action_execution_ms": 421126,
+      "evidence_capture_ms": 5235,
+      "provider_calls": 52,
+      "controller_calls": 25,
+      "verifier_calls": 23,
+      "reasoner_calls": 4,
+      "actions_attempted": 22,
+      "actions_completed": 21,
+      "completion_efficiency": 0.9545454545454546,
+      "autonomous_resumes": 3,
+      "same_run_recoveries": 3,
+      "approval_count": 1,
+      "approval_scopes": [
+        "bounded_workspace_edit"
+      ],
+      "quiescence_status": "confirmed",
+      "reboot_ms": 78573,
+      "reboot_transition_observed": true,
+      "recording": {
+        "relative_path": "codex-text-entry-text09-v6-20260801/text-09/recording.webm",
+        "sha256": "74c36f1537fc9367375aed1c55234d26073a1f129b42840d157d9370c58f76a9",
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2,
+        "duration_ms": 475000,
+        "size_bytes": 1429915
+      },
+      "poster": {
+        "relative_path": "codex-text-entry-text09-v6-20260801/text-09/poster.jpg",
+        "sha256": "9a7308d2bbd48cbc61a316b30587f147dc77bb06a5f2bb8775d1c6a3b114953a"
+      },
+      "campaign_sha256": "69e652c33bb7ecd243a7b7af42dfba0f95577557c3f5f869a82e50414dfa0f94"
+    }
+  ],
   "verdict": {
-    "accuracy": "Eight exact text tasks now pass with independent reopen evidence. Text-08 retained exactly two, three, and four consecutive spaces across save and reopen, completed 13/13 actions without replay, quiesced cleanly, and verified the mandatory reboot. Its nine retained failures directly hardened repeated-space intent labelling, delayed evidence capture, crop selection, OCR alternative promotion, caret-noise rejection, collinear box grouping, row refinement, and tight single-line segmentation.",
-    "speed": "Failing product target: accepted text-08 v10 took 328.464 seconds before reboot and 403.598 seconds including the reset-ready gate. This is materially faster than text-07 v3's 809.359 seconds before reboot, but still much slower than a human creating a three-line file.",
-    "dominant_cost": "Text-08 v10 spent 180.157 seconds waiting for 30 provider calls and 143.669 seconds in action execution. Fifteen controller and fourteen verifier calls dominate a task whose actual text payload is only 43 characters.",
-    "next": "Continue with text-09, a five-line CSV file, while reducing redundant controller/verifier turns. Preserve exact-once delivery, whitespace-sensitive row OCR, native reopen proof, bounded workspace approval, and quiesce-before-reboot lifecycle."
+    "accuracy": "Nine exact text tasks now pass with fresh input and independent reopen evidence. Text-09 v6 typed and proved all five CSV lines during the accepted run. Its earlier reported v4 pass is retained as invalid because restored pre-existing content satisfied the visible outcome without testing editor input. The resulting fresh-input guard now rejects that benchmark shortcut for every text and code task.",
+    "speed": "Failing product target: accepted text-09 v6 took 441.397 seconds before reboot and 519.970 seconds including the reset-ready gate. This is slower than text-08 v10's 328.464 seconds before reboot and much slower than a human creating a five-line CSV file.",
+    "dominant_cost": "Text-09 v6 spent 268.139 seconds waiting for 52 provider calls and 421.126 seconds in overlapping action execution. Twenty-five controller and twenty-three verifier calls dominate a task whose fresh payload is 85 characters.",
+    "next": "Continue with text-10 under the fresh-input guard. Preserve exact-once delivery, native reopen proof, bounded workspace approval, quiesce-before-reboot lifecycle, failure-inclusive recordings, and rejection of restored or pre-existing content."
   }
 }
