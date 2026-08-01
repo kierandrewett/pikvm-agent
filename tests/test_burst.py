@@ -619,6 +619,29 @@ async def test_burst_rejects_ambiguous_editor_prose_whitespace_before_hid(
     assert backend.calls == []
 
 
+async def test_burst_allows_explicit_format_sensitive_repeated_spaces() -> None:
+    backend = FakeBackend()
+
+    outcome = await run_burst(
+        [
+            {
+                "type": "type_text",
+                "text": "alpha  beta",
+                "context": "editor",
+                "code": True,
+                "verification": "exact",
+            }
+        ],
+        backend=backend,
+    )
+
+    assert outcome.status == "completed"
+    assert (
+        "type_text",
+        {"text": "alpha  beta", "code": True, "secret": False},
+    ) in backend.calls
+
+
 async def test_burst_allows_one_leading_space_for_an_editor_continuation() -> None:
     backend = FakeBackend()
 

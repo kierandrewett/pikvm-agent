@@ -1289,6 +1289,11 @@ the editor. Create one required blank line with two separate Shift+Enter key
 actions and verify that non-submitting blank-line action before entering the
 next exact text segment. Never put active key actions after type_text in the
 same burst.
+When the user explicitly requires repeated spaces or other load-bearing
+whitespace inside one editor line, set code true for that format-sensitive
+text segment so it receives strict formatting delivery and exact readback.
+Use this only for the explicitly requested spacing: accidental repeated spaces
+in ordinary prose remain blocked before HID delivery.
 When generating prose longer than one type_text payload, end every payload at
 a natural word boundary within the 240-character limit. Never concatenate two
 words or omit their separator to fill the limit. Begin the continuation with
