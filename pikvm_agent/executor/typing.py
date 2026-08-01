@@ -1973,6 +1973,30 @@ class WatchedTyper:
                     if callable(precise_ocr)
                     else self.ocr.ocr
                 )
+
+                def has_spacing_proof(ocr_result: OCRResult) -> bool:
+                    return (
+                        ocr_result.spacing_evidence == "verified"
+                        or any(
+                            alternative.evidence_kind == "spacing"
+                            and (
+                                alternative.text == intended_snapshot
+                                or (
+                                    "\n" not in intended_snapshot
+                                    and "\r" not in intended_snapshot
+                                    and sum(
+                                        row == intended_snapshot
+                                        for row in (
+                                            alternative.text.splitlines()
+                                        )
+                                    )
+                                    == 1
+                                )
+                            )
+                            for alternative in ocr_result.alternatives
+                        )
+                    )
+
                 for _index, candidate in ordered[:4]:
                     checked += 1
                     # Dense candidates are already padded around only the
@@ -1997,25 +2021,51 @@ class WatchedTyper:
                         tmp,
                         region=candidate_readback_region,
                     )
-                    spacing_verified = (
-                        result.spacing_evidence == "verified"
-                        or any(
-                            alternative.evidence_kind == "spacing"
-                            and (
-                                alternative.text == intended_snapshot
-                                or (
-                                    "\n" not in intended_snapshot
-                                    and "\r" not in intended_snapshot
-                                    and sum(
-                                        row == intended_snapshot
-                                        for row in alternative.text.splitlines()
-                                    )
-                                    == 1
-                                )
-                            )
-                            for alternative in result.alternatives
+                    spacing_verified = has_spacing_proof(result)
+                    if (
+                        not spacing_verified
+                        and any(
+                            character.isspace()
+                            for character in intended_snapshot
                         )
-                    )
+                    ):
+                        provisional_rows = [
+                            line
+                            for line in result.lines
+                            if (
+                                norm(line.text, precise=True)
+                                == norm(intended_snapshot, precise=True)
+                                and line.confidence is not None
+                                and float(line.confidence) >= 0.45
+                            )
+                        ]
+                        if len(provisional_rows) == 1:
+                            refined_region = ocr_line_screen_region(
+                                provisional_rows[0],
+                                candidate_readback_region,
+                                dims,
+                                pad=2,
+                            )
+                            if (
+                                refined_region is not None
+                                and refined_region.width
+                                < candidate_readback_region.width
+                            ):
+                                refined_result = await reader(
+                                    tmp,
+                                    region=refined_region,
+                                )
+                                if has_spacing_proof(refined_result):
+                                    result = refined_result
+                                    candidate_readback_region = refined_region
+                                    spacing_verified = True
+                                    DEBUG.event(
+                                        "typing.causal_row_refined",
+                                        intended_characters=(
+                                            len(intended_snapshot)
+                                        ),
+                                        region=refined_region.model_dump(),
+                                    )
                     exact_rows = [
                         line
                         for line in result.lines

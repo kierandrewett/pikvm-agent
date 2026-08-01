@@ -754,6 +754,75 @@ async def test_causal_spacing_row_ignores_unchanged_editor_context(
     assert result.emitted_exactly_once is True
 
 
+async def test_causal_spacing_reocrs_only_the_matching_row(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    backend = _ambiguous_dense_typing_backend(monkeypatch)
+    intended = "alpha  beta"
+
+    class NoisySpacingOCR:
+        def __init__(self) -> None:
+            self.regions: list[Region] = []
+
+        async def ocr(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path
+            if region is None or region.y >= 200:
+                return OCRResult()
+            self.regions.append(region)
+            if region.width >= 70:
+                return OCRResult(
+                    lines=[
+                        OCRLine(
+                            text="alpha beta",
+                            confidence=0.523,
+                            bbox=[14, 11, 68, 19],
+                            raw={"spacing_text": intended},
+                        )
+                    ],
+                    spacing_evidence="uncertain",
+                )
+            return OCRResult(
+                lines=[
+                    OCRLine(
+                        text="alpha beta",
+                        confidence=0.95,
+                        bbox=[2, 2, 56, 10],
+                        raw={"spacing_text": intended},
+                    )
+                ],
+                alternatives=[
+                    OCRCandidate(
+                        text=intended,
+                        evidence_kind="spacing",
+                    )
+                ],
+                spacing_evidence="uncertain",
+            )
+
+        async def ocr_precise(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            return await self.ocr(image_path, region)
+
+    ocr = NoisySpacingOCR()
+    result = await WatchedTyper(backend, ocr).type_text(
+        intended,
+        exact=True,
+        context="editor",
+        code=True,
+    )
+
+    assert result.status == "verified_exact"
+    assert result.emitted_exactly_once is True
+    assert any(region.width < 70 for region in ocr.regions)
+
+
 async def test_short_exact_typing_keeps_the_unique_causal_exact_ocr_row(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
