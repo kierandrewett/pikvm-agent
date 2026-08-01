@@ -2824,10 +2824,23 @@ def test_case_correction_signatures_are_narrow() -> None:
     assert not is_caps_lock_case_inversion("for i in", "for I in")
 
 
-async def test_editor_standalone_i_autocorrect_is_undone_without_replay() -> None:
+@pytest.mark.parametrize(
+    "reads",
+    [
+        ("for I in", "for I in", "for i in"),
+        (
+            "result = []\nfor I in",
+            "result = []\nfor I in",
+            "result = []\nfor i in",
+        ),
+    ],
+)
+async def test_editor_standalone_i_autocorrect_is_undone_without_replay(
+    reads: tuple[str, str, str],
+) -> None:
     backend = FakeBackend()
     intended = "for i in"
-    ocr = ScriptedOCR("for I in", "for I in", intended)
+    ocr = ScriptedOCR(*reads)
 
     result = await WatchedTyper(backend, ocr).type_text(
         intended,
@@ -2853,39 +2866,6 @@ async def test_editor_standalone_i_autocorrect_is_undone_without_replay() -> Non
         method == "press_key" and kwargs.get("code") == "CapsLock"
         for method, kwargs in backend.calls
     )
-    _assert_no_enter(backend)
-
-
-async def test_editor_autocorrect_is_undone_from_a_multiline_readback() -> None:
-    backend = FakeBackend()
-    intended = "for i in"
-    ocr = ScriptedOCR(
-        "result = []\nfor I in",
-        "result = []\nfor I in",
-        "result = []\nfor i in",
-    )
-
-    result = await WatchedTyper(backend, ocr).type_text(
-        intended,
-        region=Region(x=10, y=10, width=400, height=60),
-        code=True,
-        exact=True,
-        context="editor",
-    )
-
-    assert result.status == "verified_exact", result
-    assert result.field_text == intended
-    assert result.correction_count == 1
-    assert result.emitted_exactly_once is True
-    assert [
-        kwargs
-        for method, kwargs in backend.calls
-        if method == "type_text"
-    ] == [{"text": intended, "code": True, "secret": False}]
-    assert (
-        "keypress",
-        {"keys": ["ControlLeft", "KeyZ"]},
-    ) in backend.calls
     _assert_no_enter(backend)
 
 
