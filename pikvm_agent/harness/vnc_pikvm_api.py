@@ -397,21 +397,21 @@ class VncDotoolTransport:
 
     @staticmethod
     def _type_windows_alt_code(client: Any, character: str) -> None:
-        if ord(character) > 127:
-            try:
-                encoded = character.encode("cp1252")
-            except UnicodeEncodeError as exc:
-                raise ValueError(
-                    "Windows VNC keyboard transport cannot safely type "
-                    f"{character!r}"
-                ) from exc
-            if len(encoded) != 1:
-                raise ValueError(
-                    "Windows VNC keyboard transport requires one CP1252 byte"
-                )
-            digits = f"0{encoded[0]:03d}"
-        else:
-            digits = str(ord(character))
+        try:
+            encoded = character.encode("cp1252")
+        except UnicodeEncodeError as exc:
+            raise ValueError(
+                "Windows VNC keyboard transport cannot safely type "
+                f"{character!r}"
+            ) from exc
+        if len(encoded) != 1:
+            raise ValueError(
+                "Windows VNC keyboard transport requires one CP1252 byte"
+            )
+        # Always select the ANSI/Windows code-page form. Bare Alt+nnn uses the
+        # OEM code page and has produced layout-dependent glyphs on real VNC
+        # Windows guests (notably Alt+92 becoming "#" instead of "\\").
+        digits = f"0{encoded[0]:03d}"
         client.keyDown("alt")
         try:
             for digit in digits:
