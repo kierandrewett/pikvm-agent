@@ -37,6 +37,12 @@ services. Do not delete data. Any file mutation must remain strictly inside
 C:\\PiKVM-Harness\\workspace\\codex-50, which the harness prepares before
 mutating tasks. Verify the result before finishing.
 """
+CAMPAIGN_FRESH_INPUT_GUARD = """\
+For this text/code acceptance, create a new blank document and type every
+requested content character during this run. Do not treat restored or
+pre-existing document content as task completion. Save and reopen only the
+document that this run freshly populated.
+"""
 FORBIDDEN_APPROVAL_TERMS = frozenset(
     {
         "delete",
@@ -902,11 +908,19 @@ class HarnessCampaignClient:
         task: ShowcaseTaskSpec,
         provider: str,
     ) -> dict[str, Any]:
+        fresh_input_guard = (
+            CAMPAIGN_FRESH_INPUT_GUARD
+            if task.category in {"Text entry", "Code entry"}
+            else ""
+        )
         response = await self.client.post(
             f"{self.base_url}/api/runs",
             headers=self.agent_headers,
             json={
-                "task": f"{CAMPAIGN_GUARD}\n\nTask:\n{task.prompt}",
+                "task": (
+                    f"{CAMPAIGN_GUARD}{fresh_input_guard}"
+                    f"\n\nTask:\n{task.prompt}"
+                ),
                 "mode": "computer",
                 "auto_start": True,
                 "model_preferences": {

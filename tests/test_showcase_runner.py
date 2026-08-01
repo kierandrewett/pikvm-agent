@@ -1188,6 +1188,47 @@ async def test_showcase_creates_a_computer_run_without_assistant_routing() -> No
     assert body["task"].endswith(f"Task:\n{task.prompt}")
 
 
+@pytest.mark.asyncio
+async def test_text_showcase_requires_fresh_editor_input() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(
+            200,
+            json={"run_id": "text-09", "status": "running"},
+        )
+
+    async with httpx.AsyncClient(
+        transport=httpx.MockTransport(handler)
+    ) as client:
+        harness = HarnessCampaignClient(
+            client,
+            base_url="http://harness",
+            agent_token="a" * 32,
+            operator_token="b" * 32,
+            operator_origin="http://harness",
+        )
+        task = next(
+            task
+            for task in load_showcase_manifest(
+                Path(__file__).parents[1] / "bench" / "codex-50-tasks.yaml"
+            ).tasks
+            if task.task_id == "text-09"
+        )
+        await harness.create(task, "codex-fast")
+
+    prompt = json.loads(requests[0].content)["task"]
+    normalized = " ".join(prompt.split())
+    assert "new blank document" in normalized
+    assert (
+        "type every requested content character during this run"
+        in normalized
+    )
+    assert "restored or pre-existing document content" in normalized
+    assert prompt.endswith(f"Task:\n{task.prompt}")
+
+
 def test_paused_checkpoint_is_continued_only_once_until_it_advances() -> None:
     assert paused_recovery_action(
         event_count=59,
