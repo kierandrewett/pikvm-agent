@@ -648,7 +648,36 @@ def precise_readback_candidate_region(
     ):
         return None
 
-    for line in result.lines:
+    container_midpoint_y = container.height / 2
+
+    def candidate_order(line: OCRLine) -> tuple[int, float]:
+        line_region = ocr_line_region(
+            line,
+            (
+                math.ceil(container.width),
+                math.ceil(container.height),
+            ),
+            pad=0,
+        )
+        midpoint_distance = (
+            abs(
+                line_region.y
+                + line_region.height / 2
+                - container_midpoint_y
+            )
+            if line_region is not None
+            else math.inf
+        )
+        return (
+            0 if line.text == intended else 1,
+            midpoint_distance,
+        )
+
+    # Notepad repeats the first document line in its tab title. Prefer a
+    # punctuation-complete exact row, then the row nearest the causal crop's
+    # centre. A lookalike title may still nominate a crop when it is the only
+    # evidence, but it cannot outrank the exact editor row beneath it.
+    for line in sorted(result.lines, key=candidate_order):
         line_region = ocr_line_region(
             line,
             (
@@ -3543,23 +3572,29 @@ class WatchedTyper:
 
         leading_spaces = len(text) - len(text.lstrip(" "))
         visible_intended = text[leading_spaces:]
-        if (
-            precise
-            and editor_field
-            and not explicit_region
-            and cur_region is not None
-            and leading_spaces > 0
-            and last_read
-            and not last_read.startswith(" ")
-            and norm(strip_prompt(last_read), True)
-            == norm(visible_intended, True)
-        ):
+        async def prove_editor_leading_whitespace(
+            read_back: str,
+            *,
+            phase: str,
+        ) -> str:
             # The causal row proves every painted glyph, while Notepad's
             # nearest foreground status row proves the otherwise invisible
             # leading positions. The delivery receipt already proves that the
             # exact spaces were issued once. Keep this editor-only and
             # fail-closed when the status row is absent, distant, low
             # confidence, or reports a conflicting column.
+            if not (
+                precise
+                and editor_field
+                and not explicit_region
+                and cur_region is not None
+                and leading_spaces > 0
+                and read_back
+                and not read_back.startswith(" ")
+                and norm(strip_prompt(read_back), True)
+                == norm(visible_intended, True)
+            ):
+                return read_back
             status_region = editor_status_search_region(
                 cur_region,
                 dims,
@@ -3582,6 +3617,7 @@ class WatchedTyper:
             DEBUG.event(
                 "typing.editor_leading_whitespace_status",
                 proved=status_proved,
+                phase=phase,
                 leading_spaces=leading_spaces,
                 expected_column=len(text) + 1,
                 region=cur_region.model_dump(),
@@ -3592,7 +3628,13 @@ class WatchedTyper:
                 ),
             )
             if status_proved:
-                last_read = text
+                return text
+            return read_back
+
+        last_read = await prove_editor_leading_whitespace(
+            last_read,
+            phase="bounded_readback",
+        )
 
         if (
             precise
@@ -3761,6 +3803,16 @@ class WatchedTyper:
                     last_read = cropped_match[0]
                     self._semantic_spacing_normalized = cropped_match[2]
                     break
+
+        # A noisy bounded editor crop can recover the exact visible glyph row
+        # only in the full-screen pass above. Re-run the independent caret
+        # column proof after that recovery; otherwise a correct long indented
+        # line is left ambiguous even though both evidence sources are now
+        # available. This is still read-only and remains fail-closed.
+        last_read = await prove_editor_leading_whitespace(
+            last_read,
+            phase="full_screen_recovery",
+        )
 
         needs_bounded_prose_localization = (
             compute_verdict(text, last_read, precise) != "match"

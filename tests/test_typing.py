@@ -3075,6 +3075,109 @@ async def test_precise_autolocate_rechecks_noisy_editor_punctuation(
     _assert_no_enter(backend)
 
 
+async def test_editor_indentation_is_reproved_after_full_screen_recovery(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def no_sleep(_seconds: float) -> None:
+        return None
+
+    intended = "    for number in range(1, limit + 1):"
+    visible_intended = intended.lstrip(" ")
+
+    class NoisyBoundedEditorOCR:
+        def __init__(self) -> None:
+            self.status_reads = 0
+            self.full_screen_reads = 0
+
+        async def ocr_precise(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path
+            if (
+                region is not None
+                and region.width == 512
+                and region.height >= 300
+                and region.y > 140
+            ):
+                self.status_reads += 1
+                foreground_y = region.height - 20
+                return OCRResult(
+                    lines=[
+                        OCRLine(
+                            text="Ln 3, Col 39",
+                            confidence=0.99,
+                            bbox=[20, foreground_y, 82, foreground_y + 12],
+                        )
+                    ]
+                )
+            if region is None:
+                self.full_screen_reads += 1
+                return OCRResult(
+                    lines=[
+                        OCRLine(
+                            text=visible_intended,
+                            confidence=0.99,
+                            bbox=[64, 106, 324, 130],
+                        )
+                    ]
+                )
+            return OCRResult(
+                lines=[
+                    OCRLine(
+                        text="for nurnber in range(1, limit + 1):",
+                        confidence=0.98,
+                    )
+                ],
+                spacing_evidence="not_evaluated",
+            )
+
+        async def ocr(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            return await self.ocr_precise(image_path, region)
+
+    monkeypatch.setattr(asyncio, "sleep", no_sleep)
+    backend = FakeBackend()
+    ocr = NoisyBoundedEditorOCR()
+    typer = WatchedTyper(backend, ocr)
+    flat = _flat_grid()
+    changed = flat.copy().reshape(GRID_ROWS, GRID_COLS)
+    changed[8:10, 5:25] = 200
+    grids = [flat, changed.reshape(-1)]
+
+    async def changed_grid() -> np.ndarray:
+        return grids.pop(0) if grids else changed.reshape(-1)
+
+    typer._grid = changed_grid  # type: ignore[method-assign]
+
+    result = await typer.type_text(
+        intended,
+        exact=True,
+        context="editor",
+    )
+
+    assert result.status == "verified_exact"
+    assert result.field_text == intended
+    assert result.emitted_exactly_once is True
+    assert ocr.full_screen_reads >= 1
+    assert ocr.status_reads == 1
+    emitted = [
+        kwargs
+        for method, kwargs in backend.calls
+        if method == "type_text"
+    ]
+    assert "".join(call["text"] for call in emitted) == intended
+    assert all(
+        call["code"] is False and call["secret"] is False
+        for call in emitted
+    )
+    _assert_no_enter(backend)
+
+
 @pytest.mark.parametrize(
     ("intended", "code", "stale_frame_count"),
     [
@@ -4522,6 +4625,33 @@ def test_precise_readback_localizes_measured_save_as_filename_noise() -> None:
     )
 
     assert refined == Region(x=217, y=429, width=200, height=24)
+
+
+def test_precise_readback_prefers_exact_editor_row_over_tab_title() -> None:
+    intended = "def fizzbuzz(limit):"
+    result = OCRResult(
+        lines=[
+            OCRLine(
+                text="def fizzbuzz(limit)",
+                confidence=0.99,
+                bbox=[102, 18, 167, 27],
+            ),
+            OCRLine(
+                text=intended,
+                confidence=0.85,
+                bbox=[79, 64, 177, 74],
+            ),
+        ]
+    )
+
+    refined = precise_readback_candidate_region(
+        result,
+        intended,
+        Region(x=0, y=59, width=286, height=90),
+        (1280, 800),
+    )
+
+    assert refined == Region(x=77, y=117, width=200, height=24)
 
 
 async def test_uncalibrated_precise_ocr_cannot_verify_visible_spaces() -> None:
