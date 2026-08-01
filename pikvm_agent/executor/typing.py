@@ -542,6 +542,8 @@ def locate_dense_changed_bbox(
     before_image: bytes,
     after_image: bytes,
     dims: Any,
+    *,
+    allow_ambiguous: bool = False,
 ) -> Region | None:
     """Locate a narrow text-line change hidden by the coarse luminance grid.
 
@@ -549,6 +551,8 @@ def locate_dense_changed_bbox(
     96x54 grid cell even though hundreds of full-resolution pixels changed.
     This fallback accepts only a coherent, horizontal, text-line-sized delta;
     isolated caret blinking and large window repaints remain non-evidence.
+    ``allow_ambiguous`` nominates the strongest plausible line without proving
+    it is causal. Callers must still require an independent exact OCR match.
     """
 
     width, height = _dims_wh(dims)
@@ -629,7 +633,11 @@ def locate_dense_changed_bbox(
         return None
     candidates.sort(reverse=True)
     count, x0, y0, x1, y1 = candidates[0]
-    if len(candidates) > 1 and count < candidates[1][0] * 2:
+    if (
+        not allow_ambiguous
+        and len(candidates) > 1
+        and count < candidates[1][0] * 2
+    ):
         return None
     pad = 8
     x = max(0, x0 - pad)
@@ -2204,6 +2212,7 @@ class WatchedTyper:
                     dense_prev.data,
                     dense_now.data,
                     dims,
+                    allow_ambiguous=precise and total <= 20,
                 )
 
             # Keyboard input is not idempotent. A stale frame cannot distinguish
@@ -2284,6 +2293,7 @@ class WatchedTyper:
                                 dense_prev.data,
                                 dense_retry.data,
                                 dims,
+                                allow_ambiguous=precise and total <= 20,
                             )
                         if retry_loc is not None:
                             cur_region = retry_loc
@@ -2382,6 +2392,7 @@ class WatchedTyper:
                                 dense_prev.data,
                                 settled_frame.data,
                                 dims,
+                                allow_ambiguous=precise and total <= 20,
                             )
                         if late_region is not None:
                             cur_region = union_region(cur_region, late_region)

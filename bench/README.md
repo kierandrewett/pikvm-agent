@@ -189,6 +189,20 @@ precise OCR profile, and editor drafts have their own safety surface: Escape
 cannot clear an unverified editor receipt. Text-04 remains pending until both
 changes pass a clean live replay.
 
+Text-04 v4 proved that the editor guard now fails closed: after `2. Act` was
+emitted exactly once and remained visibly present, every attempted progression
+was refused and the controller never typed the third line. Precise full-screen
+OCR still missed the small line because the causal pixel locator found two
+similarly sized text-line changes—293 pixels at the new text and 274 pixels at
+an unrelated status/caret repaint—and deliberately rejected the ambiguous
+crop. The failed run took 197.206s before reboot: 135.140s of provider wait
+across 19 calls and 55.304s of action execution. Its mandatory reboot observed
+a real transition and reached a ready desktop after 107.469s. For exact inputs
+of at most 20 characters, the dense locator may now nominate only its strongest
+candidate for a subsequent character-for-character OCR check; the default
+ambiguity rejection and at-most-once input policy remain unchanged. Text-04
+remains pending until that bounded path passes a clean v5 replay.
+
 Failure-inclusive metrics, canonical campaign digests, the 18 accepted task
 IDs, and the VP9 recording/poster hashes are retained in
 [`codex-50-progress.json`](results/2026-07-31/live-vnc/codex-50-progress.json).

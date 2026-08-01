@@ -405,6 +405,101 @@ def test_dense_locator_rejects_caret_sized_change() -> None:
     )
 
 
+def _ambiguous_dense_line_frames() -> tuple[bytes, bytes]:
+    before = Image.new("RGB", (1280, 800), (32, 32, 32))
+    after = before.copy()
+    before_draw = ImageDraw.Draw(before)
+    after_draw = ImageDraw.Draw(after)
+    for x in range(40, 104, 2):
+        before_draw.line((x, 96, x, 111), fill=(224, 224, 224))
+        after_draw.line((x + 1, 96, x + 1, 111), fill=(224, 224, 224))
+    for x in range(81, 141, 2):
+        before_draw.line((x, 481, x, 495), fill=(224, 224, 224))
+        after_draw.line((x + 1, 481, x + 1, 495), fill=(224, 224, 224))
+
+    def jpeg(image: Image.Image) -> bytes:
+        output = io.BytesIO()
+        image.save(output, format="JPEG", quality=90)
+        return output.getvalue()
+
+    return jpeg(before), jpeg(after)
+
+
+def test_dense_locator_can_nominate_strongest_ambiguous_line_for_exact_ocr() -> None:
+    before_bytes, after_bytes = _ambiguous_dense_line_frames()
+    assert locate_dense_changed_bbox(
+        before_bytes,
+        after_bytes,
+        (1280, 800),
+    ) is None
+
+    nominated = locate_dense_changed_bbox(
+        before_bytes,
+        after_bytes,
+        (1280, 800),
+        allow_ambiguous=True,
+    )
+
+    assert nominated is not None
+    assert nominated.y <= 96
+    assert nominated.y + nominated.height >= 111
+    assert nominated.y + nominated.height < 481
+
+
+async def test_short_exact_typing_uses_strongest_ambiguous_line_as_ocr_crop() -> None:
+    backend = FakeBackend(width=1280, height=800)
+    before_bytes, after_bytes = _ambiguous_dense_line_frames()
+    backend.set_frame_bytes(before_bytes)
+    original_type = backend.type_text
+
+    async def typing(
+        text: str,
+        *,
+        code: bool = False,
+        secret: bool = False,
+    ) -> None:
+        await original_type(text, code=code, secret=secret)
+        backend.set_frame_bytes(after_bytes)
+
+    backend.type_text = typing  # type: ignore[method-assign]
+
+    class CausalCropOCR:
+        def __init__(self) -> None:
+            self.regions: list[Region | None] = []
+
+        async def ocr(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path
+            self.regions.append(region)
+            if region is None or region.y >= 200:
+                return OCRResult()
+            return OCRResult(
+                lines=[OCRLine(text="2. Act", confidence=0.99)],
+                spacing_evidence="verified",
+            )
+
+        async def ocr_precise(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            return await self.ocr(image_path, region)
+
+    ocr = CausalCropOCR()
+    result = await WatchedTyper(backend, ocr).type_text(
+        "2. Act",
+        exact=True,
+        context="editor",
+    )
+
+    assert result.status == "verified_exact"
+    assert result.emitted_exactly_once is True
+    assert any(region is not None and region.y < 200 for region in ocr.regions)
+
+
 async def test_watched_typer_uses_dense_text_line_change_when_grid_is_unchanged() -> None:
     backend = FakeBackend(width=1280, height=800)
     before = Image.new("RGB", (1280, 800), (32, 32, 32))
