@@ -95,6 +95,10 @@ TERMINAL_RUN_STATUSES = {
 }
 
 
+class ComputerSessionMissingError(RuntimeError):
+    """The daemon confirms that a previously durable session no longer exists."""
+
+
 class ArtifactAcceptance(BaseModel):
     """Host-owned artifact evidence attached after model-visible completion."""
 

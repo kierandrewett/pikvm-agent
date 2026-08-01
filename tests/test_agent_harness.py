@@ -28,6 +28,7 @@ from pikvm_agent.harness.agent_models import (
     ArtifactAcceptance,
     ArtifactAcceptanceState,
     ComputerObservation,
+    ComputerSessionMissingError,
     ControllerDecision,
     HarnessConfig,
     ModelRequest,
@@ -2067,6 +2068,17 @@ class RefreshTrackingComputer(FakeComputer):
     async def refresh(self, *, session_id: str) -> ComputerObservation:
         self.refreshes += 1
         return await super().refresh(session_id=session_id)
+
+
+class MissingAbortSessionComputer(FakeComputer):
+    async def abort(
+        self,
+        *,
+        session_id: str,
+        reason: str,
+    ) -> ComputerObservation:
+        del session_id, reason
+        raise ComputerSessionMissingError("computer session no longer exists")
 
 
 class ApprovalComputer(FakeComputer):
@@ -4575,6 +4587,53 @@ async def test_process_restart_reopens_session_and_recontrols_before_input() -> 
     assert [request.role for request in provider.requests] == [
         "controller",
         "verifier",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_abort_quiesces_a_durable_run_when_daemon_session_is_gone() -> None:
+    harness = build_harness(
+        ScriptedProvider(),
+        MissingAbortSessionComputer(),
+    )
+    interrupted = RunSnapshot(
+        run_id="abort-after-daemon-restart",
+        task="Retain the failed campaign attempt.",
+        status=RunStatus.PAUSED,
+        session_id="s_expired",
+        error=(
+            "local harness process restarted; explicit operator resume is "
+            "required"
+        ),
+        pending_action=PendingAction(
+            index=0,
+            intent="Do not replay this action.",
+            actions=[{"type": "type_text", "text": "stale draft"}],
+            based_on_world_version=9,
+            based_on_control_epoch=2,
+            idempotency_key="stale-action-key",
+        ),
+    )
+    interrupted.record(
+        "run.process_interrupted",
+        pending_action=True,
+        resume_required=True,
+    )
+    await harness.store.save(interrupted)
+
+    aborted = await harness.abort(
+        interrupted.run_id,
+        "campaign task concluded before mandatory reboot",
+    )
+
+    assert aborted.status is RunStatus.ABORTED
+    assert aborted.pending_action is None
+    assert aborted.pending_approval is None
+    assert [
+        event.kind for event in aborted.events[-2:]
+    ] == [
+        "computer.abort_session_already_absent",
+        "run.aborted",
     ]
 
 

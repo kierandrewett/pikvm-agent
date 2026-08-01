@@ -24,6 +24,7 @@ from pikvm_agent.executor.burst import BurstError, normalize_keys, validate_acti
 from pikvm_agent.harness.agent_models import (
     TERMINAL_RUN_STATUSES,
     ComputerObservation,
+    ComputerSessionMissingError,
     ControllerDecision,
     HarnessConfig,
     ModelRequest,
@@ -1923,10 +1924,21 @@ class AgentHarness:
         if run.status in TERMINAL_RUN_STATUSES:
             return run
         if run.session_id:
-            with_abort = await self.computer.abort(
-                session_id=run.session_id, reason=reason
-            )
-            run.observation = with_abort
+            try:
+                with_abort = await self.computer.abort(
+                    session_id=run.session_id, reason=reason
+                )
+                run.observation = with_abort
+            except ComputerSessionMissingError:
+                # A restarted daemon has no executable work for this durable
+                # session. Treat its authoritative 404 as successful
+                # quiescence so operators can abort the paused run and proceed
+                # to the mandatory machine reboot. Other transport failures
+                # still propagate and block reboot.
+                run.record(
+                    "computer.abort_session_already_absent",
+                    session_id=run.session_id,
+                )
         run.pending_action = None
         run.pending_approval = None
         run.status = RunStatus.ABORTED

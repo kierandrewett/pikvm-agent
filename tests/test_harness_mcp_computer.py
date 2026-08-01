@@ -4,6 +4,7 @@ from typing import Any
 
 import pytest
 
+from pikvm_agent.harness.agent_models import ComputerSessionMissingError
 from pikvm_agent.harness.mcp_computer import (
     McpComputerDriver,
     harness_child_environment,
@@ -180,3 +181,32 @@ async def test_mcp_computer_refreshes_the_existing_session() -> None:
     assert client.calls == [
         ("pikvm_screenshot", {"session_id": "s_1"}),
     ]
+
+
+@pytest.mark.asyncio
+async def test_abort_maps_a_missing_daemon_session_to_quiescence_signal() -> None:
+    class MissingSessionToolClient(FakeToolClient):
+        async def call(
+            self,
+            name: str,
+            arguments: dict[str, Any],
+        ) -> dict[str, Any]:
+            self.calls.append((name, arguments))
+            return {
+                "is_error": True,
+                "texts": [
+                    "Client error '404 Not Found' for url "
+                    "'http://daemon/sessions/s_expired/abort'"
+                ],
+            }
+
+    computer = McpComputerDriver(MissingSessionToolClient())
+
+    with pytest.raises(
+        ComputerSessionMissingError,
+        match="computer session no longer exists: s_expired",
+    ):
+        await computer.abort(
+            session_id="s_expired",
+            reason="campaign task concluded before mandatory reboot",
+        )

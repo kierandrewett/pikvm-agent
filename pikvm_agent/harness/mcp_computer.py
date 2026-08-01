@@ -22,7 +22,10 @@ from pikvm_agent.daemon_access import (
     HARNESS_TOKEN_ENV,
     DaemonAccess,
 )
-from pikvm_agent.harness.agent_models import ComputerObservation
+from pikvm_agent.harness.agent_models import (
+    ComputerObservation,
+    ComputerSessionMissingError,
+)
 from pikvm_agent.harness.mcp_driver import unpack_tool_result
 
 
@@ -254,11 +257,22 @@ class McpComputerDriver:
     async def abort(
         self, *, session_id: str, reason: str
     ) -> ComputerObservation:
-        return self._observation(
-            await self.client.call(
-                "pikvm_abort", {"session_id": session_id, "reason": reason}
-            )
+        result = await self.client.call(
+            "pikvm_abort", {"session_id": session_id, "reason": reason}
         )
+        if result.get("is_error"):
+            text = "\n".join(result.get("texts") or [])
+            lowered = text.casefold()
+            missing_abort_endpoint = (
+                "404 not found" in lowered
+                and "/sessions/" in lowered
+                and "/abort" in lowered
+            )
+            if missing_abort_endpoint or "session not found" in lowered:
+                raise ComputerSessionMissingError(
+                    f"computer session no longer exists: {session_id}"
+                )
+        return self._observation(result)
 
     @staticmethod
     def _observation(result: dict[str, Any]) -> ComputerObservation:
