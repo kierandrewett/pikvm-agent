@@ -867,6 +867,43 @@ async def test_exact_receipt_binds_delivery_emission_ocr_and_screen_frame() -> N
     assert receipt["proof_state"] == "exact_visual_readback"
 
 
+async def test_exact_status_with_different_readback_bytes_stops_before_enter() -> None:
+    text = "1. Observe"
+    typer = _StubTyper(
+        "verified_exact",
+        field_text="1.\nObserve",
+        typed_characters=len(text),
+        intended_characters=len(text),
+        emitted_characters=len(text),
+        emitted_sha256=hashlib.sha256(text.encode()).hexdigest(),
+        emitted_exactly_once=True,
+        readback_frame_sha256=hashlib.sha256(b"screen").hexdigest(),
+    )
+    backend = FakeBackend()
+
+    outcome = await run_burst(
+        [
+            {
+                "type": "type_text",
+                "text": text,
+                "context": "editor",
+                "verification": "exact",
+            },
+            {"type": "key", "keys": ["ENTER"]},
+        ],
+        backend=backend,
+        typer=typer,
+    )
+
+    assert outcome.status == "failed"
+    assert outcome.reason == "type_unverified"
+    receipt = outcome.action_receipts[0]
+    assert receipt["status"] == "unverified_exact_hash_mismatch"
+    assert receipt["exact_readback_sha256_match"] is False
+    assert receipt["proof_state"] == "ambiguous_readback"
+    assert not any(method == "keypress" for method, _ in backend.calls)
+
+
 async def test_exact_receipt_hashes_the_canonical_delivery_payload() -> None:
     requested = "exactly one \n space"
     delivered = "exactly one space"
@@ -926,10 +963,15 @@ async def test_burst_rejects_unknown_text_verification_mode_before_hid() -> None
 
 async def test_editor_label_cannot_relax_command_or_code_text() -> None:
     be = FakeBackend()
-    typer = _StubTyper("verified_exact")
     command = (
         "terraform apply -auto-approve; rm -rf ./state "
         "because this remains exact command text"
+    )
+    typer = _StubTyper(
+        "verified_exact",
+        field_text=command,
+        typed_characters=len(command),
+        intended_characters=len(command),
     )
 
     outcome = await run_burst(

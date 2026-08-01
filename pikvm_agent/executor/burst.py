@@ -703,6 +703,15 @@ def _typing_receipt(
             ),
         }
     )
+    if (
+        status == "verified_exact"
+        and receipt["exact_readback_sha256_match"] is not True
+    ):
+        # ``norm(..., precise=True)`` deliberately tolerates visual line-wrap
+        # segmentation, but that semantic match is not an exact-byte receipt.
+        # Never let the looser verdict authorize a follow-up key or click.
+        status = "unverified_exact_hash_mismatch"
+        receipt["status"] = status
     emitted_characters = getattr(result, "emitted_characters", None)
     emitted_sha256 = str(getattr(result, "emitted_sha256", "") or "")
     emitted_exactly_once = getattr(result, "emitted_exactly_once", None)
@@ -910,7 +919,7 @@ async def _dispatch(
                 should_continue=should_continue,
             )
             action_receipt = _typing_receipt(a, res, precise=precise)
-            status = str(getattr(res, "status", "") or "")
+            status = str(action_receipt.get("status") or "")
             if status == "blocked_by_policy":
                 raise BurstInterrupted(
                     {

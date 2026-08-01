@@ -269,6 +269,34 @@ Windows label/value rows; a changed basename, label, type row, suffix, or extra
 row remains unverified. Text-04 remains pending until that parser passes a
 clean v9 save-and-reopen replay.
 
+Text-04 v9 proved that labelled Save As readback now works: the exact
+`text-04.txt` value was emitted once, independently read back with matching
+requested, emitted, and observed hashes, and the grounded Save action
+completed. A real Ctrl+O action then opened the file picker, selected the
+saved file, and a later screen showed the four requested lines in foreground
+Notepad. The run still failed its stronger acceptance contract. Immediate
+post-click video lag left the first Open verification stale, and later visual
+checks could not prove the full path; the controller and verifier consumed 61
+provider calls and exhausted four same-run recoveries. The run took 485.353s
+before reboot: 346.155s of provider wait and 310.728s of action execution,
+with 18/20 actions completed. Its mandatory reboot observed a real transition
+and reached a ready desktop after 190.309s. One receipt also exposed an
+evidence-integrity defect: `1. Observe` was labelled `verified_exact` after
+OCR segmented its single visual row as `1.\nObserve`, even though the
+receipt's own exact-byte hash correctly disagreed. Text-04 remains pending;
+an exact status must now require matching bytes, and the campaign needs
+observer-owned saved-path/content evidence instead of repeated visual guesses.
+The follow-up remediation makes that boundary fail closed: a
+`verified_exact` result with different delivery/readback bytes is downgraded
+and blocks every later active input. A prior exact causal row may canonicalize
+only a later whitespace-segmented OCR read of the same intended glyph sequence,
+same transaction, and overlapping region. The reopen gate also retains the
+last completed action across a subsequent grounding refusal, so a delayed
+remote-video frame can verify that original transition without crediting an
+action that never reached HID. These changes pass 318 focused typing, burst,
+and managed-agent tests; text-04 still remains pending until a clean live
+replay.
+
 Failure-inclusive metrics, canonical campaign digests, the 18 accepted task
 IDs, and the VP9 recording/poster hashes are retained in
 [`codex-50-progress.json`](results/2026-07-31/live-vnc/codex-50-progress.json).

@@ -3960,6 +3960,7 @@ class AgentHarness:
         """Read durable verification work with an optional prompt-size bound."""
 
         current_action: dict[str, Any] | None = None
+        last_completed_unverified: dict[str, Any] | None = None
         verified: list[dict[str, Any]] = []
         for event in run.events:
             if event.kind == "action.checkpointed":
@@ -3981,6 +3982,7 @@ class AgentHarness:
                 == current_action.get("action_index")
             ):
                 current_action["_completed"] = True
+                last_completed_unverified = current_action
                 continue
             if (
                 event.kind
@@ -3988,18 +3990,37 @@ class AgentHarness:
                     "action.completed_unverified",
                     "action.failed",
                     "action.recoverable_failure",
-                    "action.ungrounded_refreshed",
                 }
                 and current_action is not None
             ):
+                current_action["_completed"] = False
+                # These outcomes may follow partial target input. A later frame
+                # cannot safely be attributed to an older completed action.
+                last_completed_unverified = None
+                continue
+            if (
+                event.kind == "action.ungrounded_refreshed"
+                and current_action is not None
+            ):
+                # Grounding rejected the new action before HID. Preserve the
+                # previous completed action so delayed remote-video
+                # publication can still verify that exact transition.
                 current_action["_completed"] = False
                 continue
             if (
                 event.kind != "model.completed"
                 or event.data.get("role") != "verifier"
-                or current_action is None
-                or current_action.get("_completed") is not True
             ):
+                continue
+            verification_action = (
+                current_action
+                if (
+                    current_action is not None
+                    and current_action.get("_completed") is True
+                )
+                else last_completed_unverified
+            )
+            if verification_action is None:
                 continue
             verdict = str(event.data.get("verdict") or "")
             summary = event.data.get("summary")
@@ -4010,12 +4031,14 @@ class AgentHarness:
                 continue
             verified.append(
                 {
-                    "action_index": current_action["action_index"],
-                    "intent": current_action["intent"],
+                    "action_index": verification_action["action_index"],
+                    "intent": verification_action["intent"],
                     "verdict": verdict,
                     "summary": summary[:500],
                 }
             )
+            verification_action["_completed"] = False
+            last_completed_unverified = None
         return verified[-limit:] if limit is not None else verified
 
     @staticmethod

@@ -846,12 +846,48 @@
         "sha256": "b22bec0feb4ae419e9dcbca06e283aed27e17184cb3b6348e7e6fdc4e843708d"
       },
       "campaign_sha256": "edc3aec39591048114702aada86a1ae46d2bbb76a8bf378645d0f9db6eefb29b"
+    },
+    {
+      "campaign_id": "codex-text-entry-text04-v9-20260801",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "run_id": "d5777c00-03f5-42b0-b2cb-5df6cba32cb4",
+      "reason": "The labelled Save As parser verified the exact basename and Save completed. A real Ctrl+O action opened the file picker, selected the saved file, and later Notepad visibly showed all four lines. Immediate post-click video lag made the first Open verification stale, however, and later visual checks could not prove the full path. The run exhausted four same-run recoveries. The `1. Observe` receipt also incorrectly reported verified_exact after OCR segmented the single visual row as `1.\\nObserve`; its own exact-byte hash correctly disagreed, so the task cannot be accepted.",
+      "wall_clock_ms": 485353,
+      "provider_wait_ms": 346155,
+      "action_execution_ms": 310728,
+      "provider_calls": 61,
+      "actions_attempted": 20,
+      "actions_completed": 18,
+      "completion_efficiency": 0.9,
+      "same_run_recoveries": 4,
+      "approval_count": 2,
+      "approval_scopes": [
+        "bounded_workspace_edit"
+      ],
+      "reboot_ms": 190309,
+      "reboot_transition_observed": true,
+      "recording": {
+        "relative_path": "codex-text-entry-text04-v9-20260801/text-04/recording.webm",
+        "sha256": "3496a3220e71e0fbc62d697942386aaf1f9f806963a1c1d1b2089c69e0bc3c39",
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2,
+        "duration_ms": 604500,
+        "size_bytes": 1451545
+      },
+      "poster": {
+        "relative_path": "codex-text-entry-text04-v9-20260801/text-04/poster.jpg",
+        "sha256": "fc8cdd12ef5c54fc200642f7d4c02857ce643cfa91bc8c85cf2e2c4daf9ab3cd"
+      },
+      "campaign_sha256": "f548a1e6c9c497f31f149d16f0582ccbf76b36efc9ce78d3b763f8fa45c3d534"
     }
   ],
   "verdict": {
     "accuracy": "Three exact text tasks now pass with independent reopen evidence. Text-03 includes a durable completed Ctrl+O transition and visible post-open paragraph verification.",
     "speed": "Failing product target: accepted text-03 v6 took 380.612 seconds before reboot and required two recoveries.",
     "dominant_cost": "Text-03 v6 provider waits consumed 208.161 seconds across 34 calls, while action execution consumed 243.335 seconds; overlapping work prevents these components from summing directly to wall time.",
-    "next": "Replay text-04 with exact safe-filename readback recognizing only known labelled Windows Save As rows."
+    "next": "Make verified_exact require exact-byte receipt agreement, then replay text-04 with observer-owned saved-path and file-content evidence."
   }
 }

@@ -832,8 +832,9 @@ class WatchedTyper:
             not precise
             or not intended
             or not any(character.isspace() for character in intended)
-            or result.spacing_evidence == "verified"
             or compute_verdict(intended, result.text, True) != "match"
+            or re.sub(r"\s+", "", result.text)
+            != re.sub(r"\s+", "", intended)
             or self._causal_exact_spacing_intended != intended
             or causal_region is None
             or not regions_overlap(requested_region, causal_region)
@@ -849,7 +850,35 @@ class WatchedTyper:
             intended_characters=len(intended),
             requested_region=requested_region.model_dump(),
             causal_region=causal_region.model_dump(),
+            canonicalized_visual_wrap=result.text != intended,
         )
+        if result.text != intended:
+            confidences = [
+                line.confidence
+                for line in result.lines
+                if line.confidence is not None
+            ]
+            return OCRResult(
+                lines=[
+                    OCRLine(
+                        text=intended,
+                        confidence=(
+                            min(confidences) if confidences else None
+                        ),
+                        bbox=(
+                            result.lines[0].bbox
+                            if len(result.lines) == 1
+                            else None
+                        ),
+                        raw={
+                            "causal_exact_row_canonicalized": True,
+                            "observed_text": result.text,
+                        },
+                    )
+                ],
+                alternatives=result.alternatives,
+                spacing_evidence="verified",
+            )
         return OCRResult(
             lines=result.lines,
             alternatives=result.alternatives,

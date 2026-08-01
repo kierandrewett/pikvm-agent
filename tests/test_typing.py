@@ -620,6 +620,67 @@ async def test_short_exact_typing_refines_causal_crop_to_the_exact_ocr_row(
     )
 
 
+def test_causal_exact_row_canonicalizes_later_ocr_line_wrap() -> None:
+    intended = "1. Observe"
+    region = Region(x=20, y=80, width=140, height=30)
+    typer = WatchedTyper(FakeBackend(), ScriptedOCR(""))
+    typer._causal_exact_spacing_intended = intended
+    typer._causal_exact_spacing_region = region
+
+    result = typer._with_causal_spacing_proof(
+        OCRResult(
+            lines=[
+                OCRLine(
+                    text="1.\nObserve",
+                    confidence=0.98,
+                    bbox=[22, 82, 150, 104],
+                )
+            ],
+            spacing_evidence="verified",
+        ),
+        intended=intended,
+        precise=True,
+        requested_region=region,
+    )
+
+    assert result.text == intended
+    assert result.spacing_evidence == "verified"
+
+
+@pytest.mark.parametrize(
+    ("observed", "requested_region"),
+    [
+        ("1.\nObserve!", Region(x=20, y=80, width=140, height=30)),
+        ("1.\nObserve", Region(x=400, y=400, width=140, height=30)),
+    ],
+)
+def test_causal_exact_row_does_not_canonicalize_unproven_readback(
+    observed: str,
+    requested_region: Region,
+) -> None:
+    intended = "1. Observe"
+    typer = WatchedTyper(FakeBackend(), ScriptedOCR(""))
+    typer._causal_exact_spacing_intended = intended
+    typer._causal_exact_spacing_region = Region(
+        x=20,
+        y=80,
+        width=140,
+        height=30,
+    )
+
+    result = typer._with_causal_spacing_proof(
+        OCRResult(
+            lines=[OCRLine(text=observed, confidence=0.98)],
+            spacing_evidence="verified",
+        ),
+        intended=intended,
+        precise=True,
+        requested_region=requested_region,
+    )
+
+    assert result.text == observed
+
+
 async def test_watched_typer_uses_dense_text_line_change_when_grid_is_unchanged() -> None:
     backend = FakeBackend(width=1280, height=800)
     before = Image.new("RGB", (1280, 800), (32, 32, 32))
