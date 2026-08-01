@@ -720,7 +720,7 @@ class VncDotoolTransport:
                             client.keyDown(key)
                             try:
                                 if self.keyboard_profile == "windows":
-                                    time.sleep(0.010)
+                                    time.sleep(0.015)
                             finally:
                                 client.keyUp(key)
                         finally:
@@ -729,10 +729,11 @@ class VncDotoolTransport:
                     # Some RFB servers silently coalesce/drop back-to-back key
                     # events. PiKVM's slow printer is about 20 ms/character, so
                     # preserve that timing contract in the emulator. Windows
-                    # needs a slightly wider gap plus the short key hold above;
-                    # live 20 ms runs dropped ordinary characters.
+                    # needs a wider gap plus the short key hold above; measured
+                    # 35 ms total spacing still dropped the final character of
+                    # a nine-character focus probe on the disposable VM.
                     time.sleep(
-                        0.025
+                        0.035
                         if self.keyboard_profile == "windows"
                         else 0.020
                     )

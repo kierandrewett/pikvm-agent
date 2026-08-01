@@ -468,7 +468,7 @@ async def test_windows_transport_spaces_each_plain_character(
 
     await transport.print_text("ab")
 
-    assert sleeps == [0.010, 0.025, 0.010, 0.025]
+    assert sleeps == [0.015, 0.035, 0.015, 0.035]
 
 
 async def test_transport_releases_stale_modifiers_on_connection() -> None:
