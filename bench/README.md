@@ -5,7 +5,7 @@ harness. It records passing, failing, invalid, and infrastructure-blocked runs.
 A row is not a product claim unless its environment, upstream revision, model,
 sample size, and evaluator are all shown.
 
-Last updated: 2026-07-31.
+Last updated: 2026-08-01.
 
 ## Evidence rules
 
@@ -51,8 +51,8 @@ support a claim of generally reliable autonomous Windows operation.
 
 ### Live 50-task Windows campaign
 
-The active disposable-Windows campaign has **24/50 unique accepted passes
-(48%)**. Every attempt is screen-recorded, every test ends with a VM reboot,
+The active disposable-Windows campaign has **25/50 unique accepted passes
+(50%)**. Every attempt is screen-recorded, every test ends with a VM reboot,
 and a pass is counted only once even when the same task is rerun during
 remediation. Production PiKVM was not contacted.
 
@@ -60,12 +60,12 @@ remediation. Production PiKVM was not contacted.
 | --- | ---: | ---: | --- |
 | Observation | 5 | 5 | Complete |
 | Calculator | 10 | 10 | Complete |
-| Text entry | 9 | 10 | `text-01` through `text-09` accepted |
+| Text entry | 10 | 10 | Complete |
 | Code entry | 0 | 10 | Pending |
 | File management | 0 | 5 | Pending |
 | Microsoft Excel | 0 | 5 | Pending |
 | Microsoft Word | 0 | 5 | Pending |
-| **Total** | **24** | **50** | **26 pending** |
+| **Total** | **25** | **50** | **25 pending** |
 
 The Calculator category is complete. The final temperature-conversion task
 visibly produced `23 °C = 73.4 °F`, completed 7/7 actions, and rebooted the VM
@@ -666,7 +666,41 @@ needed three autonomous continuations, used one bounded workspace approval,
 quiesced cleanly, and reached a ready desktop after a real reboot transition
 in another 78.573s. Accuracy is accepted; speed still fails the product target.
 
-Failure-inclusive metrics, canonical campaign digests, the 24 accepted task
+Text-10 completed the Text entry category with one 189-character exact
+payload. Four attempts are retained:
+
+| Attempt | Accepted | Wall before reboot | Reboot ready | Failure or result |
+| --- | --- | ---: | ---: | --- |
+| v1 | No | 366.339s | 78.416s | A timed-out exact input retry crossed an idempotency race and delivered the entire payload twice; the controller later cleared the doubled draft and stopped |
+| v2 | Yes | 521.520s | 84.520s | Exact fresh input and native reopen passed, but the lifecycle classifier missed the model's “in the native Open dialog” wording and caused 14 redundant continuations |
+| v3 | No | 214.735s | 76.380s | Exact fresh input reached Save As, then the existing target raised an unknown replacement approval and the campaign stopped fail-closed |
+| v4 | **Yes** | **350.558s** | **77.464s** | The harness preserved the prior file, delivered 189/189 characters exactly once, saved to a free target, reopened it, quiesced, and rebooted |
+
+v1 exposed a real time-of-check/time-of-use defect: a retry that waited behind
+slow preflight could miss both the original in-flight claim and its completed
+receipt. Per-idempotency-key locking now rechecks both immediately before HID,
+and its regression test reproduces the late retry. v2 then exposed a narrow
+native-Open intent-classification miss; `from`, `in`, and `using` the native
+Open dialog now all count only after a completed action.
+
+v3 was not “fixed” by weakening the dangerous-action boundary. The showcase
+runner now accepts only explicit literal artifact paths inside the fixed
+disposable campaign workspace. Before a repeat it moves an existing artifact
+to a unique `.pikvm-prior-*` name in the same workspace, preserving evidence
+instead of deleting it. All 35 mutating tasks declare their bounded fresh
+artifacts. v4 proved that preflight on the real VM and retained both paths in
+the campaign record.
+
+The accepted v4 payload receipt has zero edit distance, exact-once emission,
+and one shared requested/delivery/issued/emitted/readback SHA-256:
+`65ab4063c84a23d67c4ab22b65780e22f22bf0ad53cd8282126eab7cbfb6e1c0`.
+The task completed 13/14 attempted actions, used 31 provider calls, waited
+180.148s on providers, and spent 160.070s in action execution. One recoverable
+filename-field OCR mismatch and a second bounded workspace approval remain
+unnecessary save-dialog churn. Accuracy passes; 350.558s before reboot is
+still much slower than a human and remains a failing speed result.
+
+Failure-inclusive metrics, canonical campaign digests, the 25 accepted task
 IDs, and the VP9 recording/poster hashes are retained in
 [`codex-50-progress.json`](results/2026-07-31/live-vnc/codex-50-progress.json).
 The complete 50-task manifest is

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "report": "codex-50-live-progress",
-  "recorded_at": "2026-08-01T19:29:24Z",
+  "recorded_at": "2026-08-01T20:53:03Z",
   "manifest": "bench/codex-50-tasks.yaml",
   "environment": {
     "target": "authorized disposable Windows VNC VM",
@@ -16,9 +16,9 @@
   },
   "progress": {
     "planned": 50,
-    "unique_passed": 24,
-    "pending": 26,
-    "completion_percent": 48.0,
+    "unique_passed": 25,
+    "pending": 25,
+    "completion_percent": 50.0,
     "categories": {
       "Observation": {
         "passed": 5,
@@ -29,7 +29,7 @@
         "planned": 10
       },
       "Text entry": {
-        "passed": 9,
+        "passed": 10,
         "planned": 10
       },
       "Code entry": {
@@ -73,7 +73,8 @@
       "text-06",
       "text-07",
       "text-08",
-      "text-09"
+      "text-09",
+      "text-10"
     ]
   },
   "canonical_campaigns": [
@@ -208,6 +209,13 @@
         "text-09"
       ],
       "campaign_sha256": "69e652c33bb7ecd243a7b7af42dfba0f95577557c3f5f869a82e50414dfa0f94"
+    },
+    {
+      "campaign_id": "codex-text-entry-text10-v4-20260801",
+      "tasks": [
+        "text-10"
+      ],
+      "campaign_sha256": "abf112e221bf1ed464ec2a75add0fe49540552d19bc5045dd85fb37fa588ca3d"
     }
   ],
   "calc_09_acceptance": {
@@ -2500,10 +2508,237 @@
       "campaign_sha256": "69e652c33bb7ecd243a7b7af42dfba0f95577557c3f5f869a82e50414dfa0f94"
     }
   ],
+  "text_10_acceptance": {
+    "task": "Type, save, reopen, and verify one 189-character exact payload",
+    "result": "passed",
+    "run_id": "085686e4-7c9c-431a-973c-bc470a1e20f1",
+    "visible_result": "The quick brown fox jumps over the lazy dog. Pack my box with five dozen liquor jugs. Sphinx of black quartz, judge my vow. 0123456789 ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz.",
+    "reason": "A fresh blank Notepad document received all 189 requested characters in one exact transaction with zero edit distance, exact-once emission, and matching requested, delivery, issued, emitted, observed, and readback hashes. The preflight preserved the prior target under a unique name rather than deleting it, Save As committed a free target, native Open independently reopened text-10-exact.txt, quiescence was confirmed, and the mandatory reboot observed a real transition.",
+    "wall_clock_ms": 350558,
+    "model_active_ms": 229053,
+    "provider_wait_ms": 180148,
+    "provider_serial_equivalent_ms": 229751,
+    "provider_overlap_ms": 49603,
+    "action_execution_ms": 160070,
+    "evidence_capture_ms": 2905,
+    "provider_calls": 31,
+    "controller_calls": 15,
+    "verifier_calls": 14,
+    "reasoner_calls": 2,
+    "actions_attempted": 14,
+    "actions_completed": 13,
+    "completion_efficiency": 0.9285714285714286,
+    "autonomous_resumes": 1,
+    "same_run_recoveries": 2,
+    "approval_count": 2,
+    "approval_scopes": [
+      "bounded_workspace_edit",
+      "bounded_workspace_edit"
+    ],
+    "quiescence_status": "confirmed",
+    "reboot_ms": 77464,
+    "reboot_transition_observed": true,
+    "ready_frame_sha256": "00fb1ed280f34e458be015140d960be6fbd6ae8454c316fde0609e5a2201ac07",
+    "fresh_artifact_preflight": {
+      "path": "C:\\PiKVM-Harness\\workspace\\codex-50\\text-10-exact.txt",
+      "preserved_as": "C:\\PiKVM-Harness\\workspace\\codex-50\\text-10-exact.txt.pikvm-prior-dd1604d97de042abafe22281228f5021"
+    },
+    "fresh_editor_receipts": [
+      {
+        "characters": 189,
+        "sha256": "65ab4063c84a23d67c4ab22b65780e22f22bf0ad53cd8282126eab7cbfb6e1c0",
+        "result": "verified_exact",
+        "edit_distance": 0,
+        "emitted_exactly_once": true
+      }
+    ],
+    "recording": {
+      "relative_path": "codex-text-entry-text10-v4-20260801/text-10/recording.webm",
+      "sha256": "3a40c37e493fa11d3f1540043ce4ff0bab05b5d3131ac62362f81256e57fa5b1",
+      "codec": "vp9",
+      "width": 2048,
+      "height": 1280,
+      "fps": 2,
+      "duration_ms": 392000,
+      "size_bytes": 1641963
+    },
+    "poster": {
+      "relative_path": "codex-text-entry-text10-v4-20260801/text-10/poster.jpg",
+      "sha256": "235b73954cd7442b301ccf8e8a434dd3cc8f425e388655bdc062c8f42e667e20"
+    },
+    "campaign_sha256": "abf112e221bf1ed464ec2a75add0fe49540552d19bc5045dd85fb37fa588ca3d"
+  },
+  "text_10_attempts": [
+    {
+      "campaign_id": "codex-text-entry-text10-v1-20260801",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "run_id": "a0689ae4-ec18-456b-b1fa-2162b0cbc85b",
+      "reason": "The first 189-character burst delivered the exact payload but exceeded its 120-second request boundary while awaiting watched readback. A same-key retry waited behind slow preflight, then missed both the original in-flight claim and the newly completed receipt and delivered the full payload again. Notepad visibly reached 378 characters. The controller cleared the doubled draft and stopped; no file was saved. Per-key runtime locking now atomically rechecks completed receipts and in-flight claims immediately before HID.",
+      "wall_clock_ms": 366339,
+      "model_active_ms": 103489,
+      "provider_wait_ms": 89925,
+      "provider_serial_equivalent_ms": 103595,
+      "provider_overlap_ms": 13670,
+      "action_execution_ms": 328768,
+      "evidence_capture_ms": 1237,
+      "provider_calls": 15,
+      "actions_attempted": 7,
+      "actions_completed": 5,
+      "completion_efficiency": 0.8333333333333334,
+      "same_run_recoveries": 4,
+      "approval_count": 0,
+      "approval_scopes": [],
+      "quiescence_status": "confirmed",
+      "reboot_ms": 78416,
+      "reboot_transition_observed": true,
+      "recording": {
+        "relative_path": "codex-text-entry-text10-v1-20260801/text-10/recording.webm",
+        "sha256": "a16d9eb7324abe4d3cf5d498b9b2206e000897dc60a82aa8f6a1f93e15dd05e0",
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2,
+        "duration_ms": 386500,
+        "size_bytes": 1086210
+      },
+      "poster": {
+        "relative_path": "codex-text-entry-text10-v1-20260801/text-10/poster.jpg",
+        "sha256": "43a50d80658ddfbf3420f55ed4b3357e5a19c17fd23e41ed97b3a3396669eaa9"
+      },
+      "campaign_sha256": "c7fe0a5c103446f297a5ad11f1570a9125047fc969cdd8b5195898b221ea7b27"
+    },
+    {
+      "campaign_id": "codex-text-entry-text10-v2-20260801",
+      "reported_status": "passed",
+      "accepted_status": "passed_noncanonical",
+      "run_id": "af3caa3b-db4e-433a-907c-4796688d3b02",
+      "reason": "The fresh 189-character editor transaction was exact once, the file was saved and genuinely reopened, and all 12 actions completed. The completion classifier did not recognize the model's wording 'in the native Open dialog', so it caused 14 redundant autonomous continuations before a differently worded Open commit satisfied the same gate. This correct but slower pass is retained; the classifier now accepts completed selections from, in, or using the native Open dialog.",
+      "wall_clock_ms": 521520,
+      "model_active_ms": 412966,
+      "provider_wait_ms": 379130,
+      "provider_serial_equivalent_ms": 413986,
+      "provider_overlap_ms": 34856,
+      "action_execution_ms": 123281,
+      "evidence_capture_ms": 2937,
+      "provider_calls": 61,
+      "actions_attempted": 12,
+      "actions_completed": 12,
+      "completion_efficiency": 1.0,
+      "autonomous_resumes": 14,
+      "same_run_recoveries": 0,
+      "approval_count": 1,
+      "approval_scopes": [
+        "bounded_workspace_edit"
+      ],
+      "quiescence_status": "confirmed",
+      "reboot_ms": 84520,
+      "reboot_transition_observed": true,
+      "recording": {
+        "relative_path": "codex-text-entry-text10-v2-20260801/text-10/recording.webm",
+        "sha256": "c27fd8dcf2511e2188bdb66e24dfed882fde12d6e067979f1672ea118ddf247f",
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2,
+        "duration_ms": 525000,
+        "size_bytes": 1840644
+      },
+      "poster": {
+        "relative_path": "codex-text-entry-text10-v2-20260801/text-10/poster.jpg",
+        "sha256": "d4bcc3f59285933112377ec4cea66a47a1adbd0ab5387917be11cecc65b574ad"
+      },
+      "campaign_sha256": "e421f06efbf6741077b1315cf02abf9e0258bf47714ec6c7ce76932ca770d780"
+    },
+    {
+      "campaign_id": "codex-text-entry-text10-v3-20260801",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "run_id": "f7e5cf13-0d83-4a63-bfdd-6d89fe7ca916",
+      "reason": "The fresh 189-character editor transaction was exact once, but the target from v2 still existed. The resulting Confirm Save As Yes click was classified unknown and the campaign correctly stopped at the non-allowlisted approval. The run was quiesced and rebooted without weakening the approval boundary.",
+      "wall_clock_ms": 214735,
+      "model_active_ms": 124228,
+      "provider_wait_ms": 99093,
+      "provider_serial_equivalent_ms": 125061,
+      "provider_overlap_ms": 25968,
+      "action_execution_ms": 109992,
+      "evidence_capture_ms": 1590,
+      "provider_calls": 16,
+      "actions_attempted": 8,
+      "actions_completed": 7,
+      "completion_efficiency": 0.875,
+      "same_run_recoveries": 1,
+      "approval_count": 1,
+      "approval_scopes": [
+        "bounded_workspace_edit"
+      ],
+      "quiescence_status": "confirmed",
+      "reboot_ms": 76380,
+      "reboot_transition_observed": true,
+      "recording": {
+        "relative_path": "codex-text-entry-text10-v3-20260801/text-10/recording.webm",
+        "sha256": "975f7e2e2ec1be65862a1ca5575c42f48af916a0cc1392ebd183adcff5b2d1d1",
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2,
+        "duration_ms": 265500,
+        "size_bytes": 1148924
+      },
+      "poster": {
+        "relative_path": "codex-text-entry-text10-v3-20260801/text-10/poster.jpg",
+        "sha256": "b08aa74f9dded958ebc3543ce52e16357debbef30d365d96e3828bdd101a7877"
+      },
+      "campaign_sha256": "7cbd5f215ca508788522be9cce792fe15bbbe8b4744a20bc9f8b4cf27674480c"
+    },
+    {
+      "campaign_id": "codex-text-entry-text10-v4-20260801",
+      "reported_status": "passed",
+      "accepted_status": "passed",
+      "run_id": "085686e4-7c9c-431a-973c-bc470a1e20f1",
+      "reason": "The new bounded preflight preserved the prior target under a unique sibling name, then a blank editor received all 189 characters with one exact-once receipt and zero edit distance. Save As committed a free target, native Open reopened it, the final verifier confirmed the complete visible payload, quiescence completed, and the mandatory reboot reached readiness after a real transition. One filename-field OCR mismatch still caused a recoverable save-dialog detour.",
+      "wall_clock_ms": 350558,
+      "model_active_ms": 229053,
+      "provider_wait_ms": 180148,
+      "provider_serial_equivalent_ms": 229751,
+      "provider_overlap_ms": 49603,
+      "action_execution_ms": 160070,
+      "evidence_capture_ms": 2905,
+      "provider_calls": 31,
+      "actions_attempted": 14,
+      "actions_completed": 13,
+      "completion_efficiency": 0.9285714285714286,
+      "autonomous_resumes": 1,
+      "same_run_recoveries": 2,
+      "approval_count": 2,
+      "approval_scopes": [
+        "bounded_workspace_edit",
+        "bounded_workspace_edit"
+      ],
+      "quiescence_status": "confirmed",
+      "reboot_ms": 77464,
+      "reboot_transition_observed": true,
+      "recording": {
+        "relative_path": "codex-text-entry-text10-v4-20260801/text-10/recording.webm",
+        "sha256": "3a40c37e493fa11d3f1540043ce4ff0bab05b5d3131ac62362f81256e57fa5b1",
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2,
+        "duration_ms": 392000,
+        "size_bytes": 1641963
+      },
+      "poster": {
+        "relative_path": "codex-text-entry-text10-v4-20260801/text-10/poster.jpg",
+        "sha256": "235b73954cd7442b301ccf8e8a434dd3cc8f425e388655bdc062c8f42e667e20"
+      },
+      "campaign_sha256": "abf112e221bf1ed464ec2a75add0fe49540552d19bc5045dd85fb37fa588ca3d"
+    }
+  ],
   "verdict": {
-    "accuracy": "Nine exact text tasks now pass with fresh input and independent reopen evidence. Text-09 v6 typed and proved all five CSV lines during the accepted run. Its earlier reported v4 pass is retained as invalid because restored pre-existing content satisfied the visible outcome without testing editor input. The resulting fresh-input guard now rejects that benchmark shortcut for every text and code task.",
-    "speed": "Failing product target: accepted text-09 v6 took 441.397 seconds before reboot and 519.970 seconds including the reset-ready gate. This is slower than text-08 v10's 328.464 seconds before reboot and much slower than a human creating a five-line CSV file.",
-    "dominant_cost": "Text-09 v6 spent 268.139 seconds waiting for 52 provider calls and 421.126 seconds in overlapping action execution. Twenty-five controller and twenty-three verifier calls dominate a task whose fresh payload is 85 characters.",
-    "next": "Continue with text-10 under the fresh-input guard. Preserve exact-once delivery, native reopen proof, bounded workspace approval, quiesce-before-reboot lifecycle, failure-inclusive recordings, and rejection of restored or pre-existing content."
+    "accuracy": "All ten Text entry tasks now pass with fresh input and independent reopen evidence. Text-10 delivered one 189-character payload with zero edit distance and exact-once emission. Its four-attempt history retains a duplicate-delivery failure, a correct but lifecycle-churned pass, a fail-closed overwrite stop, and the canonical preserved-prior pass.",
+    "speed": "Failing product target: accepted text-10 v4 took 350.558 seconds before reboot and 428.022 seconds including the reset-ready gate. This is faster than text-09 v6 but still much slower than a human typing, saving, and reopening 189 characters.",
+    "dominant_cost": "Text-10 v4 spent 180.148 seconds waiting for 31 provider calls and 160.070 seconds in action execution. A recoverable filename-field OCR mismatch caused unnecessary save-dialog actions and a second bounded workspace approval even though the exact document payload required no correction.",
+    "next": "Continue with code-01. Preserve exact-once code delivery, native reopen proof, bounded workspace approval, non-destructive fresh-artifact preparation, quiesce-before-reboot lifecycle, and failure-inclusive recordings. Remove filename-field OCR churn when its trace supports a narrow fix."
   }
 }
