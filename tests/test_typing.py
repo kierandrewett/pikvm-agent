@@ -2148,14 +2148,15 @@ async def test_exact_fast_editor_append_localizes_suffix_from_full_document() ->
     backend = FakeBackend()
     backend.guarded_exact_print = True  # type: ignore[attr-defined]
     prefix = (
-        "Ambition first gives Macbeth a private image of kingship, and that "
+        "Ambition first gives Macbeth's imagination a private image of "
+        "kingship, and that "
         "image begins to displace his loyalty and judgment."
     )
     continuation = (
         " Lady Macbeth strengthens that ambition by challenging his courage "
         "and persuading him that murder is the only path to the crown. "
         "Although Macbeth knows Duncan is a generous king and loyal guest, "
-        "his ambition overwhelms his conscience. He chooses"
+        "his ambition overwhelms his conscience. He orders Banquo's murder"
     )
     full_document = prefix + continuation
     wrapped_document = full_document.replace(
@@ -2164,7 +2165,7 @@ async def test_exact_fast_editor_append_localizes_suffix_from_full_document() ->
     ).replace(
         "generous king and loyal guest, his ambition",
         "generous king and loyal guest,\nhis ambition",
-    )
+    ).replace("'", "’")
 
     typer = WatchedTyper(
         backend,

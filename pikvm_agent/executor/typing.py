@@ -50,6 +50,7 @@ from pikvm_agent.executor.verification import (
     Verdict,
     classify_mismatch,
     compute_verdict,
+    fold_quotes,
     has_whitespace_only_difference,
     is_exact_text,
     levenshtein,
@@ -1532,7 +1533,7 @@ class WatchedTyper:
         """
 
         visible_intended = " ".join(intended.split())
-        folded_intended = visible_intended.casefold()
+        folded_intended = fold_quotes(visible_intended).casefold()
         if (
             not folded_intended
             or len(folded_intended) != len(visible_intended)
@@ -1549,7 +1550,7 @@ class WatchedTyper:
         for lines in sources:
             read_back = " ".join(" ".join(lines).split())
             visible_read_back = " ".join(read_back.split())
-            folded_read_back = visible_read_back.casefold()
+            folded_read_back = fold_quotes(visible_read_back).casefold()
             if len(folded_read_back) != len(visible_read_back):
                 continue
             index = folded_read_back.rfind(folded_intended)
@@ -1557,6 +1558,26 @@ class WatchedTyper:
                 candidate = visible_read_back[
                     index : index + len(visible_intended)
                 ]
+                # Word processors can visually smarten the exact ASCII quote
+                # bytes already acknowledged by the transport receipt. Keep
+                # every observed character except a one-for-one glyph in the
+                # same quote family, which is restored to the requested glyph.
+                # Case, punctuation families, spacing, and lengths remain
+                # exact; code/commands never enter this prose-only locator.
+                candidate = "".join(
+                    requested
+                    if (
+                        observed != requested
+                        and fold_quotes(observed)
+                        == fold_quotes(requested)
+                    )
+                    else observed
+                    for observed, requested in zip(
+                        candidate,
+                        visible_intended,
+                        strict=True,
+                    )
+                )
                 # OCR normalizes an editor's visible word boundary but does not
                 # retain which append transaction owned that space. Restore one
                 # requested edge space only when the full document visibly
