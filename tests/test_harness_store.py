@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 from pathlib import Path
 import sqlite3
@@ -44,8 +45,8 @@ class _AsyncSqliteCursor:
 class _AsyncSqliteConnection:
     """Exercise the production SQL without this runner's blocked thread pool."""
 
-    def __init__(self, path: Path) -> None:
-        self.connection = sqlite3.connect(path)
+    def __init__(self, path: Path, **kwargs: Any) -> None:
+        self.connection = sqlite3.connect(path, **kwargs)
 
     async def __aenter__(self) -> _AsyncSqliteConnection:
         return self
@@ -79,7 +80,10 @@ def _synchronous_aiosqlite(
     monkeypatch.setattr(
         agent_store_module.aiosqlite,
         "connect",
-        lambda path: _AsyncSqliteConnection(Path(path)),
+        lambda path, **kwargs: _AsyncSqliteConnection(
+            Path(path),
+            **kwargs,
+        ),
     )
 
 
@@ -447,6 +451,35 @@ async def test_sqlite_store_normalizes_events_and_reads_light_summaries(
     assert [event.sequence for event in page.events] == [600]
     assert page.latest_cursor == 601
     assert page.has_more is True
+
+
+@pytest.mark.asyncio
+async def test_sqlite_store_keeps_summaries_readable_during_a_writer(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "concurrent.sqlite3"
+    store = SqliteRunStore(path)
+    run = RunSnapshot(
+        run_id="concurrent-summary",
+        task="Keep the live task visible while checkpoints are written",
+        status=RunStatus.RUNNING,
+    )
+    await store.save(run)
+
+    blocker = sqlite3.connect(path, timeout=0)
+    blocker.execute("BEGIN EXCLUSIVE")
+    read_task = asyncio.create_task(store.get_summary(run.run_id))
+    try:
+        await asyncio.sleep(0.1)
+        assert read_task.done(), (
+            "summary polling waited behind the active writer transaction"
+        )
+        assert (await read_task).run_id == run.run_id
+    finally:
+        blocker.rollback()
+        blocker.close()
+        if not read_task.done():
+            await read_task
 
 
 @pytest.mark.asyncio

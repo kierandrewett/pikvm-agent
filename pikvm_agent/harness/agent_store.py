@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 import json
 from pathlib import Path
 from typing import Protocol
@@ -18,6 +20,7 @@ from pikvm_agent.harness.agent_models import (
 )
 
 CONTROL_EVENT_TAIL_LIMIT = 1_000
+SQLITE_BUSY_TIMEOUT_SECONDS = 15.0
 
 
 class RunNotFoundError(KeyError):
@@ -357,6 +360,18 @@ class SqliteRunStore:
         self._initialized = False
         self._init_lock = asyncio.Lock()
 
+    @asynccontextmanager
+    async def _connection(self) -> AsyncIterator[aiosqlite.Connection]:
+        async with aiosqlite.connect(
+            self.path,
+            timeout=SQLITE_BUSY_TIMEOUT_SECONDS,
+        ) as db:
+            await db.execute(
+                f"PRAGMA busy_timeout = "
+                f"{int(SQLITE_BUSY_TIMEOUT_SECONDS * 1_000)}"
+            )
+            yield db
+
     async def _initialize(self) -> None:
         if self._initialized:
             return
@@ -364,7 +379,8 @@ class SqliteRunStore:
             if self._initialized:
                 return
             self.path.parent.mkdir(parents=True, exist_ok=True)
-            async with aiosqlite.connect(self.path) as db:
+            async with self._connection() as db:
+                await db.execute("PRAGMA journal_mode = WAL")
                 await db.execute(
                     """
                     CREATE TABLE IF NOT EXISTS harness_runs (
@@ -457,7 +473,7 @@ class SqliteRunStore:
 
     async def save(self, run: RunSnapshot) -> None:
         await self._initialize()
-        async with aiosqlite.connect(self.path) as db:
+        async with self._connection() as db:
             # Read the durable cursor and append its suffix under one database
             # write reservation. Parallel verifier/controller tasks use
             # separate connections; without BEGIN IMMEDIATE both can observe
@@ -533,7 +549,7 @@ class SqliteRunStore:
 
     async def get(self, run_id: str) -> RunSnapshot:
         await self._initialize()
-        async with aiosqlite.connect(self.path) as db:
+        async with self._connection() as db:
             async with db.execute(
                 "SELECT state_json FROM harness_runs WHERE run_id = ?",
                 (run_id,),
@@ -567,7 +583,7 @@ class SqliteRunStore:
         if event_limit < 1:
             raise ValueError("event_limit must be positive")
         await self._initialize()
-        async with aiosqlite.connect(self.path) as db:
+        async with self._connection() as db:
             async with db.execute(
                 """
                 SELECT state_json, summary_json
@@ -601,7 +617,7 @@ class SqliteRunStore:
 
     async def get_state(self, run_id: str) -> RunSnapshot:
         await self._initialize()
-        async with aiosqlite.connect(self.path) as db:
+        async with self._connection() as db:
             async with db.execute(
                 """
                 SELECT state_json, summary_json
@@ -622,7 +638,7 @@ class SqliteRunStore:
 
     async def get_summary(self, run_id: str) -> RunSummary:
         await self._initialize()
-        async with aiosqlite.connect(self.path) as db:
+        async with self._connection() as db:
             async with db.execute(
                 "SELECT summary_json FROM harness_runs WHERE run_id = ?",
                 (run_id,),
@@ -654,7 +670,7 @@ class SqliteRunStore:
         await self._initialize()
         ordered_kinds = sorted(kinds)
         placeholders = ",".join("?" for _ in ordered_kinds)
-        async with aiosqlite.connect(self.path) as db:
+        async with self._connection() as db:
             async with db.execute(
                 "SELECT summary_json FROM harness_runs WHERE run_id = ?",
                 (run_id,),
@@ -691,7 +707,7 @@ class SqliteRunStore:
         limit: int,
     ) -> tuple[RunSummary, RunEventPage]:
         await self._initialize()
-        async with aiosqlite.connect(self.path) as db:
+        async with self._connection() as db:
             async with db.execute(
                 "SELECT summary_json FROM harness_runs WHERE run_id = ?",
                 (run_id,),
@@ -726,7 +742,7 @@ class SqliteRunStore:
 
     async def list_summaries(self, limit: int = 100) -> list[RunSummary]:
         await self._initialize()
-        async with aiosqlite.connect(self.path) as db:
+        async with self._connection() as db:
             async with db.execute(
                 """
                 SELECT summary_json
