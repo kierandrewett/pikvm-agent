@@ -290,7 +290,33 @@ def _parse_tsv(
         words.sort(key=lambda word: int(word["x0"]))
         heights = sorted(max(1, int(word["height"])) for word in words)
         median_height = heights[len(heights) // 2]
-        maximum_word_gap = max(12, round(median_height * 1.75))
+        character_widths = [
+            max(
+                1.0,
+                (int(word["x1"]) - int(word["x0"]))
+                / max(1, len(str(word["text"]))),
+            )
+            for word in words
+            if any(
+                character.isalnum()
+                for character in str(word["text"])
+            )
+        ]
+        median_character_width = (
+            statistics.median(character_widths)
+            if character_widths
+            else 0.0
+        )
+        # A tiny monospaced editor font can render a deliberate three- or
+        # four-space gap wider than the generic control-splitting threshold.
+        # Keep up to four character advances on one OCR row so the spacing
+        # reconstructor can measure them; materially separated toolbar
+        # controls still split into compact grounding boxes.
+        maximum_word_gap = max(
+            12,
+            round(median_height * 1.75),
+            round(median_character_width * 4.25),
+        )
         segments: list[list[dict[str, float | int | str]]] = []
         for word in words:
             if _looks_like_control_border(word, median_height=median_height):

@@ -706,6 +706,54 @@ async def test_causal_exact_row_finishes_without_a_noisier_second_read(
     assert ocr.target_reads == 1
 
 
+async def test_causal_spacing_row_ignores_unchanged_editor_context(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    backend = _ambiguous_dense_typing_backend(monkeypatch)
+    intended = "gamma   delta"
+
+    class ContextualSpacingOCR:
+        async def ocr(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path
+            if region is None or region.y >= 200:
+                return OCRResult()
+            return OCRResult(
+                lines=[
+                    OCRLine(text="alpha beta", confidence=0.95),
+                    OCRLine(text="gamma delta", confidence=0.80),
+                ],
+                alternatives=[
+                    OCRCandidate(
+                        text="alpha  beta\ngamma   delta",
+                        evidence_kind="spacing",
+                    )
+                ],
+                spacing_evidence="uncertain",
+            )
+
+        async def ocr_precise(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            return await self.ocr(image_path, region)
+
+    result = await WatchedTyper(backend, ContextualSpacingOCR()).type_text(
+        intended,
+        exact=True,
+        context="editor",
+        code=True,
+    )
+
+    assert result.status == "verified_exact"
+    assert result.field_text == intended
+    assert result.emitted_exactly_once is True
+
+
 async def test_short_exact_typing_keeps_the_unique_causal_exact_ocr_row(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

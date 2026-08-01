@@ -1604,6 +1604,23 @@ def test_tesseract_button_borders_split_adjacent_controls() -> None:
     assert lines[0].bbox[2] < lines[1].bbox[0]
 
 
+def test_tesseract_recovers_repeated_spaces_from_collinear_split_words() -> None:
+    tsv = "\n".join(
+        [
+            "level\tpage_num\tblock_num\tpar_num\tline_num\tword_num\tleft\ttop\twidth\theight\tconf\ttext",
+            "5\t1\t1\t1\t1\t1\t10\t16\t24\t7\t66\tgamma",
+            "5\t1\t1\t1\t1\t2\t49\t14\t25\t7\t94\tdelta",
+        ]
+    )
+
+    lines = _parse_tsv(tsv)
+
+    assert len(lines) == 1
+    assert lines[0].text == "gamma delta"
+    assert lines[0].raw is not None
+    assert lines[0].raw["spacing_text"] == "gamma   delta"
+
+
 def test_tesseract_rejoins_machine_tokens_without_merging_prose() -> None:
     tsv = "\n".join(
         [
