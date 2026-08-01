@@ -3125,14 +3125,22 @@ class WatchedTyper:
             precise
             and not explicit_region
             and cur_region is not None
-            and compute_verdict(text, last_read, precise)
-            not in {"match", "contains"}
+            and (
+                compute_verdict(text, last_read, precise) != "match"
+                and (
+                    compute_verdict(text, last_read, precise) != "contains"
+                    or editor_field
+                )
+            )
         ):
             # A thin changed-pixel crop can miss exact text in editors and
-            # terminals even when the full payload is legible. Take a fresh
-            # precise full-frame read and accept only a complete line whose
-            # bbox overlaps the field changed by this exact emission. This is
-            # read-only; any subsequent commit remains a separate action.
+            # terminals even when the full payload is legible. It can also
+            # include an adjacent editor row: precise ``contains`` is not a
+            # verified receipt, so localize it instead of stopping early.
+            # Take a fresh precise full-frame read and accept only a complete
+            # line whose bbox overlaps the field changed by this exact
+            # emission. This is read-only; any subsequent commit remains a
+            # separate action.
             for settle_s in _PRECISE_FULL_SCREEN_SETTLES_S:
                 if settle_s:
                     await asyncio.sleep(settle_s)

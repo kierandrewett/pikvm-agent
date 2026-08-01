@@ -3347,6 +3347,7 @@ async def test_terminal_prefix_normalization_cannot_verify_a_stale_final_read(
         "line_suffix",
         "poison_readback",
         "full_screen_misses",
+        "surrounding_crop",
         "expected_status",
     ),
     [
@@ -3355,6 +3356,7 @@ async def test_terminal_prefix_normalization_cannot_verify_a_stale_final_read(
             "",
             False,
             0,
+            False,
             "verified_exact",
             id="grounded-complete-line",
         ),
@@ -3363,6 +3365,7 @@ async def test_terminal_prefix_normalization_cannot_verify_a_stale_final_read(
             "",
             False,
             1,
+            False,
             "verified_exact",
             id="delayed-full-screen-frame",
         ),
@@ -3371,14 +3374,25 @@ async def test_terminal_prefix_normalization_cannot_verify_a_stale_final_read(
             "",
             True,
             0,
+            False,
             "verified_exact",
             id="causal-delta-recovers-poisoned-crop",
+        ),
+        pytest.param(
+            [20, 72, 1040, 100],
+            "",
+            False,
+            0,
+            True,
+            "verified_exact",
+            id="adjacent-editor-row-is-localized",
         ),
         pytest.param(
             [20, 400, 1040, 428],
             "",
             False,
             0,
+            False,
             "unverified_ambiguous",
             id="matching-text-elsewhere",
         ),
@@ -3387,6 +3401,7 @@ async def test_terminal_prefix_normalization_cannot_verify_a_stale_final_read(
             "x",
             False,
             0,
+            False,
             "unverified_ambiguous",
             id="extra-suffix",
         ),
@@ -3399,6 +3414,7 @@ async def test_exact_readback_recovers_only_from_grounded_complete_line(
     line_suffix: str,
     poison_readback: bool,
     full_screen_misses: int,
+    surrounding_crop: bool,
     expected_status: str,
     context: str,
 ) -> None:
@@ -3448,6 +3464,18 @@ async def test_exact_readback_recovers_only_from_grounded_complete_line(
         ) -> OCRResult:
             del image_path
             if region is not None:
+                if surrounding_crop:
+                    return OCRResult(
+                        lines=[
+                            OCRLine(
+                                text=(
+                                    "previous editor row\n"
+                                    f"{self.backend.visible}"
+                                ),
+                                confidence=0.99,
+                            )
+                        ]
+                    )
                 return OCRResult()
             return OCRResult()
 
@@ -3458,6 +3486,18 @@ async def test_exact_readback_recovers_only_from_grounded_complete_line(
         ) -> OCRResult:
             del image_path
             if region is not None:
+                if surrounding_crop:
+                    return OCRResult(
+                        lines=[
+                            OCRLine(
+                                text=(
+                                    "previous editor row\n"
+                                    f"{self.backend.visible}"
+                                ),
+                                confidence=0.99,
+                            )
+                        ]
+                    )
                 return OCRResult()
             self.full_screen_precise_calls += 1
             if self.full_screen_precise_calls <= full_screen_misses:
