@@ -2512,21 +2512,34 @@ async def test_autolocate_retries_once_for_delayed_video_update() -> None:
     assert result.ok is True
 
 
+@pytest.mark.parametrize(
+    ("intended", "code", "stale_frame_count"),
+    [
+        ("2. Act", False, 1),
+        ("alpha  beta", True, 5),
+    ],
+)
 async def test_short_exact_editor_retries_delayed_video_before_unverified(
     monkeypatch: pytest.MonkeyPatch,
+    intended: str,
+    code: bool,
+    stale_frame_count: int,
 ) -> None:
     async def no_sleep(_seconds: float) -> None:
         return None
 
     monkeypatch.setattr(asyncio, "sleep", no_sleep)
     backend = FakeBackend()
-    intended = "2. Act"
     ocr = ScriptedOCR(intended)
     typer = WatchedTyper(backend, ocr)
     flat = _flat_grid()
     changed = flat.copy().reshape(GRID_ROWS, GRID_COLS)
     changed[10:13, 20:24] = 200
-    grids = [flat, flat, changed.reshape(-1)]
+    grids = [
+        flat,
+        *[flat] * stale_frame_count,
+        changed.reshape(-1),
+    ]
 
     async def delayed_grid() -> np.ndarray:
         return grids.pop(0) if grids else changed.reshape(-1)
@@ -2535,6 +2548,7 @@ async def test_short_exact_editor_retries_delayed_video_before_unverified(
 
     result = await typer.type_text(
         intended,
+        code=code,
         exact=True,
         context="editor",
     )

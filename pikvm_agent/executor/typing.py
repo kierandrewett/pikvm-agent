@@ -100,6 +100,7 @@ _CLEAR_SETTLE_S = 0.15
 _VIDEO_RETRY_SETTLE_S = 0.20
 _SLOW_VIDEO_RETRY_SETTLE_S = 1.00
 _VERY_SLOW_VIDEO_RETRY_SETTLE_S = 2.50
+_FINAL_VIDEO_RETRY_SETTLE_S = 1.00
 _CARET_BLINK_RECHECK_S = 0.65
 _PRECISE_READBACK_SETTLES_S = (0.45, 0.90, 1.80)
 _PRECISE_FULL_SCREEN_SETTLES_S = (0.0, 0.45, 0.90)
@@ -2731,6 +2732,7 @@ class WatchedTyper:
                         _PRINT_SETTLE_S,
                         _SLOW_VIDEO_RETRY_SETTLE_S,
                         _VERY_SLOW_VIDEO_RETRY_SETTLE_S,
+                        _FINAL_VIDEO_RETRY_SETTLE_S,
                     ):
                         await asyncio.sleep(settle_s)
                         grid_retry = await self._grid()
