@@ -6247,7 +6247,16 @@ def test_later_verified_reopen_action_satisfies_reopen_completion_gate() -> None
     assert AgentHarness._completion_rejection_reason(run, verdict) is None
 
 
-def test_verified_open_dialog_commit_satisfies_reopen_completion_gate() -> None:
+@pytest.mark.parametrize(
+    "reopen_intent",
+    [
+        "Open the verified CSV from the native Open dialog.",
+        "Open the selected saved text file in the native Open dialog.",
+    ],
+)
+def test_verified_open_dialog_commit_satisfies_reopen_completion_gate(
+    reopen_intent: str,
+) -> None:
     """Regress the exact reopen wording from live CSV campaign v1."""
 
     run = RunSnapshot(
@@ -6270,7 +6279,7 @@ def test_verified_open_dialog_commit_satisfies_reopen_completion_gate() -> None:
         ),
         (
             17,
-            "Open the verified CSV from the native Open dialog.",
+            reopen_intent,
             [
                 "The Open dialog closes and Notepad visibly displays the "
                 "reopened CSV with its header and four data rows."

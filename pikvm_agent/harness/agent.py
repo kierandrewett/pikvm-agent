@@ -4871,7 +4871,8 @@ class AgentHarness:
                     intent,
                 )
                 and not re.search(
-                    r"\bopen(?:ed|ing)?\b.{0,80}\bfrom\b.{0,80}"
+                    r"\bopen(?:ed|ing)?\b.{0,80}"
+                    r"\b(?:from|in|using)\b.{0,80}"
                     r"\b(?:native\s+)?open dialog\b",
                     intent,
                 )
@@ -4886,7 +4887,8 @@ class AgentHarness:
                         intent,
                     )
                     or re.search(
-                        r"\bopen(?:ed|ing)?\b.{0,80}\bfrom\b.{0,80}"
+                        r"\bopen(?:ed|ing)?\b.{0,80}"
+                        r"\b(?:from|in|using)\b.{0,80}"
                         r"\b(?:native\s+)?open dialog\b",
                         intent,
                     )
