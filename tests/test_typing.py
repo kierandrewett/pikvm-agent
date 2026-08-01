@@ -19,6 +19,7 @@ import numpy as np
 import pytest
 from PIL import Image, ImageDraw
 
+import pikvm_agent.executor.typing as typing_module
 from pikvm_agent.core.models import OCRCandidate, OCRLine, OCRResult, Region
 from pikvm_agent.executor.typing import (
     CHUNK_TARGET,
@@ -33,6 +34,7 @@ from pikvm_agent.executor.typing import (
     locate_capture_change,
     locate_changed_bbox,
     locate_dense_changed_bbox,
+    locate_dense_changed_candidates,
     precise_readback_candidate_region,
     readback_region,
     regions_overlap,
@@ -444,9 +446,30 @@ def test_dense_locator_can_nominate_strongest_ambiguous_line_for_exact_ocr() -> 
     assert nominated.y <= 96
     assert nominated.y + nominated.height >= 111
     assert nominated.y + nominated.height < 481
+    candidates = locate_dense_changed_candidates(
+        before_bytes,
+        after_bytes,
+        (1280, 800),
+    )
+    assert len(candidates) == 2
+    assert any(candidate.y < 200 for candidate in candidates)
+    assert any(candidate.y > 400 for candidate in candidates)
 
 
-async def test_short_exact_typing_uses_strongest_ambiguous_line_as_ocr_crop() -> None:
+@pytest.mark.parametrize(
+    ("spacing_evidence", "spacing_alternative", "expected_status"),
+    [
+        ("verified", False, "verified_exact"),
+        ("uncertain", True, "verified_exact"),
+        ("uncertain", False, "unverified_ambiguous"),
+    ],
+)
+async def test_short_exact_typing_checks_all_causal_lines_when_coarse_crop_is_wrong(
+    monkeypatch: pytest.MonkeyPatch,
+    spacing_evidence: str,
+    spacing_alternative: bool,
+    expected_status: str,
+) -> None:
     backend = FakeBackend(width=1280, height=800)
     before_bytes, after_bytes = _ambiguous_dense_line_frames()
     backend.set_frame_bytes(before_bytes)
@@ -462,6 +485,16 @@ async def test_short_exact_typing_uses_strongest_ambiguous_line_as_ocr_crop() ->
         backend.set_frame_bytes(after_bytes)
 
     backend.type_text = typing  # type: ignore[method-assign]
+    monkeypatch.setattr(
+        typing_module,
+        "locate_changed_bbox",
+        lambda *_args, **_kwargs: Region(
+            x=88,
+            y=488,
+            width=86,
+            height=32,
+        ),
+    )
 
     class CausalCropOCR:
         def __init__(self) -> None:
@@ -478,7 +511,17 @@ async def test_short_exact_typing_uses_strongest_ambiguous_line_as_ocr_crop() ->
                 return OCRResult()
             return OCRResult(
                 lines=[OCRLine(text="2. Act", confidence=0.99)],
-                spacing_evidence="verified",
+                alternatives=(
+                    [
+                        OCRCandidate(
+                            text="2. Act",
+                            evidence_kind="spacing",
+                        )
+                    ]
+                    if spacing_alternative
+                    else []
+                ),
+                spacing_evidence=spacing_evidence,
             )
 
         async def ocr_precise(
@@ -495,7 +538,7 @@ async def test_short_exact_typing_uses_strongest_ambiguous_line_as_ocr_crop() ->
         context="editor",
     )
 
-    assert result.status == "verified_exact"
+    assert result.status == expected_status
     assert result.emitted_exactly_once is True
     assert any(region is not None and region.y < 200 for region in ocr.regions)
 

@@ -714,12 +714,44 @@
         "sha256": "250d66a554306ab1c2a76cc3cdda07080d1e1c73cacda33ec1020a2caab70b8f"
       },
       "campaign_sha256": "9db5e1c529497094404b1c5ce27a12eddd1268b97b0e34de21f88ca52f7bd11b"
+    },
+    {
+      "campaign_id": "codex-text-entry-text04-v5-20260801",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "run_id": "101eb3e8-9963-4633-b8a7-b7779dbea4f1",
+      "reason": "The exact `2. Act` payload was emitted once, but the coarse locator selected Notepad's changing status row and the strongest dense candidate was also that unrelated row. Exact OCR spent 104.821 seconds rereading the wrong crop and returned no observed characters. The editor guard blocked all progression and the repeated-paused-error circuit stopped further retries.",
+      "wall_clock_ms": 246080,
+      "provider_wait_ms": 99188,
+      "action_execution_ms": 141702,
+      "provider_calls": 16,
+      "actions_attempted": 6,
+      "actions_completed": 5,
+      "completion_efficiency": 0.8333333333333334,
+      "same_run_recoveries": 3,
+      "reboot_ms": 77617,
+      "reboot_transition_observed": true,
+      "recording": {
+        "relative_path": "codex-text-entry-text04-v5-20260801/text-04/recording.webm",
+        "sha256": "8646726240ac03ac7ab9941e6184b33a8babea6a618dfc86fea45c1a4211b2b1",
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2,
+        "duration_ms": 289000,
+        "size_bytes": 716271
+      },
+      "poster": {
+        "relative_path": "codex-text-entry-text04-v5-20260801/text-04/poster.jpg",
+        "sha256": "eaa2fa821b679cef9c857ec400c18ad3516433e9844e9d4810c17398fc8a6c51"
+      },
+      "campaign_sha256": "c77e6afe8fda3017d68efa2ba8bf34f15961546c4acbd2e7eeba444b21853d3f"
     }
   ],
   "verdict": {
     "accuracy": "Three exact text tasks now pass with independent reopen evidence. Text-03 includes a durable completed Ctrl+O transition and visible post-open paragraph verification.",
     "speed": "Failing product target: accepted text-03 v6 took 380.612 seconds before reboot and required two recoveries.",
     "dominant_cost": "Text-03 v6 provider waits consumed 208.161 seconds across 34 calls, while action execution consumed 243.335 seconds; overlapping work prevents these components from summing directly to wall time.",
-    "next": "Replay text-04 with the bounded strongest-causal-line nomination feeding exact OCR."
+    "next": "Replay text-04 with bounded exact OCR across every causal line candidate."
   }
 }

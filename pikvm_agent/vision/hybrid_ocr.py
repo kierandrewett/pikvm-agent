@@ -344,9 +344,10 @@ def _has_visible_single_space_gap(
     runner_up = gaps[1][0] if len(gaps) > 1 else 0
     line_height = grayscale.shape[0]
     if numbered_list:
+        maximum_gap_ratio = 0.95 if line_height <= 8 else 0.72
         valid_gap_size = (
             largest >= max(3, round(line_height * 0.28))
-            and largest <= max(4, round(line_height * 0.72))
+            and largest <= max(4, round(line_height * maximum_gap_ratio))
             and largest >= max(4, runner_up * 2)
         )
     else:

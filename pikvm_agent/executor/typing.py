@@ -538,26 +538,14 @@ def locate_changed_bbox(
     return Region(x=x, y=y, width=w, height=h)
 
 
-def locate_dense_changed_bbox(
+def _dense_changed_candidates(
     before_image: bytes,
     after_image: bytes,
     dims: Any,
-    *,
-    allow_ambiguous: bool = False,
-) -> Region | None:
-    """Locate a narrow text-line change hidden by the coarse luminance grid.
-
-    Replacing selected text can preserve the average brightness of every
-    96x54 grid cell even though hundreds of full-resolution pixels changed.
-    This fallback accepts only a coherent, horizontal, text-line-sized delta;
-    isolated caret blinking and large window repaints remain non-evidence.
-    ``allow_ambiguous`` nominates the strongest plausible line without proving
-    it is causal. Callers must still require an independent exact OCR match.
-    """
-
+) -> list[tuple[int, Region]]:
     width, height = _dims_wh(dims)
     if width <= 0 or height <= 0 or not before_image or not after_image:
-        return None
+        return []
     try:
         before = np.asarray(
             Image.open(io.BytesIO(before_image)).convert("RGB"),
@@ -568,13 +556,13 @@ def locate_dense_changed_bbox(
             dtype=np.int16,
         )
     except Exception:
-        return None
+        return []
     if before.shape != after.shape or before.ndim != 3:
-        return None
+        return []
     changed = np.max(np.abs(after - before), axis=2) > DENSE_PIXEL_DELTA
     changed_count = int(changed.sum())
     if changed_count < DENSE_MIN_CHANGED_PIXELS or changed_count > 50_000:
-        return None
+        return []
 
     remaining = {
         (int(y), int(x))
@@ -630,26 +618,83 @@ def locate_dense_changed_bbox(
         for box, count in candidates_by_box.items()
     ]
     if not candidates:
-        return None
+        return []
     candidates.sort(reverse=True)
-    count, x0, y0, x1, y1 = candidates[0]
+    located: list[tuple[int, Region]] = []
+    for count, x0, y0, x1, y1 in candidates:
+        pad = 8
+        x = max(0, x0 - pad)
+        y = max(0, y0 - pad)
+        x2 = min(width, x1 + pad)
+        y2 = min(height, y1 + pad)
+        located.append(
+            (
+                count,
+                Region(
+                    x=x,
+                    y=y,
+                    width=max(1, x2 - x),
+                    height=max(1, y2 - y),
+                ),
+            )
+        )
+    return located
+
+
+def locate_dense_changed_candidates(
+    before_image: bytes,
+    after_image: bytes,
+    dims: Any,
+) -> list[Region]:
+    """Return bounded line-shaped deltas in descending pixel-count order.
+
+    These are OCR candidates, not proof that keyboard input caused a region.
+    A caller choosing among multiple candidates must still verify the exact
+    intended characters independently.
+    """
+
+    return [
+        region
+        for _count, region in _dense_changed_candidates(
+            before_image,
+            after_image,
+            dims,
+        )
+    ]
+
+
+def locate_dense_changed_bbox(
+    before_image: bytes,
+    after_image: bytes,
+    dims: Any,
+    *,
+    allow_ambiguous: bool = False,
+) -> Region | None:
+    """Locate a narrow text-line change hidden by the coarse luminance grid.
+
+    Replacing selected text can preserve the average brightness of every
+    96x54 grid cell even though hundreds of full-resolution pixels changed.
+    This fallback accepts only a coherent, horizontal, text-line-sized delta;
+    isolated caret blinking and large window repaints remain non-evidence.
+    ``allow_ambiguous`` nominates the strongest plausible line without proving
+    it is causal. Callers must still require an independent exact OCR match.
+    """
+
+    candidates = _dense_changed_candidates(
+        before_image,
+        after_image,
+        dims,
+    )
+    if not candidates:
+        return None
+    count, region = candidates[0]
     if (
         not allow_ambiguous
         and len(candidates) > 1
         and count < candidates[1][0] * 2
     ):
         return None
-    pad = 8
-    x = max(0, x0 - pad)
-    y = max(0, y0 - pad)
-    x2 = min(width, x1 + pad)
-    y2 = min(height, y1 + pad)
-    return Region(
-        x=x,
-        y=y,
-        width=max(1, x2 - x),
-        height=max(1, y2 - y),
-    )
+    return region
 
 
 def locate_capture_change(
@@ -1659,6 +1704,133 @@ class WatchedTyper:
                     secret=secret,
                 )
 
+        async def exact_dense_candidate(
+            before_frame: CapturedFrame | None,
+            after_frame: CapturedFrame | None,
+            intended_snapshot: str,
+            coarse_region: Region | None,
+        ) -> Region | None:
+            """Choose among causal line deltas only by exact cropped OCR."""
+
+            if (
+                not precise
+                or total > 20
+                or explicit_region
+                or single_line_field
+                or before_frame is None
+                or after_frame is None
+            ):
+                return None
+            candidates = await asyncio.to_thread(
+                locate_dense_changed_candidates,
+                before_frame.data,
+                after_frame.data,
+                dims,
+            )
+            if not candidates:
+                return None
+            ordered = sorted(
+                enumerate(candidates),
+                key=lambda indexed: (
+                    0
+                    if (
+                        coarse_region is not None
+                        and regions_overlap(coarse_region, indexed[1])
+                    )
+                    else 1,
+                    indexed[0],
+                ),
+            )
+            checked = 0
+            tmp: Path | None = None
+            try:
+                fd = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+                fd.write(after_frame.data)
+                fd.close()
+                tmp = Path(fd.name)
+                precise_ocr = getattr(self.ocr, "ocr_precise", None)
+                reader = (
+                    precise_ocr
+                    if callable(precise_ocr)
+                    else self.ocr.ocr
+                )
+                for _index, candidate in ordered[:4]:
+                    checked += 1
+                    result = await reader(
+                        tmp,
+                        region=readback_region(
+                            candidate,
+                            dims,
+                            explicit=False,
+                            vertical_context=False,
+                        ),
+                    )
+                    exact_rows = [
+                        line
+                        for line in result.lines
+                        if (
+                            line.text == intended_snapshot
+                            and (
+                                line.confidence is None
+                                or float(line.confidence)
+                                >= MIN_GROUNDED_EXACT_OCR_CONFIDENCE
+                            )
+                        )
+                    ]
+                    spacing_verified = (
+                        result.spacing_evidence == "verified"
+                        or any(
+                            alternative.evidence_kind == "spacing"
+                            and alternative.text == intended_snapshot
+                            for alternative in result.alternatives
+                        )
+                    )
+                    if (
+                        len(exact_rows) != 1
+                        or (
+                            any(
+                                character.isspace()
+                                for character in intended_snapshot
+                            )
+                            and not spacing_verified
+                        )
+                    ):
+                        continue
+                    self._last_field_ocr_result = OCRResult(
+                        lines=exact_rows,
+                        alternatives=result.alternatives,
+                        spacing_evidence=(
+                            "verified"
+                            if spacing_verified
+                            else result.spacing_evidence
+                        ),
+                    )
+                    self._last_read_semantic_spacing = spacing_verified
+                    frame_sha256 = str(after_frame.sha256 or "").lower()
+                    self._last_readback_frame_sha256 = (
+                        frame_sha256
+                        if re.fullmatch(r"[0-9a-f]{64}", frame_sha256)
+                        else hashlib.sha256(after_frame.data).hexdigest()
+                    )
+                    DEBUG.event(
+                        "typing.dense_candidate_scan",
+                        candidate_count=len(candidates),
+                        checked=checked,
+                        matched=True,
+                        region=candidate.model_dump(),
+                    )
+                    return candidate
+                DEBUG.event(
+                    "typing.dense_candidate_scan",
+                    candidate_count=len(candidates),
+                    checked=checked,
+                    matched=False,
+                )
+                return None
+            finally:
+                if tmp is not None:
+                    tmp.unlink(missing_ok=True)
+
         def cadence(i: int) -> bool:
             if not can_vision or cur_region is None:
                 return False
@@ -2202,18 +2374,22 @@ class WatchedTyper:
                 if grid_prev is not None and grid_now is not None
                 else None
             )
-            if (
-                chunk_change is None
-                and dense_prev is not None
-                and dense_now is not None
-            ):
-                chunk_change = await asyncio.to_thread(
-                    locate_dense_changed_bbox,
-                    dense_prev.data,
-                    dense_now.data,
-                    dims,
-                    allow_ambiguous=precise and total <= 20,
+            if dense_prev is not None and dense_now is not None:
+                exact_change = await exact_dense_candidate(
+                    dense_prev,
+                    dense_now,
+                    typed_so_far,
+                    chunk_change,
                 )
+                if exact_change is not None:
+                    chunk_change = exact_change
+                elif chunk_change is None:
+                    chunk_change = await asyncio.to_thread(
+                        locate_dense_changed_bbox,
+                        dense_prev.data,
+                        dense_now.data,
+                        dims,
+                    )
 
             # Keyboard input is not idempotent. A stale frame cannot distinguish
             # "nothing landed" from "the boundary space landed but the glyphs
@@ -2283,18 +2459,22 @@ class WatchedTyper:
                             if grid_prev is not None and grid_retry is not None
                             else None
                         )
-                        if (
-                            retry_loc is None
-                            and dense_prev is not None
-                            and dense_retry is not None
-                        ):
-                            retry_loc = await asyncio.to_thread(
-                                locate_dense_changed_bbox,
-                                dense_prev.data,
-                                dense_retry.data,
-                                dims,
-                                allow_ambiguous=precise and total <= 20,
+                        if dense_prev is not None and dense_retry is not None:
+                            exact_retry_loc = await exact_dense_candidate(
+                                dense_prev,
+                                dense_retry,
+                                typed_so_far,
+                                retry_loc,
                             )
+                            if exact_retry_loc is not None:
+                                retry_loc = exact_retry_loc
+                            elif retry_loc is None:
+                                retry_loc = await asyncio.to_thread(
+                                    locate_dense_changed_bbox,
+                                    dense_prev.data,
+                                    dense_retry.data,
+                                    dims,
+                                )
                         if retry_loc is not None:
                             cur_region = retry_loc
                             located = True
@@ -2382,18 +2562,22 @@ class WatchedTyper:
                             and settled_grid is not None
                             else None
                         )
-                        if (
-                            late_region is None
-                            and dense_prev is not None
-                            and settled_frame is not None
-                        ):
-                            late_region = await asyncio.to_thread(
-                                locate_dense_changed_bbox,
-                                dense_prev.data,
-                                settled_frame.data,
-                                dims,
-                                allow_ambiguous=precise and total <= 20,
+                        if dense_prev is not None and settled_frame is not None:
+                            exact_late_region = await exact_dense_candidate(
+                                dense_prev,
+                                settled_frame,
+                                text,
+                                late_region,
                             )
+                            if exact_late_region is not None:
+                                late_region = exact_late_region
+                            elif late_region is None:
+                                late_region = await asyncio.to_thread(
+                                    locate_dense_changed_bbox,
+                                    dense_prev.data,
+                                    settled_frame.data,
+                                    dims,
+                                )
                         if late_region is not None:
                             cur_region = union_region(cur_region, late_region)
                     settled_read = self._typed_candidate(

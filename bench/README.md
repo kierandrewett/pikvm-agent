@@ -203,6 +203,23 @@ candidate for a subsequent character-for-character OCR check; the default
 ambiguity rejection and at-most-once input policy remain unchanged. Text-04
 remains pending until that bounded path passes a clean v5 replay.
 
+Text-04 v5 showed why choosing only the strongest dense candidate was still
+insufficient. The coarse grid confidently selected Notepad's changing
+character-count/status row at `y≈488`, while the actual new `2. Act` line was
+at `y≈112`; the dense candidates likewise ranked the status repaint at 298
+changed pixels above the text at 234. The typer spent 104.821s repeatedly
+reading the wrong crop, returned no observed characters, and emitted no
+duplicate input. The editor guard again blocked progression and the identical
+paused-error circuit stopped further model retries. v5 took 246.080s before
+reboot: 99.188s of provider wait across 16 calls and 141.702s of action
+execution. Its mandatory reboot observed a real transition and reached a ready
+desktop after 77.617s. Short exact editor input now enumerates at most four
+line-shaped causal candidates and selects one only when its own cropped OCR is
+an exact character-for-character match with independently calibrated spacing;
+single-line fields, explicit regions, and the default ambiguity policy are
+unchanged. Text-04 remains pending until that candidate scan passes a clean v6
+replay.
+
 Failure-inclusive metrics, canonical campaign digests, the 18 accepted task
 IDs, and the VP9 recording/poster hashes are retained in
 [`codex-50-progress.json`](results/2026-07-31/live-vnc/codex-50-progress.json).

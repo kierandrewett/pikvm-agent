@@ -582,6 +582,19 @@ class _ScriptedOcrProvider:
         return self.precise or self.ordinary
 
 
+class _BusyOcrProvider:
+    def busy(self) -> bool:
+        return True
+
+    async def ocr(
+        self,
+        image_path: Path,
+        region: Region | None = None,
+    ) -> OCRResult:
+        del image_path, region
+        raise AssertionError("busy secondary must not be called")
+
+
 async def test_hybrid_ocr_keeps_general_reads_on_the_fast_primary_path(
     tmp_path,
 ) -> None:
@@ -1218,19 +1231,7 @@ async def test_hybrid_precise_read_skips_a_busy_secondary(
         OCRResult(lines=[OCRLine(text="primary without delay")])
     )
 
-    class BusySecondary:
-        def busy(self) -> bool:
-            return True
-
-        async def ocr(
-            self,
-            image_path: Path,
-            region: Region | None = None,
-        ) -> OCRResult:
-            del image_path, region
-            raise AssertionError("busy secondary must not be called")
-
-    provider = HybridOcrProvider(primary, BusySecondary())
+    provider = HybridOcrProvider(primary, _BusyOcrProvider())
 
     result = await provider.ocr_precise(image_path)
 
@@ -1251,6 +1252,44 @@ async def test_hybrid_precise_read_skips_a_busy_secondary(
     }
 
 
+async def _busy_hybrid_spacing_result(
+    tmp_path: Path,
+    *,
+    rendered_text: str,
+    ocr_text: str,
+    font_size: int,
+    confidence: float,
+) -> OCRResult:
+    image_path = tmp_path / f"spacing-{font_size}.png"
+    image = Image.new("RGB", (500, 200), (24, 28, 36))
+    draw = ImageDraw.Draw(image)
+    font = _readable_font(font_size)
+    origin = (110, 90)
+    draw.text(origin, rendered_text, font=font, fill=(240, 245, 250))
+    box = draw.textbbox(origin, rendered_text, font=font)
+    image.save(image_path)
+    region = Region(x=100, y=80, width=220, height=50)
+    result = OCRResult(
+        lines=[
+            OCRLine(
+                text=ocr_text,
+                confidence=confidence,
+                bbox=[
+                    box[0] - int(region.x),
+                    box[1] - int(region.y),
+                    box[2] - int(region.x),
+                    box[3] - int(region.y),
+                ],
+            )
+        ],
+        spacing_evidence="uncertain",
+    )
+    return await HybridOcrProvider(
+        _ScriptedOcrProvider(result, precise=result),
+        _BusyOcrProvider(),
+    ).ocr_precise(image_path, region=region)
+
+
 @pytest.mark.parametrize(
     ("rendered_text", "ocr_text", "expected_spacing"),
     [
@@ -1268,50 +1307,39 @@ async def test_hybrid_busy_secondary_retains_bounded_geometric_gap_evidence(
     ocr_text: str,
     expected_spacing: str,
 ) -> None:
-    image_path = tmp_path / "selected-field.png"
-    image = Image.new("RGB", (500, 200), (24, 28, 36))
-    draw = ImageDraw.Draw(image)
-    font = _readable_font(20)
-    origin = (110, 90)
-    draw.text(origin, rendered_text, font=font, fill=(240, 245, 250))
-    box = draw.textbbox(origin, rendered_text, font=font)
-    image.save(image_path)
-    region = Region(x=100, y=80, width=220, height=50)
-    result = OCRResult(
-        lines=[
-            OCRLine(
-                text=ocr_text,
-                confidence=0.995,
-                bbox=[
-                    box[0] - int(region.x),
-                    box[1] - int(region.y),
-                    box[2] - int(region.x),
-                    box[3] - int(region.y),
-                ],
-            )
-        ],
-        spacing_evidence="uncertain",
+    verified = await _busy_hybrid_spacing_result(
+        tmp_path,
+        rendered_text=rendered_text,
+        ocr_text=ocr_text,
+        font_size=20,
+        confidence=0.995,
     )
-    primary = _ScriptedOcrProvider(result, precise=result)
-
-    class BusySecondary:
-        def busy(self) -> bool:
-            return True
-
-        async def ocr(
-            self,
-            image_path: Path,
-            region: Region | None = None,
-        ) -> OCRResult:
-            del image_path, region
-            raise AssertionError("busy secondary must not be called")
-
-    verified = await HybridOcrProvider(
-        primary,
-        BusySecondary(),
-    ).ocr_precise(image_path, region=region)
 
     assert verified.text == ocr_text
+    assert verified.spacing_evidence == expected_spacing
+
+
+@pytest.mark.parametrize(
+    ("rendered_text", "expected_spacing"),
+    [
+        ("2. Act", "verified"),
+        ("2.  Act", "uncertain"),
+        ("2.Act", "uncertain"),
+    ],
+)
+async def test_numbered_gap_evidence_handles_small_windows_editor_text(
+    tmp_path,
+    rendered_text: str,
+    expected_spacing: str,
+) -> None:
+    verified = await _busy_hybrid_spacing_result(
+        tmp_path,
+        rendered_text=rendered_text,
+        ocr_text="2. Act",
+        font_size=10,
+        confidence=0.95,
+    )
+
     assert verified.spacing_evidence == expected_spacing
 
 
@@ -1345,21 +1373,9 @@ async def test_hybrid_busy_secondary_attaches_gap_evidence_to_noisy_row(
     )
     primary = _ScriptedOcrProvider(result, precise=result)
 
-    class BusySecondary:
-        def busy(self) -> bool:
-            return True
-
-        async def ocr(
-            self,
-            image_path: Path,
-            region: Region | None = None,
-        ) -> OCRResult:
-            del image_path, region
-            raise AssertionError("busy secondary must not be called")
-
     observed = await HybridOcrProvider(
         primary,
-        BusySecondary(),
+        _BusyOcrProvider(),
     ).ocr_precise(image_path, region=region)
 
     assert observed.spacing_evidence == "uncertain"
