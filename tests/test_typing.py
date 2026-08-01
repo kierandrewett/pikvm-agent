@@ -708,6 +708,85 @@ async def test_causal_exact_row_finishes_without_a_noisier_second_read(
     assert ocr.target_reads == 1
 
 
+@pytest.mark.parametrize(
+    ("expanded_text", "expanded_spacing", "expected_status"),
+    [
+        ("    result = []", "verified", "verified_exact"),
+        ("result = []", "uncertain", "unverified_ambiguous"),
+    ],
+)
+async def test_causal_code_row_uses_trimmed_glyphs_only_to_localize(
+    monkeypatch: pytest.MonkeyPatch,
+    expanded_text: str,
+    expanded_spacing: str,
+    expected_status: str,
+) -> None:
+    backend = _ambiguous_dense_typing_backend(monkeypatch)
+    intended = "    result = []"
+
+    class IndentedRowOCR:
+        def __init__(self) -> None:
+            self.regions: list[Region | None] = []
+
+        async def ocr(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path
+            self.regions.append(region)
+            if region is None or region.y >= 200:
+                return OCRResult()
+            if region.width < 120:
+                return OCRResult(
+                    lines=[
+                        OCRLine(
+                            text="result = []",
+                            confidence=0.99,
+                            bbox=[2, 2, 62, 14],
+                        )
+                    ],
+                    spacing_evidence="uncertain",
+                )
+            return OCRResult(
+                lines=[
+                    OCRLine(
+                        text=expanded_text,
+                        confidence=0.99,
+                        bbox=[20, 2, 88, 14],
+                    )
+                ],
+                spacing_evidence=expanded_spacing,
+            )
+
+        async def ocr_precise(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            return await self.ocr(image_path, region)
+
+    ocr = IndentedRowOCR()
+    result = await WatchedTyper(backend, ocr).type_text(
+        intended,
+        exact=True,
+        context="editor",
+        code=True,
+    )
+
+    assert result.status == expected_status
+    assert result.emitted_exactly_once is True
+    assert result.emitted_characters == len(intended)
+    assert any(
+        region is not None and region.y < 200 and region.width < 120
+        for region in ocr.regions
+    )
+    assert any(
+        region is not None and region.y < 200 and region.width >= 120
+        for region in ocr.regions
+    )
+
+
 async def test_causal_spacing_row_ignores_unchanged_editor_context(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -2781,6 +2860,76 @@ async def test_autolocate_retries_once_for_delayed_video_update() -> None:
     assert result.status != "failed_focus_lost"
     assert result.verdict == "match"
     assert result.ok is True
+
+
+async def test_precise_autolocate_rechecks_noisy_editor_punctuation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def no_sleep(_seconds: float) -> None:
+        return None
+
+    class NoisyFullScreenExactCropOCR:
+        async def ocr_precise(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path
+            if region is None:
+                return OCRResult(
+                    lines=[
+                        OCRLine(
+                            text="result = [J",
+                            confidence=0.91,
+                            bbox=[64, 101, 121, 112],
+                        )
+                    ],
+                    spacing_evidence="not_evaluated",
+                )
+            return OCRResult(
+                lines=[
+                    OCRLine(
+                        text="result = []",
+                        confidence=0.99,
+                    )
+                ],
+                spacing_evidence="verified",
+            )
+
+        async def ocr(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            return await self.ocr_precise(image_path, region)
+
+    monkeypatch.setattr(asyncio, "sleep", no_sleep)
+    backend = FakeBackend()
+    typer = WatchedTyper(backend, NoisyFullScreenExactCropOCR())
+    flat = _flat_grid()
+
+    async def unchanged_grid() -> np.ndarray:
+        return flat
+
+    typer._grid = unchanged_grid  # type: ignore[method-assign]
+    intended = "    result = []"
+
+    result = await typer.type_text(
+        intended,
+        code=True,
+        exact=True,
+        context="editor",
+    )
+
+    assert result.status == "verified_exact"
+    assert result.field_text == "result = []"
+    assert result.emitted_exactly_once is True
+    assert [
+        kwargs
+        for method, kwargs in backend.calls
+        if method == "type_text"
+    ] == [{"text": intended, "code": True, "secret": False}]
+    _assert_no_enter(backend)
 
 
 @pytest.mark.parametrize(

@@ -1454,6 +1454,51 @@ class WatchedTyper:
                 return region
         return None
 
+    async def _recover_precise_ocr_candidate(
+        self,
+        result: OCRResult,
+        intended: str,
+        dims: tuple[int, int],
+    ) -> Region | None:
+        """Use a noisy full-screen row only to choose an exact re-read crop.
+
+        Dark-theme editor glyphs can fall below the frame-grid threshold while
+        whole-screen OCR confuses small punctuation such as ``[]`` with
+        ``[J``. A punctuation-tolerant row may therefore localize the field,
+        but it is never focus evidence by itself: a fresh cropped OCR pass must
+        independently match the complete intended text.
+        """
+
+        width, height = dims
+        if width <= 0 or height <= 0:
+            return None
+        candidate_region = precise_readback_candidate_region(
+            result,
+            intended,
+            Region(x=0, y=0, width=width, height=height),
+            dims,
+        )
+        if candidate_region is None:
+            return None
+        read_back = self._typed_candidate(
+            await self._read_field(
+                candidate_region,
+                intended=intended,
+                precise=True,
+                allow_blind_fallback=True,
+            ),
+            intended,
+            True,
+        )
+        confirmed = compute_verdict(intended, read_back, True) == "match"
+        DEBUG.event(
+            "typing.precise_localization_recheck",
+            confirmed=confirmed,
+            intended_characters=len(intended),
+            region=candidate_region.model_dump(),
+        )
+        return candidate_region if confirmed else None
+
     @staticmethod
     def _full_screen_exact_line_candidate(
         result: OCRResult,
@@ -2295,6 +2340,54 @@ class WatchedTyper:
                                     }
                                 )
                             ]
+                    if (
+                        intended_snapshot != intended_snapshot.strip()
+                        and not spacing_verified
+                    ):
+                        # A dense delta begins at the first painted glyph, so
+                        # its crop cannot prove leading indentation.  It can
+                        # still safely locate the row when one high-confidence
+                        # OCR line matches every visible character exactly.
+                        # Return only its causal region here; do not retain an
+                        # exact receipt.  The normal expanded field read below
+                        # must independently prove the whitespace before a
+                        # later action can commit or append anything.
+                        localization_rows = [
+                            line
+                            for line in result.lines
+                            if (
+                                line.text.strip()
+                                == intended_snapshot.strip()
+                                and line.confidence is not None
+                                and float(line.confidence)
+                                >= MIN_GROUNDED_EXACT_OCR_CONFIDENCE
+                            )
+                        ]
+                        if len(localization_rows) == 1:
+                            localized_region = candidate
+                            screen_row_region = ocr_line_screen_region(
+                                localization_rows[0],
+                                candidate_readback_region,
+                                dims,
+                                pad=2,
+                            )
+                            if screen_row_region is not None:
+                                localized_region = screen_row_region
+                            DEBUG.event(
+                                "typing.causal_exact_row_localized",
+                                intended_characters=len(intended_snapshot),
+                                spacing_verified=False,
+                                region=localized_region.model_dump(),
+                            )
+                            DEBUG.event(
+                                "typing.dense_candidate_scan",
+                                candidate_count=len(candidates),
+                                checked=checked,
+                                matched=True,
+                                verified=False,
+                                region=localized_region.model_dump(),
+                            )
+                            return localized_region
                     if (
                         len(exact_rows) != 1
                         or (
@@ -3167,12 +3260,21 @@ class WatchedTyper:
                         # Some VNC encoders quantize small dark-theme glyph
                         # changes below the grid threshold. Accept only grounded
                         # OCR evidence that the just-typed text is on screen.
+                        screen = await self._read_screen(precise=precise)
                         ocr_loc = self._locate_ocr_candidate(
-                            await self._read_screen(precise=precise),
+                            screen,
                             typed_so_far,
                             dims,
                             precise=precise,
                         )
+                        if ocr_loc is None and precise:
+                            ocr_loc = (
+                                await self._recover_precise_ocr_candidate(
+                                    screen,
+                                    typed_so_far,
+                                    dims,
+                                )
+                            )
                         if ocr_loc is not None:
                             cur_region = ocr_loc
                             located = True
