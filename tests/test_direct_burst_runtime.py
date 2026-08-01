@@ -351,6 +351,81 @@ async def test_concurrent_and_cancelled_idempotent_retries_join_in_flight_hid(
     assert execution_count == 1
 
 
+async def test_idempotent_retry_rechecks_after_slow_preflight(
+    runtime: Runtime,
+    monkeypatch,
+) -> None:
+    """A late retry must replay a result completed while grounding blocked."""
+
+    sid = (await runtime.start_session("direct"))["session_id"]
+    shot = await runtime.get_session_summary(sid, capture=True)
+    kwargs = {
+        "based_on_world_version": shot["world_version"],
+        "based_on_control_epoch": shot["control_epoch"],
+        "idempotency_key": "late-grounding-retry",
+    }
+    execution_started = asyncio.Event()
+    release_execution = asyncio.Event()
+    retry_grounding_started = asyncio.Event()
+    release_retry_grounding = asyncio.Event()
+    execution_count = 0
+    grounding_count = 0
+    original_ground = runtime._ground_click_targets
+
+    async def slow_run_burst(*args, **call_kwargs):
+        nonlocal execution_count
+        execution_count += 1
+        execution_started.set()
+        await release_execution.wait()
+        return await _ORIGINAL_BURST_RUNNER(*args, **call_kwargs)
+
+    async def delayed_second_grounding(actions, frame):
+        nonlocal grounding_count
+        grounding_count += 1
+        if grounding_count == 2:
+            retry_grounding_started.set()
+            await release_retry_grounding.wait()
+        return await original_ground(actions, frame)
+
+    monkeypatch.setattr(
+        "pikvm_agent.runtime._burst.run_burst",
+        slow_run_burst,
+    )
+    monkeypatch.setattr(
+        runtime,
+        "_ground_click_targets",
+        delayed_second_grounding,
+    )
+
+    first_task = asyncio.create_task(
+        runtime.run_burst(
+            sid,
+            [{"type": "key", "keys": ["CTRL", "F"]}],
+            **kwargs,
+        )
+    )
+    await execution_started.wait()
+    retry_task = asyncio.create_task(
+        runtime.run_burst(
+            sid,
+            [{"type": "key", "keys": ["CTRL", "F"]}],
+            **kwargs,
+        )
+    )
+    await retry_grounding_started.wait()
+
+    release_execution.set()
+    first = await first_task
+    release_retry_grounding.set()
+    retry = await retry_task
+
+    assert first["status"] == "completed"
+    assert retry["status"] == "completed"
+    assert retry["idempotent_replay"] is True
+    assert execution_count == 1
+    assert len(_hid_calls(runtime)) == 1
+
+
 async def test_stable_click_target_can_act_while_unrelated_video_region_changes(
     runtime: Runtime,
 ) -> None:

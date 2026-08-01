@@ -277,6 +277,13 @@ class SessionRuntime:
     # may retry after its request timeout while watched typing is still doing
     # OCR readback; identical callers must join that task, never start HID again.
     burst_inflight: dict[str, dict[str, Any]] = field(default_factory=dict)
+    # Idempotency is checked once before screen grounding and again immediately
+    # before an execution claim is created. Grounding can block behind the
+    # original watched-typing request long enough for it to finish, so the
+    # second check and claim must be atomic per caller key.
+    burst_idempotency_locks: dict[str, asyncio.Lock] = field(
+        default_factory=dict
+    )
     # A manual input report or newly detected machine client invalidates model
     # authority established under an earlier control epoch.
     last_human_input_at: float | None = None
@@ -829,7 +836,10 @@ class Runtime:
                     "control_epoch": sr.control_epoch,
                     "machine": machine,
                 }
-            if _approved_digest != digest:
+            if (
+                prior.get("status") != "approval_pending"
+                or _approved_digest != digest
+            ):
                 replay = copy.deepcopy(prior["result"])
                 replay["idempotent_replay"] = True
                 return replay
@@ -1081,22 +1091,57 @@ class Runtime:
             if effective_runtime_ms
             else None
         )
-        inflight = sr.burst_inflight.get(key)
-        if inflight is not None and inflight["digest"] != digest:
-            return {
-                "session_id": session_id,
-                "status": "idempotency_conflict",
-                "error": "idempotency_key was already used for a different burst",
-                "control_epoch": sr.control_epoch,
-                "machine": machine,
-            }
-        joined_inflight = inflight is not None
-        sr.status = "running"
-        await self.store.update_session(session_id, status="running")
-        try:
-            # The watched typer can't read back a synthetic FakeBackend screen, so skip it
-            # under the fake (the verify path is unit-tested directly in test_burst.py).
-            typer = None if os.environ.get("PIKVM_AGENT_FAKE") else getattr(self._executor, "typer", None)
+        idempotency_lock = sr.burst_idempotency_locks.setdefault(
+            key,
+            asyncio.Lock(),
+        )
+        async with idempotency_lock:
+            # A retry may have entered this method while the original request
+            # was still typing, then blocked for minutes in frame capture or
+            # keyboard-surface grounding. Recheck the completed receipt after
+            # those awaits; otherwise the retry can miss both the original
+            # in-flight claim and its newly cached result and emit HID again.
+            prior = sr.burst_idempotency.get(key)
+            if prior is not None:
+                if prior["digest"] != digest:
+                    return {
+                        "session_id": session_id,
+                        "status": "idempotency_conflict",
+                        "error": (
+                            "idempotency_key was already used for a "
+                            "different burst"
+                        ),
+                        "control_epoch": sr.control_epoch,
+                        "machine": machine,
+                    }
+                if (
+                    prior.get("status") != "approval_pending"
+                    or _approved_digest != digest
+                ):
+                    replay = copy.deepcopy(prior["result"])
+                    replay["idempotent_replay"] = True
+                    return replay
+            inflight = sr.burst_inflight.get(key)
+            if inflight is not None and inflight["digest"] != digest:
+                return {
+                    "session_id": session_id,
+                    "status": "idempotency_conflict",
+                    "error": (
+                        "idempotency_key was already used for a "
+                        "different burst"
+                    ),
+                    "control_epoch": sr.control_epoch,
+                    "machine": machine,
+                }
+            joined_inflight = inflight is not None
+            # The watched typer can't read back a synthetic FakeBackend screen,
+            # so skip it under the fake (the verify path is unit-tested directly
+            # in test_burst.py).
+            typer = (
+                None
+                if os.environ.get("PIKVM_AGENT_FAKE")
+                else getattr(self._executor, "typer", None)
+            )
             if inflight is None:
                 async def execute_once() -> _burst.BurstOutcome:
                     current_task = asyncio.current_task()
@@ -1132,6 +1177,9 @@ class Runtime:
                 sr.burst_inflight[key] = inflight
             else:
                 burst_task = inflight["task"]
+        sr.status = "running"
+        await self.store.update_session(session_id, status="running")
+        try:
             outcome = await asyncio.shield(burst_task)
         except _burst.BurstError as exc:
             sr.status = "paused"
