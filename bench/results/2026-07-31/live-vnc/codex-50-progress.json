@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "report": "codex-50-live-progress",
-  "recorded_at": "2026-08-01T04:08:15Z",
+  "recorded_at": "2026-08-01T14:49:52Z",
   "manifest": "bench/codex-50-tasks.yaml",
   "environment": {
     "target": "authorized disposable Windows VNC VM",
@@ -16,9 +16,9 @@
   },
   "progress": {
     "planned": 50,
-    "unique_passed": 20,
-    "pending": 30,
-    "completion_percent": 40.0,
+    "unique_passed": 21,
+    "pending": 29,
+    "completion_percent": 42.0,
     "categories": {
       "Observation": {
         "passed": 5,
@@ -29,7 +29,7 @@
         "planned": 10
       },
       "Text entry": {
-        "passed": 5,
+        "passed": 6,
         "planned": 10
       },
       "Code entry": {
@@ -69,7 +69,8 @@
       "text-02",
       "text-03",
       "text-04",
-      "text-05"
+      "text-05",
+      "text-06"
     ]
   },
   "canonical_campaigns": [
@@ -176,6 +177,13 @@
         "text-05"
       ],
       "campaign_sha256": "ee744da68b5a2d99d28f1596f0307fc5cb0ee89b1d3e802f76ea015ca40f2a3c"
+    },
+    {
+      "campaign_id": "codex-text-entry-text06-v9-20260801",
+      "tasks": [
+        "text-06"
+      ],
+      "campaign_sha256": "a782dc0408ef6322c8795f895070af2e19abe58b8eb41c442a03de9be0d6a95e"
     }
   ],
   "calc_09_acceptance": {
@@ -1191,6 +1199,45 @@
       "campaign_sha256": "ee744da68b5a2d99d28f1596f0307fc5cb0ee89b1d3e802f76ea015ca40f2a3c"
     }
   ],
+  "text_06_acceptance": {
+    "task": "Write, save, reopen, and verify a 120–160-word Macbeth paragraph",
+    "result": "passed",
+    "run_id": "a193d48c-fc13-4417-90da-786939aac547",
+    "reason": "Four exact editor transactions delivered 817 characters and 134 words with natural word boundaries, required leading spaces on every continuation, exact-once emission, and no replay. The first transaction used caret-stabilized OCR; later appends remained suffix-grounded while OCR observed the accumulated document. Save As required one bounded workspace-edit approval, the native Open dialog selected the saved file, and an independent final verifier confirmed the complete reopened paragraph.",
+    "wall_clock_ms": 476878,
+    "provider_wait_ms": 230336,
+    "provider_serial_equivalent_ms": 295995,
+    "provider_overlap_ms": 65659,
+    "action_execution_ms": 239315,
+    "evidence_capture_ms": 3011,
+    "provider_calls": 32,
+    "actions_attempted": 13,
+    "actions_completed": 13,
+    "completion_efficiency": 1.0,
+    "same_run_recoveries": 1,
+    "approval_count": 1,
+    "approval_scopes": [
+      "bounded_workspace_edit"
+    ],
+    "quiescence_status": "confirmed",
+    "reboot_ms": 74941,
+    "reboot_transition_observed": true,
+    "recording": {
+      "relative_path": "codex-text-entry-text06-v9-20260801/text-06/recording.webm",
+      "sha256": "6312d45ec84926fd29331aa520ddb722c20e6bf3a6f935faa2a5becc80c1a720",
+      "codec": "vp9",
+      "width": 2048,
+      "height": 1280,
+      "fps": 2,
+      "duration_ms": 485500,
+      "size_bytes": 1718001
+    },
+    "poster": {
+      "relative_path": "codex-text-entry-text06-v9-20260801/text-06/poster.jpg",
+      "sha256": "ddf571624606c510f86ac7a7b9044e46ce8e4a78f3c7e671fda598faf28949ec"
+    },
+    "campaign_sha256": "a782dc0408ef6322c8795f895070af2e19abe58b8eb41c442a03de9be0d6a95e"
+  },
   "text_06_attempts": [
     {
       "campaign_id": "codex-text-entry-text06-v1-20260801",
@@ -1375,12 +1422,169 @@
         "sha256": "7d5b62018c72eea4c839289c331522b33d1c0be60a533f25783da150d44ea12b"
       },
       "campaign_sha256": "cdbc5365faba3c229134218cdca2ed07b5efac4fed2dd55bd17b1f8d61211ad0"
+    },
+    {
+      "campaign_id": "codex-text-entry-text06-v6-20260801",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "run_id": "d6a00b57-16e1-435d-aea2-128468e9e2b7",
+      "reason": "The paragraph, save, and native Open flow reached the disposable VM, and a delayed current frame proved the selected file had reopened. The completion gate evaluated that current verifier result before recording its model.completed event, so the current reopen evidence was invisible and completion was rejected. Four recoveries ended at a paused checkpoint; this pre-lifecycle-fix run required an explicit abort before its mandatory reboot.",
+      "wall_clock_ms": 682475,
+      "provider_wait_ms": 260716,
+      "provider_serial_equivalent_ms": 330889,
+      "provider_overlap_ms": 70173,
+      "action_execution_ms": 646516,
+      "evidence_capture_ms": 3118,
+      "provider_calls": 42,
+      "actions_attempted": 16,
+      "actions_completed": 14,
+      "completion_efficiency": 0.9333333333333333,
+      "same_run_recoveries": 4,
+      "approval_count": 2,
+      "approval_scopes": [
+        "bounded_workspace_edit",
+        "bounded_workspace_edit"
+      ],
+      "quiescence_status": "manual_abort_before_reboot",
+      "reboot_ms": 76691,
+      "reboot_transition_observed": true,
+      "recording": {
+        "relative_path": "codex-text-entry-text06-v6-20260801/text-06/recording.webm",
+        "sha256": "391ba5a0db0400a4aa356ca01832f5dc0e25588fab7dad3e6e68946bfe4b9f5e",
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2,
+        "duration_ms": 652500,
+        "size_bytes": 2282779
+      },
+      "poster": {
+        "relative_path": "codex-text-entry-text06-v6-20260801/text-06/poster.jpg",
+        "sha256": "a040668a36877a49ac80e7504992153e9e870f9c207dbcc761d0687d5671dc44"
+      },
+      "campaign_sha256": "9c7a6a11172d8b32c31762efefa0c6384c727b359bbe02b1b59ba7487f978358"
+    },
+    {
+      "campaign_id": "codex-text-entry-text06-v7-20260801",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "run_id": "0b7c17ea-eef6-4031-9138-f18693438678",
+      "reason": "The controller filled a 240-character payload by concatenating `ownfear` without its word-boundary space. The VNC status bar showed all 240 requested characters, and an identical retry joined the original idempotent task without duplicate input, but OCR returned a 241-character normalized reading and exact verification failed closed. The unverified-editor guard rejected clicks, cancellation, selection, and retyping. Quiescence was confirmed before the mandatory reboot.",
+      "wall_clock_ms": 316036,
+      "provider_wait_ms": 136824,
+      "provider_serial_equivalent_ms": 148692,
+      "provider_overlap_ms": 11868,
+      "action_execution_ms": 269719,
+      "evidence_capture_ms": 571,
+      "provider_calls": 16,
+      "actions_attempted": 5,
+      "actions_completed": 2,
+      "completion_efficiency": 0.5,
+      "same_run_recoveries": 4,
+      "approval_count": 0,
+      "approval_scopes": [],
+      "quiescence_status": "confirmed",
+      "reboot_ms": 92328,
+      "reboot_transition_observed": true,
+      "recording": {
+        "relative_path": "codex-text-entry-text06-v7-20260801/text-06/recording.webm",
+        "sha256": "f1955c06a72ebb8efc20a3cba84b9f27c90665296dc0c0ceef7472f3c35771bc",
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2,
+        "duration_ms": 340500,
+        "size_bytes": 1051477
+      },
+      "poster": {
+        "relative_path": "codex-text-entry-text06-v7-20260801/text-06/poster.jpg",
+        "sha256": "9c0b8042aad7607815a1b861564961ff37d06d8e359b2d1a3fc3d1b5407451cc"
+      },
+      "campaign_sha256": "dec65792c220bcbb5ccd082a9e2951f55a9ac16fc7d384bfe1e01227abb6c349"
+    },
+    {
+      "campaign_id": "codex-text-entry-text06-v8-20260801",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "run_id": "7e55ce79-0569-4db3-be72-ef55134a5031",
+      "reason": "Caret-stabilized OCR reduced the first exact transaction from v7's 133.485 seconds to 33.485 seconds and verified all 238 characters without generic screen OCR. The second 237-character append was emitted exactly once, but Ctrl+Home exposed the accumulated document while the verifier still compared against only the new suffix; the correct append was classified as an exact-hash mismatch. An idempotent retry did not duplicate text. The host clock or process scheduling then discontinuously advanced during one provider timeout, so the derived 27,000,618 ms run wall metric is invalid and must not be used for speed comparison. The run quiesced before reboot.",
+      "wall_clock_ms": null,
+      "reported_wall_clock_ms": 27000618,
+      "wall_clock_valid": false,
+      "provider_wait_ms": null,
+      "action_execution_ms": 254376,
+      "evidence_capture_ms": 970,
+      "provider_calls": 17,
+      "actions_attempted": 6,
+      "actions_completed": 4,
+      "completion_efficiency": 0.8,
+      "same_run_recoveries": 4,
+      "approval_count": 0,
+      "approval_scopes": [],
+      "quiescence_status": "confirmed",
+      "reboot_ms": 84039,
+      "reboot_transition_observed": true,
+      "recording": {
+        "relative_path": "codex-text-entry-text06-v8-20260801/text-06/recording.webm",
+        "sha256": "ae7f51d63ca2ac88a5cb9fcb833a1021c304daf4c08dc78293ef1ccd6b618178",
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2,
+        "duration_ms": 436000,
+        "size_bytes": 1182267
+      },
+      "poster": {
+        "relative_path": "codex-text-entry-text06-v8-20260801/text-06/poster.jpg",
+        "sha256": "bc47743cc0d4a658e707c362095ef383f35afbcdd5968ae29ce87b1225b9081d"
+      },
+      "campaign_sha256": "5099eba9266217901d2728ad7a886b487b3bc385be700b6a0c73070282e05723"
+    },
+    {
+      "campaign_id": "codex-text-entry-text06-v9-20260801",
+      "reported_status": "passed",
+      "accepted_status": "passed",
+      "run_id": "a193d48c-fc13-4417-90da-786939aac547",
+      "reason": "The controller emitted four word-bounded exact editor segments of 240, 240, 238, and 99 characters, totaling 817 characters and 134 words. The initial segment used Ctrl+Home/End caret stabilization; continuation segments retained their leading whitespace and stayed grounded to the newly emitted suffix while OCR also saw the accumulated document. All 13 actions completed without retry or model failure. Save required one bounded workspace-edit approval, native Open independently reopened the saved file, quiescence was confirmed, and the mandatory reboot observed a real transition.",
+      "wall_clock_ms": 476878,
+      "provider_wait_ms": 230336,
+      "provider_serial_equivalent_ms": 295995,
+      "provider_overlap_ms": 65659,
+      "action_execution_ms": 239315,
+      "evidence_capture_ms": 3011,
+      "provider_calls": 32,
+      "actions_attempted": 13,
+      "actions_completed": 13,
+      "completion_efficiency": 1.0,
+      "same_run_recoveries": 1,
+      "approval_count": 1,
+      "approval_scopes": [
+        "bounded_workspace_edit"
+      ],
+      "quiescence_status": "confirmed",
+      "reboot_ms": 74941,
+      "reboot_transition_observed": true,
+      "recording": {
+        "relative_path": "codex-text-entry-text06-v9-20260801/text-06/recording.webm",
+        "sha256": "6312d45ec84926fd29331aa520ddb722c20e6bf3a6f935faa2a5becc80c1a720",
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2,
+        "duration_ms": 485500,
+        "size_bytes": 1718001
+      },
+      "poster": {
+        "relative_path": "codex-text-entry-text06-v9-20260801/text-06/poster.jpg",
+        "sha256": "ddf571624606c510f86ac7a7b9044e46ce8e4a78f3c7e671fda598faf28949ec"
+      },
+      "campaign_sha256": "a782dc0408ef6322c8795f895070af2e19abe58b8eb41c442a03de9be0d6a95e"
     }
   ],
   "verdict": {
-    "accuracy": "Five exact text tasks now pass with independent reopen evidence. Text-05 verified all 78 path-and-symbol characters and its filename exact-once, completed 12/12 actions, durably reopened the saved file, and verified the mandatory reboot.",
-    "speed": "Failing product target: accepted text-05 v2 took 250.155 seconds before reboot; exact entry and readback of the 78-character payload took 34.554 seconds.",
-    "dominant_cost": "Text-05 v2 provider waits consumed 149.122 seconds across 26 calls, 59.61% of wall time; action execution consumed 95.246 seconds, with 48.165 seconds of provider-lane overlap.",
-    "next": "Before v6, allow a short exact editor suffix to reuse the same grounded one-space word-boundary proof as long bounded prose, while preserving strict command/code punctuation, rejecting arbitrary or repeated whitespace, retaining the unverified-editor save latch, and keeping every input transaction at most once. Separately, profile why a 239-character readback can occupy the daemon for about four minutes despite coalesced transport chunks."
+    "accuracy": "Six exact text tasks now pass with independent reopen evidence. Text-06 delivered a 134-word, 817-character paragraph in four exact-once transactions, completed 13/13 actions, saved and reopened the file, quiesced cleanly, and verified the mandatory reboot.",
+    "speed": "Failing product target: accepted text-06 v9 took 476.878 seconds before reboot and 571.260 seconds including the reset-ready gate. The first 240-character exact transaction improved from v7's 133.485 seconds to 23.736 seconds, but later 238-character OCR still reached 64.587 seconds.",
+    "dominant_cost": "Text-06 v9 split almost evenly between 230.336 seconds of provider wait across 32 calls and 239.315 seconds of action execution. Fifteen controller and fifteen verifier calls dominate the interaction count; exact OCR remains the longest individual action path.",
+    "next": "Continue with text-07 while retaining natural chunk boundaries, suffix-grounded continuation verification, and the quiesce-before-reboot lifecycle. In parallel, reduce repeated controller/verifier turns and bound blind exact-field OCR latency without accepting status-bar counts or semantic normalization as byte proof."
   }
 }

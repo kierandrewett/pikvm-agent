@@ -51,8 +51,8 @@ support a claim of generally reliable autonomous Windows operation.
 
 ### Live 50-task Windows campaign
 
-The active disposable-Windows campaign has **20/50 unique accepted passes
-(40%)**. Every attempt is screen-recorded, every test ends with a VM reboot,
+The active disposable-Windows campaign has **21/50 unique accepted passes
+(42%)**. Every attempt is screen-recorded, every test ends with a VM reboot,
 and a pass is counted only once even when the same task is rerun during
 remediation. Production PiKVM was not contacted.
 
@@ -60,12 +60,12 @@ remediation. Production PiKVM was not contacted.
 | --- | ---: | ---: | --- |
 | Observation | 5 | 5 | Complete |
 | Calculator | 10 | 10 | Complete |
-| Text entry | 5 | 10 | `text-01` through `text-05` accepted |
+| Text entry | 6 | 10 | `text-01` through `text-06` accepted |
 | Code entry | 0 | 10 | Pending |
 | File management | 0 | 5 | Pending |
 | Microsoft Excel | 0 | 5 | Pending |
 | Microsoft Word | 0 | 5 | Pending |
-| **Total** | **20** | **50** | **30 pending** |
+| **Total** | **21** | **50** | **29 pending** |
 
 The Calculator category is complete. The final temperature-conversion task
 visibly produced `23 °C = 73.4 °F`, completed 7/7 actions, and rebooted the VM
@@ -514,7 +514,65 @@ breakdown are retained below. v6 must first let a short exact editor suffix
 use the same grounded, one-space boundary proof without relaxing commands,
 code, arbitrary whitespace, or at-most-once delivery.
 
-Failure-inclusive metrics, canonical campaign digests, the 20 accepted task
+Text-06 v6 reached a saved and visibly reopened paragraph but is retained as
+failed. A delayed current verifier frame proved the native Open transition;
+the completion gate evaluated that verdict before its `model.completed` event
+was recorded, so its own current reopen evidence was invisible. Four
+recoveries ended at a paused checkpoint. This pre-lifecycle-fix attempt
+required an explicit abort before reboot. It took 682.475s before reboot,
+including 260.716s of provider wait across 42 calls and 646.516s of overlapping
+action execution; 14/16 attempted actions completed. Its mandatory reboot
+observed a real transition and reached a ready desktop after 76.691s. The
+completion gate now provisionally evaluates the current executed action and
+verdict, while the campaign refuses to reboot until the run is terminal.
+
+Text-06 v7 live-proved that quiesce-before-reboot lifecycle but exposed a
+generation and OCR boundary error. The controller filled a 240-character
+payload by producing `ownfear` without the natural word-boundary space. The
+target visibly held all 240 requested characters, and an identical
+same-idempotency retry joined the in-flight task without duplicating input.
+Blind OCR returned a plausible 241-character normalization instead of the
+literal run-together word, so exact verification failed closed. The editor
+guard rejected clicks, cancellation, selection, and retyping. Quiescence was
+confirmed before the reboot, which observed a real transition and reached a
+ready desktop after 92.328s. The failed run took 316.036s before reboot;
+provider wait consumed 136.824s across 16 calls and action execution consumed
+269.719s.
+
+Text-06 v8 reduced the first exact editor transaction from v7's 133.485s to
+33.485s. Ctrl+Home removed caret corruption, blind OCR returned all 238
+literal characters, and the generic screen-OCR tail disappeared. The second
+237-character append was also emitted exactly once, but the same Ctrl+Home
+movement exposed the accumulated document while verification still expected
+only the new suffix. That correct append therefore failed exact-hash
+verification. A joined retry did not duplicate it. The run later crossed a
+host-clock or scheduling discontinuity during one provider timeout, so its
+derived 27,000.618s wall/provider-wait metrics are explicitly invalid and are
+not used for speed comparison. It still quiesced before reboot; the reboot
+observed a real transition and reached readiness after 84.039s. Exact editor
+payloads beginning with required whitespace now retain the caret at the
+document end and keep verification grounded to the causal suffix.
+
+Text-06 v9 is the first accepted long-prose pass. The controller emitted four
+natural-boundary segments of 240, 240, 238, and 99 characters: 817 characters
+and 134 words in total. Every segment was emitted exactly once. The initial
+segment used Ctrl+Home/End caret stabilization and completed in 23.736s; each
+continuation preserved its leading space, issued no Ctrl+Home, and proved the
+new suffix while OCR also observed the accumulated document. A model attempt
+to combine consecutive text mutations was safely split for independent
+verification. All 13 actions completed, Save As required one expected
+`bounded_workspace_edit` approval, and a separate native Open flow reopened
+`text-06-macbeth-v9.txt` before the final verifier declared completion.
+
+The accepted v9 run took 476.878s before reboot: 230.336s of provider wait
+across 32 calls and 239.315s of action execution, with 65.659s of provider-lane
+overlap. The mandatory reboot observed a real transition and reached a ready
+desktop after 74.941s. The VP9 evidence is 485.5s at 2048×1280 and 2 fps.
+Accuracy passes this gate, but latency does not: fifteen controller and fifteen
+verifier calls plus exact-field OCR make the task materially slower than a
+human.
+
+Failure-inclusive metrics, canonical campaign digests, the 21 accepted task
 IDs, and the VP9 recording/poster hashes are retained in
 [`codex-50-progress.json`](results/2026-07-31/live-vnc/codex-50-progress.json).
 The complete 50-task manifest is
