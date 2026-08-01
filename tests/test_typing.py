@@ -2142,6 +2142,76 @@ async def test_fast_editor_continuation_matches_inside_existing_ocr_line() -> No
     _assert_no_enter(backend)
 
 
+async def test_exact_fast_editor_append_localizes_suffix_from_full_document() -> None:
+    """A proven editor prefix must not make an exact appended suffix ambiguous."""
+
+    backend = FakeBackend()
+    backend.guarded_exact_print = True  # type: ignore[attr-defined]
+    prefix = (
+        "Ambition first gives Macbeth a private image of kingship, and that "
+        "image begins to displace his loyalty and judgment."
+    )
+    continuation = (
+        " Lady Macbeth strengthens that ambition by challenging his courage "
+        "and persuading him that murder is the only path to the crown. "
+        "Although Macbeth knows Duncan is a generous king and loyal guest, "
+        "his ambition overwhelms his conscience. He chooses"
+    )
+    full_document = prefix + continuation
+
+    typer = WatchedTyper(
+        backend,
+        ScriptedOCR(""),
+    )
+
+    async def full_field_read(
+        region: Region,
+        *,
+        intended: str | None = None,
+        precise: bool = False,
+        allow_semantic_spacing: bool = False,
+        allow_blind_fallback: bool = False,
+        minimum_confidence: float = 0.78,
+    ) -> str:
+        del (
+            region,
+            intended,
+            precise,
+            allow_semantic_spacing,
+            allow_blind_fallback,
+            minimum_confidence,
+        )
+        return full_document
+
+    async def full_screen_read(*, precise: bool = False) -> OCRResult:
+        del precise
+        return OCRResult(
+            lines=[
+                OCRLine(
+                    text=full_document,
+                    confidence=0.99,
+                )
+            ]
+        )
+
+    typer._read_field = full_field_read  # type: ignore[method-assign]
+    typer._read_screen = full_screen_read  # type: ignore[method-assign]
+
+    result = await typer.type_text(
+        continuation,
+        region=Region(x=10, y=10, width=900, height=300),
+        exact=True,
+        context="editor",
+    )
+
+    assert result.used_fast_path is True
+    assert result.status == "verified_exact"
+    assert result.field_text == continuation
+    assert result.emitted_characters == len(continuation)
+    assert result.emitted_exactly_once is True
+    _assert_no_enter(backend)
+
+
 async def test_caps_lock_disables_fast_path() -> None:
     backend = FakeBackend()
     backend.caps_lock = True

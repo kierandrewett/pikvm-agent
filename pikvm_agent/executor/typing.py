@@ -1553,9 +1553,31 @@ class WatchedTyper:
                 continue
             index = folded_read_back.rfind(folded_intended)
             if index >= 0:
-                return visible_read_back[
+                candidate = visible_read_back[
                     index : index + len(visible_intended)
                 ]
+                # OCR normalizes an editor's visible word boundary but does not
+                # retain which append transaction owned that space. Restore one
+                # requested edge space only when the full document visibly
+                # proves the same adjacent boundary. This lets an exact editor
+                # suffix keep its byte receipt without accepting invisible or
+                # repeated whitespace.
+                if (
+                    intended.startswith(" ")
+                    and not intended.startswith("  ")
+                    and index > 0
+                    and visible_read_back[index - 1] == " "
+                ):
+                    candidate = f" {candidate}"
+                end = index + len(visible_intended)
+                if (
+                    intended.endswith(" ")
+                    and not intended.endswith("  ")
+                    and end < len(visible_read_back)
+                    and visible_read_back[end] == " "
+                ):
+                    candidate = f"{candidate} "
+                return candidate
 
         max_distance = max(1, math.ceil(len(folded_intended) * 0.08))
         max_window_length = (
@@ -2914,12 +2936,12 @@ class WatchedTyper:
 
         if (
             fast_print
-            and compute_verdict(text, last_read, precise)
-            not in {"match", "contains"}
+            and compute_verdict(text, last_read, precise) != "match"
         ):
             # Rich editors wrap prose beyond the first changed-line crop. Do
-            # one read-only full-screen pass and accept only a complete exact
-            # occurrence, never an approximate OCR similarity.
+            # one read-only full-screen pass even when the initial crop contains
+            # a previously proven editor prefix. Accept only a complete bounded
+            # prose occurrence, never general precise substring containment.
             screen_candidate = self._full_screen_prose_candidate(
                 await self._read_screen(),
                 text,
