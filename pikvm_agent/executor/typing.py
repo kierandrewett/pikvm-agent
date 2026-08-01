@@ -85,9 +85,14 @@ MIN_ONE_EDIT_RECHECK_CONFIDENCE = 0.90
 MAX_AUTODETECTED_FIELD_HEIGHT = 80
 MAX_AUTODETECTED_FIELD_HEIGHT_FRAC = 0.15
 MAX_PROSE_EDGE_CONTEXT_CHARS = 96
+MAX_EDITOR_STATUS_VERTICAL_GAP_FRAC = 0.50
 AUTODETECTED_READBACK_MARGIN_X_FRAC = 0.075
 SHORT_FIELD_CONTEXT_ABOVE_PX = 80
 SHORT_FIELD_CONTEXT_BELOW_PX = 24
+_EDITOR_STATUS_POSITION_RE = re.compile(
+    r"\bLn\s*(?P<line>\d+)\s*,\s*Col\s*(?P<column>\d+)\b",
+    re.IGNORECASE,
+)
 DENSE_PIXEL_DELTA = 10
 DENSE_MIN_CHANGED_PIXELS = 80
 DENSE_MIN_WIDTH = 8
@@ -215,6 +220,70 @@ def regions_overlap(a: Region, b: Region) -> bool:
         and a.y < b.y + b.height
         and b.y < a.y + a.height
     )
+
+
+def editor_caret_column_proves_leading_whitespace(
+    result: OCRResult,
+    intended: str,
+    row_region: Region,
+    dims: tuple[int, int],
+) -> bool:
+    """Confirm invisible leading spaces from the nearest editor status row.
+
+    OCR cannot paint a bounding box around blank indentation. Modern Notepad
+    does expose the caret column, however, so an exact visible suffix plus
+    ``Col == len(payload) + 1`` proves the missing leading positions. Only the
+    nearest parsed status row below the causal text row is considered; a more
+    distant background Notepad window can never rescue a conflicting or
+    unreadable foreground status.
+    """
+
+    width, height = dims
+    leading_spaces = len(intended) - len(intended.lstrip(" "))
+    if (
+        leading_spaces <= 0
+        or "\n" in intended
+        or "\r" in intended
+        or width <= 0
+        or height <= 0
+    ):
+        return False
+    expected_column = len(intended) + 1
+    max_vertical_gap = height * MAX_EDITOR_STATUS_VERTICAL_GAP_FRAC
+    max_horizontal_offset = max(128, width * 0.20)
+    candidates: list[tuple[float, float, int]] = []
+    row_bottom = row_region.y + row_region.height
+    for line in result.lines:
+        match = _EDITOR_STATUS_POSITION_RE.search(line.text)
+        if match is None:
+            continue
+        if (
+            line.confidence is not None
+            and float(line.confidence) < MIN_MISMATCH_OCR_CONFIDENCE
+        ):
+            continue
+        status_region = ocr_line_region(line, dims, pad=0)
+        if status_region is None:
+            continue
+        vertical_gap = status_region.y - row_bottom
+        horizontal_offset = abs(status_region.x - row_region.x)
+        if (
+            vertical_gap < 0
+            or vertical_gap > max_vertical_gap
+            or horizontal_offset > max_horizontal_offset
+        ):
+            continue
+        candidates.append(
+            (
+                vertical_gap,
+                horizontal_offset,
+                int(match.group("column")),
+            )
+        )
+    if not candidates:
+        return False
+    _gap, _offset, nearest_column = min(candidates)
+    return nearest_column == expected_column
 
 
 def is_standalone_i_autocorrect(intended: str, observed: str) -> bool:
@@ -3404,6 +3473,42 @@ class WatchedTyper:
                         )
                         break
 
+        leading_spaces = len(text) - len(text.lstrip(" "))
+        visible_intended = text[leading_spaces:]
+        if (
+            precise
+            and editor_field
+            and not explicit_region
+            and cur_region is not None
+            and leading_spaces > 0
+            and last_read
+            and not last_read.startswith(" ")
+            and norm(strip_prompt(last_read), True)
+            == norm(visible_intended, True)
+        ):
+            # The causal row proves every painted glyph, while Notepad's
+            # nearest foreground status row proves the otherwise invisible
+            # leading positions. The delivery receipt already proves that the
+            # exact spaces were issued once. Keep this editor-only and
+            # fail-closed when the status row is absent, distant, low
+            # confidence, or reports a conflicting column.
+            status_result = await self._read_screen(precise=True)
+            status_proved = editor_caret_column_proves_leading_whitespace(
+                status_result,
+                text,
+                cur_region,
+                dims,
+            )
+            DEBUG.event(
+                "typing.editor_leading_whitespace_status",
+                proved=status_proved,
+                leading_spaces=leading_spaces,
+                expected_column=len(text) + 1,
+                region=cur_region.model_dump(),
+            )
+            if status_proved:
+                last_read = text
+
         if (
             precise
             and not explicit_region
@@ -3707,6 +3812,16 @@ class WatchedTyper:
         status = vr.status
         if self._semantic_spacing_normalized:
             status = "verified_safe_normalized"
+        elif (
+            precise
+            and field_text != intended
+            and status == "verified_exact"
+        ):
+            # ``compute_verdict`` intentionally strips outer whitespace
+            # because OCR usually cannot see it. That makes it useful for
+            # localization, but it cannot by itself authorize an exact input
+            # receipt or an optimistic "verified" summary.
+            status = "unverified_whitespace"
 
         head = "Typed (fast)" if used_fast_path else "Typed"
         if verdict == "mismatch":
@@ -3728,6 +3843,8 @@ class WatchedTyper:
                 f"{head} and verified the terminal argv with safe "
                 "whitespace normalization."
             )
+        elif not status.startswith("verified"):
+            summary = f"{head}, but exact read-back is still ambiguous."
         else:
             summary = f"{head} and verified the field reads correctly."
 

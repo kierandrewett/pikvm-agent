@@ -32,6 +32,7 @@ from pikvm_agent.executor.typing import (
     WatchedTypingResult,
     _substantial_change_outside_region,
     chunk_text,
+    editor_caret_column_proves_leading_whitespace,
     is_caps_lock_case_inversion,
     is_standalone_i_autocorrect,
     locate_capture_change,
@@ -138,6 +139,63 @@ def test_ocr_line_screen_region_translates_from_the_actual_crop() -> None:
     )
 
     assert translated == Region(x=59, y=101, width=64, height=16)
+
+
+def test_nearest_editor_status_row_proves_leading_whitespace() -> None:
+    intended = "    result = []"
+    row = Region(x=65, y=100, width=58, height=14)
+    result = OCRResult(
+        lines=[
+            OCRLine(
+                text="Ln 2, Col 16",
+                confidence=0.99,
+                bbox=[48, 484, 94, 496],
+            ),
+            OCRLine(
+                text="Ln 2, Col 15",
+                confidence=0.99,
+                bbox=[64, 502, 110, 514],
+            ),
+            OCRLine(
+                text="Ln 2, Col 16",
+                confidence=0.99,
+                bbox=[145, 582, 191, 594],
+            ),
+        ]
+    )
+
+    assert editor_caret_column_proves_leading_whitespace(
+        result,
+        intended,
+        row,
+        (1280, 800),
+    )
+
+
+def test_conflicting_nearest_editor_status_row_fails_closed() -> None:
+    intended = "    result = []"
+    row = Region(x=65, y=100, width=58, height=14)
+    result = OCRResult(
+        lines=[
+            OCRLine(
+                text="Ln 2, Col 15",
+                confidence=0.99,
+                bbox=[48, 484, 94, 496],
+            ),
+            OCRLine(
+                text="Ln 2, Col 16",
+                confidence=0.99,
+                bbox=[64, 502, 110, 514],
+            ),
+        ]
+    )
+
+    assert not editor_caret_column_proves_leading_whitespace(
+        result,
+        intended,
+        row,
+        (1280, 800),
+    )
 
 
 class PreciseProfileOCR:
@@ -697,6 +755,8 @@ async def test_short_exact_typing_checks_all_causal_lines_when_coarse_crop_is_wr
     )
 
     assert result.status == expected_status
+    if expected_status.startswith("unverified"):
+        assert "verified the field" not in result.summary
     assert result.emitted_exactly_once is True
     causal_regions = [
         region
@@ -2875,6 +2935,9 @@ async def test_precise_autolocate_rechecks_noisy_editor_punctuation(
         return None
 
     class NoisyFullScreenExactCropOCR:
+        def __init__(self) -> None:
+            self.screen_calls = 0
+
         async def ocr_precise(
             self,
             image_path: Path,
@@ -2882,6 +2945,17 @@ async def test_precise_autolocate_rechecks_noisy_editor_punctuation(
         ) -> OCRResult:
             del image_path
             if region is None:
+                self.screen_calls += 1
+                if self.screen_calls > 1:
+                    return OCRResult(
+                        lines=[
+                            OCRLine(
+                                text="Ln 2, Col 16",
+                                confidence=0.99,
+                                bbox=[48, 470, 94, 482],
+                            )
+                        ]
+                    )
                 return OCRResult(
                     lines=[
                         OCRLine(
@@ -2928,7 +3002,7 @@ async def test_precise_autolocate_rechecks_noisy_editor_punctuation(
     )
 
     assert result.status == "verified_exact"
-    assert result.field_text == "result = []"
+    assert result.field_text == intended
     assert result.emitted_exactly_once is True
     assert [
         kwargs
