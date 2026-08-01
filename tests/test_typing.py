@@ -2856,6 +2856,131 @@ async def test_editor_standalone_i_autocorrect_is_undone_without_replay() -> Non
     _assert_no_enter(backend)
 
 
+async def test_editor_autocorrect_is_undone_from_a_multiline_readback() -> None:
+    backend = FakeBackend()
+    intended = "for i in"
+    ocr = ScriptedOCR(
+        "result = []\nfor I in",
+        "result = []\nfor I in",
+        "result = []\nfor i in",
+    )
+
+    result = await WatchedTyper(backend, ocr).type_text(
+        intended,
+        region=Region(x=10, y=10, width=400, height=60),
+        code=True,
+        exact=True,
+        context="editor",
+    )
+
+    assert result.status == "verified_exact", result
+    assert result.field_text == intended
+    assert result.correction_count == 1
+    assert result.emitted_exactly_once is True
+    assert [
+        kwargs
+        for method, kwargs in backend.calls
+        if method == "type_text"
+    ] == [{"text": intended, "code": True, "secret": False}]
+    assert (
+        "keypress",
+        {"keys": ["ControlLeft", "KeyZ"]},
+    ) in backend.calls
+    _assert_no_enter(backend)
+
+
+async def test_indented_editor_autocorrect_uses_status_proof_after_undo(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def no_sleep(_seconds: float) -> None:
+        return None
+
+    backend = FakeBackend()
+    intended = "    for i in"
+
+    class IndentedAutocorrectOCR:
+        async def ocr_precise(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path
+            if (
+                region is not None
+                and region.width == 512
+                and region.height >= 300
+                and region.y > 140
+            ):
+                foreground_y = region.height - 20
+                return OCRResult(
+                    lines=[
+                        OCRLine(
+                            text="Ln 3, Col 13",
+                            confidence=0.99,
+                            bbox=[20, foreground_y, 82, foreground_y + 12],
+                        )
+                    ]
+                )
+            undone = (
+                "keypress",
+                {"keys": ["ControlLeft", "KeyZ"]},
+            ) in backend.calls
+            return OCRResult(
+                lines=[
+                    OCRLine(
+                        text=(
+                            "result = []\nfor i in"
+                            if undone
+                            else "result = []\nfor I in"
+                        ),
+                        confidence=0.99,
+                    )
+                ],
+                spacing_evidence="not_evaluated",
+            )
+
+        async def ocr(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            return await self.ocr_precise(image_path, region)
+
+    monkeypatch.setattr(asyncio, "sleep", no_sleep)
+    typer = WatchedTyper(backend, IndentedAutocorrectOCR())
+    flat = _flat_grid()
+    changed = flat.copy().reshape(GRID_ROWS, GRID_COLS)
+    changed[8:10, 5:14] = 200
+    grids = [flat, changed.reshape(-1)]
+
+    async def changed_grid() -> np.ndarray:
+        return grids.pop(0) if grids else changed.reshape(-1)
+
+    typer._grid = changed_grid  # type: ignore[method-assign]
+
+    result = await typer.type_text(
+        intended,
+        code=True,
+        exact=True,
+        context="editor",
+    )
+
+    assert result.status == "verified_exact", result
+    assert result.field_text == intended
+    assert result.correction_count == 1
+    assert result.emitted_exactly_once is True
+    assert (
+        "keypress",
+        {"keys": ["ControlLeft", "KeyZ"]},
+    ) in backend.calls
+    assert [
+        kwargs
+        for method, kwargs in backend.calls
+        if method == "type_text"
+    ] == [{"text": intended, "code": True, "secret": False}]
+    _assert_no_enter(backend)
+
+
 async def test_failed_editor_autocorrect_undo_stops_before_later_chunks() -> None:
     backend = FakeBackend()
     intended = "for i in range(1, limit + 1):"

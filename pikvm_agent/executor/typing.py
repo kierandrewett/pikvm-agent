@@ -10,11 +10,11 @@ mismatch) is self-corrected inline — at most once — without burning an agent
 
 It is a pure orchestrator: every side effect (keystrokes, capture, OCR, layout)
 is reached through the injected ``backend``/``ocr``, so it is unit-testable and
-imports no I/O of its own. It NEVER emits Enter — the only keys it may press for a
-correction are Home / Delete / Backspace / End / CapsLock. A short field
-readback may also move focus with Tab/Shift-Tab or select an existing draft with
-Ctrl+A solely to remove a blinking caret from OCR. Committing is the caller's
-job.
+imports no I/O of its own. It NEVER emits Enter — correction is limited to
+bounded editing keys, including one Ctrl+Z for Notepad's standalone-``i``
+autocorrection. A short field readback may also move focus with Tab/Shift-Tab or
+select an existing draft with Ctrl+A solely to remove a blinking caret from
+OCR. Committing is the caller's job.
 
 The verdict/classification logic lives in :mod:`pikvm_agent.executor.verification`
 and is reused verbatim; this module owns only the *typing loop* + correction.
@@ -2662,6 +2662,130 @@ class WatchedTyper:
                 ),
             )
 
+        def unique_editor_autocorrect_candidate(
+            intended_snapshot: str,
+            read_back: str,
+        ) -> str:
+            """Return one grounded row with only Notepad's ``i`` mutation."""
+
+            if is_standalone_i_autocorrect(intended_snapshot, read_back):
+                return read_back
+            candidates = {
+                row.strip()
+                for line in self._last_field_ocr_result.lines
+                if (
+                    line.confidence is None
+                    or float(line.confidence)
+                    >= MIN_MISMATCH_OCR_CONFIDENCE
+                )
+                for row in line.text.splitlines()
+                if is_standalone_i_autocorrect(
+                    intended_snapshot,
+                    row.strip(),
+                )
+            }
+            if len(candidates) != 1:
+                return ""
+            candidate = candidates.pop()
+            DEBUG.event(
+                "typing.editor_autocorrect_row_localized",
+                intended_characters=len(intended_snapshot),
+            )
+            return candidate
+
+        def unique_editor_exact_candidate_after_undo(
+            intended_snapshot: str,
+            read_back: str,
+        ) -> str:
+            """Select an exact row only when no stale autocorrect row remains."""
+
+            rows = [
+                row.strip()
+                for line in self._last_field_ocr_result.lines
+                if (
+                    line.confidence is None
+                    or float(line.confidence)
+                    >= MIN_GROUNDED_EXACT_OCR_CONFIDENCE
+                )
+                for row in line.text.splitlines()
+                if row.strip()
+            ]
+            if any(
+                is_standalone_i_autocorrect(intended_snapshot, row)
+                for row in rows
+            ):
+                return read_back
+            candidates = {
+                row
+                for row in rows
+                if norm(row, True) == norm(intended_snapshot, True)
+            }
+            return candidates.pop() if len(candidates) == 1 else read_back
+
+        async def prove_editor_leading_whitespace(
+            read_back: str,
+            intended_snapshot: str,
+            *,
+            phase: str,
+        ) -> str:
+            # The causal row proves every painted glyph, while Notepad's
+            # nearest foreground status row proves the otherwise invisible
+            # leading positions. The delivery receipt already proves that the
+            # exact spaces were issued once. Keep this editor-only and
+            # fail-closed when the status row is absent, distant, low
+            # confidence, or reports a conflicting column.
+            leading_spaces = len(intended_snapshot) - len(
+                intended_snapshot.lstrip(" ")
+            )
+            visible_intended = intended_snapshot[leading_spaces:]
+            if not (
+                precise
+                and editor_field
+                and not explicit_region
+                and cur_region is not None
+                and leading_spaces > 0
+                and read_back
+                and not read_back.startswith(" ")
+                and norm(strip_prompt(read_back), True)
+                == norm(visible_intended, True)
+            ):
+                return read_back
+            status_region = editor_status_search_region(
+                cur_region,
+                dims,
+            )
+            status_proved = False
+            if status_region is not None:
+                bounded_status = await self._read_screen(
+                    precise=True,
+                    region=status_region,
+                )
+                status_proved = (
+                    editor_caret_column_proves_leading_whitespace(
+                        bounded_status,
+                        intended_snapshot,
+                        cur_region,
+                        dims,
+                        container_region=status_region,
+                    )
+                )
+            DEBUG.event(
+                "typing.editor_leading_whitespace_status",
+                proved=status_proved,
+                phase=phase,
+                leading_spaces=leading_spaces,
+                expected_column=len(intended_snapshot) + 1,
+                region=cur_region.model_dump(),
+                status_region=(
+                    status_region.model_dump()
+                    if status_region is not None
+                    else None
+                ),
+            )
+            if status_proved:
+                return intended_snapshot
+            return read_back
+
         stable_field_read_performed = False
 
         async def read_current_field(intended_snapshot: str) -> str:
@@ -2840,6 +2964,14 @@ class WatchedTyper:
             nonlocal autocorrect_undo_failed
             nonlocal corrections, last_read, verified_clean
             read_back = self._typed_candidate(read_back, intended_snapshot, precise)
+            if precise and editor_field:
+                read_back = (
+                    unique_editor_autocorrect_candidate(
+                        intended_snapshot,
+                        read_back,
+                    )
+                    or read_back
+                )
             last_read = read_back
             semantic_spacing_match = (
                 allow_semantic_spacing
@@ -2894,7 +3026,7 @@ class WatchedTyper:
                 # issuing one reversible Undo. Never clear or replay the
                 # draft, and never reinterpret this as a Caps Lock fault.
                 await asyncio.sleep(_CARET_BLINK_RECHECK_S)
-                repeated = self._typed_candidate(
+                repeated_read = self._typed_candidate(
                     await self._read_field(
                         current_readback_region(intended_snapshot),
                         intended=intended_snapshot,
@@ -2903,6 +3035,13 @@ class WatchedTyper:
                     ),
                     intended_snapshot,
                     True,
+                )
+                repeated = (
+                    unique_editor_autocorrect_candidate(
+                        intended_snapshot,
+                        repeated_read,
+                    )
+                    or repeated_read
                 )
                 if not is_standalone_i_autocorrect(
                     intended_snapshot,
@@ -2928,7 +3067,7 @@ class WatchedTyper:
                 corrections += 1
                 await self.backend.keypress(["ControlLeft", "KeyZ"])
                 await asyncio.sleep(_CLEAR_SETTLE_S)
-                undone = self._typed_candidate(
+                undone_read = self._typed_candidate(
                     await self._read_field(
                         current_readback_region(intended_snapshot),
                         intended=intended_snapshot,
@@ -2937,6 +3076,15 @@ class WatchedTyper:
                     ),
                     intended_snapshot,
                     True,
+                )
+                undone = unique_editor_exact_candidate_after_undo(
+                    intended_snapshot,
+                    undone_read,
+                )
+                undone = await prove_editor_leading_whitespace(
+                    undone,
+                    intended_snapshot,
+                    phase="autocorrect_undo",
                 )
                 last_read = undone
                 restored = (
@@ -3570,69 +3718,9 @@ class WatchedTyper:
                         )
                         break
 
-        leading_spaces = len(text) - len(text.lstrip(" "))
-        visible_intended = text[leading_spaces:]
-        async def prove_editor_leading_whitespace(
-            read_back: str,
-            *,
-            phase: str,
-        ) -> str:
-            # The causal row proves every painted glyph, while Notepad's
-            # nearest foreground status row proves the otherwise invisible
-            # leading positions. The delivery receipt already proves that the
-            # exact spaces were issued once. Keep this editor-only and
-            # fail-closed when the status row is absent, distant, low
-            # confidence, or reports a conflicting column.
-            if not (
-                precise
-                and editor_field
-                and not explicit_region
-                and cur_region is not None
-                and leading_spaces > 0
-                and read_back
-                and not read_back.startswith(" ")
-                and norm(strip_prompt(read_back), True)
-                == norm(visible_intended, True)
-            ):
-                return read_back
-            status_region = editor_status_search_region(
-                cur_region,
-                dims,
-            )
-            status_proved = False
-            if status_region is not None:
-                bounded_status = await self._read_screen(
-                    precise=True,
-                    region=status_region,
-                )
-                status_proved = (
-                    editor_caret_column_proves_leading_whitespace(
-                        bounded_status,
-                        text,
-                        cur_region,
-                        dims,
-                        container_region=status_region,
-                    )
-                )
-            DEBUG.event(
-                "typing.editor_leading_whitespace_status",
-                proved=status_proved,
-                phase=phase,
-                leading_spaces=leading_spaces,
-                expected_column=len(text) + 1,
-                region=cur_region.model_dump(),
-                status_region=(
-                    status_region.model_dump()
-                    if status_region is not None
-                    else None
-                ),
-            )
-            if status_proved:
-                return text
-            return read_back
-
         last_read = await prove_editor_leading_whitespace(
             last_read,
+            text,
             phase="bounded_readback",
         )
 
@@ -3811,6 +3899,7 @@ class WatchedTyper:
         # available. This is still read-only and remains fail-closed.
         last_read = await prove_editor_leading_whitespace(
             last_read,
+            text,
             phase="full_screen_recovery",
         )
 
