@@ -487,6 +487,33 @@ run-state reads tolerate transient SQLite contention, and bounded prose OCR
 can safely canonicalize visible typographic apostrophes back to the exact
 ASCII bytes that were emitted.
 
+Text-06 v5 proves all three v4 remediations live, but remains a retained
+failure. No SQLite lock escaped through the API, the second 240-character
+append with smartened apostrophes passed exact readback in 52.038s, and the
+unverified-editor guard prevented the later draft from reaching Save As.
+Requested, emitted, observed, and readback hashes matched for the first
+240-character burst, the second 240-character append, and a third
+239-character append; every payload was emitted exactly once. The third
+append nevertheless spent about four minutes in remote readback and crossed
+the fixed 120s client deadline twice. Both retries reused the same
+idempotency key, and a cached third call returned in 43ms without duplicate
+typing.
+
+The final 21-character suffix, ` his tragic downfall.`, exposed the next
+exactness edge. It was emitted once, but OCR returned only the 20 visible
+non-boundary characters. Long bounded prose can restore one proven leading
+word-boundary space from the surrounding document; this short exact editor
+path cannot, so it failed closed with an exact-hash mismatch. Escape left the
+draft intact but did not clear the unverified-input latch, and every save
+mutation remained blocked. The document was never saved. v5 took 575.968s
+before reboot: 131.346s of provider wait across 21 calls and 540.184s of
+overlapping action execution, with 6/8 checkpointed actions completed. Its
+mandatory reboot observed a real transition and reached a ready desktop after
+76.245s. The recording, poster, failure reason, and complete performance
+breakdown are retained below. v6 must first let a short exact editor suffix
+use the same grounded, one-space boundary proof without relaxing commands,
+code, arbitrary whitespace, or at-most-once delivery.
+
 Failure-inclusive metrics, canonical campaign digests, the 20 accepted task
 IDs, and the VP9 recording/poster hashes are retained in
 [`codex-50-progress.json`](results/2026-07-31/live-vnc/codex-50-progress.json).

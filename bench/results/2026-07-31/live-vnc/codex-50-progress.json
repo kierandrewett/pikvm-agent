@@ -1338,12 +1338,49 @@
       },
       "poster": null,
       "campaign_sha256": "f8ddc12964fc04765d07ed0cd9e839a13d78ffb5de30b9bd18ab010708e5e8e6"
+    },
+    {
+      "campaign_id": "codex-text-entry-text06-v5-20260801",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "run_id": "e7e60ac9-b03e-47ad-84d8-2e967359cc19",
+      "reason": "The v4 safety, SQLite, and smart-apostrophe remediations all held live. The first two 240-character bursts and a third 239-character burst each passed exact readback with matching requested, emitted, observed, and readback hashes and exact-once emission. The second burst completed in 52.038 seconds. The third spent about four minutes in remote readback, crossed the fixed 120-second client deadline twice, and returned the cached result on the third call without duplicate typing. The final 21-character suffix was emitted once, but short exact-editor OCR omitted its leading word-boundary space and returned 20 observed characters. That path failed closed, Escape did not clear the unverified-input latch, all save mutations remained blocked, and the unsaved draft was discarded by the mandatory reboot. No SQLite lock or unsafe Save As transition recurred.",
+      "wall_clock_ms": 575968,
+      "provider_wait_ms": 131346,
+      "provider_serial_equivalent_ms": 172821,
+      "provider_overlap_ms": 41475,
+      "action_execution_ms": 540184,
+      "evidence_capture_ms": 1556,
+      "provider_calls": 21,
+      "actions_attempted": 10,
+      "actions_completed": 6,
+      "completion_efficiency": 0.75,
+      "same_run_recoveries": 4,
+      "approval_count": 0,
+      "approval_scopes": [],
+      "reboot_ms": 76245,
+      "reboot_transition_observed": true,
+      "recording": {
+        "relative_path": "codex-text-entry-text06-v5-20260801/text-06/recording.webm",
+        "sha256": "fceb27688f3be8841135aa692148a39843d4aa3d0065b346b5ae975651e23148",
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2,
+        "duration_ms": 551000,
+        "size_bytes": 1666147
+      },
+      "poster": {
+        "relative_path": "codex-text-entry-text06-v5-20260801/text-06/poster.jpg",
+        "sha256": "7d5b62018c72eea4c839289c331522b33d1c0be60a533f25783da150d44ea12b"
+      },
+      "campaign_sha256": "cdbc5365faba3c229134218cdca2ed07b5efac4fed2dd55bd17b1f8d61211ad0"
     }
   ],
   "verdict": {
     "accuracy": "Five exact text tasks now pass with independent reopen evidence. Text-05 verified all 78 path-and-symbol characters and its filename exact-once, completed 12/12 actions, durably reopened the saved file, and verified the mandatory reboot.",
     "speed": "Failing product target: accepted text-05 v2 took 250.155 seconds before reboot; exact entry and readback of the 78-character payload took 34.554 seconds.",
     "dominant_cost": "Text-05 v2 provider waits consumed 149.122 seconds across 26 calls, 59.61% of wall time; action execution consumed 95.246 seconds, with 48.165 seconds of provider-lane overlap.",
-    "next": "Before v5, make an active unverified editor draft block every key except non-mutating Escape so Save As cannot even reach approval; make run-state reads tolerate transient SQLite lock contention; then teach bounded prose OCR to canonicalize typographic apostrophes only when the exact emitted ASCII payload and grounded visible context prove the same text."
+    "next": "Before v6, allow a short exact editor suffix to reuse the same grounded one-space word-boundary proof as long bounded prose, while preserving strict command/code punctuation, rejecting arbitrary or repeated whitespace, retaining the unverified-editor save latch, and keeping every input transaction at most once. Separately, profile why a 239-character readback can occupy the daemon for about four minutes despite coalesced transport chunks."
   }
 }
