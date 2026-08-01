@@ -2212,6 +2212,68 @@ async def test_exact_fast_editor_append_localizes_suffix_from_full_document() ->
     _assert_no_enter(backend)
 
 
+async def test_exact_fast_editor_canonicalizes_visual_word_wrap() -> None:
+    """A soft visual wrap must not turn exact prose into a raw-hash mismatch."""
+
+    backend = FakeBackend()
+    backend.guarded_exact_print = True  # type: ignore[attr-defined]
+    intended = (
+        "Ambition drives Macbeth by transforming a celebrated soldier's "
+        "desire for honor into a consuming need for power. After hearing the "
+        "witches predict that he will be king, he begins to imagine murder as "
+        "a shortcut to the crown. Although he hesitates"
+    )
+    wrapped = intended.replace(
+        "he will be king, he begins",
+        "he will be king, he\nbegins",
+    )
+    typer = WatchedTyper(backend, ScriptedOCR(""))
+
+    async def wrapped_field_read(
+        region: Region,
+        *,
+        intended: str | None = None,
+        precise: bool = False,
+        allow_semantic_spacing: bool = False,
+        allow_blind_fallback: bool = False,
+        minimum_confidence: float = 0.78,
+    ) -> str:
+        del (
+            region,
+            intended,
+            precise,
+            allow_semantic_spacing,
+            allow_blind_fallback,
+            minimum_confidence,
+        )
+        return wrapped
+
+    async def wrapped_screen_read(*, precise: bool = False) -> OCRResult:
+        del precise
+        return OCRResult(
+            lines=[
+                OCRLine(text=line, confidence=0.99)
+                for line in wrapped.splitlines()
+            ]
+        )
+
+    typer._read_field = wrapped_field_read  # type: ignore[method-assign]
+    typer._read_screen = wrapped_screen_read  # type: ignore[method-assign]
+
+    result = await typer.type_text(
+        intended,
+        region=Region(x=10, y=10, width=900, height=300),
+        exact=True,
+        context="editor",
+    )
+
+    assert result.used_fast_path is True
+    assert result.status == "verified_exact"
+    assert result.field_text == intended
+    assert result.emitted_exactly_once is True
+    _assert_no_enter(backend)
+
+
 async def test_caps_lock_disables_fast_path() -> None:
     backend = FakeBackend()
     backend.caps_lock = True

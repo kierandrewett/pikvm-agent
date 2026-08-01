@@ -2934,19 +2934,29 @@ class WatchedTyper:
                     self._semantic_spacing_normalized = cropped_match[2]
                     break
 
-        if (
-            fast_print
-            and compute_verdict(text, last_read, precise) != "match"
-        ):
+        needs_full_screen_prose = (
+            compute_verdict(text, last_read, precise) != "match"
+            or (
+                precise
+                and last_read != text
+                and "\n" not in text
+                and "\r" not in text
+            )
+        )
+        if fast_print and needs_full_screen_prose:
             # Rich editors wrap prose beyond the first changed-line crop. Do
-            # one read-only full-screen pass even when the initial crop contains
-            # a previously proven editor prefix. Accept only a complete bounded
-            # prose occurrence, never general precise substring containment.
+            # one read-only full-screen pass even when semantic normalization
+            # calls an OCR-inserted visual word-wrap newline a match, or the
+            # initial crop contains a previously proven editor prefix. Precise
+            # input is canonicalized only when the bounded candidate recreates
+            # every requested byte and the request had no intentional newline.
             screen_candidate = self._full_screen_prose_candidate(
                 await self._read_screen(),
                 text,
             )
-            if screen_candidate:
+            if screen_candidate and (
+                not precise or screen_candidate == text
+            ):
                 last_read = screen_candidate
 
         verdict = compute_verdict(text, last_read, precise)
