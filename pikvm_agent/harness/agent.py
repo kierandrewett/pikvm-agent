@@ -1286,6 +1286,11 @@ exact type_text action and verify it. Then create one required blank line with
 two separate Shift+Enter key actions in a later bounded action; verify that
 non-submitting blank-line action before entering the next exact text segment.
 Never put active key actions after type_text in the same burst.
+When generating prose longer than one type_text payload, end every payload at
+a natural word boundary within the 240-character limit. Never concatenate two
+words or omit their separator to fill the limit. Begin the continuation with
+the exact required whitespace so the independently verified segments reconstruct
+the intended prose byte-for-byte.
 For a task that explicitly asks to inspect a read-only Windows Settings page,
 the same bounded launch exception may type one native ``ms-settings:`` URI
 instead of an executable. It must begin exactly with ``ms-settings:``, contain

@@ -1842,6 +1842,7 @@ class WatchedTyper:
                 secret=secret,
                 precise=precise,
                 single_line_field=context.casefold() == "field",
+                editor_field=context.casefold() == "editor",
                 allow_semantic_spacing=allow_semantic_spacing,
                 should_continue=should_continue,
                 fast_print=True,
@@ -1855,6 +1856,7 @@ class WatchedTyper:
             secret=secret,
             precise=precise,
             single_line_field=context.casefold() == "field",
+            editor_field=context.casefold() == "editor",
             allow_semantic_spacing=allow_semantic_spacing,
             should_continue=should_continue,
         )
@@ -1871,6 +1873,7 @@ class WatchedTyper:
         secret: bool,
         precise: bool,
         single_line_field: bool,
+        editor_field: bool,
         allow_semantic_spacing: bool,
         should_continue: Callable[[], bool] | None = None,
         fast_print: bool = False,
@@ -2125,21 +2128,27 @@ class WatchedTyper:
             assert cur_region is not None
             should_stabilize = (
                 precise
-                and single_line_field
                 and not stable_field_read_performed
                 and intended_snapshot == text
                 and (
-                    (
-                        not explicit_region
-                        and PRECISE_LOCATE_MIN_CHARS <= total <= 20
+                    editor_field
+                    or (
+                        single_line_field
+                        and (
+                            (
+                                not explicit_region
+                                and PRECISE_LOCATE_MIN_CHARS <= total <= 20
+                            )
+                            or total > 20
+                        )
                     )
-                    or total > 20
                 )
             )
             should_reposition_caret = bool(
                 should_stabilize
                 and (
-                    total > 20
+                    editor_field
+                    or total > 20
                     or any(
                         character.isspace()
                         for character in intended_snapshot
@@ -2167,22 +2176,37 @@ class WatchedTyper:
                 # before any caller can press Enter.
                 DEBUG.event(
                     "typing.caret_stabilizer",
-                    method="caret_home",
+                    method=(
+                        "editor_ctrl_home"
+                        if editor_field
+                        else "caret_home"
+                    ),
                     character_count=len(intended_snapshot),
                     stage="started",
                 )
-                await self.backend.press_key("Home")
+                if editor_field:
+                    await self.backend.keypress(["ControlLeft", "Home"])
+                else:
+                    await self.backend.press_key("Home")
                 await asyncio.sleep(_CLEAR_SETTLE_S)
                 repositioned_region = current_readback_region(
                     intended_snapshot
                 )
-                repositioned_read = await self._read_field(
-                    repositioned_region,
-                    intended=intended_snapshot,
-                    precise=precise,
-                    allow_semantic_spacing=allow_semantic_spacing,
-                    allow_blind_fallback=True,
-                )
+                try:
+                    repositioned_read = await self._read_field(
+                        repositioned_region,
+                        intended=intended_snapshot,
+                        precise=precise,
+                        allow_semantic_spacing=allow_semantic_spacing,
+                        allow_blind_fallback=True,
+                    )
+                finally:
+                    if editor_field:
+                        with contextlib.suppress(Exception):
+                            await self.backend.keypress(
+                                ["ControlLeft", "End"]
+                            )
+                        await asyncio.sleep(_CLEAR_SETTLE_S)
                 selected_confidences = [
                     float(line.confidence)
                     for line in self._last_field_ocr_result.lines
@@ -2190,7 +2214,11 @@ class WatchedTyper:
                 ]
                 DEBUG.event(
                     "typing.caret_stabilizer",
-                    method="caret_home",
+                    method=(
+                        "editor_ctrl_home"
+                        if editor_field
+                        else "caret_home"
+                    ),
                     character_count=len(intended_snapshot),
                     stage="completed",
                     readback_available=bool(repositioned_read),

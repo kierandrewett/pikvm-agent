@@ -2307,17 +2307,14 @@ async def test_exact_fast_editor_canonicalizes_visual_word_wrap() -> None:
         )
         return wrapped
 
-    async def wrapped_screen_read(*, precise: bool = False) -> OCRResult:
+    async def unexpected_screen_read(*, precise: bool = False) -> OCRResult:
         del precise
-        return OCRResult(
-            lines=[
-                OCRLine(text=line, confidence=0.99)
-                for line in wrapped.splitlines()
-            ]
+        raise AssertionError(
+            "grounded exact editor readback must avoid full-screen OCR"
         )
 
     typer._read_field = wrapped_field_read  # type: ignore[method-assign]
-    typer._read_screen = wrapped_screen_read  # type: ignore[method-assign]
+    typer._read_screen = unexpected_screen_read  # type: ignore[method-assign]
 
     result = await typer.type_text(
         intended,
@@ -2330,6 +2327,64 @@ async def test_exact_fast_editor_canonicalizes_visual_word_wrap() -> None:
     assert result.status == "verified_exact"
     assert result.field_text == intended
     assert result.emitted_exactly_once is True
+    _assert_no_enter(backend)
+
+
+async def test_long_exact_editor_moves_caret_and_restores_document_end() -> None:
+    """A suffix caret is read-only stabilized without changing append position."""
+
+    backend = FakeBackend()
+    backend.guarded_exact_print = True  # type: ignore[attr-defined]
+    intended = (
+        "Macbeth treats prophecy as permission to force the future, while "
+        "each violent choice makes retreat more difficult and costly."
+    )
+    assert len(intended) > FAST_PRINT_MIN
+    typer = WatchedTyper(backend, ScriptedOCR(""))
+
+    async def caret_sensitive_field_read(
+        region: Region,
+        *,
+        intended: str | None = None,
+        **_kwargs,
+    ) -> str:
+        del region
+        keypresses = [
+            kwargs["keys"]
+            for method, kwargs in backend.calls
+            if method == "keypress"
+        ]
+        if ["ControlLeft", "Home"] in keypresses:
+            return intended or ""
+        return f"{intended or ''}|"
+
+    async def unexpected_screen_read(*, precise: bool = False) -> OCRResult:
+        del precise
+        raise AssertionError(
+            "caret-stabilized editor readback must avoid full-screen OCR"
+        )
+
+    typer._read_field = caret_sensitive_field_read  # type: ignore[method-assign]
+    typer._read_screen = unexpected_screen_read  # type: ignore[method-assign]
+
+    result = await typer.type_text(
+        intended,
+        region=Region(x=10, y=10, width=900, height=300),
+        exact=True,
+        context="editor",
+    )
+
+    keypresses = [
+        kwargs["keys"]
+        for method, kwargs in backend.calls
+        if method == "keypress"
+    ]
+    assert result.status == "verified_exact"
+    assert result.emitted_exactly_once is True
+    assert keypresses[-2:] == [
+        ["ControlLeft", "Home"],
+        ["ControlLeft", "End"],
+    ]
     _assert_no_enter(backend)
 
 

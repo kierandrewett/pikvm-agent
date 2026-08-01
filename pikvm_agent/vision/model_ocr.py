@@ -48,7 +48,10 @@ _PROMPT = (
     "hyphen-minus (-), en dash (–), and em dash (—); never substitute one for "
     "another. In monospaced editor text, a horizontal dash that spans most of "
     "one character cell is an em dash, even when the font renders it shorter "
-    "than its typographic name suggests."
+    "than its typographic name suggests. In editors, visual line wrapping is "
+    "layout, not a newline character: join soft-wrapped rows without adding "
+    "or removing a visible space. Preserve run-together words exactly; never "
+    "insert a plausible missing space."
 )
 _LOCATOR_PADDING = 12
 _LOCATOR_WIDTH = 2

@@ -85,6 +85,11 @@ async def test_blind_model_ocr_requires_two_matching_transcriptions(
         "spans most of one character cell" in request.prompt
         for request in provider.requests
     )
+    assert all(
+        "visual line wrapping is layout, not a newline character"
+        in request.prompt
+        for request in provider.requests
+    )
 
 
 async def test_blind_model_ocr_fails_closed_without_consensus(
