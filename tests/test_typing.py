@@ -35,6 +35,7 @@ from pikvm_agent.executor.typing import (
     locate_changed_bbox,
     locate_dense_changed_bbox,
     locate_dense_changed_candidates,
+    ocr_line_screen_region,
     precise_readback_candidate_region,
     readback_region,
     regions_overlap,
@@ -116,6 +117,24 @@ class AlternativeCandidateOCR:
                 )
             ],
         )
+
+
+def test_ocr_line_screen_region_translates_from_the_actual_crop() -> None:
+    line = OCRLine(
+        text="1. Observe",
+        confidence=0.99,
+        bbox=[61, 7, 121, 19],
+    )
+    crop = Region(x=0, y=96, width=218, height=32)
+
+    translated = ocr_line_screen_region(
+        line,
+        crop,
+        (1280, 800),
+        pad=2,
+    )
+
+    assert translated == Region(x=59, y=101, width=64, height=16)
 
 
 class PreciseProfileOCR:

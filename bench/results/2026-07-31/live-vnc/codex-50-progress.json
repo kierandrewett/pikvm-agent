@@ -918,12 +918,46 @@
         "sha256": "276ecfa2151e08bddb85a35f70a141a01cb2bf47fb5e9ac62fad9fd3241b187b"
       },
       "campaign_sha256": "c444b9f091ed15eed83520bd62c950081aa2a98f3c0164e883e6cda37336b0b7"
+    },
+    {
+      "campaign_id": "codex-text-entry-text04-v11-20260801",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "run_id": "ff0840d3-11de-4bbe-af39-227048dcecb7",
+      "reason": "HID emitted `1. Observe` exactly once and the recorded frame visibly contained all 10 characters, but the receipt observed only `Observe`. The causal OCR pass had read the complete row; its crop-relative bbox was translated from the changed-pixel candidate instead of the actual OCR crop, moving the trusted region from approximately x=59 to x=111 and narrowing it to 12px. The editor guard rejected all proposed focus clicks and the repeated-paused-error circuit stopped the run before Save.",
+      "wall_clock_ms": 149361,
+      "provider_wait_ms": 86185,
+      "action_execution_ms": 55663,
+      "provider_calls": 14,
+      "actions_attempted": 4,
+      "actions_completed": 3,
+      "completion_efficiency": 0.75,
+      "same_run_recoveries": 3,
+      "approval_count": 0,
+      "approval_scopes": [],
+      "reboot_ms": 101945,
+      "reboot_transition_observed": true,
+      "recording": {
+        "relative_path": "codex-text-entry-text04-v11-20260801/text-04/recording.webm",
+        "sha256": "5b126ea7158a2cd9a3731c1a1d0db7fdf5928425aecc820fd7e50195f157b416",
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2,
+        "duration_ms": 238500,
+        "size_bytes": 636862
+      },
+      "poster": {
+        "relative_path": "codex-text-entry-text04-v11-20260801/text-04/poster.jpg",
+        "sha256": "1572564d90f2effa2c23111330fc032292dba9d881eaca262b7062047b146024"
+      },
+      "campaign_sha256": "188032bc347e3b98dc34844c1a87ecfa3c75e1db9bb5e297b97165a0e07edb9e"
     }
   ],
   "verdict": {
     "accuracy": "Three exact text tasks now pass with independent reopen evidence. Text-03 includes a durable completed Ctrl+O transition and visible post-open paragraph verification.",
     "speed": "Failing product target: accepted text-03 v6 took 380.612 seconds before reboot and required two recoveries.",
     "dominant_cost": "Text-03 v6 provider waits consumed 208.161 seconds across 34 calls, while action execution consumed 243.335 seconds; overlapping work prevents these components from summing directly to wall time.",
-    "next": "Replay text-04 with the bounded delayed-frame verification refresh; accept only same-run exact receipts, durably verified Save and reopen transitions, visible exact content, and a successful mandatory reboot."
+    "next": "Replay text-04 with corrected crop-to-screen OCR geometry and the bounded delayed-frame verification refresh; accept only same-run exact receipts, durably verified Save and reopen transitions, visible exact content, and a successful mandatory reboot."
   }
 }

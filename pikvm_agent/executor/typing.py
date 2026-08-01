@@ -238,6 +238,52 @@ def ocr_line_region(
     )
 
 
+def ocr_line_screen_region(
+    line: OCRLine,
+    container: Region,
+    dims: tuple[int, int],
+    *,
+    pad: int = 8,
+) -> Region | None:
+    """Translate a crop-relative OCR row back into screen coordinates."""
+
+    local = ocr_line_region(
+        line,
+        (
+            max(1, math.ceil(container.width)),
+            max(1, math.ceil(container.height)),
+        ),
+        pad=pad,
+    )
+    if local is None:
+        return None
+    screen_width, screen_height = dims
+    if screen_width <= 0 or screen_height <= 0:
+        return None
+    x = min(
+        screen_width - 1,
+        max(0, math.floor(container.x + local.x)),
+    )
+    y = min(
+        screen_height - 1,
+        max(0, math.floor(container.y + local.y)),
+    )
+    x2 = min(
+        screen_width,
+        max(x + 1, math.ceil(container.x + local.x + local.width)),
+    )
+    y2 = min(
+        screen_height,
+        max(y + 1, math.ceil(container.y + local.y + local.height)),
+    )
+    return Region(
+        x=x,
+        y=y,
+        width=max(1, x2 - x),
+        height=max(1, y2 - y),
+    )
+
+
 def vertically_adjacent_rows(previous: Region, current: Region) -> bool:
     """Whether two OCR boxes plausibly form consecutive wrapped text rows."""
 
@@ -1840,14 +1886,15 @@ class WatchedTyper:
                 )
                 for _index, candidate in ordered[:4]:
                     checked += 1
+                    candidate_readback_region = readback_region(
+                        candidate,
+                        dims,
+                        explicit=False,
+                        vertical_context=False,
+                    )
                     result = await reader(
                         tmp,
-                        region=readback_region(
-                            candidate,
-                            dims,
-                            explicit=False,
-                            vertical_context=False,
-                        ),
+                        region=candidate_readback_region,
                     )
                     exact_rows = [
                         line
@@ -1881,41 +1928,14 @@ class WatchedTyper:
                     ):
                         continue
                     matched_region = candidate
-                    local_row_region = ocr_line_region(
+                    screen_row_region = ocr_line_screen_region(
                         exact_rows[0],
-                        (
-                            max(1, math.ceil(candidate.width)),
-                            max(1, math.ceil(candidate.height)),
-                        ),
+                        candidate_readback_region,
+                        dims,
                         pad=2,
                     )
-                    if local_row_region is not None:
-                        matched_x = min(
-                            dims[0] - 1,
-                            max(0, candidate.x + local_row_region.x),
-                        )
-                        matched_y = min(
-                            dims[1] - 1,
-                            max(0, candidate.y + local_row_region.y),
-                        )
-                        matched_x2 = min(
-                            dims[0],
-                            candidate.x
-                            + local_row_region.x
-                            + local_row_region.width,
-                        )
-                        matched_y2 = min(
-                            dims[1],
-                            candidate.y
-                            + local_row_region.y
-                            + local_row_region.height,
-                        )
-                        matched_region = Region(
-                            x=matched_x,
-                            y=matched_y,
-                            width=max(1, matched_x2 - matched_x),
-                            height=max(1, matched_y2 - matched_y),
-                        )
+                    if screen_row_region is not None:
+                        matched_region = screen_row_region
                     if spacing_verified:
                         self._causal_exact_spacing_region = matched_region
                         self._causal_exact_spacing_intended = intended_snapshot

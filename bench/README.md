@@ -311,8 +311,25 @@ after 77.360s. Failed or uncertain action verification now performs a bounded,
 read-only frame refresh and recalls the verifier once only if the image bytes
 changed. A delayed frame also invalidates the speculative next controller;
 unchanged pixels trigger no extra model call. The combined remediation passes
-321 focused typing, burst, and managed-agent tests. Text-04 remains pending
+322 focused typing, burst, and managed-agent tests. Text-04 remains pending
 until this bounded delayed-frame handoff passes a clean live replay.
+
+Text-04 v11 failed earlier in the flow and therefore did not exercise the
+delayed action-verification handoff. HID emitted `1. Observe` exactly once and
+the recorded VNC frame visibly contained all 10 characters, but the final
+receipt reported only `Observe`. The causal precise OCR pass had already read
+the complete row; its crop-relative row box was translated from the changed
+pixel candidate rather than from the larger crop actually sent to OCR. That
+moved the trusted row from approximately x=59 to x=111 and collapsed it to
+12px. The fail-closed editor guard then rejected every proposed focus click and
+stopped the repeated recovery loop. v11 failed after 149.361s before reboot:
+86.185s of provider wait and 55.663s of action execution across 14 calls, with
+3/4 actions completed. Its mandatory reboot observed a real transition and
+reached a ready desktop after 101.945s. Crop-relative OCR boxes are now
+translated through the actual readback crop before becoming screen regions;
+the recorded frame reads `1. Observe` at approximately 95% local OCR
+confidence with the corrected geometry. Text-04 remains pending until a clean
+live replay reaches and passes the delayed Save/reopen verification boundary.
 
 Failure-inclusive metrics, canonical campaign digests, the 18 accepted task
 IDs, and the VP9 recording/poster hashes are retained in
