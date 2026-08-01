@@ -252,6 +252,23 @@ confidence has fallen; the proof is reset for every input transaction and
 cannot authorize a mismatching or non-overlapping read. Text-04 remains
 pending until that bounded evidence handoff passes a clean v8 replay.
 
+Text-04 v8 crossed every checklist-input boundary: all four payloads were
+emitted exactly once with `verified_exact` receipts and identical requested,
+emitted, and readback SHA-256 values. It then failed in Save As. Native OCR
+returned the exact prepared basename inside two labelled rows—`File name:
+text-04.txt` and `Save as type: Text documents (*.txt)`—while the bounded
+filename parser recognized only the same two values without their Windows
+labels. The controller correctly refused Save, dismissed the unverified dialog,
+and retried the reversible workflow until the same-run recovery limit stopped
+it. v8 failed after 465.937s before reboot: 282.646s of provider wait across 45
+calls and 310.821s of action execution, with overlapping lanes and 19/23
+actions completed. Three approvals were all scoped to bounded workspace edits.
+Its mandatory reboot observed a real transition and reached a ready desktop
+after 82.716s. Exact safe-filename readback now recognizes only the two known
+Windows label/value rows; a changed basename, label, type row, suffix, or extra
+row remains unverified. Text-04 remains pending until that parser passes a
+clean v9 save-and-reopen replay.
+
 Failure-inclusive metrics, canonical campaign digests, the 18 accepted task
 IDs, and the VP9 recording/poster hashes are retained in
 [`codex-50-progress.json`](results/2026-07-31/live-vnc/codex-50-progress.json).

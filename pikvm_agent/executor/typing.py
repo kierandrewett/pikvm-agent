@@ -1424,10 +1424,18 @@ class WatchedTyper:
                 "all files (*.*)",
                 "text documents (*.txt)",
             }
+            known_filename_rows = {
+                intended,
+                f"File name: {intended}",
+            }
+            known_type_rows = known_save_as_type_rows | {
+                f"save as type: {row}"
+                for row in known_save_as_type_rows
+            }
             if (
                 len(lines) == 2
-                and lines[0] == intended
-                and lines[1].casefold() in known_save_as_type_rows
+                and lines[0] in known_filename_rows
+                and lines[1].casefold() in known_type_rows
             ):
                 return intended
         return read_back

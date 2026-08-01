@@ -3514,10 +3514,42 @@ def test_precise_filename_readback_excludes_only_known_save_as_type_chrome() -> 
         True,
     ) == intended
     assert WatchedTyper._typed_candidate(
+        (
+            f"File name: {intended}\n"
+            "Save as type: Text documents (*.txt)"
+        ),
+        intended,
+        True,
+    ) == intended
+    assert WatchedTyper._typed_candidate(
+        f"File name: {intended}\nSave as type: All files (*.*)",
+        intended,
+        True,
+    ) == intended
+    assert WatchedTyper._typed_candidate(
         f"{intended}\nUnexpected adjacent text",
         intended,
         True,
     ) == f"{intended}\nUnexpected adjacent text"
+    assert WatchedTyper._typed_candidate(
+        (
+            f"File name: {intended}t\n"
+            "Save as type: Text documents (*.txt)"
+        ),
+        intended,
+        True,
+    ) == (
+        f"File name: {intended}t\n"
+        "Save as type: Text documents (*.txt)"
+    )
+    assert WatchedTyper._typed_candidate(
+        f"Filename: {intended}\nSave as type: Text documents (*.txt)",
+        intended,
+        True,
+    ) == (
+        f"Filename: {intended}\n"
+        "Save as type: Text documents (*.txt)"
+    )
 
 
 async def test_precise_ocr_noise_stops_without_destructive_retype() -> None:

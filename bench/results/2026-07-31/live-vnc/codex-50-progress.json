@@ -810,12 +810,48 @@
         "sha256": "2a83aa43937706ac4d907d071ad623834b1dac3a3bbf6e434617d6eb1f04a8f8"
       },
       "campaign_sha256": "aa0d2d18c5c9d95f5a2b1ed9f8fb5f30ea84df1fc4c828abfdc57268f9fea49d"
+    },
+    {
+      "campaign_id": "codex-text-entry-text04-v8-20260801",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "run_id": "5a01ee4a-264d-43d6-b749-ddd537a01379",
+      "reason": "All four checklist lines were emitted exactly once with verified_exact receipts and matching requested, emitted, and readback hashes. Save As then returned the exact basename inside `File name:` and `Save as type:` labelled rows, which the bounded filename parser did not recognize. The controller refused Save and retried only reversible dismissal/reopen workflows until the recovery limit stopped the run.",
+      "wall_clock_ms": 465937,
+      "provider_wait_ms": 282646,
+      "action_execution_ms": 310821,
+      "provider_calls": 45,
+      "actions_attempted": 23,
+      "actions_completed": 19,
+      "completion_efficiency": 0.8260869565217391,
+      "same_run_recoveries": 4,
+      "approval_count": 3,
+      "approval_scopes": [
+        "bounded_workspace_edit"
+      ],
+      "reboot_ms": 82716,
+      "reboot_transition_observed": true,
+      "recording": {
+        "relative_path": "codex-text-entry-text04-v8-20260801/text-04/recording.webm",
+        "sha256": "e91c0c106ca7bb2ae2d16366d20a36a856b815805565809f4e46cc34824e4d68",
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2,
+        "duration_ms": 509000,
+        "size_bytes": 1351639
+      },
+      "poster": {
+        "relative_path": "codex-text-entry-text04-v8-20260801/text-04/poster.jpg",
+        "sha256": "b22bec0feb4ae419e9dcbca06e283aed27e17184cb3b6348e7e6fdc4e843708d"
+      },
+      "campaign_sha256": "edc3aec39591048114702aada86a1ae46d2bbb76a8bf378645d0f9db6eefb29b"
     }
   ],
   "verdict": {
     "accuracy": "Three exact text tasks now pass with independent reopen evidence. Text-03 includes a durable completed Ctrl+O transition and visible post-open paragraph verification.",
     "speed": "Failing product target: accepted text-03 v6 took 380.612 seconds before reboot and required two recoveries.",
     "dominant_cost": "Text-03 v6 provider waits consumed 208.161 seconds across 34 calls, while action execution consumed 243.335 seconds; overlapping work prevents these components from summing directly to wall time.",
-    "next": "Replay text-04 while retaining exact causal spacing proof across lower-confidence settled reads of the same row."
+    "next": "Replay text-04 with exact safe-filename readback recognizing only known labelled Windows Save As rows."
   }
 }
