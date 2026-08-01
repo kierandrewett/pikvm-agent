@@ -1211,6 +1211,18 @@ def test_paused_checkpoint_is_continued_only_once_until_it_advances() -> None:
     ) == "observe"
 
 
+def test_paused_checkpoint_waits_while_background_activity_is_in_flight() -> None:
+    assert paused_recovery_action(
+        event_count=231,
+        observed_cursor=231,
+        continued_cursor=223,
+        active_activity={
+            "kind": "tool",
+            "tool": "pikvm_run_burst",
+        },
+    ) == "wait"
+
+
 def test_identical_paused_error_stops_before_a_third_provider_retry() -> None:
     recoveries = [
         {"error": "unverified exact input"},

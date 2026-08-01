@@ -1019,9 +1019,12 @@ def paused_recovery_action(
     event_count: int,
     observed_cursor: int | None,
     continued_cursor: int | None,
+    active_activity: object | None = None,
 ) -> Literal["observe", "continue", "wait"]:
     """Schedule at most one continue request for one paused checkpoint."""
 
+    if active_activity is not None:
+        return "wait"
     if observed_cursor != event_count:
         return "observe"
     if continued_cursor == event_count:
@@ -1217,6 +1220,7 @@ async def run_showcase_campaign(
                                 event_count=event_count,
                                 observed_cursor=paused_cursor,
                                 continued_cursor=continued_paused_cursor,
+                                active_activity=run.get("active_activity"),
                             )
                             if recovery_action == "observe":
                                 paused_cursor = event_count
