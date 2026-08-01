@@ -509,6 +509,55 @@ def _ambiguous_dense_typing_backend(
     return backend
 
 
+class _IndentedRowOCR:
+    def __init__(
+        self,
+        expanded_text: str,
+        expanded_spacing: str,
+    ) -> None:
+        self.expanded_text = expanded_text
+        self.expanded_spacing = expanded_spacing
+        self.regions: list[Region | None] = []
+
+    async def ocr(
+        self,
+        image_path: Path,
+        region: Region | None = None,
+    ) -> OCRResult:
+        del image_path
+        self.regions.append(region)
+        if region is None or region.y >= 200:
+            return OCRResult()
+        if region.width < 120:
+            return OCRResult(
+                lines=[
+                    OCRLine(
+                        text="result = []",
+                        confidence=0.99,
+                        bbox=[2, 2, 62, 14],
+                    )
+                ],
+                spacing_evidence="uncertain",
+            )
+        return OCRResult(
+            lines=[
+                OCRLine(
+                    text=self.expanded_text,
+                    confidence=0.99,
+                    bbox=[20, 2, 88, 14],
+                )
+            ],
+            spacing_evidence=self.expanded_spacing,
+        )
+
+    async def ocr_precise(
+        self,
+        image_path: Path,
+        region: Region | None = None,
+    ) -> OCRResult:
+        return await self.ocr(image_path, region)
+
+
 class _AdjacentLineOCR:
     def __init__(self) -> None:
         self.target_candidate_reads = 0
@@ -723,50 +772,7 @@ async def test_causal_code_row_uses_trimmed_glyphs_only_to_localize(
 ) -> None:
     backend = _ambiguous_dense_typing_backend(monkeypatch)
     intended = "    result = []"
-
-    class IndentedRowOCR:
-        def __init__(self) -> None:
-            self.regions: list[Region | None] = []
-
-        async def ocr(
-            self,
-            image_path: Path,
-            region: Region | None = None,
-        ) -> OCRResult:
-            del image_path
-            self.regions.append(region)
-            if region is None or region.y >= 200:
-                return OCRResult()
-            if region.width < 120:
-                return OCRResult(
-                    lines=[
-                        OCRLine(
-                            text="result = []",
-                            confidence=0.99,
-                            bbox=[2, 2, 62, 14],
-                        )
-                    ],
-                    spacing_evidence="uncertain",
-                )
-            return OCRResult(
-                lines=[
-                    OCRLine(
-                        text=expanded_text,
-                        confidence=0.99,
-                        bbox=[20, 2, 88, 14],
-                    )
-                ],
-                spacing_evidence=expanded_spacing,
-            )
-
-        async def ocr_precise(
-            self,
-            image_path: Path,
-            region: Region | None = None,
-        ) -> OCRResult:
-            return await self.ocr(image_path, region)
-
-    ocr = IndentedRowOCR()
+    ocr = _IndentedRowOCR(expanded_text, expanded_spacing)
     result = await WatchedTyper(backend, ocr).type_text(
         intended,
         exact=True,
