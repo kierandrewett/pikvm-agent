@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "report": "codex-50-live-progress",
-  "recorded_at": "2026-08-01T15:54:17Z",
+  "recorded_at": "2026-08-01T17:48:04Z",
   "manifest": "bench/codex-50-tasks.yaml",
   "environment": {
     "target": "authorized disposable Windows VNC VM",
@@ -16,9 +16,9 @@
   },
   "progress": {
     "planned": 50,
-    "unique_passed": 22,
-    "pending": 28,
-    "completion_percent": 44.0,
+    "unique_passed": 23,
+    "pending": 27,
+    "completion_percent": 46.0,
     "categories": {
       "Observation": {
         "passed": 5,
@@ -29,7 +29,7 @@
         "planned": 10
       },
       "Text entry": {
-        "passed": 7,
+        "passed": 8,
         "planned": 10
       },
       "Code entry": {
@@ -71,7 +71,8 @@
       "text-04",
       "text-05",
       "text-06",
-      "text-07"
+      "text-07",
+      "text-08"
     ]
   },
   "canonical_campaigns": [
@@ -192,6 +193,13 @@
         "text-07"
       ],
       "campaign_sha256": "515ee07ec357bbcc8c1e71a8f546c545b8077f4672ff1f0379396e0f0e5e9393"
+    },
+    {
+      "campaign_id": "codex-text-entry-text08-v10-20260801",
+      "tasks": [
+        "text-08"
+      ],
+      "campaign_sha256": "b11703b2ad01f6a12cb1252bf4ff22ab9180a4e06aadc1678b95f2faadcfdbe8"
     }
   ],
   "calc_09_acceptance": {
@@ -1750,10 +1758,407 @@
       "campaign_sha256": "515ee07ec357bbcc8c1e71a8f546c545b8077f4672ff1f0379396e0f0e5e9393"
     }
   ],
+  "text_08_acceptance": {
+    "task": "Create, save, reopen, and verify three lines containing exactly two, three, and four consecutive spaces",
+    "result": "passed",
+    "run_id": "bbedb77f-eb6f-4325-aced-c20c4fb5909c",
+    "visible_result": [
+      "alpha  beta",
+      "gamma   delta",
+      "epsilon    zeta"
+    ],
+    "reason": "The saved and independently reopened Notepad file visibly retained the requested two, three, and four consecutive spaces. All 13 actions completed without recoverable input failure or replay. Save required one bounded workspace-edit approval, quiescence was confirmed, and the mandatory reboot observed a real transition.",
+    "wall_clock_ms": 328464,
+    "provider_wait_ms": 180157,
+    "provider_serial_equivalent_ms": 246422,
+    "provider_overlap_ms": 66265,
+    "action_execution_ms": 143669,
+    "evidence_capture_ms": 2910,
+    "provider_calls": 30,
+    "controller_calls": 15,
+    "verifier_calls": 14,
+    "reasoner_calls": 1,
+    "actions_attempted": 13,
+    "actions_completed": 13,
+    "completion_efficiency": 1.0,
+    "autonomous_resumes": 1,
+    "same_run_recoveries": 0,
+    "approval_count": 1,
+    "approval_scopes": [
+      "bounded_workspace_edit"
+    ],
+    "quiescence_status": "confirmed",
+    "reboot_ms": 75134,
+    "reboot_transition_observed": true,
+    "recording": {
+      "relative_path": "codex-text-entry-text08-v10-20260801/text-08/recording.webm",
+      "sha256": "9bca6bec3a050e65ef7ef7dc8637345ac8efa1fe2bb7998f25cb874cd06df88f",
+      "codec": "vp9",
+      "width": 2048,
+      "height": 1280,
+      "fps": 2,
+      "duration_ms": 373000,
+      "size_bytes": 1122879
+    },
+    "poster": {
+      "relative_path": "codex-text-entry-text08-v10-20260801/text-08/poster.jpg",
+      "sha256": "fb08948e9833c24e04c6e1306aabe6a33f1980291110015ae0596eaf3c8f6bae"
+    },
+    "campaign_sha256": "b11703b2ad01f6a12cb1252bf4ff22ab9180a4e06aadc1678b95f2faadcfdbe8"
+  },
+  "text_08_attempts": [
+    {
+      "campaign_id": "codex-text-entry-text08-v1-20260801",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "run_id": "585d4c3f-577e-4103-919a-cf885561d1ea",
+      "reason": "The validator correctly refused both deliberate repeated-space payloads because the controller labelled them as ordinary editor prose. No repeated-space HID input was emitted. The run stopped after its bounded navigation-replan budget, quiesced, and completed the mandatory reboot. The controller now marks load-bearing repeated-space text as exact code-like input.",
+      "wall_clock_ms": 183948,
+      "provider_wait_ms": 133228,
+      "provider_serial_equivalent_ms": 151638,
+      "provider_overlap_ms": 18410,
+      "action_execution_ms": 153570,
+      "evidence_capture_ms": 808,
+      "provider_calls": 20,
+      "actions_attempted": 7,
+      "actions_completed": 3,
+      "completion_efficiency": 0.42857142857142855,
+      "reboot_ms": 100461,
+      "reboot_transition_observed": true,
+      "recording": {
+        "relative_path": "codex-text-entry-text08-v1-20260801/text-08/recording.webm",
+        "sha256": "97a57c642619ecf007968b373ec9e9f616259745c665f5f7de772ae52793d5ad",
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2,
+        "duration_ms": 255500,
+        "size_bytes": 748316
+      },
+      "poster": {
+        "relative_path": "codex-text-entry-text08-v1-20260801/text-08/poster.jpg",
+        "sha256": "a03da3b55f7723c34e8bf708ebe14c84b722cb534a4df63e52a0eec7fc348509"
+      },
+      "campaign_sha256": "7a87c11b56fa86e6e8486bb262e81956f5d067939ffa45e7add3031cb82c6916"
+    },
+    {
+      "campaign_id": "codex-text-entry-text08-v2-20260801",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "run_id": "af43713e-d1f5-4021-86a5-753a3a3b8fbe",
+      "reason": "The first exact line was visibly emitted once, but the immediate readback was classified as failed_focus_lost. The exact-once guard prevented replay and the run stopped safely. A bounded delayed-frame retry was added before focus-loss classification.",
+      "wall_clock_ms": 202516,
+      "provider_wait_ms": 139686,
+      "provider_serial_equivalent_ms": 164334,
+      "provider_overlap_ms": 24648,
+      "action_execution_ms": 178275,
+      "evidence_capture_ms": 758,
+      "provider_calls": 21,
+      "actions_attempted": 5,
+      "actions_completed": 3,
+      "completion_efficiency": 0.6,
+      "reboot_ms": 77052,
+      "reboot_transition_observed": true,
+      "recording": {
+        "relative_path": "codex-text-entry-text08-v2-20260801/text-08/recording.webm",
+        "sha256": "e0e51854e17ae96f41dac255d2fbe5931059c61f530d48782355785adad20ac3",
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2,
+        "duration_ms": 253500,
+        "size_bytes": 627761
+      },
+      "poster": {
+        "relative_path": "codex-text-entry-text08-v2-20260801/text-08/poster.jpg",
+        "sha256": "8059f43c017ab3db9596b7c00bc586eeaaffb2a7d44c315c809e774a83e626f9"
+      },
+      "campaign_sha256": "6b771fdbcef0c88b9d6fa19804b91ad932e3206be993ae5379595a2fcc2075ae"
+    },
+    {
+      "campaign_id": "codex-text-entry-text08-v3-20260801",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "run_id": "1d869fd4-2197-49b8-ac14-43bcea88a532",
+      "reason": "The delayed frame still used a coarse causal crop containing editor borders and unrelated visual noise. The line remained visible and exact-once, but OCR could not prove it. Candidate crops are now inset to the causal content region.",
+      "wall_clock_ms": 204888,
+      "provider_wait_ms": 132607,
+      "provider_serial_equivalent_ms": 151150,
+      "provider_overlap_ms": 18543,
+      "action_execution_ms": 67376,
+      "evidence_capture_ms": 798,
+      "provider_calls": 18,
+      "actions_attempted": 4,
+      "actions_completed": 3,
+      "completion_efficiency": 0.75,
+      "reboot_ms": 73813,
+      "reboot_transition_observed": true,
+      "recording": {
+        "relative_path": "codex-text-entry-text08-v3-20260801/text-08/recording.webm",
+        "sha256": "44bac142d64a67d5630062c31e813213433137c216cf1e63ecb6f17c0df0e0f6",
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2,
+        "duration_ms": 252500,
+        "size_bytes": 641765
+      },
+      "poster": {
+        "relative_path": "codex-text-entry-text08-v3-20260801/text-08/poster.jpg",
+        "sha256": "4040efadad869e1af6fc2a43026e345eb96242a804a84117ddf8e3107a32b891"
+      },
+      "campaign_sha256": "96594df9b1dd17d533f246c9da042b54eeed23aa893095f83349464518afc34f"
+    },
+    {
+      "campaign_id": "codex-text-entry-text08-v4-20260801",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "run_id": "1d54fd85-8329-46c0-a3b7-82293a8e01ee",
+      "reason": "An OCR alternative preserved the exact repeated-space geometry, while the primary candidate collapsed it. The transaction failed closed instead of treating normalized whitespace as proof. Exact-spacing alternatives are now eligible to become the canonical readback only when their literal content matches.",
+      "wall_clock_ms": 204650,
+      "provider_wait_ms": 119269,
+      "provider_serial_equivalent_ms": 140799,
+      "provider_overlap_ms": 21530,
+      "action_execution_ms": 79961,
+      "evidence_capture_ms": 806,
+      "provider_calls": 18,
+      "actions_attempted": 4,
+      "actions_completed": 3,
+      "completion_efficiency": 0.75,
+      "reboot_ms": 81102,
+      "reboot_transition_observed": true,
+      "recording": {
+        "relative_path": "codex-text-entry-text08-v4-20260801/text-08/recording.webm",
+        "sha256": "68967b1d4eb5aa025787b1b6ef0a6da7ee11ffbb2fb20d0e75c2c0d1e3f7a0bf",
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2,
+        "duration_ms": 264500,
+        "size_bytes": 846291
+      },
+      "poster": {
+        "relative_path": "codex-text-entry-text08-v4-20260801/text-08/poster.jpg",
+        "sha256": "d16eac510195955bd39555cfc1758694ec81415f19c47739fd317a1edbfc38c2"
+      },
+      "campaign_sha256": "6f0c916cc8bd83643e88573b624b16e366915857e68a8ba141a2c7c2de1d7c0e"
+    },
+    {
+      "campaign_id": "codex-text-entry-text08-v5-20260801",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "run_id": "47554e49-4526-4348-92c9-64a810419582",
+      "reason": "The exact-spacing alternative included a separate caret/noise row and read as a leading 1 before the correct text. It was not accepted. Canonicalization now ignores one unrelated single-glyph row while preserving the requested line geometry.",
+      "wall_clock_ms": 209376,
+      "provider_wait_ms": 142797,
+      "provider_serial_equivalent_ms": 166137,
+      "provider_overlap_ms": 23340,
+      "action_execution_ms": 171265,
+      "evidence_capture_ms": 799,
+      "provider_calls": 19,
+      "actions_attempted": 5,
+      "actions_completed": 3,
+      "completion_efficiency": 0.6,
+      "reboot_ms": 73949,
+      "reboot_transition_observed": true,
+      "recording": {
+        "relative_path": "codex-text-entry-text08-v5-20260801/text-08/recording.webm",
+        "sha256": "3bc81bd392e44aba67a4a8b706e6cf0c2b6b51209ff62be632add183b759f122",
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2,
+        "duration_ms": 260000,
+        "size_bytes": 890027
+      },
+      "poster": {
+        "relative_path": "codex-text-entry-text08-v5-20260801/text-08/poster.jpg",
+        "sha256": "59b2fba87c9d98cc3fc2e05435d3f0632074ae01301642545e01cfe1e187c93b"
+      },
+      "campaign_sha256": "501fc34d3d7c4596b8c53ed105286348cebef7737224769d2622b368dc8ae895"
+    },
+    {
+      "campaign_id": "codex-text-entry-text08-v6-20260801",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "run_id": "f6983caa-08a6-40fa-af4b-fc7212ba0182",
+      "reason": "The two-space line passed, but control-level OCR split gamma and delta into separate boxes at the wider three-space gap. The second line was visibly emitted once and not replayed. Same-row OCR controls are now retained as one collinear candidate.",
+      "wall_clock_ms": 178443,
+      "provider_wait_ms": 119799,
+      "provider_serial_equivalent_ms": 132792,
+      "provider_overlap_ms": 12993,
+      "action_execution_ms": 53558,
+      "evidence_capture_ms": 570,
+      "provider_calls": 15,
+      "actions_attempted": 3,
+      "actions_completed": 2,
+      "completion_efficiency": 0.6666666666666666,
+      "reboot_ms": 74379,
+      "reboot_transition_observed": true,
+      "recording": {
+        "relative_path": "codex-text-entry-text08-v6-20260801/text-08/recording.webm",
+        "sha256": "3aa5e07bf17ed5ee995307ada70f477a3a0517404a5ae5f543d32f0b34838a9e",
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2,
+        "duration_ms": 225000,
+        "size_bytes": 627995
+      },
+      "poster": {
+        "relative_path": "codex-text-entry-text08-v6-20260801/text-08/poster.jpg",
+        "sha256": "6dbd2d80e9113adaf45762279df99a481a1c65004d676e66329dbe7ba1c9ed57"
+      },
+      "campaign_sha256": "d6ebbc74bb05410cd967d8b4c778a1d751d3d6b47242b72871f57f5c1119849d"
+    },
+    {
+      "campaign_id": "codex-text-entry-text08-v7-20260801",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "run_id": "09667410-5127-491b-85f9-d485e7c6c0de",
+      "reason": "Compression noise still contaminated the first line's coarse crop even though an exact text row could be isolated. The run failed closed. A bounded second OCR pass now refines an identified line to its row bounds.",
+      "wall_clock_ms": 162421,
+      "provider_wait_ms": 101121,
+      "provider_serial_equivalent_ms": 112029,
+      "provider_overlap_ms": 10908,
+      "action_execution_ms": 56000,
+      "evidence_capture_ms": 589,
+      "provider_calls": 15,
+      "actions_attempted": 3,
+      "actions_completed": 2,
+      "completion_efficiency": 0.6666666666666666,
+      "reboot_ms": 77091,
+      "reboot_transition_observed": true,
+      "recording": {
+        "relative_path": "codex-text-entry-text08-v7-20260801/text-08/recording.webm",
+        "sha256": "29d109aa60c29bb8a7c18be03d57a19268d4ef2f04130cfbc1a0d2560ac3c3ce",
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2,
+        "duration_ms": 219500,
+        "size_bytes": 680613
+      },
+      "poster": {
+        "relative_path": "codex-text-entry-text08-v7-20260801/text-08/poster.jpg",
+        "sha256": "07bc9be387846aa209bb0889b161ecf39c689b9c43d1683ffd281d05fa1363ec"
+      },
+      "campaign_sha256": "a7fcb474b8a688718b45315263f6f9de45030773654ea832561e2aefbe4bd081"
+    },
+    {
+      "campaign_id": "codex-text-entry-text08-v8-20260801",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "run_id": "91daff4c-90ea-4d14-8c85-f0a620508a92",
+      "reason": "The hybrid OCR candidate selected the two words as separate high-confidence boxes, so the single-line refiner did not run. No text was replayed. Collinear hybrid boxes are now combined before exact-spacing refinement.",
+      "wall_clock_ms": 162716,
+      "provider_wait_ms": 97716,
+      "provider_serial_equivalent_ms": 115455,
+      "provider_overlap_ms": 17739,
+      "action_execution_ms": 58961,
+      "evidence_capture_ms": 757,
+      "provider_calls": 17,
+      "actions_attempted": 4,
+      "actions_completed": 3,
+      "completion_efficiency": 0.75,
+      "reboot_ms": 75397,
+      "reboot_transition_observed": true,
+      "recording": {
+        "relative_path": "codex-text-entry-text08-v8-20260801/text-08/recording.webm",
+        "sha256": "32f62be3037167c1f7b0d890ee68212b1aa94fe469ea50769c8a4626b187d182",
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2,
+        "duration_ms": 218500,
+        "size_bytes": 700337
+      },
+      "poster": {
+        "relative_path": "codex-text-entry-text08-v8-20260801/text-08/poster.jpg",
+        "sha256": "4e60ef7a25fc8c089dec97b8732c0ec9b4ce19910604e8e384c54fb9f414f001"
+      },
+      "campaign_sha256": "e563b3988e81e4d19cdfc18449919dabbb63649c8409cc95efee71e17b668b95"
+    },
+    {
+      "campaign_id": "codex-text-entry-text08-v9-20260801",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "run_id": "aaf374f4-2df2-4613-ad8d-336ae66cc0ed",
+      "reason": "The two- and three-space lines passed. The four-space line was visibly emitted once, but the OCR selector chose sparse page segmentation and split the words, exhausting the bounded same-run recovery ceiling. Tight single-line OCR is now used for a causal row whose requested gap is four spaces.",
+      "wall_clock_ms": 273440,
+      "provider_wait_ms": 174629,
+      "provider_serial_equivalent_ms": 206496,
+      "provider_overlap_ms": 31867,
+      "action_execution_ms": 246557,
+      "evidence_capture_ms": 1374,
+      "provider_calls": 27,
+      "actions_attempted": 8,
+      "actions_completed": 6,
+      "completion_efficiency": 0.75,
+      "same_run_recoveries": 4,
+      "reboot_ms": 122076,
+      "reboot_transition_observed": true,
+      "recording": {
+        "relative_path": "codex-text-entry-text08-v9-20260801/text-08/recording.webm",
+        "sha256": "58ef14bdc0734318d8509129680c2d37dd68026696083f6938fe8570c8482e4f",
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2,
+        "duration_ms": 357500,
+        "size_bytes": 782816
+      },
+      "poster": {
+        "relative_path": "codex-text-entry-text08-v9-20260801/text-08/poster.jpg",
+        "sha256": "b4f3195436147653b1a626cc52a04b73c57538a83f5846a6b67b2a41af583910"
+      },
+      "campaign_sha256": "d82d62ef09c78a092706083d5babc499f7e77615b1f58f90f3ca318a7aaa923b"
+    },
+    {
+      "campaign_id": "codex-text-entry-text08-v10-20260801",
+      "reported_status": "passed",
+      "accepted_status": "passed",
+      "run_id": "bbedb77f-eb6f-4325-aced-c20c4fb5909c",
+      "reason": "All three deliberate-spacing lines received exact visual readback, were saved, independently reopened, and visibly retained their two, three, and four consecutive spaces. All 13 actions completed without recoverable failure or replay. One autonomous continuation followed the bounded provider-call slice, Save required one bounded workspace-edit approval, quiescence was confirmed, and the mandatory reboot reached readiness after a real transition.",
+      "wall_clock_ms": 328464,
+      "provider_wait_ms": 180157,
+      "provider_serial_equivalent_ms": 246422,
+      "provider_overlap_ms": 66265,
+      "action_execution_ms": 143669,
+      "evidence_capture_ms": 2910,
+      "provider_calls": 30,
+      "actions_attempted": 13,
+      "actions_completed": 13,
+      "completion_efficiency": 1.0,
+      "autonomous_resumes": 1,
+      "approval_count": 1,
+      "approval_scopes": [
+        "bounded_workspace_edit"
+      ],
+      "quiescence_status": "confirmed",
+      "reboot_ms": 75134,
+      "reboot_transition_observed": true,
+      "recording": {
+        "relative_path": "codex-text-entry-text08-v10-20260801/text-08/recording.webm",
+        "sha256": "9bca6bec3a050e65ef7ef7dc8637345ac8efa1fe2bb7998f25cb874cd06df88f",
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2,
+        "duration_ms": 373000,
+        "size_bytes": 1122879
+      },
+      "poster": {
+        "relative_path": "codex-text-entry-text08-v10-20260801/text-08/poster.jpg",
+        "sha256": "fb08948e9833c24e04c6e1306aabe6a33f1980291110015ae0596eaf3c8f6bae"
+      },
+      "campaign_sha256": "b11703b2ad01f6a12cb1252bf4ff22ab9180a4e06aadc1678b95f2faadcfdbe8"
+    }
+  ],
   "verdict": {
-    "accuracy": "Seven exact text tasks now pass with independent reopen evidence. Text-07 delivered a 157-word structured brief under four headings, retained non-submitting line breaks and every prose character, saved and reopened the file, quiesced cleanly, and verified the mandatory reboot. Its two retained failures directly produced newline, causal-OCR, and Windows key-cadence fixes.",
-    "speed": "Failing product target: accepted text-07 v3 took 809.359 seconds before reboot and 886.457 seconds including the reset-ready gate. The exact Proof transaction improved from v2's 86.754-second wrong-region failure to a 6.004-second exact pass, but the full task remains dramatically slower than a human.",
-    "dominant_cost": "Text-07 v3 spent 358.773 seconds waiting for 61 provider calls and 774.461 seconds in overlapping action execution. Thirty-one controller and twenty-seven verifier calls, many generated text slices, delayed visual transitions, and one safely discarded speculative repeat dominate the interaction count.",
-    "next": "Continue with text-08, while reducing per-line controller/verifier turns and eliminating safely stopped speculative repeats. Preserve the slower verified Windows cadence, all-causal-delta OCR grounding, exact-once editor guard, native reopen proof, and quiesce-before-reboot lifecycle."
+    "accuracy": "Eight exact text tasks now pass with independent reopen evidence. Text-08 retained exactly two, three, and four consecutive spaces across save and reopen, completed 13/13 actions without replay, quiesced cleanly, and verified the mandatory reboot. Its nine retained failures directly hardened repeated-space intent labelling, delayed evidence capture, crop selection, OCR alternative promotion, caret-noise rejection, collinear box grouping, row refinement, and tight single-line segmentation.",
+    "speed": "Failing product target: accepted text-08 v10 took 328.464 seconds before reboot and 403.598 seconds including the reset-ready gate. This is materially faster than text-07 v3's 809.359 seconds before reboot, but still much slower than a human creating a three-line file.",
+    "dominant_cost": "Text-08 v10 spent 180.157 seconds waiting for 30 provider calls and 143.669 seconds in action execution. Fifteen controller and fourteen verifier calls dominate a task whose actual text payload is only 43 characters.",
+    "next": "Continue with text-09, a five-line CSV file, while reducing redundant controller/verifier turns. Preserve exact-once delivery, whitespace-sensitive row OCR, native reopen proof, bounded workspace approval, and quiesce-before-reboot lifecycle."
   }
 }

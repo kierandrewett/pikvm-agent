@@ -51,8 +51,8 @@ support a claim of generally reliable autonomous Windows operation.
 
 ### Live 50-task Windows campaign
 
-The active disposable-Windows campaign has **22/50 unique accepted passes
-(44%)**. Every attempt is screen-recorded, every test ends with a VM reboot,
+The active disposable-Windows campaign has **23/50 unique accepted passes
+(46%)**. Every attempt is screen-recorded, every test ends with a VM reboot,
 and a pass is counted only once even when the same task is rerun during
 remediation. Production PiKVM was not contacted.
 
@@ -60,12 +60,12 @@ remediation. Production PiKVM was not contacted.
 | --- | ---: | ---: | --- |
 | Observation | 5 | 5 | Complete |
 | Calculator | 10 | 10 | Complete |
-| Text entry | 7 | 10 | `text-01` through `text-07` accepted |
+| Text entry | 8 | 10 | `text-01` through `text-08` accepted |
 | Code entry | 0 | 10 | Pending |
 | File management | 0 | 5 | Pending |
 | Microsoft Excel | 0 | 5 | Pending |
 | Microsoft Word | 0 | 5 | Pending |
-| **Total** | **22** | **50** | **28 pending** |
+| **Total** | **23** | **50** | **27 pending** |
 
 The Calculator category is complete. The final temperature-conversion task
 visibly produced `23 °C = 73.4 °F`, completed 7/7 actions, and rebooted the VM
@@ -609,7 +609,33 @@ accuracy result is clean; the latency is not remotely competitive with a human.
 The next slice must reduce the 31 controller and 27 verifier calls without
 weakening exact input proof or the approval boundary.
 
-Failure-inclusive metrics, canonical campaign digests, the 22 accepted task
+Text-08 is a deliberately hostile whitespace test. The target file had to
+retain `alpha␠␠beta`, `gamma␠␠␠delta`, and
+`epsilon␠␠␠␠zeta` exactly after a real Save and an independent native Open.
+The first nine attempts failed closed without replaying ambiguous text. Each
+failure produced a narrow tested fix:
+
+| Attempt | Accepted | Wall before reboot | Reboot ready | Failure or result |
+| --- | --- | ---: | ---: | --- |
+| v1 | No | 183.948s | 100.461s | Repeated spaces were refused as ambiguous prose; exact spacing is now explicitly marked code-like |
+| v2 | No | 202.516s | 77.052s | The visible first line was classified as focus loss; a bounded delayed-frame read was added |
+| v3 | No | 204.888s | 73.813s | The causal crop included border noise; OCR candidates are now inset |
+| v4 | No | 204.650s | 81.102s | Primary OCR collapsed spaces while an exact alternative existed; literal alternatives can now be promoted |
+| v5 | No | 209.376s | 73.949s | A caret/noise row prefixed the exact line; one unrelated single-glyph row is now rejected |
+| v6 | No | 178.443s | 74.379s | Three spaces split the words into separate OCR controls; collinear same-row controls are retained |
+| v7 | No | 162.421s | 77.091s | Compression noise remained around an identifiable row; a bounded row-only OCR refinement was added |
+| v8 | No | 162.716s | 75.397s | Hybrid OCR still exposed separate high-confidence word boxes; collinear hybrid boxes are now combined |
+| v9 | No | 273.440s | 122.076s | Four spaces selected sparse page segmentation; tight single-line OCR now handles the causal row |
+| v10 | **Yes** | **328.464s** | **75.134s** | 13/13 actions, exact three-line reopen proof, one bounded save approval, no recoverable input failure |
+
+The accepted v10 run used 30 provider calls: 15 controller, 14 verifier, and
+one reasoner. Provider wait consumed 180.157s, action execution 143.669s, and
+the two provider lanes overlapped by 66.265s relative to their 246.422s serial
+equivalent. The 373s VP9 recording is 2048×1280 at 2 fps. This is a clean
+accuracy pass and a substantial reduction from Text-07's 809.359s, but 5m
+28.464s before reboot remains a failing product-speed result for 43 characters.
+
+Failure-inclusive metrics, canonical campaign digests, the 23 accepted task
 IDs, and the VP9 recording/poster hashes are retained in
 [`codex-50-progress.json`](results/2026-07-31/live-vnc/codex-50-progress.json).
 The complete 50-task manifest is
