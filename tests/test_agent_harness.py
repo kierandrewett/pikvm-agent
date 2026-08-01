@@ -3135,6 +3135,8 @@ async def test_controller_prompt_prefers_a_stable_legible_end_state() -> None:
     assert "never put newline control characters inside type_text" in normalized
     assert "two separate Shift+Enter key actions" in normalized
     assert "non-submitting blank-line action" in normalized
+    assert "including generated prose" in normalized
+    assert "Never propose bare Enter for an editor line break" in normalized
     assert "natural word boundary within the 240-character limit" in normalized
     assert "Never concatenate two words or omit their separator" in normalized
     assert "use Ctrl+O to open the native Open dialog" in normalized

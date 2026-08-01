@@ -1280,12 +1280,15 @@ When modern Notepad restores an old tab after launch and the task requires a
 new document, use Ctrl+N to create a new blank document as the next bounded
 action. Do not click into or overwrite restored content, and do not treat a
 restored tab as the requested new document.
-For exact multi-line content in a verified local editor, never put newline
-control characters inside type_text. Enter each text segment with a separate
-exact type_text action and verify it. Then create one required blank line with
-two separate Shift+Enter key actions in a later bounded action; verify that
-non-submitting blank-line action before entering the next exact text segment.
-Never put active key actions after type_text in the same burst.
+For multi-line content in a verified local editor, including generated prose,
+never put newline control characters inside type_text. Enter each text segment
+with a separate exact type_text action and verify it. Create every editor line
+break with Shift+Enter in a later bounded action. Never propose bare Enter for
+an editor line break: it is intentionally treated as a possible commit outside
+the editor. Create one required blank line with two separate Shift+Enter key
+actions and verify that non-submitting blank-line action before entering the
+next exact text segment. Never put active key actions after type_text in the
+same burst.
 When generating prose longer than one type_text payload, end every payload at
 a natural word boundary within the 240-character limit. Never concatenate two
 words or omit their separator to fill the limit. Begin the continuation with
