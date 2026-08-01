@@ -287,6 +287,90 @@ def ocr_line_screen_region(
     )
 
 
+def matching_collinear_ocr_rows(
+    lines: list[OCRLine],
+    intended: str,
+    dims: tuple[int, int],
+    *,
+    minimum_confidence: float = 0.45,
+) -> list[OCRLine]:
+    """Build locator-only rows from OCR words split across one visual line."""
+
+    bounded_rows = [
+        (line, row_region)
+        for line in lines
+        if (
+            line.confidence is not None
+            and float(line.confidence) >= minimum_confidence
+            and (
+                row_region := ocr_line_region(
+                    line,
+                    dims,
+                    pad=0,
+                )
+            )
+            is not None
+        )
+    ]
+    candidates: list[OCRLine] = []
+    seen_groups: set[tuple[int, ...]] = set()
+    for anchor_index, (_anchor_line, anchor_region) in enumerate(
+        bounded_rows
+    ):
+        group = tuple(
+            index
+            for index, (_line, row_region) in enumerate(bounded_rows)
+            if (
+                min(
+                    anchor_region.y + anchor_region.height,
+                    row_region.y + row_region.height,
+                )
+                - max(anchor_region.y, row_region.y)
+                >= max(
+                    1.0,
+                    min(anchor_region.height, row_region.height) * 0.5,
+                )
+            )
+        )
+        if (
+            anchor_index not in group
+            or len(group) < 2
+            or group in seen_groups
+        ):
+            continue
+        seen_groups.add(group)
+        ordered_group = sorted(
+            (bounded_rows[index] for index in group),
+            key=lambda item: item[1].x,
+        )
+        joined_text = " ".join(
+            line.text for line, _row_region in ordered_group
+        )
+        if norm(joined_text, precise=True) != norm(intended, precise=True):
+            continue
+        joined_region = ordered_group[0][1]
+        for _line, row_region in ordered_group[1:]:
+            joined_region = union_region(joined_region, row_region)
+        candidates.append(
+            OCRLine(
+                text=joined_text,
+                confidence=min(
+                    float(line.confidence)
+                    for line, _row_region in ordered_group
+                    if line.confidence is not None
+                ),
+                bbox=[
+                    round(joined_region.x),
+                    round(joined_region.y),
+                    round(joined_region.x + joined_region.width),
+                    round(joined_region.y + joined_region.height),
+                ],
+                raw={"causal_collinear_locator": True},
+            )
+        )
+    return candidates
+
+
 def vertically_adjacent_rows(previous: Region, current: Region) -> bool:
     """Whether two OCR boxes plausibly form consecutive wrapped text rows."""
 
@@ -2039,6 +2123,25 @@ class WatchedTyper:
                                 and float(line.confidence) >= 0.45
                             )
                         ]
+                        if not provisional_rows:
+                            provisional_rows = matching_collinear_ocr_rows(
+                                result.lines,
+                                intended_snapshot,
+                                (
+                                    max(
+                                        1,
+                                        math.ceil(
+                                            candidate_readback_region.width
+                                        ),
+                                    ),
+                                    max(
+                                        1,
+                                        math.ceil(
+                                            candidate_readback_region.height
+                                        ),
+                                    ),
+                                ),
+                            )
                         if len(provisional_rows) == 1:
                             refined_region = ocr_line_screen_region(
                                 provisional_rows[0],
