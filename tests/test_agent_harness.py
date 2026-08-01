@@ -6247,6 +6247,130 @@ def test_later_verified_reopen_action_satisfies_reopen_completion_gate() -> None
     assert AgentHarness._completion_rejection_reason(run, verdict) is None
 
 
+def test_verified_open_dialog_commit_satisfies_reopen_completion_gate() -> None:
+    """Regress the exact reopen wording from live CSV campaign v1."""
+
+    run = RunSnapshot(
+        run_id="verified-open-dialog-commit",
+        task="Save text-09.csv. Reopen it and verify all values.",
+        status=RunStatus.RUNNING,
+        plan=PlanDecision(
+            summary="Save and reopen the CSV.",
+            steps=["Save the file", "Reopen it", "Verify every value"],
+            success_criteria=["The reopened CSV contains all requested values."],
+            constraints=[],
+        ),
+    )
+    for index, intent, expected_evidence, summary in (
+        (
+            13,
+            "Commit the verified CSV basename in the visible Save As dialog.",
+            ["The Save As dialog closes and the CSV remains visible."],
+            "The CSV is saved under the requested basename.",
+        ),
+        (
+            17,
+            "Open the verified CSV from the native Open dialog.",
+            [
+                "The Open dialog closes and Notepad visibly displays the "
+                "reopened CSV with its header and four data rows."
+            ],
+            "Created and reopened text-09.csv; all CSV values are visible.",
+        ),
+    ):
+        run.record(
+            "action.checkpointed",
+            index=index,
+            intent=intent,
+            actions=[{"type": "click", "x": 570, "y": 408}],
+            expected_evidence=expected_evidence,
+        )
+        run.record("action.completed", index=index, status="completed")
+        run.record(
+            "model.completed",
+            role="verifier",
+            verdict="verified",
+            summary=summary,
+        )
+    verdict = VerificationDecision(
+        verdict="complete",
+        summary=(
+            "Created and reopened text-09.csv in Notepad with the requested "
+            "header and all four quarterly rows."
+        ),
+        evidence=[
+            "The visible Notepad document shows the header plus Q1 through Q4."
+        ],
+        criteria=[
+            {
+                "criterion_index": 0,
+                "satisfied": True,
+                "evidence": "The reopened CSV contains all requested values.",
+            }
+        ],
+        action_criteria=[],
+    )
+
+    assert AgentHarness._completion_rejection_reason(run, verdict) is None
+
+
+def test_opening_native_open_dialog_does_not_satisfy_reopen_gate() -> None:
+    run = RunSnapshot(
+        run_id="open-dialog-is-not-reopen",
+        task="Save text-09.csv. Reopen it and verify all values.",
+        status=RunStatus.RUNNING,
+        plan=PlanDecision(
+            summary="Save and reopen the CSV.",
+            steps=["Save the file", "Reopen it", "Verify every value"],
+            success_criteria=["The reopened CSV contains all requested values."],
+            constraints=[],
+        ),
+    )
+    for index, intent, summary in (
+        (
+            13,
+            "Commit the verified CSV basename in the visible Save As dialog.",
+            "The CSV has been saved and remains visible in Notepad.",
+        ),
+        (
+            14,
+            "Open Notepad's native Open dialog to reopen the just-saved CSV.",
+            "The native Open dialog is visible; no file has reopened yet.",
+        ),
+    ):
+        run.record(
+            "action.checkpointed",
+            index=index,
+            intent=intent,
+            actions=[{"type": "click", "x": 570, "y": 408}],
+        )
+        run.record("action.completed", index=index, status="completed")
+        run.record(
+            "model.completed",
+            role="verifier",
+            verdict="verified",
+            summary=summary,
+        )
+    verdict = VerificationDecision(
+        verdict="complete",
+        summary="Saved and reopened text-09.csv.",
+        evidence=["The CSV values are visible."],
+        criteria=[
+            {
+                "criterion_index": 0,
+                "satisfied": True,
+                "evidence": "The CSV values are visible.",
+            }
+        ],
+        action_criteria=[],
+    )
+
+    rejection = AgentHarness._completion_rejection_reason(run, verdict)
+
+    assert rejection is not None
+    assert "separately verified reopen action after save" in rejection
+
+
 def test_delayed_reopen_frame_can_verify_last_completed_action() -> None:
     run = RunSnapshot(
         run_id="delayed-verified-reopen-transition",

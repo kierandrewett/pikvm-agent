@@ -4864,12 +4864,32 @@ class AgentHarness:
             intent = " ".join(
                 str(item.get("intent") or "").casefold().split()
             )
-            reopening = bool(
-                re.search(r"\breopen(?:ed|ing)?\b", intent)
-                or re.search(
+            opens_open_dialog = bool(
+                re.search(
                     r"\bopen(?:ed|ing)?\b.{0,80}"
-                    r"\b(?:saved|file|document|workbook)\b",
+                    r"\b(?:native\s+)?open dialog\b",
                     intent,
+                )
+                and not re.search(
+                    r"\bopen(?:ed|ing)?\b.{0,80}\bfrom\b.{0,80}"
+                    r"\b(?:native\s+)?open dialog\b",
+                    intent,
+                )
+            )
+            reopening = bool(
+                not opens_open_dialog
+                and (
+                    re.search(r"\breopen(?:ed|ing)?\b", intent)
+                    or re.search(
+                        r"\bopen(?:ed|ing)?\b.{0,80}"
+                        r"\b(?:saved|file|document|workbook)\b",
+                        intent,
+                    )
+                    or re.search(
+                        r"\bopen(?:ed|ing)?\b.{0,80}\bfrom\b.{0,80}"
+                        r"\b(?:native\s+)?open dialog\b",
+                        intent,
+                    )
                 )
             )
             if reopening:
@@ -4883,10 +4903,18 @@ class AgentHarness:
                     intent,
                 )
             )
+            committed_save_as = bool(
+                "save as" in intent
+                and re.search(
+                    r"\bcommit(?:s|ted|ting)?\b.{0,80}\bsave as\b",
+                    intent,
+                )
+            )
             if (
                 not reopening
                 and (
                     confirmed_save_as_replacement
+                    or committed_save_as
                     or re.search(
                         r"\bsav(?:e|ed|ing)\b",
                         save_without_dialog,
