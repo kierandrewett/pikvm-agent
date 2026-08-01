@@ -127,6 +127,11 @@ INTERRUPTED_SUMMARY = (
     "Typing interrupted: control changed (abort / panic / steer) mid-text; held "
     "keys released. The field holds only what was typed before the stop."
 )
+AUTOCORRECT_UNDO_FAILED_SUMMARY = (
+    "Typing stopped after the editor changed a standalone lowercase `i` to "
+    "uppercase `I`, and one bounded Undo did not restore the exact text. "
+    "Do not append or replay the draft until the visible field is corrected."
+)
 
 
 # --------------------------------------------------------------------------- #
@@ -209,6 +214,64 @@ def regions_overlap(a: Region, b: Region) -> bool:
         and b.x < a.x + a.width
         and a.y < b.y + b.height
         and b.y < a.y + a.height
+    )
+
+
+def is_standalone_i_autocorrect(intended: str, observed: str) -> bool:
+    """Recognise modern editor autocorrection of the standalone word ``i``.
+
+    Windows Notepad can turn a Python loop variable into the English pronoun
+    ``I``. Keep this deliberately narrower than a generic case mismatch: one
+    and only one character may differ, and it must be a word-isolated
+    lowercase ``i`` becoming uppercase.
+    """
+
+    left = norm(intended, precise=True)
+    right = norm(strip_prompt(observed), precise=True)
+    if len(left) != len(right):
+        return False
+    differences = [
+        index
+        for index, (expected, actual) in enumerate(
+            zip(left, right, strict=True)
+        )
+        if expected != actual
+    ]
+    if len(differences) != 1:
+        return False
+    index = differences[0]
+    if left[index] != "i" or right[index] != "I":
+        return False
+    return (
+        (
+            index == 0
+            or not (
+                left[index - 1].isalnum()
+                or left[index - 1] == "_"
+            )
+        )
+        and (
+            index + 1 == len(left)
+            or not (left[index + 1].isalnum() or left[index + 1] == "_")
+        )
+    )
+
+
+def is_caps_lock_case_inversion(intended: str, observed: str) -> bool:
+    """Require a broad case inversion before toggling guest Caps Lock."""
+
+    left = norm(intended, precise=True)
+    right = norm(strip_prompt(observed), precise=True)
+    if len(left) != len(right) or left.casefold() != right.casefold():
+        return False
+    cased_pairs = [
+        (expected, actual)
+        for expected, actual in zip(left, right, strict=True)
+        if expected.isalpha()
+    ]
+    return (
+        len(cased_pairs) >= 2
+        and all(actual == expected.swapcase() for expected, actual in cased_pairs)
     )
 
 
@@ -1986,6 +2049,7 @@ class WatchedTyper:
         delivery_retries = 0
         last_read = ""
         verified_clean = False
+        autocorrect_undo_failed = False
         can_vision = not secret and (
             total > 4
             or (precise and total >= 3)
@@ -2514,6 +2578,7 @@ class WatchedTyper:
                     await asyncio.sleep(_CLEAR_SETTLE_S)
 
         async def maybe_correct(read_back: str, intended_snapshot: str) -> None:
+            nonlocal autocorrect_undo_failed
             nonlocal corrections, last_read, verified_clean
             read_back = self._typed_candidate(read_back, intended_snapshot, precise)
             last_read = read_back
@@ -2554,6 +2619,85 @@ class WatchedTyper:
                 # The final long single-line draft was already selected for a
                 # same-focus OCR pass. Never move focus or replay it: Windows
                 # Save As discards an unsubmitted address-bar draft on Tab.
+                return
+            if (
+                precise
+                and editor_field
+                and kind == "case"
+                and is_standalone_i_autocorrect(
+                    intended_snapshot,
+                    read_back,
+                )
+            ):
+                # Modern Notepad can autocorrect a freshly typed Python
+                # variable from ``i`` to the English pronoun ``I``. Confirm
+                # the same narrow mutation on a second settled frame before
+                # issuing one reversible Undo. Never clear or replay the
+                # draft, and never reinterpret this as a Caps Lock fault.
+                await asyncio.sleep(_CARET_BLINK_RECHECK_S)
+                repeated = self._typed_candidate(
+                    await self._read_field(
+                        current_readback_region(intended_snapshot),
+                        intended=intended_snapshot,
+                        precise=True,
+                        allow_blind_fallback=True,
+                    ),
+                    intended_snapshot,
+                    True,
+                )
+                if not is_standalone_i_autocorrect(
+                    intended_snapshot,
+                    repeated,
+                ):
+                    last_read = repeated or read_back
+                    return
+                DEBUG.event(
+                    "typing.editor_autocorrect_detected",
+                    character_index=next(
+                        index
+                        for index, (expected, actual) in enumerate(
+                            zip(
+                                norm(intended_snapshot, True),
+                                norm(strip_prompt(repeated), True),
+                                strict=True,
+                            )
+                        )
+                        if expected != actual
+                    ),
+                    intended_characters=len(intended_snapshot),
+                )
+                corrections += 1
+                await self.backend.keypress(["ControlLeft", "KeyZ"])
+                await asyncio.sleep(_CLEAR_SETTLE_S)
+                undone = self._typed_candidate(
+                    await self._read_field(
+                        current_readback_region(intended_snapshot),
+                        intended=intended_snapshot,
+                        precise=True,
+                        allow_blind_fallback=True,
+                    ),
+                    intended_snapshot,
+                    True,
+                )
+                last_read = undone
+                restored = (
+                    compute_verdict(
+                        intended_snapshot,
+                        undone,
+                        True,
+                    )
+                    == "match"
+                )
+                DEBUG.event(
+                    "typing.editor_autocorrect_undo",
+                    restored=restored,
+                    intended_characters=len(intended_snapshot),
+                )
+                if restored:
+                    if norm(intended_snapshot, True) == norm(text, True):
+                        verified_clean = True
+                    return
+                autocorrect_undo_failed = True
                 return
             if (
                 precise
@@ -2736,6 +2880,17 @@ class WatchedTyper:
                 # or one strongly grounded short-field substitution may
                 # self-correct. The corrected field must still read back exact.
                 return
+            if (
+                kind == "case"
+                and not is_caps_lock_case_inversion(
+                    intended_snapshot,
+                    read_back,
+                )
+            ):
+                # A single or partial case difference is app/OCR ambiguity,
+                # not evidence that the guest's global Caps Lock state is
+                # inverted. Preserve the at-most-once draft and fail closed.
+                return
             if cur_region is None:
                 return  # nothing to crop against — leave it to the agent
             corrections += 1
@@ -2750,6 +2905,24 @@ class WatchedTyper:
             await self._clear_recent_input(len(typed_so_far))
             await asyncio.sleep(_CLEAR_SETTLE_S)
             await emit_text(typed_so_far)
+
+        def failed_autocorrect_result(
+            typed_characters: int,
+        ) -> WatchedTypingResult:
+            return self._halted_result(
+                status="failed_case_mismatch",
+                field_text=last_read,
+                corrected=True,
+                correction_count=corrections,
+                delivery_retries=delivery_retries,
+                used_fast_path=fast_print,
+                typed_characters=typed_characters,
+                intended_characters=len(text),
+                summary=AUTOCORRECT_UNDO_FAILED_SUMMARY,
+                intended_text=text,
+                emitted_text="".join(emitted_parts),
+                readback_frame_sha256=self._last_readback_frame_sha256,
+            )
 
         grid_prev = await self._grid()
         dense_prev = self._last_grid_frame
@@ -3035,6 +3208,11 @@ class WatchedTyper:
             ):
                 rb = await read_current_field(typed_so_far)
                 await maybe_correct(rb, typed_so_far)
+                if autocorrect_undo_failed:
+                    await self._release_all_quietly()
+                    return failed_autocorrect_result(
+                        len(typed_so_far)
+                    )
                 if corrections > 0:
                     grid_prev = await self._grid()  # field changed under us
                     dense_prev = self._last_grid_frame
@@ -3044,6 +3222,9 @@ class WatchedTyper:
             corrections_before = corrections
             rb = await read_current_field(text)
             await maybe_correct(rb, text)
+            if autocorrect_undo_failed:
+                await self._release_all_quietly()
+                return failed_autocorrect_result(len(text))
             if corrections > corrections_before:
                 # The final read triggered a clear+retype — re-read so the verdict
                 # reflects the corrected field, not the pre-correction mismatch.

@@ -32,6 +32,8 @@ from pikvm_agent.executor.typing import (
     WatchedTypingResult,
     _substantial_change_outside_region,
     chunk_text,
+    is_caps_lock_case_inversion,
+    is_standalone_i_autocorrect,
     locate_capture_change,
     locate_changed_bbox,
     locate_dense_changed_bbox,
@@ -2631,6 +2633,114 @@ async def test_case_only_slip_toggles_caps_lock_and_retypes_once() -> None:
     assert backend.layout == "us"
     pressed = [kw.get("code") for method, kw in backend.calls if method == "press_key"]
     assert pressed.count("CapsLock") == 1
+    _assert_no_enter(backend)
+
+
+def test_case_correction_signatures_are_narrow() -> None:
+    assert is_standalone_i_autocorrect("for i in", "for I in")
+    assert not is_standalone_i_autocorrect("limit", "lImit")
+    assert not is_standalone_i_autocorrect("for i in", "FOR I IN")
+    assert is_caps_lock_case_inversion("HARNESSE2E42", "harnesse2e42")
+    assert is_caps_lock_case_inversion("MyVar", "mYvAR")
+    assert not is_caps_lock_case_inversion("MyVar", "myVar")
+    assert not is_caps_lock_case_inversion("for i in", "for I in")
+
+
+async def test_editor_standalone_i_autocorrect_is_undone_without_replay() -> None:
+    backend = FakeBackend()
+    intended = "for i in"
+    ocr = ScriptedOCR("for I in", "for I in", intended)
+
+    result = await WatchedTyper(backend, ocr).type_text(
+        intended,
+        region=Region(x=10, y=10, width=400, height=40),
+        code=True,
+        exact=True,
+        context="editor",
+    )
+
+    assert result.status == "verified_exact", result
+    assert result.correction_count == 1
+    assert result.emitted_exactly_once is True
+    assert [
+        kwargs
+        for method, kwargs in backend.calls
+        if method == "type_text"
+    ] == [{"text": intended, "code": True, "secret": False}]
+    assert (
+        "keypress",
+        {"keys": ["ControlLeft", "KeyZ"]},
+    ) in backend.calls
+    assert not any(
+        method == "press_key" and kwargs.get("code") == "CapsLock"
+        for method, kwargs in backend.calls
+    )
+    _assert_no_enter(backend)
+
+
+async def test_failed_editor_autocorrect_undo_stops_before_later_chunks() -> None:
+    backend = FakeBackend()
+    intended = "for i in range(1, limit + 1):"
+
+    result = await WatchedTyper(
+        backend,
+        ScriptedOCR("for I in", "for I in", "for I in"),
+    ).type_text(
+        intended,
+        region=Region(x=10, y=10, width=400, height=40),
+        code=True,
+        exact=True,
+        context="editor",
+    )
+
+    assert result.status == "failed_case_mismatch", result
+    assert result.correction_count == 1
+    assert result.typed_characters == len("for i in")
+    assert result.intended_characters == len(intended)
+    assert result.emitted_exactly_once is False
+    assert [
+        kwargs
+        for method, kwargs in backend.calls
+        if method == "type_text"
+    ] == [{"text": "for i in", "code": True, "secret": False}]
+    assert (
+        "keypress",
+        {"keys": ["ControlLeft", "KeyZ"]},
+    ) in backend.calls
+    assert not any(
+        method == "press_key" and kwargs.get("code") == "CapsLock"
+        for method, kwargs in backend.calls
+    )
+    _assert_no_enter(backend)
+
+
+async def test_partial_editor_case_mismatch_never_toggles_or_replays() -> None:
+    backend = FakeBackend()
+    intended = "MyVar"
+
+    result = await WatchedTyper(
+        backend,
+        ScriptedOCR("myVar"),
+    ).type_text(
+        intended,
+        region=Region(x=10, y=10, width=400, height=40),
+        code=True,
+        exact=True,
+        context="editor",
+    )
+
+    assert result.status == "failed_case_mismatch", result
+    assert result.correction_count == 0
+    assert result.emitted_exactly_once is True
+    assert [
+        kwargs
+        for method, kwargs in backend.calls
+        if method == "type_text"
+    ] == [{"text": intended, "code": True, "secret": False}]
+    assert not any(
+        method == "press_key" and kwargs.get("code") == "CapsLock"
+        for method, kwargs in backend.calls
+    )
     _assert_no_enter(backend)
 
 
