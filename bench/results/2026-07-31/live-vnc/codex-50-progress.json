@@ -746,12 +746,44 @@
         "sha256": "eaa2fa821b679cef9c857ec400c18ad3516433e9844e9d4810c17398fc8a6c51"
       },
       "campaign_sha256": "c77e6afe8fda3017d68efa2ba8bf34f15961546c4acbd2e7eeba444b21853d3f"
+    },
+    {
+      "campaign_id": "codex-text-entry-text04-v6-20260801",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "run_id": "9936922c-3a55-4f79-97c8-f3ec9409c23e",
+      "reason": "The causal candidate scan verified `2. Act` exactly in 7.256 seconds. `3. Verify` was then emitted exactly once, but the settled read retained the candidate's larger changed-pixel box and returned the adjacent `2. Act\\n3. Verify` rows. The editor guard blocked all progression and the repeated-paused-error circuit stopped further retries.",
+      "wall_clock_ms": 193196,
+      "provider_wait_ms": 115925,
+      "action_execution_ms": 71226,
+      "provider_calls": 15,
+      "actions_attempted": 7,
+      "actions_completed": 6,
+      "completion_efficiency": 0.8571428571428571,
+      "same_run_recoveries": 3,
+      "reboot_ms": 104803,
+      "reboot_transition_observed": true,
+      "recording": {
+        "relative_path": "codex-text-entry-text04-v6-20260801/text-04/recording.webm",
+        "sha256": "32242adb0bc49dfa9d2d4525be25e1eeff1e1ad5dbb6d307fe0c434a31eaad66",
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2,
+        "duration_ms": 282000,
+        "size_bytes": 774235
+      },
+      "poster": {
+        "relative_path": "codex-text-entry-text04-v6-20260801/text-04/poster.jpg",
+        "sha256": "82a2d693009c40c25037140c64a21156a85fa9eec4447ce4810bd34814804247"
+      },
+      "campaign_sha256": "e75beb8f50178bf9742aa11ec723e4c590bcf0eb9026d6399aeff0c4cea783a1"
     }
   ],
   "verdict": {
     "accuracy": "Three exact text tasks now pass with independent reopen evidence. Text-03 includes a durable completed Ctrl+O transition and visible post-open paragraph verification.",
     "speed": "Failing product target: accepted text-03 v6 took 380.612 seconds before reboot and required two recoveries.",
     "dominant_cost": "Text-03 v6 provider waits consumed 208.161 seconds across 34 calls, while action execution consumed 243.335 seconds; overlapping work prevents these components from summing directly to wall time.",
-    "next": "Replay text-04 with bounded exact OCR across every causal line candidate."
+    "next": "Replay text-04 with each exact causal candidate narrowed to its matched OCR row."
   }
 }

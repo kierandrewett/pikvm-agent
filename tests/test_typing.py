@@ -456,20 +456,9 @@ def test_dense_locator_can_nominate_strongest_ambiguous_line_for_exact_ocr() -> 
     assert any(candidate.y > 400 for candidate in candidates)
 
 
-@pytest.mark.parametrize(
-    ("spacing_evidence", "spacing_alternative", "expected_status"),
-    [
-        ("verified", False, "verified_exact"),
-        ("uncertain", True, "verified_exact"),
-        ("uncertain", False, "unverified_ambiguous"),
-    ],
-)
-async def test_short_exact_typing_checks_all_causal_lines_when_coarse_crop_is_wrong(
+def _ambiguous_dense_typing_backend(
     monkeypatch: pytest.MonkeyPatch,
-    spacing_evidence: str,
-    spacing_alternative: bool,
-    expected_status: str,
-) -> None:
+) -> FakeBackend:
     backend = FakeBackend(width=1280, height=800)
     before_bytes, after_bytes = _ambiguous_dense_line_frames()
     backend.set_frame_bytes(before_bytes)
@@ -495,6 +484,70 @@ async def test_short_exact_typing_checks_all_causal_lines_when_coarse_crop_is_wr
             height=32,
         ),
     )
+    return backend
+
+
+class _AdjacentLineOCR:
+    def __init__(self) -> None:
+        self.target_candidate_reads = 0
+        self.regions: list[Region | None] = []
+
+    async def ocr(
+        self,
+        image_path: Path,
+        region: Region | None = None,
+    ) -> OCRResult:
+        del image_path
+        self.regions.append(region)
+        if region is None or region.y >= 200:
+            return OCRResult()
+        if region.y < 92:
+            self.target_candidate_reads += 1
+            if self.target_candidate_reads > 1:
+                return OCRResult(
+                    lines=[
+                        OCRLine(
+                            text="2. Act\n3. Verify",
+                            confidence=0.99,
+                            bbox=[12, 0, 82, 22],
+                        ),
+                    ],
+                    spacing_evidence="verified",
+                )
+        return OCRResult(
+            lines=[
+                OCRLine(
+                    text="3. Verify",
+                    confidence=0.99,
+                    bbox=[12, 10, 82, 22],
+                )
+            ],
+            spacing_evidence="verified",
+        )
+
+    async def ocr_precise(
+        self,
+        image_path: Path,
+        region: Region | None = None,
+    ) -> OCRResult:
+        return await self.ocr(image_path, region)
+
+
+@pytest.mark.parametrize(
+    ("spacing_evidence", "spacing_alternative", "expected_status"),
+    [
+        ("verified", False, "verified_exact"),
+        ("uncertain", True, "verified_exact"),
+        ("uncertain", False, "unverified_ambiguous"),
+    ],
+)
+async def test_short_exact_typing_checks_all_causal_lines_when_coarse_crop_is_wrong(
+    monkeypatch: pytest.MonkeyPatch,
+    spacing_evidence: str,
+    spacing_alternative: bool,
+    expected_status: str,
+) -> None:
+    backend = _ambiguous_dense_typing_backend(monkeypatch)
 
     class CausalCropOCR:
         def __init__(self) -> None:
@@ -541,6 +594,26 @@ async def test_short_exact_typing_checks_all_causal_lines_when_coarse_crop_is_wr
     assert result.status == expected_status
     assert result.emitted_exactly_once is True
     assert any(region is not None and region.y < 200 for region in ocr.regions)
+
+
+async def test_short_exact_typing_refines_causal_crop_to_the_exact_ocr_row(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    backend = _ambiguous_dense_typing_backend(monkeypatch)
+    ocr = _AdjacentLineOCR()
+    result = await WatchedTyper(backend, ocr).type_text(
+        "3. Verify",
+        exact=True,
+        context="editor",
+    )
+
+    assert result.status == "verified_exact"
+    assert result.field_text == "3. Verify"
+    assert result.emitted_exactly_once is True
+    assert any(
+        region is not None and 92 <= region.y < 200
+        for region in ocr.regions
+    )
 
 
 async def test_watched_typer_uses_dense_text_line_change_when_grid_is_unchanged() -> None:

@@ -220,6 +220,22 @@ single-line fields, explicit regions, and the default ambiguity policy are
 unchanged. Text-04 remains pending until that candidate scan passes a clean v6
 replay.
 
+Text-04 v6 proved that the candidate scan fixes the critical `2. Act`
+boundary: the action completed with matching requested, delivery, emitted,
+and observed SHA-256 values in 7.256s, down from v5's 104.821s failed crop.
+The next line then exposed a narrower geometry defect. `3. Verify` was emitted
+exactly once and OCR visibly returned `2. Act\n3. Verify`; the causal scan had
+found the exact new row, but retained its larger changed-pixel box for the
+settled read. The previous line therefore contaminated the exact checksum and
+the editor guard correctly refused every subsequent line break or payload.
+v6 failed after 193.196s before reboot: 115.925s of provider wait across 15
+calls and 71.226s of action execution, with 6/7 actions completed. Its
+mandatory reboot observed a real transition and reached a ready desktop after
+104.803s. A matched causal candidate is now narrowed to the exact OCR row
+before settled readback; no substring is carved from the later observation,
+and the at-most-once policy remains unchanged. Text-04 remains pending until
+that row refinement passes a clean v7 replay.
+
 Failure-inclusive metrics, canonical campaign digests, the 18 accepted task
 IDs, and the VP9 recording/poster hashes are retained in
 [`codex-50-progress.json`](results/2026-07-31/live-vnc/codex-50-progress.json).

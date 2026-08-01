@@ -1796,6 +1796,42 @@ class WatchedTyper:
                         )
                     ):
                         continue
+                    matched_region = candidate
+                    local_row_region = ocr_line_region(
+                        exact_rows[0],
+                        (
+                            max(1, math.ceil(candidate.width)),
+                            max(1, math.ceil(candidate.height)),
+                        ),
+                        pad=2,
+                    )
+                    if local_row_region is not None:
+                        matched_x = min(
+                            dims[0] - 1,
+                            max(0, candidate.x + local_row_region.x),
+                        )
+                        matched_y = min(
+                            dims[1] - 1,
+                            max(0, candidate.y + local_row_region.y),
+                        )
+                        matched_x2 = min(
+                            dims[0],
+                            candidate.x
+                            + local_row_region.x
+                            + local_row_region.width,
+                        )
+                        matched_y2 = min(
+                            dims[1],
+                            candidate.y
+                            + local_row_region.y
+                            + local_row_region.height,
+                        )
+                        matched_region = Region(
+                            x=matched_x,
+                            y=matched_y,
+                            width=max(1, matched_x2 - matched_x),
+                            height=max(1, matched_y2 - matched_y),
+                        )
                     self._last_field_ocr_result = OCRResult(
                         lines=exact_rows,
                         alternatives=result.alternatives,
@@ -1817,9 +1853,9 @@ class WatchedTyper:
                         candidate_count=len(candidates),
                         checked=checked,
                         matched=True,
-                        region=candidate.model_dump(),
+                        region=matched_region.model_dump(),
                     )
-                    return candidate
+                    return matched_region
                 DEBUG.event(
                     "typing.dense_candidate_scan",
                     candidate_count=len(candidates),
