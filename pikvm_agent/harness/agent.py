@@ -2787,7 +2787,11 @@ class AgentHarness:
                 verdict=verdict,
             )
         )
-        completion_rejection = self._completion_rejection_reason(run, verdict)
+        completion_rejection = self._completion_rejection_reason(
+            run,
+            verdict,
+            action=action,
+        )
         action_rejection = self._verified_action_rejection_reason(
             action,
             verdict,
@@ -4765,6 +4769,8 @@ class AgentHarness:
     def _completion_rejection_reason(
         run: RunSnapshot,
         verdict: VerificationDecision,
+        *,
+        action: PendingAction | None = None,
     ) -> str | None:
         if verdict.verdict != "complete":
             return None
@@ -4798,7 +4804,11 @@ class AgentHarness:
         )
         if (
             re.search(r"\breopen(?:ed|ing)?\b", task)
-            and not AgentHarness._has_verified_reopen_after_save(run)
+            and not AgentHarness._has_verified_reopen_after_save(
+                run,
+                action=action,
+                verdict=verdict,
+            )
         ):
             return (
                 "task requires a separately verified reopen action after save"
@@ -4806,10 +4816,32 @@ class AgentHarness:
         return None
 
     @staticmethod
-    def _has_verified_reopen_after_save(run: RunSnapshot) -> bool:
+    def _has_verified_reopen_after_save(
+        run: RunSnapshot,
+        *,
+        action: PendingAction | None = None,
+        verdict: VerificationDecision | None = None,
+    ) -> bool:
         """Require a durable reopen transition after a durable save action."""
 
         verified = AgentHarness._recent_verified_actions(run, limit=None)
+        if (
+            action is not None
+            and verdict is not None
+            and verdict.verdict in {"verified", "complete"}
+        ):
+            # The current verifier decision is evaluated before its
+            # model.completed event is recorded. Include that one executed
+            # action as provisional evidence for this gate only; the caller
+            # records it immediately after the gate accepts or downgrades it.
+            verified.append(
+                {
+                    "action_index": action.index,
+                    "intent": action.intent,
+                    "verdict": verdict.verdict,
+                    "summary": verdict.summary[:500],
+                }
+            )
         save_indexes: list[int] = []
         reopen_indexes: list[int] = []
         for item in verified:

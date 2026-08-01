@@ -6312,6 +6312,105 @@ def test_delayed_reopen_frame_can_verify_last_completed_action() -> None:
     assert AgentHarness._completion_rejection_reason(run, verdict) is None
 
 
+def test_saved_file_selection_then_delayed_reopen_satisfies_gate() -> None:
+    """Regress the exact durable evidence sequence from live campaign v6."""
+
+    run = RunSnapshot(
+        run_id="selected-save-delayed-reopen-transition",
+        task="Save text-06.txt. Reopen the file and verify it.",
+        status=RunStatus.RUNNING,
+        plan=PlanDecision(
+            summary="Save and reopen the file.",
+            steps=["Save the file", "Reopen it", "Verify the text"],
+            success_criteria=["The reopened file contains the exact text."],
+            constraints=[],
+        ),
+    )
+    run.record(
+        "action.checkpointed",
+        index=9,
+        intent="Save the completed paragraph under the verified filename.",
+        actions=[{"type": "key", "keys": ["ENTER"]}],
+    )
+    run.record("action.completed", index=9, status="completed")
+    run.record(
+        "model.completed",
+        role="verifier",
+        verdict="uncertain",
+        summary="The Save As dialog closed but the filename is not legible.",
+    )
+    run.record(
+        "action.checkpointed",
+        index=11,
+        intent=(
+            "Select the visibly listed saved text-06.txt file in the native "
+            "Open dialog."
+        ),
+        actions=[{"type": "click", "x": 218, "y": 203}],
+    )
+    run.record("action.completed", index=11, status="completed")
+    run.record(
+        "model.completed",
+        role="verifier",
+        verdict="verified",
+        summary=(
+            "The saved text-06.txt file is selected in the Open dialog and "
+            "ready to open."
+        ),
+    )
+    run.record(
+        "action.checkpointed",
+        index=12,
+        intent="Open the selected saved text-06.txt file from the Open dialog.",
+        actions=[{"type": "key", "keys": ["ENTER"]}],
+    )
+    run.record("action.completed", index=12, status="completed")
+    run.record(
+        "model.completed",
+        role="verifier",
+        verdict="failed",
+        summary="The delayed frame still shows the Open dialog.",
+    )
+    run.record(
+        "verification.delayed_frame_observed",
+        action_index=12,
+    )
+    verdict = VerificationDecision(
+        verdict="complete",
+        summary=(
+            "The saved text-06.txt file has reopened and displays the complete "
+            "original text."
+        ),
+        evidence=["The reopened file visibly contains the exact text."],
+        criteria=[
+            {
+                "criterion_index": 0,
+                "satisfied": True,
+                "evidence": "The reopened file contains the exact text.",
+            }
+        ],
+        action_criteria=[],
+    )
+    current_reopen = PendingAction(
+        index=12,
+        intent="Open the selected saved text-06.txt file from the Open dialog.",
+        actions=[{"type": "key", "keys": ["ENTER"]}],
+        expected_evidence=["The reopened file contains the exact text."],
+        based_on_world_version=4,
+        based_on_control_epoch=0,
+        idempotency_key="run:action:12",
+    )
+
+    assert (
+        AgentHarness._completion_rejection_reason(
+            run,
+            verdict,
+            action=current_reopen,
+        )
+        is None
+    )
+
+
 def test_unexecuted_reopen_intent_cannot_satisfy_completion_gate() -> None:
     run = RunSnapshot(
         run_id="unexecuted-reopen-transition",

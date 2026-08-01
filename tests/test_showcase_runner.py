@@ -21,6 +21,7 @@ from pikvm_agent.harness.showcase_runner import (
     ShowcaseManifest,
     VncAdapter,
     _merge_reboot_attempts,
+    _quiesce_run,
     _repair_recovered_reboot_status,
     _task_error_before_reboot,
     _windows_desktop_taskbar_visible,
@@ -149,6 +150,7 @@ def test_campaign_writer_declares_reboot_isolation_before_first_task(
         "stable Windows desktop with visible taskbar"
     )
     assert payload["tasks"][0]["reboot"]["status"] == "pending"
+    assert payload["tasks"][0]["quiescence"]["status"] == "pending"
     assert payload["tasks"][0]["recoveries"] == []
     assert not writer.path.with_suffix(".json.tmp").exists()
 
@@ -970,6 +972,192 @@ async def test_same_run_recovery_uses_continue_without_creating_a_task() -> None
         "/api/runs/run-7/continue"
     ]
     assert requests[0].url.params["background"] == "true"
+
+
+@pytest.mark.asyncio
+async def test_campaign_client_aborts_managed_run_before_reset() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(
+            200,
+            json={"run_id": "run-7", "status": "aborted"},
+        )
+
+    async with httpx.AsyncClient(
+        transport=httpx.MockTransport(handler)
+    ) as client:
+        harness = HarnessCampaignClient(
+            client,
+            base_url="http://harness",
+            agent_token="a" * 32,
+            operator_token="b" * 32,
+            operator_origin="http://harness",
+        )
+        stopped = await harness.abort(
+            "run-7",
+            "campaign task concluded before mandatory reboot",
+        )
+
+    assert stopped["status"] == "aborted"
+    assert [request.url.path for request in requests] == [
+        "/api/runs/run-7/abort"
+    ]
+    assert json.loads(requests[0].content) == {
+        "reason": "campaign task concluded before mandatory reboot"
+    }
+
+
+@pytest.mark.asyncio
+async def test_quiescence_retries_until_run_is_terminal() -> None:
+    statuses = iter(("running", "aborted"))
+    calls: list[tuple[str, str]] = []
+
+    class Harness:
+        async def abort(self, run_id: str, reason: str) -> dict[str, str]:
+            calls.append((run_id, reason))
+            return {"run_id": run_id, "status": next(statuses)}
+
+    result = await _quiesce_run(
+        Harness(),  # type: ignore[arg-type]
+        "run-8",
+        retry_delay_s=0,
+    )
+
+    assert result["status"] == "aborted"
+    assert result["attempts"] == 2
+    assert calls == [
+        ("run-8", "campaign task concluded before mandatory reboot"),
+        ("run-8", "campaign task concluded before mandatory reboot"),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_campaign_quiesces_run_before_mandatory_reboot(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manifest_path = tmp_path / "manifest.yaml"
+    manifest_path.write_text(
+        """
+schema_version: 1
+campaign_id: quiescence-campaign
+title: Quiescence campaign
+provider: codex-fast
+tasks:
+  - task_id: task-1
+    title: Observe
+    category: Observation
+    prompt: Describe the desktop.
+""".strip(),
+        encoding="utf-8",
+    )
+    lifecycle: list[str] = []
+
+    class FakeHarness:
+        def __init__(self, *_args: object, **_kwargs: object) -> None:
+            pass
+
+        async def create(
+            self,
+            _task: object,
+            _provider: str,
+        ) -> dict[str, object]:
+            return {"run_id": "run-9", "status": "running"}
+
+        async def get(self, _run_id: str) -> dict[str, object]:
+            return {
+                "run_id": "run-9",
+                "status": "completed",
+                "event_count": 12,
+            }
+
+        async def performance(self, _run_id: str) -> None:
+            return None
+
+        async def abort(
+            self,
+            _run_id: str,
+            _reason: str,
+        ) -> dict[str, str]:
+            lifecycle.append("abort")
+            return {"run_id": "run-9", "status": "completed"}
+
+    class FakeAdapter:
+        frame_url = "http://adapter/frame"
+
+        def __init__(self, *_args: object, **_kwargs: object) -> None:
+            pass
+
+        async def wait_until_ready(
+            self,
+            **_kwargs: object,
+        ) -> dict[str, object]:
+            return {"ready": True}
+
+        async def show_desktop(self) -> None:
+            return None
+
+        async def reboot_and_wait(
+            self,
+            **_kwargs: object,
+        ) -> dict[str, object]:
+            lifecycle.append("reboot")
+            return {
+                "transition_observed": True,
+                "ready": True,
+                "duration_ms": 25,
+                "attempts": [],
+            }
+
+    class FakeRecorder:
+        def __init__(
+            self,
+            *,
+            output_dir: Path,
+            **_kwargs: object,
+        ) -> None:
+            self.output_dir = output_dir
+
+        async def start(self) -> None:
+            return None
+
+        async def capture_poster(self) -> None:
+            return None
+
+        async def stop(self) -> tuple[Path, Path]:
+            self.output_dir.mkdir(parents=True, exist_ok=True)
+            recording = self.output_dir / "recording.webm"
+            poster = self.output_dir / "poster.jpg"
+            recording.write_bytes(b"video")
+            poster.write_bytes(b"poster")
+            return recording, poster
+
+    monkeypatch.setattr(
+        showcase_runner,
+        "HarnessCampaignClient",
+        FakeHarness,
+    )
+    monkeypatch.setattr(showcase_runner, "VncAdapter", FakeAdapter)
+    monkeypatch.setattr(showcase_runner, "FrameRecorder", FakeRecorder)
+
+    result = await showcase_runner.run_showcase_campaign(
+        manifest_path=manifest_path,
+        output_root=tmp_path / "output",
+        harness_url="http://harness",
+        adapter_url="http://adapter",
+        agent_token="a" * 32,
+        operator_token="b" * 32,
+        operator_origin="http://harness",
+    )
+
+    task = result["tasks"][0]
+    assert lifecycle == ["abort", "reboot"]
+    assert task["status"] == "passed"
+    assert task["quiescence"]["status"] == "confirmed"
+    assert task["quiescence"]["run_status"] == "completed"
+    assert task["reboot"]["status"] == "ready"
 
 
 @pytest.mark.asyncio

@@ -276,6 +276,14 @@ class CampaignWriter:
                 "preflight": None,
                 "approvals": [],
                 "recoveries": [],
+                "quiescence": {
+                    "status": "pending",
+                    "requested_at": None,
+                    "confirmed_at": None,
+                    "run_status": None,
+                    "attempts": 0,
+                    "error": None,
+                },
                 "reboot": {
                     "status": "pending",
                     "requested_at": None,
@@ -965,6 +973,46 @@ class HarnessCampaignClient:
         response.raise_for_status()
         return True
 
+    async def abort(self, run_id: str, reason: str) -> dict[str, Any]:
+        response = await self.client.post(
+            f"{self.base_url}/api/runs/{run_id}/abort",
+            headers=self.agent_headers,
+            json={"reason": reason},
+        )
+        response.raise_for_status()
+        return response.json()
+
+
+async def _quiesce_run(
+    harness: HarnessCampaignClient,
+    run_id: str,
+    *,
+    attempts: int = 3,
+    retry_delay_s: float = 0.25,
+) -> dict[str, Any]:
+    """Revoke a managed run and require terminal state before VM reset."""
+
+    reason = "campaign task concluded before mandatory reboot"
+    last_error = "run did not reach a terminal state"
+    for attempt in range(1, attempts + 1):
+        try:
+            stopped = await harness.abort(run_id, reason)
+            status = str(stopped.get("status") or "")
+            if status in TERMINAL_STATUSES:
+                return {
+                    **stopped,
+                    "attempts": attempt,
+                }
+            last_error = f"abort returned non-terminal status {status!r}"
+        except Exception as exc:  # noqa: BLE001 - bounded safety retry
+            last_error = f"{type(exc).__name__}: {exc}"
+        if attempt < attempts:
+            await asyncio.sleep(retry_delay_s)
+    raise RuntimeError(
+        f"could not quiesce managed run {run_id} after {attempts} attempts: "
+        f"{last_error}"
+    )
+
 
 def paused_recovery_action(
     *,
@@ -1057,6 +1105,17 @@ async def run_showcase_campaign(
             record = writer.task(spec.task_id)
             record.setdefault("recoveries", [])
             record.setdefault("task_error", _task_error_before_reboot(record))
+            record.setdefault(
+                "quiescence",
+                {
+                    "status": "pending",
+                    "requested_at": None,
+                    "confirmed_at": None,
+                    "run_status": None,
+                    "attempts": 0,
+                    "error": None,
+                },
+            )
             if _repair_recovered_reboot_status(record):
                 writer.flush()
             if (
@@ -1108,8 +1167,8 @@ async def run_showcase_campaign(
                 await recorder.start()
             run_status = "failed"
             run_error: str | None = None
+            run_id = str(record.get("run_id") or "")
             try:
-                run_id = str(record.get("run_id") or "")
                 if record["status"] != "rebooting":
                     if spec.mutates_workspace:
                         record["preflight"] = {
@@ -1246,66 +1305,116 @@ async def run_showcase_campaign(
             except Exception as exc:  # noqa: BLE001 - retain failure evidence
                 run_error = f"{type(exc).__name__}: {exc}"
                 record["task_error"] = run_error
-            record["status"] = "rebooting"
-            record["error"] = run_error
-            record["reboot"]["status"] = "running"
-            record["reboot"]["requested_at"] = (
-                record["reboot"].get("requested_at") or utc_now()
+            quiescence_failed = False
+            record["quiescence"].update(
+                {
+                    "status": "running" if run_id else "not_required",
+                    "requested_at": utc_now() if run_id else None,
+                    "confirmed_at": utc_now() if not run_id else None,
+                    "run_status": None,
+                    "attempts": 0,
+                    "error": None,
+                }
             )
             writer.flush()
-            try:
-                reboot = await adapter.reboot_and_wait(
-                    timeout_s=reboot_timeout_s
-                )
-                record["reboot"].update(
-                    {
-                        "status": (
-                            "ready"
-                            if (
-                                reboot["transition_observed"]
-                                and reboot["ready"]
-                            )
-                            else "failed"
-                        ),
-                        "ready_at": (
-                            utc_now()
-                            if reboot["transition_observed"]
-                            and reboot["ready"]
-                            else None
-                        ),
-                        "duration_ms": (
-                            prior_reboot_duration_ms + reboot["duration_ms"]
-                        ),
-                        "transition_observed": reboot["transition_observed"],
-                        "attempts": _merge_reboot_attempts(
-                            prior_reboot_attempts,
-                            reboot["attempts"],
-                        ),
-                    }
-                )
-                writer.flush()
-                if not reboot["transition_observed"]:
-                    run_error = (
-                        f"{run_error}; " if run_error else ""
-                    ) + "reboot command did not produce a visible boot transition"
-                elif not reboot["ready"]:
-                    run_error = (
-                        f"{run_error}; " if run_error else ""
-                    ) + str(
-                        reboot.get("error")
-                        or "reboot did not reach a verified Windows desktop"
+            if run_id:
+                try:
+                    stopped = await _quiesce_run(harness, run_id)
+                    record["quiescence"].update(
+                        {
+                            "status": "confirmed",
+                            "confirmed_at": utc_now(),
+                            "run_status": stopped.get("status"),
+                            "attempts": stopped["attempts"],
+                        }
                     )
-            except Exception as exc:  # noqa: BLE001 - retain isolation failure
-                record["reboot"].update(
-                    {
-                        "status": "failed",
-                        "ready_at": None,
-                    }
+                except Exception as exc:  # noqa: BLE001 - fail closed
+                    quiescence_failed = True
+                    quiescence_error = (
+                        f"pre-reboot quiescence failed: "
+                        f"{type(exc).__name__}: {exc}"
+                    )
+                    run_error = (
+                        f"{run_error}; " if run_error else ""
+                    ) + quiescence_error
+                    record["quiescence"].update(
+                        {
+                            "status": "failed",
+                            "error": quiescence_error,
+                        }
+                    )
+                    record["reboot"]["status"] = "blocked"
+            record["error"] = run_error
+            writer.flush()
+            if not quiescence_failed:
+                record["status"] = "rebooting"
+                record["reboot"]["status"] = "running"
+                record["reboot"]["requested_at"] = (
+                    record["reboot"].get("requested_at") or utc_now()
                 )
                 writer.flush()
-                run_error = (
-                    f"{run_error}; " if run_error else ""
-                ) + f"reboot failed: {type(exc).__name__}: {exc}"
+                try:
+                    reboot = await adapter.reboot_and_wait(
+                        timeout_s=reboot_timeout_s
+                    )
+                    record["reboot"].update(
+                        {
+                            "status": (
+                                "ready"
+                                if (
+                                    reboot["transition_observed"]
+                                    and reboot["ready"]
+                                )
+                                else "failed"
+                            ),
+                            "ready_at": (
+                                utc_now()
+                                if reboot["transition_observed"]
+                                and reboot["ready"]
+                                else None
+                            ),
+                            "duration_ms": (
+                                prior_reboot_duration_ms
+                                + reboot["duration_ms"]
+                            ),
+                            "transition_observed": (
+                                reboot["transition_observed"]
+                            ),
+                            "attempts": _merge_reboot_attempts(
+                                prior_reboot_attempts,
+                                reboot["attempts"],
+                            ),
+                        }
+                    )
+                    writer.flush()
+                    if not reboot["transition_observed"]:
+                        run_error = (
+                            f"{run_error}; " if run_error else ""
+                        ) + (
+                            "reboot command did not produce a visible boot "
+                            "transition"
+                        )
+                    elif not reboot["ready"]:
+                        run_error = (
+                            f"{run_error}; " if run_error else ""
+                        ) + str(
+                            reboot.get("error")
+                            or (
+                                "reboot did not reach a verified Windows "
+                                "desktop"
+                            )
+                        )
+                except Exception as exc:  # noqa: BLE001
+                    record["reboot"].update(
+                        {
+                            "status": "failed",
+                            "ready_at": None,
+                        }
+                    )
+                    writer.flush()
+                    run_error = (
+                        f"{run_error}; " if run_error else ""
+                    ) + f"reboot failed: {type(exc).__name__}: {exc}"
             if preserve_recording:
                 recording, poster = existing_recording, existing_poster
             else:
