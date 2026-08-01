@@ -1975,11 +1975,23 @@ class WatchedTyper:
                 )
                 for _index, candidate in ordered[:4]:
                     checked += 1
-                    candidate_readback_region = readback_region(
-                        candidate,
-                        dims,
-                        explicit=False,
-                        vertical_context=False,
+                    # Dense candidates are already padded around only the
+                    # pixels changed by this exact emission. Expanding them
+                    # with the generic field margin can pull in editor borders,
+                    # carets, or adjacent controls and turn a clean short row
+                    # into OCR such as ``| alpha beta!``. Remove one pixel of
+                    # change-detector padding instead and keep this proof
+                    # causally bounded to the emitted line.
+                    inset = (
+                        1.0
+                        if candidate.width > 2 and candidate.height > 2
+                        else 0.0
+                    )
+                    candidate_readback_region = Region(
+                        x=candidate.x + inset,
+                        y=candidate.y + inset,
+                        width=max(1.0, candidate.width - inset * 2),
+                        height=max(1.0, candidate.height - inset * 2),
                     )
                     result = await reader(
                         tmp,

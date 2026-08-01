@@ -617,7 +617,13 @@ async def test_short_exact_typing_checks_all_causal_lines_when_coarse_crop_is_wr
 
     assert result.status == expected_status
     assert result.emitted_exactly_once is True
-    assert any(region is not None and region.y < 200 for region in ocr.regions)
+    causal_regions = [
+        region
+        for region in ocr.regions
+        if region is not None and region.y < 200
+    ]
+    assert causal_regions
+    assert all(region.width < 160 for region in causal_regions)
 
 
 async def test_causal_exact_row_finishes_without_a_noisier_second_read(
