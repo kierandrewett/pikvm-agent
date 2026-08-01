@@ -602,12 +602,111 @@ async def test_campaign_workspace_preflight_uses_one_bounded_visible_command(
     assert result["path"] == r"C:\PiKVM-Harness\workspace\codex-50"
     assert result["ready"] is True
     assert printed == [
-        r"cmd /c mkdir C:\PiKVM-Harness\workspace\codex-50"
+        r"cmd /d /c mkdir C:\PiKVM-Harness\workspace\codex-50 2>nul"
     ]
     assert {
         "key": "Enter",
         "state": True,
     } in [item["event"] for item in sent]
+
+
+@pytest.mark.asyncio
+async def test_campaign_workspace_preflight_preserves_a_prior_task_artifact(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    sent: list[dict[str, object]] = []
+    printed: list[str] = []
+    monkeypatch.setattr(
+        showcase_runner,
+        "websocket_connect",
+        _socket_factory(sent),
+    )
+    monkeypatch.setattr(
+        showcase_runner.uuid,
+        "uuid4",
+        lambda: type("Uuid", (), {"hex": "a" * 32})(),
+    )
+    async with httpx.AsyncClient(
+        transport=httpx.MockTransport(_snapshot_handler(printed))
+    ) as client:
+        adapter = VncAdapter(client, "http://127.0.0.1:48002")
+
+        async def visible_transition(**_kwargs: object) -> bool:
+            return True
+
+        async def ready(**_kwargs: object) -> dict[str, object]:
+            return {
+                "ready": True,
+                "frame_sha256": "f" * 64,
+            }
+
+        adapter._wait_for_run_dialog = (  # type: ignore[method-assign]
+            visible_transition
+        )
+        adapter.wait_until_ready = ready  # type: ignore[method-assign]
+        result = await adapter.ensure_campaign_workspace(
+            [
+                (
+                    r"C:\PiKVM-Harness\workspace\codex-50"
+                    r"\text-10-exact.txt"
+                )
+            ]
+        )
+
+    preserved = (
+        r"C:\PiKVM-Harness\workspace\codex-50"
+        rf"\text-10-exact.txt.pikvm-prior-{'a' * 32}"
+    )
+    assert result["fresh_artifacts"] == [
+        {
+            "path": (
+                r"C:\PiKVM-Harness\workspace\codex-50"
+                r"\text-10-exact.txt"
+            ),
+            "preserved_as": preserved,
+        }
+    ]
+    assert printed == [
+        (
+            r"cmd /d /c mkdir C:\PiKVM-Harness\workspace\codex-50 2>nul"
+            r' & if exist "C:\PiKVM-Harness\workspace\codex-50'
+            r'\text-10-exact.txt" move /y '
+            r'"C:\PiKVM-Harness\workspace\codex-50\text-10-exact.txt" '
+            f'"{preserved}" >nul'
+        )
+    ]
+
+
+@pytest.mark.parametrize(
+    "fresh_artifact",
+    [
+        r"C:\Windows\system.ini",
+        r"C:\PiKVM-Harness\workspace\codex-50",
+        r"C:\PiKVM-Harness\workspace\codex-50\*.txt",
+        r"C:\PiKVM-Harness\workspace\codex-50\..\private.txt",
+    ],
+)
+def test_showcase_manifest_rejects_unbounded_fresh_artifacts(
+    fresh_artifact: str,
+) -> None:
+    with pytest.raises(ValueError, match="fresh artifact"):
+        ShowcaseManifest.model_validate(
+            {
+                "campaign_id": "bounded-fixture",
+                "title": "Bounded fixture",
+                "provider": "codex-fast",
+                "tasks": [
+                    {
+                        "task_id": "text-10",
+                        "title": "Type exact text",
+                        "category": "Text entry",
+                        "prompt": "Type exact text.",
+                        "mutates_workspace": True,
+                        "fresh_artifacts": [fresh_artifact],
+                    }
+                ],
+            }
+        )
 
 
 @pytest.mark.asyncio

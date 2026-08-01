@@ -13,7 +13,7 @@ import time
 import uuid
 from datetime import UTC, datetime
 from io import BytesIO
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from typing import Any, Literal
 from urllib.parse import urlparse, urlunparse
 
@@ -74,6 +74,30 @@ ALLOWED_ACTION_TYPES = frozenset(
     }
 )
 ApprovalDisposition = Literal["approve", "refuse", "wait"]
+CAMPAIGN_WORKSPACE = PureWindowsPath(
+    r"C:\PiKVM-Harness\workspace\codex-50"
+)
+
+
+def _validate_fresh_artifact_path(value: str) -> str:
+    """Constrain pre-run preservation to one literal campaign artifact."""
+
+    if (
+        not value
+        or len(value) > 240
+        or any(character in value for character in '"*?<>|&^%!\r\n')
+    ):
+        raise ValueError("fresh artifact path must be one literal safe path")
+    candidate = PureWindowsPath(value)
+    try:
+        relative = candidate.relative_to(CAMPAIGN_WORKSPACE)
+    except ValueError as exc:
+        raise ValueError(
+            "fresh artifact path must be inside the campaign workspace"
+        ) from exc
+    if relative == PureWindowsPath(".") or ".." in relative.parts:
+        raise ValueError("fresh artifact path must name a workspace artifact")
+    return str(candidate)
 
 
 def _windows_desktop_taskbar_visible(image: Image.Image) -> bool:
@@ -189,6 +213,25 @@ class ShowcaseTaskSpec(BaseModel):
     category: str = Field(min_length=1, max_length=80)
     prompt: str = Field(min_length=1, max_length=20_000)
     mutates_workspace: bool = False
+    fresh_artifacts: list[str] = Field(
+        default_factory=list,
+        max_length=16,
+    )
+
+    @model_validator(mode="after")
+    def fresh_artifacts_are_bounded(self) -> "ShowcaseTaskSpec":
+        if self.fresh_artifacts and not self.mutates_workspace:
+            raise ValueError(
+                "fresh artifacts require a workspace-mutating task"
+            )
+        self.fresh_artifacts = [
+            _validate_fresh_artifact_path(path)
+            for path in self.fresh_artifacts
+        ]
+        normalized = [path.casefold() for path in self.fresh_artifacts]
+        if len(normalized) != len(set(normalized)):
+            raise ValueError("fresh artifact paths must be unique")
+        return self
 
 
 class ShowcaseManifest(BaseModel):
@@ -787,13 +830,39 @@ class VncAdapter:
             await self._send_key_and_wait(socket, "Enter", True)
             await self._send_key_and_wait(socket, "Enter", False)
 
-    async def ensure_campaign_workspace(self) -> dict[str, Any]:
-        """Create only the fixed disposable campaign directory through Windows."""
+    async def ensure_campaign_workspace(
+        self,
+        fresh_artifacts: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """Prepare a clean task surface without deleting prior evidence."""
 
-        path = r"C:\PiKVM-Harness\workspace\codex-50"
-        await self._type_run_command(f"cmd /c mkdir {path}")
+        path = str(CAMPAIGN_WORKSPACE)
+        prepared: list[dict[str, str]] = []
+        command = f"cmd /d /c mkdir {path} 2>nul"
+        for artifact in fresh_artifacts or []:
+            safe_artifact = _validate_fresh_artifact_path(artifact)
+            candidate = PureWindowsPath(safe_artifact)
+            prior = candidate.with_name(
+                f"{candidate.name}.pikvm-prior-{uuid.uuid4().hex}"
+            )
+            command += (
+                f' & if exist "{candidate}" '
+                f'move /y "{candidate}" "{prior}" >nul'
+            )
+            prepared.append(
+                {
+                    "path": str(candidate),
+                    "preserved_as": str(prior),
+                }
+            )
+        await self._type_run_command(command)
         ready = await self.wait_until_ready(timeout_s=15, stable_s=1)
-        return {**ready, "path": path, "method": "visible_windows_run"}
+        return {
+            **ready,
+            "path": path,
+            "method": "visible_windows_run",
+            "fresh_artifacts": prepared,
+        }
 
     async def _reboot(self) -> None:
         await self._type_run_command("shutdown /r /t 0 /f")
@@ -1193,7 +1262,9 @@ async def run_showcase_campaign(
                             "started_at": utc_now(),
                         }
                         writer.flush()
-                        workspace = await adapter.ensure_campaign_workspace()
+                        workspace = await adapter.ensure_campaign_workspace(
+                            spec.fresh_artifacts
+                        )
                         record["preflight"] = {
                             "status": "ready",
                             "started_at": record["preflight"]["started_at"],
