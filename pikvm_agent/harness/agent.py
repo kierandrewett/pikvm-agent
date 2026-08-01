@@ -4421,6 +4421,31 @@ class AgentHarness:
 
         if not active_unverified_surfaces:
             return False
+        if "editor" in active_unverified_surfaces:
+            passive_actions = {
+                "wait",
+                "wait_for_change",
+                "wait_for_stable_screen",
+            }
+            for action in proposed_actions:
+                action_type = str(action.get("type") or "")
+                if action_type in passive_actions:
+                    continue
+                if action_type == "key":
+                    keyset = {
+                        token
+                        for key in action.get("keys", [])
+                        if isinstance(key, str)
+                        for token in re.split(r"[+\s]+", key.upper())
+                        if token
+                    }
+                    if keyset in ({"ESC"}, {"ESCAPE"}):
+                        continue
+                # Unlike a single-line field, Escape does not clear an editor
+                # draft. Until exact readback succeeds, every other input can
+                # mutate, save, submit, select, or reposition that unread
+                # content and must stop before approval or HID.
+                return True
         for action in proposed_actions:
             if (
                 "terminal" in active_unverified_surfaces

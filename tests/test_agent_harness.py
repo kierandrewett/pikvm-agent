@@ -5046,6 +5046,18 @@ def test_unverified_exact_editor_is_not_dismissed_by_escape() -> None:
         run,
         [{"type": "click", "x": 100, "y": 100, "button": "left"}],
     )
+    assert AgentHarness._unsafe_unverified_input_followup(
+        run,
+        [{"type": "key", "keys": ["CTRL", "SHIFT", "S"]}],
+    )
+    assert AgentHarness._unsafe_unverified_input_followup(
+        run,
+        [{"type": "key", "keys": ["BACKSPACE"]}],
+    )
+    assert not AgentHarness._unsafe_unverified_input_followup(
+        run,
+        [{"type": "key", "keys": ["ESC"]}],
+    )
 
 
 def test_recoverable_exact_field_failure_blocks_pointer_commit() -> None:
