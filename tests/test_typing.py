@@ -522,7 +522,11 @@ class _AdjacentLineOCR:
                     bbox=[12, 10, 82, 22],
                 )
             ],
-            spacing_evidence="verified",
+            spacing_evidence=(
+                "verified"
+                if self.target_candidate_reads == 1 and region.y < 92
+                else "uncertain"
+            ),
         )
 
     async def ocr_precise(

@@ -236,6 +236,22 @@ before settled readback; no substring is carved from the later observation,
 and the at-most-once policy remains unchanged. Text-04 remains pending until
 that row refinement passes a clean v7 replay.
 
+Text-04 v7 proved the row refinement itself, but exposed confidence drift
+between two reads of the same causal row. The exact `2. Act` payload was
+emitted once. The delayed candidate scan eventually found its row and
+independently verified the visible space; five subsequent settled reads all
+returned the exact six characters, but their mean confidence was 0.8949,
+0.0051 below the geometric spacing threshold. The receipt therefore remained
+empty and the editor guard again blocked progression. v7 failed after
+206.436s before reboot: 113.232s of provider wait across 16 calls and 86.325s
+of action execution, with 4/5 actions completed. Its mandatory reboot
+observed a real transition and reached a ready desktop after 75.904s. The
+transaction now retains an exact causal row's already-verified spacing proof
+when a later overlapping read still matches every character but only its
+confidence has fallen; the proof is reset for every input transaction and
+cannot authorize a mismatching or non-overlapping read. Text-04 remains
+pending until that bounded evidence handoff passes a clean v8 replay.
+
 Failure-inclusive metrics, canonical campaign digests, the 18 accepted task
 IDs, and the VP9 recording/poster hashes are retained in
 [`codex-50-progress.json`](results/2026-07-31/live-vnc/codex-50-progress.json).

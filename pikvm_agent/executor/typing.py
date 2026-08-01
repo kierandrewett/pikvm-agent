@@ -806,6 +806,8 @@ class WatchedTyper:
         self._last_field_ocr_result = OCRResult()
         self._refined_readback_region: Region | None = None
         self._refined_readback_intended = ""
+        self._causal_exact_spacing_region: Region | None = None
+        self._causal_exact_spacing_intended = ""
 
     # ---- capture/read helpers -------------------------------------------- #
 
@@ -816,6 +818,43 @@ class WatchedTyper:
         # Fall back to a captured frame's reported size — handled by callers that
         # already hold a frame; default to 0x0 (locate then declines).
         return (0, 0)
+
+    def _with_causal_spacing_proof(
+        self,
+        result: OCRResult,
+        *,
+        intended: str | None,
+        precise: bool,
+        requested_region: Region,
+    ) -> OCRResult:
+        causal_region = self._causal_exact_spacing_region
+        if (
+            not precise
+            or not intended
+            or not any(character.isspace() for character in intended)
+            or result.spacing_evidence == "verified"
+            or compute_verdict(intended, result.text, True) != "match"
+            or self._causal_exact_spacing_intended != intended
+            or causal_region is None
+            or not regions_overlap(requested_region, causal_region)
+        ):
+            return result
+        # The immediately post-emission causal crop already proved this exact
+        # row and its visible gap. A later settled OCR pass can dip just below
+        # the spacing-confidence threshold while still reading every character
+        # exactly. No HID occurs between those frames, so retain the earlier
+        # bounded proof instead of turning the same row into an empty readback.
+        DEBUG.event(
+            "typing.causal_spacing_proof_reused",
+            intended_characters=len(intended),
+            requested_region=requested_region.model_dump(),
+            causal_region=causal_region.model_dump(),
+        )
+        return OCRResult(
+            lines=result.lines,
+            alternatives=result.alternatives,
+            spacing_evidence="verified",
+        )
 
     async def _grid(self) -> np.ndarray | None:
         """Full-frame grayscale grid for the pixel-diff, or ``None`` on failure."""
@@ -990,6 +1029,12 @@ class WatchedTyper:
                             observed_characters=len(result.text),
                             line_count=len(result.lines),
                         )
+            result = self._with_causal_spacing_proof(
+                result,
+                intended=intended,
+                precise=precise,
+                requested_region=requested_region,
+            )
             self._last_field_ocr_result = result
             confidences = [
                 float(line.confidence)
@@ -1560,6 +1605,8 @@ class WatchedTyper:
         self._last_read_screen_frame = None
         self._refined_readback_region = None
         self._refined_readback_intended = ""
+        self._causal_exact_spacing_region = None
+        self._causal_exact_spacing_intended = ""
         precise = (
             exact
             if exact is not None
@@ -1832,6 +1879,9 @@ class WatchedTyper:
                             width=max(1, matched_x2 - matched_x),
                             height=max(1, matched_y2 - matched_y),
                         )
+                    if spacing_verified:
+                        self._causal_exact_spacing_region = matched_region
+                        self._causal_exact_spacing_intended = intended_snapshot
                     self._last_field_ocr_result = OCRResult(
                         lines=exact_rows,
                         alternatives=result.alternatives,
