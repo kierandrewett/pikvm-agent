@@ -5782,6 +5782,164 @@ async def test_unverified_terminal_suffix_is_replaced_with_cancel_before_hid() -
     )
 
 
+@pytest.mark.asyncio
+async def test_unverified_editor_input_allows_one_bounded_undo_before_hid() -> None:
+    class RecoveryProvider(ScriptedProvider):
+        def __init__(self) -> None:
+            super().__init__()
+            self.controller_calls = 0
+
+        async def complete(self, request: ModelRequest) -> ModelResponse:
+            if request.role == "controller":
+                self.requests.append(request)
+                self.controller_calls += 1
+                action = (
+                    {"type": "click", "x": 420, "y": 220}
+                    if self.controller_calls == 1
+                    else {"type": "key", "keys": ["CTRL", "Z"]}
+                )
+                return ModelResponse(
+                    provider=self.name,
+                    model="scripted-v1",
+                    data={
+                        "outcome": "act",
+                        "intent": "Undo the unread editor input safely.",
+                        "actions": [action],
+                        "expected_evidence": [
+                            "The editor returns to its prior clean line."
+                        ],
+                    },
+                )
+            return await super().complete(request)
+
+    provider = RecoveryProvider()
+    computer = FakeComputer()
+    store = InMemoryRunStore()
+    pool = ModelPool(
+        providers={provider.name: provider},
+        routes={
+            role: RoleRoute(providers=[provider.name])
+            for role in ("reasoner", "controller", "verifier")
+        },
+    )
+    harness = AgentHarness(
+        computer=computer,
+        models=pool,
+        store=store,
+        config=HarnessConfig(max_actions_per_advance=1),
+    )
+    run = RunSnapshot(
+        run_id="recover-unverified-editor-input",
+        task="Enter a Python loop in the open editor.",
+        status=RunStatus.PAUSED,
+        session_id="s_1",
+        observation=await computer.open("editor-recovery-test"),
+        plan=PlanDecision(
+            summary="Enter the requested loop.",
+            steps=["Enter and verify the exact editor line."],
+            success_criteria=["The exact lowercase loop is visible."],
+            constraints=["Do not duplicate unread input."],
+        ),
+    )
+    run.record(
+        "action.checkpointed",
+        index=5,
+        actions=[
+            {
+                "type": "type_text",
+                "text": "    for i in range(1, limit + 1):",
+                "code": True,
+                "context": "editor",
+                "verification": "exact",
+            }
+        ],
+    )
+    run.record(
+        "action.recoverable_failure",
+        index=5,
+        input_receipts=[
+            {
+                "index": 0,
+                "requested_characters": 33,
+                "issued_characters": 33,
+                "requested_sha256": "a" * 64,
+                "issued_prefix_sha256": "a" * 64,
+                "exact_readback_sha256_match": False,
+            }
+        ],
+    )
+    await store.save(run)
+
+    result = await harness.continue_run(run.run_id)
+
+    assert provider.controller_calls == 2
+    assert [burst["actions"] for burst in computer.bursts] == [
+        [{"type": "key", "keys": ["CTRL", "Z"]}]
+    ]
+    assert any(
+        event.kind == "controller.unverified_input_followup_rejected"
+        for event in result.events
+    )
+    controller_prompts = [
+        request.prompt
+        for request in provider.requests
+        if request.role == "controller"
+    ]
+    assert "undo the last editor input with Ctrl+Z" in controller_prompts[1]
+
+
+def test_completed_editor_undo_clears_unverified_input_gate() -> None:
+    run = RunSnapshot(
+        run_id="completed-editor-undo",
+        task="Enter a Python loop in the open editor.",
+        status=RunStatus.PAUSED,
+    )
+    run.record(
+        "action.checkpointed",
+        index=5,
+        actions=[
+            {
+                "type": "type_text",
+                "text": "    for i in range(1, limit + 1):",
+                "context": "editor",
+                "verification": "exact",
+            }
+        ],
+    )
+    run.record(
+        "action.recoverable_failure",
+        index=5,
+        input_receipts=[
+            {
+                "index": 0,
+                "requested_characters": 33,
+                "issued_characters": 33,
+                "requested_sha256": "a" * 64,
+                "issued_prefix_sha256": "a" * 64,
+                "exact_readback_sha256_match": False,
+            }
+        ],
+    )
+    run.record(
+        "action.checkpointed",
+        index=6,
+        actions=[{"type": "key", "keys": ["CTRL", "Z"]}],
+    )
+    run.record("action.completed", index=6, status="completed")
+
+    assert not AgentHarness._unsafe_unverified_input_followup(
+        run,
+        [
+            {
+                "type": "type_text",
+                "text": "    for i in range(1, limit + 1):",
+                "context": "editor",
+                "verification": "exact",
+            }
+        ],
+    )
+
+
 def test_recent_verified_actions_keep_bounded_durable_task_evidence() -> None:
     run = RunSnapshot(
         run_id="durable-verification-memory",

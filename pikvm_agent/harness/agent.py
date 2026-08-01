@@ -2155,9 +2155,10 @@ class AgentHarness:
                         ),
                         "instruction": (
                             "Do not append, retype, or execute the unread "
-                            "draft. Cancel a terminal draft with Ctrl+C, or "
-                            "dismiss a field draft with Esc, in one separate "
-                            "non-text action. Re-enter it only after that "
+                            "draft. In one separate non-text action, cancel a "
+                            "terminal draft with Ctrl+C, undo the last editor "
+                            "input with Ctrl+Z, or dismiss a single-line field "
+                            "draft with Esc. Re-enter it only after that "
                             "cancellation has completed and a clean surface "
                             "has been observed."
                         ),
@@ -4445,7 +4446,19 @@ class AgentHarness:
                 }
                 if frozenset({"CTRL", "C"}) in completed_keysets:
                     active_unverified_surfaces.discard("terminal")
-                if frozenset({"ESC"}) in completed_keysets:
+                if completed_keysets.intersection(
+                    {
+                        frozenset({"CTRL", "Z"}),
+                        frozenset({"CONTROL", "Z"}),
+                    }
+                ):
+                    active_unverified_surfaces.discard("editor")
+                if completed_keysets.intersection(
+                    {
+                        frozenset({"ESC"}),
+                        frozenset({"ESCAPE"}),
+                    }
+                ):
                     active_unverified_surfaces.discard("field")
 
         if not active_unverified_surfaces:
@@ -4468,12 +4481,17 @@ class AgentHarness:
                         for token in re.split(r"[+\s]+", key.upper())
                         if token
                     }
-                    if keyset in ({"ESC"}, {"ESCAPE"}):
+                    if keyset in (
+                        {"CTRL", "Z"},
+                        {"CONTROL", "Z"},
+                        {"ESC"},
+                        {"ESCAPE"},
+                    ):
                         continue
-                # Unlike a single-line field, Escape does not clear an editor
-                # draft. Until exact readback succeeds, every other input can
-                # mutate, save, submit, select, or reposition that unread
-                # content and must stop before approval or HID.
+                # Escape may dismiss an editor popup, while Ctrl+Z reverses
+                # the immediately preceding fully emitted editor input.
+                # Every other input can mutate, save, submit, select, or
+                # reposition that unread content and must stop before HID.
                 return True
         for action in proposed_actions:
             if (
