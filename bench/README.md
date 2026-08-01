@@ -423,6 +423,24 @@ complete intended suffix from bounded full-screen OCR even when the first
 readback contains the already-proven prefix; arbitrary precise substring
 containment remains unverified.
 
+Text-06 v2 is retained as a second fail-closed long-prose boundary. The first
+240-character transaction was delivered once with zero corrections, retries,
+or edit distance. The bounded full-screen locator found all 240 requested
+characters, but OCR represented one visual word-wrap boundary as a newline:
+`he will be king, he\nbegins`. Semantic normalization therefore returned
+`match` while the raw readback hash correctly differed from the requested
+hash. The receipt exposed that contradiction as
+`unverified_exact_hash_mismatch` instead of claiming exact proof. The
+controller then exhausted four same-run recovery checkpoints, the editor guard
+blocked every later mutation, and the incomplete document was never saved.
+
+The failed run took 257.596s before reboot: 142.053s of provider wait across
+21 calls and 226.565s of overlapping action execution, with 3/5 actions
+completed. Its mandatory reboot observed a real transition and reached a ready
+desktop after 81.107s. Exact long-prose readback must now distinguish
+OCR-inserted visual wrap boundaries from actual document newlines without
+weakening exact verification for intentional line breaks.
+
 Failure-inclusive metrics, canonical campaign digests, the 20 accepted task
 IDs, and the VP9 recording/poster hashes are retained in
 [`codex-50-progress.json`](results/2026-07-31/live-vnc/codex-50-progress.json).

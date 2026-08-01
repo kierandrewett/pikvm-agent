@@ -1228,12 +1228,49 @@
         "sha256": "3f39731e15286235c03fea524ad21cf48d3b06d84af1b0a30bd9f6f460f9e2df"
       },
       "campaign_sha256": "d44b5aea36edc8bdbe5ad0e8b61a80fc1e11b92981baa8030a8a7f8ea838202b"
+    },
+    {
+      "campaign_id": "codex-text-entry-text06-v2-20260801",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "run_id": "da4001e9-2f0f-4846-8daf-d771c3a8d502",
+      "reason": "The first 240-character prose transaction was emitted exactly once with zero corrections, retries, or edit distance. Bounded full-screen OCR found all requested characters but inserted a newline at the visual word-wrap boundary between `he` and `begins`. Semantic normalization returned match while the raw readback hash differed, so the receipt failed closed as unverified_exact_hash_mismatch. Four same-run recovery checkpoints were exhausted, the editor guard blocked further mutation, and the incomplete document was never saved.",
+      "wall_clock_ms": 257596,
+      "provider_wait_ms": 142053,
+      "provider_serial_equivalent_ms": 159582,
+      "provider_overlap_ms": 17529,
+      "action_execution_ms": 226565,
+      "evidence_capture_ms": 802,
+      "provider_calls": 21,
+      "actions_attempted": 5,
+      "actions_completed": 3,
+      "completion_efficiency": 0.6,
+      "same_run_recoveries": 4,
+      "approval_count": 0,
+      "approval_scopes": [],
+      "reboot_ms": 81107,
+      "reboot_transition_observed": true,
+      "recording": {
+        "relative_path": "codex-text-entry-text06-v2-20260801/text-06/recording.webm",
+        "sha256": "09ff6c4e453156981cc1d804162670604a0354452412541cc4f9be97499787b8",
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2,
+        "duration_ms": 305500,
+        "size_bytes": 856246
+      },
+      "poster": {
+        "relative_path": "codex-text-entry-text06-v2-20260801/text-06/poster.jpg",
+        "sha256": "89a9438e0899fae4b06d5e0081528e14c0a3aa6fb8d998b303424a2a5605cd0a"
+      },
+      "campaign_sha256": "b744c6ae2c09a1a1f8b4e5cee63df77ba1c6c7c0902b6ec7002736740b3e04ef"
     }
   ],
   "verdict": {
     "accuracy": "Five exact text tasks now pass with independent reopen evidence. Text-05 verified all 78 path-and-symbol characters and its filename exact-once, completed 12/12 actions, durably reopened the saved file, and verified the mandatory reboot.",
     "speed": "Failing product target: accepted text-05 v2 took 250.155 seconds before reboot; exact entry and readback of the 78-character payload took 34.554 seconds.",
     "dominant_cost": "Text-05 v2 provider waits consumed 149.122 seconds across 26 calls, 59.61% of wall time; action execution consumed 95.246 seconds, with 48.165 seconds of provider-lane overlap.",
-    "next": "Teach guarded long-prose editor verification to localize a complete exact suffix from bounded full-screen OCR when the initial read also contains the already-proven prefix, without allowing arbitrary precise substring containment. Then replay text-06 from the rebooted desktop."
+    "next": "Teach guarded long-prose readback to distinguish an OCR-inserted visual word-wrap newline from an intentional document newline while preserving raw exactness for requested line breaks. Then replay text-06 from the rebooted desktop."
   }
 }
