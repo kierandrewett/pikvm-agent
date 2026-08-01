@@ -1838,6 +1838,7 @@ class WatchedTyper:
                 delivery_text,
                 region=region,
                 code=code,
+                prose=prose,
                 secret=secret,
                 precise=precise,
                 single_line_field=context.casefold() == "field",
@@ -1850,6 +1851,7 @@ class WatchedTyper:
             delivery_text,
             region=region,
             code=code,
+            prose=prose,
             secret=secret,
             precise=precise,
             single_line_field=context.casefold() == "field",
@@ -1865,6 +1867,7 @@ class WatchedTyper:
         *,
         region: Region | None,
         code: bool,
+        prose: bool,
         secret: bool,
         precise: bool,
         single_line_field: bool,
@@ -3002,7 +3005,10 @@ class WatchedTyper:
                 and "\r" not in text
             )
         )
-        if fast_print and needs_bounded_prose_localization:
+        if (
+            (fast_print or (prose and precise))
+            and needs_bounded_prose_localization
+        ):
             # Rich editors wrap prose beyond the first changed-line crop. Do
             # the bounded suffix search against the current grounded field
             # before paying for another screen OCR pass. This covers an

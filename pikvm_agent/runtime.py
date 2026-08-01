@@ -273,6 +273,10 @@ class SessionRuntime:
     # Caller-stable direct-control operations. A response retry must never type
     # or click twice; a key may only be reused for the identical burst.
     burst_idempotency: dict[str, dict[str, Any]] = field(default_factory=dict)
+    # Execution claims are separate from completed response receipts. A client
+    # may retry after its request timeout while watched typing is still doing
+    # OCR readback; identical callers must join that task, never start HID again.
+    burst_inflight: dict[str, dict[str, Any]] = field(default_factory=dict)
     # A manual input report or newly detected machine client invalidates model
     # authority established under an earlier control epoch.
     last_human_input_at: float | None = None
@@ -1077,44 +1081,75 @@ class Runtime:
             if effective_runtime_ms
             else None
         )
+        inflight = sr.burst_inflight.get(key)
+        if inflight is not None and inflight["digest"] != digest:
+            return {
+                "session_id": session_id,
+                "status": "idempotency_conflict",
+                "error": "idempotency_key was already used for a different burst",
+                "control_epoch": sr.control_epoch,
+                "machine": machine,
+            }
+        joined_inflight = inflight is not None
         sr.status = "running"
         await self.store.update_session(session_id, status="running")
         try:
             # The watched typer can't read back a synthetic FakeBackend screen, so skip it
             # under the fake (the verify path is unit-tested directly in test_burst.py).
             typer = None if os.environ.get("PIKVM_AGENT_FAKE") else getattr(self._executor, "typer", None)
-            current_task = asyncio.current_task()
-            if current_task is not None:
-                self._active_hid_tasks.add(current_task)
-                self._hid_idle.clear()
-            try:
-                with DEBUG.span("burst.run", actions=len(actions)) as result:
-                    outcome = await _burst.run_burst(
-                        actions,
-                        backend=self.backend,
-                        should_continue=gate,
-                        deadline_ms=deadline,
-                        typer=typer,
-                    )
-                    result(
-                        status=outcome.status,
-                        completed=outcome.completed,
-                        reason=outcome.reason,
-                    )
-            finally:
-                if current_task is not None:
-                    self._active_hid_tasks.discard(current_task)
-                    if not self._active_hid_tasks:
-                        self._hid_idle.set()
+            if inflight is None:
+                async def execute_once() -> _burst.BurstOutcome:
+                    current_task = asyncio.current_task()
+                    if current_task is not None:
+                        self._active_hid_tasks.add(current_task)
+                        self._hid_idle.clear()
+                    try:
+                        with DEBUG.span("burst.run", actions=len(actions)) as result:
+                            outcome = await _burst.run_burst(
+                                actions,
+                                backend=self.backend,
+                                should_continue=gate,
+                                deadline_ms=deadline,
+                                typer=typer,
+                            )
+                            result(
+                                status=outcome.status,
+                                completed=outcome.completed,
+                                reason=outcome.reason,
+                            )
+                            return outcome
+                    finally:
+                        if current_task is not None:
+                            self._active_hid_tasks.discard(current_task)
+                            if not self._active_hid_tasks:
+                                self._hid_idle.set()
+
+                burst_task = asyncio.create_task(execute_once())
+                inflight = {
+                    "digest": digest,
+                    "task": burst_task,
+                }
+                sr.burst_inflight[key] = inflight
+            else:
+                burst_task = inflight["task"]
+            outcome = await asyncio.shield(burst_task)
         except _burst.BurstError as exc:
             sr.status = "paused"
-            return {
+            failed = {
                 "session_id": session_id,
                 "status": "failed",
                 "error": f"bad burst: {exc}",
                 "control_epoch": sr.control_epoch,
                 "machine": machine,
             }
+            sr.burst_idempotency[key] = {
+                "digest": digest,
+                "status": "completed",
+                "result": copy.deepcopy(failed),
+            }
+            if sr.burst_inflight.get(key) is inflight:
+                sr.burst_inflight.pop(key, None)
+            return failed
 
         post_settle_applied = False
         post_settle_stable: bool | None = None
@@ -1213,6 +1248,8 @@ class Runtime:
             "localized_freshness": localized_freshness,
             "localized_freshness_delta": localized_freshness_delta,
         }
+        if joined_inflight:
+            out["idempotent_inflight_replay"] = True
         current_other_clients = self._other_client_count()
         if current_other_clients:
             out["human_concurrency"] = {
@@ -1230,6 +1267,8 @@ class Runtime:
                 "status": "completed",
                 "result": copy.deepcopy(out),
             }
+            if sr.burst_inflight.get(key) is inflight:
+                sr.burst_inflight.pop(key, None)
         return out
 
     async def _ground_click_targets(

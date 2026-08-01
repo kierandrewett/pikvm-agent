@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import io
 import json
 
@@ -7,6 +8,7 @@ from PIL import Image, ImageDraw
 
 from pikvm_agent.config import AppConfig, PikvmConfig, PolicyConfig
 from pikvm_agent.core.models import OCRLine, OCRResult, Region
+from pikvm_agent.executor import burst as burst_module
 from pikvm_agent.runtime import (
     Runtime,
     RuntimeCapabilities,
@@ -21,6 +23,9 @@ def _hid_calls(runtime: Runtime) -> list[tuple]:
         for call in runtime.backend.calls
         if call[0] in {"click", "keypress", "type_text", "print_text"}
     ]
+
+
+_ORIGINAL_BURST_RUNNER = burst_module.run_burst
 
 
 def _animated_surface_frame(
@@ -215,6 +220,135 @@ async def test_idempotency_replays_result_without_repeating_hid(runtime: Runtime
     assert second["status"] == "completed"
     assert second["idempotent_replay"] is True
     assert _hid_calls(runtime) == calls_after_first
+
+
+async def _run_overlapping_idempotent_requests(
+    runtime: Runtime,
+    monkeypatch,
+    *,
+    cancel_initial_request: bool,
+) -> tuple[dict | None, dict, int]:
+    sid = (await runtime.start_session("direct"))["session_id"]
+    shot = await runtime.get_session_summary(sid, capture=True)
+    kwargs = {
+        "based_on_world_version": shot["world_version"],
+        "based_on_control_epoch": shot["control_epoch"],
+        "idempotency_key": (
+            "cancelled-slow-input"
+            if cancel_initial_request
+            else "slow-exact-input"
+        ),
+    }
+    started = asyncio.Event()
+    release = asyncio.Event()
+    execution_count = 0
+
+    async def slow_run_burst(*args, **call_kwargs):
+        nonlocal execution_count
+        execution_count += 1
+        started.set()
+        await release.wait()
+        return await _ORIGINAL_BURST_RUNNER(*args, **call_kwargs)
+
+    monkeypatch.setattr(
+        "pikvm_agent.runtime._burst.run_burst",
+        slow_run_burst,
+    )
+    first_task = asyncio.create_task(
+        runtime.run_burst(
+            sid,
+            [{"type": "key", "keys": ["CTRL", "F"]}],
+            **kwargs,
+        )
+    )
+    await started.wait()
+    first: dict | None = None
+    if cancel_initial_request:
+        first_task.cancel()
+        try:
+            await first_task
+        except asyncio.CancelledError:
+            pass
+    retry_task = asyncio.create_task(
+        runtime.run_burst(
+            sid,
+            [{"type": "key", "keys": ["CTRL", "F"]}],
+            **kwargs,
+        )
+    )
+    await asyncio.sleep(0.05)
+    release.set()
+    if cancel_initial_request:
+        retry = await retry_task
+    else:
+        first, retry = await asyncio.gather(first_task, retry_task)
+    return first, retry, execution_count
+
+
+async def test_concurrent_and_cancelled_idempotent_retries_join_in_flight_hid(
+    runtime: Runtime,
+    monkeypatch,
+) -> None:
+    """Timeout and cancellation must never let a retry execute HID twice."""
+
+    for cancel_initial_request in (False, True):
+        calls_before = len(_hid_calls(runtime))
+        first, retry, execution_count = (
+            await _run_overlapping_idempotent_requests(
+                runtime,
+                monkeypatch,
+                cancel_initial_request=cancel_initial_request,
+            )
+        )
+
+        assert (first is None) is cancel_initial_request
+        if first is not None:
+            assert first["status"] == "completed"
+        assert retry["status"] == "completed"
+        assert retry["idempotent_inflight_replay"] is True
+        assert execution_count == 1
+        assert len(_hid_calls(runtime)) == calls_before + 1
+
+    sid = (await runtime.start_session("direct"))["session_id"]
+    shot = await runtime.get_session_summary(sid, capture=True)
+    started = asyncio.Event()
+    release = asyncio.Event()
+    execution_count = 0
+
+    async def slow_conflict_runner(*args, **call_kwargs):
+        nonlocal execution_count
+        execution_count += 1
+        started.set()
+        await release.wait()
+        return await _ORIGINAL_BURST_RUNNER(*args, **call_kwargs)
+
+    monkeypatch.setattr(
+        "pikvm_agent.runtime._burst.run_burst",
+        slow_conflict_runner,
+    )
+    first_task = asyncio.create_task(
+        runtime.run_burst(
+            sid,
+            [{"type": "key", "keys": ["CTRL", "F"]}],
+            based_on_world_version=shot["world_version"],
+            based_on_control_epoch=shot["control_epoch"],
+            idempotency_key="in-flight-conflict",
+        )
+    )
+    await started.wait()
+    conflict = await runtime.run_burst(
+        sid,
+        [{"type": "key", "keys": ["CTRL", "G"]}],
+        based_on_world_version=shot["world_version"],
+        based_on_control_epoch=shot["control_epoch"],
+        idempotency_key="in-flight-conflict",
+    )
+    release.set()
+    completed = await first_task
+
+    assert conflict["status"] == "idempotency_conflict"
+    assert completed["status"] == "completed"
+    assert execution_count == 1
 
 
 async def test_stable_click_target_can_act_while_unrelated_video_region_changes(

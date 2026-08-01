@@ -2216,6 +2216,61 @@ async def test_exact_fast_editor_append_localizes_suffix_from_full_document() ->
     _assert_no_enter(backend)
 
 
+async def test_exact_short_editor_suffix_proves_its_leading_word_boundary() -> None:
+    """Full-document pixels can prove one OCR-elided continuation space."""
+
+    backend = FakeBackend()
+    intended = " his tragic downfall."
+    typer = WatchedTyper(backend, ScriptedOCR(""))
+    screen_reads = 0
+
+    async def boundary_blind_field_read(
+        region: Region,
+        *,
+        intended: str | None = None,
+        **_kwargs,
+    ) -> str:
+        del region
+        return (intended or "").lstrip()
+
+    async def complete_document_screen(
+        *,
+        precise: bool = False,
+    ) -> OCRResult:
+        nonlocal screen_reads
+        del precise
+        screen_reads += 1
+        return OCRResult(
+            lines=[
+                OCRLine(
+                    text=(
+                        "By the end, ambition directs every choice toward "
+                        "ruin and brings his tragic downfall."
+                    ),
+                    confidence=0.99,
+                )
+            ]
+        )
+
+    typer._read_field = boundary_blind_field_read  # type: ignore[method-assign]
+    typer._read_screen = complete_document_screen  # type: ignore[method-assign]
+
+    result = await typer.type_text(
+        intended,
+        region=Region(x=10, y=10, width=900, height=300),
+        prose=True,
+        exact=True,
+        context="editor",
+    )
+
+    assert result.used_fast_path is False
+    assert result.status == "verified_exact"
+    assert result.field_text == intended
+    assert result.emitted_exactly_once is True
+    assert screen_reads == 1
+    _assert_no_enter(backend)
+
+
 async def test_exact_fast_editor_canonicalizes_visual_word_wrap() -> None:
     """A soft visual wrap must not turn exact prose into a raw-hash mismatch."""
 
