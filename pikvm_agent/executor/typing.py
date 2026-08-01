@@ -1842,6 +1842,7 @@ class WatchedTyper:
         ) -> Region | None:
             """Choose among causal line deltas only by exact cropped OCR."""
 
+            nonlocal last_read, verified_clean
             if (
                 not precise
                 or total > 20
@@ -1954,6 +1955,22 @@ class WatchedTyper:
                         frame_sha256
                         if re.fullmatch(r"[0-9a-f]{64}", frame_sha256)
                         else hashlib.sha256(after_frame.data).hexdigest()
+                    )
+                    # This OCR is already grounded to the before/after pixel
+                    # delta from the current at-most-once emission. A unique
+                    # exact row, confidence gate, and independently verified
+                    # visible spacing are stronger evidence than a later
+                    # multi-line crop. Retain it as the terminal receipt
+                    # instead of paying for a noisier second OCR pass.
+                    last_read = intended_snapshot
+                    verified_clean = True
+                    DEBUG.event(
+                        "typing.causal_exact_row_retained",
+                        intended_characters=len(intended_snapshot),
+                        readback_frame_sha256=(
+                            self._last_readback_frame_sha256
+                        ),
+                        region=matched_region.model_dump(),
                     )
                     DEBUG.event(
                         "typing.dense_candidate_scan",
@@ -2662,7 +2679,11 @@ class WatchedTyper:
                 grid_prev = grid_now
                 dense_prev = dense_now
 
-            if cadence(i) and cur_region is not None:
+            if (
+                not verified_clean
+                and cadence(i)
+                and cur_region is not None
+            ):
                 rb = await read_current_field(typed_so_far)
                 await maybe_correct(rb, typed_so_far)
                 if corrections > 0:

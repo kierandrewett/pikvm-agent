@@ -952,12 +952,46 @@
         "sha256": "1572564d90f2effa2c23111330fc032292dba9d881eaca262b7062047b146024"
       },
       "campaign_sha256": "188032bc347e3b98dc34844c1a87ecfa3c75e1db9bb5e297b97165a0e07edb9e"
+    },
+    {
+      "campaign_id": "codex-text-entry-text04-v12-20260801",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "run_id": "56e18d38-ecf2-4907-9378-fc20119496a4",
+      "reason": "The corrected crop geometry gave `1. Observe` a verified_exact receipt with 10/10 observed characters, exact-once emission, and matching hashes. The causal before/after crop then independently read `2. Act` exactly with verified spacing, but the typer discarded that proof and paid for noisier multi-line reads that alternated between `Act` and `observe\\nAct`. The editor guard stopped the repeated correction attempts before line 3.",
+      "wall_clock_ms": 197757,
+      "provider_wait_ms": 111367,
+      "action_execution_ms": 80376,
+      "provider_calls": 16,
+      "actions_attempted": 6,
+      "actions_completed": 5,
+      "completion_efficiency": 0.8333333333333334,
+      "same_run_recoveries": 3,
+      "approval_count": 0,
+      "approval_scopes": [],
+      "reboot_ms": 81952,
+      "reboot_transition_observed": true,
+      "recording": {
+        "relative_path": "codex-text-entry-text04-v12-20260801/text-04/recording.webm",
+        "sha256": "592c619336e255ed6297f1bd15cc9290fbffba360094f5e543690d45b131aebb",
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2,
+        "duration_ms": 258000,
+        "size_bytes": 781129
+      },
+      "poster": {
+        "relative_path": "codex-text-entry-text04-v12-20260801/text-04/poster.jpg",
+        "sha256": "72702520e5dfd952d388e54be6ed50c58439294578881ccc225c61f06e8ae1fc"
+      },
+      "campaign_sha256": "a55bf75031ba7f5fe188217356b9fbb4c75dbf654a617eceda25bf76e23346b1"
     }
   ],
   "verdict": {
     "accuracy": "Three exact text tasks now pass with independent reopen evidence. Text-03 includes a durable completed Ctrl+O transition and visible post-open paragraph verification.",
     "speed": "Failing product target: accepted text-03 v6 took 380.612 seconds before reboot and required two recoveries.",
     "dominant_cost": "Text-03 v6 provider waits consumed 208.161 seconds across 34 calls, while action execution consumed 243.335 seconds; overlapping work prevents these components from summing directly to wall time.",
-    "next": "Replay text-04 with corrected crop-to-screen OCR geometry and the bounded delayed-frame verification refresh; accept only same-run exact receipts, durably verified Save and reopen transitions, visible exact content, and a successful mandatory reboot."
+    "next": "Replay text-04 with direct retention of unique current-emission causal exact-row proof and the bounded delayed-frame verification refresh; accept only same-run exact receipts, durably verified Save and reopen transitions, visible exact content, and a successful mandatory reboot."
   }
 }

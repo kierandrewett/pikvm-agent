@@ -311,7 +311,7 @@ after 77.360s. Failed or uncertain action verification now performs a bounded,
 read-only frame refresh and recalls the verifier once only if the image bytes
 changed. A delayed frame also invalidates the speculative next controller;
 unchanged pixels trigger no extra model call. The combined remediation passes
-322 focused typing, burst, and managed-agent tests. Text-04 remains pending
+323 focused typing, burst, and managed-agent tests. Text-04 remains pending
 until this bounded delayed-frame handoff passes a clean live replay.
 
 Text-04 v11 failed earlier in the flow and therefore did not exercise the
@@ -330,6 +330,22 @@ translated through the actual readback crop before becoming screen regions;
 the recorded frame reads `1. Observe` at approximately 95% local OCR
 confidence with the corrected geometry. Text-04 remains pending until a clean
 live replay reaches and passes the delayed Save/reopen verification boundary.
+
+Text-04 v12 proved the crop-to-screen correction live: `1. Observe` received a
+`verified_exact` receipt with 10/10 observed characters, zero corrections or
+delivery retries, a single emission, and matching requested, delivery, issued,
+emitted, and readback hashes. The next row exposed redundant evidence work.
+The causal before/after crop independently read `2. Act` exactly with verified
+spacing, but the typer discarded that result and paid for several noisier
+multi-line reads; those alternated between `Act` and `observe\nAct`, so the
+fail-closed editor guard stopped the run before line 3. v12 failed after
+197.757s before reboot: 111.367s of provider wait and 80.376s of action
+execution across 16 calls, with 5/6 actions completed. Its mandatory reboot
+observed a real transition and reached a ready desktop after 81.952s. A unique,
+confidence-gated exact row from the current emission's before/after pixel delta
+with verified visible spacing is now retained as the terminal receipt; no
+second OCR call is made and no additional HID is emitted. Text-04 remains
+pending until this direct causal-proof path passes a clean live replay.
 
 Failure-inclusive metrics, canonical campaign digests, the 18 accepted task
 IDs, and the VP9 recording/poster hashes are retained in

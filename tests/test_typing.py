@@ -619,7 +619,57 @@ async def test_short_exact_typing_checks_all_causal_lines_when_coarse_crop_is_wr
     assert any(region is not None and region.y < 200 for region in ocr.regions)
 
 
-async def test_short_exact_typing_refines_causal_crop_to_the_exact_ocr_row(
+async def test_causal_exact_row_finishes_without_a_noisier_second_read(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    backend = _ambiguous_dense_typing_backend(monkeypatch)
+
+    class OneExactCausalReadOCR:
+        def __init__(self) -> None:
+            self.target_reads = 0
+
+        async def ocr(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path
+            if region is None or region.y >= 200:
+                return OCRResult()
+            self.target_reads += 1
+            return OCRResult(
+                lines=[
+                    OCRLine(
+                        text="2. Act",
+                        confidence=0.99,
+                        bbox=[40, 6, 78, 18],
+                    )
+                ],
+                spacing_evidence="verified",
+            )
+
+        async def ocr_precise(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            return await self.ocr(image_path, region)
+
+    ocr = OneExactCausalReadOCR()
+
+    result = await WatchedTyper(backend, ocr).type_text(
+        "2. Act",
+        exact=True,
+        context="editor",
+    )
+
+    assert result.status == "verified_exact"
+    assert result.field_text == "2. Act"
+    assert result.emitted_exactly_once is True
+    assert ocr.target_reads == 1
+
+
+async def test_short_exact_typing_keeps_the_unique_causal_exact_ocr_row(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     backend = _ambiguous_dense_typing_backend(monkeypatch)
@@ -633,8 +683,9 @@ async def test_short_exact_typing_refines_causal_crop_to_the_exact_ocr_row(
     assert result.status == "verified_exact"
     assert result.field_text == "3. Verify"
     assert result.emitted_exactly_once is True
+    assert ocr.target_candidate_reads == 1
     assert any(
-        region is not None and 92 <= region.y < 200
+        region is not None and region.y < 92
         for region in ocr.regions
     )
 
