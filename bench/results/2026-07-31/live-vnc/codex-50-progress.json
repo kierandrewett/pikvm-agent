@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "report": "codex-50-live-progress",
-  "recorded_at": "2026-08-01T03:39:38Z",
+  "recorded_at": "2026-08-01T03:58:31Z",
   "manifest": "bench/codex-50-tasks.yaml",
   "environment": {
     "target": "authorized disposable Windows VNC VM",
@@ -16,9 +16,9 @@
   },
   "progress": {
     "planned": 50,
-    "unique_passed": 19,
-    "pending": 31,
-    "completion_percent": 38.0,
+    "unique_passed": 20,
+    "pending": 30,
+    "completion_percent": 40.0,
     "categories": {
       "Observation": {
         "passed": 5,
@@ -29,7 +29,7 @@
         "planned": 10
       },
       "Text entry": {
-        "passed": 4,
+        "passed": 5,
         "planned": 10
       },
       "Code entry": {
@@ -68,7 +68,8 @@
       "text-01",
       "text-02",
       "text-03",
-      "text-04"
+      "text-04",
+      "text-05"
     ]
   },
   "canonical_campaigns": [
@@ -168,6 +169,13 @@
         "text-04"
       ],
       "campaign_sha256": "28c480138fc3ba720a2c58062927edd91b51e2f71b74c4d542b5355f189da208"
+    },
+    {
+      "campaign_id": "codex-text-entry-text05-v2-20260801",
+      "tasks": [
+        "text-05"
+      ],
+      "campaign_sha256": "ee744da68b5a2d99d28f1596f0307fc5cb0ee89b1d3e802f76ea015ca40f2a3c"
     }
   ],
   "calc_09_acceptance": {
@@ -1070,6 +1078,44 @@
       "campaign_sha256": "28c480138fc3ba720a2c58062927edd91b51e2f71b74c4d542b5355f189da208"
     }
   ],
+  "text_05_acceptance": {
+    "task": "Type and reopen an exact symbol-heavy Windows path line",
+    "result": "passed",
+    "run_id": "9de1a910-c23e-4dee-9159-56d403ae3412",
+    "reason": "Windows ANSI Alt code 0092 delivered both backslashes independently of the EN-GB physical layout. The full 78-character payload and text-05.txt received verified_exact receipts with zero corrections or retries, exact-once emission, and matching requested, delivery, issued, emitted, and readback hashes. The native Save/Open workflow then reopened the file and independently verified every symbol.",
+    "wall_clock_ms": 250155,
+    "provider_wait_ms": 149122,
+    "provider_serial_equivalent_ms": 197287,
+    "provider_overlap_ms": 48165,
+    "action_execution_ms": 95246,
+    "evidence_capture_ms": 2719,
+    "provider_calls": 26,
+    "actions_attempted": 12,
+    "actions_completed": 12,
+    "completion_efficiency": 1.0,
+    "same_run_recoveries": 1,
+    "approval_count": 1,
+    "approval_scopes": [
+      "bounded_workspace_edit"
+    ],
+    "reboot_ms": 78736,
+    "reboot_transition_observed": true,
+    "recording": {
+      "relative_path": "codex-text-entry-text05-v2-20260801/text-05/recording.webm",
+      "sha256": "3b3776d7a0ddb90bc0fd4c1da223478e46f0fe30d376a177b6902629d0d43474",
+      "codec": "vp9",
+      "width": 2048,
+      "height": 1280,
+      "fps": 2,
+      "duration_ms": 316000,
+      "size_bytes": 1027312
+    },
+    "poster": {
+      "relative_path": "codex-text-entry-text05-v2-20260801/text-05/poster.jpg",
+      "sha256": "08a264ed3450bc4f813e1cffa483471e46b9d5b343268c455824d742f724e79e"
+    },
+    "campaign_sha256": "ee744da68b5a2d99d28f1596f0307fc5cb0ee89b1d3e802f76ea015ca40f2a3c"
+  },
   "text_05_attempts": [
     {
       "campaign_id": "codex-text-entry-text05-v1-20260801",
@@ -1107,12 +1153,48 @@
         "sha256": "3564ae895fb46718e2eb94a18bb42272517e0dfd8a300191a4897a7459ff7d5d"
       },
       "campaign_sha256": "bfd90217b7de16150ba94cab474cc19241dcc5916761c7f00178087df87afe23"
+    },
+    {
+      "campaign_id": "codex-text-entry-text05-v2-20260801",
+      "reported_status": "passed",
+      "accepted_status": "passed",
+      "run_id": "9de1a910-c23e-4dee-9159-56d403ae3412",
+      "reason": "Windows ANSI Alt code 0092 delivered both backslashes correctly. The complete 78-character payload and text-05.txt received verified_exact receipts with edit distance zero, zero corrections or retries, exact-once emission, and matching hashes. The completed native Save/Open flow reopened the saved file and independently verified every symbol.",
+      "wall_clock_ms": 250155,
+      "provider_wait_ms": 149122,
+      "action_execution_ms": 95246,
+      "provider_calls": 26,
+      "actions_attempted": 12,
+      "actions_completed": 12,
+      "completion_efficiency": 1.0,
+      "same_run_recoveries": 1,
+      "approval_count": 1,
+      "approval_scopes": [
+        "bounded_workspace_edit"
+      ],
+      "reboot_ms": 78736,
+      "reboot_transition_observed": true,
+      "recording": {
+        "relative_path": "codex-text-entry-text05-v2-20260801/text-05/recording.webm",
+        "sha256": "3b3776d7a0ddb90bc0fd4c1da223478e46f0fe30d376a177b6902629d0d43474",
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2,
+        "duration_ms": 316000,
+        "size_bytes": 1027312
+      },
+      "poster": {
+        "relative_path": "codex-text-entry-text05-v2-20260801/text-05/poster.jpg",
+        "sha256": "08a264ed3450bc4f813e1cffa483471e46b9d5b343268c455824d742f724e79e"
+      },
+      "campaign_sha256": "ee744da68b5a2d99d28f1596f0307fc5cb0ee89b1d3e802f76ea015ca40f2a3c"
     }
   ],
   "verdict": {
-    "accuracy": "Four exact text tasks now pass with independent reopen evidence. Text-04 completed all 16 actions with exact-once receipts for every requested line and filename, durable Save/Open verification, no retyping recovery, and a verified reboot.",
-    "speed": "Failing product target: accepted text-04 v13 took 276.097 seconds before reboot despite cutting the six-character causal-proof action from 46.235 seconds in v12 to 8.228 seconds.",
-    "dominant_cost": "Text-04 v13 provider waits consumed 163.741 seconds across 30 calls, 59.31% of wall time; action execution consumed 105.278 seconds, with 29.620 seconds of provider-lane overlap.",
-    "next": "Replace the Windows VNC transport's layout-dependent backslash delivery with a regression-tested semantic path, then replay text-05 from the rebooted desktop. Accept only an exact current-run receipt, durable Save and reopen evidence, a complete recording, and a successful mandatory reboot."
+    "accuracy": "Five exact text tasks now pass with independent reopen evidence. Text-05 verified all 78 path-and-symbol characters and its filename exact-once, completed 12/12 actions, durably reopened the saved file, and verified the mandatory reboot.",
+    "speed": "Failing product target: accepted text-05 v2 took 250.155 seconds before reboot; exact entry and readback of the 78-character payload took 34.554 seconds.",
+    "dominant_cost": "Text-05 v2 provider waits consumed 149.122 seconds across 26 calls, 59.61% of wall time; action execution consumed 95.246 seconds, with 48.165 seconds of provider-lane overlap.",
+    "next": "Run the 120-160 word text-06 task from the rebooted desktop and measure whether long-prose generation, transport, OCR/readback, durable Save/reopen evidence, recording, and reboot complete without fallback encoding or unsafe replay."
   }
 }

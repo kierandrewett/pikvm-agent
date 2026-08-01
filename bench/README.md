@@ -51,8 +51,8 @@ support a claim of generally reliable autonomous Windows operation.
 
 ### Live 50-task Windows campaign
 
-The active disposable-Windows campaign has **19/50 unique accepted passes
-(38%)**. Every attempt is screen-recorded, every test ends with a VM reboot,
+The active disposable-Windows campaign has **20/50 unique accepted passes
+(40%)**. Every attempt is screen-recorded, every test ends with a VM reboot,
 and a pass is counted only once even when the same task is rerun during
 remediation. Production PiKVM was not contacted.
 
@@ -60,12 +60,12 @@ remediation. Production PiKVM was not contacted.
 | --- | ---: | ---: | --- |
 | Observation | 5 | 5 | Complete |
 | Calculator | 10 | 10 | Complete |
-| Text entry | 4 | 10 | `text-01` through `text-04` accepted |
+| Text entry | 5 | 10 | `text-01` through `text-05` accepted |
 | Code entry | 0 | 10 | Pending |
 | File management | 0 | 5 | Pending |
 | Microsoft Excel | 0 | 5 | Pending |
 | Microsoft Word | 0 | 5 | Pending |
-| **Total** | **19** | **50** | **31 pending** |
+| **Total** | **20** | **50** | **30 pending** |
 
 The Calculator category is complete. The final temperature-conversion task
 visibly produced `23 °C = 73.4 °F`, completed 7/7 actions, and rebooted the VM
@@ -383,7 +383,27 @@ mandatory reboot observed a real transition and reached a ready desktop after
 75.704s. The Windows VNC transport now needs a live-proven layout-independent
 backslash path before text-05 can be accepted.
 
-Failure-inclusive metrics, canonical campaign digests, the 19 accepted task
+Text-05 v2 is the accepted live proof for the corrected transport. Windows
+ANSI Alt code `0092` delivered each backslash independently of the EN-GB
+physical layout. The full 78-character payload received a `verified_exact`
+receipt with edit distance zero, zero corrections or delivery retries, one
+78-character emission, and identical requested, delivery, issued, emitted,
+and readback hashes. `text-05.txt` received the same exact-once evidence. The
+native workflow then saved, opened the saved-file dialog, selected the file,
+committed Open, and independently verified every symbol in the reopened
+document. All 12 actions completed; one same-run resume supplied the missing
+visible filename evidence after Save and one expected
+`bounded_workspace_edit` approval was granted.
+
+The accepted run took 250.155s before reboot: 149.122s of provider wait across
+26 calls and 95.246s of action execution, with 48.165s of provider-lane
+overlap. Exact entry and OCR verification of all 78 characters took 34.554s.
+The mandatory reboot observed a real transition and reached a ready desktop
+after 78.736s. The VP9 evidence is 316.0s at 2048×1280 and 2 fps. Accuracy now
+passes this symbol-heavy gate; provider wait remains 59.61% of wall time and
+still fails the product speed target.
+
+Failure-inclusive metrics, canonical campaign digests, the 20 accepted task
 IDs, and the VP9 recording/poster hashes are retained in
 [`codex-50-progress.json`](results/2026-07-31/live-vnc/codex-50-progress.json).
 The complete 50-task manifest is
