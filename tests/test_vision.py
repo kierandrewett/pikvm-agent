@@ -230,7 +230,7 @@ async def test_tesseract_general_profile_keeps_the_two_read_latency_budget(
     assert sorted(observed_sizes) == [(100, 50), (200, 100)]
 
 
-async def test_tesseract_precise_uses_sparse_text_mode_for_a_slender_field(
+async def test_tesseract_precise_uses_single_line_mode_for_a_tight_row(
     tmp_path,
     monkeypatch,
 ) -> None:
@@ -258,7 +258,7 @@ async def test_tesseract_precise_uses_sparse_text_mode_for_a_slender_field(
     )
 
     assert observed_psms
-    assert set(observed_psms) == {12}
+    assert set(observed_psms) == {7}
 
 
 async def test_tesseract_region_adds_context_and_translates_boxes(
@@ -1605,20 +1605,32 @@ def test_tesseract_button_borders_split_adjacent_controls() -> None:
 
 
 def test_tesseract_recovers_repeated_spaces_from_collinear_split_words() -> None:
-    tsv = "\n".join(
+    three_space_tsv = "\n".join(
         [
             "level\tpage_num\tblock_num\tpar_num\tline_num\tword_num\tleft\ttop\twidth\theight\tconf\ttext",
             "5\t1\t1\t1\t1\t1\t10\t16\t24\t7\t66\tgamma",
             "5\t1\t1\t1\t1\t2\t49\t14\t25\t7\t94\tdelta",
         ]
     )
+    four_space_tsv = "\n".join(
+        [
+            "level\tpage_num\tblock_num\tpar_num\tline_num\tword_num\tleft\ttop\twidth\theight\tconf\ttext",
+            "5\t1\t1\t1\t1\t1\t8\t9\t34\t9\t96\tepsilon",
+            "5\t1\t1\t1\t1\t2\t64\t10\t19\t6\t96\tzeta",
+        ]
+    )
 
-    lines = _parse_tsv(tsv)
+    three_space_lines = _parse_tsv(three_space_tsv)
+    four_space_lines = _parse_tsv(four_space_tsv)
 
-    assert len(lines) == 1
-    assert lines[0].text == "gamma delta"
-    assert lines[0].raw is not None
-    assert lines[0].raw["spacing_text"] == "gamma   delta"
+    assert len(three_space_lines) == 1
+    assert three_space_lines[0].text == "gamma delta"
+    assert three_space_lines[0].raw is not None
+    assert three_space_lines[0].raw["spacing_text"] == "gamma   delta"
+    assert len(four_space_lines) == 1
+    assert four_space_lines[0].text == "epsilon zeta"
+    assert four_space_lines[0].raw is not None
+    assert four_space_lines[0].raw["spacing_text"] == "epsilon    zeta"
 
 
 def test_tesseract_rejoins_machine_tokens_without_merging_prose() -> None:

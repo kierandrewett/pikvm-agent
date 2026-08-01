@@ -792,11 +792,15 @@ async def test_causal_spacing_reocrs_only_the_matching_row(
             return OCRResult(
                 lines=[
                     OCRLine(
-                        text="alpha beta",
-                        confidence=0.95,
-                        bbox=[2, 2, 56, 10],
-                        raw={"spacing_text": intended},
-                    )
+                        text="alpha",
+                        confidence=0.9995,
+                        bbox=[2, 2, 30, 10],
+                    ),
+                    OCRLine(
+                        text="beta",
+                        confidence=0.9997,
+                        bbox=[37, 2, 56, 10],
+                    ),
                 ],
                 alternatives=[
                     OCRCandidate(

@@ -315,7 +315,7 @@ def _parse_tsv(
         maximum_word_gap = max(
             12,
             round(median_height * 1.75),
-            round(median_character_width * 4.25),
+            round(median_character_width * 4.75),
         )
         segments: list[list[dict[str, float | int | str]]] = []
         for word in words:
@@ -702,15 +702,19 @@ class TesseractOcrProvider:
             )
             if scale != primary_upscale
         )
-        precise_psm = (
-            12
-            if (
-                region is not None
-                and region.height <= 48
-                and region.width >= region.height * 4
-            )
-            else self.psm
-        )
+        precise_psm = self.psm
+        if (
+            region is not None
+            and region.height <= 24
+            and region.width >= region.height * 3
+        ):
+            precise_psm = 7
+        elif (
+            region is not None
+            and region.height <= 48
+            and region.width >= region.height * 4
+        ):
+            precise_psm = 12
         return await self._ocr(
             image_path,
             region=region,

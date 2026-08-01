@@ -2195,6 +2195,28 @@ class WatchedTyper:
                                 )
                             )
                         ]
+                        if not spacing_rows:
+                            spacing_rows = matching_collinear_ocr_rows(
+                                result.lines,
+                                intended_snapshot,
+                                (
+                                    max(
+                                        1,
+                                        math.ceil(
+                                            candidate_readback_region.width
+                                        ),
+                                    ),
+                                    max(
+                                        1,
+                                        math.ceil(
+                                            candidate_readback_region.height
+                                        ),
+                                    ),
+                                ),
+                                minimum_confidence=(
+                                    MIN_GROUNDED_EXACT_OCR_CONFIDENCE
+                                ),
+                            )
                         if len(spacing_rows) == 1:
                             source_row = spacing_rows[0]
                             exact_rows = [
