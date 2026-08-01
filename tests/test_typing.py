@@ -562,19 +562,32 @@ class _AdjacentLineOCR:
         "intended",
         "visible_text",
         "spacing_evidence",
-        "spacing_alternative",
+        "spacing_alternative_text",
         "expected_status",
     ),
     [
-        ("2. Act", "2. Act", "verified", False, "verified_exact"),
-        ("2. Act", "2. Act", "uncertain", True, "verified_exact"),
-        ("2. Act", "2. Act", "uncertain", False, "unverified_ambiguous"),
-        ("alpha  beta", "alpha beta", "uncertain", True, "verified_exact"),
+        ("2. Act", "2. Act", "verified", None, "verified_exact"),
+        ("2. Act", "2. Act", "uncertain", "2. Act", "verified_exact"),
+        ("2. Act", "2. Act", "uncertain", None, "unverified_ambiguous"),
         (
             "alpha  beta",
             "alpha beta",
             "uncertain",
-            False,
+            "alpha  beta",
+            "verified_exact",
+        ),
+        (
+            "alpha  beta",
+            "alpha beta",
+            "uncertain",
+            "1\nalpha  beta",
+            "verified_exact",
+        ),
+        (
+            "alpha  beta",
+            "alpha beta",
+            "uncertain",
+            None,
             "unverified_ambiguous",
         ),
     ],
@@ -584,7 +597,7 @@ async def test_short_exact_typing_checks_all_causal_lines_when_coarse_crop_is_wr
     intended: str,
     visible_text: str,
     spacing_evidence: str,
-    spacing_alternative: bool,
+    spacing_alternative_text: str | None,
     expected_status: str,
 ) -> None:
     backend = _ambiguous_dense_typing_backend(monkeypatch)
@@ -607,11 +620,11 @@ async def test_short_exact_typing_checks_all_causal_lines_when_coarse_crop_is_wr
                 alternatives=(
                     [
                         OCRCandidate(
-                            text=intended,
+                            text=spacing_alternative_text,
                             evidence_kind="spacing",
                         )
                     ]
-                    if spacing_alternative
+                    if spacing_alternative_text is not None
                     else []
                 ),
                 spacing_evidence=spacing_evidence,
@@ -629,6 +642,7 @@ async def test_short_exact_typing_checks_all_causal_lines_when_coarse_crop_is_wr
         intended,
         exact=True,
         context="editor",
+        code="  " in intended,
     )
 
     assert result.status == expected_status

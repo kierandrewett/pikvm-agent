@@ -2001,7 +2001,18 @@ class WatchedTyper:
                         result.spacing_evidence == "verified"
                         or any(
                             alternative.evidence_kind == "spacing"
-                            and alternative.text == intended_snapshot
+                            and (
+                                alternative.text == intended_snapshot
+                                or (
+                                    "\n" not in intended_snapshot
+                                    and "\r" not in intended_snapshot
+                                    and sum(
+                                        row == intended_snapshot
+                                        for row in alternative.text.splitlines()
+                                    )
+                                    == 1
+                                )
+                            )
                             for alternative in result.alternatives
                         )
                     )
