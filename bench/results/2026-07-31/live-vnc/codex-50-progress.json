@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "report": "codex-50-live-progress",
-  "recorded_at": "2026-08-01T14:49:52Z",
+  "recorded_at": "2026-08-01T15:54:17Z",
   "manifest": "bench/codex-50-tasks.yaml",
   "environment": {
     "target": "authorized disposable Windows VNC VM",
@@ -16,9 +16,9 @@
   },
   "progress": {
     "planned": 50,
-    "unique_passed": 21,
-    "pending": 29,
-    "completion_percent": 42.0,
+    "unique_passed": 22,
+    "pending": 28,
+    "completion_percent": 44.0,
     "categories": {
       "Observation": {
         "passed": 5,
@@ -29,7 +29,7 @@
         "planned": 10
       },
       "Text entry": {
-        "passed": 6,
+        "passed": 7,
         "planned": 10
       },
       "Code entry": {
@@ -70,7 +70,8 @@
       "text-03",
       "text-04",
       "text-05",
-      "text-06"
+      "text-06",
+      "text-07"
     ]
   },
   "canonical_campaigns": [
@@ -184,6 +185,13 @@
         "text-06"
       ],
       "campaign_sha256": "a782dc0408ef6322c8795f895070af2e19abe58b8eb41c442a03de9be0d6a95e"
+    },
+    {
+      "campaign_id": "codex-text-entry-text07-v3-20260801",
+      "tasks": [
+        "text-07"
+      ],
+      "campaign_sha256": "515ee07ec357bbcc8c1e71a8f546c545b8077f4672ff1f0379396e0f0e5e9393"
     }
   ],
   "calc_09_acceptance": {
@@ -1581,10 +1589,171 @@
       "campaign_sha256": "a782dc0408ef6322c8795f895070af2e19abe58b8eb41c442a03de9be0d6a95e"
     }
   ],
+  "text_07_acceptance": {
+    "task": "Write, save, reopen, and verify a 150–200-word product brief with Problem, Users, Promise, and Proof headings",
+    "result": "passed",
+    "run_id": "8d52075f-c186-4e2f-b012-2fbc66a1e4e5",
+    "reason": "The reopened Notepad file visibly retained all four requested headings and 157 words of generated product-brief content. Every prose transaction and heading received an exact visual readback with exact-once emission. The previously failing Proof heading was independently verified in 6.004 seconds with matching requested, emitted, and readback hashes. Save required one bounded workspace-edit approval, native Open selected the saved file, quiescence was confirmed, and the mandatory reboot observed a real transition.",
+    "word_count": 157,
+    "wall_clock_ms": 809359,
+    "provider_wait_ms": 358773,
+    "provider_serial_equivalent_ms": 485782,
+    "provider_overlap_ms": 127009,
+    "action_execution_ms": 774461,
+    "evidence_capture_ms": 7329,
+    "provider_calls": 61,
+    "actions_attempted": 26,
+    "actions_completed": 25,
+    "completion_efficiency": 0.9615384615384616,
+    "repeated_actions_stopped": 1,
+    "same_run_recoveries": 2,
+    "approval_count": 1,
+    "approval_scopes": [
+      "bounded_workspace_edit"
+    ],
+    "quiescence_status": "confirmed",
+    "reboot_ms": 77098,
+    "reboot_transition_observed": true,
+    "recording": {
+      "relative_path": "codex-text-entry-text07-v3-20260801/text-07/recording.webm",
+      "sha256": "e2c7223dcd1655c849e2f12e0034322e79eaae362bf62f8824640b1155ef8053",
+      "codec": "vp9",
+      "width": 2048,
+      "height": 1280,
+      "fps": 2,
+      "duration_ms": 762500,
+      "size_bytes": 2255231
+    },
+    "poster": {
+      "relative_path": "codex-text-entry-text07-v3-20260801/text-07/poster.jpg",
+      "sha256": "bb8d0531dd1234dde58669e7d37faa95e970f909d7f6fcbe9a950126c5227b3b"
+    },
+    "campaign_sha256": "515ee07ec357bbcc8c1e71a8f546c545b8077f4672ff1f0379396e0f0e5e9393"
+  },
+  "text_07_attempts": [
+    {
+      "campaign_id": "codex-text-entry-text07-v1-20260801",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "run_id": "86fe8246-ac5b-437c-918e-f604addca1bf",
+      "reason": "The controller used bare Enter after the Proof heading. The runner refused the unknown, potentially submitting key action and did not auto-approve it. No file was saved. Quiescence was confirmed and the reboot transition was observed, but the 180-second campaign ready gate expired before the later read-only health check found the clean desktop.",
+      "wall_clock_ms": 172896,
+      "provider_wait_ms": 108917,
+      "provider_serial_equivalent_ms": 166789,
+      "provider_overlap_ms": 57872,
+      "action_execution_ms": 140414,
+      "evidence_capture_ms": 2309,
+      "provider_calls": 21,
+      "actions_attempted": 11,
+      "actions_completed": 9,
+      "completion_efficiency": 0.8181818181818182,
+      "same_run_recoveries": 0,
+      "approval_count": 0,
+      "approval_scopes": [],
+      "quiescence_status": "confirmed",
+      "reboot_ms": 181491,
+      "reboot_transition_observed": true,
+      "reboot_ready_observed_within_gate": false,
+      "recording": {
+        "relative_path": "codex-text-entry-text07-v1-20260801/text-07/recording.webm",
+        "sha256": "59afe3466c3ade2cc7204a432ef229de4284f9e2f34c56ff04c08a356c767629",
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2,
+        "duration_ms": 303500,
+        "size_bytes": 718862
+      },
+      "poster": {
+        "relative_path": "codex-text-entry-text07-v1-20260801/text-07/poster.jpg",
+        "sha256": "70ee3b2ca6f2617eaadab0f4be8a1828b376fb6e2161633f383070d6246c664a"
+      },
+      "campaign_sha256": "35ef447b634f594a6665c14bcb45dee7d778f90cf52651bbb7b2ea6e00e1d9ce"
+    },
+    {
+      "campaign_id": "codex-text-entry-text07-v2-20260801",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "run_id": "2c59a146-1de2-4c5f-9567-4a1d5b1fe417",
+      "reason": "Shift+Enter correctly produced non-submitting editor newlines. A 235-character Promise transaction then lost its final visible character under the original 10ms/25ms Windows key cadence, and suffix-only recovery completed without replay. Later, Proof was visibly present and emitted exactly once, but the coarse OCR locator repeatedly read Notepad's changing status row for 86.754 seconds. The editor guard blocked progression and the same-run recovery limit stopped the run.",
+      "wall_clock_ms": 616768,
+      "provider_wait_ms": 248196,
+      "provider_serial_equivalent_ms": 340877,
+      "provider_overlap_ms": 92681,
+      "action_execution_ms": 585059,
+      "evidence_capture_ms": 3787,
+      "provider_calls": 42,
+      "actions_attempted": 18,
+      "actions_completed": 15,
+      "completion_efficiency": 0.8333333333333334,
+      "same_run_recoveries": 4,
+      "approval_count": 0,
+      "approval_scopes": [],
+      "quiescence_status": "confirmed",
+      "reboot_ms": 111995,
+      "reboot_transition_observed": true,
+      "recording": {
+        "relative_path": "codex-text-entry-text07-v2-20260801/text-07/recording.webm",
+        "sha256": "930c741ffa76480f742ea676d84a77a0c74c5d3b74c9e2e0fbcf52c063281612",
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2,
+        "duration_ms": 641500,
+        "size_bytes": 1636482
+      },
+      "poster": {
+        "relative_path": "codex-text-entry-text07-v2-20260801/text-07/poster.jpg",
+        "sha256": "65f31628ecb00e07047ffc2ac31a2b0007d0e837d96bbaaf1cdb406db8908484"
+      },
+      "campaign_sha256": "b26f1a9c7a67d91c83700f31e21692a2b6ab85e3d47685647a8cbdfe880478ff"
+    },
+    {
+      "campaign_id": "codex-text-entry-text07-v3-20260801",
+      "reported_status": "passed",
+      "accepted_status": "passed",
+      "run_id": "8d52075f-c186-4e2f-b012-2fbc66a1e4e5",
+      "reason": "All four headings and 157 words of generated brief content were emitted exactly once, saved, reopened through the native Open dialog, and independently verified. Non-submitting line breaks used Shift+Enter. The slower 15ms key hold and 35ms inter-key cadence retained the complete prose, while the full-screen exact matcher grounded Proof against the correct dense causal delta in 6.004 seconds. One speculative duplicate newline was discarded before HID and the repeated-action circuit replanned safely.",
+      "wall_clock_ms": 809359,
+      "provider_wait_ms": 358773,
+      "provider_serial_equivalent_ms": 485782,
+      "provider_overlap_ms": 127009,
+      "action_execution_ms": 774461,
+      "evidence_capture_ms": 7329,
+      "provider_calls": 61,
+      "actions_attempted": 26,
+      "actions_completed": 25,
+      "completion_efficiency": 0.9615384615384616,
+      "repeated_actions_stopped": 1,
+      "same_run_recoveries": 2,
+      "approval_count": 1,
+      "approval_scopes": [
+        "bounded_workspace_edit"
+      ],
+      "quiescence_status": "confirmed",
+      "reboot_ms": 77098,
+      "reboot_transition_observed": true,
+      "recording": {
+        "relative_path": "codex-text-entry-text07-v3-20260801/text-07/recording.webm",
+        "sha256": "e2c7223dcd1655c849e2f12e0034322e79eaae362bf62f8824640b1155ef8053",
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2,
+        "duration_ms": 762500,
+        "size_bytes": 2255231
+      },
+      "poster": {
+        "relative_path": "codex-text-entry-text07-v3-20260801/text-07/poster.jpg",
+        "sha256": "bb8d0531dd1234dde58669e7d37faa95e970f909d7f6fcbe9a950126c5227b3b"
+      },
+      "campaign_sha256": "515ee07ec357bbcc8c1e71a8f546c545b8077f4672ff1f0379396e0f0e5e9393"
+    }
+  ],
   "verdict": {
-    "accuracy": "Six exact text tasks now pass with independent reopen evidence. Text-06 delivered a 134-word, 817-character paragraph in four exact-once transactions, completed 13/13 actions, saved and reopened the file, quiesced cleanly, and verified the mandatory reboot.",
-    "speed": "Failing product target: accepted text-06 v9 took 476.878 seconds before reboot and 571.260 seconds including the reset-ready gate. The first 240-character exact transaction improved from v7's 133.485 seconds to 23.736 seconds, but later 238-character OCR still reached 64.587 seconds.",
-    "dominant_cost": "Text-06 v9 split almost evenly between 230.336 seconds of provider wait across 32 calls and 239.315 seconds of action execution. Fifteen controller and fifteen verifier calls dominate the interaction count; exact OCR remains the longest individual action path.",
-    "next": "Continue with text-07 while retaining natural chunk boundaries, suffix-grounded continuation verification, and the quiesce-before-reboot lifecycle. In parallel, reduce repeated controller/verifier turns and bound blind exact-field OCR latency without accepting status-bar counts or semantic normalization as byte proof."
+    "accuracy": "Seven exact text tasks now pass with independent reopen evidence. Text-07 delivered a 157-word structured brief under four headings, retained non-submitting line breaks and every prose character, saved and reopened the file, quiesced cleanly, and verified the mandatory reboot. Its two retained failures directly produced newline, causal-OCR, and Windows key-cadence fixes.",
+    "speed": "Failing product target: accepted text-07 v3 took 809.359 seconds before reboot and 886.457 seconds including the reset-ready gate. The exact Proof transaction improved from v2's 86.754-second wrong-region failure to a 6.004-second exact pass, but the full task remains dramatically slower than a human.",
+    "dominant_cost": "Text-07 v3 spent 358.773 seconds waiting for 61 provider calls and 774.461 seconds in overlapping action execution. Thirty-one controller and twenty-seven verifier calls, many generated text slices, delayed visual transitions, and one safely discarded speculative repeat dominate the interaction count.",
+    "next": "Continue with text-08, while reducing per-line controller/verifier turns and eliminating safely stopped speculative repeats. Preserve the slower verified Windows cadence, all-causal-delta OCR grounding, exact-once editor guard, native reopen proof, and quiesce-before-reboot lifecycle."
   }
 }

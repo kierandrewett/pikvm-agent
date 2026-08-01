@@ -51,8 +51,8 @@ support a claim of generally reliable autonomous Windows operation.
 
 ### Live 50-task Windows campaign
 
-The active disposable-Windows campaign has **21/50 unique accepted passes
-(42%)**. Every attempt is screen-recorded, every test ends with a VM reboot,
+The active disposable-Windows campaign has **22/50 unique accepted passes
+(44%)**. Every attempt is screen-recorded, every test ends with a VM reboot,
 and a pass is counted only once even when the same task is rerun during
 remediation. Production PiKVM was not contacted.
 
@@ -60,12 +60,12 @@ remediation. Production PiKVM was not contacted.
 | --- | ---: | ---: | --- |
 | Observation | 5 | 5 | Complete |
 | Calculator | 10 | 10 | Complete |
-| Text entry | 6 | 10 | `text-01` through `text-06` accepted |
+| Text entry | 7 | 10 | `text-01` through `text-07` accepted |
 | Code entry | 0 | 10 | Pending |
 | File management | 0 | 5 | Pending |
 | Microsoft Excel | 0 | 5 | Pending |
 | Microsoft Word | 0 | 5 | Pending |
-| **Total** | **21** | **50** | **29 pending** |
+| **Total** | **22** | **50** | **28 pending** |
 
 The Calculator category is complete. The final temperature-conversion task
 visibly produced `23 °C = 73.4 °F`, completed 7/7 actions, and rebooted the VM
@@ -572,7 +572,44 @@ Accuracy passes this gate, but latency does not: fifteen controller and fifteen
 verifier calls plus exact-field OCR make the task materially slower than a
 human.
 
-Failure-inclusive metrics, canonical campaign digests, the 21 accepted task
+Text-07 v1 is retained as a safety failure. The generated controller plan used
+bare Enter after the Proof heading; because that key could submit an unknown
+focused control, the campaign refused it and did not silently approve or save
+anything. The managed run quiesced and the VM did reboot, although the
+180-second campaign gate expired before a later read-only health check found
+the clean desktop. The newline contract now explicitly requires Shift+Enter
+inside generated prose so line breaks remain non-submitting.
+
+Text-07 v2 proved the newline fix, then exposed independent transport and OCR
+defects. The original 10ms key hold and 25ms inter-key delay dropped the final
+visible character of a 235-character Promise transaction; suffix-only
+recovery completed without replay. Later `Proof` was visibly present and
+emitted exactly once, but the coarse OCR locator selected Notepad's changing
+status row and spent 86.754s rereading the wrong crop. The editor guard blocked
+progress and the recovery ceiling ended the run. Full-screen exact readback
+now considers every dense causal delta, while still requiring exact OCR and
+geometric overlap, and Windows key delivery now uses a conservative 15ms hold
+with a 35ms gap.
+
+Text-07 v3 is the first accepted structured-brief pass. The saved and reopened
+file retained Problem, Users, Promise, and Proof headings plus 157 words of
+generated content. Every editor transaction received exact visual readback and
+exact-once evidence. At the exact v2 failure point, `Proof` passed in 6.004s
+with identical requested, emitted, and readback hashes. One speculative
+duplicate newline was discarded before HID and forced a safe replan. Save
+required one expected `bounded_workspace_edit` approval, native Open selected
+`text-07-brief-v3.txt`, quiescence was confirmed, and the mandatory reboot
+observed a real transition and returned ready after 77.098s.
+
+The accepted run took 809.359s before reboot: 358.773s of provider wait across
+61 calls and 774.461s of overlapping action execution. It completed 25 of 26
+checkpointed actions, with the one non-completion being the safely stopped
+speculative repeat. Its VP9 evidence is 762.5s at 2048×1280 and 2 fps. The
+accuracy result is clean; the latency is not remotely competitive with a human.
+The next slice must reduce the 31 controller and 27 verifier calls without
+weakening exact input proof or the approval boundary.
+
+Failure-inclusive metrics, canonical campaign digests, the 22 accepted task
 IDs, and the VP9 recording/poster hashes are retained in
 [`codex-50-progress.json`](results/2026-07-31/live-vnc/codex-50-progress.json).
 The complete 50-task manifest is
