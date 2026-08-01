@@ -2121,17 +2121,26 @@ class WatchedTyper:
             fields without spaces can move focus for an independent read, but
             long drafts and fields with spaces move their caret to the start
             because a Windows address bar may discard unsubmitted text on
-            focus loss and selected text is materially harder to OCR.
+            focus loss and selected text is materially harder to OCR. An exact
+            editor payload beginning with whitespace is an append transaction:
+            keep its caret at the end so the causal changed-pixel crop remains
+            grounded to the new suffix instead of exposing an unrelated prefix
+            of the accumulated document.
             """
 
             nonlocal stable_field_read_performed
             assert cur_region is not None
+            editor_append = bool(
+                editor_field
+                and text
+                and text[0].isspace()
+            )
             should_stabilize = (
                 precise
                 and not stable_field_read_performed
                 and intended_snapshot == text
                 and (
-                    editor_field
+                    (editor_field and not editor_append)
                     or (
                         single_line_field
                         and (

@@ -2213,6 +2213,10 @@ async def test_exact_fast_editor_append_localizes_suffix_from_full_document() ->
     assert result.field_text == continuation
     assert result.emitted_characters == len(continuation)
     assert result.emitted_exactly_once is True
+    assert (
+        "keypress",
+        {"keys": ["ControlLeft", "Home"]},
+    ) not in backend.calls
     _assert_no_enter(backend)
 
 
