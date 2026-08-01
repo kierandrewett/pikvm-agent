@@ -23,6 +23,7 @@ import pikvm_agent.executor.typing as typing_module
 from pikvm_agent.core.models import OCRCandidate, OCRLine, OCRResult, Region
 from pikvm_agent.executor.typing import (
     CHUNK_TARGET,
+    FAST_PRINT_CHUNK_TARGET,
     FAST_PRINT_MIN,
     FAST_TERMINAL_PRINT_MIN,
     GRID_COLS,
@@ -4029,6 +4030,59 @@ async def test_fast_print_stops_between_chunks_when_control_is_revoked() -> None
     assert any(method == "release_all" for method, _ in backend.calls)
 
 
+async def test_guarded_editor_print_uses_fewer_chunks_after_focus_probe() -> None:
+    backend = FakeBackend()
+    backend.guarded_exact_print = True  # type: ignore[attr-defined]
+    intended = (
+        "Ambition turns Macbeth's imagination toward power while the exact "
+        "editor path retains visible evidence, cooperative cancellation, and "
+        "a final byte-for-byte readback. "
+    ) * 3
+    typer = WatchedTyper(backend, ScriptedOCR(""))
+    flat = _flat_grid()
+    field_reads = 0
+
+    async def unchanged_grid() -> np.ndarray:
+        return flat
+
+    async def exact_field_read(
+        region: Region,
+        *,
+        intended: str | None = None,
+        **_kwargs,
+    ) -> str:
+        nonlocal field_reads
+        del region
+        field_reads += 1
+        return intended or ""
+
+    typer._grid = unchanged_grid  # type: ignore[method-assign]
+    typer._read_field = exact_field_read  # type: ignore[method-assign]
+
+    result = await typer.type_text(
+        intended,
+        region=Region(x=10, y=10, width=900, height=300),
+        prose=True,
+        exact=True,
+        context="editor",
+    )
+
+    printed = [
+        call["text"]
+        for method, call in backend.calls
+        if method == "print_text"
+    ]
+    assert "".join(printed) == intended
+    assert len(printed[0]) <= CHUNK_TARGET
+    assert any(len(chunk) > CHUNK_TARGET for chunk in printed[1:])
+    assert all(len(chunk) <= FAST_PRINT_CHUNK_TARGET for chunk in printed)
+    assert len(printed) <= 10
+    assert field_reads <= 4
+    assert result.status == "verified_exact"
+    assert result.emitted_exactly_once is True
+    _assert_no_enter(backend)
+
+
 async def test_fast_print_stops_after_out_of_field_screen_change() -> None:
     backend = FakeBackend()
     intended = "long prose for a watched destination " * 6
@@ -4077,7 +4131,7 @@ async def test_fast_print_relocates_after_verified_editor_page_reflow() -> None:
         "document and moves the active line onto the next visible page. "
     ) * 2
     assert len(intended) > FAST_PRINT_MIN
-    chunks = chunk_text(intended)
+    chunks = typing_module._guarded_print_chunks(intended)
     typer = WatchedTyper(backend, ScriptedOCR(""))
     base = _flat_grid().reshape(GRID_ROWS, GRID_COLS)
     first_line = base.copy()
@@ -4195,7 +4249,7 @@ async def test_fast_print_rejects_unmoved_text_after_remote_notification() -> No
 async def test_fast_print_mismatch_never_clears_and_replays_long_prose() -> None:
     backend = FakeBackend()
     intended = "long prose that must not be replayed after OCR mismatch " * 4
-    chunks = chunk_text(intended)
+    chunks = typing_module._guarded_print_chunks(intended)
     typer = WatchedTyper(backend, ScriptedOCR("different visible content"))
     flat = _flat_grid()
 

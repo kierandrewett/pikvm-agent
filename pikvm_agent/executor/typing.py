@@ -72,6 +72,7 @@ PRECISE_LOCATE_MIN_CHARS = 4  # short allowlisted Run names still need proof
 ABORT_MIN_CHARS = 8       # only HARD-fail "no focus" when ≥ this typed
 MAX_BOX_HEIGHT_FRAC = 0.6  # a change taller than this frac of screen = repaint
 CHUNK_TARGET = 16         # word-boundary chunk target length
+FAST_PRINT_CHUNK_TARGET = 64  # guarded printer target after its focus probe
 MAX_TOTAL_CORRECTIONS = 1  # one clean retry; never a compounding loop
 MAX_BACKSPACES = 400      # safety cap on a correction's clear
 FAST_PRINT_MIN = 120      # above this, plain text takes the (bursty) fast print path;
@@ -544,6 +545,34 @@ def chunk_text(s: str) -> list[str]:
         out[index] = out[index][: match.start()]
         out[index + 1] = separator + out[index + 1]
     return out
+
+
+def _guarded_print_chunks(s: str) -> list[str]:
+    """Retain a small focus probe, then coalesce acknowledged prose chunks.
+
+    The first normal chunk bounds the amount that can land in a wrongly
+    focused field before changed pixels/OCR prove the destination. Once that
+    proof exists, grouping adjacent word-boundary chunks cuts remote captures
+    and OCR checkpoints while preserving exact order, at-most-once delivery,
+    and a cooperative cancellation boundary at most 64 characters away.
+    """
+
+    chunks = chunk_text(s)
+    if len(chunks) <= 1:
+        return chunks
+    coalesced = [chunks[0]]
+    pending = ""
+    for chunk in chunks[1:]:
+        if (
+            pending
+            and len(pending) + len(chunk) > FAST_PRINT_CHUNK_TARGET
+        ):
+            coalesced.append(pending)
+            pending = ""
+        pending += chunk
+    if pending:
+        coalesced.append(pending)
+    return coalesced
 
 
 # --------------------------------------------------------------------------- #
@@ -1848,7 +1877,15 @@ class WatchedTyper:
         # bounded emission. Splitting a 17–20 character URI after character 16
         # lets its own autocomplete popup look like external focus theft before
         # the final glyph. Exact OCR still gates every following action.
-        chunks = [text] if precise and len(text) <= 20 else chunk_text(text)
+        chunks = (
+            [text]
+            if precise and len(text) <= 20
+            else (
+                _guarded_print_chunks(text)
+                if fast_print
+                else chunk_text(text)
+            )
+        )
         total = len(text)
         explicit_region = region is not None
         located = explicit_region
