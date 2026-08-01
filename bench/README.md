@@ -403,6 +403,26 @@ after 78.736s. The VP9 evidence is 316.0s at 2048×1280 and 2 fps. Accuracy now
 passes this symbol-heavy gate; provider wait remains 59.61% of wall time and
 still fails the product speed target.
 
+Text-06 v1 is retained as the first long-prose failure. The model generated
+the paragraph incrementally. Its first 240-character editor transaction used
+the guarded printer and received a `verified_exact` receipt with zero
+corrections or retries, exact-once emission, and matching hashes. The next
+240-character transaction was also emitted exactly once, and OCR returned the
+correct 480-character concatenation of the proven prefix plus the new suffix.
+The receipt nevertheless returned `unverified_wrong_region` because the
+long-prose fallback skipped suffix localization when its initial field read
+already contained the requested text. The editor guard blocked the unfinished
+ending and every later mutation, and the repeated-paused-error circuit stopped
+the run without saving an incomplete document.
+
+The failed run took 347.954s before reboot: 179.058s of provider wait across 25
+calls and 316.273s of overlapping action execution, with 5/7 actions
+completed. Its mandatory reboot observed a real transition and reached a ready
+desktop after 73.058s. Exact editor append verification must now localize a
+complete intended suffix from bounded full-screen OCR even when the first
+readback contains the already-proven prefix; arbitrary precise substring
+containment remains unverified.
+
 Failure-inclusive metrics, canonical campaign digests, the 20 accepted task
 IDs, and the VP9 recording/poster hashes are retained in
 [`codex-50-progress.json`](results/2026-07-31/live-vnc/codex-50-progress.json).

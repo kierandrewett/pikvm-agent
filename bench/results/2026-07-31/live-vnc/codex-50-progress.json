@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "report": "codex-50-live-progress",
-  "recorded_at": "2026-08-01T03:58:31Z",
+  "recorded_at": "2026-08-01T04:08:15Z",
   "manifest": "bench/codex-50-tasks.yaml",
   "environment": {
     "target": "authorized disposable Windows VNC VM",
@@ -1191,10 +1191,49 @@
       "campaign_sha256": "ee744da68b5a2d99d28f1596f0307fc5cb0ee89b1d3e802f76ea015ca40f2a3c"
     }
   ],
+  "text_06_attempts": [
+    {
+      "campaign_id": "codex-text-entry-text06-v1-20260801",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "run_id": "34212454-e656-4423-b0b5-d184c4bdb21b",
+      "reason": "The first 240-character prose transaction received a verified_exact receipt with exact-once emission and matching hashes. The second 240-character transaction was also emitted exactly once, and OCR returned the correct 480-character concatenation of the proven prefix plus the new suffix. The receipt returned unverified_wrong_region because the full-screen suffix locator was skipped when the initial read already contained the requested text. The editor guard prevented the unfinished ending and the document was never saved.",
+      "wall_clock_ms": 347954,
+      "provider_wait_ms": 179058,
+      "provider_serial_equivalent_ms": 209762,
+      "provider_overlap_ms": 30704,
+      "action_execution_ms": 316273,
+      "evidence_capture_ms": 3803,
+      "provider_calls": 25,
+      "actions_attempted": 7,
+      "actions_completed": 5,
+      "completion_efficiency": 0.7142857142857143,
+      "same_run_recoveries": 3,
+      "approval_count": 0,
+      "approval_scopes": [],
+      "reboot_ms": 73058,
+      "reboot_transition_observed": true,
+      "recording": {
+        "relative_path": "codex-text-entry-text06-v1-20260801/text-06/recording.webm",
+        "sha256": "08c598901be43f857f047fce23626f448578e83d5f18cb307056900d24bec7a6",
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2,
+        "duration_ms": 377500,
+        "size_bytes": 990395
+      },
+      "poster": {
+        "relative_path": "codex-text-entry-text06-v1-20260801/text-06/poster.jpg",
+        "sha256": "3f39731e15286235c03fea524ad21cf48d3b06d84af1b0a30bd9f6f460f9e2df"
+      },
+      "campaign_sha256": "d44b5aea36edc8bdbe5ad0e8b61a80fc1e11b92981baa8030a8a7f8ea838202b"
+    }
+  ],
   "verdict": {
     "accuracy": "Five exact text tasks now pass with independent reopen evidence. Text-05 verified all 78 path-and-symbol characters and its filename exact-once, completed 12/12 actions, durably reopened the saved file, and verified the mandatory reboot.",
     "speed": "Failing product target: accepted text-05 v2 took 250.155 seconds before reboot; exact entry and readback of the 78-character payload took 34.554 seconds.",
     "dominant_cost": "Text-05 v2 provider waits consumed 149.122 seconds across 26 calls, 59.61% of wall time; action execution consumed 95.246 seconds, with 48.165 seconds of provider-lane overlap.",
-    "next": "Run the 120-160 word text-06 task from the rebooted desktop and measure whether long-prose generation, transport, OCR/readback, durable Save/reopen evidence, recording, and reboot complete without fallback encoding or unsafe replay."
+    "next": "Teach guarded long-prose editor verification to localize a complete exact suffix from bounded full-screen OCR when the initial read also contains the already-proven prefix, without allowing arbitrary precise substring containment. Then replay text-06 from the rebooted desktop."
   }
 }
