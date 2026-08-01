@@ -1997,6 +1997,14 @@ class WatchedTyper:
                         tmp,
                         region=candidate_readback_region,
                     )
+                    spacing_verified = (
+                        result.spacing_evidence == "verified"
+                        or any(
+                            alternative.evidence_kind == "spacing"
+                            and alternative.text == intended_snapshot
+                            for alternative in result.alternatives
+                        )
+                    )
                     exact_rows = [
                         line
                         for line in result.lines
@@ -2009,14 +2017,34 @@ class WatchedTyper:
                             )
                         )
                     ]
-                    spacing_verified = (
-                        result.spacing_evidence == "verified"
-                        or any(
-                            alternative.evidence_kind == "spacing"
-                            and alternative.text == intended_snapshot
-                            for alternative in result.alternatives
-                        )
-                    )
+                    if not exact_rows and spacing_verified:
+                        spacing_rows = [
+                            line
+                            for line in result.lines
+                            if (
+                                norm(line.text, precise=True)
+                                == norm(intended_snapshot, precise=True)
+                                and (
+                                    line.confidence is None
+                                    or float(line.confidence)
+                                    >= MIN_GROUNDED_EXACT_OCR_CONFIDENCE
+                                )
+                            )
+                        ]
+                        if len(spacing_rows) == 1:
+                            source_row = spacing_rows[0]
+                            exact_rows = [
+                                source_row.model_copy(
+                                    update={
+                                        "text": intended_snapshot,
+                                        "raw": {
+                                            **dict(source_row.raw or {}),
+                                            "causal_spacing_canonicalized": True,
+                                            "observed_text": source_row.text,
+                                        },
+                                    }
+                                )
+                            ]
                     if (
                         len(exact_rows) != 1
                         or (

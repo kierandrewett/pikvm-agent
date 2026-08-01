@@ -558,15 +558,31 @@ class _AdjacentLineOCR:
 
 
 @pytest.mark.parametrize(
-    ("spacing_evidence", "spacing_alternative", "expected_status"),
+    (
+        "intended",
+        "visible_text",
+        "spacing_evidence",
+        "spacing_alternative",
+        "expected_status",
+    ),
     [
-        ("verified", False, "verified_exact"),
-        ("uncertain", True, "verified_exact"),
-        ("uncertain", False, "unverified_ambiguous"),
+        ("2. Act", "2. Act", "verified", False, "verified_exact"),
+        ("2. Act", "2. Act", "uncertain", True, "verified_exact"),
+        ("2. Act", "2. Act", "uncertain", False, "unverified_ambiguous"),
+        ("alpha  beta", "alpha beta", "uncertain", True, "verified_exact"),
+        (
+            "alpha  beta",
+            "alpha beta",
+            "uncertain",
+            False,
+            "unverified_ambiguous",
+        ),
     ],
 )
 async def test_short_exact_typing_checks_all_causal_lines_when_coarse_crop_is_wrong(
     monkeypatch: pytest.MonkeyPatch,
+    intended: str,
+    visible_text: str,
     spacing_evidence: str,
     spacing_alternative: bool,
     expected_status: str,
@@ -587,11 +603,11 @@ async def test_short_exact_typing_checks_all_causal_lines_when_coarse_crop_is_wr
             if region is None or region.y >= 200:
                 return OCRResult()
             return OCRResult(
-                lines=[OCRLine(text="2. Act", confidence=0.99)],
+                lines=[OCRLine(text=visible_text, confidence=0.99)],
                 alternatives=(
                     [
                         OCRCandidate(
-                            text="2. Act",
+                            text=intended,
                             evidence_kind="spacing",
                         )
                     ]
@@ -610,7 +626,7 @@ async def test_short_exact_typing_checks_all_causal_lines_when_coarse_crop_is_wr
 
     ocr = CausalCropOCR()
     result = await WatchedTyper(backend, ocr).type_text(
-        "2. Act",
+        intended,
         exact=True,
         context="editor",
     )
