@@ -1302,12 +1302,48 @@
         "sha256": "f63e7bf982d5ba219c4474c60210025e4b50de1453a90a3f22fde4e723437791"
       },
       "campaign_sha256": "78e9574694ff55804f3d3be8670395e0df6f55d925a7f9a73be283b9e891af16"
+    },
+    {
+      "campaign_id": "codex-text-entry-text06-v4-20260801",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "run_id": "3706223e-06b7-4eec-ad18-3e83f858b2d8",
+      "reason": "The first 240-character transaction passed all exact-once gates. The second was emitted exactly once, but grounded OCR rendered three ASCII apostrophes as typographic apostrophes and precise suffix localization failed closed. The 226.201-second action caused two 120-second client timeouts; replay under the same idempotency key did not retype. The unverified-editor guard then incorrectly allowed approved Ctrl+Shift+S to open Save As, although no filename or save commit followed. A concurrent run-state read hit SQLite database is locked and made the showcase runner record HTTP 500 before the run later paused. The mandatory reboot discarded the incomplete draft.",
+      "wall_clock_ms": 532763,
+      "provider_wait_ms": 130926,
+      "provider_serial_equivalent_ms": 154632,
+      "provider_overlap_ms": 23706,
+      "action_execution_ms": 370235,
+      "evidence_capture_ms": 1054,
+      "provider_calls": 20,
+      "actions_attempted": 8,
+      "actions_completed": 5,
+      "completion_efficiency": 0.8333333333333334,
+      "same_run_recoveries": 4,
+      "approval_count": 1,
+      "approval_scopes": [
+        "bounded_workspace_edit"
+      ],
+      "reboot_ms": 77941,
+      "reboot_transition_observed": true,
+      "recording": {
+        "relative_path": "codex-text-entry-text06-v4-20260801/text-06/recording.webm",
+        "sha256": "fe6572605f5cfdaefc780e8649ebab4b683c28a2790aa633c4169dd97ce1f640",
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2,
+        "duration_ms": 481500,
+        "size_bytes": 1459303
+      },
+      "poster": null,
+      "campaign_sha256": "f8ddc12964fc04765d07ed0cd9e839a13d78ffb5de30b9bd18ab010708e5e8e6"
     }
   ],
   "verdict": {
     "accuracy": "Five exact text tasks now pass with independent reopen evidence. Text-05 verified all 78 path-and-symbol characters and its filename exact-once, completed 12/12 actions, durably reopened the saved file, and verified the mandatory reboot.",
     "speed": "Failing product target: accepted text-05 v2 took 250.155 seconds before reboot; exact entry and readback of the 78-character payload took 34.554 seconds.",
     "dominant_cost": "Text-05 v2 provider waits consumed 149.122 seconds across 26 calls, 59.61% of wall time; action execution consumed 95.246 seconds, with 48.165 seconds of provider-lane overlap.",
-    "next": "Apply the existing bounded long-prose suffix locator to the current grounded field read before paying for a separate full-screen OCR pass. Require the localized precise candidate to recreate every requested delivery byte, then replay text-06 from the rebooted desktop."
+    "next": "Before v5, make an active unverified editor draft block every key except non-mutating Escape so Save As cannot even reach approval; make run-state reads tolerate transient SQLite lock contention; then teach bounded prose OCR to canonicalize typographic apostrophes only when the exact emitted ASCII payload and grounded visible context prove the same text."
   }
 }
