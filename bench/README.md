@@ -441,6 +441,26 @@ desktop after 81.107s. Exact long-prose readback must now distinguish
 OCR-inserted visual wrap boundaries from actual document newlines without
 weakening exact verification for intentional line breaks.
 
+Text-06 v3 live-proved the visual-wrap correction on its first 240-character
+transaction: the receipt is `verified_exact`, 240/240 observed, edit distance
+zero, zero corrections or retries, one emission, and matching requested,
+delivery, issued, emitted, and readback hashes. The second 240-character
+append was also emitted exactly once. Its grounded field read returned the
+correct 480-character document with two OCR-inserted visual-wrap newlines, but
+the verifier retained the whole field as a `contains` read and returned
+`unverified_wrong_region`. It only attempted suffix localization through a
+separate full-screen OCR pass; it did not apply the bounded exact suffix
+locator to the already-grounded field read itself. The editor guard then
+blocked every later mutation, and the repeated-paused-error circuit stopped
+the run without saving an incomplete paragraph.
+
+The failed run took 360.083s before reboot: 153.617s of provider wait across
+24 calls and 319.615s of overlapping action execution, with 4/6 actions
+completed. Its mandatory reboot observed a real transition and reached a ready
+desktop after 79.726s. The next verifier slice should first localize an exact
+long-prose suffix from its current grounded field read, then spend another OCR
+pass only when that bounded evidence is insufficient.
+
 Failure-inclusive metrics, canonical campaign digests, the 20 accepted task
 IDs, and the VP9 recording/poster hashes are retained in
 [`codex-50-progress.json`](results/2026-07-31/live-vnc/codex-50-progress.json).
