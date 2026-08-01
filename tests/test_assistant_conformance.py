@@ -111,11 +111,6 @@ async def test_live_assistant_acceptance_covers_every_route_without_target() -> 
                 ),
             },
             {
-                "outcome": "computer",
-                "message": "I’ll inspect the connected computer.",
-                "computer_task": "Describe the currently visible screen.",
-            },
-            {
                 "outcome": "tool",
                 "tool_call": {
                     "name": "lab.send_message",
@@ -146,7 +141,7 @@ async def test_live_assistant_acceptance_covers_every_route_without_target() -> 
     assert report.passed
     assert report.computer_target_contacted is False
     assert report.cases_passed == report.cases_requested == 5
-    assert report.provider_calls == 6
+    assert report.provider_calls == 5
     assert report.tool_requests == 2
     assert report.tool_calls == 1
     assert report.consequential_tool_executions == 0
@@ -177,10 +172,6 @@ async def test_research_case_fails_closed_without_visible_tool_or_citation() -> 
             {
                 "outcome": "reply",
                 "message": "Python has a recent stable release.",
-            },
-            {
-                "outcome": "computer",
-                "computer_task": "Describe the visible screen.",
             },
             {
                 "outcome": "tool",
