@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "report": "codex-50-live-progress",
-  "recorded_at": "2026-08-01T03:28:18Z",
+  "recorded_at": "2026-08-01T03:39:38Z",
   "manifest": "bench/codex-50-tasks.yaml",
   "environment": {
     "target": "authorized disposable Windows VNC VM",
@@ -1070,10 +1070,49 @@
       "campaign_sha256": "28c480138fc3ba720a2c58062927edd91b51e2f71b74c4d542b5355f189da208"
     }
   ],
+  "text_05_attempts": [
+    {
+      "campaign_id": "codex-text-entry-text05-v1-20260801",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "run_id": "4aee0ad1-b4a6-4a9b-bf19-0bcf62cb176a",
+      "reason": "The complete 78-character payload reached the Windows EN-GB target, but both requested backslashes appeared as #. Independent readback reported edit distance 2 and failed_keyboard_layout; the automatic correction also failed, so the receipt records 94 emitted characters, one correction, and emitted_exactly_once false. The corrupted draft was cleared and never saved. A visible On-Screen Keyboard exploration did not obtain a new verified input path before the repeated-paused-error circuit stopped the run.",
+      "wall_clock_ms": 214737,
+      "provider_wait_ms": 123498,
+      "provider_serial_equivalent_ms": 141872,
+      "provider_overlap_ms": 18374,
+      "action_execution_ms": 85076,
+      "evidence_capture_ms": 1209,
+      "provider_calls": 19,
+      "actions_attempted": 6,
+      "actions_completed": 5,
+      "completion_efficiency": 0.8333333333333334,
+      "same_run_recoveries": 3,
+      "approval_count": 0,
+      "approval_scopes": [],
+      "reboot_ms": 75704,
+      "reboot_transition_observed": true,
+      "recording": {
+        "relative_path": "codex-text-entry-text05-v1-20260801/text-05/recording.webm",
+        "sha256": "fd0fef9cb56d81eab4b125500c9d65213435064050b420f188b2a9bca5886f87",
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2,
+        "duration_ms": 270500,
+        "size_bytes": 852143
+      },
+      "poster": {
+        "relative_path": "codex-text-entry-text05-v1-20260801/text-05/poster.jpg",
+        "sha256": "3564ae895fb46718e2eb94a18bb42272517e0dfd8a300191a4897a7459ff7d5d"
+      },
+      "campaign_sha256": "bfd90217b7de16150ba94cab474cc19241dcc5916761c7f00178087df87afe23"
+    }
+  ],
   "verdict": {
     "accuracy": "Four exact text tasks now pass with independent reopen evidence. Text-04 completed all 16 actions with exact-once receipts for every requested line and filename, durable Save/Open verification, no retyping recovery, and a verified reboot.",
     "speed": "Failing product target: accepted text-04 v13 took 276.097 seconds before reboot despite cutting the six-character causal-proof action from 46.235 seconds in v12 to 8.228 seconds.",
     "dominant_cost": "Text-04 v13 provider waits consumed 163.741 seconds across 30 calls, 59.31% of wall time; action execution consumed 105.278 seconds, with 29.620 seconds of provider-lane overlap.",
-    "next": "Run text-05 as a clean blind live task from the rebooted desktop; retain only exact current-run receipts, durable Save and reopen evidence, a complete recording, and a successful mandatory reboot."
+    "next": "Replace the Windows VNC transport's layout-dependent backslash delivery with a regression-tested semantic path, then replay text-05 from the rebooted desktop. Accept only an exact current-run receipt, durable Save and reopen evidence, a complete recording, and a successful mandatory reboot."
   }
 }

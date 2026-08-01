@@ -368,6 +368,21 @@ transition and reached a ready desktop after 76.818s. The VP9 evidence is
 near-complete run, but provider wait still consumes 59.31% of wall time, so
 speed remains below the product target.
 
+Text-05 v1 is retained as a failed keyboard-layout boundary. The sender issued
+the complete 78-character path-and-symbol payload, but both requested
+backslashes appeared as `#` on the Windows EN-GB target. Independent readback
+reported an edit distance of two and downgraded the receipt to
+`failed_keyboard_layout`; the automatic correction also failed, so the
+receipt explicitly records 94 emitted characters, one correction, and
+`emitted_exactly_once: false`. The agent did not save the corrupted text. It
+cleared the unsaved draft, explored a visible On-Screen Keyboard route, then
+the repeated-paused-error circuit stopped it before another unverified input.
+The failed run took 214.737s before reboot: 123.498s of provider wait across 19
+calls and 85.076s of action execution, with 5/6 actions completed. Its
+mandatory reboot observed a real transition and reached a ready desktop after
+75.704s. The Windows VNC transport now needs a live-proven layout-independent
+backslash path before text-05 can be accepted.
+
 Failure-inclusive metrics, canonical campaign digests, the 19 accepted task
 IDs, and the VP9 recording/poster hashes are retained in
 [`codex-50-progress.json`](results/2026-07-31/live-vnc/codex-50-progress.json).
