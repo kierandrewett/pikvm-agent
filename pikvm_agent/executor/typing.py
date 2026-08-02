@@ -76,6 +76,7 @@ CHUNK_TARGET = 16         # word-boundary chunk target length
 FAST_PRINT_CHUNK_TARGET = 64  # guarded printer target after its focus probe
 MAX_TOTAL_CORRECTIONS = 1  # one clean retry; never a compounding loop
 MAX_BACKSPACES = 400      # safety cap on a correction's clear
+MAX_AUTOCORRECT_CURSOR_STEPS = 64
 FAST_PRINT_MIN = 120      # above this, plain text takes the (bursty) fast print path;
                           # shorter text stays on the fully-humanized per-key path
 FAST_TERMINAL_PRINT_MIN = 32  # exact simple argv can use PiKVM's guarded printer
@@ -111,6 +112,7 @@ _SLOW_VIDEO_RETRY_SETTLE_S = 1.00
 _VERY_SLOW_VIDEO_RETRY_SETTLE_S = 2.50
 _FINAL_VIDEO_RETRY_SETTLE_S = 1.00
 _CARET_BLINK_RECHECK_S = 0.65
+_CURSOR_REPEAT_SETTLE_S = 0.075
 _PRECISE_READBACK_SETTLES_S = (0.45, 0.90, 1.80)
 _PRECISE_FULL_SCREEN_SETTLES_S = (0.0, 0.45, 0.90)
 
@@ -460,6 +462,29 @@ def standalone_i_autocorrect_suffix_length(
         == observed_normalized
     }
     return candidates.pop() if len(candidates) == 1 else None
+
+
+def standalone_i_autocorrect_navigation(
+    intended: str,
+    observed: str,
+) -> tuple[str, str, int] | None:
+    """Choose the shorter anchored route to the mutated character.
+
+    Repeated unpaced cursor taps can be coalesced by a remote desktop
+    transport. Anchor at the current line's Home or End first, then use the
+    shorter bounded route so a missed tap cannot silently target another
+    ``i`` elsewhere in a long code line.
+    """
+
+    suffix_length = standalone_i_autocorrect_suffix_length(intended, observed)
+    if suffix_length is None:
+        return None
+    prefix_length = len(intended) - suffix_length
+    if min(prefix_length, suffix_length) > MAX_AUTOCORRECT_CURSOR_STEPS:
+        return None
+    if prefix_length <= suffix_length:
+        return ("Home", "ArrowRight", prefix_length)
+    return ("End", "ArrowLeft", suffix_length)
 
 
 def is_caps_lock_case_inversion(intended: str, observed: str) -> bool:
@@ -3156,13 +3181,14 @@ class WatchedTyper:
                     )
                     or repeated_read
                 )
-                suffix_length = standalone_i_autocorrect_suffix_length(
+                navigation = standalone_i_autocorrect_navigation(
                     intended_snapshot,
                     repeated,
                 )
-                if suffix_length is None:
+                if navigation is None:
                     last_read = repeated or read_back
                     return
+                anchor_key, cursor_key, cursor_steps = navigation
                 DEBUG.event(
                     "typing.editor_autocorrect_detected",
                     character_index=next(
@@ -3179,8 +3205,10 @@ class WatchedTyper:
                     intended_characters=len(intended_snapshot),
                 )
                 corrections += 1
-                for _ in range(suffix_length):
-                    await self.backend.press_key("ArrowLeft")
+                await self.backend.press_key(anchor_key)
+                for _ in range(cursor_steps):
+                    await self.backend.press_key(cursor_key)
+                    await asyncio.sleep(_CURSOR_REPEAT_SETTLE_S)
                 await self.backend.press_key("Backspace")
                 # Insert a word-character guard first, then place the lowercase
                 # letter before it. Notepad otherwise re-capitalizes an ``i``
@@ -3192,8 +3220,7 @@ class WatchedTyper:
                 await emit_text("i")
                 await self.backend.press_key("ArrowRight")
                 await self.backend.press_key("Backspace")
-                for _ in range(suffix_length):
-                    await self.backend.press_key("ArrowRight")
+                await self.backend.press_key("End")
                 await asyncio.sleep(_CLEAR_SETTLE_S)
                 corrected_read = self._typed_candidate(
                     await self._read_field(
@@ -3227,7 +3254,9 @@ class WatchedTyper:
                     "typing.editor_autocorrect_replacement",
                     restored=restored,
                     intended_characters=len(intended_snapshot),
-                    suffix_length=suffix_length,
+                    anchor_key=anchor_key,
+                    cursor_key=cursor_key,
+                    cursor_steps=cursor_steps,
                 )
                 if restored:
                     if norm(intended_snapshot, True) == norm(text, True):

@@ -44,6 +44,7 @@ from pikvm_agent.executor.typing import (
     precise_readback_candidate_region,
     readback_region,
     regions_overlap,
+    standalone_i_autocorrect_navigation,
     standalone_i_autocorrect_suffix_length,
 )
 from pikvm_agent.pikvm.fake import FakeBackend
@@ -2934,6 +2935,15 @@ def test_case_correction_signatures_are_narrow() -> None:
         == 4
     )
     assert standalone_i_autocorrect_suffix_length("limit", "lImit") is None
+    assert standalone_i_autocorrect_navigation("for i in", "for I in") == (
+        "End",
+        "ArrowLeft",
+        3,
+    )
+    assert standalone_i_autocorrect_navigation(
+        "    for i in range(1, limit + 1):",
+        "for I in range(1, limit + 1):",
+    ) == ("Home", "ArrowRight", 9)
 
 
 @pytest.mark.parametrize(
@@ -2980,6 +2990,7 @@ async def test_editor_standalone_i_autocorrect_is_replaced_locally(
         if method == "press_key"
     ]
     assert pressed == [
+        "End",
         "ArrowLeft",
         "ArrowLeft",
         "ArrowLeft",
@@ -2987,9 +2998,7 @@ async def test_editor_standalone_i_autocorrect_is_replaced_locally(
         "ArrowLeft",
         "ArrowRight",
         "Backspace",
-        "ArrowRight",
-        "ArrowRight",
-        "ArrowRight",
+        "End",
     ]
     assert not any(
         method == "press_key" and kwargs.get("code") == "CapsLock"
