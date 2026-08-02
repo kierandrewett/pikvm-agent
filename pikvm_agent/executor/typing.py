@@ -1408,6 +1408,8 @@ def _dense_changed_candidates(
     before_image: bytes,
     after_image: bytes,
     dims: Any,
+    *,
+    allow_compact: bool = False,
 ) -> list[tuple[int, Region]]:
     width, height = _dims_wh(dims)
     if width <= 0 or height <= 0 or not before_image or not after_image:
@@ -1470,13 +1472,20 @@ def _dense_changed_candidates(
                 x1, y1 = max(x1, other_x1), max(y1, other_y1)
         box_width = x1 - x0
         box_height = y1 - y0
-        if (
+        line_candidate = (
             count >= DENSE_MIN_CHANGED_PIXELS
             and box_width >= DENSE_MIN_WIDTH
             and box_height >= DENSE_MIN_HEIGHT
             and box_height <= min(DENSE_MAX_HEIGHT, height * 0.1)
             and box_width >= box_height * 1.25
-        ):
+        )
+        compact_candidate = (
+            allow_compact
+            and count >= DENSE_MIN_CHANGED_PIXELS
+            and 4 <= box_width <= 32
+            and 4 <= box_height <= 32
+        )
+        if line_candidate or compact_candidate:
             box = (x0, y0, x1, y1)
             candidates_by_box[box] = max(candidates_by_box.get(box, 0), count)
     candidates = [
@@ -1511,6 +1520,8 @@ def locate_dense_changed_candidates(
     before_image: bytes,
     after_image: bytes,
     dims: Any,
+    *,
+    allow_compact: bool = False,
 ) -> list[Region]:
     """Return bounded line-shaped deltas in descending pixel-count order.
 
@@ -1525,6 +1536,7 @@ def locate_dense_changed_candidates(
             before_image,
             after_image,
             dims,
+            allow_compact=allow_compact,
         )
     ]
 
@@ -1535,6 +1547,7 @@ def locate_dense_changed_bbox(
     dims: Any,
     *,
     allow_ambiguous: bool = False,
+    allow_compact: bool = False,
 ) -> Region | None:
     """Locate a narrow text-line change hidden by the coarse luminance grid.
 
@@ -1550,6 +1563,7 @@ def locate_dense_changed_bbox(
         before_image,
         after_image,
         dims,
+        allow_compact=allow_compact,
     )
     if not candidates:
         return None
@@ -2972,6 +2986,7 @@ class WatchedTyper:
                 before_frame.data,
                 after_frame.data,
                 dims,
+                allow_compact=structural_code_glyph,
             )
             if not candidates:
                 return None
@@ -4674,6 +4689,8 @@ class WatchedTyper:
                         dense_prev.data,
                         dense_now.data,
                         dims,
+                        allow_ambiguous=structural_code_glyph,
+                        allow_compact=structural_code_glyph,
                     )
 
             # Keyboard input is not idempotent. A stale frame cannot distinguish
@@ -4779,6 +4796,8 @@ class WatchedTyper:
                                     dense_prev.data,
                                     dense_retry.data,
                                     dims,
+                                    allow_ambiguous=structural_code_glyph,
+                                    allow_compact=structural_code_glyph,
                                 )
                         if retry_loc is not None:
                             cur_region = retry_loc

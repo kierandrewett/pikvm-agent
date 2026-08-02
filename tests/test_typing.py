@@ -6810,7 +6810,17 @@ async def test_single_structural_code_glyph_uses_grounded_fallback(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     backend = FakeBackend(width=1280, height=800)
-    before_bytes, after_bytes = _ambiguous_dense_line_frames()
+    before = Image.new("RGB", (1280, 800), "#202020")
+    after = before.copy()
+    draw = ImageDraw.Draw(after)
+    draw.rectangle((44, 144, 55, 159), fill="#efefef", width=2)
+    draw.rectangle((80, 484, 87, 495), fill="#efefef", width=1)
+    before_output = io.BytesIO()
+    after_output = io.BytesIO()
+    before.save(before_output, format="PNG")
+    after.save(after_output, format="PNG")
+    before_bytes = before_output.getvalue()
+    after_bytes = after_output.getvalue()
     backend.set_frame_bytes(before_bytes)
     original_type = backend.type_text
 
@@ -6827,12 +6837,7 @@ async def test_single_structural_code_glyph_uses_grounded_fallback(
     monkeypatch.setattr(
         typing_module,
         "locate_changed_bbox",
-        lambda *_args, **_kwargs: Region(
-            x=48,
-            y=142,
-            width=12,
-            height=18,
-        ),
+        lambda *_args, **_kwargs: None,
     )
 
     class ClosingGlyphOCR:
@@ -6871,6 +6876,36 @@ async def test_single_structural_code_glyph_uses_grounded_fallback(
     assert result.status == "verified_exact"
     assert result.field_text == "}"
     assert result.emitted_exactly_once is True
+
+
+def test_dense_locator_nominates_compact_glyph_only_when_requested() -> None:
+    before = Image.new("RGB", (1280, 800), "#202020")
+    after = before.copy()
+    ImageDraw.Draw(after).rectangle(
+        (44, 144, 55, 159),
+        fill="#efefef",
+        width=2,
+    )
+    before_output = io.BytesIO()
+    after_output = io.BytesIO()
+    before.save(before_output, format="PNG")
+    after.save(after_output, format="PNG")
+
+    assert locate_dense_changed_bbox(
+        before_output.getvalue(),
+        after_output.getvalue(),
+        (1280, 800),
+    ) is None
+    compact = locate_dense_changed_bbox(
+        before_output.getvalue(),
+        after_output.getvalue(),
+        (1280, 800),
+        allow_compact=True,
+    )
+
+    assert compact is not None
+    assert compact.x <= 44 < compact.x + compact.width
+    assert compact.y <= 144 < compact.y + compact.height
 
 
 async def test_uncalibrated_precise_ocr_cannot_verify_visible_spaces() -> None:
