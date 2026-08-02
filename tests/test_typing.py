@@ -33,6 +33,7 @@ from pikvm_agent.executor.typing import (
     _substantial_change_outside_region,
     chunk_text,
     editor_caret_column_proves_leading_whitespace,
+    editor_row_candidate_above_disjoint_effect,
     editor_punctuation_transport_substitution,
     editor_single_glyph_transport_deletion,
     editor_status_proves_single_line_payload,
@@ -164,6 +165,22 @@ def test_editor_field_region_excludes_disjoint_status_bar_repaint() -> None:
         row,
         Region(x=40, y=137, width=180, height=30),
     )
+
+
+def test_editor_row_candidate_recovers_nearest_row_above_status_effect() -> None:
+    status = Region(x=89, y=488, width=87, height=32)
+    row = Region(x=53, y=176, width=59, height=28)
+
+    assert editor_row_candidate_above_disjoint_effect(
+        Region(x=89, y=492, width=87, height=28),
+        [status, row],
+        (1280, 800),
+    ) == row
+    assert editor_row_candidate_above_disjoint_effect(
+        row,
+        [status, row],
+        (1280, 800),
+    ) is None
 
 
 def test_nearest_editor_status_row_proves_leading_whitespace() -> None:
@@ -352,6 +369,79 @@ def test_compact_status_crop_proves_single_line_from_document_invariants() -> No
     )
 
     assert editor_status_proves_single_line_payload(
+        bounded,
+        intended,
+        row,
+        (1280, 800),
+        container_region=region,
+    )
+
+
+def test_split_status_items_prove_single_line_document_invariants() -> None:
+    """Paddle emits Notepad's position and character count as two boxes."""
+
+    intended = "<!doctype html>"
+    row = Region(
+        x=40,
+        y=74.07407407407408,
+        width=93.33333333333334,
+        height=44.44444444444444,
+    )
+    region = Region(x=0, y=368.5185185185185, width=512, height=150)
+    bounded = OCRResult(
+        lines=[
+            OCRLine(
+                text="Ln 1, Col 16",
+                confidence=0.9232,
+                bbox=[47, 116, 89, 127],
+            ),
+            OCRLine(
+                text="15 characters",
+                confidence=0.9973,
+                bbox=[99, 117, 147, 127],
+            ),
+            OCRLine(
+                text="Ln 8, Col 1",
+                confidence=0.8937,
+                bbox=[64, 132, 101, 142],
+            ),
+            OCRLine(
+                text="154 characters",
+                confidence=0.9971,
+                bbox=[117, 133, 167, 142],
+            ),
+        ]
+    )
+
+    assert editor_status_proves_single_line_payload(
+        bounded,
+        intended,
+        row,
+        (1280, 800),
+        container_region=region,
+    )
+
+
+def test_split_status_items_reject_count_from_another_status_row() -> None:
+    intended = "<!doctype html>"
+    row = Region(x=40, y=74, width=93, height=44)
+    region = Region(x=0, y=368, width=512, height=150)
+    bounded = OCRResult(
+        lines=[
+            OCRLine(
+                text="Ln 1, Col 16",
+                confidence=0.99,
+                bbox=[47, 116, 89, 127],
+            ),
+            OCRLine(
+                text="15 characters",
+                confidence=0.99,
+                bbox=[99, 133, 147, 143],
+            ),
+        ]
+    )
+
+    assert not editor_status_proves_single_line_payload(
         bounded,
         intended,
         row,
@@ -5516,6 +5606,124 @@ async def test_editor_exact_row_without_spacing_proof_keeps_focus_grounded(
     _assert_no_enter(backend)
 
 
+async def test_causal_editor_row_outranks_notepad_tab_title_for_status_proof(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The first document row and its mirrored tab title are not equivalent."""
+
+    async def no_sleep(_seconds: float) -> None:
+        return None
+
+    intended = "<!doctype html>"
+    backend = FakeBackend(width=1280, height=800)
+    before_bytes, after_bytes = _ambiguous_dense_line_frames()
+    backend.set_frame_bytes(before_bytes)
+    original_type = backend.type_text
+
+    async def typing(
+        text: str,
+        *,
+        code: bool = False,
+        secret: bool = False,
+    ) -> None:
+        await original_type(text, code=code, secret=secret)
+        backend.set_frame_bytes(after_bytes)
+
+    backend.type_text = typing  # type: ignore[method-assign]
+    monkeypatch.setattr(asyncio, "sleep", no_sleep)
+    monkeypatch.setattr(
+        typing_module,
+        "locate_changed_bbox",
+        lambda *_args, **_kwargs: None,
+    )
+    monkeypatch.setattr(
+        typing_module,
+        "locate_dense_changed_bbox",
+        lambda *_args, **_kwargs: None,
+    )
+    monkeypatch.setattr(
+        typing_module,
+        "locate_dense_changed_candidates",
+        lambda *_args, **_kwargs: [
+            Region(x=809, y=136, width=120, height=24),
+            Region(x=142, y=186, width=120, height=24),
+            Region(x=142, y=586, width=150, height=16),
+        ],
+    )
+
+    class MirroredFirstLineOCR:
+        async def ocr_precise(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path
+            if region is None:
+                return OCRResult(
+                    lines=[
+                        OCRLine(
+                            text="!doctype html",
+                            confidence=0.99,
+                            bbox=[809, 136, 929, 160],
+                        )
+                    ]
+                )
+            if region.width == 512 and region.height >= 90:
+                foreground_y = region.height - 24
+                return OCRResult(
+                    lines=[
+                        OCRLine(
+                            text="Ln 1, Col 16",
+                            confidence=0.99,
+                            bbox=[20, foreground_y, 105, foreground_y + 12],
+                        ),
+                        OCRLine(
+                            text="15 characters",
+                            confidence=0.99,
+                            bbox=[112, foreground_y, 198, foreground_y + 12],
+                        ),
+                    ]
+                )
+            if 170 <= region.y <= 230:
+                return OCRResult(
+                    lines=[OCRLine(text=intended, confidence=0.99)],
+                    spacing_evidence="not_evaluated",
+                )
+            if 120 <= region.y < 170:
+                return OCRResult(
+                    lines=[OCRLine(text="!doctype html", confidence=0.99)],
+                    spacing_evidence="not_evaluated",
+                )
+            return OCRResult()
+
+        async def ocr(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            return await self.ocr_precise(image_path, region)
+
+        async def ocr_precise_fallback(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path, region
+            return OCRResult()
+
+    result = await WatchedTyper(backend, MirroredFirstLineOCR()).type_text(
+        intended,
+        code=True,
+        exact=True,
+        context="editor",
+    )
+
+    assert result.status == "verified_exact", result
+    assert result.field_text == intended
+    assert result.emitted_exactly_once is True
+    _assert_no_enter(backend)
+
+
 async def test_editor_indentation_is_reproved_after_full_screen_recovery(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -6573,6 +6781,194 @@ async def test_exact_editor_readback_grounds_to_secondary_causal_delta(
     assert result.status == "verified_exact"
     assert result.field_text == "Proof"
     assert result.emitted_exactly_once is True
+    _assert_no_enter(backend)
+
+
+async def test_late_editor_paint_reocrs_secondary_causal_delta(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A fresh full-screen frame must get a fresh causal-row OCR pass."""
+
+    async def no_sleep(_seconds: float) -> None:
+        return None
+
+    intended = "<body>"
+    status_region = Region(x=72, y=474, width=88, height=30)
+    text_region = Region(x=36, y=160, width=84, height=54)
+    monkeypatch.setattr(asyncio, "sleep", no_sleep)
+    monkeypatch.setattr(
+        "pikvm_agent.executor.typing.readback_region",
+        lambda *_args, **_kwargs: status_region,
+    )
+    monkeypatch.setattr(
+        "pikvm_agent.executor.typing.locate_capture_change",
+        lambda *_args, **_kwargs: status_region,
+    )
+    monkeypatch.setattr(
+        "pikvm_agent.executor.typing.locate_dense_changed_candidates",
+        lambda *_args, **_kwargs: [status_region, text_region],
+    )
+
+    class LatePaintBackend(FakeBackend):
+        async def type_text(
+            self,
+            text: str,
+            *,
+            code: bool = False,
+            secret: bool = False,
+        ) -> None:
+            await super().type_text(text, code=code, secret=secret)
+            self.set_screen(text)
+
+    class LatePaintOCR:
+        def __init__(self) -> None:
+            self.full_screen_reads = 0
+            self.blind_fallback_reads = 0
+
+        async def ocr(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            return await self.ocr_precise(image_path, region)
+
+        async def ocr_precise(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path
+            if region is None:
+                self.full_screen_reads += 1
+                return OCRResult()
+            if self.full_screen_reads and region.y < 300:
+                return OCRResult(
+                    lines=[
+                        OCRLine(
+                            text=intended,
+                            confidence=0.99,
+                        )
+                    ]
+                )
+            return OCRResult()
+
+        async def ocr_precise_fallback(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path, region
+            self.blind_fallback_reads += 1
+            return OCRResult(
+                lines=[
+                    OCRLine(
+                        text="Ln 7, Col 7 105 characters Plain text",
+                        confidence=0.99,
+                    )
+                ]
+            )
+
+    backend = LatePaintBackend()
+    ocr = LatePaintOCR()
+    result = await WatchedTyper(backend, ocr).type_text(
+        intended,
+        code=True,
+        exact=True,
+        context="editor",
+    )
+
+    assert result.status == "verified_exact", result
+    assert result.field_text == intended
+    assert result.emitted_exactly_once is True
+    assert ocr.full_screen_reads >= 1
+    assert ocr.blind_fallback_reads == 0
+    _assert_no_enter(backend)
+
+
+async def test_short_editor_defers_blind_ocr_until_video_settles(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A stale crop must not pay for model OCR before local video catches up."""
+
+    async def no_sleep(_seconds: float) -> None:
+        return None
+
+    intended = "<body>"
+    status_region = Region(x=72, y=474, width=88, height=30)
+    monkeypatch.setattr(asyncio, "sleep", no_sleep)
+    monkeypatch.setattr(
+        typing_module,
+        "locate_changed_bbox",
+        lambda *_args, **_kwargs: status_region,
+    )
+    monkeypatch.setattr(
+        typing_module,
+        "locate_dense_changed_candidates",
+        lambda *_args, **_kwargs: [],
+    )
+    monkeypatch.setattr(
+        typing_module,
+        "locate_dense_changed_bbox",
+        lambda *_args, **_kwargs: None,
+    )
+
+    class DelayedLocalOCR:
+        def __init__(self) -> None:
+            self.local_reads = 0
+            self.blind_fallback_reads = 0
+
+        async def ocr(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            return await self.ocr_precise(image_path, region)
+
+        async def ocr_precise(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path
+            if region is None:
+                return OCRResult()
+            self.local_reads += 1
+            if self.local_reads < 3:
+                return OCRResult()
+            return OCRResult(
+                lines=[OCRLine(text=intended, confidence=0.99)]
+            )
+
+        async def ocr_precise_fallback(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path, region
+            self.blind_fallback_reads += 1
+            return OCRResult(
+                lines=[
+                    OCRLine(
+                        text="Ln 7, Col 7 105 characters Plain text",
+                        confidence=0.99,
+                    )
+                ]
+            )
+
+    backend = FakeBackend()
+    ocr = DelayedLocalOCR()
+    result = await WatchedTyper(backend, ocr).type_text(
+        intended,
+        code=True,
+        exact=True,
+        context="editor",
+    )
+
+    assert result.status == "verified_exact", result
+    assert result.field_text == intended
+    assert result.emitted_exactly_once is True
+    assert ocr.local_reads >= 3
+    assert ocr.blind_fallback_reads == 0
     _assert_no_enter(backend)
 
 

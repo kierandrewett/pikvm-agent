@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 from pathlib import Path
 from typing import Any
 
@@ -7475,6 +7476,138 @@ def test_reopen_completion_requires_a_later_verified_reopen_action() -> None:
 
     assert rejection is not None
     assert "separately verified reopen action after save" in rejection
+
+
+def test_wrapped_do_not_save_task_does_not_inherit_generic_reopen_guidance() -> None:
+    run = RunSnapshot(
+        run_id="wrapped-unsaved-completion",
+        task=(
+            "For text acceptance, save and reopen only the document that this "
+            "run freshly populated.\n\nTask:\nIn a fresh blank Notepad "
+            "document, type exactly `hello`. Do not save the document."
+        ),
+        status=RunStatus.RUNNING,
+        plan=PlanDecision(
+            summary="Type the requested text without saving.",
+            steps=["Type hello", "Verify the unsaved document"],
+            success_criteria=[
+                "The unsaved document visibly contains exactly hello."
+            ],
+            constraints=["Do not save the document."],
+        ),
+    )
+    verdict = VerificationDecision(
+        verdict="complete",
+        summary=(
+            "The fresh document contains exactly hello and has not been saved."
+        ),
+        evidence=["Notepad visibly shows hello with the unsaved indicator."],
+        criteria=[
+            {
+                "criterion_index": 0,
+                "satisfied": True,
+                "evidence": "The unsaved Notepad document visibly shows hello.",
+            }
+        ],
+        action_criteria=[],
+    )
+
+    assert AgentHarness._completion_rejection_reason(run, verdict) is None
+
+
+def test_fresh_notepad_completion_requires_current_run_exact_receipts() -> None:
+    segments = ("first", "second")
+    run = RunSnapshot(
+        run_id="fresh-notepad-provenance",
+        task=(
+            "For this text acceptance, create a new blank document. Do not "
+            "treat restored or pre-existing document content as task "
+            "completion.\n\nTask:\nIn Notepad, type exactly these two lines: "
+            "`first` and `second`. Do not save the document."
+        ),
+        status=RunStatus.RUNNING,
+        plan=PlanDecision(
+            summary="Type both lines in a fresh document.",
+            steps=["Type both lines", "Verify them"],
+            success_criteria=["The fresh document contains both lines."],
+            constraints=["Do not save the document."],
+            artifact_content="first\nsecond",
+            artifact_content_kind="code",
+        ),
+    )
+    verdict = VerificationDecision(
+        verdict="complete",
+        summary="The fresh unsaved document contains both requested lines.",
+        evidence=["Both lines are visible."],
+        criteria=[
+            {
+                "criterion_index": 0,
+                "satisfied": True,
+                "evidence": "Both lines are visible.",
+            }
+        ],
+        action_criteria=[],
+    )
+
+    rejection = AgentHarness._completion_rejection_reason(run, verdict)
+
+    assert rejection is not None
+    assert "current-run input receipt" in rejection
+
+    for index, segment in enumerate(segments):
+        run.record(
+            "action.completed",
+            index=index,
+            input_receipts=[
+                {
+                    "status": "verified_exact",
+                    "verdict": "match",
+                    "focus_evidence": "read_back_verified",
+                    "proof_state": "exact_visual_readback",
+                    "exact_readback_sha256_match": True,
+                    "emitted_exactly_once": True,
+                    "correction_count": 0,
+                    "delivery_retries": 0,
+                    "requested_sha256": hashlib.sha256(
+                        segment.encode("utf-8")
+                    ).hexdigest(),
+                }
+            ],
+        )
+
+    assert AgentHarness._completion_rejection_reason(run, verdict) is None
+
+
+def test_complete_verdict_still_rejects_unmet_positive_task_claim() -> None:
+    run = RunSnapshot(
+        run_id="positive-task-negation",
+        task="Type hello in Notepad.",
+        status=RunStatus.RUNNING,
+        plan=PlanDecision(
+            summary="Type hello.",
+            steps=["Type hello"],
+            success_criteria=["Notepad visibly contains hello."],
+            constraints=[],
+        ),
+    )
+    verdict = VerificationDecision(
+        verdict="complete",
+        summary="The requested edit has not been completed.",
+        evidence=["Notepad is still empty."],
+        criteria=[
+            {
+                "criterion_index": 0,
+                "satisfied": True,
+                "evidence": "The editor is visible.",
+            }
+        ],
+        action_criteria=[],
+    )
+
+    rejection = AgentHarness._completion_rejection_reason(run, verdict)
+
+    assert rejection is not None
+    assert "contradicts its own evidence" in rejection
 
 
 def test_later_verified_reopen_action_satisfies_reopen_completion_gate() -> None:

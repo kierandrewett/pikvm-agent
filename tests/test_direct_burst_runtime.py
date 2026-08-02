@@ -1239,9 +1239,19 @@ async def test_matching_exact_save_as_filename_grounds_one_local_enter(
             del image_path, region
             return OCRResult(
                 lines=[
-                    OCRLine(text="Save as"),
+                    OCRLine(text="Save"),
                     OCRLine(text="This PC  New folder"),
                     OCRLine(text="File name: code-04.sql"),
+                ]
+            )
+
+        async def ocr_precise(self, image_path, region=None):
+            del image_path
+            assert region is not None
+            return OCRResult(
+                lines=[
+                    OCRLine(text="Save as"),
+                    OCRLine(text="This PC  New folder"),
                     OCRLine(text="Save as type: Text documents"),
                 ]
             )
@@ -1269,9 +1279,9 @@ async def test_matching_exact_save_as_filename_grounds_one_local_enter(
         idempotency_key="grounded-save-as-filename",
     )
 
-    assert result["status"] == "completed"
-    assert [call[1]["keys"] for call in _hid_calls(runtime)] == [["Enter"]]
-    assert runtime._get(sid).verified_local_navigation_draft is None
+    assert result["status"] == "needs_approval"
+    assert result["approval_request"]["risk"] == "local_file_edit"
+    assert not _hid_calls(runtime)
 
 
 async def test_matching_exact_open_filename_grounds_one_local_enter(

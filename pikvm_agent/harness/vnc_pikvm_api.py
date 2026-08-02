@@ -330,6 +330,7 @@ class VncDotoolTransport:
         self._semantic_shift_keys: dict[str, str] = {}
         self._synthetic_keyups: set[str] = set()
         self._active_chord_modifiers: set[str] = set()
+        self._guest_modifiers_may_be_stale = False
         self._cached_frame: bytes | None = None
         self._frame_cached_at = 0.0
 
@@ -420,6 +421,16 @@ class VncDotoolTransport:
         self._shift_sent = False
         self._semantic_shift_keys.clear()
         self._synthetic_keyups.clear()
+        self._active_chord_modifiers.clear()
+        self._guest_modifiers_may_be_stale = False
+
+    @staticmethod
+    def _settle_windows_guest_modifiers(client: Any) -> None:
+        """Clear a possibly coalesced chord release before printable input."""
+
+        for modifier in ("shift", "ctrl", "alt", "super"):
+            client.keyUp(modifier)
+        time.sleep(0.075)
 
     @staticmethod
     def _type_windows_alt_code(client: Any, character: str) -> None:
@@ -440,10 +451,17 @@ class VncDotoolTransport:
         digits = f"0{encoded[0]:03d}"
         client.keyDown("alt")
         try:
+            time.sleep(0.075)
             for digit in digits:
                 client.keyPress(f"kp{digit}")
+                time.sleep(0.035)
+            time.sleep(0.075)
         finally:
             client.keyUp("alt")
+            # Windows commits the composed character on Alt release. Without
+            # this post-release dwell the first following printable key can be
+            # swallowed while the guest is still resolving the Alt sequence.
+            time.sleep(0.100)
 
     @staticmethod
     def _type_windows_physical_shifted_key(
@@ -473,18 +491,18 @@ class VncDotoolTransport:
             client.keyUp("shift")
 
     @staticmethod
-    def _tap_windows_repeat_sensitive_key(
+    def _tap_windows_printable_key(
         client: Any,
         key: str,
     ) -> None:
-        """Deliver one unmodified key tap without an RFB coalescing window.
+        """Deliver one unmodified printable tap without an RFB coalescing window.
 
         The disposable Windows VNC guest accepted only two of four leading
-        Space key pairs even though the websocket sender observed every event
-        and left a human inter-key gap. Keep the matching down/up pair inside
-        one serial adapter transaction with a measured dwell. This is limited
-        to unmodified repeat-sensitive keys; chords keep their normal held-key
-        semantics.
+        Space key pairs and later dropped an ordinary ``u`` even though the
+        websocket sender observed every event and left a human inter-key gap.
+        Keep each matching down/up pair inside one serial adapter transaction
+        with a measured dwell. This is limited to unmodified printable keys;
+        chords keep their normal held-key semantics.
         """
 
         client.keyDown(key)
@@ -572,6 +590,7 @@ class VncDotoolTransport:
                 else:
                     if self._shift_sent:
                         await asyncio.to_thread(client.keyUp, "shift")
+                        self._guest_modifiers_may_be_stale = True
                     self._shift_pending = False
                     self._shift_sent = False
                 return
@@ -583,20 +602,6 @@ class VncDotoolTransport:
                 return
             if not down and code in self._synthetic_keyups:
                 self._synthetic_keyups.discard(code)
-                return
-            if (
-                down
-                and self.keyboard_profile == "windows"
-                and code == "Space"
-                and not self._shift_pending
-                and not self._active_chord_modifiers
-            ):
-                self._synthetic_keyups.add(code)
-                await asyncio.to_thread(
-                    self._tap_windows_repeat_sensitive_key,
-                    client,
-                    key,
-                )
                 return
             shifted_character = shifted_code_to_character(
                 code,
@@ -636,6 +641,12 @@ class VncDotoolTransport:
                     )
                 )
             ):
+                if self._guest_modifiers_may_be_stale:
+                    await asyncio.to_thread(
+                        self._settle_windows_guest_modifiers,
+                        client,
+                    )
+                    self._guest_modifiers_may_be_stale = False
                 character = (
                     shifted_character
                     if self._shift_pending
@@ -650,6 +661,32 @@ class VncDotoolTransport:
                     self._type_windows_alt_code,
                     client,
                     character,
+                )
+                return
+            if (
+                down
+                and self.keyboard_profile == "windows"
+                and not self._shift_pending
+                and not self._active_chord_modifiers
+                and code != "IntlBackslash"
+                and code_to_character(
+                    code,
+                    shifted=False,
+                    keymap=self.keymap,
+                )
+                is not None
+            ):
+                if self._guest_modifiers_may_be_stale:
+                    await asyncio.to_thread(
+                        self._settle_windows_guest_modifiers,
+                        client,
+                    )
+                    self._guest_modifiers_may_be_stale = False
+                self._synthetic_keyups.add(code)
+                await asyncio.to_thread(
+                    self._tap_windows_printable_key,
+                    client,
+                    key,
                 )
                 return
             semantic_shift = shifted_code_to_character(code, self.keymap)
@@ -688,6 +725,8 @@ class VncDotoolTransport:
                     self._active_chord_modifiers.discard(modifier)
                 method = client.keyDown if down else client.keyUp
                 await asyncio.to_thread(method, modifier)
+                if not down and self.keyboard_profile == "windows":
+                    self._guest_modifiers_may_be_stale = True
                 return
 
             method = client.keyDown if down else client.keyUp
@@ -732,6 +771,15 @@ class VncDotoolTransport:
             self._invalidate_frame()
             client = self._require()
             layout = ks.keymap_to_layout(self.keymap) or "us"
+            if (
+                self.keyboard_profile == "windows"
+                and self._guest_modifiers_may_be_stale
+            ):
+                await asyncio.to_thread(
+                    self._settle_windows_guest_modifiers,
+                    client,
+                )
+                self._guest_modifiers_may_be_stale = False
 
             def type_all() -> None:
                 for char in text:
@@ -794,6 +842,17 @@ class VncDotoolTransport:
                             key = char
                         elif key_info.shift:
                             client.keyDown("shift")
+                        if (
+                            self.keyboard_profile == "windows"
+                            and (not key_info.shift or semantic_shift)
+                        ):
+                            # The guarded print endpoint must use the same
+                            # atomic printable-key contract as websocket HID.
+                            # Otherwise the supposedly faster path can report
+                            # every character as issued while a Windows RFB
+                            # guest silently drops an entire row.
+                            self._tap_windows_printable_key(client, key)
+                            continue
                         try:
                             client.keyDown(key)
                             try:

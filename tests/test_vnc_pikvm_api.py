@@ -299,6 +299,80 @@ async def test_windows_transport_keeps_each_plain_space_tap_atomic(
     assert sleeps == [0.075, 0.075] * 4
 
 
+async def test_windows_transport_keeps_each_plain_letter_tap_atomic(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class Client:
+        def __init__(self) -> None:
+            self.calls = []
+
+        def keyDown(self, key) -> None:
+            self.calls.append(("down", key))
+
+        def keyUp(self, key) -> None:
+            self.calls.append(("up", key))
+
+    sleeps: list[float] = []
+    monkeypatch.setattr(vnc_pikvm_api.time, "sleep", sleeps.append)
+    transport = VncDotoolTransport(
+        "unused:5900",
+        keymap="en-gb",
+        keyboard_profile="windows",
+    )
+    client = Client()
+    transport._client = client
+
+    await transport.key("KeyU", True)
+    await transport.key("KeyU", False)
+
+    assert client.calls == [("down", "u"), ("up", "u")]
+    assert sleeps == [0.075, 0.075]
+
+
+async def test_windows_transport_clears_a_stale_chord_before_printable_input(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class Client:
+        def __init__(self) -> None:
+            self.calls = []
+
+        def keyDown(self, key) -> None:
+            self.calls.append(("down", key))
+
+        def keyUp(self, key) -> None:
+            self.calls.append(("up", key))
+
+    sleeps: list[float] = []
+    monkeypatch.setattr(vnc_pikvm_api.time, "sleep", sleeps.append)
+    transport = VncDotoolTransport(
+        "unused:5900",
+        keymap="en-gb",
+        keyboard_profile="windows",
+    )
+    client = Client()
+    transport._client = client
+
+    await transport.key("ControlLeft", True)
+    await transport.key("KeyN", True)
+    await transport.key("KeyN", False)
+    await transport.key("ControlLeft", False)
+    await transport.print_text("a")
+
+    assert client.calls == [
+        ("down", "ctrl"),
+        ("down", "n"),
+        ("up", "n"),
+        ("up", "ctrl"),
+        ("up", "shift"),
+        ("up", "ctrl"),
+        ("up", "alt"),
+        ("up", "super"),
+        ("down", "a"),
+        ("up", "a"),
+    ]
+    assert sleeps == [0.075, 0.075, 0.075]
+
+
 async def test_transport_uses_alt_codes_for_uk_symbols_windows_vnc_drops() -> None:
     class Client:
         def __init__(self) -> None:
@@ -469,6 +543,39 @@ def test_windows_shifted_key_dwell_survives_remote_rfb_coalescing(
     assert sleeps == [0.100, 0.075, 0.100]
 
 
+def test_windows_alt_code_waits_for_guest_to_commit_character(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class Client:
+        def __init__(self) -> None:
+            self.calls = []
+
+        def keyDown(self, key) -> None:
+            self.calls.append(("down", key))
+
+        def keyUp(self, key) -> None:
+            self.calls.append(("up", key))
+
+        def keyPress(self, key) -> None:
+            self.calls.append(("press", key))
+
+    sleeps: list[float] = []
+    monkeypatch.setattr(vnc_pikvm_api.time, "sleep", sleeps.append)
+    client = Client()
+
+    VncDotoolTransport._type_windows_alt_code(client, '"')
+
+    assert client.calls == [
+        ("down", "alt"),
+        ("press", "kp0"),
+        ("press", "kp0"),
+        ("press", "kp3"),
+        ("press", "kp4"),
+        ("up", "alt"),
+    ]
+    assert sleeps == [0.075, 0.035, 0.035, 0.035, 0.035, 0.075, 0.100]
+
+
 async def test_windows_transport_prints_cp1252_unicode_with_alt_codes() -> None:
     class Client:
         def __init__(self) -> None:
@@ -515,7 +622,7 @@ async def test_windows_transport_prints_cp1252_unicode_with_alt_codes() -> None:
     ]
 
 
-async def test_windows_transport_spaces_each_plain_character(
+async def test_windows_transport_prints_each_plain_character_atomically(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     class Client:
@@ -539,7 +646,13 @@ async def test_windows_transport_spaces_each_plain_character(
 
     await transport.print_text("ab")
 
-    assert sleeps == [0.015, 0.035, 0.015, 0.035]
+    assert transport._client.calls == [
+        ("down", "a"),
+        ("up", "a"),
+        ("down", "b"),
+        ("up", "b"),
+    ]
+    assert sleeps == [0.075, 0.075, 0.075, 0.075]
 
 
 async def test_transport_releases_stale_modifiers_on_connection() -> None:

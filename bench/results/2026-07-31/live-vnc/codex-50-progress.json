@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "report": "codex-50-live-progress",
-  "recorded_at": "2026-08-02T19:43:24Z",
+  "recorded_at": "2026-08-02T23:05:00Z",
   "manifest": "bench/codex-50-tasks.yaml",
   "environment": {
     "target": "authorized disposable Windows VNC VM",
@@ -16,9 +16,9 @@
   },
   "progress": {
     "planned": 50,
-    "unique_passed": 29,
-    "pending": 21,
-    "completion_percent": 58.0,
+    "unique_passed": 30,
+    "pending": 20,
+    "completion_percent": 60.0,
     "categories": {
       "Observation": {
         "passed": 5,
@@ -33,7 +33,7 @@
         "planned": 10
       },
       "Code entry": {
-        "passed": 4,
+        "passed": 5,
         "planned": 10
       },
       "File management": {
@@ -78,7 +78,8 @@
       "code-01",
       "code-02",
       "code-03",
-      "code-04"
+      "code-04",
+      "code-05"
     ]
   },
   "canonical_campaigns": [
@@ -248,6 +249,13 @@
         "code-04"
       ],
       "campaign_sha256": "815301670be6de1d622347c67c8793b1c2209d85a66e705a14fa4943619cb6d0"
+    },
+    {
+      "campaign_id": "codex-code-entry-code05-v10-20260802",
+      "tasks": [
+        "code-05"
+      ],
+      "campaign_sha256": "f0868f7a347406760dc44c60a32e93361dd631b211b140bb5c24509ef8058318"
     }
   ],
   "calc_09_acceptance": {
@@ -3419,10 +3427,10 @@
     "full_ledger": "bench/results/2026-08-02/live-vnc/code-03-attempts.json"
   },
   "verdict": {
-    "accuracy": "The campaign is 29/50. All ten Text entry tasks and the first four Code entry tasks pass with fresh input and independent reopen evidence. Code-04 completed 24/24 actions with ten exact receipts covering 176 requested, issued, and observed characters, zero corrections or retries, and no recovery. Seven failed runs and one reported-pass-but-invalid recovery run remain in the denominator; the full nine-run ledger is linked.",
-    "speed": "Failing product target: accepted code-04 v9 took 416.335 seconds before reboot and 510.973 seconds including the reset-ready gate. A competent human can enter, save, reopen, and inspect this seven-line SQL query materially faster.",
-    "dominant_cost": "Code-04 v9 spent 260.336 seconds in action execution and 149.451 seconds waiting for 20 provider calls. Exact screen verification is 62.53% of wall time; provider wait is 35.90%. The longest action was the 56.604-second Save As filename readback. The native dialog chrome defect is fixed, but local OCR and 17 verifier turns remain the primary speed problems.",
-    "next": "Continue with code-05 while preserving exact-once input, deterministic Save/Open commit grounding, independent reopen proof, bounded workspace approval, fresh-artifact preparation, quiesce-before-reboot lifecycle, and failure-inclusive recordings."
+    "accuracy": "The campaign is 30/50. All ten Text entry tasks and the first five Code entry tasks pass with fresh input and independent reopen evidence. Code-05 completed 38/38 actions with 16 exact receipts, zero corrections or retries, and no recovery. Nine failed full-task runs remain in the denominator; the complete ledger and six supporting diagnostic runs are linked.",
+    "speed": "Failing product target: accepted code-05 v10 took 670.347 seconds before reboot and 753.553 seconds including the reset-ready gate. A competent human can enter, save, reopen, and inspect this HTML document materially faster.",
+    "dominant_cost": "Code-05 v10 spent 419.511 seconds in action execution and 240.278 seconds waiting on the critical provider path. Action execution is 62.58% of wall time; provider wait is 35.84%. Thirty-seven provider calls, including 25 verifier turns, remain the dominant avoidable interaction cost.",
+    "next": "Continue with code-06 while preserving exact-once input, deterministic Save/Open commit grounding, independent reopen proof, bounded workspace approval, fresh-artifact preparation, quiesce-before-reboot lifecycle, and failure-inclusive recordings."
   },
   "code_04_acceptance": {
     "task": "Write, save, reopen, and visually verify a grouped customer-value SQL query in Notepad",
@@ -3659,5 +3667,73 @@
       "reboot_transition_observed": true,
       "campaign_sha256": "815301670be6de1d622347c67c8793b1c2209d85a66e705a14fa4943619cb6d0"
     }
-  ]
+  ],
+  "code_05_acceptance": {
+    "task": "Write, save, reopen, and visually verify a minimal accessible HTML waitlist form in Notepad",
+    "result": "passed",
+    "run_id": "9280dc32-accf-4fe9-916a-d29ed76bab8c",
+    "reason": "A fresh blank document received the complete accessible HTML document. Sixteen exact receipts covered launch, all content rows, Save As basename, and Open basename with zero corrections or retries. Save and Open committed deterministically; the reopened file was independently verified, quiesced, recorded, and rebooted after a visible transition.",
+    "wall_clock_ms": 670347,
+    "model_active_ms": 272981,
+    "provider_wait_ms": 240278,
+    "provider_serial_equivalent_ms": 273889,
+    "provider_overlap_ms": 33611,
+    "action_execution_ms": 419511,
+    "evidence_capture_ms": 5972,
+    "provider_calls": 37,
+    "reasoner_calls": 1,
+    "controller_calls": 11,
+    "verifier_calls": 25,
+    "actions_attempted": 38,
+    "actions_completed": 38,
+    "completion_efficiency": 1.0,
+    "exact_input_receipts": 16,
+    "input_receipt_totals": {
+      "all_zero_corrections": true,
+      "all_zero_delivery_retries": true,
+      "all_emitted_exactly_once": true
+    },
+    "unverified_inputs": 0,
+    "typing_corrections": 0,
+    "same_run_recoveries": 0,
+    "approval_count": 1,
+    "approval_scopes": [
+      "bounded_workspace_edit"
+    ],
+    "quiescence_status": "confirmed",
+    "reboot_ms": 83206,
+    "reboot_transition_observed": true,
+    "recording": {
+      "sha256": "fc000d2404d5a88065203e08ab9303d9e4ac90f41e309075e2183f83e053d362",
+      "codec": "vp9",
+      "width": 2048,
+      "height": 1280,
+      "fps": 2.0,
+      "duration_ms": 697000,
+      "size_bytes": 1909608,
+      "relative_path": "codex-code-entry-code05-v10-20260802/code-05/recording.webm"
+    },
+    "poster": {
+      "relative_path": "codex-code-entry-code05-v10-20260802/code-05/poster.jpg",
+      "sha256": "a9c34fd9f657ab49b607041beefc99604ecf881b1e09b234a6b7d2865ba0df47"
+    },
+    "campaign_sha256": "f0868f7a347406760dc44c60a32e93361dd631b211b140bb5c24509ef8058318"
+  },
+  "code_05_attempt_summary": {
+    "total_runs": 10,
+    "failed_runs": 9,
+    "invalid_runs": 0,
+    "passed_runs": 1,
+    "diagnostic_runs": 6,
+    "canonical_campaign_id": "codex-code-entry-code05-v10-20260802",
+    "failure_terminal_outcomes": {
+      "ambiguous_or_lost_row_readback": 3,
+      "incorrect_communication_policy_classification": 1,
+      "unclean_self_correction": 1,
+      "wrong_region_status_ocr": 2,
+      "unverified_save_commit": 1,
+      "preflight_timeout": 1
+    },
+    "full_ledger": "bench/results/2026-08-02/live-vnc/code-05-attempts.json"
+  }
 }

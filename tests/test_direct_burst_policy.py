@@ -30,6 +30,47 @@ def test_safe_grounded_navigation_and_plain_editor_typing_are_allowed() -> None:
     ).status == "allowed"
 
 
+@pytest.mark.parametrize(
+    "text",
+    [
+        '<label for="email">Email</label>',
+        '<button type="submit">Join waitlist</button>',
+    ],
+)
+def test_literal_html_code_in_editor_is_not_a_communication_send(text: str) -> None:
+    verdict = _classify(
+        [
+            {
+                "type": "type_text",
+                "text": text,
+                "context": "editor",
+                "code": True,
+                "verification": "exact",
+            }
+        ]
+    )
+
+    assert (verdict.status, verdict.category) == ("allowed", "")
+
+
+def test_editor_metadata_cannot_exempt_an_actual_communication_instruction() -> None:
+    verdict = _classify(
+        [
+            {
+                "type": "type_text",
+                "text": "send email to alice@example.com",
+                "context": "editor",
+                "code": True,
+            }
+        ]
+    )
+
+    assert (verdict.status, verdict.category) == (
+        "approval_required",
+        "communication_send",
+    )
+
+
 def test_spreadsheet_grid_requires_one_local_file_edit_approval() -> None:
     verdict = _classify(
         [
@@ -495,6 +536,24 @@ def test_verified_local_navigation_commit_requires_explicit_grounding() -> None:
         PolicyConfig(),
         verified_local_navigation_commit=True,
     ).status == "allowed"
+
+
+def test_verified_save_as_filename_commit_is_a_local_file_edit() -> None:
+    actions = [
+        {"type": "key", "keys": ["ENTER"]},
+        {"type": "wait_for_change", "timeout_ms": 5000},
+    ]
+
+    verdict = classify_direct_burst(
+        actions,
+        PolicyConfig(),
+        verified_local_file_save_commit=True,
+    )
+
+    assert (verdict.status, verdict.category) == (
+        "approval_required",
+        "local_file_edit",
+    )
 
 
 def test_windows_run_surface_accepts_real_ocr_noise_with_same_frame_draft() -> None:

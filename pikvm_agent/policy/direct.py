@@ -594,6 +594,16 @@ _TERMINAL_SYSTEM_SETTING = re.compile(
     r"^\s*gsettings\s+(?:set|reset|reset-recursively)\b",
     re.IGNORECASE,
 )
+_MARKUP_TOKEN = re.compile(
+    r"(?:"
+    r"<!--(?:(?!-->).)*-->|"
+    r"<!doctype\s+[A-Za-z][^<>]*>|"
+    r"<\?[A-Za-z][^<>]*\?>|"
+    r"</?[A-Za-z][A-Za-z0-9:._-]*"
+    r"(?:\s+(?:[^<>\"']+|\"[^\"]*\"|'[^']*')*)?\s*/?>"
+    r")",
+    re.IGNORECASE,
+)
 
 
 def _semantic_text(action: dict) -> str:
@@ -601,6 +611,33 @@ def _semantic_text(action: dict) -> str:
         str(action.get(key, ""))
         for key in ("observed_target_text", "target_text", "intent", "label")
     ).strip()
+
+
+def _is_structured_markup_editor_literal(action: dict, text: str) -> bool:
+    """Recognise bounded markup source without trusting editor metadata alone."""
+
+    if (
+        action.get("type") != "type_text"
+        or str(action.get("context", "")).casefold() != "editor"
+        or action.get("code") is not True
+        or "\n" in text
+        or "\r" in text
+    ):
+        return False
+    stripped = text.strip()
+    if not stripped.startswith("<") or not stripped.endswith(">"):
+        return False
+
+    cursor = 0
+    matched = False
+    for token in _MARKUP_TOKEN.finditer(stripped):
+        between = stripped[cursor : token.start()]
+        if "<" in between or ">" in between:
+            return False
+        matched = True
+        cursor = token.end()
+    tail = stripped[cursor:]
+    return matched and "<" not in tail and ">" not in tail
 
 
 def _edit_distance(left: str, right: str) -> int:
@@ -903,6 +940,7 @@ def classify_direct_burst(
     *,
     observed_surface_text: str = "",
     verified_local_navigation_commit: bool = False,
+    verified_local_file_save_commit: bool = False,
 ) -> DirectBurstVerdict:
     """Classify a burst independently of the model-provided intent.
 
@@ -1036,10 +1074,19 @@ def classify_direct_burst(
                 keys in ({"ENTER"}, {"RETURN"}, {"NUMPADENTER"})
                 and not safe_windows_run_launch
                 and not verified_calculator_expression
-                and not verified_local_navigation_commit
                 and not verified_safe_error_dismissal
             ):
-                if verified_local_file_overwrite:
+                if verified_local_file_save_commit:
+                    candidates.append(
+                        (
+                            "local_file_edit",
+                            "medium",
+                            "Save As commit requires human review",
+                        )
+                    )
+                elif verified_local_navigation_commit:
+                    pass
+                elif verified_local_file_overwrite:
                     candidates.append(
                         (
                             "local_file_edit",
@@ -1125,7 +1172,10 @@ def classify_direct_burst(
             candidates.append(
                 ("terminal_mutating", "high", "dangerous command text requires human review")
             )
-        elif command_risk == "side_effect":
+        elif command_risk == "side_effect" and not _is_structured_markup_editor_literal(
+            action,
+            text,
+        ):
             candidates.append(
                 ("communication_send", "medium", "side-effecting command requires human review")
             )

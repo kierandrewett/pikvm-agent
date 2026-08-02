@@ -1683,16 +1683,7 @@ def _locally_verified_notepad_artifact_action(
         ),
         None,
     )
-    if receipt is None or not (
-        receipt.get("status") == "verified_exact"
-        and receipt.get("verdict") == "match"
-        and receipt.get("focus_evidence") == "read_back_verified"
-        and receipt.get("proof_state") == "exact_visual_readback"
-        and receipt.get("exact_readback_sha256_match") is True
-        and receipt.get("emitted_exactly_once") is True
-        and receipt.get("correction_count") == 0
-        and receipt.get("delivery_retries") == 0
-    ):
+    if receipt is None or not _is_verified_exact_input_receipt(receipt):
         return None
     summary = (
         f"Exact local visual readback verified artifact segment "
@@ -1718,6 +1709,45 @@ def _locally_verified_notepad_artifact_action(
             for index in range(len(action.expected_evidence))
         ],
     )
+
+
+def _is_verified_exact_input_receipt(receipt: dict[str, Any]) -> bool:
+    return (
+        receipt.get("status") == "verified_exact"
+        and receipt.get("verdict") == "match"
+        and receipt.get("focus_evidence") == "read_back_verified"
+        and receipt.get("proof_state") == "exact_visual_readback"
+        and receipt.get("exact_readback_sha256_match") is True
+        and receipt.get("emitted_exactly_once") is True
+        and receipt.get("correction_count") == 0
+        and receipt.get("delivery_retries") == 0
+    )
+
+
+def _has_fresh_notepad_artifact_receipts(run: RunSnapshot) -> bool:
+    """Prove each requested artifact segment was typed in this run."""
+
+    remaining = [
+        hashlib.sha256(segment.encode("utf-8")).hexdigest()
+        for segment in _notepad_exact_text_segments(run)
+    ]
+    if not remaining:
+        return False
+    for event in run.events:
+        if event.kind != "action.completed":
+            continue
+        receipts = event.data.get("input_receipts")
+        if not isinstance(receipts, list):
+            continue
+        for receipt in receipts:
+            if not isinstance(receipt, dict) or not _is_verified_exact_input_receipt(
+                receipt
+            ):
+                continue
+            requested_hash = str(receipt.get("requested_sha256") or "")
+            if requested_hash in remaining:
+                remaining.remove(requested_hash)
+    return not remaining
 
 
 def _notepad_fast_path(
@@ -5507,6 +5537,16 @@ class AgentHarness:
         )
 
     @staticmethod
+    def _completion_task_text(run: RunSnapshot) -> str:
+        """Return the explicit task contract without campaign preamble text."""
+
+        task = str(run.computer_task or run.task)
+        task_markers = list(re.finditer(r"(?im)^\s*task\s*:\s*", task))
+        if task_markers:
+            task = task[task_markers[-1].end() :]
+        return " ".join(task.casefold().split())
+
+    @staticmethod
     def _completion_rejection_reason(
         run: RunSnapshot,
         verdict: VerificationDecision,
@@ -5529,7 +5569,25 @@ class AgentHarness:
                 return f"criterion {index} was explicitly reported unsatisfied"
             if not assessments[index].evidence.strip():
                 return f"criterion {index} has no specific visible evidence"
+        task = AgentHarness._completion_task_text(run)
+        if (
+            _requires_fresh_notepad_document(run)
+            and _notepad_exact_text_segments(run)
+            and not _has_fresh_notepad_artifact_receipts(run)
+        ):
+            return (
+                "fresh Notepad task has no exact current-run input receipt "
+                "for every requested artifact segment"
+            )
         claim = " ".join([verdict.summary, *verdict.evidence]).casefold()
+        if re.search(r"\b(?:do not|don't|must not|without)\s+save\b", task):
+            claim = re.sub(
+                r"\b(?:has|have)\s+not\s+been\s+saved\b|"
+                r"\b(?:has|have)\s+not\s+saved\b|"
+                r"\bnot\s+been\s+saved\b",
+                "",
+                claim,
+            )
         contradiction = re.search(
             r"\b(?:not yet|has not|have not|not been|not complete|incomplete|"
             r"still needs?|remains? to be|overall task[^.]{0,80}\bnot\b)",
@@ -5540,9 +5598,6 @@ class AgentHarness:
                 "complete verdict contradicts its own evidence near "
                 f"{contradiction.group(0)!r}"
             )
-        task = " ".join(
-            str(run.computer_task or run.task).casefold().split()
-        )
         if (
             re.search(r"\breopen(?:ed|ing)?\b", task)
             and not AgentHarness._has_verified_reopen_after_save(

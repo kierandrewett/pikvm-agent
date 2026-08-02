@@ -1028,6 +1028,7 @@ class Runtime:
         (
             observed_surface_text,
             verified_local_navigation_surface,
+            verified_local_file_save_surface,
         ) = await self._ground_keyboard_surface(
             grounded_actions,
             frame,
@@ -1047,6 +1048,10 @@ class Runtime:
             verified_local_navigation_commit=(
                 matching_local_navigation_draft
                 and verified_local_navigation_surface
+            ),
+            verified_local_file_save_commit=(
+                matching_local_navigation_draft
+                and verified_local_file_save_surface
             ),
         )
         if verdict.status == "blocked":
@@ -1425,8 +1430,8 @@ class Runtime:
         *,
         local_navigation_draft: str = "",
         verified_same_frame_draft: bool = False,
-    ) -> tuple[str, bool]:
-        """Read the visible app before exempting one bounded local commit."""
+    ) -> tuple[str, bool, bool]:
+        """Ground one local commit as navigation or a local file save."""
 
         calculator = needs_calculator_surface_grounding(actions)
         safe_error_dismissal = (
@@ -1443,19 +1448,19 @@ class Runtime:
             and not safe_error_dismissal
             and not local_file_overwrite
         ):
-            return ("", False)
+            return ("", False, False)
         ocr = getattr(self._screen_parser, "ocr", None)
         if ocr is None:
-            return ("", False)
+            return ("", False, False)
         try:
             observed = await ocr.ocr(Path(frame.image_path))
         except Exception:
-            return ("", False)
+            return ("", False, False)
         observed_text = str(observed.text or "")[:2_000]
         if local_file_overwrite:
             precise_ocr = getattr(ocr, "ocr_precise", None)
             if not callable(precise_ocr):
-                return (observed_text, False)
+                return (observed_text, False, False)
             try:
                 precise = await precise_ocr(
                     Path(frame.image_path),
@@ -1467,15 +1472,16 @@ class Runtime:
                     ),
                 )
             except Exception:
-                return (observed_text, False)
+                return (observed_text, False, False)
             return (
                 f"{observed_text}\n{str(precise.text or '')[:2_000]}",
+                False,
                 False,
             )
         if safe_error_dismissal:
             precise_ocr = getattr(ocr, "ocr_precise", None)
             if not callable(precise_ocr):
-                return (observed_text, False)
+                return (observed_text, False, False)
             click = next(
                 (
                     action
@@ -1495,41 +1501,57 @@ class Runtime:
                     region=dialog_region,
                 )
             except Exception:
-                return (observed_text, False)
+                return (observed_text, False, False)
             return (
                 f"{observed_text}\n{str(precise.text or '')[:2_000]}",
                 False,
+                False,
             )
         if calculator and is_confirmed_calculator_surface(observed_text):
-            return (observed_text, False)
+            return (observed_text, False, False)
         if (
             local_navigation_draft == "This PC"
             and is_confirmed_file_explorer_surface(observed_text)
         ):
-            return (observed_text, True)
+            return (observed_text, True, False)
         if is_safe_local_filename_draft(local_navigation_draft):
+            precise_ocr = getattr(ocr, "ocr_precise", None)
+            combined_text = observed_text
+            if callable(precise_ocr):
+                try:
+                    precise = await precise_ocr(
+                        Path(frame.image_path),
+                        region=Region(
+                            x=0,
+                            y=0,
+                            width=frame.width * 0.70,
+                            height=frame.height * 0.65,
+                        ),
+                    )
+                    combined_text = (
+                        f"{observed_text}\n"
+                        f"{str(precise.text or '')[:2_000]}"
+                    )
+                except Exception:
+                    pass
+            save_as_confirmed = is_confirmed_save_as_filename_surface(
+                combined_text,
+                draft_text=local_navigation_draft,
+                verified_same_frame_draft=verified_same_frame_draft,
+            )
+            open_confirmed = is_confirmed_open_filename_surface(
+                combined_text,
+                draft_text=local_navigation_draft,
+                verified_same_frame_draft=verified_same_frame_draft,
+            )
             return (
-                observed_text,
-                (
-                    is_confirmed_save_as_filename_surface(
-                        observed_text,
-                        draft_text=local_navigation_draft,
-                        verified_same_frame_draft=(
-                            verified_same_frame_draft
-                        ),
-                    )
-                    or is_confirmed_open_filename_surface(
-                        observed_text,
-                        draft_text=local_navigation_draft,
-                        verified_same_frame_draft=(
-                            verified_same_frame_draft
-                        ),
-                    )
-                ),
+                combined_text,
+                save_as_confirmed or open_confirmed,
+                save_as_confirmed,
             )
         precise_ocr = getattr(ocr, "ocr_precise", None)
         if not callable(precise_ocr):
-            return (observed_text, False)
+            return (observed_text, False, False)
         if local_navigation_draft:
             if is_safe_local_navigation_target(local_navigation_draft):
                 precise_region = Region(
@@ -1558,7 +1580,7 @@ class Runtime:
                 region=precise_region,
             )
         except Exception:
-            return (observed_text, False)
+            return (observed_text, False, False)
         precise_text = str(precise.text or "")[:2_000]
         if local_navigation_draft:
             combined_text = f"{observed_text}\n{precise_text}"
@@ -1575,6 +1597,7 @@ class Runtime:
                             verified_same_frame_draft
                         ),
                     ),
+                    False,
                 )
             confirmed = is_confirmed_file_explorer_surface(
                 (
@@ -1586,10 +1609,10 @@ class Runtime:
                 top_band_text=precise_text,
                 verified_same_frame_draft=verified_same_frame_draft,
             )
-            return (combined_text, confirmed)
+            return (combined_text, confirmed, False)
         if is_confirmed_calculator_surface(precise_text):
-            return (precise_text, False)
-        return (observed_text, False)
+            return (precise_text, False, False)
+        return (observed_text, False, False)
 
     @staticmethod
     def _has_matching_local_navigation_draft(

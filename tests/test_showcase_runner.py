@@ -24,6 +24,7 @@ from pikvm_agent.harness.showcase_runner import (
     ShowcaseManifest,
     VncAdapter,
     _campaign_recovery_blockers,
+    _hid_print_timeout_s,
     _merge_reboot_attempts,
     _quiesce_run,
     _repair_recovered_reboot_status,
@@ -177,6 +178,11 @@ def test_windows_desktop_gate_accepts_a_visible_taskbar() -> None:
         draw.rectangle((left, 770, left + 18, 790), fill=(210, 220, 235))
 
     assert _windows_desktop_taskbar_visible(desktop)
+
+
+def test_hid_print_timeout_scales_past_default_for_guarded_key_cadence() -> None:
+    assert _hid_print_timeout_s("short command") == 30.0
+    assert _hid_print_timeout_s("x" * 279) == pytest.approx(93.7)
 
 
 def test_campaign_writer_restores_existing_run_without_replacing_it(

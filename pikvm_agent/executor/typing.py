@@ -274,6 +274,48 @@ def is_disjoint_editor_effect(current: Region, candidate: Region) -> bool:
     return vertical_gap > max(24.0, current.height, candidate.height)
 
 
+def editor_row_candidate_above_disjoint_effect(
+    coarse_region: Region | None,
+    candidates: list[Region],
+    dims: tuple[int, int],
+) -> Region | None:
+    """Recover the nearest text-row delta above a coarse status repaint.
+
+    Notepad can repaint its character count more strongly than a short code
+    row, causing the coarse grid to nominate the status bar. Dense candidates
+    remain causal to the same before/after emission. When one overlaps that
+    coarse effect, return only the horizontally adjacent candidate immediately
+    above it; later OCR and the independent status proof still gate success.
+    """
+
+    width, height = dims
+    if coarse_region is None or width <= 0 or height <= 0:
+        return None
+    effects = [
+        candidate
+        for candidate in candidates
+        if regions_overlap(coarse_region, candidate)
+    ]
+    if len(effects) != 1:
+        return None
+    effect = effects[0]
+    maximum_gap = height * MAX_EDITOR_STATUS_VERTICAL_GAP_FRAC
+    maximum_offset = max(128.0, width * 0.20)
+    rows = [
+        candidate
+        for candidate in candidates
+        if (
+            candidate is not effect
+            and candidate.y + candidate.height <= effect.y
+            and effect.y - (candidate.y + candidate.height) <= maximum_gap
+            and abs(candidate.x - effect.x) <= maximum_offset
+        )
+    ]
+    if not rows:
+        return None
+    return max(rows, key=lambda candidate: candidate.y + candidate.height)
+
+
 def unique_exact_structured_ocr_row(
     result: OCRResult,
     intended: str,
@@ -341,6 +383,71 @@ def visible_editor_indent_candidate(
     )
 
 
+def _aligned_editor_character_count(
+    result: OCRResult,
+    position_line: OCRLine,
+    position_region: Region,
+    dims: tuple[int, int],
+    *,
+    container_region: Region | None,
+) -> int | None:
+    """Return a character count painted beside one Notepad position item.
+
+    PaddleOCR preserves Notepad's status bar as separate ``Ln/Col`` and
+    ``N characters`` boxes. Pair them only when their grounded boxes share the
+    same visual row and the count is immediately to the right. This keeps a
+    second stacked editor's status row from satisfying the foreground proof.
+    """
+
+    width, _height = dims
+    counts: set[int] = set()
+    position_right = position_region.x + position_region.width
+    position_bottom = position_region.y + position_region.height
+    maximum_gap = max(48.0, width * 0.10)
+    for candidate_line in [*result.lines, *result.evidence_lines]:
+        if candidate_line is position_line:
+            continue
+        character_count = _EDITOR_STATUS_CHARACTER_COUNT_RE.search(
+            candidate_line.text
+        )
+        if character_count is None:
+            continue
+        if (
+            candidate_line.confidence is not None
+            and float(candidate_line.confidence)
+            < MIN_GROUNDED_EXACT_OCR_CONFIDENCE
+        ):
+            continue
+        candidate_region = (
+            ocr_line_screen_region(
+                candidate_line,
+                container_region,
+                dims,
+                pad=0,
+            )
+            if container_region is not None
+            else ocr_line_region(candidate_line, dims, pad=0)
+        )
+        if candidate_region is None:
+            continue
+        candidate_bottom = candidate_region.y + candidate_region.height
+        vertical_overlap = max(
+            0.0,
+            min(position_bottom, candidate_bottom)
+            - max(position_region.y, candidate_region.y),
+        )
+        horizontal_gap = candidate_region.x - position_right
+        if (
+            vertical_overlap
+            < min(position_region.height, candidate_region.height) * 0.50
+            or horizontal_gap < -4.0
+            or horizontal_gap > maximum_gap
+        ):
+            continue
+        counts.add(int(character_count.group("characters")))
+    return counts.pop() if len(counts) == 1 else None
+
+
 def _bounded_editor_status_rows(
     result: OCRResult,
     row_region: Region,
@@ -391,6 +498,7 @@ def _bounded_editor_status_rows(
             or horizontal_offset > max_horizontal_offset
         ):
             continue
+        character_count = _EDITOR_STATUS_CHARACTER_COUNT_RE.search(line.text)
         candidates.append(
             (
                 vertical_gap,
@@ -399,13 +507,14 @@ def _bounded_editor_status_rows(
                 int(match.group("column")),
                 (
                     int(character_count.group("characters"))
-                    if (
-                        character_count
-                        := _EDITOR_STATUS_CHARACTER_COUNT_RE.search(
-                            line.text
-                        )
+                    if character_count is not None
+                    else _aligned_editor_character_count(
+                        result,
+                        line,
+                        status_region,
+                        dims,
+                        container_region=container_region,
                     )
-                    else None
                 ),
             )
         )
@@ -3123,11 +3232,27 @@ class WatchedTyper:
         last_read = ""
         verified_clean = False
         local_replacement_failure: tuple[VerificationStatus, str] | None = None
+        bounded_editor_code = bool(
+            editor_field
+            and code
+            and total <= FAST_PRINT_CHUNK_TARGET
+        )
         structural_code_glyph = bool(
             precise
             and editor_field
             and code
             and text.strip() in _STRUCTURAL_CODE_GLYPHS
+        )
+        defer_blind_editor_readback = bool(
+            precise
+            and editor_field
+            and code
+            and total <= FAST_PRINT_CHUNK_TARGET
+            and not explicit_region
+            # One-glyph structural appends already use repeated compact-crop
+            # consensus. Deferring their blind fallback removes the repeated
+            # reads needed to prove an indented closing glyph such as ``  ]``.
+            and not structural_code_glyph
         )
         can_vision = not secret and (
             total > 4
@@ -3175,11 +3300,6 @@ class WatchedTyper:
             """Choose among causal line deltas only by exact cropped OCR."""
 
             nonlocal last_read, verified_clean
-            bounded_editor_code = (
-                editor_field
-                and code
-                and total <= FAST_PRINT_CHUNK_TARGET
-            )
             if (
                 not precise
                 or (total > 20 and not bounded_editor_code)
@@ -3435,6 +3555,46 @@ class WatchedTyper:
                                     }
                                 )
                             ]
+                    if (
+                        bounded_editor_code
+                        and len(exact_rows) == 1
+                        and any(
+                            character.isspace()
+                            for character in intended_snapshot
+                        )
+                        and not spacing_verified
+                    ):
+                        # Modern Notepad mirrors the first document row in its
+                        # tab title. A punctuation-complete row inside this
+                        # exact emission's dense pixel delta may ground the
+                        # editor field, but uncalibrated OCR spacing cannot yet
+                        # verify the payload. Retain only the causal location;
+                        # the normal expanded read and independent Ln/Col/count
+                        # status proof still have to establish exactness.
+                        localized_region = candidate
+                        screen_row_region = ocr_line_screen_region(
+                            exact_rows[0],
+                            candidate_readback_region,
+                            dims,
+                            pad=2,
+                        )
+                        if screen_row_region is not None:
+                            localized_region = screen_row_region
+                        DEBUG.event(
+                            "typing.causal_exact_row_localized",
+                            intended_characters=len(intended_snapshot),
+                            spacing_verified=False,
+                            region=localized_region.model_dump(),
+                        )
+                        DEBUG.event(
+                            "typing.dense_candidate_scan",
+                            candidate_count=len(candidates),
+                            checked=checked,
+                            matched=True,
+                            verified=False,
+                            region=localized_region.model_dump(),
+                        )
+                        return localized_region
                     if (
                         intended_snapshot != intended_snapshot.strip()
                         and not spacing_verified
@@ -3926,7 +4086,10 @@ class WatchedTyper:
                 return await read_field_with_editor_context(
                     current_readback_region(intended_snapshot),
                     intended_snapshot,
-                    allow_blind_fallback=intended_snapshot == text,
+                    allow_blind_fallback=(
+                        intended_snapshot == text
+                        and not defer_blind_editor_readback
+                    ),
                 )
             if should_continue is not None and not should_continue():
                 return ""
@@ -3964,7 +4127,9 @@ class WatchedTyper:
                     repositioned_read = await read_field_with_editor_context(
                         repositioned_region,
                         intended_snapshot,
-                        allow_blind_fallback=True,
+                        allow_blind_fallback=(
+                            not defer_blind_editor_readback
+                        ),
                     )
                 finally:
                     if editor_append:
@@ -4905,6 +5070,38 @@ class WatchedTyper:
                 )
                 if exact_change is not None:
                     chunk_change = exact_change
+                elif bounded_editor_code and not structural_code_glyph:
+                    dense_candidates = await asyncio.to_thread(
+                        locate_dense_changed_candidates,
+                        dense_prev.data,
+                        dense_now.data,
+                        dims,
+                    )
+                    content_candidate = (
+                        editor_row_candidate_above_disjoint_effect(
+                            chunk_change,
+                            dense_candidates,
+                            dims,
+                        )
+                    )
+                    if content_candidate is not None:
+                        # Keep the subsequent OCR causally bounded to this
+                        # changed row. The generic horizontal field margin can
+                        # otherwise pull adjacent editor lines into an
+                        # unverified short-code read.
+                        self._refined_readback_region = content_candidate
+                        self._refined_readback_intended = typed_so_far
+                        DEBUG.event(
+                            "typing.editor_row_recovered_above_effect",
+                            intended_characters=len(typed_so_far),
+                            coarse_region=(
+                                chunk_change.model_dump()
+                                if chunk_change is not None
+                                else None
+                            ),
+                            region=content_candidate.model_dump(),
+                        )
+                        chunk_change = content_candidate
                 elif structural_code_glyph:
                     # A one-glyph editor append also repaints Notepad's
                     # Ln/Col status. Until exact cropped OCR grounds the
@@ -5018,6 +5215,28 @@ class WatchedTyper:
                             )
                             if exact_retry_loc is not None:
                                 retry_loc = exact_retry_loc
+                            elif bounded_editor_code and not structural_code_glyph:
+                                retry_candidates = await asyncio.to_thread(
+                                    locate_dense_changed_candidates,
+                                    dense_prev.data,
+                                    dense_retry.data,
+                                    dims,
+                                )
+                                recovered_retry = (
+                                    editor_row_candidate_above_disjoint_effect(
+                                        retry_loc,
+                                        retry_candidates,
+                                        dims,
+                                    )
+                                )
+                                if recovered_retry is not None:
+                                    self._refined_readback_region = (
+                                        recovered_retry
+                                    )
+                                    self._refined_readback_intended = (
+                                        typed_so_far
+                                    )
+                                    retry_loc = recovered_retry
                             elif structural_code_glyph:
                                 retry_loc = None
                             elif retry_loc is None:
@@ -5164,7 +5383,9 @@ class WatchedTyper:
                 # grow the auto-located crop if late pixels appear, and accept
                 # only exact/semantically safe evidence. This never emits more
                 # HID, and Enter remains the caller's separate action.
-                for settle_s in _PRECISE_READBACK_SETTLES_S:
+                for settle_index, settle_s in enumerate(
+                    _PRECISE_READBACK_SETTLES_S
+                ):
                     await asyncio.sleep(settle_s)
                     if not explicit_region:
                         settled_grid = await self._grid()
@@ -5206,7 +5427,11 @@ class WatchedTyper:
                             intended=text,
                             precise=precise,
                             allow_semantic_spacing=allow_semantic_spacing,
-                            allow_blind_fallback=True,
+                            allow_blind_fallback=(
+                                not defer_blind_editor_readback
+                                or settle_index
+                                == len(_PRECISE_READBACK_SETTLES_S) - 1
+                            ),
                         ),
                         text,
                         precise,

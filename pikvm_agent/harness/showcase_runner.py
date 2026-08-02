@@ -173,6 +173,12 @@ def _validate_fresh_artifact_path(value: str) -> str:
     return str(candidate)
 
 
+def _hid_print_timeout_s(text: str) -> float:
+    """Bound the request by the slow, acknowledged Windows key cadence."""
+
+    return max(30.0, 10.0 + (len(text) * 0.3))
+
+
 def _windows_desktop_taskbar_visible(image: Image.Image) -> bool:
     """Reject boot/login frames until a real Windows taskbar is visible."""
 
@@ -897,6 +903,7 @@ class VncAdapter:
             response = await self.client.post(
                 f"{self.base_url}/api/hid/print",
                 content=command,
+                timeout=_hid_print_timeout_s(command),
             )
             response.raise_for_status()
             await asyncio.sleep(0.2)
