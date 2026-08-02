@@ -6806,8 +6806,10 @@ async def test_precise_readback_extracts_one_indented_row_from_fallback() -> Non
     assert ocr.fallback_calls == 1
 
 
+@pytest.mark.parametrize("intended", ["}", "  ]"])
 async def test_single_structural_code_glyph_uses_grounded_fallback(
     monkeypatch: pytest.MonkeyPatch,
+    intended: str,
 ) -> None:
     backend = FakeBackend(width=1280, height=800)
     before = Image.new("RGB", (1280, 800), "#202020")
@@ -6846,7 +6848,21 @@ async def test_single_structural_code_glyph_uses_grounded_fallback(
             image_path: Path,
             region: Region | None = None,
         ) -> OCRResult:
-            del image_path, region
+            del image_path
+            if region is not None and region.height >= 150:
+                return OCRResult(
+                    lines=[
+                        OCRLine(
+                            text=(
+                                "Ln 9, Col 4"
+                                if intended.startswith(" ")
+                                else "Ln 10, Col 2"
+                            ),
+                            confidence=0.99,
+                            bbox=[4, 8, 74, 20],
+                        )
+                    ]
+                )
             return OCRResult()
 
         async def ocr_precise_fallback(
@@ -6859,7 +6875,7 @@ async def test_single_structural_code_glyph_uses_grounded_fallback(
                 lines=[
                     OCRLine(
                         text=(
-                            '{\n  "enabled": true,\n}'
+                            '{\n  "enabled": true,\n  ]\n}'
                         ),
                         confidence=0.99,
                     )
@@ -6867,14 +6883,14 @@ async def test_single_structural_code_glyph_uses_grounded_fallback(
             )
 
     result = await WatchedTyper(backend, ClosingGlyphOCR()).type_text(
-        "}",
+        intended,
         code=True,
         exact=True,
         context="editor",
     )
 
     assert result.status == "verified_exact"
-    assert result.field_text == "}"
+    assert result.field_text == intended
     assert result.emitted_exactly_once is True
 
 

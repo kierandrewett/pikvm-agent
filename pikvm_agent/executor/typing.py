@@ -2919,7 +2919,7 @@ class WatchedTyper:
             precise
             and editor_field
             and code
-            and text in _STRUCTURAL_CODE_GLYPHS
+            and text.strip() in _STRUCTURAL_CODE_GLYPHS
         )
         can_vision = not secret and (
             total > 4
