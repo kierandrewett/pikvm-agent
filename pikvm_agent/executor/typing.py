@@ -661,6 +661,46 @@ def editor_status_proves_single_line_payload(
     )
 
 
+def editor_status_proves_visible_multiline_payload(
+    result: OCRResult,
+    intended: str,
+    row_region: Region,
+    dims: tuple[int, int],
+    *,
+    container_region: Region | None = None,
+) -> bool:
+    """Prove ordinary single gaps on a visible later editor line.
+
+    The exact OCR row proves the painted glyph sequence and gap locations;
+    Notepad's foreground caret column independently proves the total number of
+    characters on that line. Keep this unavailable for line 1 (where the
+    stronger whole-document invariant applies), edge whitespace, repeated
+    spaces, tabs, or other invisible formatting.
+    """
+
+    whitespace_runs = re.findall(r"\s+", intended)
+    if (
+        not intended
+        or intended != intended.strip()
+        or "\t" in intended
+        or "\n" in intended
+        or "\r" in intended
+        or not whitespace_runs
+        or any(run != " " for run in whitespace_runs)
+    ):
+        return False
+    candidates = _bounded_editor_status_rows(
+        result,
+        row_region,
+        dims,
+        container_region=container_region,
+    )
+    if not candidates:
+        return False
+    _gap, _offset, line, column, _characters = min(candidates)
+    return line > 1 and column == len(intended) + 1
+
+
 def editor_status_search_region(
     row_region: Region,
     dims: tuple[int, int],
@@ -3742,22 +3782,26 @@ class WatchedTyper:
                 bounded_status: OCRResult,
                 status_region: Region,
             ) -> bool:
-                return (
-                    editor_caret_column_proves_leading_whitespace(
+                if leading_whitespace_candidate:
+                    return editor_caret_column_proves_leading_whitespace(
                         bounded_status,
                         intended_snapshot,
                         cur_region,
                         dims,
                         container_region=status_region,
                     )
-                    if leading_whitespace_candidate
-                    else editor_status_proves_single_line_payload(
-                        bounded_status,
-                        intended_snapshot,
-                        cur_region,
-                        dims,
-                        container_region=status_region,
-                    )
+                return editor_status_proves_single_line_payload(
+                    bounded_status,
+                    intended_snapshot,
+                    cur_region,
+                    dims,
+                    container_region=status_region,
+                ) or editor_status_proves_visible_multiline_payload(
+                    bounded_status,
+                    intended_snapshot,
+                    cur_region,
+                    dims,
+                    container_region=status_region,
                 )
 
             status_proved, status_region = await read_editor_status_proof(
@@ -3773,7 +3817,7 @@ class WatchedTyper:
                 proof=(
                     "leading_column"
                     if leading_whitespace_candidate
-                    else "single_line_document"
+                    else "visible_line_invariant"
                 ),
                 region=cur_region.model_dump(),
                 status_region=(

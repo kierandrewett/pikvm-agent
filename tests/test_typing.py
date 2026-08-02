@@ -36,6 +36,7 @@ from pikvm_agent.executor.typing import (
     editor_punctuation_transport_substitution,
     editor_single_glyph_transport_deletion,
     editor_status_proves_single_line_payload,
+    editor_status_proves_visible_multiline_payload,
     editor_status_search_region,
     is_caps_lock_case_inversion,
     is_disjoint_editor_effect,
@@ -476,6 +477,45 @@ def test_compact_status_crop_accepts_unique_precise_ocr_alternative() -> None:
         row,
         (1280, 800),
         container_region=region,
+    )
+
+
+@pytest.mark.parametrize(
+    ("status", "expected"),
+    [
+        ("Ln 4, Col 12 53 characters", True),
+        ("Ln 4, Col 11 53 characters", False),
+        ("Ln 1, Col 12 11 characters", False),
+    ],
+)
+def test_multiline_status_proves_visible_single_gap_row(
+    status: str,
+    expected: bool,
+) -> None:
+    result = OCRResult(
+        lines=[
+            OCRLine(
+                text=status,
+                confidence=0.99,
+                bbox=[8, 8, 180, 20],
+            )
+        ]
+    )
+
+    assert (
+        editor_status_proves_visible_multiline_payload(
+            result,
+            "FROM orders",
+            Region(x=40, y=120, width=140, height=18),
+            (1280, 800),
+            container_region=Region(
+                x=0,
+                y=410,
+                width=512,
+                height=150,
+            ),
+        )
+        is expected
     )
 
 
@@ -4280,6 +4320,101 @@ async def test_single_line_editor_replacement_uses_status_character_count_for_sp
         else ""
     )
     assert result.emitted_exactly_once is True
+    _assert_no_enter(backend)
+
+
+async def test_visible_multiline_editor_row_uses_caret_column_before_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An exact later row with one visible gap stays on grounded local OCR."""
+
+    async def no_sleep(_seconds: float) -> None:
+        return None
+
+    intended = "FROM orders"
+
+    class MultilineStatusOCR:
+        def __init__(self) -> None:
+            self.fallback_reads = 0
+
+        async def ocr_precise(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path
+            if (
+                region is not None
+                and region.x == 0
+                and region.width == 512
+                and region.height >= 90
+                and region.y > 140
+            ):
+                foreground_y = region.height - 20
+                return OCRResult(
+                    lines=[
+                        OCRLine(
+                            text="Ln 4, Col 12   53 characters",
+                            confidence=0.99,
+                            bbox=[
+                                20,
+                                foreground_y,
+                                180,
+                                foreground_y + 12,
+                            ],
+                        )
+                    ]
+                )
+            return OCRResult(
+                lines=[
+                    OCRLine(
+                        text=intended,
+                        confidence=0.99,
+                    )
+                ],
+                spacing_evidence="not_evaluated",
+            )
+
+        async def ocr_precise_fallback(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path, region
+            self.fallback_reads += 1
+            return OCRResult()
+
+        async def ocr(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            return await self.ocr_precise(image_path, region)
+
+    monkeypatch.setattr(asyncio, "sleep", no_sleep)
+    backend = FakeBackend()
+    ocr = MultilineStatusOCR()
+    typer = WatchedTyper(backend, ocr)
+    flat = _flat_grid()
+    changed = flat.copy().reshape(GRID_ROWS, GRID_COLS)
+    changed[5:10, 2:17] = 200
+    grids = [flat, changed.reshape(-1)]
+
+    async def changed_grid() -> np.ndarray:
+        return grids.pop(0) if grids else changed.reshape(-1)
+
+    typer._grid = changed_grid  # type: ignore[method-assign]
+
+    result = await typer.type_text(
+        intended,
+        exact=True,
+        context="editor",
+    )
+
+    assert result.status == "verified_exact", result
+    assert result.field_text == intended
+    assert result.emitted_exactly_once is True
+    assert ocr.fallback_reads == 0
     _assert_no_enter(backend)
 
 
