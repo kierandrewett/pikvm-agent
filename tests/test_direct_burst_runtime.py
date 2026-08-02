@@ -1274,6 +1274,48 @@ async def test_matching_exact_save_as_filename_grounds_one_local_enter(
     assert runtime._get(sid).verified_local_navigation_draft is None
 
 
+async def test_matching_exact_open_filename_grounds_one_local_enter(
+    runtime: Runtime,
+) -> None:
+    class OpenOCR:
+        async def ocr(self, image_path, region=None):
+            del image_path, region
+            return OCRResult(
+                lines=[
+                    OCRLine(text="Open"),
+                    OCRLine(text="This PC  New folder"),
+                    OCRLine(text="Name  Date modified  Type  Size"),
+                ]
+            )
+
+    runtime._screen_parser.ocr = OpenOCR()
+    sid = (await runtime.start_session("direct"))["session_id"]
+    shot = await runtime.get_session_summary(sid, capture=True)
+    runtime._get(sid).verified_local_navigation_draft = {
+        "text": "code-04.sql",
+        "readback_frame_sha256": "f" * 64,
+        "post_action_image_sha256": shot["image_sha256"],
+        "frame_screen_hash": shot["screen_hash"],
+        "world_version": shot["world_version"],
+        "control_epoch": shot["control_epoch"],
+    }
+
+    result = await runtime.run_burst(
+        sid,
+        [
+            {"type": "key", "keys": ["ENTER"]},
+            {"type": "wait_for_change", "timeout_ms": 3000},
+        ],
+        based_on_world_version=shot["world_version"],
+        based_on_control_epoch=shot["control_epoch"],
+        idempotency_key="grounded-open-filename",
+    )
+
+    assert result["status"] == "completed"
+    assert [call[1]["keys"] for call in _hid_calls(runtime)] == [["Enter"]]
+    assert runtime._get(sid).verified_local_navigation_draft is None
+
+
 async def test_exact_same_frame_grounds_save_as_enter_despite_real_ocr_noise(
     runtime: Runtime,
 ) -> None:

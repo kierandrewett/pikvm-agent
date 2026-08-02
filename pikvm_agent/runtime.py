@@ -46,6 +46,7 @@ from pikvm_agent.policy.direct import (
     classify_direct_burst,
     is_confirmed_calculator_surface,
     is_confirmed_file_explorer_surface,
+    is_confirmed_open_filename_surface,
     is_confirmed_save_as_filename_surface,
     is_confirmed_windows_run_surface,
     is_safe_local_commit_draft,
@@ -1509,12 +1510,21 @@ class Runtime:
         if is_safe_local_filename_draft(local_navigation_draft):
             return (
                 observed_text,
-                is_confirmed_save_as_filename_surface(
-                    observed_text,
-                    draft_text=local_navigation_draft,
-                    verified_same_frame_draft=(
-                        verified_same_frame_draft
-                    ),
+                (
+                    is_confirmed_save_as_filename_surface(
+                        observed_text,
+                        draft_text=local_navigation_draft,
+                        verified_same_frame_draft=(
+                            verified_same_frame_draft
+                        ),
+                    )
+                    or is_confirmed_open_filename_surface(
+                        observed_text,
+                        draft_text=local_navigation_draft,
+                        verified_same_frame_draft=(
+                            verified_same_frame_draft
+                        ),
+                    )
                 ),
             )
         precise_ocr = getattr(ocr, "ocr_precise", None)

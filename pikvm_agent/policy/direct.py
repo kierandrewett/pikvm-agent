@@ -405,6 +405,9 @@ def _save_as_surface_markers(text: str) -> set[str]:
             ("new folder", "newfolder"),
             ("encoding", "encoding"),
             ("this pc", "thispc"),
+            ("date modified", "datemodified"),
+            ("name", "name"),
+            ("size", "size"),
         )
         if marker in text or compact_marker in compact
     }
@@ -484,6 +487,38 @@ def is_confirmed_save_as_filename_surface(
         return False
     markers = _save_as_surface_markers(text)
     return "save as" in markers and len(markers) >= 2
+
+
+def is_confirmed_open_filename_surface(
+    observed_surface_text: str,
+    *,
+    draft_text: str,
+    verified_same_frame_draft: bool = False,
+) -> bool:
+    """Confirm a native Open picker around one exact basename read-back."""
+
+    if (
+        not verified_same_frame_draft
+        or not is_safe_local_filename_draft(draft_text)
+    ):
+        return False
+    text = " ".join(observed_surface_text.casefold().split())
+    if _is_communication_compose_surface(text):
+        return False
+    markers = _save_as_surface_markers(text)
+    open_visible = re.search(r"\bopen\b", text) is not None
+    file_list_markers = markers & {
+        "new folder",
+        "this pc",
+        "date modified",
+        "name",
+        "size",
+    }
+    return bool(
+        open_visible
+        and "new folder" in file_list_markers
+        and len(file_list_markers) >= 3
+    )
 
 
 def is_confirmed_windows_run_surface(
