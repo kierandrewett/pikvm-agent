@@ -6924,6 +6924,49 @@ def test_dense_locator_nominates_compact_glyph_only_when_requested() -> None:
     assert compact.y <= 144 < compact.y + compact.height
 
 
+def test_dense_candidates_keep_low_pixel_structural_glyph_beside_status_repaint() -> None:
+    before = Image.new("RGB", (1280, 800), "#202020")
+    after = before.copy()
+    draw = ImageDraw.Draw(after)
+    # Approximate the measured VNC delta for an indented closing bracket: the
+    # painted glyph and caret total fewer than the normal 80 changed pixels.
+    draw.line((56, 177, 56, 190), fill="#efefef", width=2)
+    draw.line((56, 177, 61, 177), fill="#efefef", width=2)
+    draw.line((56, 190, 61, 190), fill="#efefef", width=2)
+    draw.line((44, 178, 44, 190), fill="#efefef", width=1)
+    # Notepad's Ln/Col repaint is larger and must not erase the glyph from the
+    # exact-OCR candidate list merely because it sorts first.
+    draw.rectangle((80, 486, 87, 495), fill="#efefef")
+    draw.rectangle((104, 487, 118, 495), fill="#efefef")
+    before_output = io.BytesIO()
+    after_output = io.BytesIO()
+    before.save(before_output, format="PNG")
+    after.save(after_output, format="PNG")
+
+    ordinary = locate_dense_changed_candidates(
+        before_output.getvalue(),
+        after_output.getvalue(),
+        (1280, 800),
+    )
+    structural = locate_dense_changed_candidates(
+        before_output.getvalue(),
+        after_output.getvalue(),
+        (1280, 800),
+        allow_compact=True,
+    )
+
+    assert not any(
+        region.x <= 56 < region.x + region.width
+        and region.y <= 177 < region.y + region.height
+        for region in ordinary
+    )
+    assert any(
+        region.x <= 56 < region.x + region.width
+        and region.y <= 177 < region.y + region.height
+        for region in structural
+    )
+
+
 async def test_uncalibrated_precise_ocr_cannot_verify_visible_spaces() -> None:
     intended = "exactly one space"
 

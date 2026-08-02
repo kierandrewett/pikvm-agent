@@ -108,6 +108,7 @@ _EDITOR_STATUS_CHARACTER_COUNT_RE = re.compile(
 )
 DENSE_PIXEL_DELTA = 10
 DENSE_MIN_CHANGED_PIXELS = 80
+DENSE_COMPACT_MIN_CHANGED_PIXELS = 40
 DENSE_MIN_WIDTH = 8
 DENSE_MIN_HEIGHT = 4
 DENSE_MAX_HEIGHT = 64
@@ -1429,7 +1430,12 @@ def _dense_changed_candidates(
         return []
     changed = np.max(np.abs(after - before), axis=2) > DENSE_PIXEL_DELTA
     changed_count = int(changed.sum())
-    if changed_count < DENSE_MIN_CHANGED_PIXELS or changed_count > 50_000:
+    minimum_changed_pixels = (
+        DENSE_COMPACT_MIN_CHANGED_PIXELS
+        if allow_compact
+        else DENSE_MIN_CHANGED_PIXELS
+    )
+    if changed_count < minimum_changed_pixels or changed_count > 50_000:
         return []
 
     remaining = {
@@ -1481,7 +1487,7 @@ def _dense_changed_candidates(
         )
         compact_candidate = (
             allow_compact
-            and count >= DENSE_MIN_CHANGED_PIXELS
+            and count >= DENSE_COMPACT_MIN_CHANGED_PIXELS
             and 4 <= box_width <= 32
             and 4 <= box_height <= 32
         )
