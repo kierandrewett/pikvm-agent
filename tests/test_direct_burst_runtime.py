@@ -166,6 +166,21 @@ def test_click_grounding_uses_nearest_line_not_dangerous_neighbor_text() -> None
     )
 
     assert target == "Screen"
+    low_confidence_noise = OCRResult(
+        lines=[
+            OCRLine(
+                text="oT",
+                confidence=0.00018204,
+                bbox=[0, 38, 360, 54],
+            ),
+        ]
+    )
+    assert nearest_ocr_target_text(
+        low_confidence_noise,
+        click_x=326,
+        click_y=389,
+        region=Region(x=146, y=344, width=360, height=90),
+    ) == ""
 
 
 def test_click_grounding_refuses_text_from_adjacent_rows() -> None:
@@ -202,27 +217,6 @@ def test_click_grounding_does_not_let_an_adjacent_row_mask_the_target_row() -> N
     )
 
     assert target == "Type here to search"
-
-
-def test_click_grounding_rejects_low_confidence_target_noise() -> None:
-    observed = OCRResult(
-        lines=[
-            OCRLine(
-                text="oT",
-                confidence=0.00018204,
-                bbox=[0, 38, 360, 54],
-            ),
-        ]
-    )
-
-    target = nearest_ocr_target_text(
-        observed,
-        click_x=326,
-        click_y=389,
-        region=Region(x=146, y=344, width=360, height=90),
-    )
-
-    assert target == ""
 
 
 async def test_idempotency_replays_result_without_repeating_hid(runtime: Runtime) -> None:
