@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "report": "codex-50-live-progress",
-  "recorded_at": "2026-08-02T16:43:46Z",
+  "recorded_at": "2026-08-02T19:43:24Z",
   "manifest": "bench/codex-50-tasks.yaml",
   "environment": {
     "target": "authorized disposable Windows VNC VM",
@@ -16,9 +16,9 @@
   },
   "progress": {
     "planned": 50,
-    "unique_passed": 28,
-    "pending": 22,
-    "completion_percent": 56.0,
+    "unique_passed": 29,
+    "pending": 21,
+    "completion_percent": 58.0,
     "categories": {
       "Observation": {
         "passed": 5,
@@ -33,7 +33,7 @@
         "planned": 10
       },
       "Code entry": {
-        "passed": 3,
+        "passed": 4,
         "planned": 10
       },
       "File management": {
@@ -77,7 +77,8 @@
       "text-10",
       "code-01",
       "code-02",
-      "code-03"
+      "code-03",
+      "code-04"
     ]
   },
   "canonical_campaigns": [
@@ -240,13 +241,20 @@
         "code-03"
       ],
       "campaign_sha256": "8f71fe476ed13f80e6213a588b9fd247fb94d85898a68ff7666a682c836dccdc"
+    },
+    {
+      "campaign_id": "codex-code-entry-code04-v9-20260802",
+      "tasks": [
+        "code-04"
+      ],
+      "campaign_sha256": "815301670be6de1d622347c67c8793b1c2209d85a66e705a14fa4943619cb6d0"
     }
   ],
   "calc_09_acceptance": {
     "task": "Convert 23 degrees Celsius to Fahrenheit in Windows Calculator",
     "result": "passed",
     "run_id": "a3bea594-9eef-4f91-a3e0-1d60fd4d00a0",
-    "visible_result": "23 °C = 73.4 °F",
+    "visible_result": "23 \u00b0C = 73.4 \u00b0F",
     "reason": "The final Calculator frame visibly showed the requested Celsius input and Fahrenheit conversion after verifier-detected recovery from one ineffective mode click and one incomplete numeric entry.",
     "wall_clock_ms": 141228,
     "provider_wait_ms": 75412,
@@ -1256,7 +1264,7 @@
     }
   ],
   "text_06_acceptance": {
-    "task": "Write, save, reopen, and verify a 120–160-word Macbeth paragraph",
+    "task": "Write, save, reopen, and verify a 120\u2013160-word Macbeth paragraph",
     "result": "passed",
     "run_id": "a193d48c-fc13-4417-90da-786939aac547",
     "reason": "Four exact editor transactions delivered 817 characters and 134 words with natural word boundaries, required leading spaces on every continuation, exact-once emission, and no replay. The first transaction used caret-stabilized OCR; later appends remained suffix-grounded while OCR observed the accumulated document. Save As required one bounded workspace-edit approval, the native Open dialog selected the saved file, and an independent final verifier confirmed the complete reopened paragraph.",
@@ -1638,7 +1646,7 @@
     }
   ],
   "text_07_acceptance": {
-    "task": "Write, save, reopen, and verify a 150–200-word product brief with Problem, Users, Promise, and Proof headings",
+    "task": "Write, save, reopen, and verify a 150\u2013200-word product brief with Problem, Users, Promise, and Proof headings",
     "result": "passed",
     "run_id": "8d52075f-c186-4e2f-b012-2fbc66a1e4e5",
     "reason": "The reopened Notepad file visibly retained all four requested headings and 157 words of generated product-brief content. Every prose transaction and heading received an exact visual readback with exact-once emission. The previously failing Proof heading was independently verified in 6.004 seconds with matching requested, emitted, and readback hashes. Save required one bounded workspace-edit approval, native Open selected the saved file, quiescence was confirmed, and the mandatory reboot observed a real transition.",
@@ -3411,9 +3419,245 @@
     "full_ledger": "bench/results/2026-08-02/live-vnc/code-03-attempts.json"
   },
   "verdict": {
-    "accuracy": "The campaign is 28/50. All ten Text entry tasks and the first three Code entry tasks pass with fresh input and independent reopen evidence. Code-03 completed 22/22 actions with ten exact receipts covering 167 requested, issued, and observed characters, zero corrections or retries, and no recovery. Six failures and one reported-pass-but-invalid correction run remain in the denominator; the full eight-run ledger is linked.",
-    "speed": "Failing product target: accepted code-03 v8 took 474.102 seconds before reboot and 553.052 seconds including the reset-ready gate. A competent human can enter, save, reopen, and inspect this seven-line PowerShell function materially faster.",
-    "dominant_cost": "Code-03 v8 spent 276.106 seconds in action execution and 190.319 seconds waiting for 27 provider calls. The first 25-character code row took 44.875 seconds, including a 15.816-second blind OCR fallback after causal localization. Exact screen verification is 58.24% of wall time; provider wait is 40.14%. Accuracy passes this task, but local-first readback and model-turn latency remain the primary speed problems.",
-    "next": "Continue with code-04 after removing the redundant blind OCR fallback for a locally grounded exact editor row. Preserve exact-once input, independent status proof for whitespace, native save/reopen proof, bounded workspace approval, fresh-artifact preparation, quiesce-before-reboot lifecycle, and failure-inclusive recordings."
-  }
+    "accuracy": "The campaign is 29/50. All ten Text entry tasks and the first four Code entry tasks pass with fresh input and independent reopen evidence. Code-04 completed 24/24 actions with ten exact receipts covering 176 requested, issued, and observed characters, zero corrections or retries, and no recovery. Seven failed runs and one reported-pass-but-invalid recovery run remain in the denominator; the full nine-run ledger is linked.",
+    "speed": "Failing product target: accepted code-04 v9 took 416.335 seconds before reboot and 510.973 seconds including the reset-ready gate. A competent human can enter, save, reopen, and inspect this seven-line SQL query materially faster.",
+    "dominant_cost": "Code-04 v9 spent 260.336 seconds in action execution and 149.451 seconds waiting for 20 provider calls. Exact screen verification is 62.53% of wall time; provider wait is 35.90%. The longest action was the 56.604-second Save As filename readback. The native dialog chrome defect is fixed, but local OCR and 17 verifier turns remain the primary speed problems.",
+    "next": "Continue with code-05 while preserving exact-once input, deterministic Save/Open commit grounding, independent reopen proof, bounded workspace approval, fresh-artifact preparation, quiesce-before-reboot lifecycle, and failure-inclusive recordings."
+  },
+  "code_04_acceptance": {
+    "task": "Write, save, reopen, and visually verify a grouped customer-value SQL query in Notepad",
+    "result": "passed",
+    "run_id": "fc2d2ccc-93f3-4dfe-af36-ec70a8cb87d9",
+    "reason": "A fresh blank document received the requested seven-line SQL query. Ten exact receipts covered launch, all seven SQL rows, Save As basename, and Open basename with zero corrections or retries. Save and Open committed deterministically; the reopened file was independently verified, quiesced, recorded, and rebooted after a visible transition.",
+    "wall_clock_ms": 416335,
+    "model_active_ms": 148814,
+    "provider_wait_ms": 149451,
+    "provider_serial_equivalent_ms": 149451,
+    "provider_overlap_ms": 0,
+    "action_execution_ms": 260336,
+    "evidence_capture_ms": 4048,
+    "provider_calls": 20,
+    "reasoner_calls": 1,
+    "controller_calls": 2,
+    "verifier_calls": 17,
+    "actions_attempted": 24,
+    "actions_completed": 24,
+    "completion_efficiency": 1.0,
+    "exact_input_receipts": 10,
+    "input_receipt_totals": {
+      "requested_characters": 176,
+      "issued_characters": 176,
+      "observed_characters": 176,
+      "all_zero_edit_distance": true,
+      "all_zero_corrections": true,
+      "all_zero_delivery_retries": true,
+      "all_emitted_exactly_once": true
+    },
+    "unverified_inputs": 0,
+    "typing_corrections": 0,
+    "same_run_recoveries": 0,
+    "approval_count": 1,
+    "approval_scopes": [
+      "bounded_workspace_edit"
+    ],
+    "quiescence_status": "confirmed",
+    "reboot_ms": 94638,
+    "reboot_transition_observed": true,
+    "longest_action_ms": 56604,
+    "recording": {
+      "sha256": "0bebf0651da541046cc1c722e44b245b54b637fbe6a4cc02548790d7219243b8",
+      "codec": "vp9",
+      "width": 2048,
+      "height": 1280,
+      "fps": 2.0,
+      "duration_ms": 484000,
+      "size_bytes": 1408294,
+      "relative_path": "codex-code-entry-code04-v9-20260802/code-04/recording.webm"
+    },
+    "poster": {
+      "relative_path": "codex-code-entry-code04-v9-20260802/code-04/poster.jpg",
+      "sha256": "e099a960e4f7f1e6bb91a1cb256e31ba082f868ddefde46eaa094a64144a41b8"
+    },
+    "campaign_sha256": "815301670be6de1d622347c67c8793b1c2209d85a66e705a14fa4943619cb6d0"
+  },
+  "code_04_attempt_summary": {
+    "total_runs": 9,
+    "failed_runs": 7,
+    "invalid_runs": 1,
+    "passed_runs": 1,
+    "canonical_campaign_id": "codex-code-entry-code04-v9-20260802",
+    "failure_terminal_outcomes": {
+      "unclean_recovery_pass": 1,
+      "missing_file_modal_nonallowlisted_approval": 1,
+      "post_open_verification_spiral": 1,
+      "unverified_save_commit": 2,
+      "unverified_open_commit": 2,
+      "native_dialog_chrome_wrong_region": 1
+    },
+    "full_ledger": "bench/results/2026-08-02/live-vnc/code-04-attempts.json"
+  },
+  "code_04_attempts": [
+    {
+      "campaign_id": "codex-code-entry-code04-v1-20260802",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "run_id": "ca23771b-32a5-4b6b-b044-cc7c06f2ad12",
+      "reason": "Nine exact receipts covered launch, all SQL rows, and the Save As basename. Save completed, but the Open-dialog basename draft could not be grounded for commit; four bounded recoveries exhausted the same-run limit without opening or falsely claiming verification.",
+      "wall_clock_ms": 604791,
+      "provider_wait_ms": 272083,
+      "action_execution_ms": 318003,
+      "provider_calls": 40,
+      "actions_attempted": 26,
+      "actions_completed": 25,
+      "same_run_recoveries": 4,
+      "quiescence_status": "confirmed",
+      "reboot_ms": 94071,
+      "reboot_transition_observed": true,
+      "campaign_sha256": "5090f0fb86fc442a1c2efa636c34d54a978fceda083c5ec802e4f5a816b8fe93"
+    },
+    {
+      "campaign_id": "codex-code-entry-code04-v2-20260802",
+      "reported_status": "passed",
+      "accepted_status": "invalid",
+      "run_id": "f9e23276-eaf3-4fd4-b459-d068e474ae1a",
+      "reason": "The SQL file was saved, reopened, and visibly correct with ten exact receipts, but the run required two same-run recoveries. It therefore violates the clean-pass contract and remains invalid.",
+      "wall_clock_ms": 576671,
+      "provider_wait_ms": 206787,
+      "action_execution_ms": 354540,
+      "provider_calls": 30,
+      "actions_attempted": 25,
+      "actions_completed": 25,
+      "same_run_recoveries": 2,
+      "quiescence_status": "confirmed",
+      "reboot_ms": 75354,
+      "reboot_transition_observed": true,
+      "campaign_sha256": "ea2f66c15f044c7bac02185365defd24865bcc721f47b602c6ce0b1bd4a9de6d"
+    },
+    {
+      "campaign_id": "codex-code-entry-code04-v3-20260802",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "run_id": "f9dfc749-5021-4b85-96d7-4bd51d7a31fd",
+      "reason": "Startup restored a stale missing-file modal. The first launch receipt was exact, but dismissing the modal reached a non-allowlisted approval; the campaign stopped before entering or saving SQL.",
+      "wall_clock_ms": 82538,
+      "provider_wait_ms": 43352,
+      "action_execution_ms": 33326,
+      "provider_calls": 6,
+      "actions_attempted": 3,
+      "actions_completed": 2,
+      "same_run_recoveries": 1,
+      "quiescence_status": "confirmed",
+      "reboot_ms": 75189,
+      "reboot_transition_observed": true,
+      "campaign_sha256": "dd5ffe1f05152889b58f4400ef57ad6eb197d4ac45c197cca658d7fb08383deb"
+    },
+    {
+      "campaign_id": "codex-code-entry-code04-v4-20260802",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "run_id": "fcd5fbbf-def0-49f2-8748-94ed413f3d63",
+      "reason": "All SQL rows and both basenames verified exactly once, and the file was saved and reopened. Post-open verification then spiralled through repeated verifier-more-work checkpoints; four campaign recoveries were exhausted without a clean terminal completion.",
+      "wall_clock_ms": 1164614,
+      "provider_wait_ms": 923929,
+      "action_execution_ms": 997195,
+      "provider_calls": 134,
+      "actions_attempted": 29,
+      "actions_completed": 28,
+      "same_run_recoveries": 4,
+      "quiescence_status": "confirmed",
+      "reboot_ms": 81476,
+      "reboot_transition_observed": true,
+      "campaign_sha256": "9ba1875a1b42238e0020701f7aa7b52685be629bfb3f87b81d5a3305cf416580"
+    },
+    {
+      "campaign_id": "codex-code-entry-code04-v5-20260802",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "run_id": "221030c2-6b09-4f1f-8260-6c2dc9dd288a",
+      "reason": "All SQL rows verified exactly once with no campaign recovery. The final Save commit lacked deterministic native-dialog grounding and was surfaced as a non-allowlisted approval, so the campaign stopped without pressing Enter.",
+      "wall_clock_ms": 400120,
+      "provider_wait_ms": 102825,
+      "action_execution_ms": 292159,
+      "provider_calls": 13,
+      "actions_attempted": 19,
+      "actions_completed": 18,
+      "same_run_recoveries": 0,
+      "quiescence_status": "confirmed",
+      "reboot_ms": 82771,
+      "reboot_transition_observed": true,
+      "campaign_sha256": "810024d0f756c1fb16415d0a8ac7aee96a1ddfb89682dedfc6e7044e493c0703"
+    },
+    {
+      "campaign_id": "codex-code-entry-code04-v6-20260802",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "run_id": "c9ac06d6-50c1-4b41-bc6c-0ff4098d9595",
+      "reason": "All SQL rows and the Save As basename verified exactly once with no campaign recovery. A fresh readback JPEG differed from the grounded post-type frame, so the final Save Enter failed closed as an unknown commit rather than relying on stale pixels.",
+      "wall_clock_ms": 291738,
+      "provider_wait_ms": 98010,
+      "action_execution_ms": 187454,
+      "provider_calls": 13,
+      "actions_attempted": 19,
+      "actions_completed": 18,
+      "same_run_recoveries": 0,
+      "quiescence_status": "confirmed",
+      "reboot_ms": 82078,
+      "reboot_transition_observed": true,
+      "campaign_sha256": "0a9aa9f79c7270430efe1b1eb1f1bf8c7c9238f47684887479d6079c5d1353d9"
+    },
+    {
+      "campaign_id": "codex-code-entry-code04-v7-20260802",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "run_id": "8a2e6256-62e5-4134-8c1f-94e6961462a6",
+      "reason": "All SQL rows and both basenames verified exactly once with no campaign recovery. Save committed successfully, but the final Open Enter lacked an Open-dialog deterministic commit recognizer and was stopped at a non-allowlisted approval.",
+      "wall_clock_ms": 438186,
+      "provider_wait_ms": 161865,
+      "action_execution_ms": 267790,
+      "provider_calls": 20,
+      "actions_attempted": 24,
+      "actions_completed": 23,
+      "same_run_recoveries": 0,
+      "quiescence_status": "confirmed",
+      "reboot_ms": 76311,
+      "reboot_transition_observed": true,
+      "campaign_sha256": "ecfa543e9fbd891a45fa9ea4d7ea86528c93a0fffd2218271f75c859353b6e08"
+    },
+    {
+      "campaign_id": "codex-code-entry-code04-v8-20260802",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "run_id": "f3e52fb4-e57a-42da-a982-d97bcbb3ed20",
+      "reason": "All six chosen SQL rows verified exactly once. Save As OCR returned the exact basename and type row plus native `Hide Folders` chrome; the strict two-row parser classified it as wrong-region, three recoveries were retained, and the unverified-draft guard blocked. The first mandatory reboot invocation then failed before producing an attempt record; an explicit verified reset and a campaign-owned reboot-only reconciliation paid the isolation gate while preserving this attempt as failed.",
+      "wall_clock_ms": 481710,
+      "provider_wait_ms": 179077,
+      "action_execution_ms": 291555,
+      "provider_calls": 24,
+      "actions_attempted": 20,
+      "actions_completed": 18,
+      "same_run_recoveries": 3,
+      "quiescence_status": "confirmed",
+      "reboot_ms": 77857,
+      "reboot_transition_observed": true,
+      "campaign_sha256": "3066e29cadfd5436765c352d95b731f2ac5c8a618e53728a29f3c0b9308c8ae1"
+    },
+    {
+      "campaign_id": "codex-code-entry-code04-v9-20260802",
+      "reported_status": "passed",
+      "accepted_status": "passed",
+      "run_id": "fc2d2ccc-93f3-4dfe-af36-ec70a8cb87d9",
+      "reason": "A fresh blank document received the requested seven-line SQL query. Ten exact receipts covered launch, all seven SQL rows, Save As basename, and Open basename with zero corrections or retries. Save and Open committed deterministically; the reopened file was independently verified, quiesced, recorded, and rebooted after a visible transition.",
+      "wall_clock_ms": 416335,
+      "provider_wait_ms": 149451,
+      "action_execution_ms": 260336,
+      "provider_calls": 20,
+      "actions_attempted": 24,
+      "actions_completed": 24,
+      "same_run_recoveries": 0,
+      "quiescence_status": "confirmed",
+      "reboot_ms": 94638,
+      "reboot_transition_observed": true,
+      "campaign_sha256": "815301670be6de1d622347c67c8793b1c2209d85a66e705a14fa4943619cb6d0"
+    }
+  ]
 }

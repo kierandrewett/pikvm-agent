@@ -39,7 +39,7 @@ support a claim of generally reliable autonomous Windows operation.
 | Managed and direct assurance levels are unambiguous | The reference conversation is explicitly retained as 551/551 direct calls, not reclassified as a managed run. Chromium, Firefox, and WebKit each labelled the direct trace `Guarded direct`, named the launcher-declared caller/provider/model, removed managed assurance and the chat composer, and retained zero horizontal overflow | Passing target-free ownership/UI contract; live computer task pending |
 | Computer-use actions remain inspectable while a run is changing | The authenticated Chromium/Firefox/WebKit fixture retained and expanded all 12 actions, loaded 20 action-bound previews per engine, and exposed the exact MCP tool/model route with zero desktop or 390×844 overflow. The held Teams fixture showed the exact text, final Enter, reason, and Allow once/Deny controls without committing input. A later isolated Electron/CDP pass proved that a mixed `computer_start_task` plus `pikvm_*` managed turn renders as one expanded `Computer activity` timeline with the current exact input visible, not as a generic tool-name chain | Passing target-free multi-engine and managed-group UI contracts |
 | The operator can inspect the verifier's visual evidence | Authenticated API contracts return the labelled before/after bytes without exposing their local path; static UI contracts cover revision refresh, loading/error state, and blob revocation. A live disposable-Windows diagnostic exercised failed and uncertain visual verification without turning either into success | Passing local/browser contract; live task itself did not pass |
-| Long prose/code arrives exactly | Windows transport trials were exact 581/581 and 142/142 characters. A later seeded live boundary probe was 8/8 exact with 0 character errors and 0 duplicated spaces at 17–72 characters, although generic screen OCR was exact in 0/8. A deterministic repro then proved that replaying an apparently missing chunk could duplicate its already-delivered leading space. Typing is now at-most-once: ambiguous delivery stops unverified and never replays text. A 1,000-case stale-readback fuzz emitted every canonical payload exactly once with zero introduced doubled spaces. Code-01 freshly entered 12 Python rows with 15 exact receipts; Code-02 entered valid structured JSON with eight exact receipts. Both saved, reopened, and visibly verified with zero corrections or delivery retries. Receipts retain requested, delivery, emitted, OCR, and evaluated-frame SHA-256 values | Passing two live code tasks and target-free sender integrity; generic OCR remains below release gate |
+| Long prose/code arrives exactly | Windows transport trials were exact 581/581 and 142/142 characters. A later seeded live boundary probe was 8/8 exact with 0 character errors and 0 duplicated spaces at 17–72 characters, although generic screen OCR was exact in 0/8. A deterministic repro then proved that replaying an apparently missing chunk could duplicate its already-delivered leading space. Typing is now at-most-once: ambiguous delivery stops unverified and never replays text. A 1,000-case stale-readback fuzz emitted every canonical payload exactly once with zero introduced doubled spaces. Code-01 entered Python, Code-02 JSON, Code-03 PowerShell, and Code-04 SQL from fresh blank documents; all four saved, reopened, and visibly verified with zero corrections or delivery retries in their accepted runs. Receipts retain requested, delivery, emitted, OCR, and evaluated-frame SHA-256 values | Passing four live code tasks and target-free sender integrity; generic OCR remains below release gate |
 | Raw HID avoids encoded/script transfer hacks | A seeded 1,000-payload corpus caught 800/800 unsafe shapes with 0/200 safe false positives; the public MCP integration also refuses encoded transfer before daemon contact | Passing local syntax gate; explicit byte-verified transfer channel pending |
 | Exact-byte virtual-media preparation works | 10/10 builder contracts plus 19/19 transaction/UI/adapter/surface contracts cover mode-0600 media, exact browser approval, rollback, cleanup uncertainty, identity, lease, stop, model-surface exclusion, and explicit unsupported VNC | Passing target-free contract; daemon bridge capability and live target result pending |
 | OCR can safely verify arbitrary desktop text | Tesseract is 56.9% selected and 61.4% expected-aware exact; its 800-case routine tier is 71.125% exact while the preserved 200-case confusable stress tier is 0%; PaddleOCR is 78.9% normalized exact; the retrospective known-intent candidate union is 82.7% overall, 97.0% routine, and 25.5% stress on the same 1,000 cases; no confidence threshold supports a 99% lower-bound claim | Failing release gate |
@@ -51,8 +51,8 @@ support a claim of generally reliable autonomous Windows operation.
 
 ### Live 50-task Windows campaign
 
-The active disposable-Windows campaign has **28/50 unique accepted passes
-(56%)**. Every attempt is screen-recorded, every test ends with a VM reboot,
+The active disposable-Windows campaign has **29/50 unique accepted passes
+(58%)**. Every attempt is screen-recorded, every test ends with a VM reboot,
 and a pass is counted only once even when the same task is rerun during
 remediation. Production PiKVM was not contacted.
 
@@ -61,11 +61,11 @@ remediation. Production PiKVM was not contacted.
 | Observation | 5 | 5 | Complete |
 | Calculator | 10 | 10 | Complete |
 | Text entry | 10 | 10 | Complete |
-| Code entry | 3 | 10 | In progress |
+| Code entry | 4 | 10 | In progress |
 | File management | 0 | 5 | Pending |
 | Microsoft Excel | 0 | 5 | Pending |
 | Microsoft Word | 0 | 5 | Pending |
-| **Total** | **28** | **50** | **22 pending** |
+| **Total** | **29** | **50** | **21 pending** |
 
 The Calculator category is complete. The final temperature-conversion task
 visibly produced `23 °C = 73.4 °F`, completed 7/7 actions, and rebooted the VM
@@ -794,7 +794,34 @@ complete eight-run ledger is
 The canonical campaign digest is `sha256:8f71fe476ed1`; its VP9 recording is
 `sha256:49b5ff4e093a` and its poster is `sha256:a052014247a8`.
 
-Failure-inclusive metrics, canonical campaign digests, the 28 accepted task
+Code-04 is the fourth accepted Code entry task. Eight earlier attempts are
+retained: seven failed and v2 is invalid despite reporting success because it
+needed two same-run recoveries. The failures exposed an ungrounded Open commit,
+a restored missing-file modal, a post-open verifier spiral, two ungrounded Save
+commits, the missing deterministic Open recognizer, and a Save As crop that
+returned the exact filename plus the native `Hide Folders` row. The v8 ledger
+also records its first failed reboot invocation, explicit verified reset, and
+campaign-owned reboot-only reconciliation instead of silently erasing the
+isolation failure.
+
+The accepted v9 run freshly created the seven-line grouped customer-value SQL
+query, saved it as `code-04.sql`, reopened it through the native Open dialog,
+and completed only after the independent verifier saw the persisted query. Its
+ten exact receipts cover 176 requested, issued, and observed characters. Every
+receipt has zero edit distance, zero corrections, zero delivery retries, and
+exact-once emission. All 24 actions completed with one bounded-workspace
+approval and no same-run recovery.
+
+Accuracy passes code-04; speed still fails. The task took 416.335s before
+reboot and 510.973s through reset-ready. Action execution consumed 260.336s
+(62.5% of wall time); 20 model calls consumed 149.451s of provider wait
+(35.9%). The 56.604s Save As filename readback was the longest action, and 17
+of the 20 model calls were verifier turns. The complete nine-run ledger is
+[`code-04-attempts.json`](results/2026-08-02/live-vnc/code-04-attempts.json).
+The canonical campaign digest is `sha256:815301670be6`; its VP9 recording is
+`sha256:0bebf0651da5` and its poster is `sha256:e099a960e4f7`.
+
+Failure-inclusive metrics, canonical campaign digests, the 29 accepted task
 IDs, and the VP9 recording/poster hashes are retained in
 [`codex-50-progress.json`](results/2026-07-31/live-vnc/codex-50-progress.json).
 The complete 50-task manifest is
