@@ -347,7 +347,12 @@ def editor_status_search_region(
     width, height = dims
     if width <= 0 or height <= 0:
         return None
-    row_bottom = row_region.y + row_region.height
+    # A later caret or status-bar repaint can vertically inflate the unioned
+    # causal box even though its top still grounds the editor glyph row. Do
+    # not let that dynamic surface push the independent status crop beneath
+    # the foreground window.
+    bounded_row_height = min(row_region.height, DENSE_MAX_HEIGHT)
+    row_bottom = row_region.y + bounded_row_height
     available_height = height - row_bottom
     if available_height <= 0:
         return None
@@ -1688,6 +1693,59 @@ class WatchedTyper:
             if tmp is not None:
                 tmp.unlink(missing_ok=True)
 
+    async def _read_precise_screen_fallback(
+        self,
+        region: Region,
+    ) -> OCRResult:
+        """Read one bounded screen crop with the blind precise OCR lane.
+
+        The normal screen reader deliberately stays on the fast local OCR
+        path. Tiny editor status text is the one place where a local miss can
+        leave otherwise exact indentation unverifiable, so callers may
+        explicitly escalate only that geometry-derived crop. The fallback
+        receives the native crop rather than a downscaled full frame.
+        """
+
+        fallback = getattr(self.ocr, "ocr_precise_fallback", None)
+        if not callable(fallback):
+            return OCRResult()
+        tmp: Path | None = None
+        try:
+            frame = await self.backend.screenshot(region=region)
+            if (
+                not frame
+                or not frame.data
+                or frame.width <= 0
+                or frame.height <= 0
+            ):
+                return OCRResult()
+            fd = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+            fd.write(frame.data)
+            fd.close()
+            tmp = Path(fd.name)
+            result = await fallback(
+                tmp,
+                region=Region(
+                    x=0,
+                    y=0,
+                    width=frame.width,
+                    height=frame.height,
+                ),
+            )
+            DEBUG.event(
+                "typing.screen_readback_fallback",
+                width=frame.width,
+                height=frame.height,
+                observed_characters=len(result.text),
+                line_count=len(result.lines),
+            )
+            return result
+        except Exception:
+            return OCRResult()
+        finally:
+            if tmp is not None:
+                tmp.unlink(missing_ok=True)
+
     def _locate_ocr_candidate(
         self,
         result: OCRResult,
@@ -2887,6 +2945,21 @@ class WatchedTyper:
                         container_region=status_region,
                     )
                 )
+                if not status_proved:
+                    bounded_status = (
+                        await self._read_precise_screen_fallback(
+                            status_region,
+                        )
+                    )
+                    status_proved = (
+                        editor_caret_column_proves_leading_whitespace(
+                            bounded_status,
+                            intended_snapshot,
+                            cur_region,
+                            dims,
+                            container_region=status_region,
+                        )
+                    )
             DEBUG.event(
                 "typing.editor_leading_whitespace_status",
                 proved=status_proved,

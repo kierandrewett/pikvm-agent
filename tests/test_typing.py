@@ -233,6 +233,14 @@ def test_editor_status_search_region_is_bounded_below_causal_row() -> None:
     )
 
 
+def test_editor_status_search_region_caps_tall_causal_box() -> None:
+    row = Region(x=37, y=103, width=163, height=401)
+
+    region = editor_status_search_region(row, (1280, 800))
+
+    assert region == Region(x=0, y=467, width=512, height=100)
+
+
 def test_compact_status_crop_accepts_notepad_ln_ocr_confusable() -> None:
     intended = "    for number in range(1, limit + 1):"
     row = Region(x=37, y=99, width=211, height=37)
@@ -3100,16 +3108,35 @@ async def test_indented_editor_autocorrect_uses_status_proof_after_replacement(
     _assert_no_enter(backend)
 
 
+@pytest.mark.parametrize("status_lane", ["local", "fallback"])
 async def test_four_space_editor_autocorrect_preserves_final_status_proof(
     monkeypatch: pytest.MonkeyPatch,
+    status_lane: str,
 ) -> None:
     async def no_sleep(_seconds: float) -> None:
         return None
 
-    backend = FakeBackend()
     intended = "    for i in range(1, limit + 1):"
 
+    class StatusCropBackend(FakeBackend):
+        async def screenshot(
+            self,
+            region: Region | None = None,
+        ):
+            if region is None:
+                return await super().screenshot()
+            width = max(1, round(region.width))
+            height = max(1, round(region.height))
+            output = io.BytesIO()
+            Image.new("RGB", (width, height), "navy").save(output, "PNG")
+            return to_captured_frame(output.getvalue(), width, height)
+
+    backend = StatusCropBackend()
+
     class FourSpaceAutocorrectOCR:
+        def __init__(self) -> None:
+            self.status_fallback_sizes: list[tuple[int, int]] = []
+
         @staticmethod
         def rendered_text() -> str:
             original_parts = [
@@ -3147,7 +3174,11 @@ async def test_four_space_editor_autocorrect_preserves_final_status_proof(
                 return OCRResult(
                     lines=[
                         OCRLine(
-                            text=f"Ln 3, Col {len(rendered) + 5}",
+                            text=(
+                                f"Ln 3, Col {len(rendered) + 5}"
+                                if status_lane == "local"
+                                else "Pisin text"
+                            ),
                             confidence=0.99,
                             bbox=[20, foreground_y, 92, foreground_y + 12],
                         )
@@ -3163,6 +3194,33 @@ async def test_four_space_editor_autocorrect_preserves_final_status_proof(
                 spacing_evidence="not_evaluated",
             )
 
+        async def ocr_precise_fallback(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del region
+            size = Image.open(image_path).size
+            if size[0] == 512 and size[1] >= 90:
+                self.status_fallback_sizes.append(size)
+                return OCRResult(
+                    lines=[
+                        OCRLine(
+                            text="Ln 3, Col 34",
+                            confidence=0.99,
+                            bbox=[20, size[1] - 20, 92, size[1] - 8],
+                        )
+                    ]
+                )
+            return OCRResult(
+                lines=[
+                    OCRLine(
+                        text=self.rendered_text(),
+                        confidence=0.99,
+                    )
+                ]
+            )
+
         async def ocr(
             self,
             image_path: Path,
@@ -3171,7 +3229,8 @@ async def test_four_space_editor_autocorrect_preserves_final_status_proof(
             return await self.ocr_precise(image_path, region)
 
     monkeypatch.setattr(asyncio, "sleep", no_sleep)
-    typer = WatchedTyper(backend, FourSpaceAutocorrectOCR())
+    ocr = FourSpaceAutocorrectOCR()
+    typer = WatchedTyper(backend, ocr)
     flat = _flat_grid()
     changed = flat.copy().reshape(GRID_ROWS, GRID_COLS)
     changed[8:10, 5:28] = 200
@@ -3193,6 +3252,7 @@ async def test_four_space_editor_autocorrect_preserves_final_status_proof(
     assert result.field_text == intended
     assert result.correction_count == 1
     assert result.emitted_exactly_once is False
+    assert bool(ocr.status_fallback_sizes) is (status_lane == "fallback")
     _assert_no_enter(backend)
 
 
