@@ -89,7 +89,7 @@ MAX_AUTODETECTED_FIELD_HEIGHT = 80
 MAX_AUTODETECTED_FIELD_HEIGHT_FRAC = 0.15
 MAX_PROSE_EDGE_CONTEXT_CHARS = 96
 MAX_EDITOR_STATUS_VERTICAL_GAP_FRAC = 0.50
-MAX_EDITOR_STATUS_SEARCH_HEIGHT_FRAC = 0.125
+MAX_EDITOR_STATUS_SEARCH_HEIGHT_FRAC = 0.1875
 EDITOR_STATUS_SEARCH_WIDTH_FRAC = 0.40
 EDITOR_STATUS_SEARCH_LEFT_CONTEXT_PX = 256
 AUTODETECTED_READBACK_MARGIN_X_FRAC = 0.075
@@ -595,16 +595,13 @@ def editor_status_search_region(
             math.floor(row_region.x) - EDITOR_STATUS_SEARCH_LEFT_CONTEXT_PX,
         ),
     )
-    # Overlap the deepest compact band by half its height. In stacked Notepad
-    # windows the foreground status row can sit exactly at the old crop's top
-    # edge and be clipped while a lower background row remains legible. The
-    # overlap keeps that foreground row visible; the nearest-row geometry
-    # discriminator above still rejects a background status row.
-    overlap = math.floor(crop_height * 0.50)
-    y = max(
-        row_bottom,
-        row_bottom + search_depth - crop_height - overlap,
-    )
+    # Keep the crop's bottom at the deepest allowed edge while making the band
+    # tall enough to include a foreground status row near either edge. Stacked
+    # Notepad windows exposed both failure modes: a row clipped at the old top
+    # edge and a lower foreground row missed after shifting the whole crop up.
+    # The nearest-row geometry discriminator above still rejects background
+    # status rows that also enter this bounded band.
+    y = row_bottom + search_depth - crop_height
     return Region(
         x=x,
         y=y,
@@ -3495,15 +3492,12 @@ class WatchedTyper:
                 and editor_field
                 and not explicit_region
                 and leading_spaces > 0
-                and (
-                    leading_spaces >= 8
-                    or corrections > 0
-                )
             ):
                 # Preserve the painted glyph row long enough for the separate
                 # Notepad Ln/Col proof below to attest invisible indentation
-                # after a local repair. Deep indentation retains its existing
-                # path. This candidate never verifies exact text on its own.
+                # for every indented line, including the common four-space
+                # Python level. This candidate never verifies exact text on
+                # its own; the independent status proof remains mandatory.
                 options["preserve_editor_indent_candidate"] = True
             return await self._read_field(region, **options)
 

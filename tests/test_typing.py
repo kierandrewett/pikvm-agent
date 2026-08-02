@@ -258,7 +258,7 @@ def test_editor_status_search_region_is_bounded_below_causal_row() -> None:
         (1280, 800),
     )
 
-    assert region == Region(x=0, y=364, width=512, height=100)
+    assert region == Region(x=0, y=364, width=512, height=150)
     bounded = OCRResult(
         lines=[
             OCRLine(
@@ -287,7 +287,7 @@ def test_editor_status_search_region_caps_tall_causal_box() -> None:
 
     region = editor_status_search_region(row, (1280, 800))
 
-    assert region == Region(x=0, y=417, width=512, height=100)
+    assert region == Region(x=0, y=417, width=512, height=150)
 
 
 def test_editor_status_search_region_keeps_foreground_stacked_row_visible() -> None:
@@ -297,8 +297,19 @@ def test_editor_status_search_region_keeps_foreground_stacked_row_visible() -> N
 
     region = editor_status_search_region(row, (1280, 800))
 
-    assert region == Region(x=0, y=456, width=512, height=100)
+    assert region == Region(x=0, y=456, width=512, height=150)
     assert region.y < 500 < region.y + region.height
+
+
+def test_editor_status_search_region_keeps_low_foreground_row_visible() -> None:
+    """Keep the foreground row below a high causal code line in the crop."""
+
+    row = Region(x=58, y=94, width=70, height=26)
+
+    region = editor_status_search_region(row, (1280, 800))
+
+    assert region == Region(x=0, y=370, width=512, height=150)
+    assert region.y < 489 < region.y + region.height
 
 
 def test_inflated_recovery_box_accepts_foreground_status_geometry() -> None:
@@ -307,7 +318,7 @@ def test_inflated_recovery_box_accepts_foreground_status_geometry() -> None:
     intended = "    for number in range(1, limit + 1):"
     row = Region(x=79, y=126, width=1184, height=666)
     region = editor_status_search_region(row, (1280, 800))
-    assert region == Region(x=0, y=440, width=512, height=100)
+    assert region == Region(x=0, y=440, width=512, height=150)
     bounded = OCRResult(
         lines=[
             OCRLine(
@@ -336,7 +347,7 @@ def test_compact_status_crop_accepts_notepad_ln_ocr_confusable() -> None:
     intended = "    for number in range(1, limit + 1):"
     row = Region(x=37, y=99, width=211, height=37)
     region = editor_status_search_region(row, (1280, 800))
-    assert region == Region(x=0, y=386, width=512, height=100)
+    assert region == Region(x=0, y=386, width=512, height=150)
     bounded = OCRResult(
         lines=[
             OCRLine(
@@ -1057,7 +1068,7 @@ async def test_causal_exact_row_finishes_without_a_noisier_second_read(
     ("expanded_text", "expanded_spacing", "expected_status"),
     [
         ("    result = []", "verified", "verified_exact"),
-        ("result = []", "uncertain", "unverified_ambiguous"),
+        ("result = []", "uncertain", "unverified_whitespace"),
     ],
 )
 async def test_causal_code_row_uses_trimmed_glyphs_only_to_localize(
@@ -4237,7 +4248,7 @@ async def test_precise_autolocate_rechecks_noisy_editor_punctuation(
                 )
             if (
                 region.width == 512
-                and region.height <= 120
+                and region.height <= 160
                 and region.y > 140
             ):
                 foreground_y = region.height - 20
@@ -4301,7 +4312,7 @@ async def test_precise_autolocate_rechecks_noisy_editor_punctuation(
             region is not None
             and not (
                 region.width == 512
-                and region.height <= 120
+                and region.height <= 160
                 and region.y > 140
             )
             and result.lines
@@ -4337,7 +4348,7 @@ async def test_precise_autolocate_rechecks_noisy_editor_punctuation(
     assert any(
         region is not None
         and region.width == 512
-        and region.height <= 120
+        and region.height <= 160
         and region.y > 140
         for region in ocr.regions
     )
@@ -4363,21 +4374,28 @@ async def test_precise_autolocate_rechecks_noisy_editor_punctuation(
 
 
 @pytest.mark.parametrize(
-    ("reported_column", "expected_status"),
+    ("intended", "line_number", "correct_column", "character_count"),
     [
-        (38, "verified_exact"),
-        (37, "unverified_whitespace"),
+        ('            result.append("FizzBuzz")', 5, 38, 142),
+        ("    result = []", 2, 16, 36),
     ],
+)
+@pytest.mark.parametrize(
+    ("column_delta", "expected_status"),
+    [(0, "verified_exact"), (-1, "unverified_whitespace")],
 )
 async def test_long_indented_editor_suffix_uses_status_alternative(
     monkeypatch: pytest.MonkeyPatch,
-    reported_column: int,
+    intended: str,
+    line_number: int,
+    correct_column: int,
+    character_count: int,
+    column_delta: int,
     expected_status: str,
 ) -> None:
     async def no_sleep(_seconds: float) -> None:
         return None
 
-    intended = '            result.append("FizzBuzz")'
     suffix = intended.lstrip(" ")
     regions: list[Region | None] = []
 
@@ -4409,8 +4427,9 @@ async def test_long_indented_editor_suffix_uses_status_alternative(
                     alternatives=[
                         OCRCandidate(
                             text=(
-                                f"Ln 5, Col {reported_column}\n"
-                                "142 characters\nPlain text"
+                                f"Ln {line_number}, Col "
+                                f"{correct_column + column_delta}\n"
+                                f"{character_count} characters\nPlain text"
                             ),
                             mean_confidence=0.98,
                         )
@@ -4455,7 +4474,7 @@ async def test_long_indented_editor_suffix_uses_status_alternative(
 
     assert result.status == expected_status, regions
     assert result.field_text == (
-        intended if reported_column == 38 else suffix
+        intended if column_delta == 0 else suffix
     )
     assert result.emitted_exactly_once is True
     _assert_no_enter(backend)
@@ -4797,7 +4816,7 @@ async def test_editor_indentation_is_reproved_after_full_screen_recovery(
             if (
                 region is not None
                 and region.width == 512
-                and region.height <= 120
+                and region.height <= 160
                 and region.y > 140
             ):
                 self.status_reads += 1
