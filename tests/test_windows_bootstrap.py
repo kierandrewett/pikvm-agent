@@ -212,7 +212,7 @@ def test_reuse_installed_observer_restarts_it_with_the_fresh_artifact_path() -> 
     assert max(map(len, commands)) < 180
 
 
-def test_hidden_observer_launch_returns_from_powershell_and_closes_the_host() -> None:
+def test_background_observer_launch_keeps_hotkey_windows_visible() -> None:
     commands = build_bootstrap_commands(
         reuse_installed=True,
         file_path=(
@@ -224,9 +224,9 @@ def test_hidden_observer_launch_returns_from_powershell_and_closes_the_host() ->
     assert commands[-2] == (
         "start C:/PiKVM-Harness/observer.exe -ArgumentList "
         "'--file','C:/PiKVM-Harness/workspace/"
-        "shakespeare-essay-a1b2c3d4e5f60718.docx' "
-        "-WindowStyle Hidden"
+        "shakespeare-essay-a1b2c3d4e5f60718.docx'"
     )
+    assert "-WindowStyle Hidden" not in commands[-2]
     assert '"' not in commands[-2]
     assert commands[-1] == "exit"
     assert "& C:/PiKVM-Harness/observer.exe" not in ";".join(commands)

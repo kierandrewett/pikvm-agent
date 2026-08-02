@@ -115,10 +115,7 @@ def build_bootstrap_commands(
         )
         commands.extend(
             [
-                (
-                    "start C:/PiKVM-Harness/observer.exe"
-                    f"{argument_list} -WindowStyle Hidden"
-                ),
+                "start C:/PiKVM-Harness/observer.exe" + argument_list,
                 "exit",
             ]
         )
