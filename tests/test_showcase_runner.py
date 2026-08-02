@@ -506,7 +506,7 @@ tasks:
     )
     lease = ShowcaseCampaignLease.acquire(
         tmp_path / "output",
-        "single-writer-campaign",
+        "different-campaign-on-the-same-vm",
     )
     try:
         with pytest.raises(

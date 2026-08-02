@@ -88,16 +88,16 @@ class ShowcaseCampaignAlreadyRunning(LocalProcessLeaseAlreadyHeld):
 
 
 class ShowcaseCampaignLease(LocalProcessLease):
-    """Exclusive campaign ownership acquired before VNC or state mutation."""
+    """Exclusive showcase-root ownership before VNC or state mutation."""
 
     @classmethod
     def acquire(
         cls,
         output_root: Path,
-        campaign_id: str,
+        _campaign_id: str,
     ) -> "ShowcaseCampaignLease":
         return super().acquire(
-            output_root / f".{campaign_id}.runner.lock",
+            output_root / ".showcase-runner.lock",
             kind="showcase-campaign-runner",
             already_held_error=ShowcaseCampaignAlreadyRunning,
         )
