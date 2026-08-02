@@ -14,7 +14,7 @@ import subprocess
 import tomllib
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
@@ -187,6 +187,65 @@ def _launch_tokens(server: object) -> tuple[str, ...] | None:
     return (command, *args)
 
 
+def _absolute_path(value: str) -> bool:
+    return PurePosixPath(value).is_absolute() or PureWindowsPath(
+        value
+    ).is_absolute()
+
+
+def _desktop_launcher_classification(
+    tokens: tuple[str, ...],
+) -> RegistrationClass | None:
+    """Recognize the bounded PiKVM Desktop launcher contract.
+
+    This deliberately validates the executable shape more strictly than the
+    launcher itself. A duplicate, relative, or unknown argument is ambiguous
+    rather than inheriting the launcher's last-value-wins behavior.
+    """
+
+    command_name = tokens[0].replace("\\", "/").rsplit("/", 1)[-1].lower()
+    if command_name not in {"node", "node.exe"} or len(tokens) < 2:
+        return None
+    launcher = tokens[1]
+    normalized_launcher = launcher.replace("\\", "/")
+    launcher_parts = normalized_launcher.rsplit("/", 2)
+    if (
+        len(launcher_parts) < 3
+        or launcher_parts[-2:] != ["dist", "mcp-launcher.js"]
+        or not _absolute_path(launcher)
+    ):
+        return None
+
+    allowed = {"--runtime", "--caller-label", "--control-mode"}
+    values: dict[str, str] = {}
+    arguments = tokens[2:]
+    index = 0
+    while index < len(arguments):
+        option = arguments[index]
+        if option not in allowed or option in values:
+            return None
+        if index + 1 >= len(arguments):
+            return None
+        value = arguments[index + 1]
+        if not value or value.startswith("-"):
+            return None
+        values[option] = value
+        index += 2
+
+    runtime = values.get("--runtime", "")
+    caller_label = values.get("--caller-label", "")
+    if not _absolute_path(runtime) or not re.fullmatch(
+        r"[A-Za-z0-9][A-Za-z0-9_.-]{0,63}", caller_label
+    ):
+        return None
+    control_mode = values.get("--control-mode", "managed")
+    if control_mode == "managed":
+        return "managed"
+    if control_mode == "direct":
+        return "direct"
+    return None
+
+
 def _classification(
     server_name: str,
     server: object,
@@ -200,6 +259,9 @@ def _classification(
         return None
     if tokens is None:
         return "ambiguous"
+    desktop_classification = _desktop_launcher_classification(tokens)
+    if desktop_classification is not None:
+        return desktop_classification
     command_name = tokens[0].replace("\\", "/").rsplit("/", 1)[-1].lower()
     python_command = bool(
         re.fullmatch(r"python(?:\d+(?:\.\d+)?)?(?:\.exe)?", command_name)

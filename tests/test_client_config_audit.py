@@ -9,10 +9,35 @@ from typer.testing import CliRunner
 
 from pikvm_agent.cli import app
 from pikvm_agent.harness.client_config_audit import (
+    ClientConfigAuditReport,
     ClientConfigDocument,
     audit_client_configs,
     read_codex_effective_inventory,
 )
+
+
+def _audit_claude_launch(
+    command: str,
+    arguments: list[str],
+) -> ClientConfigAuditReport:
+    return audit_client_configs(
+        client="claude",
+        documents=[
+            ClientConfigDocument(
+                source_label="user",
+                rendered=json.dumps(
+                    {
+                        "mcpServers": {
+                            "pikvm": {
+                                "command": command,
+                                "args": arguments,
+                            }
+                        }
+                    }
+                ),
+            )
+        ],
+    )
 
 
 def test_claude_audit_accepts_one_managed_registration_without_leaking_config() -> None:
@@ -433,6 +458,164 @@ args = [
 
 
 @pytest.mark.parametrize(
+    "client", ["codex", "claude", "gemini", "opencode"]
+)
+def test_audit_recognizes_official_desktop_managed_launcher(
+    client: str,
+) -> None:
+    args = [
+        "/opt/PiKVM Desktop/resources/app.asar/dist/mcp-launcher.js",
+        "--runtime",
+        "/run/user/1000/pikvm/harness-runtime.json",
+        "--caller-label",
+        f"{client}-cli",
+    ]
+    server: dict[str, object] = {
+        "command": "/usr/bin/node",
+        "args": args,
+    }
+    if client == "codex":
+        rendered = """
+[mcp_servers.pikvm]
+command = "/usr/bin/node"
+args = [
+  "/opt/PiKVM Desktop/resources/app.asar/dist/mcp-launcher.js",
+  "--runtime",
+  "/run/user/1000/pikvm/harness-runtime.json",
+  "--caller-label",
+  "codex-cli",
+]
+"""
+    elif client == "opencode":
+        server["command"] = ["/usr/bin/node", *args]
+        server.pop("args")
+        rendered = json.dumps({"mcp": {"pikvm": server}})
+    else:
+        rendered = json.dumps({"mcpServers": {"pikvm": server}})
+
+    report = audit_client_configs(
+        client=client,  # type: ignore[arg-type]
+        documents=[
+            ClientConfigDocument(source_label="user", rendered=rendered)
+        ],
+    )
+
+    assert report.safe is True
+    assert report.managed_count == 1
+    assert report.failures == ()
+    assert report.findings[0].classification == "managed"
+
+
+def test_audit_classifies_explicit_desktop_direct_launcher_as_direct() -> None:
+    report = _audit_claude_launch(
+        "/usr/bin/node",
+        [
+            "/opt/pikvm/dist/mcp-launcher.js",
+            "--runtime",
+            "/run/user/1000/pikvm/harness-runtime.json",
+            "--caller-label",
+            "claude-cli",
+            "--control-mode",
+            "direct",
+        ],
+    )
+
+    assert report.safe is False
+    assert report.managed_count == 0
+    assert report.findings[0].classification == "direct"
+    assert report.failures == (
+        "missing_managed",
+        "competing_raw_or_direct",
+    )
+
+
+@pytest.mark.parametrize(
+    "command,args",
+    [
+        (
+            "/usr/bin/node",
+            [
+                "dist/mcp-launcher.js",
+                "--runtime",
+                "/run/user/1000/pikvm/runtime.json",
+                "--caller-label",
+                "claude-cli",
+            ],
+        ),
+        (
+            "/usr/bin/node",
+            [
+                "/opt/pikvm/dist/mcp-launcher.js",
+                "--runtime",
+                "relative/runtime.json",
+                "--caller-label",
+                "claude-cli",
+            ],
+        ),
+        (
+            "/usr/bin/node",
+            [
+                "/opt/pikvm/dist/mcp-launcher.js",
+                "--runtime",
+                "/run/user/1000/pikvm/runtime.json",
+                "--runtime",
+                "/tmp/other.json",
+                "--caller-label",
+                "claude-cli",
+            ],
+        ),
+        (
+            "/usr/bin/node",
+            [
+                "/opt/pikvm/dist/mcp-launcher.js",
+                "--runtime",
+                "/run/user/1000/pikvm/runtime.json",
+                "--caller-label",
+                "claude-cli",
+                "--unknown",
+                "value",
+            ],
+        ),
+        (
+            "/usr/bin/node",
+            [
+                "/opt/pikvm/dist/mcp-launcher.js",
+                "--runtime",
+                "/run/user/1000/pikvm/runtime.json",
+                "--caller-label",
+                "claude-cli",
+                "--control-mode",
+                "unsafe",
+            ],
+        ),
+        (
+            "/usr/bin/node",
+            [
+                "/opt/pikvm/dist/not-the-launcher.js",
+                "--runtime",
+                "/run/user/1000/pikvm/runtime.json",
+                "--caller-label",
+                "claude-cli",
+            ],
+        ),
+    ],
+)
+def test_audit_refuses_modified_desktop_launcher_shapes(
+    command: str,
+    args: list[str],
+) -> None:
+    report = _audit_claude_launch(command, args)
+
+    assert report.safe is False
+    assert report.managed_count == 0
+    assert report.findings[0].classification == "ambiguous"
+    assert report.failures == (
+        "missing_managed",
+        "ambiguous_pikvm_registration",
+    )
+
+
+@pytest.mark.parametrize(
     "arguments",
     [
         ["harness", "managed-runtime-mcp"],
@@ -449,24 +632,7 @@ args = [
 def test_audit_refuses_incomplete_official_launch_shapes(
     arguments: list[str],
 ) -> None:
-    report = audit_client_configs(
-        client="claude",
-        documents=[
-            ClientConfigDocument(
-                source_label="user",
-                rendered=json.dumps(
-                    {
-                        "mcpServers": {
-                            "pikvm": {
-                                "command": "pikvm-agent",
-                                "args": arguments,
-                            }
-                        }
-                    }
-                ),
-            )
-        ],
-    )
+    report = _audit_claude_launch("pikvm-agent", arguments)
 
     assert report.safe is False
     assert report.managed_count == 0
@@ -488,24 +654,7 @@ def test_audit_refuses_incomplete_official_launch_shapes(
 def test_audit_refuses_modified_active_launcher_shapes(
     arguments: list[str],
 ) -> None:
-    report = audit_client_configs(
-        client="claude",
-        documents=[
-            ClientConfigDocument(
-                source_label="user",
-                rendered=json.dumps(
-                    {
-                        "mcpServers": {
-                            "pikvm": {
-                                "command": "pikvm-agent",
-                                "args": arguments,
-                            }
-                        }
-                    }
-                ),
-            )
-        ],
-    )
+    report = _audit_claude_launch("pikvm-agent", arguments)
 
     assert report.safe is False
     assert report.managed_count == 0
