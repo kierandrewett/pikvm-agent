@@ -2839,6 +2839,16 @@ class WatchedTyper:
                     secret=secret,
                 )
 
+        async def emit_local_repair(value: str) -> None:
+            """Insert one proven repair through an independent transport."""
+
+            emitted_parts.append(value)
+            await self.backend.type_text(
+                value,
+                code=code,
+                secret=secret,
+            )
+
         async def exact_dense_candidate(
             before_frame: CapturedFrame | None,
             after_frame: CapturedFrame | None,
@@ -3818,9 +3828,9 @@ class WatchedTyper:
                 # inserted directly between the already-present spaces. Once
                 # the guard is removed with Backspace, no delimiter key is
                 # emitted and the intended lowercase character remains.
-                await emit_text("_")
+                await emit_local_repair("_")
                 await self.backend.press_key("ArrowLeft")
-                await emit_text("i")
+                await emit_local_repair("i")
                 await self.backend.press_key("ArrowRight")
                 await self.backend.press_key("Backspace")
                 await self.backend.press_key("End")
@@ -3973,7 +3983,7 @@ class WatchedTyper:
                     await self.backend.press_key("ArrowLeft")
                     await asyncio.sleep(_CURSOR_REPEAT_SETTLE_S)
                 await self.backend.press_key("Backspace")
-                await emit_text(expected_character)
+                await emit_local_repair(expected_character)
                 await self.backend.press_key("End")
                 await asyncio.sleep(_CLEAR_SETTLE_S)
                 corrected_read = self._typed_candidate(
@@ -4102,7 +4112,7 @@ class WatchedTyper:
                 for _ in range(suffix_length):
                     await self.backend.press_key("ArrowLeft")
                     await asyncio.sleep(_CURSOR_REPEAT_SETTLE_S)
-                await emit_text(missing_character)
+                await emit_local_repair(missing_character)
                 # Move the caret away from the final glyph for the exact OCR,
                 # then restore End before returning control to the caller.
                 await self.backend.press_key("Home")
