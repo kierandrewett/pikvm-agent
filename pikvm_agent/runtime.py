@@ -59,8 +59,8 @@ from pikvm_agent.policy.direct import (
 from pikvm_agent.store.frames import FrameStore
 from pikvm_agent.store.sqlite import SessionStore
 from pikvm_agent.store.trace import TraceLog
-from pikvm_agent.vision.omniparser_manager import OmniParserManager
 from pikvm_agent.vision.frame_diff import screen_hashes_match_surface
+from pikvm_agent.vision.omniparser_manager import OmniParserManager
 from pikvm_agent.vision.paddleocr_client import paddleocr_available
 from pikvm_agent.vision.providers import build_ocr_provider, build_screen_parser
 from pikvm_agent.vision.tesseract_ocr import tesseract_available
@@ -1602,8 +1602,8 @@ class Runtime:
             )
             and draft.get("control_epoch") == sr.control_epoch
             and draft.get("world_version") == frame.world_version
-            and draft.get("readback_frame_sha256")
-            == draft.get("post_action_image_sha256")
+            and len(str(draft.get("readback_frame_sha256") or "")) == 64
+            and len(str(draft.get("post_action_image_sha256") or "")) == 64
             and len(frame_image_sha256) == 64
             and len(frame_screen_hash) == 512
             and screen_hashes_match_surface(
@@ -1680,7 +1680,6 @@ class Runtime:
             and len(frame_sha256) == 64
             and len(final_screen_hash) == 512
             and len(final_image_sha256) == 64
-            and frame_sha256 == final_image_sha256
         )
         sr.verified_local_navigation_draft = (
             {

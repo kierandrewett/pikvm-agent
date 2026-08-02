@@ -913,7 +913,7 @@ async def test_exact_explorer_receipt_records_post_action_screen_fingerprint(
                 "exact_readback_sha256_match": True,
                 "emitted_exactly_once": True,
                 "observed_text": "This PC",
-                "readback_frame_sha256": shot["image_sha256"],
+                "readback_frame_sha256": "f" * 64,
             }
         ],
         final_frame,
@@ -921,7 +921,7 @@ async def test_exact_explorer_receipt_records_post_action_screen_fingerprint(
 
     assert sr.verified_local_navigation_draft == {
         "text": "This PC",
-        "readback_frame_sha256": shot["image_sha256"],
+        "readback_frame_sha256": "f" * 64,
         "post_action_image_sha256": shot["image_sha256"],
         "frame_screen_hash": shot["screen_hash"],
         "world_version": shot["world_version"],
@@ -1003,7 +1003,7 @@ async def test_exact_replaced_save_as_filename_records_local_commit_draft(
                 "exact_readback_sha256_match": True,
                 "emitted_exactly_once": True,
                 "observed_text": "code-04.sql",
-                "readback_frame_sha256": shot["image_sha256"],
+                "readback_frame_sha256": "e" * 64,
             }
         ],
         final_frame,
@@ -1011,7 +1011,7 @@ async def test_exact_replaced_save_as_filename_records_local_commit_draft(
 
     assert sr.verified_local_navigation_draft == {
         "text": "code-04.sql",
-        "readback_frame_sha256": shot["image_sha256"],
+        "readback_frame_sha256": "e" * 64,
         "post_action_image_sha256": shot["image_sha256"],
         "frame_screen_hash": shot["screen_hash"],
         "world_version": shot["world_version"],
@@ -1565,7 +1565,7 @@ async def test_exact_explorer_draft_rejects_a_changed_screen_fingerprint(
     assert not _hid_calls(runtime)
 
 
-async def test_save_as_draft_rejects_a_different_exact_frame(
+async def test_save_as_draft_tolerates_new_encoding_of_same_surface(
     runtime: Runtime,
 ) -> None:
     path = r"C:\PiKVM-Harness\workspace\codex-50"
@@ -1602,12 +1602,11 @@ async def test_save_as_draft_rejects_a_different_exact_frame(
         [{"type": "key", "keys": ["ENTER"]}],
         based_on_world_version=shot["world_version"],
         based_on_control_epoch=shot["control_epoch"],
-        idempotency_key="changed-save-as-frame-stays-gated",
+        idempotency_key="same-save-as-surface-new-encoding",
     )
 
-    assert result["status"] == "needs_approval"
-    assert result["approval_request"]["risk"] == "unknown"
-    assert not _hid_calls(runtime)
+    assert result["status"] == "completed"
+    assert [call[1]["keys"] for call in _hid_calls(runtime)] == [["Enter"]]
 
 
 async def test_calculator_surface_retries_precise_header_before_enter_approval(
