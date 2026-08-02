@@ -1065,6 +1065,75 @@ async def test_causal_exact_row_finishes_without_a_noisier_second_read(
     assert ocr.target_reads == 1
 
 
+async def test_late_causal_exact_row_skips_redundant_settled_field_reads(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    backend = _ambiguous_dense_typing_backend(monkeypatch)
+    candidate_calls = 0
+
+    def delayed_candidates(*_args, **_kwargs) -> list[Region]:
+        nonlocal candidate_calls
+        candidate_calls += 1
+        if candidate_calls == 1:
+            return []
+        return [Region(x=40, y=96, width=80, height=24)]
+
+    monkeypatch.setattr(
+        typing_module,
+        "locate_dense_changed_candidates",
+        delayed_candidates,
+    )
+
+    class LateExactGlyphOCR:
+        def __init__(self) -> None:
+            self.causal_reads = 0
+            self.background_reads = 0
+
+        async def ocr(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path
+            if region is not None and region.y < 200:
+                self.causal_reads += 1
+                return OCRResult(
+                    lines=[OCRLine(text="}", confidence=0.99)],
+                )
+            self.background_reads += 1
+            return OCRResult(
+                lines=[OCRLine(text="Ln 6, Col 2", confidence=0.99)],
+            )
+
+        async def ocr_precise(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            return await self.ocr(image_path, region)
+
+        async def ocr_precise_fallback(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            return await self.ocr(image_path, region)
+
+    ocr = LateExactGlyphOCR()
+    result = await WatchedTyper(backend, ocr).type_text(
+        "}",
+        exact=True,
+        context="editor",
+        code=True,
+    )
+
+    assert result.status == "verified_exact"
+    assert result.field_text == "}"
+    assert result.emitted_exactly_once is True
+    assert ocr.causal_reads == 1
+    assert ocr.background_reads == 1
+
+
 @pytest.mark.parametrize(
     ("expanded_text", "expanded_spacing", "expected_status"),
     [

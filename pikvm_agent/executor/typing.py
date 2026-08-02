@@ -4956,6 +4956,13 @@ class WatchedTyper:
                                 )
                         if late_region is not None:
                             cur_region = union_region(cur_region, late_region)
+                    if verified_clean:
+                        # Exact causal OCR has already retained the terminal
+                        # receipt. Do not discard that proof by running the
+                        # broader field crop again for this or later settles.
+                        # Indented rows cannot set this flag until their
+                        # separate status proof succeeds.
+                        break
                     settled_read = self._typed_candidate(
                         await self._read_field(
                             current_readback_region(),
