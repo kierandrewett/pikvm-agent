@@ -2925,8 +2925,16 @@ class WatchedTyper:
                 precise
                 and editor_field
                 and not explicit_region
-                and leading_spaces >= 8
+                and leading_spaces > 0
+                and (
+                    leading_spaces >= 8
+                    or corrections > 0
+                )
             ):
+                # Preserve the painted glyph row long enough for the separate
+                # Notepad Ln/Col proof below to attest invisible indentation
+                # after a local repair. Deep indentation retains its existing
+                # path. This candidate never verifies exact text on its own.
                 options["preserve_editor_indent_candidate"] = True
             return await self._read_field(region, **options)
 

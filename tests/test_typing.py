@@ -3100,6 +3100,102 @@ async def test_indented_editor_autocorrect_uses_status_proof_after_replacement(
     _assert_no_enter(backend)
 
 
+async def test_four_space_editor_autocorrect_preserves_final_status_proof(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def no_sleep(_seconds: float) -> None:
+        return None
+
+    backend = FakeBackend()
+    intended = "    for i in range(1, limit + 1):"
+
+    class FourSpaceAutocorrectOCR:
+        @staticmethod
+        def rendered_text() -> str:
+            original_parts = [
+                str(kwargs["text"])
+                for method, kwargs in backend.calls
+                if (
+                    method == "type_text"
+                    and kwargs.get("text") not in {"_", "i"}
+                )
+            ]
+            rendered = "".join(original_parts).lstrip(" ")
+            corrected = any(
+                method == "press_key" and kwargs.get("code") == "Backspace"
+                for method, kwargs in backend.calls
+            )
+            if not corrected:
+                rendered = rendered.replace("for i in", "for I in", 1)
+            return rendered
+
+        async def ocr_precise(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path
+            rendered = self.rendered_text()
+            if (
+                region is not None
+                and region.x == 0
+                and region.width == 512
+                and region.height >= 90
+                and region.y > 140
+            ):
+                foreground_y = region.height - 20
+                return OCRResult(
+                    lines=[
+                        OCRLine(
+                            text=f"Ln 3, Col {len(rendered) + 5}",
+                            confidence=0.99,
+                            bbox=[20, foreground_y, 92, foreground_y + 12],
+                        )
+                    ]
+                )
+            return OCRResult(
+                lines=[
+                    OCRLine(
+                        text=rendered,
+                        confidence=0.99,
+                    )
+                ],
+                spacing_evidence="not_evaluated",
+            )
+
+        async def ocr(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            return await self.ocr_precise(image_path, region)
+
+    monkeypatch.setattr(asyncio, "sleep", no_sleep)
+    typer = WatchedTyper(backend, FourSpaceAutocorrectOCR())
+    flat = _flat_grid()
+    changed = flat.copy().reshape(GRID_ROWS, GRID_COLS)
+    changed[8:10, 5:28] = 200
+    grids = [flat, changed.reshape(-1)]
+
+    async def changed_grid() -> np.ndarray:
+        return grids.pop(0) if grids else changed.reshape(-1)
+
+    typer._grid = changed_grid  # type: ignore[method-assign]
+
+    result = await typer.type_text(
+        intended,
+        code=True,
+        exact=True,
+        context="editor",
+    )
+
+    assert result.status == "verified_exact", result
+    assert result.field_text == intended
+    assert result.correction_count == 1
+    assert result.emitted_exactly_once is False
+    _assert_no_enter(backend)
+
+
 async def test_failed_editor_autocorrect_replacement_stops_before_later_chunks() -> None:
     backend = FakeBackend()
     intended = "for i in range(1, limit + 1):"
