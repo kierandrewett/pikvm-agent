@@ -2090,7 +2090,7 @@ class WatchedTyper:
         intended: str,
         dims: tuple[int, int],
         *,
-        allow_editor_autocorrect: bool = False,
+        editor_field: bool = False,
     ) -> Region | None:
         """Use a noisy full-screen row only to choose an exact re-read crop.
 
@@ -2098,8 +2098,11 @@ class WatchedTyper:
         whole-screen OCR confuses small punctuation such as ``[]`` with
         ``[J``. A punctuation-tolerant row may therefore localize the field,
         but it is never focus evidence by itself: a fresh cropped OCR pass must
-        independently match the complete intended text or the one bounded
-        standalone-``i`` mutation that the editor repair path can correct.
+        independently match the complete intended text, the one bounded
+        standalone-``i`` mutation that the editor repair path can correct, or
+        one exact editor glyph row whose whitespace remains deliberately
+        unverified.  That final case grounds focus only; the later read-back
+        path must still prove spacing before reporting verified input.
         """
 
         width, height = dims
@@ -2125,19 +2128,48 @@ class WatchedTyper:
         )
         confirmed = compute_verdict(intended, read_back, True) == "match"
         editor_autocorrect_localized = bool(
-            allow_editor_autocorrect
+            editor_field
             and is_standalone_i_autocorrect(intended, read_back)
+        )
+        editor_spacing_pending_localized = bool(
+            editor_field
+            and not read_back
+            and any(character.isspace() for character in intended)
+            and "\n" not in intended
+            and "\r" not in intended
+            and len(
+                [
+                    line
+                    for line in self._last_field_ocr_result.lines
+                    if (
+                        line.text == intended
+                        and (
+                            line.confidence is None
+                            or float(line.confidence)
+                            >= MIN_GROUNDED_EXACT_OCR_CONFIDENCE
+                        )
+                    )
+                ]
+            )
+            == 1
         )
         DEBUG.event(
             "typing.precise_localization_recheck",
             confirmed=confirmed,
             editor_autocorrect_localized=editor_autocorrect_localized,
+            editor_spacing_pending_localized=(
+                editor_spacing_pending_localized
+            ),
             intended_characters=len(intended),
             region=candidate_region.model_dump(),
         )
         return (
             candidate_region
-            if confirmed or editor_autocorrect_localized
+            if (
+                confirmed
+                or editor_autocorrect_localized
+                or editor_spacing_pending_localized
+            )
             else None
         )
 
@@ -4605,7 +4637,7 @@ class WatchedTyper:
                                     screen,
                                     typed_so_far,
                                     dims,
-                                    allow_editor_autocorrect=editor_field,
+                                    editor_field=editor_field,
                                 )
                             )
                         if ocr_loc is not None:

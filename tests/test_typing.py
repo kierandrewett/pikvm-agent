@@ -4515,6 +4515,105 @@ async def test_indented_editor_append_moves_caret_off_final_punctuation(
     _assert_no_enter(backend)
 
 
+async def test_editor_exact_row_without_spacing_proof_keeps_focus_grounded(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Exact editor glyphs may locate the row before spacing is proven.
+
+    A dark Notepad row can sit below the grid-diff threshold while precise OCR
+    independently reads the complete line.  The OCR provider deliberately
+    withholds exact spacing until a separate invariant proves it.  That must
+    leave the once-emitted draft unverified, not misclassify it as lost focus
+    and invite an unsafe replay.
+    """
+
+    async def no_sleep(_seconds: float) -> None:
+        return None
+
+    intended = "for number in range(1, limit + 1):"
+
+    backend = FakeBackend()
+    backend.guarded_exact_print = True  # type: ignore[attr-defined]
+
+    def emitted_text() -> str:
+        return "".join(
+            kwargs["text"]
+            for method, kwargs in backend.calls
+            if method == "print_text"
+        )
+
+    class ExactGlyphsWithoutSpacingOCR:
+        async def ocr_precise(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path
+            emitted = emitted_text()
+            if region is None:
+                return OCRResult(
+                    lines=[
+                        OCRLine(
+                            text=emitted.replace("number", "nurnber"),
+                            confidence=0.98,
+                            bbox=[83, 106, 339, 132],
+                        )
+                    ],
+                    spacing_evidence="not_evaluated",
+                )
+            return OCRResult(
+                lines=[
+                    OCRLine(
+                        text=emitted,
+                        confidence=0.98,
+                        bbox=[0, 0, 256, 26],
+                    )
+                ],
+                spacing_evidence=(
+                    "not_evaluated"
+                    if emitted == intended
+                    else "verified"
+                ),
+            )
+
+        async def ocr(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            return await self.ocr_precise(image_path, region)
+
+    monkeypatch.setattr(asyncio, "sleep", no_sleep)
+    typer = WatchedTyper(backend, ExactGlyphsWithoutSpacingOCR())
+    flat = _flat_grid()
+
+    async def unchanged_grid() -> np.ndarray:
+        return flat
+
+    typer._grid = unchanged_grid  # type: ignore[method-assign]
+
+    result = await typer.type_text(
+        intended,
+        exact=True,
+        context="editor",
+    )
+
+    assert result.status.startswith("unverified_"), (
+        result,
+        result.typed_characters,
+        result.intended_characters,
+        backend.calls,
+    )
+    assert result.status != "failed_focus_lost"
+    assert result.emitted_exactly_once is True
+    assert "".join(
+        kwargs["text"]
+        for method, kwargs in backend.calls
+        if method == "print_text"
+    ) == intended
+    _assert_no_enter(backend)
+
+
 async def test_editor_indentation_is_reproved_after_full_screen_recovery(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
