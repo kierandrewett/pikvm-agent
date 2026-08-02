@@ -86,14 +86,14 @@ MAX_AUTODETECTED_FIELD_HEIGHT = 80
 MAX_AUTODETECTED_FIELD_HEIGHT_FRAC = 0.15
 MAX_PROSE_EDGE_CONTEXT_CHARS = 96
 MAX_EDITOR_STATUS_VERTICAL_GAP_FRAC = 0.50
-MAX_EDITOR_STATUS_SEARCH_HEIGHT_FRAC = 0.45
+MAX_EDITOR_STATUS_SEARCH_HEIGHT_FRAC = 0.075
 EDITOR_STATUS_SEARCH_WIDTH_FRAC = 0.40
 EDITOR_STATUS_SEARCH_LEFT_CONTEXT_PX = 32
 AUTODETECTED_READBACK_MARGIN_X_FRAC = 0.075
 SHORT_FIELD_CONTEXT_ABOVE_PX = 80
 SHORT_FIELD_CONTEXT_BELOW_PX = 24
 _EDITOR_STATUS_POSITION_RE = re.compile(
-    r"\bLn\s*(?P<line>\d+)\s*,\s*Col\s*(?P<column>\d+)\b",
+    r"\b[L1I]n\s*(?P<line>\d+)\s*[,.;:]\s*Col\s*(?P<column>\d+)\b",
     re.IGNORECASE,
 )
 DENSE_PIXEL_DELTA = 10
@@ -264,7 +264,7 @@ def editor_caret_column_proves_leading_whitespace(
             continue
         if (
             line.confidence is not None
-            and float(line.confidence) < MIN_MISMATCH_OCR_CONFIDENCE
+            and float(line.confidence) < MIN_GROUNDED_EXACT_OCR_CONFIDENCE
         ):
             continue
         status_region = (
@@ -338,8 +338,10 @@ def editor_status_search_region(
             math.floor(row_region.x) - EDITOR_STATUS_SEARCH_LEFT_CONTEXT_PX,
         ),
     )
-    # Preserve the deepest part of the allowed search band. A Notepad status
-    # row sits at the bottom of its window, not immediately below the text.
+    # Preserve only the deepest, status-row-sized part of the allowed band.
+    # A tall crop makes the tiny Notepad status glyphs disappear during OCR,
+    # while this compact band can still include the nearest foreground row and
+    # a stacked background row for the nearest-row discriminator above.
     y = row_bottom + search_depth - crop_height
     return Region(
         x=x,
@@ -2244,7 +2246,16 @@ class WatchedTyper:
         # the final glyph. Exact OCR still gates every following action.
         chunks = (
             [text]
-            if precise and len(text) <= 20
+            if precise
+            and (
+                len(text) <= 20
+                or (
+                    editor_field
+                    and code
+                    and len(text) <= FAST_PRINT_CHUNK_TARGET
+                    and re.search(r"\bi\b", text) is None
+                )
+            )
             else (
                 _guarded_print_chunks(text)
                 if fast_print

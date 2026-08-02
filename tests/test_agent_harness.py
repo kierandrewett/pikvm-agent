@@ -5057,7 +5057,14 @@ def test_unverified_exact_field_blocks_enter_until_dismissed() -> None:
     )
 
 
-def test_unverified_exact_editor_is_not_dismissed_by_escape() -> None:
+@pytest.mark.parametrize(
+    ("issued_characters", "issued_prefix_sha256"),
+    [(6, "d" * 64), (3, "e" * 64)],
+)
+def test_unverified_exact_editor_is_not_dismissed_by_escape(
+    issued_characters: int,
+    issued_prefix_sha256: str,
+) -> None:
     run = RunSnapshot(
         run_id="unverified-exact-editor",
         task="Type an exact Notepad line",
@@ -5081,10 +5088,10 @@ def test_unverified_exact_editor_is_not_dismissed_by_escape() -> None:
         input_receipts=[
             {
                 "index": 0,
-                "issued_characters": 6,
+                "issued_characters": issued_characters,
                 "requested_characters": 6,
                 "requested_sha256": "d" * 64,
-                "issued_prefix_sha256": "d" * 64,
+                "issued_prefix_sha256": issued_prefix_sha256,
                 "exact_readback_sha256_match": False,
             }
         ],
@@ -5118,6 +5125,10 @@ def test_unverified_exact_editor_is_not_dismissed_by_escape() -> None:
     assert AgentHarness._unsafe_unverified_input_followup(
         run,
         [{"type": "key", "keys": ["BACKSPACE"]}],
+    )
+    assert AgentHarness._unsafe_unverified_input_followup(
+        run,
+        [{"type": "key", "keys": ["CTRL", "Z"]}],
     )
     assert not AgentHarness._unsafe_unverified_input_followup(
         run,
@@ -5783,7 +5794,7 @@ async def test_unverified_terminal_suffix_is_replaced_with_cancel_before_hid() -
 
 
 @pytest.mark.asyncio
-async def test_unverified_editor_input_allows_one_bounded_undo_before_hid() -> None:
+async def test_unverified_editor_input_refuses_generic_undo_before_hid() -> None:
     class RecoveryProvider(ScriptedProvider):
         def __init__(self) -> None:
             super().__init__()
@@ -5872,10 +5883,8 @@ async def test_unverified_editor_input_allows_one_bounded_undo_before_hid() -> N
 
     result = await harness.continue_run(run.run_id)
 
-    assert provider.controller_calls == 2
-    assert [burst["actions"] for burst in computer.bursts] == [
-        [{"type": "key", "keys": ["CTRL", "Z"]}]
-    ]
+    assert provider.controller_calls >= 2
+    assert computer.bursts == []
     assert any(
         event.kind == "controller.unverified_input_followup_rejected"
         for event in result.events
@@ -5885,10 +5894,10 @@ async def test_unverified_editor_input_allows_one_bounded_undo_before_hid() -> N
         for request in provider.requests
         if request.role == "controller"
     ]
-    assert "undo the last editor input with Ctrl+Z" in controller_prompts[1]
+    assert "editor Undo can coalesce" in controller_prompts[1]
 
 
-def test_completed_editor_undo_clears_unverified_input_gate() -> None:
+def test_completed_editor_undo_does_not_clear_unverified_input_gate() -> None:
     run = RunSnapshot(
         run_id="completed-editor-undo",
         task="Enter a Python loop in the open editor.",
@@ -5927,7 +5936,7 @@ def test_completed_editor_undo_clears_unverified_input_gate() -> None:
     )
     run.record("action.completed", index=6, status="completed")
 
-    assert not AgentHarness._unsafe_unverified_input_followup(
+    assert AgentHarness._unsafe_unverified_input_followup(
         run,
         [
             {

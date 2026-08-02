@@ -207,24 +207,53 @@ def test_editor_status_search_region_is_bounded_below_causal_row() -> None:
         (1280, 800),
     )
 
-    assert region == Region(x=33, y=154, width=512, height=360)
+    assert region == Region(x=33, y=454, width=512, height=60)
     bounded = OCRResult(
         lines=[
             OCRLine(
                 text="Ln 2, Col 16",
                 confidence=0.94,
-                bbox=[15, 329, 57, 341],
+                bbox=[15, 29, 57, 41],
             ),
             OCRLine(
                 text="Ln 5, Col 17",
                 confidence=0.97,
-                bbox=[32, 347, 81, 357],
+                bbox=[32, 47, 81, 57],
             )
         ]
     )
     assert editor_caret_column_proves_leading_whitespace(
         bounded,
         "    result = []",
+        row,
+        (1280, 800),
+        container_region=region,
+    )
+
+
+def test_compact_status_crop_accepts_notepad_ln_ocr_confusable() -> None:
+    intended = "    for number in range(1, limit + 1):"
+    row = Region(x=37, y=99, width=211, height=37)
+    region = editor_status_search_region(row, (1280, 800))
+    assert region == Region(x=5, y=476, width=512, height=60)
+    bounded = OCRResult(
+        lines=[
+            OCRLine(
+                text="in3.Col39 75 characters",
+                confidence=0.735,
+                bbox=[45, 10, 142, 18],
+            ),
+            OCRLine(
+                text="Ln 1, Col 21 20 characters",
+                confidence=0.74,
+                bbox=[78, 44, 174, 50],
+            ),
+        ]
+    )
+
+    assert editor_caret_column_proves_leading_whitespace(
+        bounded,
+        intended,
         row,
         (1280, 800),
         container_region=region,
@@ -2888,7 +2917,7 @@ async def test_indented_editor_autocorrect_uses_status_proof_after_undo(
             if (
                 region is not None
                 and region.width == 512
-                and region.height >= 300
+                and region.height <= 80
                 and region.y > 140
             ):
                 foreground_y = region.height - 20
@@ -2997,13 +3026,27 @@ async def test_failed_editor_autocorrect_undo_stops_before_later_chunks() -> Non
     _assert_no_enter(backend)
 
 
-async def test_partial_editor_case_mismatch_never_toggles_or_replays() -> None:
+@pytest.mark.parametrize(
+    ("intended", "observed", "expected_status"),
+    [
+        ("MyVar", "myVar", "failed_case_mismatch"),
+        (
+            "    for number in range(1, limit + 1):",
+            "    for number in range(1, limit + 1):",
+            "verified_exact",
+        ),
+    ],
+)
+async def test_exact_editor_code_is_one_delivery_without_caps_replay(
+    intended: str,
+    observed: str,
+    expected_status: str,
+) -> None:
     backend = FakeBackend()
-    intended = "MyVar"
 
     result = await WatchedTyper(
         backend,
-        ScriptedOCR("myVar"),
+        ScriptedOCR(observed),
     ).type_text(
         intended,
         region=Region(x=10, y=10, width=400, height=40),
@@ -3012,7 +3055,7 @@ async def test_partial_editor_case_mismatch_never_toggles_or_replays() -> None:
         context="editor",
     )
 
-    assert result.status == "failed_case_mismatch", result
+    assert result.status == expected_status, result
     assert result.correction_count == 0
     assert result.emitted_exactly_once is True
     assert [
@@ -3108,7 +3151,7 @@ async def test_precise_autolocate_rechecks_noisy_editor_punctuation(
                 )
             if (
                 region.width == 512
-                and region.height >= 300
+                and region.height <= 80
                 and region.y > 140
             ):
                 foreground_y = region.height - 20
@@ -3168,7 +3211,7 @@ async def test_precise_autolocate_rechecks_noisy_editor_punctuation(
     assert any(
         region is not None
         and region.width == 512
-        and region.height >= 300
+        and region.height <= 80
         and region.y > 140
         for region in ocr.regions
     )
@@ -3203,7 +3246,7 @@ async def test_editor_indentation_is_reproved_after_full_screen_recovery(
             if (
                 region is not None
                 and region.width == 512
-                and region.height >= 300
+                and region.height <= 80
                 and region.y > 140
             ):
                 self.status_reads += 1

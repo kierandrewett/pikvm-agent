@@ -2155,12 +2155,13 @@ class AgentHarness:
                         ),
                         "instruction": (
                             "Do not append, retype, or execute the unread "
-                            "draft. In one separate non-text action, cancel a "
-                            "terminal draft with Ctrl+C, undo the last editor "
-                            "input with Ctrl+Z, or dismiss a single-line field "
-                            "draft with Esc. Re-enter it only after that "
-                            "cancellation has completed and a clean surface "
-                            "has been observed."
+                            "draft. Cancel a terminal draft with Ctrl+C, or "
+                            "dismiss a single-line field draft with Esc, in "
+                            "one separate non-text action. Do not modify an "
+                            "unread editor draft: editor Undo can coalesce and "
+                            "remove earlier verified input. Re-enter text only "
+                            "after a safe cancellation has completed and a "
+                            "clean surface has been observed."
                         ),
                     },
                 )
@@ -4417,17 +4418,20 @@ class AgentHarness:
                         continue
                     requested = receipt.get("requested_characters")
                     issued = receipt.get("issued_characters")
-                    requested_hash = receipt.get("requested_sha256")
                     issued_hash = receipt.get("issued_prefix_sha256")
                     surface = exact_text_surfaces.get(receipt.get("index"))
+                    issued_prefix_is_recorded = (
+                        isinstance(requested, int)
+                        and isinstance(issued, int)
+                        and 0 < issued <= requested
+                        and isinstance(issued_hash, str)
+                        and bool(issued_hash)
+                    )
                     if (
                         surface is not None
                         and isinstance(requested, int)
                         and requested > 0
-                        and issued == requested
-                        and isinstance(requested_hash, str)
-                        and bool(requested_hash)
-                        and issued_hash == requested_hash
+                        and issued_prefix_is_recorded
                         and receipt.get("exact_readback_sha256_match") is not True
                     ):
                         active_unverified_surfaces.add(surface)
@@ -4446,13 +4450,6 @@ class AgentHarness:
                 }
                 if frozenset({"CTRL", "C"}) in completed_keysets:
                     active_unverified_surfaces.discard("terminal")
-                if completed_keysets.intersection(
-                    {
-                        frozenset({"CTRL", "Z"}),
-                        frozenset({"CONTROL", "Z"}),
-                    }
-                ):
-                    active_unverified_surfaces.discard("editor")
                 if completed_keysets.intersection(
                     {
                         frozenset({"ESC"}),
@@ -4481,17 +4478,12 @@ class AgentHarness:
                         for token in re.split(r"[+\s]+", key.upper())
                         if token
                     }
-                    if keyset in (
-                        {"CTRL", "Z"},
-                        {"CONTROL", "Z"},
-                        {"ESC"},
-                        {"ESCAPE"},
-                    ):
+                    if keyset in ({"ESC"}, {"ESCAPE"}):
                         continue
-                # Escape may dismiss an editor popup, while Ctrl+Z reverses
-                # the immediately preceding fully emitted editor input.
-                # Every other input can mutate, save, submit, select, or
-                # reposition that unread content and must stop before HID.
+                # Escape may dismiss an editor popup, but no editor mutation
+                # is safe here: Notepad can coalesce multiple prior inputs into
+                # one Undo unit. Every other input can mutate, save, submit,
+                # select, or reposition unread content and must stop before HID.
                 return True
         for action in proposed_actions:
             if (
