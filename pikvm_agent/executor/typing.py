@@ -277,11 +277,22 @@ def is_disjoint_editor_effect(current: Region, candidate: Region) -> bool:
 def unique_exact_structured_ocr_row(
     result: OCRResult,
     intended: str,
+    *,
+    include_evidence: bool = False,
 ) -> OCRLine | None:
-    """Extract one exact visual row from a provider's multi-row OCR item."""
+    """Extract one exact visual row from a provider's multi-row OCR item.
+
+    ``evidence_lines`` are excluded by default because they are not the
+    provider's canonical read.  A caller may include them when a second,
+    independently grounded invariant still has to prove the candidate before
+    exact completion (for example, Notepad's line/column/character status).
+    """
 
     candidates: list[OCRLine] = []
-    for line in result.lines:
+    source_lines = [*result.lines]
+    if include_evidence:
+        source_lines.extend(result.evidence_lines)
+    for line in source_lines:
         if (
             line.confidence is not None
             and float(line.confidence) < MIN_GROUNDED_EXACT_OCR_CONFIDENCE
@@ -1990,6 +2001,31 @@ class WatchedTyper:
                     # multi-control crop. It never verifies or submits text.
                     self._refined_readback_region = refined_region
                     self._refined_readback_intended = intended
+                    if extract_structured_exact_row:
+                        # Hybrid OCR can choose a high-confidence canonical
+                        # row that drops one terminal code glyph while its
+                        # independently grounded evidence row retains the
+                        # complete text. Preserve exactly one such row as a
+                        # candidate instead of paying for blind model OCR.
+                        # Whitespace remains deliberately unverified here;
+                        # the editor status invariant must still prove it.
+                        refined_row = unique_exact_structured_ocr_row(
+                            result,
+                            intended,
+                            include_evidence=True,
+                        )
+                        if refined_row is not None:
+                            result = OCRResult(
+                                lines=[refined_row],
+                                evidence_lines=result.evidence_lines,
+                                alternatives=result.alternatives,
+                                spacing_evidence=result.spacing_evidence,
+                            )
+                            DEBUG.event(
+                                "typing.field_readback_refined_evidence",
+                                observed_characters=len(refined_row.text),
+                                confidence=refined_row.confidence,
+                            )
             if (
                 precise
                 and intended

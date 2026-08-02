@@ -4286,7 +4286,7 @@ async def test_single_line_editor_replacement_uses_status_character_count_for_sp
 async def test_single_line_editor_uses_compact_status_consensus_before_fallback(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The measured v7 status shape must finish on fast local OCR."""
+    """The measured v8 row/status shape must finish on fast local OCR."""
 
     async def no_sleep(_seconds: float) -> None:
         return None
@@ -4297,6 +4297,7 @@ async def test_single_line_editor_uses_compact_status_consensus_before_fallback(
         def __init__(self) -> None:
             self.compact_reads = 0
             self.fallback_reads = 0
+            self.field_reads = 0
 
         async def ocr_precise(
             self,
@@ -4336,8 +4337,33 @@ async def test_single_line_editor_uses_compact_status_consensus_before_fallback(
                 and region.height > 64
             ):
                 return OCRResult()
+            self.field_reads += 1
+            if self.field_reads == 1:
+                return OCRResult(
+                    lines=[
+                        OCRLine(
+                            text="function Get-FileDicest {",
+                            confidence=0.643,
+                            bbox=[7, 0, 171, 27],
+                        )
+                    ],
+                    spacing_evidence="uncertain",
+                )
             return OCRResult(
-                lines=[OCRLine(text=intended, confidence=0.99)],
+                lines=[
+                    OCRLine(
+                        text="function Get-FileDigest",
+                        confidence=0.998,
+                        bbox=[28, 29, 146, 41],
+                    )
+                ],
+                evidence_lines=[
+                    OCRLine(
+                        text=intended,
+                        confidence=0.763,
+                        bbox=[28, 31, 153, 41],
+                    )
+                ],
                 spacing_evidence="not_evaluated",
             )
 
@@ -4380,6 +4406,7 @@ async def test_single_line_editor_uses_compact_status_consensus_before_fallback(
     assert result.status == "verified_exact", result
     assert result.field_text == intended
     assert result.emitted_exactly_once is True
+    assert ocr.field_reads >= 2
     assert ocr.compact_reads == 3
     assert ocr.fallback_reads == 0
     _assert_no_enter(backend)
