@@ -6875,7 +6875,7 @@ async def test_precise_readback_extracts_one_indented_row_from_fallback() -> Non
     assert ocr.fallback_calls == 1
 
 
-@pytest.mark.parametrize("intended", ["}", "  ]"])
+@pytest.mark.parametrize("intended", ["}", "  ]", "    )"])
 async def test_single_structural_code_glyph_uses_grounded_compact_crop(
     monkeypatch: pytest.MonkeyPatch,
     intended: str,
@@ -6912,6 +6912,8 @@ async def test_single_structural_code_glyph_uses_grounded_compact_crop(
     )
 
     class ClosingGlyphOCR:
+        compact_reads = 0
+
         async def ocr_precise(
             self,
             image_path: Path,
@@ -6923,7 +6925,7 @@ async def test_single_structural_code_glyph_uses_grounded_compact_crop(
                     lines=[
                         OCRLine(
                             text=(
-                                "Ln 9, Col 4"
+                                f"Ln 9, Col {len(intended) + 1}"
                                 if intended.startswith(" ")
                                 else "Ln 10, Col 2"
                             ),
@@ -6932,7 +6934,20 @@ async def test_single_structural_code_glyph_uses_grounded_compact_crop(
                         )
                     ]
                 )
-            if region is not None and region.y < 250:
+            if region is None:
+                return OCRResult(
+                    lines=[
+                        OCRLine(
+                            text="param(",
+                            confidence=0.99,
+                            bbox=[40, 80, 100, 100],
+                        )
+                    ]
+                )
+            if 120 < region.y < 250:
+                self.compact_reads += 1
+                if self.compact_reads < 3:
+                    return OCRResult()
                 return OCRResult(
                     lines=[
                         OCRLine(
@@ -6961,7 +6976,8 @@ async def test_single_structural_code_glyph_uses_grounded_compact_crop(
                 ]
             )
 
-    result = await WatchedTyper(backend, ClosingGlyphOCR()).type_text(
+    ocr = ClosingGlyphOCR()
+    result = await WatchedTyper(backend, ocr).type_text(
         intended,
         code=True,
         exact=True,
@@ -6971,6 +6987,7 @@ async def test_single_structural_code_glyph_uses_grounded_compact_crop(
     assert result.status == "verified_exact"
     assert result.field_text == intended
     assert result.emitted_exactly_once is True
+    assert ocr.compact_reads >= 3
 
 
 def test_dense_locator_nominates_compact_glyph_only_when_requested() -> None:

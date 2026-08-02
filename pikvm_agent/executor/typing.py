@@ -4824,14 +4824,27 @@ class WatchedTyper:
                         # changes below the grid threshold. Accept only grounded
                         # OCR evidence that the just-typed text is on screen.
                         screen = await self._read_screen(precise=precise)
-                        ocr_loc = self._locate_ocr_candidate(
-                            screen,
-                            typed_so_far,
-                            dims,
-                            precise=precise,
+                        # A one-character structural needle is not a safe
+                        # full-screen locator: searching for ``)`` can select
+                        # an earlier ``param(`` row. Keep sampling its causal
+                        # compact delta instead; fail closed if that crop never
+                        # becomes independently readable.
+                        ocr_loc = (
+                            None
+                            if structural_code_glyph
+                            else self._locate_ocr_candidate(
+                                screen,
+                                typed_so_far,
+                                dims,
+                                precise=precise,
+                            )
                         )
                         recovered_read = ""
-                        if ocr_loc is None and precise:
+                        if (
+                            ocr_loc is None
+                            and precise
+                            and not structural_code_glyph
+                        ):
                             recovered = (
                                 await self._recover_precise_ocr_candidate(
                                     screen,
