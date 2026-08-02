@@ -41,6 +41,18 @@ def test_inter_key_gap_skews_positive_and_pauses_at_boundaries() -> None:
     rep = sum(timing.inter_key_gap_ms("l", "l", base, random.Random(s)) for s in range(300)) / 300
     norm = sum(timing.inter_key_gap_ms("a", "k", base, random.Random(s)) for s in range(300)) / 300
     assert rep > norm
+    # Repeated non-alpha keys need more separation too. Remote HID transports
+    # can otherwise coalesce an indentation run even though every write was
+    # acknowledged.
+    repeated_space = sum(
+        timing.inter_key_gap_ms(" ", " ", base, random.Random(s))
+        for s in range(300)
+    ) / 300
+    ordinary_space = sum(
+        timing.inter_key_gap_ms("o", " ", base, random.Random(s))
+        for s in range(300)
+    ) / 300
+    assert repeated_space > ordinary_space
 
 
 def test_word_chunks_join_invariant_and_bursts() -> None:

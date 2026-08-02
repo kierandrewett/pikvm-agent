@@ -44,8 +44,13 @@ def inter_key_gap_ms(prev: str | None, ch: str, base_gap: float,
     around the persona base, a slow-down on repeated keys, and occasional
     think-pauses after spaces / sentence / clause punctuation."""
     g = base_gap * math.exp(rng.gauss(0, 0.38))
-    if prev is not None and prev == ch and ch.isalpha():
-        g *= 1.4  # same key twice (ll, ss) is slower
+    if prev is not None and prev == ch:
+        # Repeated HID usages need separation even when the key is not a
+        # letter. In particular, some remote transports acknowledge every
+        # event in a run of indentation spaces while coalescing one before it
+        # reaches the guest. Keep ordinary doubled letters human-paced and
+        # give non-alpha repeats a little more transport margin.
+        g *= 1.4 if ch.isalpha() else 1.8
     g = _clamp(g, 16, 600)
     if ch == " " and rng.random() < 0.12:
         g += _clamp(rng.gauss(420, 200), 180, 1200)          # mid-sentence think pause

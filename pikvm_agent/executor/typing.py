@@ -778,6 +778,21 @@ def editor_single_glyph_transport_deletion(
     actual = strip_prompt(observed).strip()
     folded_expected = fold_quotes(expected)
     folded_actual = fold_quotes(actual)
+    leading_spaces = len(intended) - len(expected)
+    if (
+        expected
+        and leading_spaces > 0
+        and "\n" not in intended
+        and "\r" not in intended
+        and folded_actual == folded_expected
+        and len(expected) <= MAX_AUTOCORRECT_CURSOR_STEPS
+    ):
+        # OCR cannot paint a leading blank, so the visible row is identical
+        # whether all indentation arrived or exactly one space was dropped.
+        # The caller resolves that ambiguity with the foreground editor's
+        # caret column: only the one-character-short column authorizes this
+        # insertion immediately before the first visible glyph.
+        return len(expected), " "
     if (
         not expected
         or "\n" in expected
@@ -3725,6 +3740,7 @@ class WatchedTyper:
             nonlocal local_replacement_failure
             nonlocal corrections, last_read, verified_clean
             read_back = self._typed_candidate(read_back, intended_snapshot, precise)
+            editor_deletion_candidate = ""
             if precise and editor_field:
                 read_back = (
                     unique_editor_autocorrect_candidate(
@@ -3733,6 +3749,22 @@ class WatchedTyper:
                     )
                     or read_back
                 )
+                editor_deletion_candidate = (
+                    unique_editor_single_deletion_candidate(
+                        intended_snapshot,
+                    )
+                )
+                if read_back != intended_snapshot:
+                    # OCR cannot paint indentation. Resolve it from the
+                    # foreground editor's end column before considering any
+                    # local mutation. An exact column proves the original
+                    # delivery; a one-short column remains eligible for the
+                    # separately re-read missing-glyph repair below.
+                    read_back = await prove_editor_whitespace(
+                        read_back,
+                        intended_snapshot,
+                        phase="before_local_correction",
+                    )
             last_read = read_back
             semantic_spacing_match = (
                 allow_semantic_spacing
@@ -4036,10 +4068,12 @@ class WatchedTyper:
                 )
                 return
             deletion_candidate = (
-                unique_editor_single_deletion_candidate(
-                    intended_snapshot,
+                editor_deletion_candidate
+                if (
+                    precise
+                    and editor_field
+                    and read_back != intended_snapshot
                 )
-                if precise and editor_field
                 else ""
             )
             deletion = (

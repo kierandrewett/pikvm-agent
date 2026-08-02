@@ -3401,13 +3401,14 @@ def test_case_correction_signatures_are_narrow() -> None:
         )
         is None
     )
-    assert (
-        editor_single_glyph_transport_deletion(
-            intended,
-            "elif number % 3 == 0:",
-        )
-        is None
-    )
+    assert editor_single_glyph_transport_deletion(
+        intended,
+        "elif number % 3 == 0:",
+    ) == (21, " ")
+    assert editor_single_glyph_transport_deletion(
+        "        else:",
+        "else:",
+    ) == (5, " ")
 
 
 @pytest.mark.parametrize(
@@ -4655,8 +4656,12 @@ async def test_precise_autolocate_rechecks_noisy_editor_punctuation(
     ],
 )
 @pytest.mark.parametrize(
-    ("column_delta", "expected_status"),
-    [(0, "verified_exact"), (-1, "unverified_whitespace")],
+    ("column_delta", "expected_status", "expected_corrections"),
+    [
+        (0, "verified_exact", 0),
+        (-1, "verified_exact", 1),
+        (-2, "unverified_whitespace", 0),
+    ],
 )
 async def test_long_indented_editor_suffix_uses_status_alternative(
     monkeypatch: pytest.MonkeyPatch,
@@ -4666,6 +4671,7 @@ async def test_long_indented_editor_suffix_uses_status_alternative(
     character_count: int,
     column_delta: int,
     expected_status: str,
+    expected_corrections: int,
 ) -> None:
     async def no_sleep(_seconds: float) -> None:
         return None
@@ -4681,6 +4687,10 @@ async def test_long_indented_editor_suffix_uses_status_alternative(
         ) -> OCRResult:
             del image_path
             regions.append(region)
+            repaired = any(
+                method == "type_text" and kwargs.get("text") == " "
+                for method, kwargs in backend.calls
+            )
             if region is None:
                 return OCRResult()
             if (
@@ -4702,8 +4712,9 @@ async def test_long_indented_editor_suffix_uses_status_alternative(
                         OCRCandidate(
                             text=(
                                 f"Ln {line_number}, Col "
-                                f"{correct_column + column_delta}\n"
-                                f"{character_count} characters\nPlain text"
+                                f"{correct_column if repaired else correct_column + column_delta}\n"
+                                f"{character_count if repaired else character_count + column_delta} "
+                                "characters\nPlain text"
                             ),
                             mean_confidence=0.98,
                         )
@@ -4748,9 +4759,15 @@ async def test_long_indented_editor_suffix_uses_status_alternative(
 
     assert result.status == expected_status, regions
     assert result.field_text == (
-        intended if column_delta == 0 else suffix
+        intended if expected_status == "verified_exact" else suffix
     )
-    assert result.emitted_exactly_once is True
+    assert result.correction_count == expected_corrections
+    assert result.emitted_exactly_once is (expected_corrections == 0)
+    assert [
+        kwargs["text"]
+        for method, kwargs in backend.calls
+        if method == "type_text"
+    ] == [intended, *([" "] if expected_corrections else [])]
     _assert_no_enter(backend)
 
 
