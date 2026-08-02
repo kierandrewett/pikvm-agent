@@ -6806,6 +6806,73 @@ async def test_precise_readback_extracts_one_indented_row_from_fallback() -> Non
     assert ocr.fallback_calls == 1
 
 
+async def test_single_structural_code_glyph_uses_grounded_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    backend = FakeBackend(width=1280, height=800)
+    before_bytes, after_bytes = _ambiguous_dense_line_frames()
+    backend.set_frame_bytes(before_bytes)
+    original_type = backend.type_text
+
+    async def typing(
+        text: str,
+        *,
+        code: bool = False,
+        secret: bool = False,
+    ) -> None:
+        await original_type(text, code=code, secret=secret)
+        backend.set_frame_bytes(after_bytes)
+
+    backend.type_text = typing  # type: ignore[method-assign]
+    monkeypatch.setattr(
+        typing_module,
+        "locate_changed_bbox",
+        lambda *_args, **_kwargs: Region(
+            x=48,
+            y=142,
+            width=12,
+            height=18,
+        ),
+    )
+
+    class ClosingGlyphOCR:
+        async def ocr_precise(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path, region
+            return OCRResult()
+
+        async def ocr_precise_fallback(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path, region
+            return OCRResult(
+                lines=[
+                    OCRLine(
+                        text=(
+                            '{\n  "enabled": true,\n}'
+                        ),
+                        confidence=0.99,
+                    )
+                ]
+            )
+
+    result = await WatchedTyper(backend, ClosingGlyphOCR()).type_text(
+        "}",
+        code=True,
+        exact=True,
+        context="editor",
+    )
+
+    assert result.status == "verified_exact"
+    assert result.field_text == "}"
+    assert result.emitted_exactly_once is True
+
+
 async def test_uncalibrated_precise_ocr_cannot_verify_visible_spaces() -> None:
     intended = "exactly one space"
 

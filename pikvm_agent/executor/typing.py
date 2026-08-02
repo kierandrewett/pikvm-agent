@@ -101,6 +101,7 @@ _EDITOR_STATUS_POSITION_RE = re.compile(
 )
 _STANDALONE_I_SUBSTITUTES = frozenset({"I", "1", "|", "l"})
 _STANDALONE_LOWERCASE_I_RE = re.compile(r"(?<![\w])i(?![\w])")
+_STRUCTURAL_CODE_GLYPHS = frozenset("{}[]()")
 _EDITOR_STATUS_CHARACTER_COUNT_RE = re.compile(
     r"\b(?P<characters>\d+)\s+characters?\b",
     re.IGNORECASE,
@@ -1928,27 +1929,33 @@ class WatchedTyper:
                         if native_tmp is not None:
                             native_tmp.unlink(missing_ok=True)
                     if blind_result.text:
-                        structured_indent_row = None
+                        structured_row = (
+                            unique_exact_structured_ocr_row(
+                                blind_result,
+                                intended,
+                            )
+                            if extract_structured_exact_row
+                            else None
+                        )
                         if (
-                            extract_structured_exact_row
+                            structured_row is None
+                            and extract_structured_exact_row
                             and preserve_editor_indent_candidate
                         ):
-                            structured_indent_row = (
-                                unique_exact_structured_ocr_row(
-                                    blind_result,
-                                    intended.lstrip(" \t"),
-                                )
+                            structured_row = unique_exact_structured_ocr_row(
+                                blind_result,
+                                intended.lstrip(" \t"),
                             )
                         result = (
                             OCRResult(
-                                lines=[structured_indent_row],
+                                lines=[structured_row],
                                 evidence_lines=blind_result.evidence_lines,
                                 alternatives=blind_result.alternatives,
                                 spacing_evidence=(
                                     blind_result.spacing_evidence
                                 ),
                             )
-                            if structured_indent_row is not None
+                            if structured_row is not None
                             else blind_result
                         )
                         DEBUG.event(
@@ -2894,9 +2901,16 @@ class WatchedTyper:
         last_read = ""
         verified_clean = False
         local_replacement_failure: tuple[VerificationStatus, str] | None = None
+        structural_code_glyph = bool(
+            precise
+            and editor_field
+            and code
+            and text in _STRUCTURAL_CODE_GLYPHS
+        )
         can_vision = not secret and (
             total > 4
             or (precise and total >= 3)
+            or structural_code_glyph
         )
         emitted_parts: list[str] = []
 
@@ -4671,7 +4685,9 @@ class WatchedTyper:
             # Auto-locate the field from the changed pixels (skipped if the caller
             # gave an explicit region); grow the box each chunk so it spans the line.
             locate_min_chars = (
-                PRECISE_LOCATE_MIN_CHARS
+                1
+                if structural_code_glyph
+                else PRECISE_LOCATE_MIN_CHARS
                 if precise
                 else LOCATE_MIN_CHARS
             )
