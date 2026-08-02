@@ -3728,6 +3728,24 @@ class WatchedTyper:
                 ):
                     verified_clean = True
                 return
+            if (
+                precise
+                and editor_field
+                and intended_snapshot[:1].isspace()
+            ):
+                # An indented editor payload begins after a pre-existing line
+                # boundary. If even one requested character failed to land,
+                # clearing ``len(requested)`` positions would consume that
+                # newline and merge the draft into the previous code line.
+                # The narrow standalone-i repair above edits one grounded
+                # glyph in place; every whole-payload replay must fail closed.
+                DEBUG.event(
+                    "typing.editor_append_replay_refused",
+                    mismatch_kind=kind,
+                    intended_characters=len(intended_snapshot),
+                    observed_characters=len(read_back),
+                )
+                return
             if fast_print:
                 # A long prose mismatch is not permission to clear and replay
                 # an entire field. Stop with the observed evidence instead.

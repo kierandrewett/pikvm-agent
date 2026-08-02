@@ -2924,6 +2924,35 @@ async def test_layout_slip_triggers_single_correction_no_enter() -> None:
     _assert_no_enter(backend)
 
 
+async def test_indented_editor_layout_mismatch_never_replays_across_line_boundary() -> None:
+    """A dropped append character must not let Backspace consume its newline."""
+
+    backend = FakeBackend()
+    intended = '            results.append("FizzBuzz")'
+    observed = "            results.append(@FizzBuzz@)"
+
+    result = await WatchedTyper(
+        backend,
+        ScriptedOCR(observed),
+    ).type_text(
+        intended,
+        region=Region(x=10, y=10, width=500, height=40),
+        code=True,
+        exact=True,
+        context="editor",
+    )
+
+    assert result.status == "failed_keyboard_layout", result
+    assert result.correction_count == 0
+    assert result.emitted_exactly_once is True
+    assert backend.layout == "us"
+    assert not any(
+        method == "press_key" and kwargs.get("code") == "Backspace"
+        for method, kwargs in backend.calls
+    )
+    _assert_no_enter(backend)
+
+
 async def test_case_only_slip_toggles_caps_lock_and_retypes_once() -> None:
     backend = FakeBackend()
     intended = "HARNESSE2E42"
