@@ -14,6 +14,7 @@ from pikvm_agent.harness.agent import (
     AgentHarness,
     _calculator_fast_path,
     _calculator_task_controller,
+    _durable_last_verified_action,
     _is_read_only_settings_request,
     _locally_verified_notepad_artifact_action,
     _normalize_plan_safety_constraints,
@@ -1093,6 +1094,28 @@ def test_generated_code_plan_rejects_tabs_in_exact_artifact() -> None:
         )
 
 
+def test_generated_code_plan_accepts_a_conventional_trailing_newline() -> None:
+    plan = PlanDecision(
+        summary="Write code.",
+        steps=["Enter it"],
+        success_criteria=["The code is visible."],
+        artifact_content="def example():\n    return 1\n",
+        artifact_content_kind="code",
+    )
+    run = RunSnapshot(
+        run_id="notepad-trailing-newline",
+        task="In Notepad, write Python code.",
+        status=RunStatus.PAUSED,
+        plan=plan,
+    )
+
+    assert plan.artifact_content.endswith("\n")
+    assert _notepad_exact_text_segments(run) == (
+        "def example():",
+        "    return 1",
+    )
+
+
 def test_generated_artifact_does_not_activate_notepad_path_for_vscode() -> None:
     run = RunSnapshot(
         run_id="vscode-generated-code",
@@ -1334,6 +1357,100 @@ def test_generated_code_local_proof_rejects_sender_only_receipt() -> None:
     )
 
     assert verdict is None
+
+
+def test_generated_code_recovers_next_segment_across_call_boundary() -> None:
+    content = "def answer():\n    return 42"
+    run = RunSnapshot(
+        run_id="notepad-durable-segment-boundary",
+        task="In Notepad, write a Python function.",
+        status=RunStatus.PAUSED,
+        plan=PlanDecision(
+            summary="Write the code.",
+            steps=["Enter it"],
+            success_criteria=["The code is visible."],
+            artifact_content=content,
+            artifact_content_kind="code",
+        ),
+    )
+    run.record(
+        "action.checkpointed",
+        index=3,
+        idempotency_key="notepad-line-break",
+        intent=(
+            "Insert the requested line break after exact segment "
+            "1 of 2 in Notepad."
+        ),
+        actions=[
+            {"type": "key", "keys": ["SHIFT", "ENTER"]},
+            {
+                "type": "wait_for_stable_screen",
+                "stable_ms": 400,
+                "timeout_ms": 3_000,
+            },
+        ],
+        expected_evidence=["The caret is visibly on line 2."],
+    )
+    run.record("action.completed", index=3, status="completed")
+    run.record(
+        "model.completed",
+        role="verifier",
+        verdict="verified",
+        summary="The line break is visible.",
+    )
+    run.record("run.paused", reason="per-call action budget reached")
+
+    prior = _durable_last_verified_action(run)
+    decision = _notepad_exact_text_controller(
+        run,
+        prior,
+        max_actions=20,
+    )
+
+    assert prior is not None
+    assert prior.index == 3
+    assert decision is not None
+    assert decision.intent == (
+        "Enter exact segment 2 of 2 in the fresh Notepad document."
+    )
+    assert decision.actions[0].model_dump(
+        mode="json",
+        exclude_none=True,
+    ) == {
+        "type": "type_text",
+        "text": "    return 42",
+        "code": True,
+        "secret": False,
+        "context": "editor",
+        "verification": "exact",
+    }
+
+
+def test_durable_action_recovery_rejects_a_newer_unverified_checkpoint() -> None:
+    run = RunSnapshot(
+        run_id="notepad-stale-durable-action",
+        task="In Notepad, write a Python function.",
+        status=RunStatus.PAUSED,
+    )
+    for index in (1, 2):
+        run.record(
+            "action.checkpointed",
+            index=index,
+            idempotency_key=f"action-{index}",
+            intent=f"Action {index}",
+            actions=[{"type": "key", "keys": ["ENTER"]}],
+            expected_evidence=["The action is visible."],
+        )
+        run.record("action.completed", index=index, status="completed")
+        if index == 1:
+            run.record(
+                "model.completed",
+                role="verifier",
+                verdict="verified",
+                summary="Action 1 is visible.",
+            )
+
+    assert _durable_last_verified_action(run) is None
 
 
 def test_generated_code_local_proof_rejects_active_key_prefix() -> None:

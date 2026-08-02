@@ -1275,6 +1275,76 @@ def _inserted_notepad_line_breaks(
     return line_breaks.count({"shift", "enter"}) == count
 
 
+def _durable_last_verified_action(run: RunSnapshot) -> PendingAction | None:
+    """Recover the latest verified action across call and process boundaries."""
+
+    current: dict[str, Any] | None = None
+    completed = False
+    latest: PendingAction | None = None
+    for event in run.events:
+        if event.kind == "action.checkpointed":
+            data = event.data
+            # A newer checkpoint supersedes every older verified action. If
+            # execution stops before this action is independently verified,
+            # returning the older action would resume from stale screen state.
+            latest = None
+            if (
+                isinstance(data.get("index"), int)
+                and isinstance(data.get("intent"), str)
+                and isinstance(data.get("actions"), list)
+            ):
+                current = data
+                completed = False
+            else:
+                current = None
+                completed = False
+            continue
+        if event.kind == "action.completed" and current is not None:
+            completed = event.data.get("index") == current.get("index")
+            continue
+        if event.kind in {
+            "action.completed_unverified",
+            "action.failed",
+            "action.recoverable_failure",
+        }:
+            current = None
+            completed = False
+            latest = None
+            continue
+        model_verified = (
+            event.kind == "model.completed"
+            and event.data.get("role") == "verifier"
+            and event.data.get("verdict") in {"verified", "complete"}
+        )
+        local_verified = (
+            event.kind == "verification.local_completed"
+            and event.data.get("verdict") == "verified"
+        )
+        if not completed or current is None or not (model_verified or local_verified):
+            continue
+        latest = PendingAction(
+            index=int(current["index"]),
+            intent=str(current["intent"]),
+            actions=[
+                dict(item)
+                for item in current["actions"]
+                if isinstance(item, dict)
+            ],
+            expected_evidence=[
+                str(item)
+                for item in current.get("expected_evidence") or []
+            ],
+            expects_task_completion=bool(
+                current.get("expects_task_completion", False)
+            ),
+            based_on_world_version=None,
+            based_on_control_epoch=None,
+            idempotency_key=str(current.get("idempotency_key") or "recovered"),
+        )
+        completed = False
+    return latest
+
+
 def _locally_verified_notepad_artifact_action(
     run: RunSnapshot,
     action: PendingAction | None,
@@ -2289,10 +2359,32 @@ class AgentHarness:
                 )
                 await self.store.save(run)
             else:
-                controller = await self._control(
-                    run,
-                    bypass_cooldown=retry_provider_cooldown,
+                verified_action = _durable_last_verified_action(run)
+                controller = (
+                    _notepad_new_document_controller(
+                        run,
+                        verified_action,
+                        max_actions=self.config.max_actions_per_burst,
+                    )
+                    or _notepad_exact_text_controller(
+                        run,
+                        verified_action,
+                        max_actions=self.config.max_actions_per_burst,
+                    )
                 )
+                if controller is not None:
+                    run.record(
+                        "controller.durable_notepad_adopted",
+                        outcome=controller.outcome,
+                        intent=controller.intent,
+                        source="verified_action_ledger",
+                    )
+                    await self.store.save(run)
+                else:
+                    controller = await self._control(
+                        run,
+                        bypass_cooldown=retry_provider_cooldown,
+                    )
             retry_provider_cooldown = False
             if controller is None:
                 return run

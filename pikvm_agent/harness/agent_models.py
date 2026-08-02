@@ -395,11 +395,8 @@ class PlanDecision(StrictModelDecision):
         if (
             not self.artifact_content
             or self.artifact_content.startswith("\n")
-            or self.artifact_content.endswith("\n")
         ):
-            raise ValueError(
-                "artifact_content must begin and end with visible content"
-            )
+            raise ValueError("artifact_content must begin with visible content")
         if self.artifact_content_kind == "code" and "\t" in self.artifact_content:
             raise ValueError("code artifact_content must use spaces instead of tabs")
         return self
