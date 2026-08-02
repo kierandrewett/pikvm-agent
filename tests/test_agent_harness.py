@@ -1059,6 +1059,168 @@ def test_exact_notepad_lines_use_one_verified_break_between_each_line() -> None:
         )
 
 
+def test_generated_code_plan_carries_one_durable_exact_artifact() -> None:
+    content = (
+        "def fizzbuzz(limit):\n"
+        "    results = []\n"
+        "    for number in range(1, limit + 1):\n"
+        "        if number % 15 == 0:\n"
+        '            results.append("FizzBuzz")\n'
+        "    return results"
+    )
+
+    plan = PlanDecision(
+        summary="Write and verify the requested Python artifact.",
+        steps=["Open Notepad", "Enter the exact artifact", "Save and reopen it"],
+        success_criteria=["The reopened file contains valid Python code."],
+        artifact_content=content,
+        artifact_content_kind="code",
+    )
+
+    assert plan.artifact_content == content
+    assert plan.artifact_content_kind == "code"
+
+
+def test_generated_code_plan_rejects_tabs_in_exact_artifact() -> None:
+    with pytest.raises(ValidationError, match="spaces instead of tabs"):
+        PlanDecision(
+            summary="Write code.",
+            steps=["Enter it"],
+            success_criteria=["The code is visible."],
+            artifact_content="def example():\n\treturn 1",
+            artifact_content_kind="code",
+        )
+
+
+def test_generated_artifact_does_not_activate_notepad_path_for_vscode() -> None:
+    run = RunSnapshot(
+        run_id="vscode-generated-code",
+        task="In Visual Studio Code, create a new file containing Python code.",
+        status=RunStatus.PAUSED,
+        plan=PlanDecision(
+            summary="Write the requested Python artifact.",
+            steps=["Create a file", "Enter the artifact"],
+            success_criteria=["The code is visible."],
+            artifact_content="def example():\n    return 1",
+            artifact_content_kind="code",
+        ),
+    )
+    prior = PendingAction(
+        index=1,
+        intent="Create a new file in Visual Studio Code.",
+        actions=[{"type": "key", "keys": ["ControlLeft", "KeyN"]}],
+        based_on_world_version=2,
+        based_on_control_epoch=0,
+        idempotency_key="vscode-new-file",
+    )
+
+    assert _notepad_exact_text_segments(run) == ()
+    assert (
+        _notepad_exact_text_controller(run, prior, max_actions=20)
+        is None
+    )
+
+
+def test_generated_code_uses_indexed_exact_segments_without_tab_actions() -> None:
+    content = (
+        "def fizzbuzz(limit):\n"
+        "    results = []\n"
+        "    for number in range(1, limit + 1):\n"
+        "        if number % 15 == 0:\n"
+        '            results.append("FizzBuzz")\n'
+        "    return results"
+    )
+    run = RunSnapshot(
+        run_id="notepad-generated-code",
+        task=(
+            "For this text/code acceptance, create a new blank document and "
+            "type every requested content character during this run. Task: In "
+            "Notepad, write a valid Python fizzbuzz function."
+        ),
+        status=RunStatus.PAUSED,
+        plan=PlanDecision(
+            summary="Write and verify the requested Python artifact.",
+            steps=[
+                "Open Notepad",
+                "Enter the exact artifact",
+                "Save and reopen it",
+            ],
+            success_criteria=["The reopened file contains valid Python code."],
+            artifact_content=content,
+            artifact_content_kind="code",
+        ),
+    )
+    assert _notepad_exact_text_segments(run) == tuple(content.splitlines())
+
+    prior = PendingAction(
+        index=1,
+        intent="Create a fresh blank Notepad document.",
+        actions=[{"type": "key", "keys": ["ControlLeft", "KeyN"]}],
+        based_on_world_version=2,
+        based_on_control_epoch=0,
+        idempotency_key="notepad-code-new-document",
+    )
+    for index, expected in enumerate(content.splitlines()):
+        text_decision = _notepad_exact_text_controller(
+            run,
+            prior,
+            max_actions=20,
+        )
+        assert text_decision is not None
+        assert text_decision.intent == (
+            f"Enter exact segment {index + 1} of {len(content.splitlines())} "
+            "in the fresh Notepad document."
+        )
+        text_actions = [
+            action.model_dump(mode="json", exclude_none=True)
+            for action in text_decision.actions
+        ]
+        assert text_actions[0] == {
+            "type": "type_text",
+            "text": expected,
+            "code": True,
+            "secret": False,
+            "context": "editor",
+            "verification": "exact",
+        }
+        assert all(action.get("keys") != ["TAB"] for action in text_actions)
+        prior = PendingAction(
+            index=2 + index * 2,
+            intent=text_decision.intent,
+            actions=text_actions,
+            based_on_world_version=3 + index * 2,
+            based_on_control_epoch=0,
+            idempotency_key=f"notepad-code-text-{index}",
+        )
+        if index == len(content.splitlines()) - 1:
+            assert (
+                _notepad_exact_text_controller(run, prior, max_actions=20)
+                is None
+            )
+            break
+        line_break = _notepad_exact_text_controller(
+            run,
+            prior,
+            max_actions=20,
+        )
+        assert line_break is not None
+        break_actions = [
+            action.model_dump(mode="json", exclude_none=True)
+            for action in line_break.actions
+        ]
+        assert break_actions[:1] == [
+            {"type": "key", "keys": ["SHIFT", "ENTER"]}
+        ]
+        prior = PendingAction(
+            index=3 + index * 2,
+            intent=line_break.intent,
+            actions=break_actions,
+            based_on_world_version=4 + index * 2,
+            based_on_control_epoch=0,
+            idempotency_key=f"notepad-code-break-{index}",
+        )
+
+
 def test_controller_can_launch_a_standard_app_in_one_safe_burst() -> None:
     assert "one narrow app-launch exception" in _CONTROLLER_SYSTEM
     assert "type only the app's executable name" in _CONTROLLER_SYSTEM
@@ -3229,7 +3391,7 @@ async def test_controller_prompt_prefers_a_stable_legible_end_state() -> None:
     assert "including generated prose" in normalized
     assert "Never propose bare Enter for an editor line break" in normalized
     assert "Never send indentation as a whitespace-only editor type_text" in normalized
-    assert "use a separate bounded Tab key action" in normalized
+    assert "never use Tab to create code indentation" in normalized
     assert "natural word boundary within the 240-character limit" in normalized
     assert "Never concatenate two words or omit their separator" in normalized
     assert "set code true for that format-sensitive text segment" in normalized

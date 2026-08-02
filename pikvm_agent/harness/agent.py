@@ -133,7 +133,15 @@ sender issued the whole intended payload; it is not a transport acknowledgement
 and not screen proof. Do not blindly replay sender-finished text merely because
 OCR could not read invisible whitespace or a wrapped field. Re-observe first,
 then use a bounded application-level check. Require readback_exact or artifact
-evidence before claiming exact on-screen or saved content."""
+evidence before claiming exact on-screen or saved content.
+When the task asks you to generate prose or code specifically in Notepad,
+author the complete final artifact once in artifact_content and set its
+matching artifact_content_kind. Use literal newline characters, no Markdown
+fences, and no commentary around the artifact. For code, include the complete
+indentation on every line using spaces only. This durable artifact is the
+source of truth for deterministic input; do not defer wording, syntax, or
+indentation choices to the controller. Leave both artifact fields null when
+the task does not create generated text or code in Notepad."""
 
 
 _NEGATIVE_MUTATION_GUARD_PREFIX = re.compile(
@@ -921,17 +929,88 @@ def _notepad_exact_text_payload(run: RunSnapshot) -> str | None:
     return match.group("text") if match is not None else None
 
 
-def _notepad_exact_text_segments(run: RunSnapshot) -> tuple[str, ...]:
+def _task_targets_notepad(task: str) -> bool:
+    """Require an explicit positive Notepad target for deterministic input."""
+
+    return bool(
+        re.search(
+            r"\b(?:in|using|with|open)\s+(?:windows\s+)?notepad\b",
+            " ".join(task.casefold().split()),
+        )
+    )
+
+
+def _chunk_notepad_artifact_line(
+    line: str,
+    *,
+    kind: str,
+) -> tuple[str, ...]:
+    """Split one visible line without changing its reconstructed bytes."""
+
+    chunks: list[str] = []
+    remaining = line
+    while len(remaining) > 240:
+        split_at = 240
+        if kind == "prose":
+            word_boundary = remaining.rfind(" ", 1, 241)
+            if word_boundary > 0:
+                split_at = word_boundary
+        chunks.append(remaining[:split_at])
+        remaining = remaining[split_at:]
+    if remaining:
+        chunks.append(remaining)
+    return tuple(chunks)
+
+
+def _notepad_exact_text_parts(
+    run: RunSnapshot,
+) -> tuple[tuple[str, int], ...]:
+    """Return visible text chunks and exact line breaks following each one."""
+
     payload = _notepad_exact_text_payload(run)
     if payload is not None:
-        return (payload,)
+        return ((payload, 0),)
     match = _NOTEPAD_TWO_PARAGRAPH_TASK.search(run.task)
     if match is not None:
-        return (match.group("first"), match.group("second"))
+        return ((match.group("first"), 2), (match.group("second"), 0))
     line_match = _NOTEPAD_EXACT_LINES_TASK.search(run.task)
-    if line_match is None:
+    if line_match is not None:
+        lines = tuple(
+            re.findall(r"`([^`\r\n]{1,240})`", line_match.group("body"))
+        )
+        return tuple(
+            (line, 1 if index < len(lines) - 1 else 0)
+            for index, line in enumerate(lines)
+        )
+    if (
+        run.plan is None
+        or run.plan.artifact_content is None
+        or not _task_targets_notepad(run.task)
+    ):
         return ()
-    return tuple(re.findall(r"`([^`\r\n]{1,240})`", line_match.group("body")))
+    kind = run.plan.artifact_content_kind or "prose"
+    parts: list[tuple[str, int]] = []
+    for line_match in re.finditer(r"([^\n]+)(\n*)", run.plan.artifact_content):
+        chunks = _chunk_notepad_artifact_line(
+            line_match.group(1),
+            kind=kind,
+        )
+        for chunk_index, chunk in enumerate(chunks):
+            parts.append(
+                (
+                    chunk,
+                    (
+                        len(line_match.group(2))
+                        if chunk_index == len(chunks) - 1
+                        else 0
+                    ),
+                )
+            )
+    return tuple(parts)
+
+
+def _notepad_exact_text_segments(run: RunSnapshot) -> tuple[str, ...]:
+    return tuple(text for text, _ in _notepad_exact_text_parts(run))
 
 
 def _requires_fresh_notepad_document(run: RunSnapshot) -> bool:
@@ -945,12 +1024,9 @@ def _requires_fresh_notepad_document(run: RunSnapshot) -> bool:
     )
 
 
-def _notepad_segment_break_count(run: RunSnapshot) -> int:
-    if _NOTEPAD_TWO_PARAGRAPH_TASK.search(run.task) is not None:
-        return 2
-    if _NOTEPAD_EXACT_LINES_TASK.search(run.task) is not None:
-        return 1
-    return 0
+def _notepad_segment_break_count(run: RunSnapshot, index: int) -> int:
+    parts = _notepad_exact_text_parts(run)
+    return parts[index][1] if 0 <= index < len(parts) else 0
 
 
 def _launched_notepad(action: PendingAction | None) -> bool:
@@ -1033,16 +1109,13 @@ def _notepad_exact_text_controller(
         payload_index = 0
         payload = segments[0]
     else:
-        typed_index = next(
-            (
-                index
-                for index, segment in enumerate(segments[:-1])
-                if _typed_exact_editor_text(action, segment)
-            ),
-            None,
+        typed_index = _typed_notepad_segment_index(action, segments)
+        break_count = (
+            _notepad_segment_break_count(run, typed_index)
+            if typed_index is not None
+            else 0
         )
-        break_count = _notepad_segment_break_count(run)
-        if typed_index is not None and break_count:
+        if typed_index is not None and break_count > 0:
             actions = [
                 {"type": "key", "keys": ["SHIFT", "ENTER"]}
                 for _ in range(break_count)
@@ -1076,6 +1149,9 @@ def _notepad_exact_text_controller(
                 ],
                 expects_task_completion=False,
             )
+        if typed_index is not None and typed_index < len(segments) - 1:
+            payload_index = typed_index + 1
+            payload = segments[payload_index]
         break_match = re.fullmatch(
             r"Insert the requested (?:single blank line|line break) after "
             r"exact segment (?P<index>\d+) of (?P<count>\d+) in Notepad\.",
@@ -1083,7 +1159,7 @@ def _notepad_exact_text_controller(
         )
         if break_match is not None:
             prior_index = int(break_match.group("index")) - 1
-            expected_breaks = _notepad_segment_break_count(run)
+            expected_breaks = _notepad_segment_break_count(run, prior_index)
             if (
                 int(break_match.group("count")) == len(segments)
                 and 0 <= prior_index < len(segments) - 1
@@ -1101,7 +1177,10 @@ def _notepad_exact_text_controller(
         {
             "type": "type_text",
             "text": payload,
-            "code": False,
+            "code": (
+                run.plan is not None
+                and run.plan.artifact_content_kind == "code"
+            ),
             "context": "editor",
             "verification": "exact",
         },
@@ -1128,6 +1207,39 @@ def _notepad_exact_text_controller(
             f"Notepad visibly contains exactly `{payload}`."
         ],
         expects_task_completion=False,
+    )
+
+
+def _typed_notepad_segment_index(
+    action: PendingAction | None,
+    segments: tuple[str, ...],
+) -> int | None:
+    """Recover durable segment progress from the verified action intent."""
+
+    if action is None:
+        return None
+    indexed = re.fullmatch(
+        r"Enter exact segment (?P<index>\d+) of (?P<count>\d+) "
+        r"in the fresh Notepad document\.",
+        action.intent,
+    )
+    if indexed is not None and int(indexed.group("count")) == len(segments):
+        index = int(indexed.group("index")) - 1
+        if 0 <= index < len(segments) and _typed_exact_editor_text(
+            action,
+            segments[index],
+        ):
+            return index
+        return None
+    if len(segments) == 1 and _typed_exact_editor_text(action, segments[0]):
+        return 0
+    return next(
+        (
+            index
+            for index, segment in enumerate(segments[:-1])
+            if _typed_exact_editor_text(action, segment)
+        ),
+        None,
     )
 
 
@@ -1290,6 +1402,10 @@ When modern Notepad restores an old tab after launch and the task requires a
 new document, use Ctrl+N to create a new blank document as the next bounded
 action. Do not click into or overwrite restored content, and do not treat a
 restored tab as the requested new document.
+When plan.artifact_content is present, it is the complete immutable source of
+truth for generated editor content. Do not rewrite, repair, extend, or improvise
+it from the screenshot. The deterministic editor path enters its indexed exact
+segments; after that, continue only with saving, reopening, and verification.
 For multi-line content in a verified local editor, including generated prose,
 never put newline control characters inside type_text. Enter each text segment
 with a separate exact type_text action and verify it. Create every editor line
@@ -1300,9 +1416,14 @@ actions and verify that non-submitting blank-line action before entering the
 next exact text segment. Never send indentation as a whitespace-only editor
 type_text action because pixels cannot prove invisible text. When spaces are
 load-bearing, include the indentation and visible line content in one exact
-segment; when tab indentation is acceptable, use a separate bounded Tab key
-action before typing visible text. Never put active key actions after type_text
-in the same burst.
+segment. In plain-text code editors, every code segment must carry its full
+space-based indentation and must begin from the verified new line; never use
+Tab to create code indentation. Never treat Home as an absolute column-one
+command or repair indentation with Home plus Shift+End because modern Notepad
+Home stops at the first non-whitespace character. If exact code entry is
+contradicted, request a clean-document replan instead of accumulating an
+indentation repair. Never put active key actions after type_text in the same
+burst.
 When the user explicitly requires repeated spaces or other load-bearing
 whitespace inside one editor line, set code true for that format-sensitive
 text segment so it receives strict formatting delivery and exact readback.

@@ -363,6 +363,46 @@ class PlanDecision(StrictModelDecision):
     steps: list[str] = Field(min_length=1, max_length=30)
     success_criteria: list[str] = Field(min_length=1, max_length=20)
     constraints: list[str] = Field(default_factory=list, max_length=20)
+    artifact_content: str | None = Field(default=None, max_length=20_000)
+    artifact_content_kind: Literal["prose", "code"] | None = None
+
+    @field_validator("artifact_content")
+    @classmethod
+    def artifact_content_uses_literal_line_feeds(
+        cls,
+        value: str | None,
+    ) -> str | None:
+        if value is None:
+            return None
+        value = value.replace("\r\n", "\n").replace("\r", "\n")
+        if any(
+            ord(character) < 32 and character not in {"\n", "\t"}
+            for character in value
+        ):
+            raise ValueError(
+                "artifact_content contains an unsupported control character"
+            )
+        return value
+
+    @model_validator(mode="after")
+    def artifact_content_has_an_explicit_kind(self) -> "PlanDecision":
+        if (self.artifact_content is None) != (self.artifact_content_kind is None):
+            raise ValueError(
+                "artifact_content and artifact_content_kind must be provided together"
+            )
+        if self.artifact_content is None:
+            return self
+        if (
+            not self.artifact_content
+            or self.artifact_content.startswith("\n")
+            or self.artifact_content.endswith("\n")
+        ):
+            raise ValueError(
+                "artifact_content must begin and end with visible content"
+            )
+        if self.artifact_content_kind == "code" and "\t" in self.artifact_content:
+            raise ValueError("code artifact_content must use spaces instead of tabs")
+        return self
 
 
 class KeyAction(StrictModelDecision):
