@@ -260,6 +260,79 @@ def test_compact_status_crop_accepts_notepad_ln_ocr_confusable() -> None:
     )
 
 
+def test_compact_status_crop_accepts_unique_precise_ocr_alternative() -> None:
+    intended = "    result = []"
+    row = Region(x=65, y=100, width=58, height=14)
+    region = editor_status_search_region(row, (1280, 800))
+    bounded = OCRResult(
+        lines=[
+            OCRLine(
+                text="in2 Colt 36 characters",
+                confidence=0.726,
+                bbox=[17, 32, 114, 42],
+            ),
+            OCRLine(
+                text="Pisin text",
+                confidence=0.871,
+                bbox=[198, 32, 231, 42],
+            ),
+        ],
+        alternatives=[
+            OCRCandidate(
+                text="Ln 2, Col 16\n36 characters\nPlain text",
+                mean_confidence=0.984,
+            )
+        ],
+    )
+
+    assert editor_caret_column_proves_leading_whitespace(
+        bounded,
+        intended,
+        row,
+        (1280, 800),
+        container_region=region,
+    )
+
+
+@pytest.mark.parametrize(
+    "alternative",
+    [
+        OCRCandidate(
+            text="Ln 2, Col 16\nLn 1, Col 21",
+            mean_confidence=0.99,
+        ),
+        OCRCandidate(
+            text="Ln 2, Col 16\n36 characters",
+            mean_confidence=0.89,
+        ),
+    ],
+)
+def test_compact_status_crop_rejects_ambiguous_precise_ocr_alternative(
+    alternative: OCRCandidate,
+) -> None:
+    intended = "    result = []"
+    row = Region(x=65, y=100, width=58, height=14)
+    region = editor_status_search_region(row, (1280, 800))
+    bounded = OCRResult(
+        lines=[
+            OCRLine(
+                text="in2 Colt 36 characters",
+                confidence=0.726,
+                bbox=[17, 32, 114, 42],
+            )
+        ],
+        alternatives=[alternative],
+    )
+
+    assert not editor_caret_column_proves_leading_whitespace(
+        bounded,
+        intended,
+        row,
+        (1280, 800),
+        container_region=region,
+    )
+
+
 class PreciseProfileOCR:
     def __init__(self, intended: str) -> None:
         self.intended = intended

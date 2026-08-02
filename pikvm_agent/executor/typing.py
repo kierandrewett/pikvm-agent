@@ -295,7 +295,35 @@ def editor_caret_column_proves_leading_whitespace(
             )
         )
     if not candidates:
-        return False
+        # The hybrid provider can retain a much stronger independent OCR read
+        # as an alternative when its generic whole-result selector keeps a
+        # weaker primary result. Alternatives do not retain per-line geometry,
+        # so only use them inside the compact status crop and only when every
+        # high-confidence parse agrees on one status position. A crop that also
+        # contains a background editor row therefore remains ambiguous.
+        if (
+            container_region is None
+            or container_region.height
+            > max(1, math.floor(height * MAX_EDITOR_STATUS_SEARCH_HEIGHT_FRAC))
+        ):
+            return False
+        alternative_positions = {
+            (
+                int(match.group("line")),
+                int(match.group("column")),
+            )
+            for alternative in result.alternatives
+            if (
+                alternative.mean_confidence is not None
+                and float(alternative.mean_confidence)
+                >= MIN_ONE_EDIT_RECHECK_CONFIDENCE
+            )
+            for match in _EDITOR_STATUS_POSITION_RE.finditer(alternative.text)
+        }
+        if len(alternative_positions) != 1:
+            return False
+        (_line, alternative_column), = alternative_positions
+        return alternative_column == expected_column
     _gap, _offset, nearest_column = min(candidates)
     return nearest_column == expected_column
 
