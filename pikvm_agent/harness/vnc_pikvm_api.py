@@ -428,21 +428,22 @@ class VncDotoolTransport:
 
         Windows accepts ``Shift+;`` for ``:`` on both US and UK layouts.  That
         physical chord is deterministic across reboots, unlike numeric Alt
-        codes whose success depends on the guest's Num Lock state.  The small
-        pauses prevent RFB servers from coalescing the modifier and printable
-        key into an unshifted semicolon.
+        codes whose success depends on the guest's Num Lock state. A measured
+        35/20/35 ms chord still delivered ``)`` as ``0`` on the disposable
+        Windows VNC guest. Keep a full human modifier dwell so an RFB server
+        cannot coalesce the modifier and printable key.
         """
 
         client.keyDown("shift")
         try:
-            time.sleep(0.035)
+            time.sleep(0.100)
             client.keyDown(key)
             try:
-                time.sleep(0.020)
+                time.sleep(0.075)
             finally:
                 client.keyUp(key)
         finally:
-            time.sleep(0.035)
+            time.sleep(0.100)
             client.keyUp("shift")
 
     async def close(self) -> None:

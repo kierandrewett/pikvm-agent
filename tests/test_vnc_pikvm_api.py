@@ -398,6 +398,42 @@ async def test_windows_transport_prints_invariant_punctuation_physically() -> No
     ]
 
 
+def test_windows_shifted_key_dwell_survives_remote_rfb_coalescing(
+    monkeypatch,
+) -> None:
+    """The measured Windows path needs a full human Shift chord dwell."""
+
+    class Client:
+        def __init__(self) -> None:
+            self.calls = []
+
+        def keyDown(self, key) -> None:
+            self.calls.append(("down", key))
+
+        def keyUp(self, key) -> None:
+            self.calls.append(("up", key))
+
+    sleeps = []
+    monkeypatch.setattr(
+        "pikvm_agent.harness.vnc_pikvm_api.time.sleep",
+        sleeps.append,
+    )
+    client = Client()
+
+    VncDotoolTransport._type_windows_physical_shifted_key(
+        client,
+        "0",
+    )
+
+    assert client.calls == [
+        ("down", "shift"),
+        ("down", "0"),
+        ("up", "0"),
+        ("up", "shift"),
+    ]
+    assert sleeps == [0.100, 0.075, 0.100]
+
+
 async def test_windows_transport_prints_cp1252_unicode_with_alt_codes() -> None:
     class Client:
         def __init__(self) -> None:
