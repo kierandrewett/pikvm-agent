@@ -3149,6 +3149,8 @@ async def test_controller_prompt_prefers_a_stable_legible_end_state() -> None:
     assert "non-submitting blank-line action" in normalized
     assert "including generated prose" in normalized
     assert "Never propose bare Enter for an editor line break" in normalized
+    assert "Never send indentation as a whitespace-only editor type_text" in normalized
+    assert "use a separate bounded Tab key action" in normalized
     assert "natural word boundary within the 240-character limit" in normalized
     assert "Never concatenate two words or omit their separator" in normalized
     assert "set code true for that format-sensitive text segment" in normalized
@@ -3282,6 +3284,46 @@ def test_controller_action_schema_rejects_control_characters_in_text(
                     }
                 ],
                 "expected_evidence": ["The exact text is visible at the prompt."],
+            }
+        )
+
+
+@pytest.mark.parametrize("text", ["", " ", "    "])
+def test_controller_action_schema_rejects_invisible_editor_text(
+    text: str,
+) -> None:
+    with pytest.raises(ValidationError, match="whitespace-only editor"):
+        ControllerDecision.model_validate(
+            {
+                "outcome": "act",
+                "intent": "Indent the next editor line.",
+                "actions": [
+                    {
+                        "type": "type_text",
+                        "text": text,
+                        "context": "editor",
+                        "verification": "exact",
+                    }
+                ],
+                "expected_evidence": ["The editor line is indented."],
+            }
+        )
+
+
+def test_controller_action_schema_repairs_context_free_whitespace_before_hid() -> None:
+    with pytest.raises(ValidationError, match="whitespace-only type_text"):
+        ControllerDecision.model_validate(
+            {
+                "outcome": "act",
+                "intent": "Indent the next editor line.",
+                "actions": [
+                    {
+                        "type": "type_text",
+                        "text": "    ",
+                        "verification": "exact",
+                    }
+                ],
+                "expected_evidence": ["The editor line is indented."],
             }
         )
 

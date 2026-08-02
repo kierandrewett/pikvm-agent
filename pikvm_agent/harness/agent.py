@@ -1288,8 +1288,12 @@ break with Shift+Enter in a later bounded action. Never propose bare Enter for
 an editor line break: it is intentionally treated as a possible commit outside
 the editor. Create one required blank line with two separate Shift+Enter key
 actions and verify that non-submitting blank-line action before entering the
-next exact text segment. Never put active key actions after type_text in the
-same burst.
+next exact text segment. Never send indentation as a whitespace-only editor
+type_text action because pixels cannot prove invisible text. When spaces are
+load-bearing, include the indentation and visible line content in one exact
+segment; when tab indentation is acceptable, use a separate bounded Tab key
+action before typing visible text. Never put active key actions after type_text
+in the same burst.
 When the user explicitly requires repeated spaces or other load-bearing
 whitespace inside one editor line, set code true for that format-sensitive
 text segment so it receives strict formatting delivery and exact readback.

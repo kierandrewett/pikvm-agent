@@ -387,6 +387,16 @@ class TypeTextAction(StrictModelDecision):
             )
         return value
 
+    @model_validator(mode="after")
+    def editor_text_contains_visible_evidence(self) -> "TypeTextAction":
+        if self.context == "editor" and not self.text.strip():
+            raise ValueError(
+                "whitespace-only editor type_text cannot be visually verified; "
+                "use a bounded Tab key action or include indentation with "
+                "visible text"
+            )
+        return self
+
 
 class SpreadsheetGridAction(StrictModelDecision):
     type: Literal["spreadsheet_grid"]
