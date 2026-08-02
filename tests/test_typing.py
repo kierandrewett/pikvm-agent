@@ -6740,7 +6740,70 @@ def test_precise_readback_retains_json_prefix_before_first_alphanumeric() -> Non
         (1280, 800),
     )
 
-    assert refined == Region(x=51, y=112, width=200, height=26)
+    assert refined == Region(x=51, y=116, width=200, height=22)
+
+
+async def test_precise_readback_extracts_one_indented_row_from_fallback() -> None:
+    intended = '  "enabled": true,'
+
+    class StackedEditorOCR:
+        def __init__(self) -> None:
+            self.precise_calls = 0
+            self.fallback_calls = 0
+
+        async def ocr_precise(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path, region
+            self.precise_calls += 1
+            return OCRResult(
+                lines=[
+                    OCRLine(
+                        text='enabled": true,',
+                        confidence=0.9869,
+                        bbox=[60, 6, 140, 18],
+                    )
+                ]
+            )
+
+        async def ocr_precise_fallback(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path, region
+            self.fallback_calls += 1
+            return OCRResult(
+                lines=[
+                    OCRLine(
+                        text=(
+                            '"name": "pikvm-agent",\n'
+                            '"enabled": true,'
+                        ),
+                        confidence=0.99,
+                    )
+                ],
+                spacing_evidence="verified",
+            )
+
+    ocr = StackedEditorOCR()
+    observed = await WatchedTyper(
+        FakeBackend(width=1280, height=800),
+        ocr,
+    )._read_field(
+        Region(x=0, y=98, width=301, height=37),
+        intended=intended,
+        precise=True,
+        allow_blind_fallback=True,
+        preserve_editor_indent_candidate=True,
+        extract_structured_exact_row=True,
+    )
+
+    assert observed == '"enabled": true,'
+    assert ocr.precise_calls == 2
+    assert ocr.fallback_calls == 1
 
 
 async def test_uncalibrated_precise_ocr_cannot_verify_visible_spaces() -> None:

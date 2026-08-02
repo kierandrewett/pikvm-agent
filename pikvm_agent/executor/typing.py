@@ -1238,6 +1238,17 @@ def precise_readback_candidate_region(
         # row because a Windows field border at the crop edge can make Paddle
         # merge the final narrow glyph into its neighbour.
         vertical_padding = max(6, round(line_region.height * 0.50))
+        # Consecutive editor rows have almost no inter-line gap. Symmetric
+        # padding around an indented JSON row included the lower pixels of the
+        # previous row, so the fallback joined both lines and exact read-back
+        # failed closed. Keep enough lower context for commas and descenders,
+        # but use a tight upper edge for indented rows. Invisible indentation
+        # is proved later from the editor's caret column, not from this crop.
+        top_padding = (
+            min(2, vertical_padding)
+            if intended.startswith((" ", "\t"))
+            else vertical_padding
+        )
         x = max(
             0,
             math.floor(
@@ -1249,7 +1260,7 @@ def precise_readback_candidate_region(
         )
         y = max(
             0,
-            math.floor(container.y + line_region.y - vertical_padding),
+            math.floor(container.y + line_region.y - top_padding),
         )
         container_right = min(
             screen_width,
@@ -1917,7 +1928,29 @@ class WatchedTyper:
                         if native_tmp is not None:
                             native_tmp.unlink(missing_ok=True)
                     if blind_result.text:
-                        result = blind_result
+                        structured_indent_row = None
+                        if (
+                            extract_structured_exact_row
+                            and preserve_editor_indent_candidate
+                        ):
+                            structured_indent_row = (
+                                unique_exact_structured_ocr_row(
+                                    blind_result,
+                                    intended.lstrip(" \t"),
+                                )
+                            )
+                        result = (
+                            OCRResult(
+                                lines=[structured_indent_row],
+                                evidence_lines=blind_result.evidence_lines,
+                                alternatives=blind_result.alternatives,
+                                spacing_evidence=(
+                                    blind_result.spacing_evidence
+                                ),
+                            )
+                            if structured_indent_row is not None
+                            else blind_result
+                        )
                         DEBUG.event(
                             "typing.field_readback_fallback",
                             provider="blind_model_consensus",
