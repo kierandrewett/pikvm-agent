@@ -222,6 +222,11 @@ class OCRCandidate(BaseModel):
 
 class OCRResult(BaseModel):
     lines: list[OCRLine] = Field(default_factory=list)
+    # Independently detected rows whose geometry remains useful even when a
+    # different engine supplies the canonical text. These rows are evidence,
+    # not part of ``text``: expected-aware consumers must still apply their own
+    # confidence, proximity, and ambiguity checks before trusting them.
+    evidence_lines: list[OCRLine] = Field(default_factory=list)
     alternatives: list[OCRCandidate] = Field(default_factory=list)
     # Exact whitespace is not represented by ordinary OCR text. Precise
     # providers must opt in only after their independent geometry reads agree

@@ -18,6 +18,9 @@ from pikvm_agent.core.models import (
     Region,
     VisualElement,
 )
+from pikvm_agent.executor.typing import (
+    editor_caret_column_proves_leading_whitespace,
+)
 from pikvm_agent.pikvm.fake import FakeBackend
 from pikvm_agent.store.frames import FrameStore
 from pikvm_agent.vision.frame_diff import (
@@ -675,6 +678,75 @@ async def test_hybrid_precise_read_retains_unique_secondary_evidence(
         "secondary_timeout_restarts": 0,
         "secondary_timeout_retries": 0,
     }
+
+
+async def test_hybrid_precise_retains_geometry_for_stacked_editor_statuses() -> None:
+    """A better secondary status row must not become text-only evidence.
+
+    The live VNC acceptance run exposed two stacked Notepad windows. Tesseract
+    selected the background status row while Paddle read both rows with usable
+    geometry. Dropping that geometry forced a 17-second blind-model fallback
+    even though local OCR had already found the foreground caret column.
+    """
+
+    primary = OCRResult(
+        lines=[
+            OCRLine(
+                text="Ln1,Col21 20 characters",
+                confidence=0.714,
+                bbox=[83, 76, 179, 85],
+            ),
+            OCRLine(
+                text="Plain text",
+                confidence=0.956,
+                bbox=[265, 76, 296, 84],
+            ),
+        ]
+    )
+    secondary = OCRResult(
+        lines=[
+            OCRLine(
+                text="Ln 3, Col 39",
+                confidence=0.996,
+                bbox=[64, 58, 108, 68],
+            ),
+            OCRLine(
+                text="75 characters",
+                confidence=0.998,
+                bbox=[116, 58, 164, 68],
+            ),
+            OCRLine(
+                text="Plain text",
+                confidence=0.999,
+                bbox=[246, 57, 282, 70],
+            ),
+            OCRLine(
+                text="Ln 1, Col 21",
+                confidence=0.995,
+                bbox=[81, 75, 122, 86],
+            ),
+            OCRLine(
+                text="20 characters",
+                confidence=0.999,
+                bbox=[133, 76, 180, 85],
+            ),
+        ]
+    )
+    status_region = Region(x=0, y=442, width=512, height=100)
+
+    result = await HybridOcrProvider(
+        _ScriptedOcrProvider(primary, precise=primary),
+        _ScriptedOcrProvider(secondary),
+    ).ocr_precise(Path("stacked-notepad-status.png"), region=status_region)
+
+    assert result.lines == primary.lines
+    assert editor_caret_column_proves_leading_whitespace(
+        result,
+        "    for number in range(1, limit + 1):",
+        Region(x=79, y=126, width=178, height=16),
+        (1280, 800),
+        container_region=status_region,
+    )
 
 
 async def test_hybrid_precise_prefers_a_confident_single_line_secondary() -> None:

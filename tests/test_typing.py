@@ -220,6 +220,36 @@ def test_conflicting_nearest_editor_status_row_fails_closed() -> None:
     )
 
 
+def test_conflicting_independent_reads_of_same_status_row_fail_closed() -> None:
+    intended = "    result = []"
+    row = Region(x=65, y=100, width=58, height=14)
+    status_region = Region(x=0, y=414, width=512, height=100)
+    result = OCRResult(
+        lines=[
+            OCRLine(
+                text="Ln 2, Col 15",
+                confidence=0.99,
+                bbox=[48, 28, 94, 40],
+            )
+        ],
+        evidence_lines=[
+            OCRLine(
+                text="Ln 2, Col 16",
+                confidence=0.99,
+                bbox=[49, 30, 95, 42],
+            )
+        ],
+    )
+
+    assert not editor_caret_column_proves_leading_whitespace(
+        result,
+        intended,
+        row,
+        (1280, 800),
+        container_region=status_region,
+    )
+
+
 def test_editor_status_search_region_is_bounded_below_causal_row() -> None:
     row = Region(x=65, y=100, width=58, height=14)
 
@@ -228,7 +258,7 @@ def test_editor_status_search_region_is_bounded_below_causal_row() -> None:
         (1280, 800),
     )
 
-    assert region == Region(x=0, y=414, width=512, height=100)
+    assert region == Region(x=0, y=364, width=512, height=100)
     bounded = OCRResult(
         lines=[
             OCRLine(
@@ -257,7 +287,18 @@ def test_editor_status_search_region_caps_tall_causal_box() -> None:
 
     region = editor_status_search_region(row, (1280, 800))
 
-    assert region == Region(x=0, y=467, width=512, height=100)
+    assert region == Region(x=0, y=417, width=512, height=100)
+
+
+def test_editor_status_search_region_keeps_foreground_stacked_row_visible() -> None:
+    """Do not clip the status row at the top edge of the deepest crop."""
+
+    row = Region(x=80, y=176, width=200, height=30)
+
+    region = editor_status_search_region(row, (1280, 800))
+
+    assert region == Region(x=0, y=456, width=512, height=100)
+    assert region.y < 500 < region.y + region.height
 
 
 def test_inflated_recovery_box_accepts_foreground_status_geometry() -> None:
@@ -266,7 +307,7 @@ def test_inflated_recovery_box_accepts_foreground_status_geometry() -> None:
     intended = "    for number in range(1, limit + 1):"
     row = Region(x=79, y=126, width=1184, height=666)
     region = editor_status_search_region(row, (1280, 800))
-    assert region == Region(x=0, y=490, width=512, height=100)
+    assert region == Region(x=0, y=440, width=512, height=100)
     bounded = OCRResult(
         lines=[
             OCRLine(
@@ -295,7 +336,7 @@ def test_compact_status_crop_accepts_notepad_ln_ocr_confusable() -> None:
     intended = "    for number in range(1, limit + 1):"
     row = Region(x=37, y=99, width=211, height=37)
     region = editor_status_search_region(row, (1280, 800))
-    assert region == Region(x=0, y=436, width=512, height=100)
+    assert region == Region(x=0, y=386, width=512, height=100)
     bounded = OCRResult(
         lines=[
             OCRLine(
@@ -4417,6 +4458,111 @@ async def test_long_indented_editor_suffix_uses_status_alternative(
         intended if reported_column == 38 else suffix
     )
     assert result.emitted_exactly_once is True
+    _assert_no_enter(backend)
+
+
+async def test_stacked_editor_status_uses_local_geometric_evidence(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A foreground local status read must avoid the slow blind OCR lane."""
+
+    async def no_sleep(_seconds: float) -> None:
+        return None
+
+    intended = "    for number in range(1, limit + 1):"
+    suffix = intended.lstrip(" ")
+
+    class StackedStatusOCR:
+        def __init__(self) -> None:
+            self.fallback_calls = 0
+
+        async def ocr_precise(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path
+            if (
+                region is not None
+                and region.x == 0
+                and region.width == 512
+                and region.height >= 90
+                and region.y > 140
+            ):
+                return OCRResult(
+                    lines=[
+                        OCRLine(
+                            text="Ln 1, Col 21 20 characters",
+                            confidence=0.72,
+                            bbox=[83, 76, 179, 85],
+                        )
+                    ],
+                    evidence_lines=[
+                        OCRLine(
+                            text="Ln 3, Col 39",
+                            confidence=0.996,
+                            bbox=[64, 58, 108, 68],
+                        ),
+                        OCRLine(
+                            text="Ln 1, Col 21",
+                            confidence=0.995,
+                            bbox=[81, 75, 122, 86],
+                        ),
+                    ],
+                )
+            return OCRResult(
+                lines=[
+                    OCRLine(
+                        text=suffix,
+                        confidence=0.99,
+                        bbox=[103, 130, 315, 153],
+                    )
+                ]
+            )
+
+        async def ocr_precise_fallback(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path, region
+            self.fallback_calls += 1
+            return OCRResult(
+                lines=[OCRLine(text="Ln 3, Col 39", confidence=0.99)]
+            )
+
+        async def ocr(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            return await self.ocr_precise(image_path, region)
+
+    monkeypatch.setattr(asyncio, "sleep", no_sleep)
+    backend = FakeBackend()
+    ocr = StackedStatusOCR()
+    typer = WatchedTyper(backend, ocr)
+    flat = _flat_grid()
+    changed = flat.copy().reshape(GRID_ROWS, GRID_COLS)
+    changed[8:10, 5:25] = 200
+    grids = [flat, changed.reshape(-1)]
+
+    async def changed_grid() -> np.ndarray:
+        return grids.pop(0) if grids else changed.reshape(-1)
+
+    typer._grid = changed_grid  # type: ignore[method-assign]
+
+    result = await typer.type_text(
+        intended,
+        code=True,
+        exact=True,
+        context="editor",
+    )
+
+    assert result.status == "verified_exact", result
+    assert result.field_text == intended
+    assert result.emitted_exactly_once is True
+    assert ocr.fallback_calls == 0
     _assert_no_enter(backend)
 
 

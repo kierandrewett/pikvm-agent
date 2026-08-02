@@ -169,6 +169,7 @@ def _aligned_secondary_row(
     if len(central_matches) == 1:
         return OCRResult(
             lines=central_matches,
+            evidence_lines=secondary.evidence_lines,
             alternatives=secondary.alternatives,
             spacing_evidence=secondary.spacing_evidence,
         )
@@ -215,6 +216,7 @@ def _aligned_secondary_row(
         return secondary
     return OCRResult(
         lines=matches,
+        evidence_lines=secondary.evidence_lines,
         alternatives=secondary.alternatives,
         spacing_evidence=secondary.spacing_evidence,
     )
@@ -387,6 +389,7 @@ def _with_visible_spacing_evidence(
     if _has_visible_single_space_gap(image_path, region, result):
         return OCRResult(
             lines=result.lines,
+            evidence_lines=result.evidence_lines,
             alternatives=result.alternatives,
             spacing_evidence="verified",
         )
@@ -423,6 +426,7 @@ def _with_visible_spacing_evidence(
         return result
     return OCRResult(
         lines=result.lines,
+        evidence_lines=result.evidence_lines,
         alternatives=alternatives,
         spacing_evidence=result.spacing_evidence,
     )
@@ -476,6 +480,10 @@ def _merge_precise_evidence(
     )
     selected = aligned_secondary if use_secondary else primary
     other = primary if use_secondary else secondary
+    evidence_lines = list(selected.evidence_lines)
+    for line in [*other.lines, *other.evidence_lines]:
+        if line not in selected.lines and line not in evidence_lines:
+            evidence_lines.append(line)
     candidates: list[OCRCandidate] = []
     seen = {selected.text}
     for candidate in selected.alternatives:
@@ -515,6 +523,7 @@ def _merge_precise_evidence(
         spacing_evidence = "verified"
     merged = OCRResult(
         lines=selected.lines,
+        evidence_lines=evidence_lines,
         alternatives=candidates,
         spacing_evidence=spacing_evidence,
     )

@@ -313,7 +313,7 @@ def _bounded_editor_status_rows(
     # ``editor_status_search_region`` so the crop and its validator share one
     # geometry model.
     row_bottom = row_region.y + min(row_region.height, DENSE_MAX_HEIGHT)
-    for line in result.lines:
+    for line in [*result.lines, *result.evidence_lines]:
         match = _EDITOR_STATUS_POSITION_RE.search(line.text)
         if match is None:
             continue
@@ -410,7 +410,21 @@ def _editor_caret_column_matches(
             return False
         (_line, alternative_column), = alternative_positions
         return alternative_column == expected_column
-    _gap, _offset, _line, nearest_column, _characters = min(candidates)
+    nearest_gap = min(candidate[0] for candidate in candidates)
+    same_status_band = [
+        candidate
+        for candidate in candidates
+        if candidate[0] - nearest_gap <= max(4, math.floor(height * 0.01))
+    ]
+    nearest_positions = {
+        (line, column)
+        for _gap, _offset, line, column, _characters in same_status_band
+    }
+    if len(nearest_positions) != 1:
+        # Two engines disagreeing on the same physical status row are not
+        # permission to accept whichever column happens to match the request.
+        return False
+    (_nearest_line, nearest_column), = nearest_positions
     return nearest_column == expected_column
 
 
@@ -581,13 +595,16 @@ def editor_status_search_region(
             math.floor(row_region.x) - EDITOR_STATUS_SEARCH_LEFT_CONTEXT_PX,
         ),
     )
-    # Preserve only the deepest, compact part of the allowed band. The crop
-    # must still reach above a tall changed-pixel box and left of deeply
-    # indented code, where Notepad paints its line/column status. One eighth of
-    # the frame is small enough for precise OCR while retaining the foreground
-    # row plus at most a nearby stacked background row for the nearest-row
-    # discriminator above.
-    y = row_bottom + search_depth - crop_height
+    # Overlap the deepest compact band by half its height. In stacked Notepad
+    # windows the foreground status row can sit exactly at the old crop's top
+    # edge and be clipped while a lower background row remains legible. The
+    # overlap keeps that foreground row visible; the nearest-row geometry
+    # discriminator above still rejects a background status row.
+    overlap = math.floor(crop_height * 0.50)
+    y = max(
+        row_bottom,
+        row_bottom + search_depth - crop_height - overlap,
+    )
     return Region(
         x=x,
         y=y,
@@ -1653,11 +1670,13 @@ class WatchedTyper:
                         },
                     )
                 ],
+                evidence_lines=result.evidence_lines,
                 alternatives=result.alternatives,
                 spacing_evidence="verified",
             )
         return OCRResult(
             lines=result.lines,
+            evidence_lines=result.evidence_lines,
             alternatives=result.alternatives,
             spacing_evidence="verified",
         )
@@ -1751,6 +1770,7 @@ class WatchedTyper:
                     )
                     result = OCRResult(
                         lines=exact_rows,
+                        evidence_lines=result.evidence_lines,
                         alternatives=result.alternatives,
                         spacing_evidence=(
                             "verified"
@@ -3138,6 +3158,7 @@ class WatchedTyper:
                         self._causal_exact_spacing_intended = intended_snapshot
                     self._last_field_ocr_result = OCRResult(
                         lines=exact_rows,
+                        evidence_lines=result.evidence_lines,
                         alternatives=result.alternatives,
                         spacing_evidence=(
                             "verified"
