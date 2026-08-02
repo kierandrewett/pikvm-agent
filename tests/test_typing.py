@@ -1125,6 +1125,23 @@ async def test_bounded_indented_editor_line_uses_causal_dense_row(
         for method, call in backend.calls
         if method == "type_text" and call["text"] not in {"_", "i"}
     ] == [intended]
+    if autocorrect_glyph is not None:
+        pressed = [
+            call.get("code")
+            for method, call in backend.calls
+            if method == "press_key"
+        ]
+        assert "Home" not in pressed
+        suffix_length = standalone_i_autocorrect_suffix_length(
+            intended,
+            intended.replace(
+                " if i ",
+                f" if {autocorrect_glyph} ",
+                1,
+            ),
+        )
+        assert suffix_length is not None
+        assert pressed.count("ArrowLeft") == suffix_length + 1
 
 
 async def test_causal_spacing_row_ignores_unchanged_editor_context(
@@ -3112,7 +3129,11 @@ def test_case_correction_signatures_are_narrow() -> None:
     assert standalone_i_autocorrect_navigation(
         "    for i in range(1, limit + 1):",
         "for I in range(1, limit + 1):",
-    ) == ("Home", "ArrowRight", 9)
+    ) == ("End", "ArrowLeft", 24)
+    assert standalone_i_autocorrect_navigation(
+        "for i in range(1, limit + 1):",
+        "for I in range(1, limit + 1):",
+    ) == ("End", "ArrowLeft", 24)
 
 
 @pytest.mark.parametrize(

@@ -629,23 +629,25 @@ def standalone_i_autocorrect_navigation(
     intended: str,
     observed: str,
 ) -> tuple[str, str, int] | None:
-    """Choose the shorter anchored route to the mutated character.
+    """Choose an anchored route to the mutated character.
 
     Repeated unpaced cursor taps can be coalesced by a remote desktop
-    transport. Anchor at the current line's Home or End first, then use the
-    shorter bounded route so a missed tap cannot silently target another
-    ``i`` elsewhere in a long code line.
+    transport. Prefer an End-relative route because its distance is unchanged
+    when indentation was inserted by an earlier Tab and is therefore absent
+    from this action's intended text. Fall back to Home only when the suffix is
+    beyond the bounded cursor budget and the known prefix is not. Every cursor
+    step remains paced by the caller.
     """
 
     suffix_length = standalone_i_autocorrect_suffix_length(intended, observed)
     if suffix_length is None:
         return None
     prefix_length = len(intended) - suffix_length
-    if min(prefix_length, suffix_length) > MAX_AUTOCORRECT_CURSOR_STEPS:
-        return None
-    if prefix_length <= suffix_length:
+    if suffix_length <= MAX_AUTOCORRECT_CURSOR_STEPS:
+        return ("End", "ArrowLeft", suffix_length)
+    if prefix_length <= MAX_AUTOCORRECT_CURSOR_STEPS:
         return ("Home", "ArrowRight", prefix_length)
-    return ("End", "ArrowLeft", suffix_length)
+    return None
 
 
 def is_caps_lock_case_inversion(intended: str, observed: str) -> bool:
