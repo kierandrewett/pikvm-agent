@@ -1092,6 +1092,8 @@ async def test_codex_exec_provider_reuses_cli_auth_in_isolated_read_only_mode(
         "steps",
         "success_criteria",
         "constraints",
+        "artifact_content",
+        "artifact_content_kind",
     ]
     assert "default" not in runner.schema["properties"]["constraints"]
     assert response.data["summary"] == "Codex plan"
@@ -1221,6 +1223,8 @@ async def test_codex_app_server_provider_uses_persistent_oauth_session(
         "steps",
         "success_criteria",
         "constraints",
+        "artifact_content",
+        "artifact_content_kind",
     ]
     assert call["image_path"] == str(image)
     assert call["model"] == "gpt-5.6-luna"
@@ -1279,6 +1283,8 @@ async def test_claude_code_provider_uses_oauth_with_safe_read_only_image_access(
         "steps",
         "success_criteria",
         "constraints",
+        "artifact_content",
+        "artifact_content_kind",
     ]
     assert runner.workspace_files == ["screen.jpg"]
     assert "screen.jpg" in runner.stdin
