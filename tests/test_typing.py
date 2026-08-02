@@ -1016,6 +1016,94 @@ async def test_causal_code_row_uses_trimmed_glyphs_only_to_localize(
     )
 
 
+async def test_bounded_indented_editor_line_uses_causal_dense_row(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A status repaint must not hide one bounded exact code-row delivery."""
+
+    async def no_sleep(_seconds: float) -> None:
+        return None
+
+    monkeypatch.setattr(asyncio, "sleep", no_sleep)
+    monkeypatch.setattr(
+        typing_module,
+        "locate_changed_bbox",
+        lambda *_args, **_kwargs: None,
+    )
+    backend = FakeBackend(width=1280, height=800)
+    before_bytes, after_bytes = _ambiguous_dense_line_frames()
+    backend.set_frame_bytes(before_bytes)
+    emitted = ""
+    original_type = backend.type_text
+
+    async def typing(
+        text: str,
+        *,
+        code: bool = False,
+        secret: bool = False,
+    ) -> None:
+        nonlocal emitted
+        await original_type(text, code=code, secret=secret)
+        emitted += text
+        backend.set_frame_bytes(after_bytes)
+
+    backend.type_text = typing  # type: ignore[method-assign]
+
+    class CurrentEditorRowOCR:
+        async def ocr(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path
+            if region is None or region.y >= 200:
+                return OCRResult()
+            if region.width < 120:
+                return OCRResult(
+                    lines=[
+                        OCRLine(
+                            text=emitted.strip(),
+                            confidence=0.99,
+                            bbox=[4, 4, 72, 18],
+                        )
+                    ],
+                    spacing_evidence="uncertain",
+                )
+            return OCRResult(
+                lines=[
+                    OCRLine(
+                        text=emitted,
+                        confidence=0.99,
+                        bbox=[12, 4, 112, 18],
+                    )
+                ],
+                spacing_evidence="verified",
+            )
+
+        async def ocr_precise(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            return await self.ocr(image_path, region)
+
+    intended = "        if i % 15 == 0:"
+    result = await WatchedTyper(backend, CurrentEditorRowOCR()).type_text(
+        intended,
+        exact=True,
+        context="editor",
+        code=True,
+    )
+
+    assert result.status == "verified_exact"
+    assert result.emitted_exactly_once is True
+    assert [
+        call["text"]
+        for method, call in backend.calls
+        if method == "type_text"
+    ] == [intended]
+
+
 async def test_causal_spacing_row_ignores_unchanged_editor_context(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -3405,13 +3493,14 @@ async def test_four_space_editor_autocorrect_preserves_final_status_proof(
     _assert_no_enter(backend)
 
 
-async def test_failed_editor_autocorrect_replacement_stops_before_later_chunks() -> None:
+async def test_failed_editor_autocorrect_replacement_stops_without_replaying_line() -> None:
     backend = FakeBackend()
     intended = "for i in range(1, limit + 1):"
+    observed = "for I in range(1, limit + 1):"
 
     result = await WatchedTyper(
         backend,
-        ScriptedOCR("for I in", "for I in", "for I in"),
+        ScriptedOCR(observed, observed, observed),
     ).type_text(
         intended,
         region=Region(x=10, y=10, width=400, height=40),
@@ -3422,7 +3511,7 @@ async def test_failed_editor_autocorrect_replacement_stops_before_later_chunks()
 
     assert result.status == "failed_case_mismatch", result
     assert result.correction_count == 1
-    assert result.typed_characters == len("for i in")
+    assert result.typed_characters == len(intended)
     assert result.intended_characters == len(intended)
     assert result.emitted_exactly_once is False
     assert [
@@ -3430,7 +3519,7 @@ async def test_failed_editor_autocorrect_replacement_stops_before_later_chunks()
         for method, kwargs in backend.calls
         if method == "type_text"
     ] == [
-        {"text": "for i in", "code": True, "secret": False},
+        {"text": intended, "code": True, "secret": False},
         {"text": "_", "code": True, "secret": False},
         {"text": "i", "code": True, "secret": False},
     ]
@@ -3448,6 +3537,11 @@ async def test_failed_editor_autocorrect_replacement_stops_before_later_chunks()
         (
             "    for number in range(1, limit + 1):",
             "    for number in range(1, limit + 1):",
+            "verified_exact",
+        ),
+        (
+            "        if i % 15 == 0:",
+            "        if i % 15 == 0:",
             "verified_exact",
         ),
     ],

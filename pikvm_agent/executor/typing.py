@@ -2575,7 +2575,6 @@ class WatchedTyper:
                     editor_field
                     and code
                     and len(text) <= FAST_PRINT_CHUNK_TARGET
-                    and re.search(r"\bi\b", text) is None
                 )
             )
             else (
@@ -2623,9 +2622,14 @@ class WatchedTyper:
             """Choose among causal line deltas only by exact cropped OCR."""
 
             nonlocal last_read, verified_clean
+            bounded_editor_code = (
+                editor_field
+                and code
+                and total <= FAST_PRINT_CHUNK_TARGET
+            )
             if (
                 not precise
-                or total > 20
+                or (total > 20 and not bounded_editor_code)
                 or explicit_region
                 or single_line_field
                 or before_frame is None
