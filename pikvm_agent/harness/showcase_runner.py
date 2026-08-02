@@ -87,6 +87,10 @@ class ShowcaseCampaignAlreadyRunning(LocalProcessLeaseAlreadyHeld):
     """Another local process already owns this campaign."""
 
 
+class ShowcaseCampaignRecoveryRequired(RuntimeError):
+    """A newer campaign still owes quiescence or a verified reboot."""
+
+
 class ShowcaseCampaignLease(LocalProcessLease):
     """Exclusive showcase-root ownership before VNC or state mutation."""
 
@@ -101,6 +105,51 @@ class ShowcaseCampaignLease(LocalProcessLease):
             kind="showcase-campaign-runner",
             already_held_error=ShowcaseCampaignAlreadyRunning,
         )
+
+
+def _campaign_recovery_blockers(
+    output_root: Path,
+    *,
+    current_campaign_id: str,
+) -> list[tuple[str, list[str]]]:
+    """Find unfinished campaigns not superseded by a verified VM reboot."""
+
+    campaigns: list[tuple[Path, dict[str, Any]]] = []
+    latest_ready_at: datetime | None = None
+    for path in sorted(output_root.glob("*/campaign.json")):
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        campaigns.append((path, payload))
+        for task in payload.get("tasks", []):
+            ready_at = (task.get("reboot") or {}).get("ready_at")
+            if not ready_at:
+                continue
+            ready_timestamp = datetime.fromisoformat(str(ready_at))
+            if (
+                latest_ready_at is None
+                or ready_timestamp > latest_ready_at
+            ):
+                latest_ready_at = ready_timestamp
+
+    blockers: list[tuple[str, list[str]]] = []
+    for path, payload in campaigns:
+        campaign_id = str(
+            payload.get("campaign_id") or path.parent.name
+        )
+        if campaign_id == current_campaign_id:
+            continue
+        unfinished_task_ids = [
+            str(task.get("task_id") or "unknown-task")
+            for task in payload.get("tasks", [])
+            if task.get("status") != "queued"
+            and (task.get("reboot") or {}).get("status") != "ready"
+        ]
+        if not unfinished_task_ids:
+            continue
+        updated_at = datetime.fromisoformat(str(payload["updated_at"]))
+        if latest_ready_at is not None and updated_at <= latest_ready_at:
+            continue
+        blockers.append((campaign_id, unfinished_task_ids))
+    return blockers
 
 
 def _validate_fresh_artifact_path(value: str) -> str:
@@ -1195,6 +1244,19 @@ async def run_showcase_campaign(
             "showcase campaign is already running in another local process"
         ) from exc
     with lease:
+        blockers = _campaign_recovery_blockers(
+            output_root,
+            current_campaign_id=manifest.campaign_id,
+        )
+        if blockers:
+            recovery_targets = ", ".join(
+                f"{campaign_id} ({', '.join(task_ids)})"
+                for campaign_id, task_ids in blockers
+            )
+            raise ShowcaseCampaignRecoveryRequired(
+                "showcase cleanup recovery is required before a new "
+                f"campaign can start; resume: {recovery_targets}"
+            )
         return await _run_showcase_campaign_locked(
             manifest=manifest,
             output_root=output_root,

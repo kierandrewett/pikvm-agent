@@ -20,8 +20,10 @@ from pikvm_agent.harness.showcase_runner import (
     HarnessCampaignClient,
     ShowcaseCampaignAlreadyRunning,
     ShowcaseCampaignLease,
+    ShowcaseCampaignRecoveryRequired,
     ShowcaseManifest,
     VncAdapter,
+    _campaign_recovery_blockers,
     _merge_reboot_attempts,
     _quiesce_run,
     _repair_recovered_reboot_status,
@@ -574,6 +576,139 @@ tasks:
         "released-campaign",
     )
     replacement.release()
+
+
+def _write_campaign_cleanup_state(
+    root: Path,
+    *,
+    campaign_id: str,
+    updated_at: str,
+    task_status: str,
+    reboot_status: str,
+    ready_at: str | None = None,
+) -> None:
+    campaign_root = root / campaign_id
+    campaign_root.mkdir(parents=True)
+    (campaign_root / "campaign.json").write_text(
+        json.dumps(
+            {
+                "campaign_id": campaign_id,
+                "updated_at": updated_at,
+                "tasks": [
+                    {
+                        "task_id": "task-1",
+                        "status": task_status,
+                        "reboot": {
+                            "status": reboot_status,
+                            "ready_at": ready_at,
+                        },
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+
+def test_campaign_recovery_uses_the_latest_verified_reboot_as_watermark(
+    tmp_path: Path,
+) -> None:
+    output_root = tmp_path / "output"
+    _write_campaign_cleanup_state(
+        output_root,
+        campaign_id="last-clean",
+        updated_at="2026-08-01T10:01:01+00:00",
+        task_status="passed",
+        reboot_status="ready",
+        ready_at="2026-08-01T10:01:00+00:00",
+    )
+    _write_campaign_cleanup_state(
+        output_root,
+        campaign_id="interrupted",
+        updated_at="2026-08-01T10:02:00+00:00",
+        task_status="failed",
+        reboot_status="blocked",
+    )
+
+    assert _campaign_recovery_blockers(
+        output_root,
+        current_campaign_id="new-campaign",
+    ) == [("interrupted", ["task-1"])]
+    _write_campaign_cleanup_state(
+        output_root,
+        campaign_id="later-cleanup",
+        updated_at="2026-08-01T10:03:01+00:00",
+        task_status="failed",
+        reboot_status="ready",
+        ready_at="2026-08-01T10:03:00+00:00",
+    )
+
+    assert _campaign_recovery_blockers(
+        output_root,
+        current_campaign_id="new-campaign",
+    ) == []
+    assert _campaign_recovery_blockers(
+        output_root,
+        current_campaign_id="interrupted",
+    ) == []
+
+
+@pytest.mark.asyncio
+async def test_showcase_requires_recovery_before_connecting(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manifest_path = tmp_path / "manifest.yaml"
+    manifest_path.write_text(
+        """
+schema_version: 1
+campaign_id: new-campaign
+title: New campaign
+provider: codex-fast
+tasks:
+  - task_id: task-1
+    title: Observe
+    category: Observation
+    prompt: Describe the desktop.
+""".strip(),
+        encoding="utf-8",
+    )
+    _write_campaign_cleanup_state(
+        tmp_path / "output",
+        campaign_id="interrupted",
+        updated_at="2026-08-01T10:02:00+00:00",
+        task_status="failed",
+        reboot_status="blocked",
+    )
+    entered_locked_runner = False
+
+    async def must_not_run(**_kwargs: object) -> dict[str, object]:
+        nonlocal entered_locked_runner
+        entered_locked_runner = True
+        return {}
+
+    monkeypatch.setattr(
+        showcase_runner,
+        "_run_showcase_campaign_locked",
+        must_not_run,
+    )
+
+    with pytest.raises(
+        ShowcaseCampaignRecoveryRequired,
+        match=r"resume: interrupted \(task-1\)",
+    ):
+        await showcase_runner.run_showcase_campaign(
+            manifest_path=manifest_path,
+            output_root=tmp_path / "output",
+            harness_url="http://127.0.0.1:48001",
+            adapter_url="http://127.0.0.1:48002",
+            agent_token="a" * 32,
+            operator_token="b" * 32,
+            operator_origin="http://127.0.0.1:48001",
+        )
+
+    assert entered_locked_runner is False
+    assert not (tmp_path / "output" / "new-campaign").exists()
 
 
 def test_frame_recorder_encodes_browser_native_webm(tmp_path: Path) -> None:
