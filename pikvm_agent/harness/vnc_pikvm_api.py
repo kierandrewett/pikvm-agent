@@ -446,6 +446,28 @@ class VncDotoolTransport:
             time.sleep(0.100)
             client.keyUp("shift")
 
+    @staticmethod
+    def _tap_windows_repeat_sensitive_key(
+        client: Any,
+        key: str,
+    ) -> None:
+        """Deliver one unmodified key tap without an RFB coalescing window.
+
+        The disposable Windows VNC guest accepted only two of four leading
+        Space key pairs even though the websocket sender observed every event
+        and left a human inter-key gap. Keep the matching down/up pair inside
+        one serial adapter transaction with a measured dwell. This is limited
+        to unmodified repeat-sensitive keys; chords keep their normal held-key
+        semantics.
+        """
+
+        client.keyDown(key)
+        try:
+            time.sleep(0.075)
+        finally:
+            client.keyUp(key)
+        time.sleep(0.075)
+
     async def close(self) -> None:
         client, self._client = self._client, None
         self._invalidate_frame()
@@ -520,6 +542,20 @@ class VncDotoolTransport:
                 return
             if not down and code in self._synthetic_keyups:
                 self._synthetic_keyups.discard(code)
+                return
+            if (
+                down
+                and self.keyboard_profile == "windows"
+                and code == "Space"
+                and not self._shift_pending
+                and not self._active_chord_modifiers
+            ):
+                self._synthetic_keyups.add(code)
+                await asyncio.to_thread(
+                    self._tap_windows_repeat_sensitive_key,
+                    client,
+                    key,
+                )
                 return
             shifted_character = shifted_code_to_character(
                 code,

@@ -264,6 +264,41 @@ async def test_windows_transport_uses_physical_chord_for_invariant_punctuation()
     ]
 
 
+async def test_windows_transport_keeps_each_plain_space_tap_atomic(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class Client:
+        def __init__(self) -> None:
+            self.calls = []
+
+        def keyDown(self, key) -> None:
+            self.calls.append(("down", key))
+
+        def keyUp(self, key) -> None:
+            self.calls.append(("up", key))
+
+    sleeps: list[float] = []
+    monkeypatch.setattr(vnc_pikvm_api.time, "sleep", sleeps.append)
+    transport = VncDotoolTransport(
+        "unused:5900",
+        keymap="en-gb",
+        keyboard_profile="windows",
+    )
+    client = Client()
+    transport._client = client
+
+    for _ in range(4):
+        await transport.key("Space", True)
+        await transport.key("Space", False)
+
+    assert client.calls == [
+        (event, "space")
+        for _ in range(4)
+        for event in ("down", "up")
+    ]
+    assert sleeps == [0.075, 0.075] * 4
+
+
 async def test_transport_uses_alt_codes_for_uk_symbols_windows_vnc_drops() -> None:
     class Client:
         def __init__(self) -> None:
