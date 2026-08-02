@@ -23,6 +23,10 @@ from PIL import Image, ImageStat
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from websockets.asyncio.client import connect as websocket_connect
 
+from pikvm_agent.harness.local_process_lease import (
+    LocalProcessLease,
+    LocalProcessLeaseAlreadyHeld,
+)
 from pikvm_agent.vision.frame_diff import fingerprint, fp_meaningful_change
 
 TERMINAL_STATUSES = {"completed", "failed", "rejected", "blocked", "aborted"}
@@ -77,6 +81,26 @@ ApprovalDisposition = Literal["approve", "refuse", "wait"]
 CAMPAIGN_WORKSPACE = PureWindowsPath(
     r"C:\PiKVM-Harness\workspace\codex-50"
 )
+
+
+class ShowcaseCampaignAlreadyRunning(LocalProcessLeaseAlreadyHeld):
+    """Another local process already owns this campaign."""
+
+
+class ShowcaseCampaignLease(LocalProcessLease):
+    """Exclusive campaign ownership acquired before VNC or state mutation."""
+
+    @classmethod
+    def acquire(
+        cls,
+        output_root: Path,
+        campaign_id: str,
+    ) -> "ShowcaseCampaignLease":
+        return super().acquire(
+            output_root / f".{campaign_id}.runner.lock",
+            kind="showcase-campaign-runner",
+            already_held_error=ShowcaseCampaignAlreadyRunning,
+        )
 
 
 def _validate_fresh_artifact_path(value: str) -> str:
@@ -1149,9 +1173,9 @@ async def run_showcase_campaign(
     max_same_run_recoveries: int = 8,
     stop_after_task_id: str | None = None,
 ) -> dict[str, Any]:
+    manifest = load_showcase_manifest(manifest_path)
     if max_same_run_recoveries < 1:
         raise ValueError("max_same_run_recoveries must be positive")
-    manifest = load_showcase_manifest(manifest_path)
     if (
         stop_after_task_id is not None
         and stop_after_task_id not in {
@@ -1161,6 +1185,47 @@ async def run_showcase_campaign(
         raise ValueError(
             f"stop-after task is not in manifest: {stop_after_task_id}"
         )
+    try:
+        lease = ShowcaseCampaignLease.acquire(
+            output_root,
+            manifest.campaign_id,
+        )
+    except ShowcaseCampaignAlreadyRunning as exc:
+        raise ShowcaseCampaignAlreadyRunning(
+            "showcase campaign is already running in another local process"
+        ) from exc
+    with lease:
+        return await _run_showcase_campaign_locked(
+            manifest=manifest,
+            output_root=output_root,
+            harness_url=harness_url,
+            adapter_url=adapter_url,
+            agent_token=agent_token,
+            operator_token=operator_token,
+            operator_origin=operator_origin,
+            task_timeout_s=task_timeout_s,
+            reboot_timeout_s=reboot_timeout_s,
+            frame_interval_s=frame_interval_s,
+            max_same_run_recoveries=max_same_run_recoveries,
+            stop_after_task_id=stop_after_task_id,
+        )
+
+
+async def _run_showcase_campaign_locked(
+    *,
+    manifest: ShowcaseManifest,
+    output_root: Path,
+    harness_url: str,
+    adapter_url: str,
+    agent_token: str,
+    operator_token: str,
+    operator_origin: str,
+    task_timeout_s: float,
+    reboot_timeout_s: float,
+    frame_interval_s: float,
+    max_same_run_recoveries: int,
+    stop_after_task_id: str | None,
+) -> dict[str, Any]:
     writer = CampaignWriter(manifest, output_root)
     writer.payload["limits"] = {
         "task_timeout_s": task_timeout_s,

@@ -14,8 +14,13 @@ import hashlib
 import os
 import re
 import tempfile
-from dataclasses import dataclass
 from pathlib import Path
+from typing import Self
+
+from pikvm_agent.harness.local_process_lease import (
+    LocalProcessLease,
+    LocalProcessLeaseAlreadyHeld,
+)
 
 
 _DIRECT_PORT_RE = re.compile(r"^(?P<host>[^:]+):(?P<port>\d+)$")
@@ -23,7 +28,7 @@ _NATIVE_PORT_RE = re.compile(r"^(?P<host>.+)::(?P<port>\d+)$")
 _LEASE_DIR_ENV = "PIKVM_LAB_TARGET_LEASE_DIR"
 
 
-class VncTargetAlreadyLeased(RuntimeError):
+class VncTargetAlreadyLeased(LocalProcessLeaseAlreadyHeld):
     """Another local adapter process owns the selected VNC target."""
 
 
@@ -67,40 +72,8 @@ def _lease_directory(explicit: Path | None) -> Path:
     return directory
 
 
-def _lock_file(fd: int) -> None:
-    if os.name == "nt":  # pragma: no cover - exercised on Windows packaging
-        import msvcrt
-
-        if os.fstat(fd).st_size == 0:
-            os.write(fd, b"\0")
-        os.lseek(fd, 0, os.SEEK_SET)
-        msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
-        return
-
-    import fcntl
-
-    fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-
-
-def _unlock_file(fd: int) -> None:
-    if os.name == "nt":  # pragma: no cover - exercised on Windows packaging
-        import msvcrt
-
-        os.lseek(fd, 0, os.SEEK_SET)
-        msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
-        return
-
-    import fcntl
-
-    fcntl.flock(fd, fcntl.LOCK_UN)
-
-
-@dataclass
-class VncTargetLease:
+class VncTargetLease(LocalProcessLease):
     """A held advisory lock; release is explicit and idempotent."""
-
-    path: Path
-    _fd: int | None
 
     @classmethod
     def acquire(
@@ -108,54 +81,19 @@ class VncTargetLease:
         endpoint: str,
         *,
         lock_dir: Path | None = None,
-    ) -> VncTargetLease:
+    ) -> Self:
         canonical = canonical_vnc_target(endpoint)
         digest = hashlib.sha256(
             f"pikvm-agent-vnc-target-v1\0{canonical}".encode("utf-8")
         ).hexdigest()
         path = _lease_directory(lock_dir) / f"target-{digest[:32]}.lock"
-        flags = os.O_RDWR | os.O_CREAT
-        flags |= getattr(os, "O_CLOEXEC", 0)
-        flags |= getattr(os, "O_NOFOLLOW", 0)
-        fd = os.open(path, flags, 0o600)
         try:
-            if hasattr(os, "fchmod"):
-                os.fchmod(fd, 0o600)
-            try:
-                _lock_file(fd)
-            except (BlockingIOError, OSError) as exc:
-                raise VncTargetAlreadyLeased(
-                    "VNC target is already controlled by another local lab"
-                ) from exc
-            payload = (
-                "pikvm-agent-vnc-target-lease-v1\n"
-                f"owner-pid={os.getpid()}\n"
-            ).encode("ascii")
-            os.lseek(fd, 0, os.SEEK_SET)
-            os.write(fd, payload)
-            os.ftruncate(fd, len(payload))
-            os.fsync(fd)
-        except BaseException:
-            os.close(fd)
-            raise
-        return cls(path=path, _fd=fd)
-
-    def release(self) -> None:
-        fd, self._fd = self._fd, None
-        if fd is None:
-            return
-        try:
-            _unlock_file(fd)
-        finally:
-            os.close(fd)
-
-    def __enter__(self) -> VncTargetLease:
-        return self
-
-    def __exit__(
-        self,
-        _exc_type: object,
-        _exc: object,
-        _traceback: object,
-    ) -> None:
-        self.release()
+            return super().acquire(
+                path,
+                kind="vnc-target-lease",
+                already_held_error=VncTargetAlreadyLeased,
+            )
+        except VncTargetAlreadyLeased as exc:
+            raise VncTargetAlreadyLeased(
+                "VNC target is already controlled by another local lab"
+            ) from exc

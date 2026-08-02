@@ -18,6 +18,8 @@ from pikvm_agent.harness.showcase_runner import (
     CampaignWriter,
     FrameRecorder,
     HarnessCampaignClient,
+    ShowcaseCampaignAlreadyRunning,
+    ShowcaseCampaignLease,
     ShowcaseManifest,
     VncAdapter,
     _merge_reboot_attempts,
@@ -468,6 +470,110 @@ tasks:
             operator_origin="http://127.0.0.1:48001",
             stop_after_task_id="missing-task",
         )
+
+
+@pytest.mark.asyncio
+async def test_showcase_refuses_a_second_campaign_runner_before_preflight(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manifest_path = tmp_path / "manifest.yaml"
+    manifest_path.write_text(
+        """
+schema_version: 1
+campaign_id: single-writer-campaign
+title: Single writer campaign
+provider: codex-fast
+tasks:
+  - task_id: task-1
+    title: Observe
+    category: Observation
+    prompt: Describe the desktop.
+""".strip(),
+        encoding="utf-8",
+    )
+    entered_locked_runner = False
+
+    async def must_not_run(**_kwargs: object) -> dict[str, object]:
+        nonlocal entered_locked_runner
+        entered_locked_runner = True
+        return {}
+
+    monkeypatch.setattr(
+        showcase_runner,
+        "_run_showcase_campaign_locked",
+        must_not_run,
+    )
+    lease = ShowcaseCampaignLease.acquire(
+        tmp_path / "output",
+        "single-writer-campaign",
+    )
+    try:
+        with pytest.raises(
+            ShowcaseCampaignAlreadyRunning,
+            match="already running in another local process",
+        ):
+            await showcase_runner.run_showcase_campaign(
+                manifest_path=manifest_path,
+                output_root=tmp_path / "output",
+                harness_url="http://127.0.0.1:48001",
+                adapter_url="http://127.0.0.1:48002",
+                agent_token="a" * 32,
+                operator_token="b" * 32,
+                operator_origin="http://127.0.0.1:48001",
+            )
+    finally:
+        lease.release()
+
+    assert entered_locked_runner is False
+    assert not (tmp_path / "output" / "single-writer-campaign").exists()
+
+
+@pytest.mark.asyncio
+async def test_showcase_releases_campaign_lease_after_runner_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manifest_path = tmp_path / "manifest.yaml"
+    manifest_path.write_text(
+        """
+schema_version: 1
+campaign_id: released-campaign
+title: Released campaign
+provider: codex-fast
+tasks:
+  - task_id: task-1
+    title: Observe
+    category: Observation
+    prompt: Describe the desktop.
+""".strip(),
+        encoding="utf-8",
+    )
+
+    async def fail_locked_runner(**_kwargs: object) -> dict[str, object]:
+        raise RuntimeError("synthetic runner failure")
+
+    monkeypatch.setattr(
+        showcase_runner,
+        "_run_showcase_campaign_locked",
+        fail_locked_runner,
+    )
+    with pytest.raises(RuntimeError, match="synthetic runner failure"):
+        await showcase_runner.run_showcase_campaign(
+            manifest_path=manifest_path,
+            output_root=tmp_path / "output",
+            harness_url="http://127.0.0.1:48001",
+            adapter_url="http://127.0.0.1:48002",
+            agent_token="a" * 32,
+            operator_token="b" * 32,
+            operator_origin="http://127.0.0.1:48001",
+        )
+
+    replacement = ShowcaseCampaignLease.acquire(
+        tmp_path / "output",
+        "released-campaign",
+    )
+    replacement.release()
 
 
 def test_frame_recorder_encodes_browser_native_webm(tmp_path: Path) -> None:
