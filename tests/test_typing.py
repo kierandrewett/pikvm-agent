@@ -4480,18 +4480,47 @@ async def test_long_indented_editor_suffix_uses_status_alternative(
     _assert_no_enter(backend)
 
 
-async def test_stacked_editor_status_uses_local_geometric_evidence(
+@pytest.mark.parametrize(
+    (
+        "intended",
+        "local_visible_row",
+        "foreground_status",
+        "pixel_change_visible",
+        "expected_fallback_calls",
+    ),
+    [
+        (
+            "    for number in range(1, limit + 1):",
+            "for number in range(1, limit + 1):",
+            "Ln 3, Col 39",
+            True,
+            0,
+        ),
+        (
+            "        if number % 15 == 0:",
+            "if number % 15 == @:",
+            "Ln 4, Col 29",
+            False,
+            1,
+        ),
+    ],
+)
+async def test_indented_editor_suffix_uses_one_grounded_glyph_read(
     monkeypatch: pytest.MonkeyPatch,
+    intended: str,
+    local_visible_row: str,
+    foreground_status: str,
+    pixel_change_visible: bool,
+    expected_fallback_calls: int,
 ) -> None:
-    """A foreground local status read must avoid the slow blind OCR lane."""
+    """A grounded glyph read plus local Ln/Col proof must finish the line."""
 
     async def no_sleep(_seconds: float) -> None:
         return None
 
-    intended = "    for number in range(1, limit + 1):"
     suffix = intended.lstrip(" ")
 
-    class StackedStatusOCR:
+    class GroundedSuffixOCR:
         def __init__(self) -> None:
             self.fallback_calls = 0
 
@@ -4501,9 +4530,18 @@ async def test_stacked_editor_status_uses_local_geometric_evidence(
             region: Region | None = None,
         ) -> OCRResult:
             del image_path
+            if region is None:
+                return OCRResult(
+                    lines=[
+                        OCRLine(
+                            text=local_visible_row,
+                            confidence=0.91,
+                            bbox=[101, 136, 201, 153],
+                        )
+                    ]
+                )
             if (
-                region is not None
-                and region.x == 0
+                region.x == 0
                 and region.width == 512
                 and region.height >= 90
                 and region.y > 140
@@ -4518,9 +4556,9 @@ async def test_stacked_editor_status_uses_local_geometric_evidence(
                     ],
                     evidence_lines=[
                         OCRLine(
-                            text="Ln 3, Col 39",
+                            text=foreground_status,
                             confidence=0.996,
-                            bbox=[64, 58, 108, 68],
+                            bbox=[64, 58, 120, 68],
                         ),
                         OCRLine(
                             text="Ln 1, Col 21",
@@ -4532,8 +4570,8 @@ async def test_stacked_editor_status_uses_local_geometric_evidence(
             return OCRResult(
                 lines=[
                     OCRLine(
-                        text=suffix,
-                        confidence=0.99,
+                        text=local_visible_row,
+                        confidence=0.91,
                         bbox=[103, 130, 315, 153],
                     )
                 ]
@@ -4547,7 +4585,8 @@ async def test_stacked_editor_status_uses_local_geometric_evidence(
             del image_path, region
             self.fallback_calls += 1
             return OCRResult(
-                lines=[OCRLine(text="Ln 3, Col 39", confidence=0.99)]
+                lines=[OCRLine(text=suffix, confidence=0.99)],
+                spacing_evidence="verified",
             )
 
         async def ocr(
@@ -4559,17 +4598,19 @@ async def test_stacked_editor_status_uses_local_geometric_evidence(
 
     monkeypatch.setattr(asyncio, "sleep", no_sleep)
     backend = FakeBackend()
-    ocr = StackedStatusOCR()
+    ocr = GroundedSuffixOCR()
     typer = WatchedTyper(backend, ocr)
     flat = _flat_grid()
     changed = flat.copy().reshape(GRID_ROWS, GRID_COLS)
     changed[8:10, 5:25] = 200
     grids = [flat, changed.reshape(-1)]
 
-    async def changed_grid() -> np.ndarray:
+    async def current_grid() -> np.ndarray:
+        if not pixel_change_visible:
+            return flat
         return grids.pop(0) if grids else changed.reshape(-1)
 
-    typer._grid = changed_grid  # type: ignore[method-assign]
+    typer._grid = current_grid  # type: ignore[method-assign]
 
     result = await typer.type_text(
         intended,
@@ -4581,7 +4622,7 @@ async def test_stacked_editor_status_uses_local_geometric_evidence(
     assert result.status == "verified_exact", result
     assert result.field_text == intended
     assert result.emitted_exactly_once is True
-    assert ocr.fallback_calls == 0
+    assert ocr.fallback_calls == expected_fallback_calls
     _assert_no_enter(backend)
 
 

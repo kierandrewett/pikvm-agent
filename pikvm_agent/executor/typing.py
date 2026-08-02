@@ -2108,7 +2108,7 @@ class WatchedTyper:
         dims: tuple[int, int],
         *,
         editor_field: bool = False,
-    ) -> Region | None:
+    ) -> tuple[Region, str] | None:
         """Use a noisy full-screen row only to choose an exact re-read crop.
 
         Dark-theme editor glyphs can fall below the frame-grid threshold while
@@ -2181,7 +2181,7 @@ class WatchedTyper:
             region=candidate_region.model_dump(),
         )
         return (
-            candidate_region
+            (candidate_region, read_back)
             if (
                 confirmed
                 or editor_autocorrect_localized
@@ -4646,8 +4646,9 @@ class WatchedTyper:
                             dims,
                             precise=precise,
                         )
+                        recovered_read = ""
                         if ocr_loc is None and precise:
-                            ocr_loc = (
+                            recovered = (
                                 await self._recover_precise_ocr_candidate(
                                     screen,
                                     typed_so_far,
@@ -4655,9 +4656,32 @@ class WatchedTyper:
                                     editor_field=editor_field,
                                 )
                             )
+                            if recovered is not None:
+                                ocr_loc, recovered_read = recovered
                         if ocr_loc is not None:
                             cur_region = ocr_loc
                             located = True
+                            if recovered_read:
+                                last_read = await prove_editor_whitespace(
+                                    recovered_read,
+                                    typed_so_far,
+                                    phase="precise_localization",
+                                )
+                                if (
+                                    typed_so_far == text
+                                    and compute_verdict(
+                                        typed_so_far,
+                                        last_read,
+                                        precise,
+                                    )
+                                    == "match"
+                                ):
+                                    # The expensive fallback already proved
+                                    # every painted glyph and Notepad's local
+                                    # status row independently proved the
+                                    # invisible indentation. Do not repeat the
+                                    # same blind OCR during caret stabilization.
+                                    verified_clean = True
                             break
 
                     if (
