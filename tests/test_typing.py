@@ -44,6 +44,7 @@ from pikvm_agent.executor.typing import (
     precise_readback_candidate_region,
     readback_region,
     regions_overlap,
+    standalone_i_autocorrect_suffix_length,
 )
 from pikvm_agent.pikvm.fake import FakeBackend
 from pikvm_agent.pikvm.screenshot import to_captured_frame
@@ -2924,6 +2925,15 @@ def test_case_correction_signatures_are_narrow() -> None:
     assert is_caps_lock_case_inversion("MyVar", "mYvAR")
     assert not is_caps_lock_case_inversion("MyVar", "myVar")
     assert not is_caps_lock_case_inversion("for i in", "for I in")
+    assert standalone_i_autocorrect_suffix_length("for i in", "for I in") == 3
+    assert (
+        standalone_i_autocorrect_suffix_length(
+            "    i  = i + 1",
+            "i = I + 1",
+        )
+        == 4
+    )
+    assert standalone_i_autocorrect_suffix_length("limit", "lImit") is None
 
 
 @pytest.mark.parametrize(
@@ -2937,7 +2947,7 @@ def test_case_correction_signatures_are_narrow() -> None:
         ),
     ],
 )
-async def test_editor_standalone_i_autocorrect_is_undone_without_replay(
+async def test_editor_standalone_i_autocorrect_is_replaced_locally(
     reads: tuple[str, str, str],
 ) -> None:
     backend = FakeBackend()
@@ -2954,16 +2964,29 @@ async def test_editor_standalone_i_autocorrect_is_undone_without_replay(
 
     assert result.status == "verified_exact", result
     assert result.correction_count == 1
-    assert result.emitted_exactly_once is True
+    assert result.emitted_exactly_once is False
     assert [
         kwargs
         for method, kwargs in backend.calls
         if method == "type_text"
-    ] == [{"text": intended, "code": True, "secret": False}]
-    assert (
-        "keypress",
-        {"keys": ["ControlLeft", "KeyZ"]},
-    ) in backend.calls
+    ] == [
+        {"text": intended, "code": True, "secret": False},
+        {"text": "i", "code": True, "secret": False},
+    ]
+    pressed = [
+        kwargs.get("code")
+        for method, kwargs in backend.calls
+        if method == "press_key"
+    ]
+    assert pressed == [
+        "ArrowLeft",
+        "ArrowLeft",
+        "ArrowLeft",
+        "Backspace",
+        "ArrowRight",
+        "ArrowRight",
+        "ArrowRight",
+    ]
     assert not any(
         method == "press_key" and kwargs.get("code") == "CapsLock"
         for method, kwargs in backend.calls
@@ -2971,7 +2994,7 @@ async def test_editor_standalone_i_autocorrect_is_undone_without_replay(
     _assert_no_enter(backend)
 
 
-async def test_indented_editor_autocorrect_uses_status_proof_after_undo(
+async def test_indented_editor_autocorrect_uses_status_proof_after_replacement(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     async def no_sleep(_seconds: float) -> None:
@@ -3004,16 +3027,16 @@ async def test_indented_editor_autocorrect_uses_status_proof_after_undo(
                         )
                     ]
                 )
-            undone = (
-                "keypress",
-                {"keys": ["ControlLeft", "KeyZ"]},
-            ) in backend.calls
+            corrected = any(
+                method == "press_key" and kwargs.get("code") == "Backspace"
+                for method, kwargs in backend.calls
+            )
             return OCRResult(
                 lines=[
                     OCRLine(
                         text=(
                             "result = []\nfor i in"
-                            if undone
+                            if corrected
                             else "result = []\nfor I in"
                         ),
                         confidence=0.99,
@@ -3051,20 +3074,19 @@ async def test_indented_editor_autocorrect_uses_status_proof_after_undo(
     assert result.status == "verified_exact", result
     assert result.field_text == intended
     assert result.correction_count == 1
-    assert result.emitted_exactly_once is True
-    assert (
-        "keypress",
-        {"keys": ["ControlLeft", "KeyZ"]},
-    ) in backend.calls
+    assert result.emitted_exactly_once is False
     assert [
         kwargs
         for method, kwargs in backend.calls
         if method == "type_text"
-    ] == [{"text": intended, "code": True, "secret": False}]
+    ] == [
+        {"text": intended, "code": True, "secret": False},
+        {"text": "i", "code": True, "secret": False},
+    ]
     _assert_no_enter(backend)
 
 
-async def test_failed_editor_autocorrect_undo_stops_before_later_chunks() -> None:
+async def test_failed_editor_autocorrect_replacement_stops_before_later_chunks() -> None:
     backend = FakeBackend()
     intended = "for i in range(1, limit + 1):"
 
@@ -3088,11 +3110,10 @@ async def test_failed_editor_autocorrect_undo_stops_before_later_chunks() -> Non
         kwargs
         for method, kwargs in backend.calls
         if method == "type_text"
-    ] == [{"text": "for i in", "code": True, "secret": False}]
-    assert (
-        "keypress",
-        {"keys": ["ControlLeft", "KeyZ"]},
-    ) in backend.calls
+    ] == [
+        {"text": "for i in", "code": True, "secret": False},
+        {"text": "i", "code": True, "secret": False},
+    ]
     assert not any(
         method == "press_key" and kwargs.get("code") == "CapsLock"
         for method, kwargs in backend.calls

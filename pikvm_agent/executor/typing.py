@@ -11,8 +11,9 @@ mismatch) is self-corrected inline — at most once — without burning an agent
 It is a pure orchestrator: every side effect (keystrokes, capture, OCR, layout)
 is reached through the injected ``backend``/``ocr``, so it is unit-testable and
 imports no I/O of its own. It NEVER emits Enter — correction is limited to
-bounded editing keys, including one Ctrl+Z for Notepad's standalone-``i``
-autocorrection. A short field readback may also move focus with Tab/Shift-Tab or
+bounded editing keys, including one local character replacement for Notepad's
+standalone-``i`` autocorrection. A short field readback may also move focus with
+Tab/Shift-Tab or
 select an existing draft with Ctrl+A solely to remove a blinking caret from
 OCR. Committing is the caller's job.
 
@@ -135,9 +136,10 @@ INTERRUPTED_SUMMARY = (
     "Typing interrupted: control changed (abort / panic / steer) mid-text; held "
     "keys released. The field holds only what was typed before the stop."
 )
-AUTOCORRECT_UNDO_FAILED_SUMMARY = (
+AUTOCORRECT_REPLACEMENT_FAILED_SUMMARY = (
     "Typing stopped after the editor changed a standalone lowercase `i` to "
-    "uppercase `I`, and one bounded Undo did not restore the exact text. "
+    "uppercase `I`, and one bounded local replacement did not restore the "
+    "exact text. "
     "Do not append or replay the draft until the visible field is corrected."
 )
 
@@ -419,6 +421,45 @@ def is_standalone_i_autocorrect(intended: str, observed: str) -> bool:
             or not (left[index + 1].isalnum() or left[index + 1] == "_")
         )
     )
+
+
+def standalone_i_autocorrect_suffix_length(
+    intended: str,
+    observed: str,
+) -> int | None:
+    """Locate the one mutated ``i`` as a distance back from the caret.
+
+    OCR deliberately collapses whitespace, so its differing character index
+    cannot safely drive cursor movement in the raw editor text. Recreate each
+    possible one-character mutation in the original delivery and accept a
+    cursor distance only when exactly one candidate explains the observed row.
+    """
+
+    if not is_standalone_i_autocorrect(intended, observed):
+        return None
+    observed_normalized = norm(strip_prompt(observed), precise=True)
+    candidates = {
+        len(intended) - index - 1
+        for index, character in enumerate(intended)
+        if character == "i"
+        and (
+            index == 0
+            or not (
+                intended[index - 1].isalnum()
+                or intended[index - 1] == "_"
+            )
+        )
+        and (
+            index + 1 == len(intended)
+            or not (intended[index + 1].isalnum() or intended[index + 1] == "_")
+        )
+        and norm(
+            intended[:index] + "I" + intended[index + 1 :],
+            precise=True,
+        )
+        == observed_normalized
+    }
+    return candidates.pop() if len(candidates) == 1 else None
 
 
 def is_caps_lock_case_inversion(intended: str, observed: str) -> bool:
@@ -2312,7 +2353,7 @@ class WatchedTyper:
         delivery_retries = 0
         last_read = ""
         verified_clean = False
-        autocorrect_undo_failed = False
+        autocorrect_replacement_failed = False
         can_vision = not secret and (
             total > 4
             or (precise and total >= 3)
@@ -2745,7 +2786,7 @@ class WatchedTyper:
             )
             return candidate
 
-        def unique_editor_exact_candidate_after_undo(
+        def unique_editor_exact_candidate_after_correction(
             intended_snapshot: str,
             read_back: str,
         ) -> str:
@@ -3031,7 +3072,7 @@ class WatchedTyper:
                     await asyncio.sleep(_CLEAR_SETTLE_S)
 
         async def maybe_correct(read_back: str, intended_snapshot: str) -> None:
-            nonlocal autocorrect_undo_failed
+            nonlocal autocorrect_replacement_failed
             nonlocal corrections, last_read, verified_clean
             read_back = self._typed_candidate(read_back, intended_snapshot, precise)
             if precise and editor_field:
@@ -3093,8 +3134,10 @@ class WatchedTyper:
                 # Modern Notepad can autocorrect a freshly typed Python
                 # variable from ``i`` to the English pronoun ``I``. Confirm
                 # the same narrow mutation on a second settled frame before
-                # issuing one reversible Undo. Never clear or replay the
-                # draft, and never reinterpret this as a Caps Lock fault.
+                # replacing only that character. Ctrl+Z is unsafe here: in the
+                # live editor it removed the entire HID chunk rather than the
+                # autocorrection. Never clear or replay the draft, and never
+                # reinterpret this as a Caps Lock fault.
                 await asyncio.sleep(_CARET_BLINK_RECHECK_S)
                 repeated_read = self._typed_candidate(
                     await self._read_field(
@@ -3113,10 +3156,11 @@ class WatchedTyper:
                     )
                     or repeated_read
                 )
-                if not is_standalone_i_autocorrect(
+                suffix_length = standalone_i_autocorrect_suffix_length(
                     intended_snapshot,
                     repeated,
-                ):
+                )
+                if suffix_length is None:
                     last_read = repeated or read_back
                     return
                 DEBUG.event(
@@ -3135,9 +3179,14 @@ class WatchedTyper:
                     intended_characters=len(intended_snapshot),
                 )
                 corrections += 1
-                await self.backend.keypress(["ControlLeft", "KeyZ"])
+                for _ in range(suffix_length):
+                    await self.backend.press_key("ArrowLeft")
+                await self.backend.press_key("Backspace")
+                await emit_text("i")
+                for _ in range(suffix_length):
+                    await self.backend.press_key("ArrowRight")
                 await asyncio.sleep(_CLEAR_SETTLE_S)
-                undone_read = self._typed_candidate(
+                corrected_read = self._typed_candidate(
                     await self._read_field(
                         current_readback_region(intended_snapshot),
                         intended=intended_snapshot,
@@ -3147,34 +3196,35 @@ class WatchedTyper:
                     intended_snapshot,
                     True,
                 )
-                undone = unique_editor_exact_candidate_after_undo(
+                corrected_read = unique_editor_exact_candidate_after_correction(
                     intended_snapshot,
-                    undone_read,
+                    corrected_read,
                 )
-                undone = await prove_editor_leading_whitespace(
-                    undone,
+                corrected_read = await prove_editor_leading_whitespace(
+                    corrected_read,
                     intended_snapshot,
-                    phase="autocorrect_undo",
+                    phase="autocorrect_replacement",
                 )
-                last_read = undone
+                last_read = corrected_read
                 restored = (
                     compute_verdict(
                         intended_snapshot,
-                        undone,
+                        corrected_read,
                         True,
                     )
                     == "match"
                 )
                 DEBUG.event(
-                    "typing.editor_autocorrect_undo",
+                    "typing.editor_autocorrect_replacement",
                     restored=restored,
                     intended_characters=len(intended_snapshot),
+                    suffix_length=suffix_length,
                 )
                 if restored:
                     if norm(intended_snapshot, True) == norm(text, True):
                         verified_clean = True
                     return
-                autocorrect_undo_failed = True
+                autocorrect_replacement_failed = True
                 return
             if (
                 precise
@@ -3395,7 +3445,7 @@ class WatchedTyper:
                 used_fast_path=fast_print,
                 typed_characters=typed_characters,
                 intended_characters=len(text),
-                summary=AUTOCORRECT_UNDO_FAILED_SUMMARY,
+                summary=AUTOCORRECT_REPLACEMENT_FAILED_SUMMARY,
                 intended_text=text,
                 emitted_text="".join(emitted_parts),
                 readback_frame_sha256=self._last_readback_frame_sha256,
@@ -3694,7 +3744,7 @@ class WatchedTyper:
             ):
                 rb = await read_current_field(typed_so_far)
                 await maybe_correct(rb, typed_so_far)
-                if autocorrect_undo_failed:
+                if autocorrect_replacement_failed:
                     await self._release_all_quietly()
                     return failed_autocorrect_result(
                         len(typed_so_far)
@@ -3708,7 +3758,7 @@ class WatchedTyper:
             corrections_before = corrections
             rb = await read_current_field(text)
             await maybe_correct(rb, text)
-            if autocorrect_undo_failed:
+            if autocorrect_replacement_failed:
                 await self._release_all_quietly()
                 return failed_autocorrect_result(len(text))
             if corrections > corrections_before:
