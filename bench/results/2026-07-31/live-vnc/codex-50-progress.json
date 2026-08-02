@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "report": "codex-50-live-progress",
-  "recorded_at": "2026-08-02T12:44:57Z",
+  "recorded_at": "2026-08-02T14:22:56Z",
   "manifest": "bench/codex-50-tasks.yaml",
   "environment": {
     "target": "authorized disposable Windows VNC VM",
@@ -16,9 +16,9 @@
   },
   "progress": {
     "planned": 50,
-    "unique_passed": 26,
-    "pending": 24,
-    "completion_percent": 52.0,
+    "unique_passed": 27,
+    "pending": 23,
+    "completion_percent": 54.0,
     "categories": {
       "Observation": {
         "passed": 5,
@@ -33,7 +33,7 @@
         "planned": 10
       },
       "Code entry": {
-        "passed": 1,
+        "passed": 2,
         "planned": 10
       },
       "File management": {
@@ -75,7 +75,8 @@
       "text-08",
       "text-09",
       "text-10",
-      "code-01"
+      "code-01",
+      "code-02"
     ]
   },
   "canonical_campaigns": [
@@ -224,6 +225,13 @@
         "code-01"
       ],
       "campaign_sha256": "51121f119be6f46c8540f33e97405a7770d8faa1cdfb4278c2c009dd56ca71fb"
+    },
+    {
+      "campaign_id": "codex-code-entry-code02-v7-20260802",
+      "tasks": [
+        "code-02"
+      ],
+      "campaign_sha256": "393545a608eb5d3ce2355d2c964aac8a683569660cbab96a5df6291730f65a25"
     }
   ],
   "calc_09_acceptance": {
@@ -2984,10 +2992,204 @@
     },
     "full_ledger": "bench/results/2026-08-02/live-vnc/code-01-attempts.json"
   },
+  "code_02_acceptance": {
+    "task": "Write, save, reopen, and visually verify structured JSON in Notepad",
+    "result": "passed",
+    "run_id": "ebf150b4-7050-40f8-8308-cc1446c897b9",
+    "reason": "A fresh blank document received valid JSON with the requested name, enabled, retries, and models values. The run retained eight verified-exact input receipts, saved code-02.json through one bounded workspace approval, reopened it through the native Open dialog, and completed only after the verifier visibly checked the persisted JSON. All 22 attempted actions completed with zero corrections, delivery retries, recoverable failures, provider failures, or same-run recovery.",
+    "wall_clock_ms": 433040,
+    "model_active_ms": 189959,
+    "provider_wait_ms": 153022,
+    "provider_serial_equivalent_ms": 190400,
+    "provider_overlap_ms": 37378,
+    "action_execution_ms": 274562,
+    "evidence_capture_ms": 3629,
+    "provider_calls": 27,
+    "reasoner_calls": 1,
+    "controller_calls": 10,
+    "verifier_calls": 16,
+    "actions_attempted": 22,
+    "actions_completed": 22,
+    "completion_efficiency": 1.0,
+    "exact_input_receipts": 8,
+    "input_receipt_totals": {
+      "requested_characters": 128,
+      "issued_characters": 128,
+      "observed_characters": 128,
+      "all_zero_edit_distance": true,
+      "all_zero_corrections": true,
+      "all_zero_delivery_retries": true,
+      "all_emitted_exactly_once": true
+    },
+    "unverified_inputs": 0,
+    "typing_corrections": 0,
+    "same_run_recoveries": 0,
+    "approval_count": 1,
+    "approval_scopes": [
+      "bounded_workspace_edit"
+    ],
+    "quiescence_status": "confirmed",
+    "reboot_ms": 83834,
+    "reboot_transition_observed": true,
+    "longest_action_ms": 69153,
+    "recording": {
+      "relative_path": "codex-code-entry-code02-v7-20260802/code-02/recording.webm",
+      "sha256": "9b48087d9455acc8320e239ba390d8d9e73d36bf05fbd3c5a71abb83c672c9ec",
+      "codec": "vp9",
+      "width": 2048,
+      "height": 1280,
+      "fps": 2,
+      "duration_ms": 490500,
+      "size_bytes": 1452355
+    },
+    "poster": {
+      "relative_path": "codex-code-entry-code02-v7-20260802/code-02/poster.jpg",
+      "sha256": "bc2999d393e03a92fbed0dddd1e04e994eb574c8f54fef45aca807385d32a5cc"
+    },
+    "campaign_sha256": "393545a608eb5d3ce2355d2c964aac8a683569660cbab96a5df6291730f65a25"
+  },
+  "code_02_attempts": [
+    {
+      "campaign_id": "codex-code-entry-code02-v1-20260802",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "run_id": "07bf2acc-0616-458d-99a3-2bd60fdc4293",
+      "reason": "The correct retries row was clipped by the refined OCR crop; the unverified-draft guard blocked continuation.",
+      "wall_clock_ms": 351476,
+      "provider_wait_ms": 128101,
+      "action_execution_ms": 217100,
+      "provider_calls": 14,
+      "actions_attempted": 9,
+      "actions_completed": 8,
+      "same_run_recoveries": 2,
+      "quiescence_status": "confirmed",
+      "reboot_ms": 120627,
+      "reboot_transition_observed": true,
+      "campaign_sha256": "d0f5a96452e12a32d731a7492be8b2f1c6fef289b746a192ac049d0e2bbe69e1"
+    },
+    {
+      "campaign_id": "codex-code-entry-code02-v2-20260802",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "run_id": "afb28ecd-ea00-4cc0-bf58-def8c2398a48",
+      "reason": "The enabled-row crop included the prior name row and failed with an exact wrong-region receipt.",
+      "wall_clock_ms": 172206,
+      "provider_wait_ms": 40041,
+      "action_execution_ms": 130574,
+      "provider_calls": 6,
+      "actions_attempted": 7,
+      "actions_completed": 6,
+      "same_run_recoveries": 0,
+      "quiescence_status": "confirmed",
+      "reboot_ms": 79108,
+      "reboot_transition_observed": true,
+      "campaign_sha256": "2728e1eaab3177e7bff2d2da83eec02b140bc2f8a7d813b3c00fb22f3de9c1b4"
+    },
+    {
+      "campaign_id": "codex-code-entry-code02-v3-20260802",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "run_id": "06b79366-8775-42c6-a078-66d5b7291f87",
+      "reason": "All ordinary rows were exact, but the one-character closing brace sat below the precise-localization length gate.",
+      "wall_clock_ms": 241414,
+      "provider_wait_ms": 116442,
+      "action_execution_ms": 119560,
+      "provider_calls": 15,
+      "actions_attempted": 13,
+      "actions_completed": 12,
+      "same_run_recoveries": 2,
+      "quiescence_status": "confirmed",
+      "reboot_ms": 76693,
+      "reboot_transition_observed": true,
+      "campaign_sha256": "cc4e8cbff0689786ef7446c0e3435b0019a42433519e18ef86f0ca338808fd9d"
+    },
+    {
+      "campaign_id": "codex-code-entry-code02-v4-20260802",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "run_id": "2f8c24a0-d53f-428d-bef6-b945c0c64453",
+      "reason": "The visible closing brace was rejected because its compact pixel delta was not line-shaped.",
+      "wall_clock_ms": 281260,
+      "provider_wait_ms": 94255,
+      "action_execution_ms": 182908,
+      "provider_calls": 12,
+      "actions_attempted": 13,
+      "actions_completed": 12,
+      "same_run_recoveries": 1,
+      "quiescence_status": "confirmed",
+      "reboot_ms": 84418,
+      "reboot_transition_observed": true,
+      "campaign_sha256": "0488b6a8329a9c507c0e80920ea155d2132d08d14bab827e7bd0b2e4dd0e4644"
+    },
+    {
+      "campaign_id": "codex-code-entry-code02-v5-20260802",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "run_id": "f1152ec3-b354-4094-9216-804403d078a5",
+      "reason": "Nine rows verified exactly; the indented array close remained below the four-character structural gate.",
+      "wall_clock_ms": 335815,
+      "provider_wait_ms": 116934,
+      "action_execution_ms": 214040,
+      "provider_calls": 15,
+      "actions_attempted": 19,
+      "actions_completed": 18,
+      "same_run_recoveries": 1,
+      "quiescence_status": "confirmed",
+      "reboot_ms": 94995,
+      "reboot_transition_observed": true,
+      "campaign_sha256": "f461d31511c46afdedaf8d3bda4bfea8c19e2d6d91af36c0178108a3a6221e3e"
+    },
+    {
+      "campaign_id": "codex-code-entry-code02-v6-20260802",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "run_id": "7792e464-f4e3-48de-b486-b3d20c3a3073",
+      "reason": "The exact closing bracket produced only a 62-pixel delta, so the locator followed the larger Notepad status repaint and failed closed.",
+      "wall_clock_ms": 347389,
+      "provider_wait_ms": 97261,
+      "action_execution_ms": 246718,
+      "provider_calls": 12,
+      "actions_attempted": 19,
+      "actions_completed": 18,
+      "same_run_recoveries": 0,
+      "quiescence_status": "confirmed",
+      "reboot_ms": 87391,
+      "reboot_transition_observed": true,
+      "campaign_sha256": "7af4b751d0187825e607aa0bd584ca81ae6e846792f6742c0e682e9696c2c3d8"
+    },
+    {
+      "campaign_id": "codex-code-entry-code02-v7-20260802",
+      "reported_status": "passed",
+      "accepted_status": "passed",
+      "run_id": "ebf150b4-7050-40f8-8308-cc1446c897b9",
+      "reason": "Eight exact receipts covered valid structured JSON and the filename; save, native reopen, final visual verification, quiescence, and reset-ready all passed.",
+      "wall_clock_ms": 433040,
+      "provider_wait_ms": 153022,
+      "action_execution_ms": 274562,
+      "provider_calls": 27,
+      "actions_attempted": 22,
+      "actions_completed": 22,
+      "same_run_recoveries": 0,
+      "quiescence_status": "confirmed",
+      "reboot_ms": 83834,
+      "reboot_transition_observed": true,
+      "campaign_sha256": "393545a608eb5d3ce2355d2c964aac8a683569660cbab96a5df6291730f65a25"
+    }
+  ],
+  "code_02_attempt_summary": {
+    "total_runs": 7,
+    "failed_runs": 6,
+    "passed_runs": 1,
+    "failure_terminal_outcomes": {
+      "incorrect_or_clipped_ocr_region": 2,
+      "structural_glyph_localization": 4
+    },
+    "full_ledger": "bench/results/2026-08-02/live-vnc/code-02-attempts.json"
+  },
   "verdict": {
-    "accuracy": "The campaign is 26/50. All ten Text entry tasks and the first Code entry task now pass with fresh input and independent reopen evidence. Code-01 completed 32/32 actions with 15 exact receipts covering 352 requested, issued, and observed characters, zero corrections or retries, and no recovery. The summary retains detailed v39-v48 causes and links the complete 49-run failure-inclusive ledger.",
-    "speed": "Failing product target: accepted code-01 v48 took 637.551 seconds before reboot and 715.156 seconds including the reset-ready gate. A competent human can type, save, reopen, and inspect this 12-line function materially faster.",
-    "dominant_cost": "Code-01 v48 spent 425.520 seconds in action execution and 204.892 seconds waiting for 30 provider calls. Exact per-row screen verification is 66.74% of wall time; provider wait is 32.14%. Accuracy passes this task, but verification latency is the primary speed problem.",
-    "next": "Continue with code-02. Preserve exact per-row delivery, native save/reopen proof, bounded workspace approval, non-destructive fresh-artifact preparation, quiesce-before-reboot lifecycle, and failure-inclusive recordings. Reduce redundant verifier work without weakening exactness."
+    "accuracy": "The campaign is 27/50. All ten Text entry tasks and the first two Code entry tasks pass with fresh input and independent reopen evidence. Code-02 completed 22/22 actions with eight exact receipts covering 128 requested, issued, and observed characters, zero corrections or retries, and no recovery. Six preceding failures remain in the denominator and the full seven-run ledger is linked.",
+    "speed": "Failing product target: accepted code-02 v7 took 433.040 seconds before reboot and 516.874 seconds including the reset-ready gate. A competent human can enter, save, reopen, and inspect this small JSON document materially faster.",
+    "dominant_cost": "Code-02 v7 spent 274.562 seconds in action execution and 153.022 seconds waiting for 27 provider calls. The compact closing brace alone took 69.153 seconds after causal localization. Exact screen verification is 63.40% of wall time; provider wait is 35.34%. Accuracy passes this task, but readback latency remains the primary speed problem.",
+    "next": "Continue with code-03 after removing redundant full-context OCR for an already localized exact structural glyph. Preserve exact-once input, native save/reopen proof, bounded workspace approval, fresh-artifact preparation, quiesce-before-reboot lifecycle, and failure-inclusive recordings."
   }
 }
