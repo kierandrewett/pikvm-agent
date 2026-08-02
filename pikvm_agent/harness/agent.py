@@ -3691,6 +3691,7 @@ class AgentHarness:
         )
         recovered_passive_wait_interrupt = (
             observation.status == "interrupted"
+            and observation.raw.get("reason") == "deadline"
             and local_verdict is not None
         )
         if (

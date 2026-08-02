@@ -1553,7 +1553,14 @@ def test_generated_code_line_break_still_requires_model_verification() -> None:
 
 
 @pytest.mark.asyncio
-async def test_exact_artifact_receipt_survives_interrupted_passive_wait() -> None:
+@pytest.mark.parametrize(
+    ("interrupt_reason", "expected_accepted"),
+    [("deadline", True), ("control_changed", False)],
+)
+async def test_exact_artifact_receipt_survives_only_passive_deadline(
+    interrupt_reason: str,
+    expected_accepted: bool,
+) -> None:
     provider = ScriptedProvider()
     harness = build_harness(provider, FakeComputer())
     content = (
@@ -1621,6 +1628,7 @@ async def test_exact_artifact_receipt_survives_interrupted_passive_wait() -> Non
         image_sha256="b" * 64,
         screen_hash="b2",
         raw={
+            "reason": interrupt_reason,
             "action_receipts": [
                 {
                     "index": 0,
@@ -1656,19 +1664,25 @@ async def test_exact_artifact_receipt_survives_interrupted_passive_wait() -> Non
         parallel_next_control=True,
     )
 
-    assert accepted is True
-    assert run.status is RunStatus.RUNNING
+    assert accepted is expected_accepted
     assert run.pending_action is None
-    assert run.next_action_index == 9
-    assert run.last_verification is not None
-    assert run.last_verification.verdict == "verified"
-    assert any(
-        event.kind == "action.completed"
-        and event.data["outer_status"] == "interrupted"
-        for event in run.events
-    )
-    assert not any(event.kind == "action.failed" for event in run.events)
-    assert run.run_id in harness._prefetched_controllers
+    if expected_accepted:
+        assert run.status is RunStatus.RUNNING
+        assert run.next_action_index == 9
+        assert run.last_verification is not None
+        assert run.last_verification.verdict == "verified"
+        assert any(
+            event.kind == "action.completed"
+            and event.data["outer_status"] == "interrupted"
+            for event in run.events
+        )
+        assert not any(event.kind == "action.failed" for event in run.events)
+        assert run.run_id in harness._prefetched_controllers
+    else:
+        assert run.status is RunStatus.FAILED
+        assert run.last_verification is None
+        assert any(event.kind == "action.failed" for event in run.events)
+        assert run.run_id not in harness._prefetched_controllers
 
 
 def test_controller_can_launch_a_standard_app_in_one_safe_burst() -> None:
