@@ -13,6 +13,7 @@ from pikvm_agent.runtime import (
     Runtime,
     RuntimeCapabilities,
     _local_pointer_freshness_enabled,
+    _safe_error_dialog_region,
     nearest_ocr_target_text,
 )
 
@@ -807,6 +808,81 @@ async def test_grounded_calculator_expression_does_not_need_send_approval(
         ["Digit9"],
         ["Enter"],
     ]
+
+
+async def test_safe_error_click_reads_only_the_dialog_before_dismissal(
+    runtime: Runtime,
+) -> None:
+    """A small dark Notepad error must not be diluted by the desktop OCR."""
+
+    click_x = 554
+    click_y = 299
+    expected_region = _safe_error_dialog_region(
+        1280,
+        720,
+        {"x": click_x, "y": click_y},
+    )
+
+    class MissingFileOCR:
+        def __init__(self) -> None:
+            self.precise_regions: list[Region] = []
+
+        async def ocr(self, image_path, region=None):
+            del image_path
+            if region is not None:
+                return OCRResult(
+                    lines=[
+                        OCRLine(
+                            text="OK",
+                            confidence=0.99,
+                            bbox=[165, 30, 195, 60],
+                        )
+                    ]
+                )
+            return OCRResult(lines=[OCRLine(text="Notepad")])
+
+        async def ocr_precise(self, image_path, region=None):
+            del image_path
+            assert region is not None
+            self.precise_regions.append(region)
+            return OCRResult(
+                lines=[
+                    OCRLine(text="Notepad"),
+                    OCRLine(
+                        text=(
+                            "Cannot find the C:\\PiKVM-Harness\\workspace\\"
+                            "codex-50\\code-04.sql file."
+                        )
+                    ),
+                    OCRLine(text="OK"),
+                ]
+            )
+
+    ocr = MissingFileOCR()
+    runtime._screen_parser.ocr = ocr
+    sid = (await runtime.start_session("direct"))["session_id"]
+    shot = await runtime.get_session_summary(sid, capture=True)
+
+    result = await runtime.run_burst(
+        sid,
+        [
+            {"type": "click", "x": click_x, "y": click_y},
+            {"type": "wait_for_change", "timeout_ms": 2_000},
+            {
+                "type": "wait_for_stable_screen",
+                "stable_ms": 400,
+                "timeout_ms": 3_000,
+            },
+        ],
+        based_on_world_version=shot["world_version"],
+        based_on_control_epoch=shot["control_epoch"],
+        idempotency_key="dismiss-grounded-notepad-error",
+    )
+
+    assert result["status"] == "completed"
+    assert ocr.precise_regions == [expected_region]
+    assert expected_region == Region(x=294, y=179, width=400, height=175)
+    assert [call[0] for call in _hid_calls(runtime)] == ["click"]
 
 
 async def test_exact_explorer_receipt_records_post_action_screen_fingerprint(

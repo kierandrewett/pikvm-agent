@@ -1108,6 +1108,12 @@ def _notepad_new_document_controller(
     ):
         return None
     actions = [
+        # Windows 11 Notepad can restore tabs whose backing artifact was
+        # deliberately preserved by the clean-run preflight. Escape cancels
+        # that harmless missing-file modal without accepting any commit, and
+        # is a no-op when no startup modal exists.
+        {"type": "key", "keys": ["Escape"]},
+        {"type": "wait", "ms": 300},
         {"type": "key", "keys": ["ControlLeft", "KeyN"]},
         {"type": "wait_for_change", "timeout_ms": 3_000},
         {
@@ -1123,7 +1129,8 @@ def _notepad_new_document_controller(
         intent="Create a fresh blank Notepad document.",
         actions=actions,
         expected_evidence=[
-            "Notepad visibly shows a fresh blank editable document."
+            "Any restored-file notice is dismissed and Notepad visibly "
+            "shows a fresh blank editable document."
         ],
         expects_task_completion=False,
     )

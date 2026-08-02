@@ -694,6 +694,8 @@ def test_exact_notepad_task_prepares_new_document_and_exact_text() -> None:
         action.model_dump(mode="json", exclude_none=True)
         for action in new_document.actions
     ] == [
+        {"type": "key", "keys": ["Escape"]},
+        {"type": "wait", "ms": 300},
         {"type": "key", "keys": ["ControlLeft", "KeyN"]},
         {"type": "wait_for_change", "timeout_ms": 3_000},
         {
@@ -815,6 +817,10 @@ def test_campaign_code_task_creates_document_after_committed_launch() -> None:
     assert decision is not None
     assert decision.intent == "Create a fresh blank Notepad document."
     assert decision.actions[0].model_dump(mode="json", exclude_none=True) == {
+        "type": "key",
+        "keys": ["Escape"],
+    }
+    assert decision.actions[2].model_dump(mode="json", exclude_none=True) == {
         "type": "key",
         "keys": ["ControlLeft", "KeyN"],
     }

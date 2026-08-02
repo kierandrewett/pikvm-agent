@@ -68,6 +68,10 @@ DEFAULT_MAX_STEPS = 12
 PANIC_QUIESCE_TIMEOUT_S = 5.0
 LOCAL_POINTER_FRESHNESS_RADIUS_PX = 48
 LOCAL_POINTER_FRESHNESS_MAX_DELTA = 0.035
+SAFE_ERROR_DIALOG_LEFT_OF_COMMIT_PX = 260
+SAFE_ERROR_DIALOG_RIGHT_OF_COMMIT_PX = 140
+SAFE_ERROR_DIALOG_ABOVE_COMMIT_PX = 120
+SAFE_ERROR_DIALOG_BELOW_COMMIT_PX = 55
 
 
 @dataclass(frozen=True)
@@ -150,6 +154,33 @@ def _localized_pointer_freshness(
             return True, largest_delta
     except (OSError, TypeError, ValueError, KeyError):
         return False, None
+
+
+def _safe_error_dialog_region(
+    width: int,
+    height: int,
+    click: dict[str, Any] | None,
+) -> Region:
+    """Bound OCR to the Windows error dialog around its commit button."""
+
+    if click is None:
+        left = round(width * 0.15)
+        top = round(height * 0.15)
+        right = round(width * 0.85)
+        bottom = round(height * 0.85)
+    else:
+        click_x = int(click["x"])
+        click_y = int(click["y"])
+        left = max(0, click_x - SAFE_ERROR_DIALOG_LEFT_OF_COMMIT_PX)
+        top = max(0, click_y - SAFE_ERROR_DIALOG_ABOVE_COMMIT_PX)
+        right = min(width, click_x + SAFE_ERROR_DIALOG_RIGHT_OF_COMMIT_PX)
+        bottom = min(height, click_y + SAFE_ERROR_DIALOG_BELOW_COMMIT_PX)
+    return Region(
+        x=left,
+        y=top,
+        width=max(1, right - left),
+        height=max(1, bottom - top),
+    )
 
 
 def nearest_ocr_target_text(
@@ -1449,27 +1480,15 @@ class Runtime:
                 ),
                 None,
             )
-            if click is None:
-                left = round(frame.width * 0.15)
-                top = round(frame.height * 0.15)
-                right = round(frame.width * 0.85)
-                bottom = round(frame.height * 0.85)
-            else:
-                click_x = int(click["x"])
-                click_y = int(click["y"])
-                left = max(0, click_x - 400)
-                top = max(0, click_y - 160)
-                right = min(frame.width, click_x + 400)
-                bottom = min(frame.height, click_y + 160)
+            dialog_region = _safe_error_dialog_region(
+                frame.width,
+                frame.height,
+                click,
+            )
             try:
                 precise = await precise_ocr(
                     Path(frame.image_path),
-                    region=Region(
-                        x=left,
-                        y=top,
-                        width=max(1, right - left),
-                        height=max(1, bottom - top),
-                    ),
+                    region=dialog_region,
                 )
             except Exception:
                 return (observed_text, False)
