@@ -11,9 +11,9 @@ mismatch) is self-corrected inline — at most once — without burning an agent
 It is a pure orchestrator: every side effect (keystrokes, capture, OCR, layout)
 is reached through the injected ``backend``/``ocr``, so it is unit-testable and
 imports no I/O of its own. It NEVER emits Enter — correction is limited to
-bounded editing keys, including one local character replacement for Notepad's
-standalone-``i`` autocorrection. A short field readback may also move focus with
-Tab/Shift-Tab or
+bounded editing keys, including one grounded local character replacement for
+Notepad's standalone-``i`` autocorrection or a repeated punctuation transport
+slip. A short field readback may also move focus with Tab/Shift-Tab or
 select an existing draft with Ctrl+A solely to remove a blinking caret from
 OCR. Committing is the caller's job.
 
@@ -149,6 +149,18 @@ AUTOCORRECT_REPLACEMENT_FAILED_SUMMARY = (
     "uppercase `I`, and one bounded local replacement did not restore the "
     "exact text. "
     "Do not append or replay the draft until the visible field is corrected."
+)
+PUNCTUATION_REPLACEMENT_FAILED_SUMMARY = (
+    "Typing stopped after two settled, high-confidence reads showed one "
+    "punctuation transport substitution, and one bounded local replacement "
+    "did not restore the exact text. Do not append or replay the draft until "
+    "the visible field is corrected."
+)
+MISSING_GLYPH_REPLACEMENT_FAILED_SUMMARY = (
+    "Typing stopped after two settled, high-confidence reads and the editor "
+    "caret column proved one missing glyph, but one bounded local insertion "
+    "did not restore the exact text. Do not append or replay the draft until "
+    "the visible field is corrected."
 )
 
 
@@ -345,35 +357,17 @@ def _bounded_editor_status_rows(
     return candidates
 
 
-def editor_caret_column_proves_leading_whitespace(
+def _editor_caret_column_matches(
     result: OCRResult,
-    intended: str,
     row_region: Region,
     dims: tuple[int, int],
     *,
+    expected_column: int,
     container_region: Region | None = None,
 ) -> bool:
-    """Confirm invisible leading spaces from the nearest editor status row.
-
-    OCR cannot paint a bounding box around blank indentation. Modern Notepad
-    does expose the caret column, however, so an exact visible suffix plus
-    ``Col == len(payload) + 1`` proves the missing leading positions. Only the
-    nearest parsed status row below the causal text row is considered; a more
-    distant background Notepad window can never rescue a conflicting or
-    unreadable foreground status.
-    """
-
     width, height = dims
-    leading_spaces = len(intended) - len(intended.lstrip(" "))
-    if (
-        leading_spaces <= 0
-        or "\n" in intended
-        or "\r" in intended
-        or width <= 0
-        or height <= 0
-    ):
+    if width <= 0 or height <= 0 or expected_column <= 0:
         return False
-    expected_column = len(intended) + 1
     candidates = _bounded_editor_status_rows(
         result,
         row_region,
@@ -412,6 +406,61 @@ def editor_caret_column_proves_leading_whitespace(
         return alternative_column == expected_column
     _gap, _offset, _line, nearest_column, _characters = min(candidates)
     return nearest_column == expected_column
+
+
+def editor_caret_column_proves_leading_whitespace(
+    result: OCRResult,
+    intended: str,
+    row_region: Region,
+    dims: tuple[int, int],
+    *,
+    container_region: Region | None = None,
+) -> bool:
+    """Confirm invisible leading spaces from the nearest editor status row.
+
+    OCR cannot paint a bounding box around blank indentation. Modern Notepad
+    does expose the caret column, however, so an exact visible suffix plus
+    ``Col == len(payload) + 1`` proves the missing leading positions. Only the
+    nearest parsed status row below the causal text row is considered; a more
+    distant background Notepad window can never rescue a conflicting or
+    unreadable foreground status.
+    """
+
+    leading_spaces = len(intended) - len(intended.lstrip(" "))
+    if (
+        leading_spaces <= 0
+        or "\n" in intended
+        or "\r" in intended
+    ):
+        return False
+    return _editor_caret_column_matches(
+        result,
+        row_region,
+        dims,
+        expected_column=len(intended) + 1,
+        container_region=container_region,
+    )
+
+
+def editor_caret_column_proves_one_missing_glyph(
+    result: OCRResult,
+    intended: str,
+    row_region: Region,
+    dims: tuple[int, int],
+    *,
+    container_region: Region | None = None,
+) -> bool:
+    """Confirm the caret is exactly one character short of the payload."""
+
+    if not intended or "\n" in intended or "\r" in intended:
+        return False
+    return _editor_caret_column_matches(
+        result,
+        row_region,
+        dims,
+        expected_column=len(intended),
+        container_region=container_region,
+    )
 
 
 def editor_status_proves_single_line_payload(
@@ -649,6 +698,81 @@ def standalone_i_autocorrect_navigation(
     if prefix_length <= MAX_AUTOCORRECT_CURSOR_STEPS:
         return ("Home", "ArrowRight", prefix_length)
     return None
+
+
+def editor_punctuation_transport_substitution(
+    intended: str,
+    observed: str,
+) -> tuple[int, str, str] | None:
+    """Locate one visible punctuation substitution from the line end.
+
+    Editor OCR omits leading indentation, so compare the painted row only.
+    Internal spacing and every other glyph must remain byte-for-byte exact
+    after quote-family folding. The expected glyph must be punctuation; case
+    and alphanumeric mismatches retain their existing fail-closed paths.
+    """
+
+    expected = fold_quotes(intended.lstrip(" "))
+    actual = fold_quotes(strip_prompt(observed).strip())
+    if (
+        not expected
+        or "\n" in expected
+        or "\r" in expected
+        or len(expected) != len(actual)
+    ):
+        return None
+    differences = [
+        index
+        for index, (wanted, seen) in enumerate(
+            zip(expected, actual, strict=True)
+        )
+        if wanted != seen
+    ]
+    if len(differences) != 1:
+        return None
+    index = differences[0]
+    wanted = expected[index]
+    seen = actual[index]
+    if wanted.isalnum() or wanted.isspace() or seen.isspace():
+        return None
+    suffix_length = len(expected) - index - 1
+    if suffix_length > MAX_AUTOCORRECT_CURSOR_STEPS:
+        return None
+    return suffix_length, intended.lstrip(" ")[index], seen
+
+
+def editor_single_glyph_transport_deletion(
+    intended: str,
+    observed: str,
+) -> tuple[int, str] | None:
+    """Locate one uniquely missing editor glyph from the line end."""
+
+    expected = intended.lstrip(" ")
+    actual = strip_prompt(observed).strip()
+    folded_expected = fold_quotes(expected)
+    folded_actual = fold_quotes(actual)
+    if (
+        not expected
+        or "\n" in expected
+        or "\r" in expected
+        or len(folded_actual) + 1 != len(folded_expected)
+    ):
+        return None
+    missing_indices = [
+        index
+        for index in range(len(folded_expected))
+        if (
+            folded_expected[:index] + folded_expected[index + 1 :]
+            == folded_actual
+        )
+    ]
+    if len(missing_indices) != 1:
+        return None
+    index = missing_indices[0]
+    suffix_length = len(expected) - index - 1
+    if suffix_length > MAX_AUTOCORRECT_CURSOR_STEPS:
+        return None
+    return suffix_length, expected[index]
 
 
 def is_caps_lock_case_inversion(intended: str, observed: str) -> bool:
@@ -2614,7 +2738,7 @@ class WatchedTyper:
         delivery_retries = 0
         last_read = ""
         verified_clean = False
-        autocorrect_replacement_failed = False
+        local_replacement_failure: tuple[VerificationStatus, str] | None = None
         can_vision = not secret and (
             total > 4
             or (precise and total >= 3)
@@ -3119,6 +3243,48 @@ class WatchedTyper:
             }
             return candidates.pop() if len(candidates) == 1 else read_back
 
+        def unique_editor_punctuation_substitution_candidate(
+            intended_snapshot: str,
+        ) -> str:
+            """Return one high-confidence row with one punctuation HID slip."""
+
+            candidates = {
+                row.strip()
+                for line in self._last_field_ocr_result.lines
+                if (
+                    line.confidence is not None
+                    and float(line.confidence) >= 0.95
+                )
+                for row in line.text.splitlines()
+                if editor_punctuation_transport_substitution(
+                    intended_snapshot,
+                    row.strip(),
+                )
+                is not None
+            }
+            return candidates.pop() if len(candidates) == 1 else ""
+
+        def unique_editor_single_deletion_candidate(
+            intended_snapshot: str,
+        ) -> str:
+            """Return one high-confidence row missing one requested glyph."""
+
+            candidates = {
+                row.strip()
+                for line in self._last_field_ocr_result.lines
+                if (
+                    line.confidence is not None
+                    and float(line.confidence) >= 0.95
+                )
+                for row in line.text.splitlines()
+                if editor_single_glyph_transport_deletion(
+                    intended_snapshot,
+                    row.strip(),
+                )
+                is not None
+            }
+            return candidates.pop() if len(candidates) == 1 else ""
+
         async def prove_editor_whitespace(
             read_back: str,
             intended_snapshot: str,
@@ -3471,7 +3637,7 @@ class WatchedTyper:
                     await asyncio.sleep(_CLEAR_SETTLE_S)
 
         async def maybe_correct(read_back: str, intended_snapshot: str) -> None:
-            nonlocal autocorrect_replacement_failed
+            nonlocal local_replacement_failure
             nonlocal corrections, last_read, verified_clean
             read_back = self._typed_candidate(read_back, intended_snapshot, precise)
             if precise and editor_field:
@@ -3516,11 +3682,6 @@ class WatchedTyper:
                 and len(intended_snapshot) > 20
                 and kind in {"layout", "case"}
             )
-            if long_precise_layout_like_read:
-                # The final long single-line draft was already selected for a
-                # same-focus OCR pass. Never move focus or replay it: Windows
-                # Save As discards an unsubmitted address-bar draft on Tab.
-                return
             if (
                 precise
                 and editor_field
@@ -3635,7 +3796,125 @@ class WatchedTyper:
                     if norm(intended_snapshot, True) == norm(text, True):
                         verified_clean = True
                     return
-                autocorrect_replacement_failed = True
+                local_replacement_failure = (
+                    "failed_case_mismatch",
+                    AUTOCORRECT_REPLACEMENT_FAILED_SUMMARY,
+                )
+                return
+            punctuation_candidate = (
+                unique_editor_punctuation_substitution_candidate(
+                    intended_snapshot,
+                )
+                if precise and editor_field
+                else ""
+            )
+            punctuation_substitution = (
+                editor_punctuation_transport_substitution(
+                    intended_snapshot,
+                    punctuation_candidate,
+                )
+                if punctuation_candidate
+                else None
+            )
+            if punctuation_substitution is not None:
+                # A shifted punctuation key can occasionally arrive without
+                # its modifier over a remote desktop transport (for example,
+                # ``)`` becomes ``0``). Require the identical single-glyph
+                # mismatch on a second settled, high-confidence crop, then
+                # replace only that character from End. Existing indentation
+                # is intentionally absent from the navigation calculation.
+                await asyncio.sleep(_CARET_BLINK_RECHECK_S)
+                await self._read_field(
+                    current_readback_region(intended_snapshot),
+                    intended=intended_snapshot,
+                    precise=True,
+                    allow_blind_fallback=True,
+                )
+                repeated = (
+                    unique_editor_punctuation_substitution_candidate(
+                        intended_snapshot,
+                    )
+                )
+                repeated_substitution = (
+                    editor_punctuation_transport_substitution(
+                        intended_snapshot,
+                        repeated,
+                    )
+                    if repeated
+                    else None
+                )
+                if (
+                    repeated_substitution != punctuation_substitution
+                    or repeated != punctuation_candidate
+                ):
+                    last_read = repeated or read_back
+                    return
+                suffix_length, expected_character, observed_character = (
+                    punctuation_substitution
+                )
+                DEBUG.event(
+                    "typing.editor_punctuation_substitution_detected",
+                    intended_characters=len(intended_snapshot),
+                    suffix_length=suffix_length,
+                    expected_character=expected_character,
+                    observed_character=observed_character,
+                )
+                corrections += 1
+                await self.backend.press_key("End")
+                for _ in range(suffix_length):
+                    await self.backend.press_key("ArrowLeft")
+                    await asyncio.sleep(_CURSOR_REPEAT_SETTLE_S)
+                await self.backend.press_key("Backspace")
+                await emit_text(expected_character)
+                await self.backend.press_key("End")
+                await asyncio.sleep(_CLEAR_SETTLE_S)
+                corrected_read = self._typed_candidate(
+                    await self._read_field(
+                        current_readback_region(intended_snapshot),
+                        intended=intended_snapshot,
+                        precise=True,
+                        allow_blind_fallback=True,
+                    ),
+                    intended_snapshot,
+                    True,
+                )
+                corrected_read = unique_editor_exact_candidate_after_correction(
+                    intended_snapshot,
+                    corrected_read,
+                )
+                corrected_read = await prove_editor_whitespace(
+                    corrected_read,
+                    intended_snapshot,
+                    phase="punctuation_replacement",
+                )
+                last_read = corrected_read
+                restored = (
+                    compute_verdict(
+                        intended_snapshot,
+                        corrected_read,
+                        True,
+                    )
+                    == "match"
+                )
+                DEBUG.event(
+                    "typing.editor_punctuation_substitution_replacement",
+                    restored=restored,
+                    intended_characters=len(intended_snapshot),
+                    suffix_length=suffix_length,
+                )
+                if restored:
+                    if norm(intended_snapshot, True) == norm(text, True):
+                        verified_clean = True
+                    return
+                local_replacement_failure = (
+                    "failed_symbol_mismatch",
+                    PUNCTUATION_REPLACEMENT_FAILED_SUMMARY,
+                )
+                return
+            if long_precise_layout_like_read:
+                # The final long single-line draft was already selected for a
+                # same-focus OCR pass. Never move focus or replay it: Windows
+                # Save As discards an unsubmitted address-bar draft on Tab.
                 return
             if (
                 precise
@@ -3862,11 +4141,13 @@ class WatchedTyper:
             await asyncio.sleep(_CLEAR_SETTLE_S)
             await emit_text(typed_so_far)
 
-        def failed_autocorrect_result(
+        def failed_local_replacement_result(
             typed_characters: int,
         ) -> WatchedTypingResult:
+            assert local_replacement_failure is not None
+            status, summary = local_replacement_failure
             return self._halted_result(
-                status="failed_case_mismatch",
+                status=status,
                 field_text=last_read,
                 corrected=True,
                 correction_count=corrections,
@@ -3874,7 +4155,7 @@ class WatchedTyper:
                 used_fast_path=fast_print,
                 typed_characters=typed_characters,
                 intended_characters=len(text),
-                summary=AUTOCORRECT_REPLACEMENT_FAILED_SUMMARY,
+                summary=summary,
                 intended_text=text,
                 emitted_text="".join(emitted_parts),
                 readback_frame_sha256=self._last_readback_frame_sha256,
@@ -4191,9 +4472,9 @@ class WatchedTyper:
             ):
                 rb = await read_current_field(typed_so_far)
                 await maybe_correct(rb, typed_so_far)
-                if autocorrect_replacement_failed:
+                if local_replacement_failure is not None:
                     await self._release_all_quietly()
-                    return failed_autocorrect_result(
+                    return failed_local_replacement_result(
                         len(typed_so_far)
                     )
                 if corrections > 0:
@@ -4205,9 +4486,9 @@ class WatchedTyper:
             corrections_before = corrections
             rb = await read_current_field(text)
             await maybe_correct(rb, text)
-            if autocorrect_replacement_failed:
+            if local_replacement_failure is not None:
                 await self._release_all_quietly()
-                return failed_autocorrect_result(len(text))
+                return failed_local_replacement_result(len(text))
             if corrections > corrections_before:
                 # The final read triggered a clear+retype — re-read so the verdict
                 # reflects the corrected field, not the pre-correction mismatch.

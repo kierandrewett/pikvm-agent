@@ -33,6 +33,7 @@ from pikvm_agent.executor.typing import (
     _substantial_change_outside_region,
     chunk_text,
     editor_caret_column_proves_leading_whitespace,
+    editor_punctuation_transport_substitution,
     editor_status_search_region,
     is_disjoint_editor_effect,
     is_caps_lock_case_inversion,
@@ -3134,6 +3135,24 @@ def test_case_correction_signatures_are_narrow() -> None:
         "for i in range(1, limit + 1):",
         "for I in range(1, limit + 1):",
     ) == ("End", "ArrowLeft", 24)
+    assert editor_punctuation_transport_substitution(
+        '            result.append("FizzBuzz")',
+        'result.append("FizzBuzz"0',
+    ) == (0, ")", "0")
+    assert (
+        editor_punctuation_transport_substitution(
+            '            result.append("FizzBuzz")',
+            'result.append("FuzzBuzz"0',
+        )
+        is None
+    )
+    assert (
+        editor_punctuation_transport_substitution(
+            "    return result",
+            "return resu1t",
+        )
+        is None
+    )
 
 
 @pytest.mark.parametrize(
@@ -3381,7 +3400,102 @@ async def test_indented_editor_one_glyph_transport_slip_is_repaired_locally(
         for method, kwargs in backend.calls
         if method == "press_key"
     ]
-    assert pressed == ["End", "Backspace", "End"]
+    assert pressed[-3:] == ["End", "Backspace", "End"]
+    _assert_no_enter(backend)
+
+
+async def test_editor_one_missing_glyph_is_inserted_locally(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A repeated, status-proved HID deletion inserts only the missing glyph."""
+
+    async def no_sleep(_seconds: float) -> None:
+        return None
+
+    backend = FakeBackend()
+    intended = "def fizzbuzz(limit):"
+    observed = "def fizzbuzz(imit):"
+
+    class MissingGlyphOCR:
+        async def ocr_precise(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path
+            if (
+                region is not None
+                and region.x == 0
+                and region.width == 512
+                and region.height >= 90
+                and region.y > 140
+            ):
+                foreground_y = region.height - 20
+                return OCRResult(
+                    lines=[
+                        OCRLine(
+                            text="Ln 1, Col 20   19 characters",
+                            confidence=0.99,
+                            bbox=[20, foreground_y, 148, foreground_y + 12],
+                        )
+                    ]
+                )
+            repaired = any(
+                method == "type_text" and kwargs.get("text") == "l"
+                for method, kwargs in backend.calls
+            )
+            return OCRResult(
+                lines=[
+                    OCRLine(
+                        text=intended if repaired else observed,
+                        confidence=0.99,
+                        bbox=[44, 84, 190, 105],
+                    )
+                ]
+            )
+
+        async def ocr(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            return await self.ocr_precise(image_path, region)
+
+    monkeypatch.setattr(asyncio, "sleep", no_sleep)
+    typer = WatchedTyper(backend, MissingGlyphOCR())
+    flat = _flat_grid()
+    changed = flat.copy().reshape(GRID_ROWS, GRID_COLS)
+    changed[8:10, 5:25] = 200
+    grids = [flat, changed.reshape(-1)]
+
+    async def changed_grid() -> np.ndarray:
+        return grids.pop(0) if grids else changed.reshape(-1)
+
+    typer._grid = changed_grid  # type: ignore[method-assign]
+
+    result = await typer.type_text(
+        intended,
+        code=True,
+        exact=True,
+        context="editor",
+    )
+
+    assert result.status == "verified_exact", result
+    assert result.field_text == intended
+    assert result.correction_count == 1
+    assert result.emitted_exactly_once is False
+    assert [
+        kwargs["text"]
+        for method, kwargs in backend.calls
+        if method == "type_text"
+    ] == [intended, "l"]
+    pressed = [
+        kwargs.get("code")
+        for method, kwargs in backend.calls
+        if method == "press_key"
+    ]
+    assert pressed[:8] == ["End", *(["ArrowLeft"] * 6), "Home"]
+    assert pressed[-1] == "End"
     _assert_no_enter(backend)
 
 
@@ -3669,6 +3783,51 @@ async def test_failed_editor_autocorrect_replacement_stops_without_replaying_lin
         method == "press_key" and kwargs.get("code") == "CapsLock"
         for method, kwargs in backend.calls
     )
+    _assert_no_enter(backend)
+
+
+async def test_failed_editor_punctuation_replacement_stops_without_replaying_line() -> None:
+    backend = FakeBackend()
+    intended = 'result.append("FizzBuzz")'
+    observed = 'result.append("FizzBuzz"0'
+
+    class PersistentPunctuationSlipOCR:
+        async def ocr(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path, region
+            return OCRResult(
+                lines=[
+                    OCRLine(
+                        text=observed,
+                        confidence=0.99,
+                    )
+                ]
+            )
+
+    result = await WatchedTyper(
+        backend,
+        PersistentPunctuationSlipOCR(),
+    ).type_text(
+        intended,
+        region=Region(x=10, y=10, width=400, height=40),
+        code=True,
+        exact=True,
+        context="editor",
+    )
+
+    assert result.status == "failed_symbol_mismatch", result
+    assert result.correction_count == 1
+    assert result.typed_characters == len(intended)
+    assert result.intended_characters == len(intended)
+    assert result.emitted_exactly_once is False
+    assert [
+        kwargs["text"]
+        for method, kwargs in backend.calls
+        if method == "type_text"
+    ] == [intended, ")"]
     _assert_no_enter(backend)
 
 
