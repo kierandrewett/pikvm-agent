@@ -108,7 +108,11 @@ _EDITOR_STATUS_CHARACTER_COUNT_RE = re.compile(
 )
 DENSE_PIXEL_DELTA = 10
 DENSE_MIN_CHANGED_PIXELS = 80
-DENSE_COMPACT_MIN_CHANGED_PIXELS = 40
+# The measured 1280x800 VNC delta for Notepad's indented ``)`` is 37 pixels
+# after JPEG decoding (glyph plus caret). Exact cropped OCR and the independent
+# editor-status proof still gate acceptance, so retain that causal candidate
+# without relaxing ordinary line localisation.
+DENSE_COMPACT_MIN_CHANGED_PIXELS = 30
 DENSE_MIN_WIDTH = 8
 DENSE_MIN_HEIGHT = 4
 DENSE_MAX_HEIGHT = 64
