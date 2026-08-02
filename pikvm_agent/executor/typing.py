@@ -75,6 +75,7 @@ MAX_BOX_HEIGHT_FRAC = 0.6  # a change taller than this frac of screen = repaint
 CHUNK_TARGET = 16         # word-boundary chunk target length
 FAST_PRINT_CHUNK_TARGET = 64  # guarded printer target after its focus probe
 MAX_TOTAL_CORRECTIONS = 1  # one clean retry; never a compounding loop
+MAX_LOCAL_EDITOR_REPAIRS = 2  # independently re-proved glyph edits, no replay
 MAX_BACKSPACES = 400      # safety cap on a correction's clear
 MAX_AUTOCORRECT_CURSOR_STEPS = 64
 FAST_PRINT_MIN = 120      # above this, plain text takes the (bursty) fast print path;
@@ -3746,17 +3747,26 @@ class WatchedTyper:
                 await self.backend.press_key("ArrowRight")
                 await self.backend.press_key("Backspace")
                 await self.backend.press_key("End")
+                # Read the corrected row with the caret away from its final
+                # glyph. At Notepad's small acceptance-test font, a caret over
+                # ``:`` can look exactly like ``;`` to both local and model
+                # OCR. Restore End before returning control to the caller.
+                await self.backend.press_key("Home")
                 await asyncio.sleep(_CLEAR_SETTLE_S)
-                corrected_read = self._typed_candidate(
-                    await self._read_field(
-                        current_readback_region(intended_snapshot),
-                        intended=intended_snapshot,
-                        precise=True,
-                        allow_blind_fallback=True,
-                    ),
-                    intended_snapshot,
-                    True,
-                )
+                try:
+                    corrected_read = self._typed_candidate(
+                        await self._read_field(
+                            current_readback_region(intended_snapshot),
+                            intended=intended_snapshot,
+                            precise=True,
+                            allow_blind_fallback=True,
+                        ),
+                        intended_snapshot,
+                        True,
+                    )
+                finally:
+                    await self.backend.press_key("End")
+                    await asyncio.sleep(_CLEAR_SETTLE_S)
                 corrected_read = unique_editor_exact_candidate_after_correction(
                     intended_snapshot,
                     corrected_read,
@@ -3787,11 +3797,38 @@ class WatchedTyper:
                     if norm(intended_snapshot, True) == norm(text, True):
                         verified_clean = True
                     return
-                local_replacement_failure = (
-                    "failed_case_mismatch",
-                    AUTOCORRECT_REPLACEMENT_FAILED_SUMMARY,
+                chained_punctuation_candidate = (
+                    unique_editor_punctuation_substitution_candidate(
+                        intended_snapshot,
+                    )
                 )
-                return
+                if (
+                    corrections < MAX_LOCAL_EDITOR_REPAIRS
+                    and editor_punctuation_transport_substitution(
+                        intended_snapshot,
+                        chained_punctuation_candidate,
+                    )
+                    is not None
+                ):
+                    # The first local edit is complete, but its exact re-read
+                    # independently exposes one punctuation transport slip.
+                    # Fall through to the normal two-read punctuation repair;
+                    # this composes two bounded glyph edits without replaying
+                    # any already-present text.
+                    DEBUG.event(
+                        "typing.editor_local_repair_chained",
+                        completed="standalone_i",
+                        pending="punctuation_substitution",
+                        correction_count=corrections,
+                    )
+                    read_back = corrected_read
+                    last_read = corrected_read
+                else:
+                    local_replacement_failure = (
+                        "failed_case_mismatch",
+                        AUTOCORRECT_REPLACEMENT_FAILED_SUMMARY,
+                    )
+                    return
             punctuation_candidate = (
                 unique_editor_punctuation_substitution_candidate(
                     intended_snapshot,
@@ -3839,6 +3876,9 @@ class WatchedTyper:
                     or repeated != punctuation_candidate
                 ):
                     last_read = repeated or read_back
+                    return
+                if corrections >= MAX_LOCAL_EDITOR_REPAIRS:
+                    last_read = repeated
                     return
                 suffix_length, expected_character, observed_character = (
                     punctuation_substitution
@@ -3944,6 +3984,9 @@ class WatchedTyper:
                 )
                 if repeated != deletion_candidate or repeated_deletion != deletion:
                     last_read = repeated or read_back
+                    return
+                if corrections >= MAX_LOCAL_EDITOR_REPAIRS:
+                    last_read = repeated
                     return
 
                 def missing_glyph_status_predicate(
