@@ -3126,6 +3126,108 @@ async def test_indented_editor_autocorrect_uses_status_proof_after_replacement(
     _assert_no_enter(backend)
 
 
+@pytest.mark.parametrize(
+    ("reported_characters", "expected_status"),
+    [
+        (20, "verified_exact"),
+        (19, "unverified_ambiguous"),
+    ],
+)
+async def test_single_line_editor_replacement_uses_status_character_count_for_spacing(
+    monkeypatch: pytest.MonkeyPatch,
+    reported_characters: int,
+    expected_status: str,
+) -> None:
+    """A tall Ctrl+A repaint must not hide an exact one-line replacement.
+
+    OCR sees the complete rendered row, but its generic whitespace calibrator
+    cannot evaluate one short gap.  Foreground Notepad independently reports
+    line 1, the end column, and the exact document character count.
+    """
+
+    async def no_sleep(_seconds: float) -> None:
+        return None
+
+    intended = "def fizzbuzz(limit):"
+
+    class ReplacementOCR:
+        async def ocr_precise(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path
+            if (
+                region is not None
+                and region.x == 0
+                and region.width == 512
+                and region.height >= 90
+                and region.y > 140
+            ):
+                foreground_y = region.height - 20
+                return OCRResult(
+                    lines=[
+                        OCRLine(
+                            text=(
+                                "Ln 1, Col 21 "
+                                f"{reported_characters} characters"
+                            ),
+                            confidence=0.99,
+                            bbox=[
+                                20,
+                                foreground_y,
+                                160,
+                                foreground_y + 12,
+                            ],
+                        )
+                    ]
+                )
+            return OCRResult(
+                lines=[
+                    OCRLine(
+                        text=intended,
+                        confidence=0.99,
+                    )
+                ],
+                spacing_evidence="not_evaluated",
+            )
+
+        async def ocr(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            return await self.ocr_precise(image_path, region)
+
+    monkeypatch.setattr(asyncio, "sleep", no_sleep)
+    backend = FakeBackend()
+    typer = WatchedTyper(backend, ReplacementOCR())
+    flat = _flat_grid()
+    changed = flat.copy().reshape(GRID_ROWS, GRID_COLS)
+    changed[5:10, 2:17] = 200
+    grids = [flat, changed.reshape(-1)]
+
+    async def changed_grid() -> np.ndarray:
+        return grids.pop(0) if grids else changed.reshape(-1)
+
+    typer._grid = changed_grid  # type: ignore[method-assign]
+
+    result = await typer.type_text(
+        intended,
+        exact=True,
+        context="editor",
+    )
+
+    assert result.status == expected_status, result
+    assert result.field_text == (
+        intended
+        if expected_status == "verified_exact"
+        else ""
+    )
+    assert result.emitted_exactly_once is True
+    _assert_no_enter(backend)
+
+
 @pytest.mark.parametrize("status_lane", ["local", "fallback"])
 async def test_four_space_editor_autocorrect_preserves_final_status_proof(
     monkeypatch: pytest.MonkeyPatch,
@@ -5049,6 +5151,22 @@ async def test_precise_field_read_uses_the_provider_precision_profile() -> None:
     assert observed == intended
     assert ocr.precise_calls == 1
     assert ocr.regular_calls == 0
+
+
+async def test_precise_field_read_extracts_one_exact_structured_ocr_row() -> None:
+    intended = "def fizzbuzz(limit):"
+
+    observed = await WatchedTyper(
+        FakeBackend(),
+        ScriptedOCR(f"File Edit View\n{intended}"),
+    )._read_field(
+        Region(x=40, y=80, width=260, height=80),
+        intended=intended,
+        precise=True,
+        extract_structured_exact_row=True,
+    )
+
+    assert observed == intended
 
 
 async def test_precise_readback_refines_a_large_dialog_crop_to_its_field() -> None:

@@ -98,6 +98,10 @@ _EDITOR_STATUS_POSITION_RE = re.compile(
     r"\b[L1I]n\s*(?P<line>\d+)\s*[,.;:]\s*Col\s*(?P<column>\d+)\b",
     re.IGNORECASE,
 )
+_EDITOR_STATUS_CHARACTER_COUNT_RE = re.compile(
+    r"\b(?P<characters>\d+)\s+characters?\b",
+    re.IGNORECASE,
+)
 DENSE_PIXEL_DELTA = 10
 DENSE_MIN_CHANGED_PIXELS = 80
 DENSE_MIN_WIDTH = 8
@@ -240,38 +244,54 @@ def is_disjoint_editor_effect(current: Region, candidate: Region) -> bool:
     return vertical_gap > max(24.0, current.height, candidate.height)
 
 
-def editor_caret_column_proves_leading_whitespace(
+def unique_exact_structured_ocr_row(
     result: OCRResult,
     intended: str,
+) -> OCRLine | None:
+    """Extract one exact visual row from a provider's multi-row OCR item."""
+
+    candidates: list[OCRLine] = []
+    for line in result.lines:
+        if (
+            line.confidence is not None
+            and float(line.confidence) < MIN_GROUNDED_EXACT_OCR_CONFIDENCE
+        ):
+            continue
+        for row in line.text.splitlines():
+            if row != intended:
+                continue
+            candidates.append(
+                line.model_copy(
+                    update={
+                        "text": row,
+                        # One shared bbox cannot ground one child row.
+                        "bbox": None,
+                        "raw": {
+                            **dict(line.raw or {}),
+                            "bounded_exact_row_extracted": True,
+                            "observed_text": line.text,
+                        },
+                    }
+                )
+            )
+    return candidates[0] if len(candidates) == 1 else None
+
+
+def _bounded_editor_status_rows(
+    result: OCRResult,
     row_region: Region,
     dims: tuple[int, int],
     *,
     container_region: Region | None = None,
-) -> bool:
-    """Confirm invisible leading spaces from the nearest editor status row.
-
-    OCR cannot paint a bounding box around blank indentation. Modern Notepad
-    does expose the caret column, however, so an exact visible suffix plus
-    ``Col == len(payload) + 1`` proves the missing leading positions. Only the
-    nearest parsed status row below the causal text row is considered; a more
-    distant background Notepad window can never rescue a conflicting or
-    unreadable foreground status.
-    """
+) -> list[tuple[float, float, int, int, int | None]]:
+    """Return grounded status rows nearest the causal editor row."""
 
     width, height = dims
-    leading_spaces = len(intended) - len(intended.lstrip(" "))
-    if (
-        leading_spaces <= 0
-        or "\n" in intended
-        or "\r" in intended
-        or width <= 0
-        or height <= 0
-    ):
-        return False
-    expected_column = len(intended) + 1
+    if width <= 0 or height <= 0:
+        return []
     max_vertical_gap = height * MAX_EDITOR_STATUS_VERTICAL_GAP_FRAC
     max_horizontal_offset = max(128, width * 0.20)
-    candidates: list[tuple[float, float, int]] = []
+    candidates: list[tuple[float, float, int, int, int | None]] = []
     row_bottom = row_region.y + row_region.height
     for line in result.lines:
         match = _EDITOR_STATUS_POSITION_RE.search(line.text)
@@ -306,9 +326,58 @@ def editor_caret_column_proves_leading_whitespace(
             (
                 vertical_gap,
                 horizontal_offset,
+                int(match.group("line")),
                 int(match.group("column")),
+                (
+                    int(character_count.group("characters"))
+                    if (
+                        character_count
+                        := _EDITOR_STATUS_CHARACTER_COUNT_RE.search(
+                            line.text
+                        )
+                    )
+                    else None
+                ),
             )
         )
+    return candidates
+
+
+def editor_caret_column_proves_leading_whitespace(
+    result: OCRResult,
+    intended: str,
+    row_region: Region,
+    dims: tuple[int, int],
+    *,
+    container_region: Region | None = None,
+) -> bool:
+    """Confirm invisible leading spaces from the nearest editor status row.
+
+    OCR cannot paint a bounding box around blank indentation. Modern Notepad
+    does expose the caret column, however, so an exact visible suffix plus
+    ``Col == len(payload) + 1`` proves the missing leading positions. Only the
+    nearest parsed status row below the causal text row is considered; a more
+    distant background Notepad window can never rescue a conflicting or
+    unreadable foreground status.
+    """
+
+    width, height = dims
+    leading_spaces = len(intended) - len(intended.lstrip(" "))
+    if (
+        leading_spaces <= 0
+        or "\n" in intended
+        or "\r" in intended
+        or width <= 0
+        or height <= 0
+    ):
+        return False
+    expected_column = len(intended) + 1
+    candidates = _bounded_editor_status_rows(
+        result,
+        row_region,
+        dims,
+        container_region=container_region,
+    )
     if not candidates:
         # The hybrid provider can retain a much stronger independent OCR read
         # as an alternative when its generic whole-result selector keeps a
@@ -339,8 +408,77 @@ def editor_caret_column_proves_leading_whitespace(
             return False
         (_line, alternative_column), = alternative_positions
         return alternative_column == expected_column
-    _gap, _offset, nearest_column = min(candidates)
+    _gap, _offset, _line, nearest_column, _characters = min(candidates)
     return nearest_column == expected_column
+
+
+def editor_status_proves_single_line_payload(
+    result: OCRResult,
+    intended: str,
+    row_region: Region,
+    dims: tuple[int, int],
+    *,
+    container_region: Region | None = None,
+) -> bool:
+    """Prove an exact one-line editor replacement including its whitespace.
+
+    A canonical OCR row can visibly identify every glyph while leaving one
+    short internal gap uncalibrated. Notepad's foreground status row supplies
+    an independent document invariant: line 1, caret at ``len + 1``, and an
+    exact total character count. Requiring all three prevents an older or
+    background document from laundering collapsed or duplicated whitespace.
+    """
+
+    width, height = dims
+    if (
+        not intended
+        or not any(character.isspace() for character in intended)
+        or "\n" in intended
+        or "\r" in intended
+        or width <= 0
+        or height <= 0
+    ):
+        return False
+    expected = (1, len(intended) + 1, len(intended))
+    candidates = _bounded_editor_status_rows(
+        result,
+        row_region,
+        dims,
+        container_region=container_region,
+    )
+    if candidates:
+        _gap, _offset, line, column, characters = min(candidates)
+        return (line, column, characters) == expected
+    if (
+        container_region is None
+        or container_region.height
+        > max(1, math.floor(height * MAX_EDITOR_STATUS_SEARCH_HEIGHT_FRAC))
+    ):
+        return False
+    alternative_statuses: set[tuple[int, int, int]] = set()
+    for alternative in result.alternatives:
+        if (
+            alternative.mean_confidence is None
+            or float(alternative.mean_confidence)
+            < MIN_ONE_EDIT_RECHECK_CONFIDENCE
+        ):
+            continue
+        positions = list(
+            _EDITOR_STATUS_POSITION_RE.finditer(alternative.text)
+        )
+        character_counts = list(
+            _EDITOR_STATUS_CHARACTER_COUNT_RE.finditer(alternative.text)
+        )
+        if len(positions) != 1 or len(character_counts) != 1:
+            continue
+        alternative_statuses.add(
+            (
+                int(positions[0].group("line")),
+                int(positions[0].group("column")),
+                int(character_counts[0].group("characters")),
+            )
+        )
+    return alternative_statuses == {expected}
 
 
 def editor_status_search_region(
@@ -1405,6 +1543,7 @@ class WatchedTyper:
         allow_semantic_spacing: bool = False,
         allow_blind_fallback: bool = False,
         preserve_editor_indent_candidate: bool = False,
+        extract_structured_exact_row: bool = False,
         minimum_confidence: float = MIN_MISMATCH_OCR_CONFIDENCE,
     ) -> str:
         """OCR the field. Capture the FULL frame and pass the region to the OCR
@@ -1457,6 +1596,13 @@ class WatchedTyper:
                         )
                     )
                 ]
+                if not exact_rows and extract_structured_exact_row:
+                    structured_row = unique_exact_structured_ocr_row(
+                        result,
+                        intended,
+                    )
+                    if structured_row is not None:
+                        exact_rows = [structured_row]
                 if len(exact_rows) == 1:
                     exact_spacing_verified = any(
                         candidate.evidence_kind == "spacing"
@@ -2909,7 +3055,7 @@ class WatchedTyper:
             }
             return candidates.pop() if len(candidates) == 1 else read_back
 
-        async def prove_editor_leading_whitespace(
+        async def prove_editor_whitespace(
             read_back: str,
             intended_snapshot: str,
             *,
@@ -2925,7 +3071,7 @@ class WatchedTyper:
                 intended_snapshot.lstrip(" ")
             )
             visible_intended = intended_snapshot[leading_spaces:]
-            if not (
+            leading_whitespace_candidate = bool(
                 precise
                 and editor_field
                 and not explicit_region
@@ -2935,6 +3081,37 @@ class WatchedTyper:
                 and not read_back.startswith(" ")
                 and norm(strip_prompt(read_back), True)
                 == norm(visible_intended, True)
+            )
+            exact_visible_rows = [
+                line
+                for line in self._last_field_ocr_result.lines
+                if (
+                    line.text == intended_snapshot
+                    and (
+                        line.confidence is None
+                        or float(line.confidence)
+                        >= MIN_GROUNDED_EXACT_OCR_CONFIDENCE
+                    )
+                )
+            ]
+            single_line_replacement_candidate = bool(
+                precise
+                and editor_field
+                and not explicit_region
+                and cur_region is not None
+                and leading_spaces == 0
+                and read_back != intended_snapshot
+                and any(
+                    character.isspace()
+                    for character in intended_snapshot
+                )
+                and "\n" not in intended_snapshot
+                and "\r" not in intended_snapshot
+                and len(exact_visible_rows) == 1
+            )
+            if not (
+                leading_whitespace_candidate
+                or single_line_replacement_candidate
             ):
                 return read_back
             status_region = editor_status_search_region(
@@ -2948,12 +3125,22 @@ class WatchedTyper:
                     region=status_region,
                 )
                 status_proved = (
-                    editor_caret_column_proves_leading_whitespace(
-                        bounded_status,
-                        intended_snapshot,
-                        cur_region,
-                        dims,
-                        container_region=status_region,
+                    (
+                        editor_caret_column_proves_leading_whitespace(
+                            bounded_status,
+                            intended_snapshot,
+                            cur_region,
+                            dims,
+                            container_region=status_region,
+                        )
+                        if leading_whitespace_candidate
+                        else editor_status_proves_single_line_payload(
+                            bounded_status,
+                            intended_snapshot,
+                            cur_region,
+                            dims,
+                            container_region=status_region,
+                        )
                     )
                 )
                 if not status_proved:
@@ -2963,20 +3150,36 @@ class WatchedTyper:
                         )
                     )
                     status_proved = (
-                        editor_caret_column_proves_leading_whitespace(
-                            bounded_status,
-                            intended_snapshot,
-                            cur_region,
-                            dims,
-                            container_region=status_region,
+                        (
+                            editor_caret_column_proves_leading_whitespace(
+                                bounded_status,
+                                intended_snapshot,
+                                cur_region,
+                                dims,
+                                container_region=status_region,
+                            )
+                            if leading_whitespace_candidate
+                            else editor_status_proves_single_line_payload(
+                                bounded_status,
+                                intended_snapshot,
+                                cur_region,
+                                dims,
+                                container_region=status_region,
+                            )
                         )
                     )
             DEBUG.event(
-                "typing.editor_leading_whitespace_status",
+                "typing.editor_whitespace_status",
                 proved=status_proved,
                 phase=phase,
                 leading_spaces=leading_spaces,
                 expected_column=len(intended_snapshot) + 1,
+                expected_characters=len(intended_snapshot),
+                proof=(
+                    "leading_column"
+                    if leading_whitespace_candidate
+                    else "single_line_document"
+                ),
                 region=cur_region.model_dump(),
                 status_region=(
                     status_region.model_dump()
@@ -3005,6 +3208,8 @@ class WatchedTyper:
                 "allow_semantic_spacing": allow_semantic_spacing,
                 "allow_blind_fallback": allow_blind_fallback,
             }
+            if precise and editor_field and not explicit_region:
+                options["extract_structured_exact_row"] = True
             if (
                 precise
                 and editor_field
@@ -3328,7 +3533,7 @@ class WatchedTyper:
                     intended_snapshot,
                     corrected_read,
                 )
-                corrected_read = await prove_editor_leading_whitespace(
+                corrected_read = await prove_editor_whitespace(
                     corrected_read,
                     intended_snapshot,
                     phase="autocorrect_replacement",
@@ -3985,7 +4190,7 @@ class WatchedTyper:
                         )
                         break
 
-        last_read = await prove_editor_leading_whitespace(
+        last_read = await prove_editor_whitespace(
             last_read,
             text,
             phase="bounded_readback",
@@ -4164,7 +4369,7 @@ class WatchedTyper:
         # column proof after that recovery; otherwise a correct long indented
         # line is left ambiguous even though both evidence sources are now
         # available. This is still read-only and remains fail-closed.
-        last_read = await prove_editor_leading_whitespace(
+        last_read = await prove_editor_whitespace(
             last_read,
             text,
             phase="full_screen_recovery",
