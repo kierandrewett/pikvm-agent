@@ -760,6 +760,50 @@ def test_noisy_ok_is_allowed_only_for_confirmed_file_explorer_not_found_error() 
     ).status == "allowed"
 
 
+def test_bare_enter_is_allowed_for_confirmed_notepad_missing_file_error() -> None:
+    actions = [
+        {"type": "key", "keys": ["ENTER"]},
+        {"type": "wait_for_change", "timeout_ms": 2000},
+        {"type": "wait_for_stable_screen", "timeout_ms": 3000},
+    ]
+    surface = (
+        "Notepad\n"
+        "Cannot find the "
+        r"C:\PiKVM-Harness\workspace\codex-50\code-01.py file."
+        "\nOK"
+    )
+
+    assert is_confirmed_safe_windows_error_dismissal(actions, surface)
+    assert classify_direct_burst(
+        actions,
+        PolicyConfig(),
+        observed_surface_text=surface,
+    ).status == "allowed"
+
+
+@pytest.mark.parametrize(
+    "surface",
+    [
+        "Notepad\nSave changes?\nSave Don't Save Cancel",
+        "Cannot find the C:\\missing.py file.\nOK",
+        (
+            "Notepad\nCannot find the C:\\missing.py file.\nOK\n"
+            "Microsoft Teams Send"
+        ),
+    ],
+)
+def test_bare_enter_stays_gated_without_complete_notepad_error_evidence(
+    surface: str,
+) -> None:
+    verdict = classify_direct_burst(
+        [{"type": "key", "keys": ["ENTER"]}],
+        PolicyConfig(),
+        observed_surface_text=surface,
+    )
+
+    assert verdict.status == "approval_required"
+
+
 @pytest.mark.parametrize(
     "surface",
     [

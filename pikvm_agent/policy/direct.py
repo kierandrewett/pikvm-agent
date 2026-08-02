@@ -586,7 +586,7 @@ def _token_distance(raw: str, expected: str) -> int:
 def needs_safe_windows_error_dismissal_surface_grounding(
     actions: list[dict],
 ) -> bool:
-    """Identify one noisy OK click that still needs independent dialog OCR."""
+    """Identify one dismissal input that still needs independent dialog OCR."""
 
     active_actions = [
         action
@@ -594,15 +594,19 @@ def needs_safe_windows_error_dismissal_surface_grounding(
         if action.get("type")
         not in {"wait", "wait_for_change", "wait_for_stable_screen"}
     ]
-    if (
-        len(active_actions) != 1
-        or active_actions[0].get("type") not in {"click", "double_click"}
-    ):
+    if len(active_actions) != 1:
         return False
-    tokens = re.findall(
-        r"[A-Za-z0-9]+",
-        _semantic_text(active_actions[0]),
-    )
+    active = active_actions[0]
+    if active.get("type") == "key":
+        keys = {
+            str(key).strip().upper()
+            for key in (active.get("keys") or [active.get("key")])
+            if key
+        }
+        return keys in ({"ENTER"}, {"RETURN"}, {"NUMPADENTER"})
+    if active.get("type") not in {"click", "double_click"}:
+        return False
+    tokens = re.findall(r"[A-Za-z0-9]+", _semantic_text(active))
     return bool(
         len(tokens) == 1
         and len(tokens[0]) <= 3
@@ -614,7 +618,7 @@ def is_confirmed_safe_windows_error_dismissal(
     actions: list[dict],
     observed_surface_text: str,
 ) -> bool:
-    """Allow only the harmless OK on a fully identified Explorer error."""
+    """Allow only a harmless dismissal on a fully identified missing-file error."""
 
     if not needs_safe_windows_error_dismissal_surface_grounding(actions):
         return False
@@ -636,14 +640,22 @@ def is_confirmed_safe_windows_error_dismissal(
             _DISABLE_SECURITY,
         )
     )
-    return bool(
-        not dangerous_surface
-        and "file explorer" in normalized
+    explorer_error = bool(
+        "file explorer" in normalized
         and re.search(
             r"\b[vw]i{1,2}ndows can(?:not| t) find\b",
             normalized,
         )
         and "checkthespellingandtryagain" in compact
+    )
+    notepad_missing_file = bool(
+        "notepad" in normalized
+        and re.search(r"\bcannot find the\b", normalized)
+        and re.search(r"\bfile\b", normalized)
+        and re.search(r"\bok\b", normalized)
+    )
+    return not dangerous_surface and (
+        explorer_error or notepad_missing_file
     )
 
 
@@ -933,6 +945,7 @@ def classify_direct_burst(
                 and not safe_windows_run_launch
                 and not verified_calculator_expression
                 and not verified_local_navigation_commit
+                and not verified_safe_error_dismissal
             ):
                 if verified_local_file_overwrite:
                     candidates.append(
