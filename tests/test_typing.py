@@ -260,6 +260,37 @@ def test_editor_status_search_region_caps_tall_causal_box() -> None:
     assert region == Region(x=0, y=467, width=512, height=100)
 
 
+def test_inflated_recovery_box_accepts_foreground_status_geometry() -> None:
+    """The validator must use the same bounded row height as its status crop."""
+
+    intended = "    for number in range(1, limit + 1):"
+    row = Region(x=79, y=126, width=1184, height=666)
+    region = editor_status_search_region(row, (1280, 800))
+    assert region == Region(x=0, y=490, width=512, height=100)
+    bounded = OCRResult(
+        lines=[
+            OCRLine(
+                text="Ln 3, Col 39",
+                confidence=0.9597,
+                bbox=[64, 10, 108, 21],
+            ),
+            OCRLine(
+                text="Ln 1, Col 21",
+                confidence=0.9399,
+                bbox=[80, 27, 120, 38],
+            ),
+        ]
+    )
+
+    assert editor_caret_column_proves_leading_whitespace(
+        bounded,
+        intended,
+        row,
+        (1280, 800),
+        container_region=region,
+    )
+
+
 def test_compact_status_crop_accepts_notepad_ln_ocr_confusable() -> None:
     intended = "    for number in range(1, limit + 1):"
     row = Region(x=37, y=99, width=211, height=37)
@@ -4492,6 +4523,20 @@ async def test_editor_indentation_is_reproved_after_full_screen_recovery(
 
     intended = "    for number in range(1, limit + 1):"
     visible_intended = intended.lstrip(" ")
+    locate_calls = 0
+
+    def growing_editor_effect(*_args, **_kwargs) -> Region:
+        nonlocal locate_calls
+        locate_calls += 1
+        if locate_calls == 1:
+            return Region(x=64, y=106, width=260, height=24)
+        return Region(x=0, y=106, width=1280, height=666)
+
+    monkeypatch.setattr(
+        typing_module,
+        "locate_changed_bbox",
+        growing_editor_effect,
+    )
 
     class NoisyBoundedEditorOCR:
         def __init__(self) -> None:
@@ -4537,6 +4582,7 @@ async def test_editor_indentation_is_reproved_after_full_screen_recovery(
                     OCRLine(
                         text="for nurnber in range(1, limit + 1):",
                         confidence=0.98,
+                        bbox=[64, 10, 324, 34],
                     )
                 ],
                 spacing_evidence="not_evaluated",

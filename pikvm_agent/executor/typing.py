@@ -307,7 +307,12 @@ def _bounded_editor_status_rows(
     max_vertical_gap = height * MAX_EDITOR_STATUS_VERTICAL_GAP_FRAC
     max_horizontal_offset = max(128, width * 0.20)
     candidates: list[tuple[float, float, int, int, int | None]] = []
-    row_bottom = row_region.y + row_region.height
+    # Full-screen recovery can union the causal glyph row with a later caret
+    # or status repaint, inflating the region almost to the bottom of the
+    # frame. Use the same bounded glyph-row height as
+    # ``editor_status_search_region`` so the crop and its validator share one
+    # geometry model.
+    row_bottom = row_region.y + min(row_region.height, DENSE_MAX_HEIGHT)
     for line in result.lines:
         match = _EDITOR_STATUS_POSITION_RE.search(line.text)
         if match is None:
