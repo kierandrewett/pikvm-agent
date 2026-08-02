@@ -310,6 +310,7 @@ describe("useHarnessWorkspace authentication boundary", () => {
     const { result } = renderHook(() => useHarnessWorkspace());
 
     await waitFor(() => expect(result.current.selectedId).toBe("first-run"));
+    expect(result.current.restoringRun).toBe(true);
     let selecting!: Promise<void>;
     act(() => {
       selecting = result.current.selectRun("second-run");
@@ -319,6 +320,7 @@ describe("useHarnessWorkspace authentication boundary", () => {
       await selecting;
     });
     expect(result.current.selectedRun?.run_id).toBe("second-run");
+    expect(result.current.restoringRun).toBe(false);
 
     await act(async () => {
       resolveFirst(jsonResponse(firstRun));

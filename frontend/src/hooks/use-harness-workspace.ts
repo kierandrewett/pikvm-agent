@@ -185,6 +185,7 @@ export function useHarnessWorkspace() {
   const [runs, setRuns] = useState<RunSummary[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedRun, setSelectedRun] = useState<RunSnapshot | null>(null);
+  const [restoringRunId, setRestoringRunId] = useState<string | null>(null);
   const [providers, setProviders] = useState<ProviderMap>({});
   const [tools, setTools] = useState<AssistantTool[]>([]);
   const [toolServers, setToolServers] = useState<AssistantToolServerMap>({});
@@ -280,7 +281,17 @@ export function useHarnessWorkspace() {
         selectedIdRef.current = delegatedRun.run_id;
         storeRunId(delegatedRun.run_id);
         setSelectedId(delegatedRun.run_id);
-        await loadRun(accessToken, delegatedRun.run_id);
+        setRestoringRunId(delegatedRun.run_id);
+        try {
+          await loadRun(accessToken, delegatedRun.run_id);
+        } finally {
+          if (
+            mounted.current &&
+            selectedIdRef.current === delegatedRun.run_id
+          ) {
+            setRestoringRunId(null);
+          }
+        }
       } else if (!runId) {
         setSelectedRun(null);
       }
@@ -354,6 +365,7 @@ export function useHarnessWorkspace() {
         setSelectedId(initialId);
         if (initialId) {
           storeRunId(initialId);
+          setRestoringRunId(initialId);
           try {
             await loadRun(accessToken, initialId);
           } catch (cause) {
@@ -363,6 +375,10 @@ export function useHarnessWorkspace() {
                   ? cause.message
                   : "Could not restore the selected task.",
               );
+            }
+          } finally {
+            if (mounted.current && selectedIdRef.current === initialId) {
+              setRestoringRunId(null);
             }
           }
         }
@@ -544,6 +560,7 @@ export function useHarnessWorkspace() {
       storeRunId(runId);
       setSelectedId(runId);
       setSelectedRun(null);
+      setRestoringRunId(runId);
       setError("");
       try {
         await loadRun(token, runId);
@@ -551,6 +568,10 @@ export function useHarnessWorkspace() {
         setError(
           cause instanceof Error ? cause.message : "Could not open task.",
         );
+      } finally {
+        if (mounted.current && selectedIdRef.current === runId) {
+          setRestoringRunId(null);
+        }
       }
     },
     [loadRun, token],
@@ -562,6 +583,7 @@ export function useHarnessWorkspace() {
     clearStoredRunId();
     setSelectedId(null);
     setSelectedRun(null);
+    setRestoringRunId(null);
     setError("");
   }, []);
 
@@ -687,6 +709,7 @@ export function useHarnessWorkspace() {
     selectedIdRef.current = null;
     setSelectedId(null);
     setSelectedRun(null);
+    setRestoringRunId(null);
     setError("");
     setLiveUpdateStatus("offline");
     setLastLiveEventAt(null);
@@ -699,6 +722,8 @@ export function useHarnessWorkspace() {
       selectedRun.status,
     ),
   );
+  const restoringRun =
+    restoringRunId !== null && restoringRunId === selectedId;
   const routeLocked = Boolean(
     selectedRun && ACTIVE_OR_PAUSED.has(selectedRun.status),
   );
@@ -751,6 +776,7 @@ export function useHarnessWorkspace() {
       runs,
       selectedId,
       selectedRun,
+      restoringRun,
       providers,
       tools,
       toolServers,
@@ -784,6 +810,7 @@ export function useHarnessWorkspace() {
       runs,
       selectedId,
       selectedRun,
+      restoringRun,
       providers,
       tools,
       toolServers,

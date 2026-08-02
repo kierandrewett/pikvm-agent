@@ -163,6 +163,34 @@ function SheetLoading({
   );
 }
 
+function TaskRestoreState({
+  task,
+  restoring,
+}: {
+  task: string;
+  restoring: boolean;
+}) {
+  return (
+    <div
+      className="mx-auto flex h-full w-full max-w-(--thread-max-width) flex-col justify-center px-6"
+      role={restoring ? "status" : undefined}
+      aria-label={restoring ? "Restoring task" : "Task unavailable"}
+    >
+      <div className="mx-auto w-full max-w-md rounded-xl border border-border/70 bg-muted/20 p-5">
+        <p className="text-sm font-medium">
+          {restoring ? "Restoring task" : "Task unavailable"}
+        </p>
+        <p className="mt-2 truncate text-sm text-foreground">{task}</p>
+        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+          {restoring
+            ? "Loading the saved conversation. No model work will restart."
+            : "The saved conversation could not be loaded. Retry it from the task list or start a new task."}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export function WorkspaceShell() {
   const workspace = useHarnessWorkspace();
   const [computerOpen, setComputerOpen] = useState(false);
@@ -174,6 +202,15 @@ export function WorkspaceShell() {
   const modelsMounted = useDeferredMount(modelsOpen);
   const diagnosticsMounted = useDeferredMount(diagnosticsOpen);
   const showcaseMounted = useDeferredMount(showcaseOpen);
+  const selectedSummary = workspace.selectedId
+    ? workspace.runs.find((run) => run.run_id === workspace.selectedId)
+    : undefined;
+  const selectedTaskTitle =
+    workspace.selectedRun?.task || selectedSummary?.task || "New chat";
+  const selectedRunPending = Boolean(
+    workspace.selectedId &&
+      workspace.selectedRun?.run_id !== workspace.selectedId,
+  );
   const managedControl = usesManagedControlLoop(
     workspace.selectedRun?.origin,
   );
@@ -238,10 +275,12 @@ export function WorkspaceShell() {
     messages,
     convertMessage: (message) => message,
     isRunning: workspace.isRunning,
-    isSendDisabled: !canComposeIntoRun(
-      workspace.connected,
-      workspace.selectedRun?.origin,
-    ),
+    isSendDisabled:
+      selectedRunPending ||
+      !canComposeIntoRun(
+        workspace.connected,
+        workspace.selectedRun?.origin,
+      ),
     onNew: workspace.onNew,
     onCancel: workspace.onCancel,
     onRespondToToolApproval: workspace.respondToApproval,
@@ -324,7 +363,7 @@ export function WorkspaceShell() {
                 <MenuIcon />
               </TooltipIconButton>
               <p className="truncate text-sm font-medium">
-                {workspace.selectedRun?.task || "New chat"}
+                {selectedTaskTitle}
               </p>
               {workspace.selectedRun?.origin === "direct_mcp" ? (
                 <>
@@ -334,13 +373,26 @@ export function WorkspaceShell() {
               ) : null}
               {workspace.connected ? (
                 <>
-                  <LiveUpdateBadge
-                    status={
-                      workspace.selectedRun
-                        ? workspace.liveUpdateStatus
-                        : "idle"
-                    }
-                  />
+                  {selectedRunPending ? (
+                    <Badge
+                      variant={
+                        workspace.restoringRun ? "outline" : "destructive"
+                      }
+                      aria-live="polite"
+                    >
+                      {workspace.restoringRun
+                        ? "Restoring"
+                        : "Task unavailable"}
+                    </Badge>
+                  ) : (
+                    <LiveUpdateBadge
+                      status={
+                        workspace.selectedRun
+                          ? workspace.liveUpdateStatus
+                          : "idle"
+                      }
+                    />
+                  )}
                   <UiUpdateBadge />
                 </>
               ) : null}
@@ -405,30 +457,39 @@ export function WorkspaceShell() {
                 <AlertDescription>{workspace.error}</AlertDescription>
               </Alert>
             ) : null}
-            {workspace.selectedRun?.origin === "direct_mcp" &&
-            !workspace.error ? (
-              <DirectRunBanner
-                caller={workspace.selectedRun.caller}
-                onStartManaged={workspace.newThread}
+            {selectedRunPending ? (
+              <TaskRestoreState
+                task={selectedTaskTitle}
+                restoring={workspace.restoringRun}
               />
-            ) : null}
-            <ComputerToolEnvironmentProvider value={computerEnvironment}>
-              <div className="min-h-0 flex-1">
-                <Thread
-                  readOnly={!managedControl}
-                  activity={workspace.selectedRun?.active_activity}
-                  working={
-                    workspace.isRunning &&
-                    hasFreshRunActivity(workspace.liveUpdateStatus)
-                  }
-                  components={{
-                    ComposerToolbar,
-                    ToolFallback: WorkspaceToolCall,
-                    ToolGroup: WorkspaceToolGroup,
-                  }}
-                />
-              </div>
-            </ComputerToolEnvironmentProvider>
+            ) : (
+              <>
+                {workspace.selectedRun?.origin === "direct_mcp" &&
+                !workspace.error ? (
+                  <DirectRunBanner
+                    caller={workspace.selectedRun.caller}
+                    onStartManaged={workspace.newThread}
+                  />
+                ) : null}
+                <ComputerToolEnvironmentProvider value={computerEnvironment}>
+                  <div className="min-h-0 flex-1">
+                    <Thread
+                      readOnly={!managedControl}
+                      activity={workspace.selectedRun?.active_activity}
+                      working={
+                        workspace.isRunning &&
+                        hasFreshRunActivity(workspace.liveUpdateStatus)
+                      }
+                      components={{
+                        ComposerToolbar,
+                        ToolFallback: WorkspaceToolCall,
+                        ToolGroup: WorkspaceToolGroup,
+                      }}
+                    />
+                  </div>
+                </ComputerToolEnvironmentProvider>
+              </>
+            )}
           </section>
         </main>
       </div>
