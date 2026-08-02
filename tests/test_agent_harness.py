@@ -737,6 +737,47 @@ def test_exact_notepad_task_prepares_new_document_and_exact_text() -> None:
     ]
 
 
+def test_campaign_code_task_creates_new_notepad_document_after_launch() -> None:
+    run = RunSnapshot(
+        run_id="notepad-campaign-code",
+        task=(
+            "For this text/code acceptance, create a new blank document and "
+            "type every requested content character during this run. Do not "
+            "treat restored or pre-existing document content as task "
+            "completion. Task: In Notepad, write a Python function."
+        ),
+        status=RunStatus.PAUSED,
+    )
+    launch = PendingAction(
+        index=0,
+        intent="Launch Notepad.",
+        actions=[
+            {
+                "type": "type_text",
+                "text": "notepad",
+                "context": "field",
+                "verification": "exact",
+            }
+        ],
+        based_on_world_version=1,
+        based_on_control_epoch=0,
+        idempotency_key="notepad-campaign-launch",
+    )
+
+    decision = _notepad_new_document_controller(
+        run,
+        launch,
+        max_actions=20,
+    )
+
+    assert decision is not None
+    assert decision.intent == "Create a fresh blank Notepad document."
+    assert decision.actions[0].model_dump(mode="json", exclude_none=True) == {
+        "type": "key",
+        "keys": ["ControlLeft", "KeyN"],
+    }
+
+
 def test_exact_notepad_paragraphs_use_separate_verified_text_and_line_breaks() -> None:
     first = (
         "A useful computer agent works quickly, but speed without evidence "

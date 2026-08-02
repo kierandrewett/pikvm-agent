@@ -934,6 +934,17 @@ def _notepad_exact_text_segments(run: RunSnapshot) -> tuple[str, ...]:
     return tuple(re.findall(r"`([^`\r\n]{1,240})`", line_match.group("body")))
 
 
+def _requires_fresh_notepad_document(run: RunSnapshot) -> bool:
+    """Recognize the campaign contract that forbids restored Notepad tabs."""
+
+    task = " ".join(run.task.casefold().split())
+    return (
+        "notepad" in task
+        and "create a new blank document" in task
+        and "do not treat restored or pre-existing document content" in task
+    )
+
+
 def _notepad_segment_break_count(run: RunSnapshot) -> int:
     if _NOTEPAD_TWO_PARAGRAPH_TASK.search(run.task) is not None:
         return 2
@@ -981,7 +992,10 @@ def _notepad_new_document_controller(
     """Create a fresh focused tab after Notepad restores old session state."""
 
     if (
-        not _notepad_exact_text_segments(run)
+        not (
+            _notepad_exact_text_segments(run)
+            or _requires_fresh_notepad_document(run)
+        )
         or not _launched_notepad(action)
     ):
         return None
