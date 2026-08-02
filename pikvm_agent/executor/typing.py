@@ -318,6 +318,29 @@ def unique_exact_structured_ocr_row(
     return candidates[0] if len(candidates) == 1 else None
 
 
+def visible_editor_indent_candidate(
+    result: OCRResult,
+    intended: str,
+    *,
+    preserve: bool,
+) -> bool:
+    """Whether OCR painted the exact row suffix but omitted leading blanks.
+
+    This is only a candidate.  The caller still needs the foreground editor's
+    independent caret-column proof before it can restore the invisible
+    indentation or declare exact success.
+    """
+
+    return bool(
+        preserve
+        and intended.startswith(" ")
+        and result.text
+        and not result.text[0].isspace()
+        and fold_quotes(strip_prompt(result.text).strip())
+        == fold_quotes(intended.lstrip(" "))
+    )
+
+
 def _bounded_editor_status_rows(
     result: OCRResult,
     row_region: Region,
@@ -2032,6 +2055,11 @@ class WatchedTyper:
                 and allow_blind_fallback
                 and compute_verdict(intended, result.text, True)
                 != "match"
+                and not visible_editor_indent_candidate(
+                    result,
+                    intended,
+                    preserve=preserve_editor_indent_candidate,
+                )
             ):
                 blind_precise_ocr = getattr(
                     self.ocr,
@@ -2173,15 +2201,12 @@ class WatchedTyper:
                     any(character in intended for character in (" ", "\t", "\n"))
                     and result.spacing_evidence != "verified"
                 ):
-                    visible_indent_candidate = bool(
-                        preserve_editor_indent_candidate
-                        and intended.startswith(" ")
-                        and result.text
-                        and not result.text[0].isspace()
-                        and fold_quotes(
-                            strip_prompt(result.text).strip()
+                    visible_indent_candidate = (
+                        visible_editor_indent_candidate(
+                            result,
+                            intended,
+                            preserve=preserve_editor_indent_candidate,
                         )
-                        == fold_quotes(intended.lstrip(" "))
                     )
                     if (
                         allow_semantic_spacing

@@ -7013,7 +7013,7 @@ def test_precise_readback_retains_json_prefix_before_first_alphanumeric() -> Non
     assert refined == Region(x=51, y=116, width=200, height=22)
 
 
-async def test_precise_readback_extracts_one_indented_row_from_fallback() -> None:
+async def test_precise_readback_defers_visible_indent_to_editor_status() -> None:
     intended = '  "enabled": true,'
 
     class StackedEditorOCR:
@@ -7031,7 +7031,7 @@ async def test_precise_readback_extracts_one_indented_row_from_fallback() -> Non
             return OCRResult(
                 lines=[
                     OCRLine(
-                        text='enabled": true,',
+                        text='"enabled": true,',
                         confidence=0.9869,
                         bbox=[60, 6, 140, 18],
                     )
@@ -7072,8 +7072,8 @@ async def test_precise_readback_extracts_one_indented_row_from_fallback() -> Non
     )
 
     assert observed == '"enabled": true,'
-    assert ocr.precise_calls == 2
-    assert ocr.fallback_calls == 1
+    assert ocr.precise_calls == 1
+    assert ocr.fallback_calls == 0
 
 
 @pytest.mark.parametrize("intended", ["}", "  ]", "    )"])
