@@ -625,6 +625,14 @@ def is_confirmed_safe_windows_error_dismissal(
     text = observed_surface_text.casefold().replace("’", "'")
     normalized = re.sub(r"[^a-z0-9]+", " ", text).strip()
     compact = re.sub(r"[^a-z0-9]+", "", text)
+    active = next(
+        action
+        for action in actions
+        if action.get("type")
+        not in {"wait", "wait_for_change", "wait_for_stable_screen"}
+    )
+    grounded_ok_click = active.get("type") in {"click", "double_click"}
+    local_path_visible = re.search(r"\b[a-z]:\\", text) is not None
     dangerous_surface = any(
         pattern.search(text)
         for pattern in (
@@ -651,8 +659,8 @@ def is_confirmed_safe_windows_error_dismissal(
     notepad_missing_file = bool(
         "notepad" in normalized
         and re.search(r"\bcannot find the\b", normalized)
-        and re.search(r"\bfile\b", normalized)
-        and re.search(r"\bok\b", normalized)
+        and (re.search(r"\bfile\b", normalized) or local_path_visible)
+        and (grounded_ok_click or re.search(r"\bok\b", normalized))
     )
     return not dangerous_surface and (
         explorer_error or notepad_missing_file

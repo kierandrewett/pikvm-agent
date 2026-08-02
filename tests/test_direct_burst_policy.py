@@ -768,6 +768,21 @@ def test_real_world_commit_labels_require_human(
                 "\nOK"
             ),
         ),
+        (
+            [
+                {
+                    "type": "click",
+                    "x": 553,
+                    "y": 299,
+                    "observed_target_text": "OK",
+                }
+            ],
+            (
+                "Notepad\n"
+                "Cannot find the "
+                r"C:\PiKVM:Hamess\workspace\codex-SO\code-Olpyfile."
+            ),
+        ),
     ],
 )
 def test_confirmed_windows_missing_file_dismissals_are_allowed(
