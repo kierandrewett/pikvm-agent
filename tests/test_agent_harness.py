@@ -1552,6 +1552,125 @@ def test_generated_code_line_break_still_requires_model_verification() -> None:
     )
 
 
+@pytest.mark.asyncio
+async def test_exact_artifact_receipt_survives_interrupted_passive_wait() -> None:
+    provider = ScriptedProvider()
+    harness = build_harness(provider, FakeComputer())
+    content = (
+        "def fizzbuzz(limit):\n"
+        "    result = []\n"
+        "    for number in range(1, limit + 1):\n"
+        "        if number % 15 == 0:\n"
+        '            result.append("FizzBuzz")'
+    )
+    action = PendingAction(
+        index=8,
+        intent="Enter exact segment 4 of 5 in the fresh Notepad document.",
+        actions=[
+            {
+                "type": "type_text",
+                "text": "        if number % 15 == 0:",
+                "code": True,
+                "context": "editor",
+                "verification": "exact",
+            },
+            {
+                "type": "wait_for_stable_screen",
+                "stable_ms": 400,
+                "timeout_ms": 3_000,
+            },
+        ],
+        expected_evidence=["The exact fourth line is visible."],
+        based_on_world_version=2,
+        based_on_control_epoch=0,
+        idempotency_key="notepad-interrupted-passive-wait",
+    )
+    run = RunSnapshot(
+        run_id="notepad-interrupted-passive-wait",
+        task="In Notepad, write a valid Python fizzbuzz function.",
+        status=RunStatus.RUNNING,
+        session_id="session",
+        plan=PlanDecision(
+            summary="Write the code.",
+            steps=["Enter it"],
+            success_criteria=["The code is visible."],
+            artifact_content=content,
+            artifact_content_kind="code",
+        ),
+        pending_action=action,
+        observation=ComputerObservation(
+            session_id="session",
+            status="paused",
+            frame_id=8,
+            world_version=2,
+            control_epoch=0,
+            image_sha256="a" * 64,
+            screen_hash="a1",
+        ),
+    )
+    await harness.store.save(run)
+    digest = (
+        "f161df95e5fbdcf496893ac38cf6b9c0a1f171e9db6e0869c9a465c2f4a901b4"
+    )
+    observation = ComputerObservation(
+        session_id="session",
+        status="interrupted",
+        frame_id=9,
+        world_version=2,
+        control_epoch=0,
+        image_sha256="b" * 64,
+        screen_hash="b2",
+        raw={
+            "action_receipts": [
+                {
+                    "index": 0,
+                    "type": "type_text",
+                    "status": "verified_exact",
+                    "verdict": "match",
+                    "focus_evidence": "read_back_verified",
+                    "requested_characters": 28,
+                    "delivery_characters": 28,
+                    "issued_characters": 28,
+                    "correction_count": 0,
+                    "delivery_retries": 0,
+                    "requested_sha256": digest,
+                    "delivery_sha256": digest,
+                    "issued_prefix_sha256": digest,
+                    "readback_sha256": digest,
+                    "readback_frame_sha256": "b" * 64,
+                    "exact_readback_sha256_match": True,
+                    "emitted_exactly_once": True,
+                    "observed_text": "        if number % 15 == 0:",
+                }
+            ]
+        },
+    )
+
+    accepted = await harness._accept_action_observation(
+        run,
+        observation,
+        before=run.observation,
+        tool="pikvm_run_burst",
+        call_id="interrupted-passive-wait:attempt:1",
+        latency_ms=78_210,
+        parallel_next_control=True,
+    )
+
+    assert accepted is True
+    assert run.status is RunStatus.RUNNING
+    assert run.pending_action is None
+    assert run.next_action_index == 9
+    assert run.last_verification is not None
+    assert run.last_verification.verdict == "verified"
+    assert any(
+        event.kind == "action.completed"
+        and event.data["outer_status"] == "interrupted"
+        for event in run.events
+    )
+    assert not any(event.kind == "action.failed" for event in run.events)
+    assert run.run_id in harness._prefetched_controllers
+
+
 def test_controller_can_launch_a_standard_app_in_one_safe_burst() -> None:
     assert "one narrow app-launch exception" in _CONTROLLER_SYSTEM
     assert "type only the app's executable name" in _CONTROLLER_SYSTEM

@@ -3683,7 +3683,20 @@ class AgentHarness:
             )
             await self.store.save(run)
             return False
-        if observation.status not in {"completed", "paused", "done"}:
+        local_verdict = _locally_verified_notepad_artifact_action(
+            run,
+            action,
+            input_receipts,
+            after=observation,
+        )
+        recovered_passive_wait_interrupt = (
+            observation.status == "interrupted"
+            and local_verdict is not None
+        )
+        if (
+            observation.status not in {"completed", "paused", "done"}
+            and not recovered_passive_wait_interrupt
+        ):
             run.pending_action = None
             run.error = observation.error or f"computer returned {observation.status}"
             if self._recoverable_failure(observation):
@@ -3722,21 +3735,28 @@ class AgentHarness:
             run.next_action_index = max(run.next_action_index, action.index + 1)
         run.error = None
         run.status = RunStatus.RUNNING
+        completion_outcome = (
+            {
+                "outer_status": observation.status,
+                "recovered_from_passive_wait_interrupt": True,
+            }
+            if recovered_passive_wait_interrupt
+            else {}
+        )
         run.record(
             "action.completed",
             index=action.index if action else None,
             frame_id=observation.frame_id,
             world_version=observation.world_version,
-            status=observation.status,
+            status=(
+                "completed"
+                if recovered_passive_wait_interrupt
+                else observation.status
+            ),
+            **completion_outcome,
             **screen_proof,
             **receipt_outcome,
             **tool_outcome,
-        )
-        local_verdict = _locally_verified_notepad_artifact_action(
-            run,
-            action,
-            input_receipts,
-            after=observation,
         )
         if local_verdict is not None:
             run.last_verification = local_verdict
