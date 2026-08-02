@@ -35,6 +35,7 @@ from pikvm_agent.executor.typing import (
     editor_caret_column_proves_leading_whitespace,
     editor_punctuation_transport_substitution,
     editor_single_glyph_transport_deletion,
+    editor_status_proves_single_line_payload,
     editor_status_search_region,
     is_caps_lock_case_inversion,
     is_disjoint_editor_effect,
@@ -311,6 +312,77 @@ def test_editor_status_search_region_keeps_low_foreground_row_visible() -> None:
 
     assert region == Region(x=0, y=370, width=512, height=150)
     assert region.y < 489 < region.y + region.height
+
+
+def test_editor_status_search_subregions_cover_broad_crop() -> None:
+    region = Region(x=0, y=368, width=512, height=150)
+
+    assert typing_module.editor_status_search_subregions(region) == [
+        Region(x=0, y=368, width=512, height=64),
+        Region(x=0, y=411, width=512, height=64),
+        Region(x=0, y=454, width=512, height=64),
+    ]
+
+
+def test_compact_status_crop_proves_single_line_from_document_invariants() -> None:
+    """Two OCR scales can retain Col/count after corrupting only Ln 1."""
+
+    intended = "function Get-FileDigest {"
+    row = Region(x=40, y=74, width=133, height=44)
+    region = Region(x=0, y=454, width=512, height=64)
+    bounded = OCRResult(
+        lines=[
+            OCRLine(
+                text="be pe pens",
+                confidence=0.489,
+                bbox=[68, 58, 192, 64],
+            )
+        ],
+        alternatives=[
+            OCRCandidate(
+                text="1n4,Col26 — 25 characters\nPisin text",
+                mean_confidence=0.551,
+            ),
+            OCRCandidate(
+                text="tn1Col26 25 characters\nPain text",
+                mean_confidence=0.359,
+            ),
+        ],
+    )
+
+    assert editor_status_proves_single_line_payload(
+        bounded,
+        intended,
+        row,
+        (1280, 800),
+        container_region=region,
+    )
+
+
+def test_compact_status_crop_rejects_conflicting_document_invariants() -> None:
+    intended = "function Get-FileDigest {"
+    row = Region(x=40, y=74, width=133, height=44)
+    region = Region(x=0, y=454, width=512, height=64)
+    bounded = OCRResult(
+        alternatives=[
+            OCRCandidate(
+                text="1n1,Col26 — 25 characters",
+                mean_confidence=0.72,
+            ),
+            OCRCandidate(
+                text="tn1Col25 25 characters",
+                mean_confidence=0.71,
+            ),
+        ],
+    )
+
+    assert not editor_status_proves_single_line_payload(
+        bounded,
+        intended,
+        row,
+        (1280, 800),
+        container_region=region,
+    )
 
 
 def test_inflated_recovery_box_accepts_foreground_status_geometry() -> None:
@@ -4208,6 +4280,108 @@ async def test_single_line_editor_replacement_uses_status_character_count_for_sp
         else ""
     )
     assert result.emitted_exactly_once is True
+    _assert_no_enter(backend)
+
+
+async def test_single_line_editor_uses_compact_status_consensus_before_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The measured v7 status shape must finish on fast local OCR."""
+
+    async def no_sleep(_seconds: float) -> None:
+        return None
+
+    intended = "function Get-FileDigest {"
+
+    class CompactStatusOCR:
+        def __init__(self) -> None:
+            self.compact_reads = 0
+            self.fallback_reads = 0
+
+        async def ocr_precise(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path
+            if (
+                region is not None
+                and region.width == 512
+                and region.height == 64
+            ):
+                self.compact_reads += 1
+                if self.compact_reads < 3:
+                    return OCRResult()
+                return OCRResult(
+                    lines=[
+                        OCRLine(
+                            text="be pe pens",
+                            confidence=0.489,
+                        )
+                    ],
+                    alternatives=[
+                        OCRCandidate(
+                            text="1n4,Col26 — 25 characters",
+                            mean_confidence=0.551,
+                        ),
+                        OCRCandidate(
+                            text="tn1Col26 25 characters",
+                            mean_confidence=0.359,
+                        ),
+                    ],
+                )
+            if (
+                region is not None
+                and region.width == 512
+                and region.height > 64
+            ):
+                return OCRResult()
+            return OCRResult(
+                lines=[OCRLine(text=intended, confidence=0.99)],
+                spacing_evidence="not_evaluated",
+            )
+
+        async def ocr_precise_fallback(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path, region
+            self.fallback_reads += 1
+            return OCRResult()
+
+        async def ocr(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            return await self.ocr_precise(image_path, region)
+
+    monkeypatch.setattr(asyncio, "sleep", no_sleep)
+    backend = FakeBackend()
+    ocr = CompactStatusOCR()
+    typer = WatchedTyper(backend, ocr)
+    flat = _flat_grid()
+    changed = flat.copy().reshape(GRID_ROWS, GRID_COLS)
+    changed[5:10, 2:17] = 200
+    grids = [flat, changed.reshape(-1)]
+
+    async def changed_grid() -> np.ndarray:
+        return grids.pop(0) if grids else changed.reshape(-1)
+
+    typer._grid = changed_grid  # type: ignore[method-assign]
+
+    result = await typer.type_text(
+        intended,
+        exact=True,
+        context="editor",
+    )
+
+    assert result.status == "verified_exact", result
+    assert result.field_text == intended
+    assert result.emitted_exactly_once is True
+    assert ocr.compact_reads == 3
+    assert ocr.fallback_reads == 0
     _assert_no_enter(backend)
 
 

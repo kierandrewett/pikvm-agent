@@ -92,6 +92,7 @@ MAX_EDITOR_STATUS_VERTICAL_GAP_FRAC = 0.50
 MAX_EDITOR_STATUS_SEARCH_HEIGHT_FRAC = 0.1875
 EDITOR_STATUS_SEARCH_WIDTH_FRAC = 0.40
 EDITOR_STATUS_SEARCH_LEFT_CONTEXT_PX = 256
+EDITOR_STATUS_COMPACT_HEIGHT_PX = 64.0
 AUTODETECTED_READBACK_MARGIN_X_FRAC = 0.075
 SHORT_FIELD_CONTEXT_ABOVE_PX = 80
 SHORT_FIELD_CONTEXT_BELOW_PX = 24
@@ -104,6 +105,14 @@ _STANDALONE_LOWERCASE_I_RE = re.compile(r"(?<![\w])i(?![\w])")
 _STRUCTURAL_CODE_GLYPHS = frozenset("{}[]()")
 _EDITOR_STATUS_CHARACTER_COUNT_RE = re.compile(
     r"\b(?P<characters>\d+)\s+characters?\b",
+    re.IGNORECASE,
+)
+_EDITOR_STATUS_COLUMN_RE = re.compile(
+    # Tesseract can drop the separator before ``Col`` (``tn1Col26``). The
+    # compact-crop consensus below still requires the independent character
+    # count and rejects conflicting pairs, so do not require a word boundary
+    # at the left edge.
+    r"Col\s*(?P<column>\d+)\b",
     re.IGNORECASE,
 )
 DENSE_PIXEL_DELTA = 10
@@ -555,7 +564,67 @@ def editor_status_proves_single_line_payload(
                 int(character_counts[0].group("characters")),
             )
         )
-    return alternative_statuses == {expected}
+    if alternative_statuses == {expected}:
+        return True
+
+    # Tiny dark-theme status text can consistently lose or corrupt only the
+    # ``Ln 1`` prefix while independent Tesseract scales still agree on both
+    # ``Col N`` and ``N - 1 characters``. Those two document invariants are
+    # sufficient by themselves: no later line can have column N after exactly
+    # N - 1 total characters because at least one preceding newline would also
+    # be counted. Require two independent compact-crop reads to agree, keep one
+    # at the normal grounded confidence floor, and reject any conflicting
+    # column/count pair. This is deliberately unavailable on a broad crop.
+    if container_region.height > EDITOR_STATUS_COMPACT_HEIGHT_PX:
+        return False
+    invariant_reads: list[tuple[tuple[int, int], float]] = []
+    primary_text = "\n".join(line.text for line in result.lines)
+    primary_confidences = [
+        float(line.confidence)
+        for line in result.lines
+        if line.confidence is not None
+    ]
+    status_sources = [
+        (
+            primary_text,
+            (
+                sum(primary_confidences) / len(primary_confidences)
+                if primary_confidences
+                else 0.0
+            ),
+        ),
+        *[
+            (alternative.text, float(alternative.mean_confidence or 0.0))
+            for alternative in result.alternatives
+        ],
+    ]
+    for source_text, confidence in status_sources:
+        columns = list(_EDITOR_STATUS_COLUMN_RE.finditer(source_text))
+        character_counts = list(
+            _EDITOR_STATUS_CHARACTER_COUNT_RE.finditer(source_text)
+        )
+        if (
+            confidence < 0.30
+            or len(columns) != 1
+            or len(character_counts) != 1
+        ):
+            continue
+        invariant_reads.append(
+            (
+                (
+                    int(columns[0].group("column")),
+                    int(character_counts[0].group("characters")),
+                ),
+                confidence,
+            )
+        )
+    invariant_pairs = {pair for pair, _confidence in invariant_reads}
+    return (
+        invariant_pairs == {(expected[1], expected[2])}
+        and len(invariant_reads) >= 2
+        and max(confidence for _pair, confidence in invariant_reads)
+        >= MIN_GROUNDED_EXACT_OCR_CONFIDENCE
+    )
 
 
 def editor_status_search_region(
@@ -614,6 +683,29 @@ def editor_status_search_region(
         width=crop_width,
         height=crop_height,
     )
+
+
+def editor_status_search_subregions(region: Region) -> list[Region]:
+    """Return three overlapping status bands for tiny dark-theme text.
+
+    The broad geometry crop protects against stacked windows, but its empty
+    editor area can dominate Tesseract segmentation. Scan fixed top, middle,
+    and bottom bands derived only from that crop; no expected text or OCR
+    result influences their position.
+    """
+
+    band_height = min(region.height, EDITOR_STATUS_COMPACT_HEIGHT_PX)
+    travel = max(0.0, region.height - band_height)
+    offsets = (0.0, travel / 2.0, travel)
+    return [
+        Region(
+            x=region.x,
+            y=region.y + offset,
+            width=region.width,
+            height=band_height,
+        )
+        for offset in dict.fromkeys(offsets)
+    ]
 
 
 def is_standalone_i_autocorrect(intended: str, observed: str) -> bool:
@@ -3508,6 +3600,16 @@ class WatchedTyper:
                 region=status_region,
             )
             proved = predicate(bounded_status, status_region)
+            if not proved:
+                for compact_region in editor_status_search_subregions(
+                    status_region
+                ):
+                    compact_status = await self._read_screen(
+                        precise=True,
+                        region=compact_region,
+                    )
+                    if predicate(compact_status, compact_region):
+                        return True, compact_region
             if not proved:
                 bounded_status = await self._read_precise_screen_fallback(
                     status_region,
