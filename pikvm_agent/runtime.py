@@ -167,8 +167,13 @@ def nearest_ocr_target_text(
     requested crop (local Tesseract) or full-frame (remote OCR).
     """
 
+    confident_lines = [
+        line
+        for line in observed.lines
+        if line.confidence is None or float(line.confidence) >= 0.10
+    ]
     candidates: list[tuple[float, float, str]] = []
-    for line in observed.lines:
+    for line in confident_lines:
         box = line.bbox
         if not box:
             continue
@@ -222,8 +227,8 @@ def nearest_ocr_target_text(
         if distance <= 140**2:
             return text
         return ""
-    if len(observed.lines) == 1:
-        return observed.lines[0].text.strip()
+    if len(confident_lines) == 1:
+        return confident_lines[0].text.strip()
     return ""
 
 
@@ -1390,7 +1395,8 @@ class Runtime:
 
         calculator = needs_calculator_surface_grounding(actions)
         safe_error_dismissal = (
-            needs_safe_windows_error_dismissal_surface_grounding(actions)
+            not local_navigation_draft
+            and needs_safe_windows_error_dismissal_surface_grounding(actions)
         )
         local_file_overwrite = (
             not local_navigation_draft
@@ -1436,16 +1442,25 @@ class Runtime:
             if not callable(precise_ocr):
                 return (observed_text, False)
             click = next(
-                action
-                for action in actions
-                if action.get("type") in {"click", "double_click"}
+                (
+                    action
+                    for action in actions
+                    if action.get("type") in {"click", "double_click"}
+                ),
+                None,
             )
-            click_x = int(click["x"])
-            click_y = int(click["y"])
-            left = max(0, click_x - 400)
-            top = max(0, click_y - 160)
-            right = min(frame.width, click_x + 400)
-            bottom = min(frame.height, click_y + 160)
+            if click is None:
+                left = round(frame.width * 0.15)
+                top = round(frame.height * 0.15)
+                right = round(frame.width * 0.85)
+                bottom = round(frame.height * 0.85)
+            else:
+                click_x = int(click["x"])
+                click_y = int(click["y"])
+                left = max(0, click_x - 400)
+                top = max(0, click_y - 160)
+                right = min(frame.width, click_x + 400)
+                bottom = min(frame.height, click_y + 160)
             try:
                 precise = await precise_ocr(
                     Path(frame.image_path),

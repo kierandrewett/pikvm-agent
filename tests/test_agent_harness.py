@@ -1709,6 +1709,9 @@ def test_controller_can_launch_a_standard_app_in_one_safe_burst() -> None:
     assert "default selection is still active" in (
         _CONTROLLER_SYSTEM
     )
+    assert "visible text caret inside File name" in _CONTROLLER_SYSTEM
+    assert "use Alt+N to focus it" in _CONTROLLER_SYSTEM
+    assert "Never guess the field's raw coordinates" in _CONTROLLER_SYSTEM
     assert "Do not generalise this exception to web URLs" in _CONTROLLER_SYSTEM
     assert "the verifier's job, not a remaining computer" in _CONTROLLER_SYSTEM
     assert "set expects_task_completion true" in _CONTROLLER_SYSTEM

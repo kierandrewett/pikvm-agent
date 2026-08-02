@@ -1610,6 +1610,10 @@ The File name field is normally pre-populated. After its focus is independently
 verified, use Ctrl+A immediately before the exact basename in the same
 reversible input burst. Never assume the default selection is still active:
 typing without Ctrl+A can append the basename to Notepad's generated title.
+Require a visible text caret inside File name before treating that field as
+focused. If the caret is absent, use Alt+N to focus it.
+Never guess the field's raw coordinates. Then verify the focus before replacing
+the basename.
 In File Explorer, use Ctrl+L as a separate reversible focus action instead of
 guessing address-bar coordinates. After that focus is independently verified,
 preserve the selection created by Ctrl+L: do not click, refocus, move the
