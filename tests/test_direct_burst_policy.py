@@ -512,6 +512,12 @@ def test_windows_run_surface_accepts_real_ocr_noise_with_same_frame_draft() -> N
         draft_text="notepad",
         dialog_text=dialog_text,
     )
+    assert not is_confirmed_windows_run_surface(
+        "Windows desktop",
+        draft_text="notepad",
+        dialog_text=dialog_text.replace("Run x ", ""),
+        verified_same_frame_draft=True,
+    )
 
 
 def test_windows_run_surface_rejects_message_compose_lookalike() -> None:

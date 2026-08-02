@@ -90,47 +90,6 @@ def _local_pointer_freshness_enabled(
     )
 
 
-def _preserves_verified_local_navigation_draft(
-    actions: list[dict[str, Any]],
-) -> bool:
-    """Allow one visually inert Control chord between draft and commit."""
-
-    passive = {"wait", "wait_for_change", "wait_for_stable_screen"}
-    active = [
-        action for action in actions if action.get("type") not in passive
-    ]
-    if len(active) != 1 or active[0].get("type") != "key":
-        return False
-    keys = {
-        str(key).strip().upper()
-        for key in (
-            active[0].get("keys") or [active[0].get("key")]
-        )
-        if key
-    }
-    control_keys = {
-        "CTRL",
-        "CONTROL",
-        "CONTROLLEFT",
-        "CONTROLRIGHT",
-        "LCTRL",
-        "RCTRL",
-    }
-    commit_or_focus_keys = {
-        "ENTER",
-        "RETURN",
-        "NUMPADENTER",
-        "TAB",
-        "ESC",
-        "ESCAPE",
-    }
-    return bool(
-        len(keys) == 2
-        and keys & control_keys
-        and not keys & commit_or_focus_keys
-    )
-
-
 def _localized_pointer_freshness(
     actions: list[dict[str, Any]],
     *,
@@ -332,8 +291,9 @@ class SessionRuntime:
     last_human_input_at: float | None = None
     observed_control_epoch: int = 0
     other_client_block_active: bool = False
-    # One exact, visible local-navigation draft may ground the immediately
-    # following bare Enter when the same frame independently shows Explorer.
+    # One exact, visible local draft may ground the immediately following bare
+    # Enter when the same frame independently shows Explorer, Save As, or the
+    # Windows Run dialog around an allowlisted launcher.
     verified_local_navigation_draft: dict[str, Any] | None = None
 
 
@@ -1616,23 +1576,7 @@ class Runtime:
         if not active:
             return
         if len(active) != 1 or active[0][1].get("type") != "type_text":
-            existing = sr.verified_local_navigation_draft or {}
-            final_screen_hash = str(
-                getattr(final_frame, "screen_hash", "") or ""
-            ).lower()
-            final_image_sha256 = str(
-                getattr(final_frame, "image_sha256", "") or ""
-            ).lower()
-            if not (
-                existing
-                and _preserves_verified_local_navigation_draft(actions)
-                and existing.get("control_epoch") == sr.control_epoch
-                and existing.get("post_action_image_sha256")
-                == final_image_sha256
-                and existing.get("frame_screen_hash")
-                == final_screen_hash
-            ):
-                sr.verified_local_navigation_draft = None
+            sr.verified_local_navigation_draft = None
             return
         index, action = active[0]
         receipt = next(

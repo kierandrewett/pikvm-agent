@@ -490,6 +490,7 @@ def is_confirmed_windows_run_surface(
     return bool(
         not communication_surface
         and (draft_visible or verified_same_frame_draft)
+        and re.search(r"\brun\b", normalized)
         and "type the name of" in normalized
         and len(instruction_markers) >= 4
         and len(controls) >= 3

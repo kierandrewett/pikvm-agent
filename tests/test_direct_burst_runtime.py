@@ -877,47 +877,6 @@ async def test_exact_save_as_path_receipt_records_local_navigation_draft(
     }
 
 
-async def test_exact_windows_run_draft_stays_gated_on_message_surface(
-    runtime: Runtime,
-) -> None:
-    class MessageOCR:
-        async def ocr(self, image_path, region=None):
-            del image_path, region
-            return OCRResult(
-                lines=[
-                    OCRLine(text="New message"),
-                    OCRLine(text="notepad"),
-                    OCRLine(text="Send"),
-                ]
-            )
-
-        async def ocr_precise(self, image_path, region=None):
-            return await self.ocr(image_path, region)
-
-    runtime._screen_parser.ocr = MessageOCR()
-    sid = (await runtime.start_session("direct"))["session_id"]
-    shot = await runtime.get_session_summary(sid, capture=True)
-    runtime._get(sid).verified_local_navigation_draft = {
-        "text": "notepad",
-        "readback_frame_sha256": shot["image_sha256"],
-        "post_action_image_sha256": shot["image_sha256"],
-        "frame_screen_hash": shot["screen_hash"],
-        "control_epoch": shot["control_epoch"],
-    }
-
-    result = await runtime.run_burst(
-        sid,
-        [{"type": "key", "keys": ["ENTER"]}],
-        based_on_world_version=shot["world_version"],
-        based_on_control_epoch=shot["control_epoch"],
-        idempotency_key="message-run-draft-stays-gated",
-    )
-
-    assert result["status"] == "needs_approval"
-    assert result["approval_request"]["risk"] == "unknown"
-    assert not _hid_calls(runtime)
-
-
 async def test_exact_windows_run_receipt_records_local_navigation_draft(
     runtime: Runtime,
 ) -> None:
@@ -1009,33 +968,6 @@ async def test_matching_exact_windows_run_draft_grounds_one_local_enter(
     assert result["status"] == "completed"
     assert [call[1]["keys"] for call in _hid_calls(runtime)] == [["Enter"]]
     assert runtime._get(sid).verified_local_navigation_draft is None
-
-
-async def test_exact_windows_run_draft_survives_visually_noop_control_chord(
-    runtime: Runtime,
-) -> None:
-    sid = (await runtime.start_session("direct"))["session_id"]
-    shot = await runtime.get_session_summary(sid, capture=True)
-    sr = runtime._get(sid)
-    final_frame = sr.frames.latest()
-    assert final_frame is not None
-    draft = {
-        "text": "notepad",
-        "readback_frame_sha256": shot["image_sha256"],
-        "post_action_image_sha256": shot["image_sha256"],
-        "frame_screen_hash": shot["screen_hash"],
-        "control_epoch": shot["control_epoch"],
-    }
-    sr.verified_local_navigation_draft = draft
-
-    runtime._update_verified_local_navigation_draft(
-        sr,
-        [{"type": "key", "keys": ["ControlLeft", "KeyN"]}],
-        [],
-        final_frame,
-    )
-
-    assert sr.verified_local_navigation_draft == draft
 
 
 async def test_exact_windows_run_draft_does_not_survive_pointer_input(
