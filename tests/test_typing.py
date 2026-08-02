@@ -2971,6 +2971,7 @@ async def test_editor_standalone_i_autocorrect_is_replaced_locally(
         if method == "type_text"
     ] == [
         {"text": intended, "code": True, "secret": False},
+        {"text": "_", "code": True, "secret": False},
         {"text": "i", "code": True, "secret": False},
     ]
     pressed = [
@@ -2982,6 +2983,9 @@ async def test_editor_standalone_i_autocorrect_is_replaced_locally(
         "ArrowLeft",
         "ArrowLeft",
         "ArrowLeft",
+        "Backspace",
+        "ArrowLeft",
+        "ArrowRight",
         "Backspace",
         "ArrowRight",
         "ArrowRight",
@@ -3081,6 +3085,7 @@ async def test_indented_editor_autocorrect_uses_status_proof_after_replacement(
         if method == "type_text"
     ] == [
         {"text": intended, "code": True, "secret": False},
+        {"text": "_", "code": True, "secret": False},
         {"text": "i", "code": True, "secret": False},
     ]
     _assert_no_enter(backend)
@@ -3112,6 +3117,7 @@ async def test_failed_editor_autocorrect_replacement_stops_before_later_chunks()
         if method == "type_text"
     ] == [
         {"text": "for i in", "code": True, "secret": False},
+        {"text": "_", "code": True, "secret": False},
         {"text": "i", "code": True, "secret": False},
     ]
     assert not any(

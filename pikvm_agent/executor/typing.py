@@ -3182,7 +3182,16 @@ class WatchedTyper:
                 for _ in range(suffix_length):
                     await self.backend.press_key("ArrowLeft")
                 await self.backend.press_key("Backspace")
+                # Insert a word-character guard first, then place the lowercase
+                # letter before it. Notepad otherwise re-capitalizes an ``i``
+                # inserted directly between the already-present spaces. Once
+                # the guard is removed with Backspace, no delimiter key is
+                # emitted and the intended lowercase character remains.
+                await emit_text("_")
+                await self.backend.press_key("ArrowLeft")
                 await emit_text("i")
+                await self.backend.press_key("ArrowRight")
+                await self.backend.press_key("Backspace")
                 for _ in range(suffix_length):
                     await self.backend.press_key("ArrowRight")
                 await asyncio.sleep(_CLEAR_SETTLE_S)
