@@ -229,6 +229,17 @@ def regions_overlap(a: Region, b: Region) -> bool:
     )
 
 
+def is_disjoint_editor_effect(current: Region, candidate: Region) -> bool:
+    """Reject a later editor repaint outside the grounded text band."""
+
+    vertical_gap = max(
+        0.0,
+        candidate.y - (current.y + current.height),
+        current.y - (candidate.y + candidate.height),
+    )
+    return vertical_gap > max(24.0, current.height, candidate.height)
+
+
 def editor_caret_column_proves_leading_whitespace(
     result: OCRResult,
     intended: str,
@@ -3760,7 +3771,24 @@ class WatchedTyper:
                         suspicious_tall=loc.height > max_field_height,
                         region=loc.model_dump(),
                     )
-                    cur_region = union_region(cur_region, loc) if located else loc
+                    if (
+                        editor_field
+                        and located
+                        and cur_region is not None
+                        and is_disjoint_editor_effect(cur_region, loc)
+                    ):
+                        # Notepad repaints its Ln/Col status after the final
+                        # characters. That is useful status evidence, but it
+                        # must not turn a 30-pixel text row into a 400-pixel
+                        # field and push the later status search off-screen.
+                        DEBUG.event(
+                            "typing.editor_effect_ignored",
+                            typed_characters=len(typed_so_far),
+                            current_region=cur_region.model_dump(),
+                            candidate_region=loc.model_dump(),
+                        )
+                    else:
+                        cur_region = union_region(cur_region, loc) if located else loc
                     located = True
                 elif (
                     not located

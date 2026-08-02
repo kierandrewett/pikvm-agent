@@ -34,6 +34,7 @@ from pikvm_agent.executor.typing import (
     chunk_text,
     editor_caret_column_proves_leading_whitespace,
     editor_status_search_region,
+    is_disjoint_editor_effect,
     is_caps_lock_case_inversion,
     is_standalone_i_autocorrect,
     locate_capture_change,
@@ -142,6 +143,23 @@ def test_ocr_line_screen_region_translates_from_the_actual_crop() -> None:
     )
 
     assert translated == Region(x=59, y=101, width=64, height=16)
+
+
+def test_editor_field_region_excludes_disjoint_status_bar_repaint() -> None:
+    row = Region(x=37, y=103, width=163, height=33)
+
+    assert is_disjoint_editor_effect(
+        row,
+        Region(x=72, y=473, width=48, height=31),
+    )
+    assert not is_disjoint_editor_effect(
+        row,
+        Region(x=196, y=104, width=42, height=29),
+    )
+    assert not is_disjoint_editor_effect(
+        row,
+        Region(x=40, y=137, width=180, height=30),
+    )
 
 
 def test_nearest_editor_status_row_proves_leading_whitespace() -> None:
