@@ -169,16 +169,17 @@ async def test_exact_print_keeps_shifted_punctuation_on_one_hid_transport(
     monkeypatch.setattr(backend, "type_text", record_type)
     monkeypatch.setattr(client_module, "_sleep", record_sleep)
 
+    exact_rows = [
+        '            result.append("FizzBuzz")',
+        "    for number in range(1, limit + 1):",
+    ]
     try:
-        await backend.print_exact_text(
-            '            result.append("FizzBuzz")'
-        )
+        for row in exact_rows:
+            await backend.print_exact_text(row)
     finally:
         await backend._http.aclose()
 
-    assert calls == [
-        ("type", '            result.append("FizzBuzz")'),
-    ]
+    assert calls == [("type", row) for row in exact_rows]
     assert sleeps == []
 
 
