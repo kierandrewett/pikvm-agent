@@ -4689,6 +4689,12 @@ class WatchedTyper:
                 )
                 if exact_change is not None:
                     chunk_change = exact_change
+                elif structural_code_glyph:
+                    # A one-glyph editor append also repaints Notepad's
+                    # Ln/Col status. Until exact cropped OCR grounds the
+                    # structural glyph, the coarse grid cannot distinguish
+                    # that status effect from the actual editor row.
+                    chunk_change = None
                 elif chunk_change is None:
                     chunk_change = await asyncio.to_thread(
                         locate_dense_changed_bbox,
@@ -4796,6 +4802,8 @@ class WatchedTyper:
                             )
                             if exact_retry_loc is not None:
                                 retry_loc = exact_retry_loc
+                            elif structural_code_glyph:
+                                retry_loc = None
                             elif retry_loc is None:
                                 retry_loc = await asyncio.to_thread(
                                     locate_dense_changed_bbox,

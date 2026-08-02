@@ -1131,7 +1131,7 @@ async def test_late_causal_exact_row_skips_redundant_settled_field_reads(
     assert result.field_text == "}"
     assert result.emitted_exactly_once is True
     assert ocr.causal_reads == 1
-    assert ocr.background_reads == 1
+    assert ocr.background_reads == 0
 
 
 @pytest.mark.parametrize(
@@ -6876,7 +6876,7 @@ async def test_precise_readback_extracts_one_indented_row_from_fallback() -> Non
 
 
 @pytest.mark.parametrize("intended", ["}", "  ]"])
-async def test_single_structural_code_glyph_uses_grounded_fallback(
+async def test_single_structural_code_glyph_uses_grounded_compact_crop(
     monkeypatch: pytest.MonkeyPatch,
     intended: str,
 ) -> None:
@@ -6929,6 +6929,16 @@ async def test_single_structural_code_glyph_uses_grounded_fallback(
                             ),
                             confidence=0.99,
                             bbox=[4, 8, 74, 20],
+                        )
+                    ]
+                )
+            if region is not None and region.y < 250:
+                return OCRResult(
+                    lines=[
+                        OCRLine(
+                            text=intended.strip(),
+                            confidence=0.99,
+                            bbox=[4, 4, 18, 18],
                         )
                     ]
                 )
