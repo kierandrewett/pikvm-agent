@@ -740,38 +740,40 @@ def test_real_world_commit_labels_require_human(
     )
 
 
-def test_noisy_ok_is_allowed_only_for_confirmed_file_explorer_not_found_error() -> None:
-    actions = [
-        {"type": "click", "observed_target_text": "(ox"},
-        {"type": "wait_for_change", "timeout_ms": 3000},
-    ]
-    surface = (
-        "File Explorer\n"
-        "Viindows can’t find "
-        r"'C:\PiKVM-Harness\workspace\codex-50'. "
-        "Check the spelling and try again"
-    )
-
-    assert is_confirmed_safe_windows_error_dismissal(actions, surface)
-    assert classify_direct_burst(
-        actions,
-        PolicyConfig(),
-        observed_surface_text=surface,
-    ).status == "allowed"
-
-
-def test_bare_enter_is_allowed_for_confirmed_notepad_missing_file_error() -> None:
-    actions = [
-        {"type": "key", "keys": ["ENTER"]},
-        {"type": "wait_for_change", "timeout_ms": 2000},
-        {"type": "wait_for_stable_screen", "timeout_ms": 3000},
-    ]
-    surface = (
-        "Notepad\n"
-        "Cannot find the "
-        r"C:\PiKVM-Harness\workspace\codex-50\code-01.py file."
-        "\nOK"
-    )
+@pytest.mark.parametrize(
+    ("actions", "surface"),
+    [
+        (
+            [
+                {"type": "click", "observed_target_text": "(ox"},
+                {"type": "wait_for_change", "timeout_ms": 3000},
+            ],
+            (
+                "File Explorer\n"
+                "Viindows can’t find "
+                r"'C:\PiKVM-Harness\workspace\codex-50'. "
+                "Check the spelling and try again"
+            ),
+        ),
+        (
+            [
+                {"type": "key", "keys": ["ENTER"]},
+                {"type": "wait_for_change", "timeout_ms": 2000},
+                {"type": "wait_for_stable_screen", "timeout_ms": 3000},
+            ],
+            (
+                "Notepad\n"
+                "Cannot find the "
+                r"C:\PiKVM-Harness\workspace\codex-50\code-01.py file."
+                "\nOK"
+            ),
+        ),
+    ],
+)
+def test_confirmed_windows_missing_file_dismissals_are_allowed(
+    actions: list[dict],
+    surface: str,
+) -> None:
 
     assert is_confirmed_safe_windows_error_dismissal(actions, surface)
     assert classify_direct_burst(
