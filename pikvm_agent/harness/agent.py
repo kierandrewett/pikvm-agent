@@ -1291,12 +1291,25 @@ def _typed_exact_editor_text(
     action: PendingAction | None,
     payload: str,
 ) -> bool:
+    return _pending_action_exactly_types_text(
+        action,
+        payload,
+        context="editor",
+    )
+
+
+def _pending_action_exactly_types_text(
+    action: PendingAction | None,
+    expected: str,
+    *,
+    context: str,
+) -> bool:
     if action is None:
         return False
     return any(
         item.get("type") == "type_text"
-        and str(item.get("text") or "") == payload
-        and str(item.get("context") or "") == "editor"
+        and str(item.get("text") or "") == expected
+        and str(item.get("context") or "") == context
         and str(item.get("verification") or "") == "exact"
         for item in action.actions
     )
@@ -1330,6 +1343,21 @@ _FOCUS_SAVE_AS_FILENAME_INTENT = (
 _FOCUS_OPEN_FILENAME_INTENT = "Focus the native Open File name field."
 
 
+def _replace_notepad_dialog_filename_intent(
+    dialog: str,
+    basename: str,
+) -> str:
+    return f"Replace the native {dialog} filename with `{basename}`."
+
+
+def _save_notepad_artifact_intent(basename: str) -> str:
+    return f"Save the verified Notepad artifact as `{basename}`."
+
+
+def _reopen_notepad_artifact_intent(basename: str) -> str:
+    return f"Reopen the verified Notepad artifact `{basename}`."
+
+
 def _notepad_workspace_artifact_basename(run: RunSnapshot) -> str | None:
     """Return one explicit short artifact name from the bounded lab path."""
 
@@ -1358,6 +1386,17 @@ def _pending_action_uses_key_chord(
     return False
 
 
+def _pending_action_exactly_types_field(
+    action: PendingAction | None,
+    expected: str,
+) -> bool:
+    return _pending_action_exactly_types_text(
+        action,
+        expected,
+        context="field",
+    )
+
+
 def _notepad_file_dialog_controller(
     run: RunSnapshot,
     action: PendingAction | None,
@@ -1376,6 +1415,16 @@ def _notepad_file_dialog_controller(
         typed_index == len(segments) - 1
         and _notepad_segment_break_count(run, typed_index) == 0
     )
+    save_filename_intent = _replace_notepad_dialog_filename_intent(
+        "Save As",
+        basename,
+    )
+    open_filename_intent = _replace_notepad_dialog_filename_intent(
+        "Open",
+        basename,
+    )
+    save_artifact_intent = _save_notepad_artifact_intent(basename)
+    expects_task_completion = False
     if final_segment_complete:
         actions = [
             {"type": "key", "keys": ["CTRL", "SHIFT", "S"]},
@@ -1389,6 +1438,41 @@ def _notepad_file_dialog_controller(
         intent = "Open native Save As for the exact Notepad artifact."
         evidence = [
             "A native Save As dialog is visibly open for the exact document."
+        ]
+    elif (
+        action.intent == save_filename_intent
+        and _pending_action_exactly_types_field(action, basename)
+    ):
+        actions = [
+            {"type": "key", "keys": ["ENTER"]},
+            {"type": "wait_for_change", "timeout_ms": 3_000},
+            {
+                "type": "wait_for_stable_screen",
+                "stable_ms": 400,
+                "timeout_ms": 3_000,
+            },
+        ]
+        intent = save_artifact_intent
+        evidence = [
+            "The Save As dialog closes and Notepad keeps the exact document "
+            f"under the verified basename `{basename}`."
+        ]
+    elif (
+        action.intent == save_artifact_intent
+        and _pending_action_uses_key_chord(action, {"Enter"})
+    ):
+        actions = [
+            {"type": "key", "keys": ["CTRL", "O"]},
+            {"type": "wait_for_change", "timeout_ms": 3_000},
+            {
+                "type": "wait_for_stable_screen",
+                "stable_ms": 400,
+                "timeout_ms": 3_000,
+            },
+        ]
+        intent = "Open the native Open dialog for the verified artifact."
+        evidence = [
+            "A native Open dialog is visibly open for the saved document."
         ]
     elif _pending_action_uses_key_chord(
         action,
@@ -1447,11 +1531,30 @@ def _notepad_file_dialog_controller(
             if action.intent == _FOCUS_SAVE_AS_FILENAME_INTENT
             else "Open"
         )
-        intent = f"Replace the native {dialog} filename with `{basename}`."
+        intent = _replace_notepad_dialog_filename_intent(dialog, basename)
         evidence = [
             f"The native {dialog} File name field visibly reads exactly "
             f"`{basename}`."
         ]
+    elif (
+        action.intent == open_filename_intent
+        and _pending_action_exactly_types_field(action, basename)
+    ):
+        actions = [
+            {"type": "key", "keys": ["ENTER"]},
+            {"type": "wait_for_change", "timeout_ms": 3_000},
+            {
+                "type": "wait_for_stable_screen",
+                "stable_ms": 400,
+                "timeout_ms": 3_000,
+            },
+        ]
+        intent = _reopen_notepad_artifact_intent(basename)
+        evidence = [
+            "The Open dialog closes and Notepad visibly displays the reopened "
+            f"artifact `{basename}`."
+        ]
+        expects_task_completion = True
     else:
         return None
     if len(actions) > max_actions:
@@ -1461,7 +1564,7 @@ def _notepad_file_dialog_controller(
         intent=intent,
         actions=actions,
         expected_evidence=evidence,
-        expects_task_completion=False,
+        expects_task_completion=expects_task_completion,
     )
 
 

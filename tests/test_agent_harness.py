@@ -1175,6 +1175,103 @@ def test_notepad_file_dialog_controller_uses_verified_access_key_focus() -> None
     assert filename.actions[1].text == basename
     assert filename.actions[1].verification == "exact"
 
+    named_for_save = PendingAction(
+        index=5,
+        intent=filename.intent,
+        actions=[
+            item.model_dump(mode="json", exclude_none=True)
+            for item in filename.actions
+        ],
+        based_on_world_version=5,
+        based_on_control_epoch=0,
+        idempotency_key="named-save-as-file",
+    )
+    save = _notepad_file_dialog_controller(
+        run,
+        named_for_save,
+        max_actions=20,
+    )
+    assert save is not None
+    assert save.actions[0].keys == ["ENTER"]
+
+    saved = PendingAction(
+        index=6,
+        intent=save.intent,
+        actions=[
+            item.model_dump(mode="json", exclude_none=True)
+            for item in save.actions
+        ],
+        based_on_world_version=6,
+        based_on_control_epoch=0,
+        idempotency_key="saved-notepad-file",
+    )
+    open_dialog = _notepad_file_dialog_controller(
+        run,
+        saved,
+        max_actions=20,
+    )
+    assert open_dialog is not None
+    assert open_dialog.actions[0].keys == ["CTRL", "O"]
+
+    opened_for_reopen = PendingAction(
+        index=7,
+        intent=open_dialog.intent,
+        actions=[
+            item.model_dump(mode="json", exclude_none=True)
+            for item in open_dialog.actions
+        ],
+        based_on_world_version=7,
+        based_on_control_epoch=0,
+        idempotency_key="opened-for-reopen",
+    )
+    focus_open = _notepad_file_dialog_controller(
+        run,
+        opened_for_reopen,
+        max_actions=20,
+    )
+    assert focus_open is not None
+    assert focus_open.actions[0].keys == ["ALT", "N"]
+
+    focused_open = PendingAction(
+        index=8,
+        intent=focus_open.intent,
+        actions=[
+            item.model_dump(mode="json", exclude_none=True)
+            for item in focus_open.actions
+        ],
+        based_on_world_version=8,
+        based_on_control_epoch=0,
+        idempotency_key="focused-open-name",
+    )
+    open_filename = _notepad_file_dialog_controller(
+        run,
+        focused_open,
+        max_actions=20,
+    )
+    assert open_filename is not None
+    assert open_filename.actions[1].text == basename
+
+    named_for_open = PendingAction(
+        index=9,
+        intent=open_filename.intent,
+        actions=[
+            item.model_dump(mode="json", exclude_none=True)
+            for item in open_filename.actions
+        ],
+        based_on_world_version=9,
+        based_on_control_epoch=0,
+        idempotency_key="named-open-file",
+    )
+    reopen = _notepad_file_dialog_controller(
+        run,
+        named_for_open,
+        max_actions=20,
+    )
+    assert reopen is not None
+    assert reopen.actions[0].keys == ["ENTER"]
+    assert reopen.intent == "Reopen the verified Notepad artifact `code-04.sql`."
+    assert reopen.expects_task_completion is True
+
 
 def test_notepad_open_dialog_uses_the_same_grounded_filename_flow() -> None:
     run = RunSnapshot(
