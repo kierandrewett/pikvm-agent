@@ -2484,7 +2484,14 @@ class AgentHarness:
                     proposed_actions,
                 ):
                     run.plan = None
-                    run.status = RunStatus.PAUSED
+                    # The controller has already received one deterministic
+                    # correction turn and still proposed an action that could
+                    # mutate or execute the unread draft. This is not a
+                    # retryable pause: repeating the same model loop cannot
+                    # safely change machine state and only burns provider
+                    # latency. Preserve the draft and stop until the operator
+                    # explicitly steers or retries the blocked run.
+                    run.status = RunStatus.BLOCKED
                     run.error = (
                         "controller tried to change or execute an unverified "
                         "input draft"

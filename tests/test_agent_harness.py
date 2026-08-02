@@ -6614,7 +6614,11 @@ async def test_unverified_editor_input_refuses_generic_undo_before_hid() -> None
 
     result = await harness.continue_run(run.run_id)
 
-    assert provider.controller_calls >= 2
+    assert provider.controller_calls == 2
+    assert result.status is RunStatus.BLOCKED
+    assert result.error == (
+        "controller tried to change or execute an unverified input draft"
+    )
     assert computer.bursts == []
     assert any(
         event.kind == "controller.unverified_input_followup_rejected"
