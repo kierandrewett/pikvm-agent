@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "report": "codex-50-live-progress",
-  "recorded_at": "2026-08-01T20:53:03Z",
+  "recorded_at": "2026-08-02T12:44:57Z",
   "manifest": "bench/codex-50-tasks.yaml",
   "environment": {
     "target": "authorized disposable Windows VNC VM",
@@ -16,9 +16,9 @@
   },
   "progress": {
     "planned": 50,
-    "unique_passed": 25,
-    "pending": 25,
-    "completion_percent": 50.0,
+    "unique_passed": 26,
+    "pending": 24,
+    "completion_percent": 52.0,
     "categories": {
       "Observation": {
         "passed": 5,
@@ -33,7 +33,7 @@
         "planned": 10
       },
       "Code entry": {
-        "passed": 0,
+        "passed": 1,
         "planned": 10
       },
       "File management": {
@@ -74,7 +74,8 @@
       "text-07",
       "text-08",
       "text-09",
-      "text-10"
+      "text-10",
+      "code-01"
     ]
   },
   "canonical_campaigns": [
@@ -216,6 +217,13 @@
         "text-10"
       ],
       "campaign_sha256": "abf112e221bf1ed464ec2a75add0fe49540552d19bc5045dd85fb37fa588ca3d"
+    },
+    {
+      "campaign_id": "codex-code-entry-code01-v48-20260802",
+      "tasks": [
+        "code-01"
+      ],
+      "campaign_sha256": "51121f119be6f46c8540f33e97405a7770d8faa1cdfb4278c2c009dd56ca71fb"
     }
   ],
   "calc_09_acceptance": {
@@ -2735,10 +2743,251 @@
       "campaign_sha256": "abf112e221bf1ed464ec2a75add0fe49540552d19bc5045dd85fb37fa588ca3d"
     }
   ],
+  "code_01_acceptance": {
+    "task": "Write, save, reopen, and visually verify a Python FizzBuzz function in Notepad",
+    "result": "passed",
+    "run_id": "3a7b24cc-2a7d-4718-870b-a1609c672801",
+    "reason": "A fresh blank Notepad document received all 12 requested code rows. The run retained 15 verified-exact input receipts, saved code-01.py through one bounded workspace approval, reopened it through the native Open dialog, and completed only after the verifier visibly checked indentation and punctuation. All 32 attempted actions completed with zero corrections, unverified inputs, recoverable failures, or provider failures.",
+    "wall_clock_ms": 637551,
+    "model_active_ms": 227893,
+    "provider_wait_ms": 204892,
+    "provider_serial_equivalent_ms": 228418,
+    "provider_overlap_ms": 23526,
+    "action_execution_ms": 425520,
+    "evidence_capture_ms": 4387,
+    "provider_calls": 30,
+    "reasoner_calls": 1,
+    "controller_calls": 8,
+    "verifier_calls": 21,
+    "actions_attempted": 32,
+    "actions_completed": 32,
+    "completion_efficiency": 1.0,
+    "exact_input_receipts": 15,
+    "input_receipt_totals": {
+      "requested_characters": 352,
+      "issued_characters": 352,
+      "observed_characters": 352,
+      "all_zero_edit_distance": true,
+      "all_zero_corrections": true,
+      "all_zero_delivery_retries": true,
+      "all_emitted_exactly_once": true
+    },
+    "unverified_inputs": 0,
+    "typing_corrections": 0,
+    "same_run_recoveries": 0,
+    "approval_count": 1,
+    "approval_scopes": [
+      "bounded_workspace_edit"
+    ],
+    "quiescence_status": "confirmed",
+    "reboot_ms": 77605,
+    "reboot_transition_observed": true,
+    "recording": {
+      "relative_path": "codex-code-entry-code01-v48-20260802/code-01/recording.webm",
+      "sha256": "dadc964f7ccdffd20ba281f5406be716d7893d242b425eb102c2e4e171a036f7",
+      "codec": "vp9",
+      "width": 2048,
+      "height": 1280,
+      "fps": 2,
+      "duration_ms": 679500,
+      "size_bytes": 1871775
+    },
+    "poster": {
+      "relative_path": "codex-code-entry-code01-v48-20260802/code-01/poster.jpg",
+      "sha256": "49bbfeaf24c8ee8033bce90ed3a19133bf53b12b8b224049579c8f529dd6c727"
+    },
+    "campaign_sha256": "51121f119be6f46c8540f33e97405a7770d8faa1cdfb4278c2c009dd56ca71fb"
+  },
+  "code_01_attempts": [
+    {
+      "campaign_id": "codex-code-entry-code01-v39-20260802",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "run_id": "b441bead-cf94-41bc-9c60-465c8bd47629",
+      "reason": "The FizzBuzz append row remained unverified. The editor guard blocked any mutation or execution of the unread draft and stopped the repeated provider loop.",
+      "wall_clock_ms": 356031,
+      "provider_wait_ms": 169670,
+      "action_execution_ms": 178983,
+      "provider_calls": 20,
+      "actions_attempted": 11,
+      "actions_completed": 10,
+      "same_run_recoveries": 4,
+      "quiescence_status": "confirmed",
+      "reboot_ms": 73140,
+      "reboot_transition_observed": true,
+      "campaign_sha256": "285aece785ceebf6deb86165bd01a32906a6965a7fe9aa8ab5095d971a1838ad"
+    },
+    {
+      "campaign_id": "codex-code-entry-code01-v40-20260802",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "run_id": "7b992853-9b91-4d94-8f89-b7c46eb430a6",
+      "reason": "The same unverified FizzBuzz punctuation boundary reproduced under the old loaded process. The guard again stopped before unsafe editor mutation.",
+      "wall_clock_ms": 341264,
+      "provider_wait_ms": 165369,
+      "action_execution_ms": 168119,
+      "provider_calls": 20,
+      "actions_attempted": 11,
+      "actions_completed": 10,
+      "same_run_recoveries": 4,
+      "quiescence_status": "confirmed",
+      "reboot_ms": 101212,
+      "reboot_transition_observed": true,
+      "campaign_sha256": "c32a7c7f8d95069be97af2381d6d1e28420127565a06ecdb55ea3e41dbc2467a"
+    },
+    {
+      "campaign_id": "codex-code-entry-code01-v41-20260802",
+      "reported_status": "failed",
+      "accepted_status": "invalid",
+      "run_id": "fb4cf695-1b65-4301-baeb-f7ee5084e7ab",
+      "reason": "The isolated daemon was restarted while verification was active. The connection failure is retained but cannot measure the candidate code path.",
+      "same_run_recoveries": 1,
+      "quiescence_status": "confirmed",
+      "reboot_ms": 78111,
+      "reboot_transition_observed": true,
+      "campaign_sha256": "b9a1e5b8d333be22020219ff24a8ca80f4871e950c124a5449a80eb8b6d89ac0"
+    },
+    {
+      "campaign_id": "codex-code-entry-code01-v42-20260802",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "run_id": "e509b412-7427-487e-acf7-a8c0e244d6ce",
+      "reason": "Restored Notepad state produced a local missing-file error. Bare Enter dismissal was correctly held at a non-allowlisted approval.",
+      "wall_clock_ms": 94023,
+      "provider_wait_ms": 57434,
+      "action_execution_ms": 33059,
+      "provider_calls": 7,
+      "actions_attempted": 3,
+      "actions_completed": 2,
+      "same_run_recoveries": 1,
+      "quiescence_status": "confirmed",
+      "reboot_ms": 73807,
+      "reboot_transition_observed": true,
+      "campaign_sha256": "3d5b3fd336baf729f66db72a5b68ead622a3d44e00bc4b6bea632e294caa20a8"
+    },
+    {
+      "campaign_id": "codex-code-entry-code01-v43-20260802",
+      "reported_status": "failed",
+      "accepted_status": "invalid",
+      "run_id": "f30747d0-f1e0-42e8-8e6f-ecae6e5215ba",
+      "reason": "A second isolated-service restart interrupted the live run before it could test the candidate behavior.",
+      "same_run_recoveries": 0,
+      "quiescence_status": "confirmed",
+      "reboot_ms": 77172,
+      "reboot_transition_observed": true,
+      "campaign_sha256": "30234cbae73c9ebfa8884c275f6bf314971738153056f23e12bb5ad5056db83d"
+    },
+    {
+      "campaign_id": "codex-code-entry-code01-v44-20260802",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "run_id": "2283c84f-6621-4abe-9275-7d91a7f7d5c0",
+      "reason": "The requested range row was emitted as limit 1+ because bulk text overtook the shifted plus on a second transport. Exact readback caught the reordered characters and blocked continuation.",
+      "wall_clock_ms": 254368,
+      "provider_wait_ms": 104308,
+      "action_execution_ms": 145690,
+      "provider_calls": 12,
+      "actions_attempted": 7,
+      "actions_completed": 6,
+      "same_run_recoveries": 2,
+      "quiescence_status": "confirmed",
+      "reboot_ms": 91419,
+      "reboot_transition_observed": true,
+      "campaign_sha256": "b615d0bbd7e7e86ea0665b84192856f43b867521821d4601bcb244d38add9205"
+    },
+    {
+      "campaign_id": "codex-code-entry-code01-v45-20260802",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "run_id": "d9da6303-7ebb-441b-b1f9-6ebebad65540",
+      "reason": "All source rows were exact, but a blank File name field produced a near-zero-confidence OCR hallucination. A coordinate click was correctly stopped at an unknown approval.",
+      "wall_clock_ms": 592586,
+      "provider_wait_ms": 187987,
+      "action_execution_ms": 397790,
+      "provider_calls": 29,
+      "actions_attempted": 32,
+      "actions_completed": 31,
+      "same_run_recoveries": 0,
+      "quiescence_status": "confirmed",
+      "reboot_ms": 78225,
+      "reboot_transition_observed": true,
+      "campaign_sha256": "2a09d3b2494ad4e004b4c4e182149bd89ee7b0dca619f488d560a7bb5f3ccff3"
+    },
+    {
+      "campaign_id": "codex-code-entry-code01-v46-20260802",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "run_id": "e4b88267-7d4f-40c7-be3e-61d8719246f3",
+      "reason": "The visible missing-file OK button was grounded, but noisy surface OCR concatenated the path suffix and policy redundantly required a second OK read. The click stopped fail-closed.",
+      "wall_clock_ms": 80005,
+      "provider_wait_ms": 40516,
+      "action_execution_ms": 36419,
+      "provider_calls": 5,
+      "actions_attempted": 3,
+      "actions_completed": 2,
+      "same_run_recoveries": 0,
+      "quiescence_status": "confirmed",
+      "reboot_ms": 76383,
+      "reboot_transition_observed": true,
+      "campaign_sha256": "f0a269f416dfe3019cbe9fe75d1c90b425ba84e7b96d083c8568a809e23a4407"
+    },
+    {
+      "campaign_id": "codex-code-entry-code01-v47-20260802",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "run_id": "eb177869-d495-4c24-8b50-7f40431ec2b5",
+      "reason": "Ten source rows were exact, then one of eight requested leading spaces in the else row did not reach Notepad. The visible suffix still read else:, but the foreground status bar reported column 13 instead of 14. The editor guard blocked mutation and preserved the evidence.",
+      "wall_clock_ms": 509073,
+      "provider_wait_ms": 147017,
+      "action_execution_ms": 357309,
+      "provider_calls": 16,
+      "actions_attempted": 21,
+      "actions_completed": 20,
+      "same_run_recoveries": 1,
+      "quiescence_status": "confirmed",
+      "reboot_ms": 109578,
+      "reboot_transition_observed": true,
+      "campaign_sha256": "b548b45c13ae7e19bdaa5a5b31c5970a1e5938fc4c1097b3f5361e99d90a8cfe"
+    },
+    {
+      "campaign_id": "codex-code-entry-code01-v48-20260802",
+      "reported_status": "passed",
+      "accepted_status": "passed",
+      "run_id": "3a7b24cc-2a7d-4718-870b-a1609c672801",
+      "reason": "Repeated-space pacing prevented the measured indentation loss. All 12 source rows, the Save As filename, and the Open-dialog filename verified exactly; the saved file was reopened and visibly checked before quiescence and reboot.",
+      "wall_clock_ms": 637551,
+      "provider_wait_ms": 204892,
+      "action_execution_ms": 425520,
+      "provider_calls": 30,
+      "actions_attempted": 32,
+      "actions_completed": 32,
+      "same_run_recoveries": 0,
+      "quiescence_status": "confirmed",
+      "reboot_ms": 77605,
+      "reboot_transition_observed": true,
+      "campaign_sha256": "51121f119be6f46c8540f33e97405a7770d8faa1cdfb4278c2c009dd56ca71fb"
+    }
+  ],
+  "code_01_attempt_summary": {
+    "total_runs": 49,
+    "failed_runs": 48,
+    "passed_runs": 1,
+    "version_labels": 48,
+    "failure_terminal_outcomes": {
+      "same_run_recovery_limit": 16,
+      "unverified_draft_guard": 15,
+      "connectivity_or_quiescence": 6,
+      "non_allowlisted_approval": 4,
+      "aborted": 4,
+      "computer_interrupted": 2,
+      "initial_exact_header_unverified": 1
+    },
+    "full_ledger": "bench/results/2026-08-02/live-vnc/code-01-attempts.json"
+  },
   "verdict": {
-    "accuracy": "All ten Text entry tasks now pass with fresh input and independent reopen evidence. Text-10 delivered one 189-character payload with zero edit distance and exact-once emission. Its four-attempt history retains a duplicate-delivery failure, a correct but lifecycle-churned pass, a fail-closed overwrite stop, and the canonical preserved-prior pass.",
-    "speed": "Failing product target: accepted text-10 v4 took 350.558 seconds before reboot and 428.022 seconds including the reset-ready gate. This is faster than text-09 v6 but still much slower than a human typing, saving, and reopening 189 characters.",
-    "dominant_cost": "Text-10 v4 spent 180.148 seconds waiting for 31 provider calls and 160.070 seconds in action execution. A recoverable filename-field OCR mismatch caused unnecessary save-dialog actions and a second bounded workspace approval even though the exact document payload required no correction.",
-    "next": "Continue with code-01. Preserve exact-once code delivery, native reopen proof, bounded workspace approval, non-destructive fresh-artifact preparation, quiesce-before-reboot lifecycle, and failure-inclusive recordings. Remove filename-field OCR churn when its trace supports a narrow fix."
+    "accuracy": "The campaign is 26/50. All ten Text entry tasks and the first Code entry task now pass with fresh input and independent reopen evidence. Code-01 completed 32/32 actions with 15 exact receipts covering 352 requested, issued, and observed characters, zero corrections or retries, and no recovery. The summary retains detailed v39-v48 causes and links the complete 49-run failure-inclusive ledger.",
+    "speed": "Failing product target: accepted code-01 v48 took 637.551 seconds before reboot and 715.156 seconds including the reset-ready gate. A competent human can type, save, reopen, and inspect this 12-line function materially faster.",
+    "dominant_cost": "Code-01 v48 spent 425.520 seconds in action execution and 204.892 seconds waiting for 30 provider calls. Exact per-row screen verification is 66.74% of wall time; provider wait is 32.14%. Accuracy passes this task, but verification latency is the primary speed problem.",
+    "next": "Continue with code-02. Preserve exact per-row delivery, native save/reopen proof, bounded workspace approval, non-destructive fresh-artifact preparation, quiesce-before-reboot lifecycle, and failure-inclusive recordings. Reduce redundant verifier work without weakening exactness."
   }
 }

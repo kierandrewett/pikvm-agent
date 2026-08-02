@@ -5,7 +5,7 @@ harness. It records passing, failing, invalid, and infrastructure-blocked runs.
 A row is not a product claim unless its environment, upstream revision, model,
 sample size, and evaluator are all shown.
 
-Last updated: 2026-08-01.
+Last updated: 2026-08-02.
 
 ## Evidence rules
 
@@ -39,7 +39,7 @@ support a claim of generally reliable autonomous Windows operation.
 | Managed and direct assurance levels are unambiguous | The reference conversation is explicitly retained as 551/551 direct calls, not reclassified as a managed run. Chromium, Firefox, and WebKit each labelled the direct trace `Guarded direct`, named the launcher-declared caller/provider/model, removed managed assurance and the chat composer, and retained zero horizontal overflow | Passing target-free ownership/UI contract; live computer task pending |
 | Computer-use actions remain inspectable while a run is changing | The authenticated Chromium/Firefox/WebKit fixture retained and expanded all 12 actions, loaded 20 action-bound previews per engine, and exposed the exact MCP tool/model route with zero desktop or 390×844 overflow. The held Teams fixture showed the exact text, final Enter, reason, and Allow once/Deny controls without committing input. A later isolated Electron/CDP pass proved that a mixed `computer_start_task` plus `pikvm_*` managed turn renders as one expanded `Computer activity` timeline with the current exact input visible, not as a generic tool-name chain | Passing target-free multi-engine and managed-group UI contracts |
 | The operator can inspect the verifier's visual evidence | Authenticated API contracts return the labelled before/after bytes without exposing their local path; static UI contracts cover revision refresh, loading/error state, and blob revocation. A live disposable-Windows diagnostic exercised failed and uncertain visual verification without turning either into success | Passing local/browser contract; live task itself did not pass |
-| Long prose/code arrives exactly | Windows transport trials were exact 581/581 and 142/142 characters. A later seeded live boundary probe was 8/8 exact with 0 character errors and 0 duplicated spaces at 17–72 characters, although generic screen OCR was exact in 0/8. A deterministic repro then proved that replaying an apparently missing chunk could duplicate its already-delivered leading space. Typing is now at-most-once: ambiguous delivery stops unverified and never replays text. A 1,000-case stale-readback fuzz emitted every canonical payload exactly once with zero introduced doubled spaces. Receipts retain requested, delivery, emitted, OCR, and evaluated-frame SHA-256 values | Partial; target-free sender integrity passes, fresh live replay and generic OCR do not |
+| Long prose/code arrives exactly | Windows transport trials were exact 581/581 and 142/142 characters. A later seeded live boundary probe was 8/8 exact with 0 character errors and 0 duplicated spaces at 17–72 characters, although generic screen OCR was exact in 0/8. A deterministic repro then proved that replaying an apparently missing chunk could duplicate its already-delivered leading space. Typing is now at-most-once: ambiguous delivery stops unverified and never replays text. A 1,000-case stale-readback fuzz emitted every canonical payload exactly once with zero introduced doubled spaces. The accepted Code-01 live run freshly entered 12 Python rows, retained 15 exact receipts with zero corrections or unverified inputs, saved, reopened, and visibly checked the file. Receipts retain requested, delivery, emitted, OCR, and evaluated-frame SHA-256 values | Passing one live code task and target-free sender integrity; generic OCR remains below release gate |
 | Raw HID avoids encoded/script transfer hacks | A seeded 1,000-payload corpus caught 800/800 unsafe shapes with 0/200 safe false positives; the public MCP integration also refuses encoded transfer before daemon contact | Passing local syntax gate; explicit byte-verified transfer channel pending |
 | Exact-byte virtual-media preparation works | 10/10 builder contracts plus 19/19 transaction/UI/adapter/surface contracts cover mode-0600 media, exact browser approval, rollback, cleanup uncertainty, identity, lease, stop, model-surface exclusion, and explicit unsupported VNC | Passing target-free contract; daemon bridge capability and live target result pending |
 | OCR can safely verify arbitrary desktop text | Tesseract is 56.9% selected and 61.4% expected-aware exact; its 800-case routine tier is 71.125% exact while the preserved 200-case confusable stress tier is 0%; PaddleOCR is 78.9% normalized exact; the retrospective known-intent candidate union is 82.7% overall, 97.0% routine, and 25.5% stress on the same 1,000 cases; no confidence threshold supports a 99% lower-bound claim | Failing release gate |
@@ -51,8 +51,8 @@ support a claim of generally reliable autonomous Windows operation.
 
 ### Live 50-task Windows campaign
 
-The active disposable-Windows campaign has **25/50 unique accepted passes
-(50%)**. Every attempt is screen-recorded, every test ends with a VM reboot,
+The active disposable-Windows campaign has **26/50 unique accepted passes
+(52%)**. Every attempt is screen-recorded, every test ends with a VM reboot,
 and a pass is counted only once even when the same task is rerun during
 remediation. Production PiKVM was not contacted.
 
@@ -61,11 +61,11 @@ remediation. Production PiKVM was not contacted.
 | Observation | 5 | 5 | Complete |
 | Calculator | 10 | 10 | Complete |
 | Text entry | 10 | 10 | Complete |
-| Code entry | 0 | 10 | Pending |
+| Code entry | 1 | 10 | In progress |
 | File management | 0 | 5 | Pending |
 | Microsoft Excel | 0 | 5 | Pending |
 | Microsoft Word | 0 | 5 | Pending |
-| **Total** | **25** | **50** | **25 pending** |
+| **Total** | **26** | **50** | **24 pending** |
 
 The Calculator category is complete. The final temperature-conversion task
 visibly produced `23 °C = 73.4 °F`, completed 7/7 actions, and rebooted the VM
@@ -700,7 +700,46 @@ filename-field OCR mismatch and a second bounded workspace approval remain
 unnecessary save-dialog churn. Accuracy passes; 350.558s before reboot is
 still much slower than a human and remains a failing speed result.
 
-Failure-inclusive metrics, canonical campaign digests, the 25 accepted task
+Code-01 is the first accepted Code entry task. It required 49 retained live
+runs across 48 version labels because v7 was run on both 1 and 2 August. This
+is remediation history, not 49 independent production samples, but omitting
+the 48 failures would make the result misleading. Their terminal outcomes
+were: 16 same-run recovery-limit stops, 15 unverified-draft guard stops, six
+connectivity or quiescence failures, four non-allowlisted approval stops, four
+manual or managed aborts, two interrupted-computer stops, and one ambiguous
+exact-header readback.
+
+The last four attempts show the final defect chain:
+
+| Attempt | Accepted | Wall before reboot | Reboot ready | Failure or result |
+| --- | --- | ---: | ---: | --- |
+| v45 | No | 592.586s | 78.225s | All code was exact, but an ungrounded coordinate click in the native dialog was refused |
+| v46 | No | 80.005s | 76.383s | A restored stale missing-file dialog could not be safely dismissed from noisy full-screen OCR |
+| v47 | No | 509.073s | 109.578s | Ten code receipts were exact, then transport dropped one of eight leading spaces from `        else:`; the caret-column verifier blocked continuation |
+| v48 | **Yes** | **637.551s** | **77.605s** | All 12 code rows, both filename drafts, save, native reopen, final visual verification, quiescence, and reboot passed without recovery |
+
+The accepted v48 run has 15/15 exact input receipts. Requested, issued, and
+observed totals are all 352 characters; every receipt has zero edit distance,
+zero corrections, zero delivery retries, and `emitted_exactly_once=true`.
+All 32 actions completed, the run used one bounded-workspace approval, and no
+same-run recovery occurred. The independent verifier saw the persisted file
+after native reopen and confirmed the full FizzBuzz control flow, indentation,
+and punctuation.
+
+Accuracy crosses the narrow code-01 gate, but speed emphatically does not.
+The accepted run took 637.551s before reboot and 715.156s through reset-ready.
+Action execution consumed 425.520s (66.7% of the critical path), while 30
+model calls consumed 204.892s of provider wait (32.1%). The longest single
+action took 68.351s. This is far slower than a human entering and checking the
+same 12-line function.
+
+The complete failure-inclusive code-01 ledger, including all 49 campaign IDs,
+run IDs, terminal errors, timings, lifecycle evidence, and artifact paths, is
+[`code-01-attempts.json`](results/2026-08-02/live-vnc/code-01-attempts.json).
+The canonical v48 campaign digest is `sha256:51121f119be6`; its VP9 recording
+is `sha256:dadc964f7ccd` and its poster is `sha256:49bbfeaf24c8`.
+
+Failure-inclusive metrics, canonical campaign digests, the 26 accepted task
 IDs, and the VP9 recording/poster hashes are retained in
 [`codex-50-progress.json`](results/2026-07-31/live-vnc/codex-50-progress.json).
 The complete 50-task manifest is

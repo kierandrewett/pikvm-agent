@@ -1,0 +1,2828 @@
+{
+  "schema_version": 1,
+  "report": "code-01-failure-inclusive-attempt-ledger",
+  "recorded_at": "2026-08-02T12:44:57Z",
+  "task_id": "code-01",
+  "environment": {
+    "target": "authorized disposable Windows VNC VM",
+    "production_target_contacted": false,
+    "endpoint_retained": false,
+    "reboot_after_every_test": true
+  },
+  "summary": {
+    "total_runs": 49,
+    "failed_runs": 48,
+    "passed_runs": 1,
+    "version_labels": 48,
+    "canonical_campaign_id": "codex-code-entry-code01-v48-20260802"
+  },
+  "artifact_root": "showcase output root; paths below are relative and contain no remote endpoint",
+  "attempts": [
+    {
+      "campaign_id": "codex-code-entry-code01-v1-20260801",
+      "reported_status": "failed",
+      "run_id": "8168c5b3-05ae-4272-a8bb-5ee0a561cff9",
+      "started_at": "2026-08-01T20:57:35.667692+00:00",
+      "finished_at": "2026-08-01T21:04:20.002313+00:00",
+      "duration_ms": 404335,
+      "error": "identical paused error repeated twice; stopping before another provider retry: controller tried to change or execute an unverified input draft",
+      "task_error": "identical paused error repeated twice; stopping before another provider retry: controller tried to change or execute an unverified input draft",
+      "performance": {
+        "status": "paused",
+        "wall_clock_ms": 296462,
+        "model_active_ms": 237245,
+        "provider_wait_ms": 196191,
+        "provider_serial_equivalent_ms": 237440,
+        "provider_overlap_ms": 41249,
+        "action_execution_ms": 263291,
+        "evidence_capture_ms": 1506,
+        "provider_calls": 26,
+        "reasoner_calls": 4,
+        "controller_calls": 16,
+        "verifier_calls": 6,
+        "actions_attempted": 8,
+        "actions_completed": 6,
+        "completion_efficiency": 0.75,
+        "action_recoverable_failures": 0,
+        "action_stale_retries": 0,
+        "autonomous_resumes": 1,
+        "provider_failures": 0
+      },
+      "same_run_recoveries": 4,
+      "approval_scopes": [],
+      "quiescence": {
+        "status": "confirmed",
+        "requested_at": "2026-08-01T21:03:01.042940+00:00",
+        "confirmed_at": "2026-08-01T21:03:01.088265+00:00",
+        "run_status": "aborted",
+        "attempts": 1,
+        "error": null
+      },
+      "reboot": {
+        "status": "ready",
+        "requested_at": "2026-08-01T21:03:01.088892+00:00",
+        "ready_at": "2026-08-01T21:04:15.165557+00:00",
+        "duration_ms": 74076,
+        "transition_observed": true,
+        "attempts": [
+          {
+            "attempt": 1,
+            "duration_ms": 69921,
+            "transition_observed": true,
+            "ready_observed": true,
+            "ready_frame_sha256": "e6473359247fb58900a2a51ec471c785d2daf51802d4eb154125e929bc565e87"
+          }
+        ]
+      },
+      "recording": "codex-code-entry-code01-v1-20260801/code-01/recording.webm",
+      "poster": "codex-code-entry-code01-v1-20260801/code-01/poster.jpg",
+      "campaign_sha256": "ce6709a4e8f7c24bf5da8299c4150f69f9556581c05aa2f4cf56b55ac87407c5"
+    },
+    {
+      "campaign_id": "codex-code-entry-code01-v2-20260801",
+      "reported_status": "failed",
+      "run_id": "85649921-fe07-4545-9f2b-d0a681a00edb",
+      "started_at": "2026-08-01T21:30:35.646016+00:00",
+      "finished_at": "2026-08-01T21:38:41.041797+00:00",
+      "duration_ms": 485396,
+      "error": "identical paused error repeated twice; stopping before another provider retry: controller tried to change or execute an unverified input draft",
+      "task_error": "identical paused error repeated twice; stopping before another provider retry: controller tried to change or execute an unverified input draft",
+      "performance": {
+        "status": "paused",
+        "wall_clock_ms": 367413,
+        "model_active_ms": 283046,
+        "provider_wait_ms": 226661,
+        "provider_serial_equivalent_ms": 283713,
+        "provider_overlap_ms": 57052,
+        "action_execution_ms": 330577,
+        "evidence_capture_ms": 1964,
+        "provider_calls": 35,
+        "reasoner_calls": 5,
+        "controller_calls": 20,
+        "verifier_calls": 10,
+        "actions_attempted": 10,
+        "actions_completed": 8,
+        "completion_efficiency": 0.8,
+        "action_recoverable_failures": 1,
+        "action_stale_retries": 0,
+        "autonomous_resumes": 3,
+        "provider_failures": 0
+      },
+      "same_run_recoveries": 4,
+      "approval_scopes": [],
+      "quiescence": {
+        "status": "confirmed",
+        "requested_at": "2026-08-01T21:37:10.289721+00:00",
+        "confirmed_at": "2026-08-01T21:37:10.329082+00:00",
+        "run_status": "aborted",
+        "attempts": 1,
+        "error": null
+      },
+      "reboot": {
+        "status": "ready",
+        "requested_at": "2026-08-01T21:37:10.329626+00:00",
+        "ready_at": "2026-08-01T21:38:36.053433+00:00",
+        "duration_ms": 85723,
+        "transition_observed": true,
+        "attempts": [
+          {
+            "attempt": 1,
+            "duration_ms": 81612,
+            "transition_observed": true,
+            "ready_observed": true,
+            "ready_frame_sha256": "fdbc5ec744093f93d5a6ea7bf0a579b351e1e4288f7da904190bde238a92d2a7"
+          }
+        ]
+      },
+      "recording": "codex-code-entry-code01-v2-20260801/code-01/recording.webm",
+      "poster": "codex-code-entry-code01-v2-20260801/code-01/poster.jpg",
+      "campaign_sha256": "d78c2d9de5c27999fb6d6853628f8c880b96514d2c5f191114893949a8b5caa5"
+    },
+    {
+      "campaign_id": "codex-code-entry-code01-v3-20260801",
+      "reported_status": "failed",
+      "run_id": "58ea18f4-cfa7-4048-84df-6d93b4b449b1",
+      "started_at": "2026-08-01T22:14:40.324655+00:00",
+      "finished_at": "2026-08-01T22:21:38.541193+00:00",
+      "duration_ms": 418217,
+      "error": "same-run recovery limit reached at a paused checkpoint",
+      "task_error": "same-run recovery limit reached at a paused checkpoint",
+      "performance": {
+        "status": "paused",
+        "wall_clock_ms": 288705,
+        "model_active_ms": 217861,
+        "provider_wait_ms": 175879,
+        "provider_serial_equivalent_ms": 218869,
+        "provider_overlap_ms": 42990,
+        "action_execution_ms": 248470,
+        "evidence_capture_ms": 1452,
+        "provider_calls": 25,
+        "reasoner_calls": 5,
+        "controller_calls": 15,
+        "verifier_calls": 5,
+        "actions_attempted": 7,
+        "actions_completed": 5,
+        "completion_efficiency": 0.7142857142857143,
+        "action_recoverable_failures": 1,
+        "action_stale_retries": 0,
+        "autonomous_resumes": 1,
+        "provider_failures": 0
+      },
+      "same_run_recoveries": 4,
+      "approval_scopes": [],
+      "quiescence": {
+        "status": "confirmed",
+        "requested_at": "2026-08-01T22:19:57.865987+00:00",
+        "confirmed_at": "2026-08-01T22:19:57.941044+00:00",
+        "run_status": "aborted",
+        "attempts": 1,
+        "error": null
+      },
+      "reboot": {
+        "status": "ready",
+        "requested_at": "2026-08-01T22:19:57.942074+00:00",
+        "ready_at": "2026-08-01T22:21:34.603120+00:00",
+        "duration_ms": 96661,
+        "transition_observed": true,
+        "attempts": [
+          {
+            "attempt": 1,
+            "duration_ms": 91253,
+            "transition_observed": true,
+            "ready_observed": true,
+            "ready_frame_sha256": "b17c09434797f2b8276e753a89660c6bc2f348ae6559bf5140837031758f289e"
+          }
+        ]
+      },
+      "recording": "codex-code-entry-code01-v3-20260801/code-01/recording.webm",
+      "poster": "codex-code-entry-code01-v3-20260801/code-01/poster.jpg",
+      "campaign_sha256": "e954c0ea18c666fcc6a9e341b58877ff411aed5f9bbc01dc557a3b0c00657705"
+    },
+    {
+      "campaign_id": "codex-code-entry-code01-v4-20260801",
+      "reported_status": "failed",
+      "run_id": "08019c01-5d55-4ff5-b492-de4abf966c48",
+      "started_at": "2026-08-01T22:33:53.145666+00:00",
+      "finished_at": "2026-08-01T22:46:46.617351+00:00",
+      "duration_ms": 100751,
+      "error": "aborted",
+      "task_error": "aborted",
+      "performance": {
+        "status": "aborted",
+        "wall_clock_ms": 152206,
+        "model_active_ms": 84269,
+        "provider_wait_ms": 54714,
+        "provider_serial_equivalent_ms": 84863,
+        "provider_overlap_ms": 30149,
+        "action_execution_ms": 116852,
+        "evidence_capture_ms": 1084,
+        "provider_calls": 11,
+        "reasoner_calls": 1,
+        "controller_calls": 6,
+        "verifier_calls": 4,
+        "actions_attempted": 6,
+        "actions_completed": 4,
+        "completion_efficiency": 0.6666666666666666,
+        "action_recoverable_failures": 0,
+        "action_stale_retries": 0,
+        "autonomous_resumes": 1,
+        "provider_failures": 0
+      },
+      "same_run_recoveries": 0,
+      "approval_scopes": [],
+      "quiescence": {
+        "status": "confirmed",
+        "requested_at": "2026-08-01T22:45:31.237121+00:00",
+        "confirmed_at": "2026-08-01T22:45:31.245949+00:00",
+        "run_status": "aborted",
+        "attempts": 1,
+        "error": null
+      },
+      "reboot": {
+        "status": "ready",
+        "requested_at": "2026-08-01T22:45:31.246503+00:00",
+        "ready_at": "2026-08-01T22:46:44.232311+00:00",
+        "duration_ms": 72985,
+        "transition_observed": true,
+        "attempts": [
+          {
+            "attempt": 1,
+            "duration_ms": 67603,
+            "transition_observed": true,
+            "ready_observed": true,
+            "ready_frame_sha256": "8ea2f78b335d693cb2d6e821e90059666f83731a5091405ac548ad89e0b86f95"
+          }
+        ]
+      },
+      "recording": "codex-code-entry-code01-v4-20260801/code-01/recording.webm",
+      "poster": "codex-code-entry-code01-v4-20260801/code-01/poster.jpg",
+      "campaign_sha256": "85081e78b7cb63aae81521a340e02f9d7adc55cab8215da98183e4564551980f"
+    },
+    {
+      "campaign_id": "codex-code-entry-code01-v5-20260801",
+      "reported_status": "failed",
+      "run_id": "37ecbef9-9c9d-4990-9c19-1bd6e7db8f4b",
+      "started_at": "2026-08-01T22:39:41.552662+00:00",
+      "finished_at": "2026-08-01T22:45:11.969887+00:00",
+      "duration_ms": 330417,
+      "error": "identical paused error repeated twice; stopping before another provider retry: controller tried to change or execute an unverified input draft",
+      "task_error": "identical paused error repeated twice; stopping before another provider retry: controller tried to change or execute an unverified input draft",
+      "performance": {
+        "status": "paused",
+        "wall_clock_ms": 223782,
+        "model_active_ms": 171029,
+        "provider_wait_ms": 142598,
+        "provider_serial_equivalent_ms": 171284,
+        "provider_overlap_ms": 28686,
+        "action_execution_ms": 193311,
+        "evidence_capture_ms": 1348,
+        "provider_calls": 24,
+        "reasoner_calls": 4,
+        "controller_calls": 15,
+        "verifier_calls": 5,
+        "actions_attempted": 7,
+        "actions_completed": 5,
+        "completion_efficiency": 0.7142857142857143,
+        "action_recoverable_failures": 0,
+        "action_stale_retries": 0,
+        "autonomous_resumes": 1,
+        "provider_failures": 0
+      },
+      "same_run_recoveries": 4,
+      "approval_scopes": [],
+      "quiescence": {
+        "status": "confirmed",
+        "requested_at": "2026-08-01T22:43:51.621103+00:00",
+        "confirmed_at": "2026-08-01T22:43:51.661988+00:00",
+        "run_status": "aborted",
+        "attempts": 1,
+        "error": null
+      },
+      "reboot": {
+        "status": "ready",
+        "requested_at": "2026-08-01T22:43:51.662517+00:00",
+        "ready_at": "2026-08-01T22:45:08.360774+00:00",
+        "duration_ms": 76698,
+        "transition_observed": true,
+        "attempts": [
+          {
+            "attempt": 1,
+            "duration_ms": 72125,
+            "transition_observed": true,
+            "ready_observed": true,
+            "ready_frame_sha256": "5a2a8c0b5ea861f0fadc9eb30a6bcc5087cd7f0bbfc4ac9296e053ab8e414824"
+          }
+        ]
+      },
+      "recording": "codex-code-entry-code01-v5-20260801/code-01/recording.webm",
+      "poster": "codex-code-entry-code01-v5-20260801/code-01/poster.jpg",
+      "campaign_sha256": "eabbe954eeeff847bb6a516d23103b3c8a539acede1c7d528a93af801620be70"
+    },
+    {
+      "campaign_id": "codex-code-entry-code01-v6-20260801",
+      "reported_status": "failed",
+      "run_id": "1e6e1448-4489-47da-b9db-a6fc72fb125a",
+      "started_at": "2026-08-01T22:53:53.897317+00:00",
+      "finished_at": "2026-08-01T23:00:41.507542+00:00",
+      "duration_ms": 407610,
+      "error": "same-run recovery limit reached at a paused checkpoint",
+      "task_error": "same-run recovery limit reached at a paused checkpoint",
+      "performance": {
+        "status": "paused",
+        "wall_clock_ms": 278735,
+        "model_active_ms": 231784,
+        "provider_wait_ms": 186246,
+        "provider_serial_equivalent_ms": 232304,
+        "provider_overlap_ms": 46058,
+        "action_execution_ms": 250402,
+        "evidence_capture_ms": 2052,
+        "provider_calls": 29,
+        "reasoner_calls": 5,
+        "controller_calls": 17,
+        "verifier_calls": 7,
+        "actions_attempted": 8,
+        "actions_completed": 6,
+        "completion_efficiency": 0.75,
+        "action_recoverable_failures": 0,
+        "action_stale_retries": 0,
+        "autonomous_resumes": 1,
+        "provider_failures": 0
+      },
+      "same_run_recoveries": 4,
+      "approval_scopes": [],
+      "quiescence": {
+        "status": "confirmed",
+        "requested_at": "2026-08-01T22:59:01.685178+00:00",
+        "confirmed_at": "2026-08-01T22:59:01.735796+00:00",
+        "run_status": "aborted",
+        "attempts": 1,
+        "error": null
+      },
+      "reboot": {
+        "status": "ready",
+        "requested_at": "2026-08-01T22:59:01.736549+00:00",
+        "ready_at": "2026-08-01T23:00:26.604127+00:00",
+        "duration_ms": 84867,
+        "transition_observed": true,
+        "attempts": [
+          {
+            "attempt": 1,
+            "duration_ms": 79215,
+            "transition_observed": true,
+            "ready_observed": true,
+            "ready_frame_sha256": "2aa98071790feba19bf32bd1ce05f63224d3b3776dd6bedb0eb55eaabb9d75c6"
+          }
+        ]
+      },
+      "recording": "codex-code-entry-code01-v6-20260801/code-01/recording.webm",
+      "poster": "codex-code-entry-code01-v6-20260801/code-01/poster.jpg",
+      "campaign_sha256": "c7d36538f97137e61d8b9afb6e3e475924bed0f3ea3043bcd5b2af0ef5ba2d5f"
+    },
+    {
+      "campaign_id": "codex-code-entry-code01-v7-20260801",
+      "reported_status": "failed",
+      "run_id": "e833b7ff-648a-45ff-860b-7a6a5d63b900",
+      "started_at": "2026-08-01T23:09:01.663547+00:00",
+      "finished_at": "2026-08-01T23:13:19.424958+00:00",
+      "duration_ms": 257761,
+      "error": "ConnectError: All connection attempts failed; pre-reboot quiescence failed: RuntimeError: could not quiesce managed run e833b7ff-648a-45ff-860b-7a6a5d63b900 after 3 attempts: ConnectError: All connection attempts failed",
+      "task_error": "ConnectError: All connection attempts failed",
+      "performance": null,
+      "same_run_recoveries": 1,
+      "approval_scopes": [],
+      "quiescence": {
+        "status": "failed",
+        "requested_at": "2026-08-01T23:13:15.096305+00:00",
+        "confirmed_at": null,
+        "run_status": null,
+        "attempts": 0,
+        "error": "pre-reboot quiescence failed: RuntimeError: could not quiesce managed run e833b7ff-648a-45ff-860b-7a6a5d63b900 after 3 attempts: ConnectError: All connection attempts failed"
+      },
+      "reboot": {
+        "status": "blocked",
+        "requested_at": null,
+        "ready_at": null,
+        "duration_ms": null,
+        "transition_observed": false,
+        "attempts": []
+      },
+      "recording": "codex-code-entry-code01-v7-20260801/code-01/recording.webm",
+      "poster": null,
+      "campaign_sha256": "792276da2a2777bb69cd285983a42042af16513a8120367f59c0d6c81f6a88d1"
+    },
+    {
+      "campaign_id": "codex-code-entry-code01-v7-20260802",
+      "reported_status": "failed",
+      "run_id": "126de13e-b5e7-41be-8271-bf9bcd0e86d3",
+      "started_at": "2026-08-01T23:15:34.171355+00:00",
+      "finished_at": "2026-08-01T23:21:25.665206+00:00",
+      "duration_ms": 351494,
+      "error": "identical paused error repeated twice; stopping before another provider retry: controller tried to change or execute an unverified input draft",
+      "task_error": "identical paused error repeated twice; stopping before another provider retry: controller tried to change or execute an unverified input draft",
+      "performance": {
+        "status": "paused",
+        "wall_clock_ms": 233500,
+        "model_active_ms": 155236,
+        "provider_wait_ms": 144059,
+        "provider_serial_equivalent_ms": 155817,
+        "provider_overlap_ms": 11758,
+        "action_execution_ms": 207550,
+        "evidence_capture_ms": 596,
+        "provider_calls": 20,
+        "reasoner_calls": 4,
+        "controller_calls": 14,
+        "verifier_calls": 2,
+        "actions_attempted": 5,
+        "actions_completed": 2,
+        "completion_efficiency": 0.4,
+        "action_recoverable_failures": 0,
+        "action_stale_retries": 0,
+        "autonomous_resumes": 2,
+        "provider_failures": 0
+      },
+      "same_run_recoveries": 4,
+      "approval_scopes": [],
+      "quiescence": {
+        "status": "confirmed",
+        "requested_at": "2026-08-01T23:19:57.343410+00:00",
+        "confirmed_at": "2026-08-01T23:19:57.678098+00:00",
+        "run_status": "aborted",
+        "attempts": 1,
+        "error": null
+      },
+      "reboot": {
+        "status": "ready",
+        "requested_at": "2026-08-01T23:19:57.678820+00:00",
+        "ready_at": "2026-08-01T23:21:22.362255+00:00",
+        "duration_ms": 84683,
+        "transition_observed": true,
+        "attempts": [
+          {
+            "attempt": 1,
+            "duration_ms": 79299,
+            "transition_observed": true,
+            "ready_observed": true,
+            "ready_frame_sha256": "5fa005c14aa4a7244059ce7f7fb41b7e54f18e20c0577a44b02787a0c47acb1a"
+          }
+        ]
+      },
+      "recording": "codex-code-entry-code01-v7-20260802/code-01/recording.webm",
+      "poster": "codex-code-entry-code01-v7-20260802/code-01/poster.jpg",
+      "campaign_sha256": "ba8d19e22add5b48b9716f4e3feb7d5fea5c20ce67f6d18c01c5383ccee16d39"
+    },
+    {
+      "campaign_id": "codex-code-entry-code01-v8-20260802",
+      "reported_status": "failed",
+      "run_id": "76718e3d-2483-451a-b783-05553bc84782",
+      "started_at": "2026-08-01T23:26:46.550556+00:00",
+      "finished_at": "2026-08-01T23:31:57.752908+00:00",
+      "duration_ms": 153765,
+      "error": "ConnectError: All connection attempts failed; pre-reboot quiescence failed: RuntimeError: could not quiesce managed run 76718e3d-2483-451a-b783-05553bc84782 after 3 attempts: HTTPStatusError: Server error '500 Internal Server Error' for url 'http://127.0.0.1:48763/api/runs/76718e3d-2483-451a-b783-05553bc84782/abort'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/500",
+      "task_error": "ConnectError: All connection attempts failed",
+      "performance": null,
+      "same_run_recoveries": 0,
+      "approval_scopes": [],
+      "quiescence": {
+        "status": "failed",
+        "requested_at": "2026-08-01T23:31:57.147340+00:00",
+        "confirmed_at": null,
+        "run_status": null,
+        "attempts": 0,
+        "error": "pre-reboot quiescence failed: RuntimeError: could not quiesce managed run 76718e3d-2483-451a-b783-05553bc84782 after 3 attempts: HTTPStatusError: Server error '500 Internal Server Error' for url 'http://127.0.0.1:48763/api/runs/76718e3d-2483-451a-b783-05553bc84782/abort'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/500"
+      },
+      "reboot": {
+        "status": "blocked",
+        "requested_at": null,
+        "ready_at": null,
+        "duration_ms": null,
+        "transition_observed": false,
+        "attempts": []
+      },
+      "recording": "codex-code-entry-code01-v8-20260802/code-01/recording.webm",
+      "poster": null,
+      "campaign_sha256": "b247ab16397bf9949b599c55dcec3cb9bdc5a4271377ba7c18ed5794d672145d"
+    },
+    {
+      "campaign_id": "codex-code-entry-code01-v9-20260802",
+      "reported_status": "failed",
+      "run_id": "58c52661-26c3-4811-9de1-b97c6a4e76a1",
+      "started_at": "2026-08-01T23:34:57.220266+00:00",
+      "finished_at": "2026-08-01T23:41:47.445498+00:00",
+      "duration_ms": 410225,
+      "error": "identical paused error repeated twice; stopping before another provider retry: controller tried to change or execute an unverified input draft",
+      "task_error": "identical paused error repeated twice; stopping before another provider retry: controller tried to change or execute an unverified input draft",
+      "performance": {
+        "status": "paused",
+        "wall_clock_ms": 300192,
+        "model_active_ms": 212143,
+        "provider_wait_ms": 166423,
+        "provider_serial_equivalent_ms": 212678,
+        "provider_overlap_ms": 46255,
+        "action_execution_ms": 255145,
+        "evidence_capture_ms": 1430,
+        "provider_calls": 24,
+        "reasoner_calls": 4,
+        "controller_calls": 14,
+        "verifier_calls": 6,
+        "actions_attempted": 8,
+        "actions_completed": 6,
+        "completion_efficiency": 0.75,
+        "action_recoverable_failures": 1,
+        "action_stale_retries": 0,
+        "autonomous_resumes": 2,
+        "provider_failures": 0
+      },
+      "same_run_recoveries": 3,
+      "approval_scopes": [],
+      "quiescence": {
+        "status": "confirmed",
+        "requested_at": "2026-08-01T23:40:24.060176+00:00",
+        "confirmed_at": "2026-08-01T23:40:24.099589+00:00",
+        "run_status": "aborted",
+        "attempts": 1,
+        "error": null
+      },
+      "reboot": {
+        "status": "ready",
+        "requested_at": "2026-08-01T23:40:24.100013+00:00",
+        "ready_at": "2026-08-01T23:41:41.926242+00:00",
+        "duration_ms": 77826,
+        "transition_observed": true,
+        "attempts": [
+          {
+            "attempt": 1,
+            "duration_ms": 72432,
+            "transition_observed": true,
+            "ready_observed": true,
+            "ready_frame_sha256": "1d3f2c06f3a45875e97f8a758965c0cfafa9d0bf356abc9d3619fbe9a613f07c"
+          }
+        ]
+      },
+      "recording": "codex-code-entry-code01-v9-20260802/code-01/recording.webm",
+      "poster": "codex-code-entry-code01-v9-20260802/code-01/poster.jpg",
+      "campaign_sha256": "d866b41b696084c6379be917b81bf6a5dc2ef76dc83049b21dd801afa083ea2c"
+    },
+    {
+      "campaign_id": "codex-code-entry-code01-v10-20260802",
+      "reported_status": "failed",
+      "run_id": "951f3601-441b-4728-8c44-d80ef36fcd46",
+      "started_at": "2026-08-01T23:53:26.468220+00:00",
+      "finished_at": "2026-08-02T00:01:33.578105+00:00",
+      "duration_ms": 118580,
+      "error": "typed 'def fizzbuzz(limit):' but read-back disagrees (unverified_ambiguous): Typed.",
+      "task_error": "typed 'def fizzbuzz(limit):' but read-back disagrees (unverified_ambiguous): Typed.",
+      "performance": {
+        "status": "aborted",
+        "wall_clock_ms": 341142,
+        "model_active_ms": 116825,
+        "provider_wait_ms": 86772,
+        "provider_serial_equivalent_ms": 118051,
+        "provider_overlap_ms": 31279,
+        "action_execution_ms": 305183,
+        "evidence_capture_ms": 1357,
+        "provider_calls": 16,
+        "reasoner_calls": 1,
+        "controller_calls": 9,
+        "verifier_calls": 6,
+        "actions_attempted": 8,
+        "actions_completed": 5,
+        "completion_efficiency": 0.625,
+        "action_recoverable_failures": 0,
+        "action_stale_retries": 0,
+        "autonomous_resumes": 3,
+        "provider_failures": 0
+      },
+      "same_run_recoveries": 0,
+      "approval_scopes": [],
+      "quiescence": {
+        "status": "confirmed",
+        "requested_at": "2026-08-02T00:00:01.052093+00:00",
+        "confirmed_at": "2026-08-02T00:00:01.061138+00:00",
+        "run_status": "aborted",
+        "attempts": 1,
+        "error": null
+      },
+      "reboot": {
+        "status": "ready",
+        "requested_at": "2026-08-02T00:00:01.061665+00:00",
+        "ready_at": "2026-08-02T00:01:29.713963+00:00",
+        "duration_ms": 88652,
+        "transition_observed": true,
+        "attempts": [
+          {
+            "attempt": 1,
+            "duration_ms": 83308,
+            "transition_observed": true,
+            "ready_observed": true,
+            "ready_frame_sha256": "8f00ebeea4cf899a122d1108aa8c8c4762a9e561b4b79640cec99adbfb925c26"
+          }
+        ]
+      },
+      "recording": "codex-code-entry-code01-v10-20260802/code-01/recording.webm",
+      "poster": "codex-code-entry-code01-v10-20260802/code-01/poster.jpg",
+      "campaign_sha256": "7e13f3ec4ba97d3fb354b027c28bb5f197b7791e38520ef5ca92e5a243fb7fb5"
+    },
+    {
+      "campaign_id": "codex-code-entry-code01-v11-20260802",
+      "reported_status": "failed",
+      "run_id": "8c331032-e55f-487f-820b-33a975ddf1b4",
+      "started_at": "2026-08-02T00:12:11.456830+00:00",
+      "finished_at": "2026-08-02T00:23:39.793157+00:00",
+      "duration_ms": 688336,
+      "error": "aborted",
+      "task_error": "aborted",
+      "performance": {
+        "status": "aborted",
+        "wall_clock_ms": 549020,
+        "model_active_ms": 343336,
+        "provider_wait_ms": 266141,
+        "provider_serial_equivalent_ms": 343801,
+        "provider_overlap_ms": 77660,
+        "action_execution_ms": 519282,
+        "evidence_capture_ms": 3639,
+        "provider_calls": 50,
+        "reasoner_calls": 4,
+        "controller_calls": 27,
+        "verifier_calls": 19,
+        "actions_attempted": 23,
+        "actions_completed": 18,
+        "completion_efficiency": 0.782608695652174,
+        "action_recoverable_failures": 1,
+        "action_stale_retries": 0,
+        "autonomous_resumes": 2,
+        "provider_failures": 0
+      },
+      "same_run_recoveries": 3,
+      "approval_scopes": [
+        "bounded_workspace_edit",
+        "bounded_workspace_edit",
+        "bounded_workspace_edit"
+      ],
+      "quiescence": {
+        "status": "confirmed",
+        "requested_at": "2026-08-02T00:21:46.350212+00:00",
+        "confirmed_at": "2026-08-02T00:21:46.371055+00:00",
+        "run_status": "aborted",
+        "attempts": 1,
+        "error": null
+      },
+      "reboot": {
+        "status": "ready",
+        "requested_at": "2026-08-02T00:21:46.371809+00:00",
+        "ready_at": "2026-08-02T00:23:32.503152+00:00",
+        "duration_ms": 106131,
+        "transition_observed": true,
+        "attempts": [
+          {
+            "attempt": 1,
+            "duration_ms": 101126,
+            "transition_observed": true,
+            "ready_observed": true,
+            "ready_frame_sha256": "d1329eb8316795b839a565795e2aa0a9e84ccf247793a9049bd7f6fe82f19be8"
+          }
+        ]
+      },
+      "recording": "codex-code-entry-code01-v11-20260802/code-01/recording.webm",
+      "poster": "codex-code-entry-code01-v11-20260802/code-01/poster.jpg",
+      "campaign_sha256": "24dc674d0f26d8de02ffbc20e8919f59362f97fc65e27bd3de979ab0b49d5301"
+    },
+    {
+      "campaign_id": "codex-code-entry-code01-v12-20260802",
+      "reported_status": "failed",
+      "run_id": "5c0e5383-7934-4b10-9cfc-760cf8808180",
+      "started_at": "2026-08-02T00:39:31.291456+00:00",
+      "finished_at": "2026-08-02T00:43:28.912255+00:00",
+      "duration_ms": 237621,
+      "error": "ConnectError: All connection attempts failed; pre-reboot quiescence failed: RuntimeError: could not quiesce managed run 5c0e5383-7934-4b10-9cfc-760cf8808180 after 3 attempts: ConnectError: All connection attempts failed",
+      "task_error": "ConnectError: All connection attempts failed",
+      "performance": null,
+      "same_run_recoveries": 3,
+      "approval_scopes": [],
+      "quiescence": {
+        "status": "failed",
+        "requested_at": "2026-08-02T00:43:25.955358+00:00",
+        "confirmed_at": null,
+        "run_status": null,
+        "attempts": 0,
+        "error": "pre-reboot quiescence failed: RuntimeError: could not quiesce managed run 5c0e5383-7934-4b10-9cfc-760cf8808180 after 3 attempts: ConnectError: All connection attempts failed"
+      },
+      "reboot": {
+        "status": "blocked",
+        "requested_at": null,
+        "ready_at": null,
+        "duration_ms": null,
+        "transition_observed": false,
+        "attempts": []
+      },
+      "recording": "codex-code-entry-code01-v12-20260802/code-01/recording.webm",
+      "poster": null,
+      "campaign_sha256": "d17be5e6e373239d6871a63c9fac5e0b0fc49f8a9fbb0224a3033dec0e4a0663"
+    },
+    {
+      "campaign_id": "codex-code-entry-code01-v13-20260802",
+      "reported_status": "failed",
+      "run_id": "ffdd73c4-047b-4367-a127-5054620cdfc8",
+      "started_at": "2026-08-02T00:49:43.183746+00:00",
+      "finished_at": "2026-08-02T00:54:57.410688+00:00",
+      "duration_ms": 314227,
+      "error": "aborted",
+      "task_error": "aborted",
+      "performance": {
+        "status": "aborted",
+        "wall_clock_ms": 205642,
+        "model_active_ms": 148695,
+        "provider_wait_ms": 121947,
+        "provider_serial_equivalent_ms": 149433,
+        "provider_overlap_ms": 27486,
+        "action_execution_ms": 74855,
+        "evidence_capture_ms": 1236,
+        "provider_calls": 22,
+        "reasoner_calls": 5,
+        "controller_calls": 12,
+        "verifier_calls": 5,
+        "actions_attempted": 6,
+        "actions_completed": 5,
+        "completion_efficiency": 0.8333333333333334,
+        "action_recoverable_failures": 0,
+        "action_stale_retries": 0,
+        "autonomous_resumes": 1,
+        "provider_failures": 0
+      },
+      "same_run_recoveries": 4,
+      "approval_scopes": [],
+      "quiescence": {
+        "status": "confirmed",
+        "requested_at": "2026-08-02T00:53:36.411112+00:00",
+        "confirmed_at": "2026-08-02T00:53:36.422841+00:00",
+        "run_status": "aborted",
+        "attempts": 1,
+        "error": null
+      },
+      "reboot": {
+        "status": "ready",
+        "requested_at": "2026-08-02T00:53:36.423461+00:00",
+        "ready_at": "2026-08-02T00:54:53.937281+00:00",
+        "duration_ms": 77513,
+        "transition_observed": true,
+        "attempts": [
+          {
+            "attempt": 1,
+            "duration_ms": 72114,
+            "transition_observed": true,
+            "ready_observed": true,
+            "ready_frame_sha256": "d71e5845e2abeb9e64229c973c45dcd8b1fbe7222713c7f79e379e3c39119364"
+          }
+        ]
+      },
+      "recording": "codex-code-entry-code01-v13-20260802/code-01/recording.webm",
+      "poster": "codex-code-entry-code01-v13-20260802/code-01/poster.jpg",
+      "campaign_sha256": "2837e1056f52b93bd4af5a1671e74bec9b15a23e6d77106bc0f0d75001efe49d"
+    },
+    {
+      "campaign_id": "codex-code-entry-code01-v14-20260802",
+      "reported_status": "failed",
+      "run_id": "ac8708ac-3257-424a-8a9d-ad6b68d85552",
+      "started_at": "2026-08-02T01:04:37.260236+00:00",
+      "finished_at": "2026-08-02T01:13:29.276932+00:00",
+      "duration_ms": 108021,
+      "error": "aborted",
+      "task_error": "aborted",
+      "performance": {
+        "status": "aborted",
+        "wall_clock_ms": 244945,
+        "model_active_ms": 153743,
+        "provider_wait_ms": 113468,
+        "provider_serial_equivalent_ms": 154383,
+        "provider_overlap_ms": 40915,
+        "action_execution_ms": 188480,
+        "evidence_capture_ms": 1308,
+        "provider_calls": 19,
+        "reasoner_calls": 2,
+        "controller_calls": 11,
+        "verifier_calls": 6,
+        "actions_attempted": 8,
+        "actions_completed": 5,
+        "completion_efficiency": 0.625,
+        "action_recoverable_failures": 0,
+        "action_stale_retries": 0,
+        "autonomous_resumes": 4,
+        "provider_failures": 0
+      },
+      "same_run_recoveries": 1,
+      "approval_scopes": [],
+      "quiescence": {
+        "status": "confirmed",
+        "requested_at": "2026-08-02T01:12:06.857066+00:00",
+        "confirmed_at": "2026-08-02T01:12:06.870553+00:00",
+        "run_status": "aborted",
+        "attempts": 1,
+        "error": null
+      },
+      "reboot": {
+        "status": "ready",
+        "requested_at": "2026-08-02T01:12:06.871281+00:00",
+        "ready_at": "2026-08-02T01:13:24.820610+00:00",
+        "duration_ms": 77949,
+        "transition_observed": true,
+        "attempts": [
+          {
+            "attempt": 1,
+            "duration_ms": 72336,
+            "transition_observed": true,
+            "ready_observed": true,
+            "ready_frame_sha256": "7d332a81450c8399617d54e4d14418e020a64b4c3356d16687b5eea3cbfc443a"
+          }
+        ]
+      },
+      "recording": "codex-code-entry-code01-v14-20260802/code-01/recording.webm",
+      "poster": "codex-code-entry-code01-v14-20260802/code-01/poster.jpg",
+      "campaign_sha256": "05e45b053876c3582a14aa1b3ec4ce811a694938a026ca430c064bf02e386706"
+    },
+    {
+      "campaign_id": "codex-code-entry-code01-v15-20260802",
+      "reported_status": "failed",
+      "run_id": "49d73baa-5f20-4a01-af7a-060bb8738d03",
+      "started_at": "2026-08-02T01:14:03.902654+00:00",
+      "finished_at": "2026-08-02T01:22:57.177884+00:00",
+      "duration_ms": 533275,
+      "error": "same-run recovery limit reached at a paused checkpoint",
+      "task_error": "same-run recovery limit reached at a paused checkpoint",
+      "performance": {
+        "status": "paused",
+        "wall_clock_ms": 420139,
+        "model_active_ms": 284357,
+        "provider_wait_ms": 227691,
+        "provider_serial_equivalent_ms": 285218,
+        "provider_overlap_ms": 57527,
+        "action_execution_ms": 389695,
+        "evidence_capture_ms": 2499,
+        "provider_calls": 37,
+        "reasoner_calls": 5,
+        "controller_calls": 20,
+        "verifier_calls": 12,
+        "actions_attempted": 12,
+        "actions_completed": 10,
+        "completion_efficiency": 0.8333333333333334,
+        "action_recoverable_failures": 0,
+        "action_stale_retries": 0,
+        "autonomous_resumes": 3,
+        "provider_failures": 0
+      },
+      "same_run_recoveries": 4,
+      "approval_scopes": [],
+      "quiescence": {
+        "status": "confirmed",
+        "requested_at": "2026-08-02T01:21:33.338086+00:00",
+        "confirmed_at": "2026-08-02T01:21:33.386934+00:00",
+        "run_status": "aborted",
+        "attempts": 1,
+        "error": null
+      },
+      "reboot": {
+        "status": "ready",
+        "requested_at": "2026-08-02T01:21:33.387651+00:00",
+        "ready_at": "2026-08-02T01:22:48.989665+00:00",
+        "duration_ms": 75601,
+        "transition_observed": true,
+        "attempts": [
+          {
+            "attempt": 1,
+            "duration_ms": 71465,
+            "transition_observed": true,
+            "ready_observed": true,
+            "ready_frame_sha256": "815c69aef5d5b72f1cc9857acc1e94663a5e0946533bd7e9892f84bb2399bb54"
+          }
+        ]
+      },
+      "recording": "codex-code-entry-code01-v15-20260802/code-01/recording.webm",
+      "poster": "codex-code-entry-code01-v15-20260802/code-01/poster.jpg",
+      "campaign_sha256": "8df3e42d47bf68089b0c1e7140cd19332922779d1a06152957012a0353b3e4f3"
+    },
+    {
+      "campaign_id": "codex-code-entry-code01-v16-20260802",
+      "reported_status": "failed",
+      "run_id": "16b5ce30-6d46-4f42-bc73-c8ff57b316df",
+      "started_at": "2026-08-02T01:35:39.260453+00:00",
+      "finished_at": "2026-08-02T01:44:48.797778+00:00",
+      "duration_ms": 549537,
+      "error": "same-run recovery limit reached at a paused checkpoint",
+      "task_error": "same-run recovery limit reached at a paused checkpoint",
+      "performance": {
+        "status": "paused",
+        "wall_clock_ms": 308528,
+        "model_active_ms": 221470,
+        "provider_wait_ms": 187880,
+        "provider_serial_equivalent_ms": 222155,
+        "provider_overlap_ms": 34275,
+        "action_execution_ms": 108161,
+        "evidence_capture_ms": 1585,
+        "provider_calls": 26,
+        "reasoner_calls": 5,
+        "controller_calls": 15,
+        "verifier_calls": 6,
+        "actions_attempted": 7,
+        "actions_completed": 6,
+        "completion_efficiency": 0.8571428571428571,
+        "action_recoverable_failures": 1,
+        "action_stale_retries": 0,
+        "autonomous_resumes": 1,
+        "provider_failures": 0
+      },
+      "same_run_recoveries": 4,
+      "approval_scopes": [],
+      "quiescence": {
+        "status": "confirmed",
+        "requested_at": "2026-08-02T01:41:13.653720+00:00",
+        "confirmed_at": "2026-08-02T01:41:13.699985+00:00",
+        "run_status": "aborted",
+        "attempts": 1,
+        "error": null
+      },
+      "reboot": {
+        "status": "ready",
+        "requested_at": "2026-08-02T01:41:13.700624+00:00",
+        "ready_at": "2026-08-02T01:44:38.324711+00:00",
+        "duration_ms": 204624,
+        "transition_observed": true,
+        "attempts": [
+          {
+            "attempt": 1,
+            "duration_ms": 200489,
+            "transition_observed": true,
+            "ready_observed": true,
+            "ready_frame_sha256": "19946ce5deab6da179df01fbe9df62313691329266eabd2016d51786fdfe445d"
+          }
+        ]
+      },
+      "recording": "codex-code-entry-code01-v16-20260802/code-01/recording.webm",
+      "poster": "codex-code-entry-code01-v16-20260802/code-01/poster.jpg",
+      "campaign_sha256": "b39a4bde7ef30dc3fb5665796903d2d0536d967e39c0ef0ab8becf9ecfddef3a"
+    },
+    {
+      "campaign_id": "codex-code-entry-code01-v17-20260802",
+      "reported_status": "failed",
+      "run_id": "7d1232dc-8f7e-451a-a6fc-4e0b17bb638e",
+      "started_at": "2026-08-02T02:02:24.070305+00:00",
+      "finished_at": "2026-08-02T02:09:20.711549+00:00",
+      "duration_ms": 416641,
+      "error": "identical paused error repeated twice; stopping before another provider retry: controller tried to change or execute an unverified input draft",
+      "task_error": "identical paused error repeated twice; stopping before another provider retry: controller tried to change or execute an unverified input draft",
+      "performance": {
+        "status": "paused",
+        "wall_clock_ms": 301830,
+        "model_active_ms": 189722,
+        "provider_wait_ms": 159289,
+        "provider_serial_equivalent_ms": 190566,
+        "provider_overlap_ms": 31277,
+        "action_execution_ms": 271762,
+        "evidence_capture_ms": 2500,
+        "provider_calls": 24,
+        "reasoner_calls": 4,
+        "controller_calls": 14,
+        "verifier_calls": 6,
+        "actions_attempted": 8,
+        "actions_completed": 6,
+        "completion_efficiency": 0.75,
+        "action_recoverable_failures": 1,
+        "action_stale_retries": 0,
+        "autonomous_resumes": 2,
+        "provider_failures": 0
+      },
+      "same_run_recoveries": 3,
+      "approval_scopes": [],
+      "quiescence": {
+        "status": "confirmed",
+        "requested_at": "2026-08-02T02:07:51.631113+00:00",
+        "confirmed_at": "2026-08-02T02:07:51.677171+00:00",
+        "run_status": "aborted",
+        "attempts": 1,
+        "error": null
+      },
+      "reboot": {
+        "status": "ready",
+        "requested_at": "2026-08-02T02:07:51.677733+00:00",
+        "ready_at": "2026-08-02T02:09:15.925196+00:00",
+        "duration_ms": 84247,
+        "transition_observed": true,
+        "attempts": [
+          {
+            "attempt": 1,
+            "duration_ms": 80135,
+            "transition_observed": true,
+            "ready_observed": true,
+            "ready_frame_sha256": "caef1360b5cbed6d71515a8e76f31e652274f4a20f271ce23df827cd613cf3f9"
+          }
+        ]
+      },
+      "recording": "codex-code-entry-code01-v17-20260802/code-01/recording.webm",
+      "poster": "codex-code-entry-code01-v17-20260802/code-01/poster.jpg",
+      "campaign_sha256": "332b41da3b8defa0df5cec7206aaf86a0f0007e6968d4e35294e4f4cedef77e1"
+    },
+    {
+      "campaign_id": "codex-code-entry-code01-v18-20260802",
+      "reported_status": "failed",
+      "run_id": "8a7063ba-51a6-4b59-a95b-abf6d51c476b",
+      "started_at": "2026-08-02T02:15:56.833630+00:00",
+      "finished_at": "2026-08-02T02:24:03.958540+00:00",
+      "duration_ms": 377157,
+      "error": "ConnectError: All connection attempts failed",
+      "task_error": "ConnectError: All connection attempts failed",
+      "performance": null,
+      "same_run_recoveries": 3,
+      "approval_scopes": [],
+      "quiescence": {
+        "status": "confirmed",
+        "requested_at": "2026-08-02T02:22:29.464072+00:00",
+        "confirmed_at": "2026-08-02T02:22:29.560700+00:00",
+        "run_status": "aborted",
+        "attempts": 1,
+        "error": null
+      },
+      "reboot": {
+        "status": "ready",
+        "requested_at": "2026-08-02T02:22:29.561309+00:00",
+        "ready_at": "2026-08-02T02:24:03.957394+00:00",
+        "duration_ms": 94396,
+        "transition_observed": true,
+        "attempts": [
+          {
+            "attempt": 1,
+            "duration_ms": 90222,
+            "transition_observed": true,
+            "ready_observed": true,
+            "ready_frame_sha256": "a4b688bc0f0c6e17152b72ab92318567d5a5eccbb7b6ac2f0ab6167864a1482c"
+          }
+        ]
+      },
+      "recording": "codex-code-entry-code01-v18-20260802/code-01/recording.webm",
+      "poster": null,
+      "campaign_sha256": "00738520055b3c0c0b864986b84eae8176fb7a31feb96fabc9bdc214d2c44380"
+    },
+    {
+      "campaign_id": "codex-code-entry-code01-v19-20260802",
+      "reported_status": "failed",
+      "run_id": "4c8faeb8-9701-4842-bc2d-c394f989e775",
+      "started_at": "2026-08-02T02:26:01.689953+00:00",
+      "finished_at": "2026-08-02T02:34:23.047223+00:00",
+      "duration_ms": 501357,
+      "error": "same-run recovery limit reached at a paused checkpoint",
+      "task_error": "same-run recovery limit reached at a paused checkpoint",
+      "performance": {
+        "status": "paused",
+        "wall_clock_ms": 369407,
+        "model_active_ms": 226784,
+        "provider_wait_ms": 189541,
+        "provider_serial_equivalent_ms": 227735,
+        "provider_overlap_ms": 38194,
+        "action_execution_ms": 162052,
+        "evidence_capture_ms": 1926,
+        "provider_calls": 28,
+        "reasoner_calls": 5,
+        "controller_calls": 16,
+        "verifier_calls": 7,
+        "actions_attempted": 8,
+        "actions_completed": 7,
+        "completion_efficiency": 0.875,
+        "action_recoverable_failures": 0,
+        "action_stale_retries": 0,
+        "autonomous_resumes": 2,
+        "provider_failures": 0
+      },
+      "same_run_recoveries": 4,
+      "approval_scopes": [],
+      "quiescence": {
+        "status": "confirmed",
+        "requested_at": "2026-08-02T02:32:39.444294+00:00",
+        "confirmed_at": "2026-08-02T02:32:39.487784+00:00",
+        "run_status": "aborted",
+        "attempts": 1,
+        "error": null
+      },
+      "reboot": {
+        "status": "ready",
+        "requested_at": "2026-08-02T02:32:39.488504+00:00",
+        "ready_at": "2026-08-02T02:34:12.446986+00:00",
+        "duration_ms": 92958,
+        "transition_observed": true,
+        "attempts": [
+          {
+            "attempt": 1,
+            "duration_ms": 86718,
+            "transition_observed": true,
+            "ready_observed": true,
+            "ready_frame_sha256": "5d08b6edb09083ac17fadc3829d770aadfd989a03dcc33250139937294f3f461"
+          }
+        ]
+      },
+      "recording": "codex-code-entry-code01-v19-20260802/code-01/recording.webm",
+      "poster": "codex-code-entry-code01-v19-20260802/code-01/poster.jpg",
+      "campaign_sha256": "f21a122bb27c6971a97374c92ca0aecf250a41ac22b9b8fcf74979a2ef54f3e7"
+    },
+    {
+      "campaign_id": "codex-code-entry-code01-v20-20260802",
+      "reported_status": "failed",
+      "run_id": "2700858a-8e1d-4a80-a746-332404ecc819",
+      "started_at": "2026-08-02T03:00:54.897027+00:00",
+      "finished_at": "2026-08-02T03:06:55.607863+00:00",
+      "duration_ms": 360711,
+      "error": "same-run recovery limit reached at a paused checkpoint",
+      "task_error": "same-run recovery limit reached at a paused checkpoint",
+      "performance": {
+        "status": "paused",
+        "wall_clock_ms": 251618,
+        "model_active_ms": 151209,
+        "provider_wait_ms": 126420,
+        "provider_serial_equivalent_ms": 152396,
+        "provider_overlap_ms": 25976,
+        "action_execution_ms": 224709,
+        "evidence_capture_ms": 1476,
+        "provider_calls": 24,
+        "reasoner_calls": 5,
+        "controller_calls": 13,
+        "verifier_calls": 6,
+        "actions_attempted": 8,
+        "actions_completed": 6,
+        "completion_efficiency": 0.75,
+        "action_recoverable_failures": 0,
+        "action_stale_retries": 0,
+        "autonomous_resumes": 2,
+        "provider_failures": 0
+      },
+      "same_run_recoveries": 4,
+      "approval_scopes": [],
+      "quiescence": {
+        "status": "confirmed",
+        "requested_at": "2026-08-02T03:05:34.628063+00:00",
+        "confirmed_at": "2026-08-02T03:05:34.661756+00:00",
+        "run_status": "aborted",
+        "attempts": 1,
+        "error": null
+      },
+      "reboot": {
+        "status": "ready",
+        "requested_at": "2026-08-02T03:05:34.662196+00:00",
+        "ready_at": "2026-08-02T03:06:51.928387+00:00",
+        "duration_ms": 77266,
+        "transition_observed": true,
+        "attempts": [
+          {
+            "attempt": 1,
+            "duration_ms": 71860,
+            "transition_observed": true,
+            "ready_observed": true,
+            "ready_frame_sha256": "0b3a03397e14e8b4683269825b8f2368d0786c07a180e80395c153c88d36b0c3"
+          }
+        ]
+      },
+      "recording": "codex-code-entry-code01-v20-20260802/code-01/recording.webm",
+      "poster": "codex-code-entry-code01-v20-20260802/code-01/poster.jpg",
+      "campaign_sha256": "9a2db32f838aaa814cef968b6d566e4eed6f09d7baddb01ae8ec98204e1f3321"
+    },
+    {
+      "campaign_id": "codex-code-entry-code01-v21-20260802",
+      "reported_status": "failed",
+      "run_id": "721982e6-e22e-440a-8492-b3deea9e029f",
+      "started_at": "2026-08-02T03:22:58.300517+00:00",
+      "finished_at": "2026-08-02T03:29:40.494626+00:00",
+      "duration_ms": 402194,
+      "error": "identical paused error repeated twice; stopping before another provider retry: controller tried to change or execute an unverified input draft",
+      "task_error": "identical paused error repeated twice; stopping before another provider retry: controller tried to change or execute an unverified input draft",
+      "performance": {
+        "status": "paused",
+        "wall_clock_ms": 274515,
+        "model_active_ms": 178979,
+        "provider_wait_ms": 144721,
+        "provider_serial_equivalent_ms": 179410,
+        "provider_overlap_ms": 34689,
+        "action_execution_ms": 122102,
+        "evidence_capture_ms": 1595,
+        "provider_calls": 27,
+        "reasoner_calls": 5,
+        "controller_calls": 15,
+        "verifier_calls": 7,
+        "actions_attempted": 8,
+        "actions_completed": 7,
+        "completion_efficiency": 0.875,
+        "action_recoverable_failures": 0,
+        "action_stale_retries": 0,
+        "autonomous_resumes": 1,
+        "provider_failures": 0
+      },
+      "same_run_recoveries": 4,
+      "approval_scopes": [],
+      "quiescence": {
+        "status": "confirmed",
+        "requested_at": "2026-08-02T03:27:58.816759+00:00",
+        "confirmed_at": "2026-08-02T03:27:58.855127+00:00",
+        "run_status": "aborted",
+        "attempts": 1,
+        "error": null
+      },
+      "reboot": {
+        "status": "ready",
+        "requested_at": "2026-08-02T03:27:58.855654+00:00",
+        "ready_at": "2026-08-02T03:29:36.769636+00:00",
+        "duration_ms": 97914,
+        "transition_observed": true,
+        "attempts": [
+          {
+            "attempt": 1,
+            "duration_ms": 92590,
+            "transition_observed": true,
+            "ready_observed": true,
+            "ready_frame_sha256": "3b7f851b0c980ea720ef47ba1e6eadd9dd9a305b0f56083eae9cc2024ba059bd"
+          }
+        ]
+      },
+      "recording": "codex-code-entry-code01-v21-20260802/code-01/recording.webm",
+      "poster": "codex-code-entry-code01-v21-20260802/code-01/poster.jpg",
+      "campaign_sha256": "aba6f491868c5548ad8b8b1f4482c0c831b1722fa2535396989a819990de5ee4"
+    },
+    {
+      "campaign_id": "codex-code-entry-code01-v22-20260802",
+      "reported_status": "failed",
+      "run_id": "56f4e856-df8a-450f-8fef-507ffbe7568a",
+      "started_at": "2026-08-02T03:38:33.424819+00:00",
+      "finished_at": "2026-08-02T03:43:58.278097+00:00",
+      "duration_ms": 324853,
+      "error": "same-run recovery limit reached at a paused checkpoint",
+      "task_error": "same-run recovery limit reached at a paused checkpoint",
+      "performance": {
+        "status": "paused",
+        "wall_clock_ms": 212010,
+        "model_active_ms": 162622,
+        "provider_wait_ms": 136130,
+        "provider_serial_equivalent_ms": 163011,
+        "provider_overlap_ms": 26881,
+        "action_execution_ms": 64711,
+        "evidence_capture_ms": 951,
+        "provider_calls": 23,
+        "reasoner_calls": 5,
+        "controller_calls": 13,
+        "verifier_calls": 5,
+        "actions_attempted": 5,
+        "actions_completed": 4,
+        "completion_efficiency": 0.8,
+        "action_recoverable_failures": 0,
+        "action_stale_retries": 0,
+        "autonomous_resumes": 0,
+        "provider_failures": 0
+      },
+      "same_run_recoveries": 4,
+      "approval_scopes": [],
+      "quiescence": {
+        "status": "confirmed",
+        "requested_at": "2026-08-02T03:42:33.490114+00:00",
+        "confirmed_at": "2026-08-02T03:42:33.549031+00:00",
+        "run_status": "aborted",
+        "attempts": 1,
+        "error": null
+      },
+      "reboot": {
+        "status": "ready",
+        "requested_at": "2026-08-02T03:42:33.549511+00:00",
+        "ready_at": "2026-08-02T03:43:55.132683+00:00",
+        "duration_ms": 81583,
+        "transition_observed": true,
+        "attempts": [
+          {
+            "attempt": 1,
+            "duration_ms": 76199,
+            "transition_observed": true,
+            "ready_observed": true,
+            "ready_frame_sha256": "cec822363c504c0fcd3985dda1143abea4d2c0401f9b4761f2fcfab3cf18f992"
+          }
+        ]
+      },
+      "recording": "codex-code-entry-code01-v22-20260802/code-01/recording.webm",
+      "poster": "codex-code-entry-code01-v22-20260802/code-01/poster.jpg",
+      "campaign_sha256": "93141552bf23b4465c75d2a43c81a227c8ddef393da7bbf9e96e5627b03d781c"
+    },
+    {
+      "campaign_id": "codex-code-entry-code01-v23-20260802",
+      "reported_status": "failed",
+      "run_id": "0e32f4bb-29b0-4da6-b330-689b310b0fa1",
+      "started_at": "2026-08-02T03:48:19.960356+00:00",
+      "finished_at": "2026-08-02T03:53:22.424722+00:00",
+      "duration_ms": 302464,
+      "error": "same-run recovery limit reached at a paused checkpoint",
+      "task_error": "same-run recovery limit reached at a paused checkpoint",
+      "performance": {
+        "status": "paused",
+        "wall_clock_ms": 194471,
+        "model_active_ms": 127963,
+        "provider_wait_ms": 123545,
+        "provider_serial_equivalent_ms": 128329,
+        "provider_overlap_ms": 4784,
+        "action_execution_ms": 168119,
+        "evidence_capture_ms": 546,
+        "provider_calls": 18,
+        "reasoner_calls": 5,
+        "controller_calls": 11,
+        "verifier_calls": 2,
+        "actions_attempted": 4,
+        "actions_completed": 2,
+        "completion_efficiency": 0.5,
+        "action_recoverable_failures": 0,
+        "action_stale_retries": 0,
+        "autonomous_resumes": 1,
+        "provider_failures": 0
+      },
+      "same_run_recoveries": 4,
+      "approval_scopes": [],
+      "quiescence": {
+        "status": "confirmed",
+        "requested_at": "2026-08-02T03:52:03.572167+00:00",
+        "confirmed_at": "2026-08-02T03:52:03.605731+00:00",
+        "run_status": "aborted",
+        "attempts": 1,
+        "error": null
+      },
+      "reboot": {
+        "status": "ready",
+        "requested_at": "2026-08-02T03:52:03.606162+00:00",
+        "ready_at": "2026-08-02T03:53:19.609825+00:00",
+        "duration_ms": 76003,
+        "transition_observed": true,
+        "attempts": [
+          {
+            "attempt": 1,
+            "duration_ms": 70611,
+            "transition_observed": true,
+            "ready_observed": true,
+            "ready_frame_sha256": "77fa0b37ac30229661d866d6a11f84bc93ded77a38e261babe46c7662513e7de"
+          }
+        ]
+      },
+      "recording": "codex-code-entry-code01-v23-20260802/code-01/recording.webm",
+      "poster": "codex-code-entry-code01-v23-20260802/code-01/poster.jpg",
+      "campaign_sha256": "6964a49138673f66da02a96d245754c64c9683c01b42c108d02ba051650f80f2"
+    },
+    {
+      "campaign_id": "codex-code-entry-code01-v24-20260802",
+      "reported_status": "failed",
+      "run_id": "74cc4023-9c3d-4e3b-9f17-16af78fc67da",
+      "started_at": "2026-08-02T04:10:05.645963+00:00",
+      "finished_at": "2026-08-02T04:20:25.309338+00:00",
+      "duration_ms": 619663,
+      "error": "same-run recovery limit reached at a paused checkpoint",
+      "task_error": "same-run recovery limit reached at a paused checkpoint",
+      "performance": {
+        "status": "paused",
+        "wall_clock_ms": 500178,
+        "model_active_ms": 220940,
+        "provider_wait_ms": 183526,
+        "provider_serial_equivalent_ms": 221453,
+        "provider_overlap_ms": 37927,
+        "action_execution_ms": 305346,
+        "evidence_capture_ms": 2309,
+        "provider_calls": 32,
+        "reasoner_calls": 5,
+        "controller_calls": 17,
+        "verifier_calls": 10,
+        "actions_attempted": 11,
+        "actions_completed": 10,
+        "completion_efficiency": 0.9090909090909091,
+        "action_recoverable_failures": 0,
+        "action_stale_retries": 0,
+        "autonomous_resumes": 2,
+        "provider_failures": 0
+      },
+      "same_run_recoveries": 4,
+      "approval_scopes": [],
+      "quiescence": {
+        "status": "confirmed",
+        "requested_at": "2026-08-02T04:18:53.581488+00:00",
+        "confirmed_at": "2026-08-02T04:18:53.621915+00:00",
+        "run_status": "aborted",
+        "attempts": 1,
+        "error": null
+      },
+      "reboot": {
+        "status": "ready",
+        "requested_at": "2026-08-02T04:18:53.622398+00:00",
+        "ready_at": "2026-08-02T04:20:19.961760+00:00",
+        "duration_ms": 86339,
+        "transition_observed": true,
+        "attempts": [
+          {
+            "attempt": 1,
+            "duration_ms": 80951,
+            "transition_observed": true,
+            "ready_observed": true,
+            "ready_frame_sha256": "51ea87fce0b37fed98717fb9c0581ce60aad4f599854a6ae3142b3cb105f793c"
+          }
+        ]
+      },
+      "recording": "codex-code-entry-code01-v24-20260802/code-01/recording.webm",
+      "poster": "codex-code-entry-code01-v24-20260802/code-01/poster.jpg",
+      "campaign_sha256": "a83875c774cce702ef74ff56db06f36097b1b3f8ad68b7953ed331dfa0279f48"
+    },
+    {
+      "campaign_id": "codex-code-entry-code01-v25-20260802",
+      "reported_status": "failed",
+      "run_id": "bce25ce5-7449-40bf-a3b6-4f1d7eec4e05",
+      "started_at": "2026-08-02T04:30:44.872625+00:00",
+      "finished_at": "2026-08-02T04:37:16.397470+00:00",
+      "duration_ms": 391525,
+      "error": "same-run recovery limit reached at a paused checkpoint",
+      "task_error": "same-run recovery limit reached at a paused checkpoint",
+      "performance": {
+        "status": "paused",
+        "wall_clock_ms": 285352,
+        "model_active_ms": 185055,
+        "provider_wait_ms": 152200,
+        "provider_serial_equivalent_ms": 185516,
+        "provider_overlap_ms": 33316,
+        "action_execution_ms": 254395,
+        "evidence_capture_ms": 1828,
+        "provider_calls": 28,
+        "reasoner_calls": 5,
+        "controller_calls": 15,
+        "verifier_calls": 8,
+        "actions_attempted": 10,
+        "actions_completed": 8,
+        "completion_efficiency": 0.8,
+        "action_recoverable_failures": 1,
+        "action_stale_retries": 0,
+        "autonomous_resumes": 2,
+        "provider_failures": 0
+      },
+      "same_run_recoveries": 4,
+      "approval_scopes": [],
+      "quiescence": {
+        "status": "confirmed",
+        "requested_at": "2026-08-02T04:35:58.319477+00:00",
+        "confirmed_at": "2026-08-02T04:35:58.357530+00:00",
+        "run_status": "aborted",
+        "attempts": 1,
+        "error": null
+      },
+      "reboot": {
+        "status": "ready",
+        "requested_at": "2026-08-02T04:35:58.358025+00:00",
+        "ready_at": "2026-08-02T04:37:12.750513+00:00",
+        "duration_ms": 74392,
+        "transition_observed": true,
+        "attempts": [
+          {
+            "attempt": 1,
+            "duration_ms": 69011,
+            "transition_observed": true,
+            "ready_observed": true,
+            "ready_frame_sha256": "b02da2a23fa94d6989135ff11c325e95505ed6fd09333010c7f80fa20193cb29"
+          }
+        ]
+      },
+      "recording": "codex-code-entry-code01-v25-20260802/code-01/recording.webm",
+      "poster": "codex-code-entry-code01-v25-20260802/code-01/poster.jpg",
+      "campaign_sha256": "0a59028cef5b7abcbd0229bff2dabe074dbac147a7c007d25d9553d8b57cbd2e"
+    },
+    {
+      "campaign_id": "codex-code-entry-code01-v26-20260802",
+      "reported_status": "failed",
+      "run_id": "c5d562f5-219d-4463-837e-3675a8439676",
+      "started_at": "2026-08-02T04:50:27.678058+00:00",
+      "finished_at": "2026-08-02T04:58:35.781042+00:00",
+      "duration_ms": 488103,
+      "error": "identical paused error repeated twice; stopping before another provider retry: controller tried to change or execute an unverified input draft",
+      "task_error": "identical paused error repeated twice; stopping before another provider retry: controller tried to change or execute an unverified input draft",
+      "performance": {
+        "status": "paused",
+        "wall_clock_ms": 368213,
+        "model_active_ms": 184611,
+        "provider_wait_ms": 157791,
+        "provider_serial_equivalent_ms": 185222,
+        "provider_overlap_ms": 27431,
+        "action_execution_ms": 185380,
+        "evidence_capture_ms": 1922,
+        "provider_calls": 26,
+        "reasoner_calls": 4,
+        "controller_calls": 14,
+        "verifier_calls": 8,
+        "actions_attempted": 9,
+        "actions_completed": 8,
+        "completion_efficiency": 0.8888888888888888,
+        "action_recoverable_failures": 1,
+        "action_stale_retries": 0,
+        "autonomous_resumes": 2,
+        "provider_failures": 0
+      },
+      "same_run_recoveries": 3,
+      "approval_scopes": [],
+      "quiescence": {
+        "status": "confirmed",
+        "requested_at": "2026-08-02T04:57:03.083205+00:00",
+        "confirmed_at": "2026-08-02T04:57:03.142906+00:00",
+        "run_status": "aborted",
+        "attempts": 1,
+        "error": null
+      },
+      "reboot": {
+        "status": "ready",
+        "requested_at": "2026-08-02T04:57:03.143498+00:00",
+        "ready_at": "2026-08-02T04:58:31.101198+00:00",
+        "duration_ms": 87957,
+        "transition_observed": true,
+        "attempts": [
+          {
+            "attempt": 1,
+            "duration_ms": 82395,
+            "transition_observed": true,
+            "ready_observed": true,
+            "ready_frame_sha256": "24f29a254434b37df351a938687169632210031d58d6b2dd973a51a3500eea82"
+          }
+        ]
+      },
+      "recording": "codex-code-entry-code01-v26-20260802/code-01/recording.webm",
+      "poster": "codex-code-entry-code01-v26-20260802/code-01/poster.jpg",
+      "campaign_sha256": "cacb9fccebf208960ddc15f1e99ec8f1ae6a7f5fcb8ce7ca0e82b4594ccaabdf"
+    },
+    {
+      "campaign_id": "codex-code-entry-code01-v27-20260802",
+      "reported_status": "failed",
+      "run_id": "9b6c1259-74cc-4f80-a02d-af8763981072",
+      "started_at": "2026-08-02T05:03:50.340782+00:00",
+      "finished_at": "2026-08-02T05:12:29.163020+00:00",
+      "duration_ms": 518822,
+      "error": "identical paused error repeated twice; stopping before another provider retry: controller tried to change or execute an unverified input draft",
+      "task_error": "identical paused error repeated twice; stopping before another provider retry: controller tried to change or execute an unverified input draft",
+      "performance": {
+        "status": "paused",
+        "wall_clock_ms": 404624,
+        "model_active_ms": 187900,
+        "provider_wait_ms": 169250,
+        "provider_serial_equivalent_ms": 199428,
+        "provider_overlap_ms": 30178,
+        "action_execution_ms": 374655,
+        "evidence_capture_ms": 1998,
+        "provider_calls": 27,
+        "reasoner_calls": 4,
+        "controller_calls": 15,
+        "verifier_calls": 8,
+        "actions_attempted": 10,
+        "actions_completed": 8,
+        "completion_efficiency": 0.8,
+        "action_recoverable_failures": 1,
+        "action_stale_retries": 0,
+        "autonomous_resumes": 2,
+        "provider_failures": 0
+      },
+      "same_run_recoveries": 3,
+      "approval_scopes": [],
+      "quiescence": {
+        "status": "confirmed",
+        "requested_at": "2026-08-02T05:11:04.958059+00:00",
+        "confirmed_at": "2026-08-02T05:11:05.008815+00:00",
+        "run_status": "aborted",
+        "attempts": 1,
+        "error": null
+      },
+      "reboot": {
+        "status": "ready",
+        "requested_at": "2026-08-02T05:11:05.009244+00:00",
+        "ready_at": "2026-08-02T05:12:24.870739+00:00",
+        "duration_ms": 79861,
+        "transition_observed": true,
+        "attempts": [
+          {
+            "attempt": 1,
+            "duration_ms": 74553,
+            "transition_observed": true,
+            "ready_observed": true,
+            "ready_frame_sha256": "128e105a31fba824deaa6d43c0fd1b32241df0adf45ba694ee0e1746cf62f612"
+          }
+        ]
+      },
+      "recording": "codex-code-entry-code01-v27-20260802/code-01/recording.webm",
+      "poster": "codex-code-entry-code01-v27-20260802/code-01/poster.jpg",
+      "campaign_sha256": "8ae03571558efa77151b51f9d2e5e266b0caa82689d0e1cbdb75c17e4a5b4b6d"
+    },
+    {
+      "campaign_id": "codex-code-entry-code01-v28-20260802",
+      "reported_status": "failed",
+      "run_id": "2ebd1a23-7f02-454f-8dda-ccdd27496166",
+      "started_at": "2026-08-02T05:27:00.507629+00:00",
+      "finished_at": "2026-08-02T05:34:20.178290+00:00",
+      "duration_ms": 439671,
+      "error": "same-run recovery limit reached at a paused checkpoint",
+      "task_error": "same-run recovery limit reached at a paused checkpoint",
+      "performance": {
+        "status": "paused",
+        "wall_clock_ms": 334036,
+        "model_active_ms": 231200,
+        "provider_wait_ms": 194615,
+        "provider_serial_equivalent_ms": 231721,
+        "provider_overlap_ms": 37106,
+        "action_execution_ms": 129026,
+        "evidence_capture_ms": 2024,
+        "provider_calls": 33,
+        "reasoner_calls": 5,
+        "controller_calls": 18,
+        "verifier_calls": 10,
+        "actions_attempted": 10,
+        "actions_completed": 9,
+        "completion_efficiency": 0.9,
+        "action_recoverable_failures": 1,
+        "action_stale_retries": 0,
+        "autonomous_resumes": 2,
+        "provider_failures": 0
+      },
+      "same_run_recoveries": 4,
+      "approval_scopes": [],
+      "quiescence": {
+        "status": "confirmed",
+        "requested_at": "2026-08-02T05:33:01.775224+00:00",
+        "confirmed_at": "2026-08-02T05:33:01.810565+00:00",
+        "run_status": "aborted",
+        "attempts": 1,
+        "error": null
+      },
+      "reboot": {
+        "status": "ready",
+        "requested_at": "2026-08-02T05:33:01.810987+00:00",
+        "ready_at": "2026-08-02T05:34:16.365269+00:00",
+        "duration_ms": 74554,
+        "transition_observed": true,
+        "attempts": [
+          {
+            "attempt": 1,
+            "duration_ms": 69577,
+            "transition_observed": true,
+            "ready_observed": true,
+            "ready_frame_sha256": "c8ad841f998f6d253de5be37ff07302dd2b700b060360bb3355b5fe6c9c08932"
+          }
+        ]
+      },
+      "recording": "codex-code-entry-code01-v28-20260802/code-01/recording.webm",
+      "poster": "codex-code-entry-code01-v28-20260802/code-01/poster.jpg",
+      "campaign_sha256": "b42683cf13d39dd0b4ce710f692242b2ba58e87eff275af7de5fca98d97e62b3"
+    },
+    {
+      "campaign_id": "codex-code-entry-code01-v29-20260802",
+      "reported_status": "failed",
+      "run_id": "e01761f1-bfb7-4387-8f7b-3154ce657402",
+      "started_at": "2026-08-02T05:39:53.559915+00:00",
+      "finished_at": "2026-08-02T05:49:20.834567+00:00",
+      "duration_ms": 567275,
+      "error": "same-run recovery limit reached at a paused checkpoint",
+      "task_error": "same-run recovery limit reached at a paused checkpoint",
+      "performance": {
+        "status": "paused",
+        "wall_clock_ms": 446062,
+        "model_active_ms": 275982,
+        "provider_wait_ms": 230256,
+        "provider_serial_equivalent_ms": 276614,
+        "provider_overlap_ms": 46358,
+        "action_execution_ms": 200549,
+        "evidence_capture_ms": 2600,
+        "provider_calls": 36,
+        "reasoner_calls": 5,
+        "controller_calls": 19,
+        "verifier_calls": 12,
+        "actions_attempted": 12,
+        "actions_completed": 11,
+        "completion_efficiency": 0.9166666666666666,
+        "action_recoverable_failures": 0,
+        "action_stale_retries": 0,
+        "autonomous_resumes": 3,
+        "provider_failures": 0
+      },
+      "same_run_recoveries": 4,
+      "approval_scopes": [],
+      "quiescence": {
+        "status": "confirmed",
+        "requested_at": "2026-08-02T05:47:47.527410+00:00",
+        "confirmed_at": "2026-08-02T05:47:47.568628+00:00",
+        "run_status": "aborted",
+        "attempts": 1,
+        "error": null
+      },
+      "reboot": {
+        "status": "ready",
+        "requested_at": "2026-08-02T05:47:47.569136+00:00",
+        "ready_at": "2026-08-02T05:49:15.915239+00:00",
+        "duration_ms": 88346,
+        "transition_observed": true,
+        "attempts": [
+          {
+            "attempt": 1,
+            "duration_ms": 82964,
+            "transition_observed": true,
+            "ready_observed": true,
+            "ready_frame_sha256": "7f1fd89e5a17bca1212ecb63bc144ddd3abdbce6e83aa219fe9b563cb688cb3a"
+          }
+        ]
+      },
+      "recording": "codex-code-entry-code01-v29-20260802/code-01/recording.webm",
+      "poster": "codex-code-entry-code01-v29-20260802/code-01/poster.jpg",
+      "campaign_sha256": "5bcd2b8f0b78ca9e10fd6b6fd1a45fcb85f67d00ae298912c51853ad5b52bd74"
+    },
+    {
+      "campaign_id": "codex-code-entry-code01-v30-20260802",
+      "reported_status": "failed",
+      "run_id": "4620c861-b2d4-4133-956b-47e5a8917244",
+      "started_at": "2026-08-02T06:08:21.578916+00:00",
+      "finished_at": "2026-08-02T06:13:40.583669+00:00",
+      "duration_ms": 319005,
+      "error": "same-run recovery limit reached at a paused checkpoint",
+      "task_error": "same-run recovery limit reached at a paused checkpoint",
+      "performance": {
+        "status": "paused",
+        "wall_clock_ms": 209386,
+        "model_active_ms": 131368,
+        "provider_wait_ms": 125240,
+        "provider_serial_equivalent_ms": 131902,
+        "provider_overlap_ms": 6662,
+        "action_execution_ms": 75542,
+        "evidence_capture_ms": 541,
+        "provider_calls": 16,
+        "reasoner_calls": 4,
+        "controller_calls": 10,
+        "verifier_calls": 2,
+        "actions_attempted": 3,
+        "actions_completed": 2,
+        "completion_efficiency": 0.6666666666666666,
+        "action_recoverable_failures": 0,
+        "action_stale_retries": 0,
+        "autonomous_resumes": 0,
+        "provider_failures": 0
+      },
+      "same_run_recoveries": 4,
+      "approval_scopes": [],
+      "quiescence": {
+        "status": "confirmed",
+        "requested_at": "2026-08-02T06:12:19.185903+00:00",
+        "confirmed_at": "2026-08-02T06:12:19.214331+00:00",
+        "run_status": "aborted",
+        "attempts": 1,
+        "error": null
+      },
+      "reboot": {
+        "status": "ready",
+        "requested_at": "2026-08-02T06:12:19.214732+00:00",
+        "ready_at": "2026-08-02T06:13:37.623131+00:00",
+        "duration_ms": 78408,
+        "transition_observed": true,
+        "attempts": [
+          {
+            "attempt": 1,
+            "duration_ms": 73021,
+            "transition_observed": true,
+            "ready_observed": true,
+            "ready_frame_sha256": "d432e647c2035b77b766d151ad9b8170c6e567c2c558f86f81294ff6500b6638"
+          }
+        ]
+      },
+      "recording": "codex-code-entry-code01-v30-20260802/code-01/recording.webm",
+      "poster": "codex-code-entry-code01-v30-20260802/code-01/poster.jpg",
+      "campaign_sha256": "9a94bf0497e7398d2513b566e168b18bc614bdfeb14866f0997bb763e645b155"
+    },
+    {
+      "campaign_id": "codex-code-entry-code01-v31-20260802",
+      "reported_status": "failed",
+      "run_id": "062f5151-f902-489a-92b2-3c9044e21e16",
+      "started_at": "2026-08-02T06:30:35.651302+00:00",
+      "finished_at": "2026-08-02T06:38:53.092095+00:00",
+      "duration_ms": 497441,
+      "error": "same-run recovery limit reached at a paused checkpoint",
+      "task_error": "same-run recovery limit reached at a paused checkpoint",
+      "performance": {
+        "status": "paused",
+        "wall_clock_ms": 379334,
+        "model_active_ms": 251861,
+        "provider_wait_ms": 205105,
+        "provider_serial_equivalent_ms": 252490,
+        "provider_overlap_ms": 47385,
+        "action_execution_ms": 162425,
+        "evidence_capture_ms": 2375,
+        "provider_calls": 32,
+        "reasoner_calls": 5,
+        "controller_calls": 17,
+        "verifier_calls": 10,
+        "actions_attempted": 11,
+        "actions_completed": 10,
+        "completion_efficiency": 0.9090909090909091,
+        "action_recoverable_failures": 1,
+        "action_stale_retries": 0,
+        "autonomous_resumes": 2,
+        "provider_failures": 0
+      },
+      "same_run_recoveries": 4,
+      "approval_scopes": [],
+      "quiescence": {
+        "status": "confirmed",
+        "requested_at": "2026-08-02T06:37:21.736032+00:00",
+        "confirmed_at": "2026-08-02T06:37:21.771269+00:00",
+        "run_status": "aborted",
+        "attempts": 1,
+        "error": null
+      },
+      "reboot": {
+        "status": "ready",
+        "requested_at": "2026-08-02T06:37:21.771678+00:00",
+        "ready_at": "2026-08-02T06:38:48.418923+00:00",
+        "duration_ms": 86647,
+        "transition_observed": true,
+        "attempts": [
+          {
+            "attempt": 1,
+            "duration_ms": 81262,
+            "transition_observed": true,
+            "ready_observed": true,
+            "ready_frame_sha256": "147b7905a92f5b5dc323ebaa191fe9403a5377800fa76146b5d32a7ee455ae29"
+          }
+        ]
+      },
+      "recording": "codex-code-entry-code01-v31-20260802/code-01/recording.webm",
+      "poster": "codex-code-entry-code01-v31-20260802/code-01/poster.jpg",
+      "campaign_sha256": "d4937ff563fd24a745c332654497cd29ae01ba42e469bac615687dc57a2c8d3b"
+    },
+    {
+      "campaign_id": "codex-code-entry-code01-v32-20260802",
+      "reported_status": "failed",
+      "run_id": "7faf8800-23e3-4cf5-bdd3-5f1e5655050f",
+      "started_at": "2026-08-02T06:56:03.026580+00:00",
+      "finished_at": "2026-08-02T07:03:54.121747+00:00",
+      "duration_ms": 471095,
+      "error": "same-run recovery limit reached at a paused checkpoint",
+      "task_error": "same-run recovery limit reached at a paused checkpoint",
+      "performance": {
+        "status": "paused",
+        "wall_clock_ms": 362119,
+        "model_active_ms": 197969,
+        "provider_wait_ms": 174158,
+        "provider_serial_equivalent_ms": 198370,
+        "provider_overlap_ms": 24212,
+        "action_execution_ms": 178882,
+        "evidence_capture_ms": 1394,
+        "provider_calls": 24,
+        "reasoner_calls": 4,
+        "controller_calls": 14,
+        "verifier_calls": 6,
+        "actions_attempted": 7,
+        "actions_completed": 6,
+        "completion_efficiency": 0.8571428571428571,
+        "action_recoverable_failures": 0,
+        "action_stale_retries": 0,
+        "autonomous_resumes": 1,
+        "provider_failures": 0
+      },
+      "same_run_recoveries": 4,
+      "approval_scopes": [],
+      "quiescence": {
+        "status": "confirmed",
+        "requested_at": "2026-08-02T07:02:32.195984+00:00",
+        "confirmed_at": "2026-08-02T07:02:32.232005+00:00",
+        "run_status": "aborted",
+        "attempts": 1,
+        "error": null
+      },
+      "reboot": {
+        "status": "ready",
+        "requested_at": "2026-08-02T07:02:32.232544+00:00",
+        "ready_at": "2026-08-02T07:03:49.803857+00:00",
+        "duration_ms": 77571,
+        "transition_observed": true,
+        "attempts": [
+          {
+            "attempt": 1,
+            "duration_ms": 72580,
+            "transition_observed": true,
+            "ready_observed": true,
+            "ready_frame_sha256": "3a89fceebef7dae328f4ee0fda0839b27aa8c44892a523d40e302a44115be858"
+          }
+        ]
+      },
+      "recording": "codex-code-entry-code01-v32-20260802/code-01/recording.webm",
+      "poster": "codex-code-entry-code01-v32-20260802/code-01/poster.jpg",
+      "campaign_sha256": "25fbc48c643827e65094d65bfc6e34cb17d8d1cfd75c5ad6cdebf04df336692a"
+    },
+    {
+      "campaign_id": "codex-code-entry-code01-v33-20260802",
+      "reported_status": "failed",
+      "run_id": "9c9ba408-de1e-4f7e-95d5-16467d581acc",
+      "started_at": "2026-08-02T07:33:53.531375+00:00",
+      "finished_at": "2026-08-02T07:40:56.421495+00:00",
+      "duration_ms": 422890,
+      "error": "identical paused error repeated twice; stopping before another provider retry: controller tried to change or execute an unverified input draft",
+      "task_error": "identical paused error repeated twice; stopping before another provider retry: controller tried to change or execute an unverified input draft",
+      "performance": {
+        "status": "paused",
+        "wall_clock_ms": 313464,
+        "model_active_ms": 216862,
+        "provider_wait_ms": 177981,
+        "provider_serial_equivalent_ms": 217266,
+        "provider_overlap_ms": 39285,
+        "action_execution_ms": 123965,
+        "evidence_capture_ms": 1757,
+        "provider_calls": 29,
+        "reasoner_calls": 5,
+        "controller_calls": 16,
+        "verifier_calls": 8,
+        "actions_attempted": 9,
+        "actions_completed": 8,
+        "completion_efficiency": 0.8888888888888888,
+        "action_recoverable_failures": 1,
+        "action_stale_retries": 0,
+        "autonomous_resumes": 2,
+        "provider_failures": 0
+      },
+      "same_run_recoveries": 4,
+      "approval_scopes": [],
+      "quiescence": {
+        "status": "confirmed",
+        "requested_at": "2026-08-02T07:39:31.870408+00:00",
+        "confirmed_at": "2026-08-02T07:39:31.903172+00:00",
+        "run_status": "aborted",
+        "attempts": 1,
+        "error": null
+      },
+      "reboot": {
+        "status": "ready",
+        "requested_at": "2026-08-02T07:39:31.903627+00:00",
+        "ready_at": "2026-08-02T07:40:52.569604+00:00",
+        "duration_ms": 80666,
+        "transition_observed": true,
+        "attempts": [
+          {
+            "attempt": 1,
+            "duration_ms": 75286,
+            "transition_observed": true,
+            "ready_observed": true,
+            "ready_frame_sha256": "005ed9afa0947bba5f50511536a599bf86709221eba40d150de391be5ccc7511"
+          }
+        ]
+      },
+      "recording": "codex-code-entry-code01-v33-20260802/code-01/recording.webm",
+      "poster": "codex-code-entry-code01-v33-20260802/code-01/poster.jpg",
+      "campaign_sha256": "058b09d9f187e1641bb34c86b2f4d9879e9d1f0805bc4c6e10908a6ad463bc9f"
+    },
+    {
+      "campaign_id": "codex-code-entry-code01-v34-20260802",
+      "reported_status": "failed",
+      "run_id": "219916dc-888e-4788-a41a-614029d197fc",
+      "started_at": "2026-08-02T08:01:11.770351+00:00",
+      "finished_at": "2026-08-02T08:05:13.605817+00:00",
+      "duration_ms": 241836,
+      "error": "campaign stopped at a non-allowlisted approval",
+      "task_error": "campaign stopped at a non-allowlisted approval",
+      "performance": {
+        "status": "needs_approval",
+        "wall_clock_ms": 82162,
+        "model_active_ms": 70867,
+        "provider_wait_ms": 58273,
+        "provider_serial_equivalent_ms": 71181,
+        "provider_overlap_ms": 12908,
+        "action_execution_ms": 17911,
+        "evidence_capture_ms": 1004,
+        "provider_calls": 11,
+        "reasoner_calls": 2,
+        "controller_calls": 5,
+        "verifier_calls": 4,
+        "actions_attempted": 4,
+        "actions_completed": 3,
+        "completion_efficiency": 0.75,
+        "action_recoverable_failures": 0,
+        "action_stale_retries": 0,
+        "autonomous_resumes": 1,
+        "provider_failures": 0
+      },
+      "same_run_recoveries": 1,
+      "approval_scopes": [],
+      "quiescence": {
+        "status": "confirmed",
+        "requested_at": "2026-08-02T08:03:19.021016+00:00",
+        "confirmed_at": "2026-08-02T08:03:19.056717+00:00",
+        "run_status": "aborted",
+        "attempts": 1,
+        "error": null
+      },
+      "reboot": {
+        "status": "ready",
+        "requested_at": "2026-08-02T08:03:19.057525+00:00",
+        "ready_at": "2026-08-02T08:05:11.257472+00:00",
+        "duration_ms": 112200,
+        "transition_observed": true,
+        "attempts": [
+          {
+            "attempt": 1,
+            "duration_ms": 106820,
+            "transition_observed": true,
+            "ready_observed": true,
+            "ready_frame_sha256": "c7feb78a410d6605488839e3881698d6b1f432436463c04473ea2cc752b2a874"
+          }
+        ]
+      },
+      "recording": "codex-code-entry-code01-v34-20260802/code-01/recording.webm",
+      "poster": "codex-code-entry-code01-v34-20260802/code-01/poster.jpg",
+      "campaign_sha256": "e86917bf1e722ee39e36beeb00cc111aa97bc95f174f066bb713d9bfa8b86431"
+    },
+    {
+      "campaign_id": "codex-code-entry-code01-v35-20260802",
+      "reported_status": "failed",
+      "run_id": "07b45f34-6fc3-4c0d-a99b-5e66a659dc5e",
+      "started_at": "2026-08-02T08:20:12.226853+00:00",
+      "finished_at": "2026-08-02T08:35:35.420113+00:00",
+      "duration_ms": 923193,
+      "error": "same-run recovery limit reached at a paused checkpoint",
+      "task_error": "same-run recovery limit reached at a paused checkpoint",
+      "performance": {
+        "status": "paused",
+        "wall_clock_ms": 797340,
+        "model_active_ms": 465775,
+        "provider_wait_ms": 357653,
+        "provider_serial_equivalent_ms": 466378,
+        "provider_overlap_ms": 108725,
+        "action_execution_ms": 766594,
+        "evidence_capture_ms": 4690,
+        "provider_calls": 59,
+        "reasoner_calls": 4,
+        "controller_calls": 32,
+        "verifier_calls": 23,
+        "actions_attempted": 23,
+        "actions_completed": 21,
+        "completion_efficiency": 0.9130434782608695,
+        "action_recoverable_failures": 0,
+        "action_stale_retries": 0,
+        "autonomous_resumes": 6,
+        "provider_failures": 0
+      },
+      "same_run_recoveries": 4,
+      "approval_scopes": [],
+      "quiescence": {
+        "status": "confirmed",
+        "requested_at": "2026-08-02T08:33:57.128404+00:00",
+        "confirmed_at": "2026-08-02T08:33:57.173434+00:00",
+        "run_status": "aborted",
+        "attempts": 1,
+        "error": null
+      },
+      "reboot": {
+        "status": "ready",
+        "requested_at": "2026-08-02T08:33:57.173957+00:00",
+        "ready_at": "2026-08-02T08:35:19.251378+00:00",
+        "duration_ms": 82077,
+        "transition_observed": true,
+        "attempts": [
+          {
+            "attempt": 1,
+            "duration_ms": 76553,
+            "transition_observed": true,
+            "ready_observed": true,
+            "ready_frame_sha256": "64adac28e2297d1b67c8a31a212359ffb2aadcb46d28262f097df3f9fc447349"
+          }
+        ]
+      },
+      "recording": "codex-code-entry-code01-v35-20260802/code-01/recording.webm",
+      "poster": "codex-code-entry-code01-v35-20260802/code-01/poster.jpg",
+      "campaign_sha256": "b988ec3159aebecbbda563807f5d78688585ba44ce5d286c18003e73a28da240"
+    },
+    {
+      "campaign_id": "codex-code-entry-code01-v36-20260802",
+      "reported_status": "failed",
+      "run_id": "3bd5f26b-3052-427d-be66-0996e531edb3",
+      "started_at": "2026-08-02T09:01:23.301113+00:00",
+      "finished_at": "2026-08-02T09:08:31.023835+00:00",
+      "duration_ms": 427723,
+      "error": "identical paused error repeated twice; stopping before another provider retry: controller tried to change or execute an unverified input draft",
+      "task_error": "identical paused error repeated twice; stopping before another provider retry: controller tried to change or execute an unverified input draft",
+      "performance": {
+        "status": "paused",
+        "wall_clock_ms": 318972,
+        "model_active_ms": 204047,
+        "provider_wait_ms": 231687,
+        "provider_serial_equivalent_ms": 231687,
+        "provider_overlap_ms": 0,
+        "action_execution_ms": 79640,
+        "evidence_capture_ms": 800,
+        "provider_calls": 20,
+        "reasoner_calls": 8,
+        "controller_calls": 9,
+        "verifier_calls": 3,
+        "actions_attempted": 5,
+        "actions_completed": 4,
+        "completion_efficiency": 0.8,
+        "action_recoverable_failures": 0,
+        "action_stale_retries": 0,
+        "autonomous_resumes": 1,
+        "provider_failures": 0
+      },
+      "same_run_recoveries": 4,
+      "approval_scopes": [],
+      "quiescence": {
+        "status": "confirmed",
+        "requested_at": "2026-08-02T09:07:09.344858+00:00",
+        "confirmed_at": "2026-08-02T09:07:09.375312+00:00",
+        "run_status": "aborted",
+        "attempts": 1,
+        "error": null
+      },
+      "reboot": {
+        "status": "ready",
+        "requested_at": "2026-08-02T09:07:09.375730+00:00",
+        "ready_at": "2026-08-02T09:08:27.146782+00:00",
+        "duration_ms": 77771,
+        "transition_observed": true,
+        "attempts": [
+          {
+            "attempt": 1,
+            "duration_ms": 72460,
+            "transition_observed": true,
+            "ready_observed": true,
+            "ready_frame_sha256": "fe12d969ec97b5d6ba560d5363bddaa7b5cf791ff998e7653de2ba5b427e8b8d"
+          }
+        ]
+      },
+      "recording": "codex-code-entry-code01-v36-20260802/code-01/recording.webm",
+      "poster": "codex-code-entry-code01-v36-20260802/code-01/poster.jpg",
+      "campaign_sha256": "a7c26f5a1ef743f9fcea93ede38c1da51a790be09d2e7a2580c4ecf8918bd3f3"
+    },
+    {
+      "campaign_id": "codex-code-entry-code01-v37-20260802",
+      "reported_status": "failed",
+      "run_id": "b269531e-739a-4a99-a471-ef188010a49b",
+      "started_at": "2026-08-02T09:22:18.072167+00:00",
+      "finished_at": "2026-08-02T09:27:54.618761+00:00",
+      "duration_ms": 336547,
+      "error": "computer returned interrupted",
+      "task_error": "computer returned interrupted",
+      "performance": {
+        "status": "failed",
+        "wall_clock_ms": 224779,
+        "model_active_ms": 52610,
+        "provider_wait_ms": 52948,
+        "provider_serial_equivalent_ms": 52948,
+        "provider_overlap_ms": 0,
+        "action_execution_ms": 169883,
+        "evidence_capture_ms": 1218,
+        "provider_calls": 7,
+        "reasoner_calls": 1,
+        "controller_calls": 1,
+        "verifier_calls": 5,
+        "actions_attempted": 9,
+        "actions_completed": 8,
+        "completion_efficiency": 0.8888888888888888,
+        "action_recoverable_failures": 1,
+        "action_stale_retries": 0,
+        "autonomous_resumes": 2,
+        "provider_failures": 0
+      },
+      "same_run_recoveries": 0,
+      "approval_scopes": [],
+      "quiescence": {
+        "status": "confirmed",
+        "requested_at": "2026-08-02T09:26:31.596075+00:00",
+        "confirmed_at": "2026-08-02T09:26:31.603760+00:00",
+        "run_status": "failed",
+        "attempts": 1,
+        "error": null
+      },
+      "reboot": {
+        "status": "ready",
+        "requested_at": "2026-08-02T09:26:31.604142+00:00",
+        "ready_at": "2026-08-02T09:27:51.239121+00:00",
+        "duration_ms": 79635,
+        "transition_observed": true,
+        "attempts": [
+          {
+            "attempt": 1,
+            "duration_ms": 74056,
+            "transition_observed": true,
+            "ready_observed": true,
+            "ready_frame_sha256": "9156e2f3fcbec3f48504d1d2ac837157d54dd6ec27ba8b90ad3e16060c8a6785"
+          }
+        ]
+      },
+      "recording": "codex-code-entry-code01-v37-20260802/code-01/recording.webm",
+      "poster": "codex-code-entry-code01-v37-20260802/code-01/poster.jpg",
+      "campaign_sha256": "ed4beccc39540c43c3d55c40b058223baad075288c85819c254cfa15dade2721"
+    },
+    {
+      "campaign_id": "codex-code-entry-code01-v38-20260802",
+      "reported_status": "failed",
+      "run_id": "ee90a768-d7c5-4c58-a0e1-6348acc40a1f",
+      "started_at": "2026-08-02T09:43:30.671357+00:00",
+      "finished_at": "2026-08-02T09:51:16.339319+00:00",
+      "duration_ms": 465668,
+      "error": "computer returned interrupted",
+      "task_error": "computer returned interrupted",
+      "performance": {
+        "status": "failed",
+        "wall_clock_ms": 341027,
+        "model_active_ms": 70724,
+        "provider_wait_ms": 71052,
+        "provider_serial_equivalent_ms": 71052,
+        "provider_overlap_ms": 0,
+        "action_execution_ms": 267113,
+        "evidence_capture_ms": 1787,
+        "provider_calls": 10,
+        "reasoner_calls": 1,
+        "controller_calls": 1,
+        "verifier_calls": 8,
+        "actions_attempted": 13,
+        "actions_completed": 12,
+        "completion_efficiency": 0.9230769230769231,
+        "action_recoverable_failures": 1,
+        "action_stale_retries": 0,
+        "autonomous_resumes": 3,
+        "provider_failures": 0
+      },
+      "same_run_recoveries": 0,
+      "approval_scopes": [],
+      "quiescence": {
+        "status": "confirmed",
+        "requested_at": "2026-08-02T09:49:39.194762+00:00",
+        "confirmed_at": "2026-08-02T09:49:39.203124+00:00",
+        "run_status": "failed",
+        "attempts": 1,
+        "error": null
+      },
+      "reboot": {
+        "status": "ready",
+        "requested_at": "2026-08-02T09:49:39.203443+00:00",
+        "ready_at": "2026-08-02T09:51:12.130537+00:00",
+        "duration_ms": 92927,
+        "transition_observed": true,
+        "attempts": [
+          {
+            "attempt": 1,
+            "duration_ms": 87599,
+            "transition_observed": true,
+            "ready_observed": true,
+            "ready_frame_sha256": "91bbc0c03a95dae9244cff71221b994eab5dc53c76e97ee339750c4c68035454"
+          }
+        ]
+      },
+      "recording": "codex-code-entry-code01-v38-20260802/code-01/recording.webm",
+      "poster": "codex-code-entry-code01-v38-20260802/code-01/poster.jpg",
+      "campaign_sha256": "e8471938eab3c990181c8908afa4c5ae6ebb4427b28f8760741bbe36a22c9c59"
+    },
+    {
+      "campaign_id": "codex-code-entry-code01-v39-20260802",
+      "reported_status": "failed",
+      "run_id": "b441bead-cf94-41bc-9c60-465c8bd47629",
+      "started_at": "2026-08-02T10:06:41.857429+00:00",
+      "finished_at": "2026-08-02T10:14:20.983785+00:00",
+      "duration_ms": 459126,
+      "error": "identical paused error repeated twice; stopping before another provider retry: controller tried to change or execute an unverified input draft",
+      "task_error": "identical paused error repeated twice; stopping before another provider retry: controller tried to change or execute an unverified input draft",
+      "performance": {
+        "status": "paused",
+        "wall_clock_ms": 356031,
+        "model_active_ms": 169279,
+        "provider_wait_ms": 169670,
+        "provider_serial_equivalent_ms": 169670,
+        "provider_overlap_ms": 0,
+        "action_execution_ms": 178983,
+        "evidence_capture_ms": 1420,
+        "provider_calls": 20,
+        "reasoner_calls": 5,
+        "controller_calls": 9,
+        "verifier_calls": 6,
+        "actions_attempted": 11,
+        "actions_completed": 10,
+        "completion_efficiency": 0.9090909090909091,
+        "action_recoverable_failures": 1,
+        "action_stale_retries": 0,
+        "autonomous_resumes": 2,
+        "provider_failures": 0
+      },
+      "same_run_recoveries": 4,
+      "approval_scopes": [],
+      "quiescence": {
+        "status": "confirmed",
+        "requested_at": "2026-08-02T10:13:03.576949+00:00",
+        "confirmed_at": "2026-08-02T10:13:03.616781+00:00",
+        "run_status": "aborted",
+        "attempts": 1,
+        "error": null
+      },
+      "reboot": {
+        "status": "ready",
+        "requested_at": "2026-08-02T10:13:03.617403+00:00",
+        "ready_at": "2026-08-02T10:14:16.758011+00:00",
+        "duration_ms": 73140,
+        "transition_observed": true,
+        "attempts": [
+          {
+            "attempt": 1,
+            "duration_ms": 67754,
+            "transition_observed": true,
+            "ready_observed": true,
+            "ready_frame_sha256": "97039553765341f1f114b2f92d5c9137f214de4e6ca8fd4ead4cbc3fc36deb0c"
+          }
+        ]
+      },
+      "recording": "codex-code-entry-code01-v39-20260802/code-01/recording.webm",
+      "poster": "codex-code-entry-code01-v39-20260802/code-01/poster.jpg",
+      "campaign_sha256": "285aece785ceebf6deb86165bd01a32906a6965a7fe9aa8ab5095d971a1838ad"
+    },
+    {
+      "campaign_id": "codex-code-entry-code01-v40-20260802",
+      "reported_status": "failed",
+      "run_id": "7b992853-9b91-4d94-8f89-b7c46eb430a6",
+      "started_at": "2026-08-02T10:23:16.351413+00:00",
+      "finished_at": "2026-08-02T10:31:10.121849+00:00",
+      "duration_ms": 473770,
+      "error": "identical paused error repeated twice; stopping before another provider retry: controller tried to change or execute an unverified input draft",
+      "task_error": "identical paused error repeated twice; stopping before another provider retry: controller tried to change or execute an unverified input draft",
+      "performance": {
+        "status": "paused",
+        "wall_clock_ms": 341264,
+        "model_active_ms": 164789,
+        "provider_wait_ms": 165369,
+        "provider_serial_equivalent_ms": 165369,
+        "provider_overlap_ms": 0,
+        "action_execution_ms": 168119,
+        "evidence_capture_ms": 1378,
+        "provider_calls": 20,
+        "reasoner_calls": 5,
+        "controller_calls": 9,
+        "verifier_calls": 6,
+        "actions_attempted": 11,
+        "actions_completed": 10,
+        "completion_efficiency": 0.9090909090909091,
+        "action_recoverable_failures": 0,
+        "action_stale_retries": 0,
+        "autonomous_resumes": 2,
+        "provider_failures": 0
+      },
+      "same_run_recoveries": 4,
+      "approval_scopes": [],
+      "quiescence": {
+        "status": "confirmed",
+        "requested_at": "2026-08-02T10:29:24.904139+00:00",
+        "confirmed_at": "2026-08-02T10:29:24.947591+00:00",
+        "run_status": "aborted",
+        "attempts": 1,
+        "error": null
+      },
+      "reboot": {
+        "status": "ready",
+        "requested_at": "2026-08-02T10:29:24.948085+00:00",
+        "ready_at": "2026-08-02T10:31:06.160503+00:00",
+        "duration_ms": 101212,
+        "transition_observed": true,
+        "attempts": [
+          {
+            "attempt": 1,
+            "duration_ms": 95809,
+            "transition_observed": true,
+            "ready_observed": true,
+            "ready_frame_sha256": "39b258ddfcf6dad80fcb467ad745d382274df3f19f781453950f49230adfb9a7"
+          }
+        ]
+      },
+      "recording": "codex-code-entry-code01-v40-20260802/code-01/recording.webm",
+      "poster": "codex-code-entry-code01-v40-20260802/code-01/poster.jpg",
+      "campaign_sha256": "c32a7c7f8d95069be97af2381d6d1e28420127565a06ecdb55ea3e41dbc2467a"
+    },
+    {
+      "campaign_id": "codex-code-entry-code01-v41-20260802",
+      "reported_status": "failed",
+      "run_id": "fb4cf695-1b65-4301-baeb-f7ee5084e7ab",
+      "started_at": "2026-08-02T10:35:31.706709+00:00",
+      "finished_at": "2026-08-02T10:47:41.338006+00:00",
+      "duration_ms": 651718,
+      "error": "ConnectError: All connection attempts failed",
+      "task_error": "ConnectError: All connection attempts failed",
+      "performance": null,
+      "same_run_recoveries": 1,
+      "approval_scopes": [
+        "bounded_workspace_edit"
+      ],
+      "quiescence": {
+        "status": "confirmed",
+        "requested_at": "2026-08-02T10:46:23.157575+00:00",
+        "confirmed_at": "2026-08-02T10:46:23.225514+00:00",
+        "run_status": "aborted",
+        "attempts": 1,
+        "error": null
+      },
+      "reboot": {
+        "status": "ready",
+        "requested_at": "2026-08-02T10:46:23.225878+00:00",
+        "ready_at": "2026-08-02T10:47:41.337017+00:00",
+        "duration_ms": 78111,
+        "transition_observed": true,
+        "attempts": [
+          {
+            "attempt": 1,
+            "duration_ms": 72768,
+            "transition_observed": true,
+            "ready_observed": true,
+            "ready_frame_sha256": "b3f7b578e9ba4a3cf5349365d1ac08cd9918f76e4d8c194ee68515508c558542"
+          }
+        ]
+      },
+      "recording": "codex-code-entry-code01-v41-20260802/code-01/recording.webm",
+      "poster": null,
+      "campaign_sha256": "b9a1e5b8d333be22020219ff24a8ca80f4871e950c124a5449a80eb8b6d89ac0"
+    },
+    {
+      "campaign_id": "codex-code-entry-code01-v42-20260802",
+      "reported_status": "failed",
+      "run_id": "e509b412-7427-487e-acf7-a8c0e244d6ce",
+      "started_at": "2026-08-02T10:49:37.313070+00:00",
+      "finished_at": "2026-08-02T10:52:54.499944+00:00",
+      "duration_ms": 197187,
+      "error": "campaign stopped at a non-allowlisted approval",
+      "task_error": "campaign stopped at a non-allowlisted approval",
+      "performance": {
+        "status": "needs_approval",
+        "wall_clock_ms": 94023,
+        "model_active_ms": 56758,
+        "provider_wait_ms": 57434,
+        "provider_serial_equivalent_ms": 57434,
+        "provider_overlap_ms": 0,
+        "action_execution_ms": 33059,
+        "evidence_capture_ms": 547,
+        "provider_calls": 7,
+        "reasoner_calls": 2,
+        "controller_calls": 2,
+        "verifier_calls": 3,
+        "actions_attempted": 3,
+        "actions_completed": 2,
+        "completion_efficiency": 0.6666666666666666,
+        "action_recoverable_failures": 0,
+        "action_stale_retries": 0,
+        "autonomous_resumes": 0,
+        "provider_failures": 0
+      },
+      "same_run_recoveries": 1,
+      "approval_scopes": [],
+      "quiescence": {
+        "status": "confirmed",
+        "requested_at": "2026-08-02T10:51:38.608878+00:00",
+        "confirmed_at": "2026-08-02T10:51:38.640873+00:00",
+        "run_status": "aborted",
+        "attempts": 1,
+        "error": null
+      },
+      "reboot": {
+        "status": "ready",
+        "requested_at": "2026-08-02T10:51:38.641276+00:00",
+        "ready_at": "2026-08-02T10:52:52.448502+00:00",
+        "duration_ms": 73807,
+        "transition_observed": true,
+        "attempts": [
+          {
+            "attempt": 1,
+            "duration_ms": 68401,
+            "transition_observed": true,
+            "ready_observed": true,
+            "ready_frame_sha256": "ad51301c6ddb15bbfcfae1464ebbad5f465c6b6979c12cbe932af556c67914ff"
+          }
+        ]
+      },
+      "recording": "codex-code-entry-code01-v42-20260802/code-01/recording.webm",
+      "poster": "codex-code-entry-code01-v42-20260802/code-01/poster.jpg",
+      "campaign_sha256": "3d5b3fd336baf729f66db72a5b68ead622a3d44e00bc4b6bea632e294caa20a8"
+    },
+    {
+      "campaign_id": "codex-code-entry-code01-v43-20260802",
+      "reported_status": "failed",
+      "run_id": "f30747d0-f1e0-42e8-8e6f-ecae6e5215ba",
+      "started_at": "2026-08-02T10:57:23.497506+00:00",
+      "finished_at": "2026-08-02T11:10:39.212147+00:00",
+      "duration_ms": 296445,
+      "error": "ConnectError: All connection attempts failed",
+      "task_error": "ConnectError: All connection attempts failed",
+      "performance": null,
+      "same_run_recoveries": 0,
+      "approval_scopes": [],
+      "quiescence": {
+        "status": "confirmed",
+        "requested_at": "2026-08-02T11:09:21.979541+00:00",
+        "confirmed_at": "2026-08-02T11:09:22.038513+00:00",
+        "run_status": "aborted",
+        "attempts": 1,
+        "error": null
+      },
+      "reboot": {
+        "status": "ready",
+        "requested_at": "2026-08-02T11:09:22.038882+00:00",
+        "ready_at": "2026-08-02T11:10:39.211527+00:00",
+        "duration_ms": 77172,
+        "transition_observed": true,
+        "attempts": [
+          {
+            "attempt": 1,
+            "duration_ms": 72204,
+            "transition_observed": true,
+            "ready_observed": true,
+            "ready_frame_sha256": "2347c4ae7a3c6d09e1cc62ff4e19e0f32281793f92389a14180537a148289f33"
+          }
+        ]
+      },
+      "recording": "codex-code-entry-code01-v43-20260802/code-01/recording.webm",
+      "poster": null,
+      "campaign_sha256": "30234cbae73c9ebfa8884c275f6bf314971738153056f23e12bb5ad5056db83d"
+    },
+    {
+      "campaign_id": "codex-code-entry-code01-v44-20260802",
+      "reported_status": "failed",
+      "run_id": "2283c84f-6621-4abe-9275-7d91a7f7d5c0",
+      "started_at": "2026-08-02T11:11:32.707548+00:00",
+      "finished_at": "2026-08-02T11:17:48.833058+00:00",
+      "duration_ms": 376126,
+      "error": "controller tried to change or execute an unverified input draft",
+      "task_error": "controller tried to change or execute an unverified input draft",
+      "performance": {
+        "status": "blocked",
+        "wall_clock_ms": 254368,
+        "model_active_ms": 104002,
+        "provider_wait_ms": 104308,
+        "provider_serial_equivalent_ms": 104308,
+        "provider_overlap_ms": 0,
+        "action_execution_ms": 145690,
+        "evidence_capture_ms": 994,
+        "provider_calls": 12,
+        "reasoner_calls": 3,
+        "controller_calls": 5,
+        "verifier_calls": 4,
+        "actions_attempted": 7,
+        "actions_completed": 6,
+        "completion_efficiency": 0.8571428571428571,
+        "action_recoverable_failures": 1,
+        "action_stale_retries": 0,
+        "autonomous_resumes": 1,
+        "provider_failures": 0
+      },
+      "same_run_recoveries": 2,
+      "approval_scopes": [],
+      "quiescence": {
+        "status": "confirmed",
+        "requested_at": "2026-08-02T11:16:13.788899+00:00",
+        "confirmed_at": "2026-08-02T11:16:13.797159+00:00",
+        "run_status": "blocked",
+        "attempts": 1,
+        "error": null
+      },
+      "reboot": {
+        "status": "ready",
+        "requested_at": "2026-08-02T11:16:13.797591+00:00",
+        "ready_at": "2026-08-02T11:17:45.216750+00:00",
+        "duration_ms": 91419,
+        "transition_observed": true,
+        "attempts": [
+          {
+            "attempt": 1,
+            "duration_ms": 85951,
+            "transition_observed": true,
+            "ready_observed": true,
+            "ready_frame_sha256": "4fc820700ed67d975f4dc43c2784f18fdaab20b07fc84d017f4794361f68f4dc"
+          }
+        ]
+      },
+      "recording": "codex-code-entry-code01-v44-20260802/code-01/recording.webm",
+      "poster": "codex-code-entry-code01-v44-20260802/code-01/poster.jpg",
+      "campaign_sha256": "b615d0bbd7e7e86ea0665b84192856f43b867521821d4601bcb244d38add9205"
+    },
+    {
+      "campaign_id": "codex-code-entry-code01-v45-20260802",
+      "reported_status": "failed",
+      "run_id": "d9da6303-7ebb-441b-b1f9-6ebebad65540",
+      "started_at": "2026-08-02T11:23:29.618017+00:00",
+      "finished_at": "2026-08-02T11:35:15.232575+00:00",
+      "duration_ms": 705615,
+      "error": "campaign stopped at a non-allowlisted approval",
+      "task_error": "campaign stopped at a non-allowlisted approval",
+      "performance": {
+        "status": "needs_approval",
+        "wall_clock_ms": 592586,
+        "model_active_ms": 210856,
+        "provider_wait_ms": 187987,
+        "provider_serial_equivalent_ms": 211307,
+        "provider_overlap_ms": 23320,
+        "action_execution_ms": 397790,
+        "evidence_capture_ms": 4100,
+        "provider_calls": 29,
+        "reasoner_calls": 1,
+        "controller_calls": 8,
+        "verifier_calls": 20,
+        "actions_attempted": 32,
+        "actions_completed": 31,
+        "completion_efficiency": 0.96875,
+        "action_recoverable_failures": 0,
+        "action_stale_retries": 0,
+        "autonomous_resumes": 6,
+        "provider_failures": 0
+      },
+      "same_run_recoveries": 0,
+      "approval_scopes": [
+        "bounded_workspace_edit"
+      ],
+      "quiescence": {
+        "status": "confirmed",
+        "requested_at": "2026-08-02T11:33:50.471142+00:00",
+        "confirmed_at": "2026-08-02T11:33:50.512477+00:00",
+        "run_status": "aborted",
+        "attempts": 1,
+        "error": null
+      },
+      "reboot": {
+        "status": "ready",
+        "requested_at": "2026-08-02T11:33:50.512940+00:00",
+        "ready_at": "2026-08-02T11:35:08.738447+00:00",
+        "duration_ms": 78225,
+        "transition_observed": true,
+        "attempts": [
+          {
+            "attempt": 1,
+            "duration_ms": 72839,
+            "transition_observed": true,
+            "ready_observed": true,
+            "ready_frame_sha256": "a386228f85234a2efd30f322cc41c1ec39f13f4a9c3bcb4b8bfcdce178cc9614"
+          }
+        ]
+      },
+      "recording": "codex-code-entry-code01-v45-20260802/code-01/recording.webm",
+      "poster": "codex-code-entry-code01-v45-20260802/code-01/poster.jpg",
+      "campaign_sha256": "2a09d3b2494ad4e004b4c4e182149bd89ee7b0dca619f488d560a7bb5f3ccff3"
+    },
+    {
+      "campaign_id": "codex-code-entry-code01-v46-20260802",
+      "reported_status": "failed",
+      "run_id": "e4b88267-7d4f-40c7-be3e-61d8719246f3",
+      "started_at": "2026-08-02T11:54:00.829473+00:00",
+      "finished_at": "2026-08-02T11:57:06.047840+00:00",
+      "duration_ms": 185218,
+      "error": "campaign stopped at a non-allowlisted approval",
+      "task_error": "campaign stopped at a non-allowlisted approval",
+      "performance": {
+        "status": "needs_approval",
+        "wall_clock_ms": 80005,
+        "model_active_ms": 40069,
+        "provider_wait_ms": 40516,
+        "provider_serial_equivalent_ms": 40516,
+        "provider_overlap_ms": 0,
+        "action_execution_ms": 36419,
+        "evidence_capture_ms": 546,
+        "provider_calls": 5,
+        "reasoner_calls": 1,
+        "controller_calls": 2,
+        "verifier_calls": 2,
+        "actions_attempted": 3,
+        "actions_completed": 2,
+        "completion_efficiency": 0.6666666666666666,
+        "action_recoverable_failures": 0,
+        "action_stale_retries": 0,
+        "autonomous_resumes": 1,
+        "provider_failures": 0
+      },
+      "same_run_recoveries": 0,
+      "approval_scopes": [],
+      "quiescence": {
+        "status": "confirmed",
+        "requested_at": "2026-08-02T11:55:47.853512+00:00",
+        "confirmed_at": "2026-08-02T11:55:47.885827+00:00",
+        "run_status": "aborted",
+        "attempts": 1,
+        "error": null
+      },
+      "reboot": {
+        "status": "ready",
+        "requested_at": "2026-08-02T11:55:47.886339+00:00",
+        "ready_at": "2026-08-02T11:57:04.269374+00:00",
+        "duration_ms": 76383,
+        "transition_observed": true,
+        "attempts": [
+          {
+            "attempt": 1,
+            "duration_ms": 71004,
+            "transition_observed": true,
+            "ready_observed": true,
+            "ready_frame_sha256": "6cec926bdc71827249d162d7da85e48746e050a397357c4200dc5f073e7b7a97"
+          }
+        ]
+      },
+      "recording": "codex-code-entry-code01-v46-20260802/code-01/recording.webm",
+      "poster": "codex-code-entry-code01-v46-20260802/code-01/poster.jpg",
+      "campaign_sha256": "f0a269f416dfe3019cbe9fe75d1c90b425ba84e7b96d083c8568a809e23a4407"
+    },
+    {
+      "campaign_id": "codex-code-entry-code01-v47-20260802",
+      "reported_status": "failed",
+      "run_id": "eb177869-d495-4c24-8b50-7f40431ec2b5",
+      "started_at": "2026-08-02T11:59:59.014506+00:00",
+      "finished_at": "2026-08-02T12:10:52.350471+00:00",
+      "duration_ms": 653336,
+      "error": "controller tried to change or execute an unverified input draft",
+      "task_error": "controller tried to change or execute an unverified input draft",
+      "performance": {
+        "status": "blocked",
+        "wall_clock_ms": 509073,
+        "model_active_ms": 146699,
+        "provider_wait_ms": 147017,
+        "provider_serial_equivalent_ms": 147017,
+        "provider_overlap_ms": 0,
+        "action_execution_ms": 357309,
+        "evidence_capture_ms": 2391,
+        "provider_calls": 16,
+        "reasoner_calls": 2,
+        "controller_calls": 3,
+        "verifier_calls": 11,
+        "actions_attempted": 21,
+        "actions_completed": 20,
+        "completion_efficiency": 0.9523809523809523,
+        "action_recoverable_failures": 0,
+        "action_stale_retries": 0,
+        "autonomous_resumes": 5,
+        "provider_failures": 0
+      },
+      "same_run_recoveries": 1,
+      "approval_scopes": [],
+      "quiescence": {
+        "status": "confirmed",
+        "requested_at": "2026-08-02T12:08:56.763748+00:00",
+        "confirmed_at": "2026-08-02T12:08:56.814063+00:00",
+        "run_status": "blocked",
+        "attempts": 1,
+        "error": null
+      },
+      "reboot": {
+        "status": "ready",
+        "requested_at": "2026-08-02T12:08:56.814563+00:00",
+        "ready_at": "2026-08-02T12:10:46.392762+00:00",
+        "duration_ms": 109578,
+        "transition_observed": true,
+        "attempts": [
+          {
+            "attempt": 1,
+            "duration_ms": 104118,
+            "transition_observed": true,
+            "ready_observed": true,
+            "ready_frame_sha256": "0e3a5cdd4c4787e04ebfafa2da6fe0211b28387d9aed091692b5635085c8cbf6"
+          }
+        ]
+      },
+      "recording": "codex-code-entry-code01-v47-20260802/code-01/recording.webm",
+      "poster": "codex-code-entry-code01-v47-20260802/code-01/poster.jpg",
+      "campaign_sha256": "b548b45c13ae7e19bdaa5a5b31c5970a1e5938fc4c1097b3f5361e99d90a8cfe"
+    },
+    {
+      "campaign_id": "codex-code-entry-code01-v48-20260802",
+      "reported_status": "passed",
+      "run_id": "3a7b24cc-2a7d-4718-870b-a1609c672801",
+      "started_at": "2026-08-02T12:32:26.773837+00:00",
+      "finished_at": "2026-08-02T12:44:57.742586+00:00",
+      "duration_ms": 750969,
+      "error": null,
+      "task_error": null,
+      "performance": {
+        "status": "completed",
+        "wall_clock_ms": 637551,
+        "model_active_ms": 227893,
+        "provider_wait_ms": 204892,
+        "provider_serial_equivalent_ms": 228418,
+        "provider_overlap_ms": 23526,
+        "action_execution_ms": 425520,
+        "evidence_capture_ms": 4387,
+        "provider_calls": 30,
+        "reasoner_calls": 1,
+        "controller_calls": 8,
+        "verifier_calls": 21,
+        "actions_attempted": 32,
+        "actions_completed": 32,
+        "completion_efficiency": 1,
+        "action_recoverable_failures": 0,
+        "action_stale_retries": 0,
+        "autonomous_resumes": 6,
+        "provider_failures": 0
+      },
+      "same_run_recoveries": 0,
+      "approval_scopes": [
+        "bounded_workspace_edit"
+      ],
+      "quiescence": {
+        "status": "confirmed",
+        "requested_at": "2026-08-02T12:43:33.184306+00:00",
+        "confirmed_at": "2026-08-02T12:43:33.219179+00:00",
+        "run_status": "completed",
+        "attempts": 1,
+        "error": null
+      },
+      "reboot": {
+        "status": "ready",
+        "requested_at": "2026-08-02T12:43:33.219732+00:00",
+        "ready_at": "2026-08-02T12:44:50.824574+00:00",
+        "duration_ms": 77605,
+        "transition_observed": true,
+        "attempts": [
+          {
+            "attempt": 1,
+            "duration_ms": 72225,
+            "transition_observed": true,
+            "ready_observed": true,
+            "ready_frame_sha256": "8712608f510d76cabf4ae5cde034091ac7722ba8b8c88e2e32c7dff440ad6d3c"
+          }
+        ]
+      },
+      "recording": "codex-code-entry-code01-v48-20260802/code-01/recording.webm",
+      "poster": "codex-code-entry-code01-v48-20260802/code-01/poster.jpg",
+      "campaign_sha256": "51121f119be6f46c8540f33e97405a7770d8faa1cdfb4278c2c009dd56ca71fb"
+    }
+  ]
+}
