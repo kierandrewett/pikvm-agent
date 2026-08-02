@@ -98,6 +98,7 @@ _EDITOR_STATUS_POSITION_RE = re.compile(
     r"\b[L1I]n\s*(?P<line>\d+)\s*[,.;:]\s*Col\s*(?P<column>\d+)\b",
     re.IGNORECASE,
 )
+_STANDALONE_I_SUBSTITUTES = frozenset({"I", "1", "|", "l"})
 _EDITOR_STATUS_CHARACTER_COUNT_RE = re.compile(
     r"\b(?P<characters>\d+)\s+characters?\b",
     re.IGNORECASE,
@@ -540,12 +541,15 @@ def editor_status_search_region(
 
 
 def is_standalone_i_autocorrect(intended: str, observed: str) -> bool:
-    """Recognise modern editor autocorrection of the standalone word ``i``.
+    """Recognise one visible substitution of the standalone word ``i``.
 
     Windows Notepad can turn a Python loop variable into the English pronoun
-    ``I``. Keep this deliberately narrower than a generic case mismatch: one
-    and only one character may differ, and it must be a word-isolated
-    lowercase ``i`` becoming uppercase.
+    ``I``. OCR can then render that same narrow glyph as ``1``, ``|``, or
+    lowercase ``l``. Keep this deliberately narrower than a generic mismatch:
+    one and only one character may differ, and it must replace a word-isolated
+    lowercase ``i`` with one of those confusable vertical glyphs. The repair
+    remains a local, single-character edit; this never authorizes replaying the
+    line.
     """
 
     left = norm(intended, precise=True)
@@ -562,7 +566,7 @@ def is_standalone_i_autocorrect(intended: str, observed: str) -> bool:
     if len(differences) != 1:
         return False
     index = differences[0]
-    if left[index] != "i" or right[index] != "I":
+    if left[index] != "i" or right[index] not in _STANDALONE_I_SUBSTITUTES:
         return False
     return (
         (
@@ -609,11 +613,14 @@ def standalone_i_autocorrect_suffix_length(
             index + 1 == len(intended)
             or not (intended[index + 1].isalnum() or intended[index + 1] == "_")
         )
-        and norm(
-            intended[:index] + "I" + intended[index + 1 :],
-            precise=True,
+        and any(
+            norm(
+                intended[:index] + glyph + intended[index + 1 :],
+                precise=True,
+            )
+            == observed_normalized
+            for glyph in _STANDALONE_I_SUBSTITUTES
         )
-        == observed_normalized
     }
     return candidates.pop() if len(candidates) == 1 else None
 
@@ -1949,6 +1956,8 @@ class WatchedTyper:
         result: OCRResult,
         intended: str,
         dims: tuple[int, int],
+        *,
+        allow_editor_autocorrect: bool = False,
     ) -> Region | None:
         """Use a noisy full-screen row only to choose an exact re-read crop.
 
@@ -1956,7 +1965,8 @@ class WatchedTyper:
         whole-screen OCR confuses small punctuation such as ``[]`` with
         ``[J``. A punctuation-tolerant row may therefore localize the field,
         but it is never focus evidence by itself: a fresh cropped OCR pass must
-        independently match the complete intended text.
+        independently match the complete intended text or the one bounded
+        standalone-``i`` mutation that the editor repair path can correct.
         """
 
         width, height = dims
@@ -1981,13 +1991,22 @@ class WatchedTyper:
             True,
         )
         confirmed = compute_verdict(intended, read_back, True) == "match"
+        editor_autocorrect_localized = bool(
+            allow_editor_autocorrect
+            and is_standalone_i_autocorrect(intended, read_back)
+        )
         DEBUG.event(
             "typing.precise_localization_recheck",
             confirmed=confirmed,
+            editor_autocorrect_localized=editor_autocorrect_localized,
             intended_characters=len(intended),
             region=candidate_region.model_dump(),
         )
-        return candidate_region if confirmed else None
+        return (
+            candidate_region
+            if confirmed or editor_autocorrect_localized
+            else None
+        )
 
     @staticmethod
     def _full_screen_exact_line_candidate(
@@ -3489,7 +3508,6 @@ class WatchedTyper:
             if (
                 precise
                 and editor_field
-                and kind == "case"
                 and is_standalone_i_autocorrect(
                     intended_snapshot,
                     read_back,
@@ -4119,6 +4137,7 @@ class WatchedTyper:
                                     screen,
                                     typed_so_far,
                                     dims,
+                                    allow_editor_autocorrect=editor_field,
                                 )
                             )
                         if ocr_loc is not None:

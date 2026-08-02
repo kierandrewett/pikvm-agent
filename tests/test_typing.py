@@ -1016,10 +1016,10 @@ async def test_causal_code_row_uses_trimmed_glyphs_only_to_localize(
     )
 
 
-@pytest.mark.parametrize("autocorrect_i", [False, True])
+@pytest.mark.parametrize("autocorrect_glyph", [None, "I", "1"])
 async def test_bounded_indented_editor_line_uses_causal_dense_row(
     monkeypatch: pytest.MonkeyPatch,
-    autocorrect_i: bool,
+    autocorrect_glyph: str | None,
 ) -> None:
     """A status repaint must not hide one bounded exact code-row delivery."""
 
@@ -1054,8 +1054,12 @@ async def test_bounded_indented_editor_line_uses_causal_dense_row(
             method == "press_key" and call.get("code") == "Backspace"
             for method, call in backend.calls
         )
-        if autocorrect_i and not correction_applied:
-            return intended.replace(" if i ", " if I ", 1)
+        if autocorrect_glyph is not None and not correction_applied:
+            return intended.replace(
+                " if i ",
+                f" if {autocorrect_glyph} ",
+                1,
+            )
         return intended
 
     class CurrentEditorRowOCR:
@@ -1113,9 +1117,9 @@ async def test_bounded_indented_editor_line_uses_causal_dense_row(
         code=True,
     )
 
-    assert result.status == "verified_exact"
-    assert result.correction_count == int(autocorrect_i)
-    assert result.emitted_exactly_once is (not autocorrect_i)
+    assert result.status == "verified_exact", result
+    assert result.correction_count == int(autocorrect_glyph is not None)
+    assert result.emitted_exactly_once is (autocorrect_glyph is None)
     assert [
         call["text"]
         for method, call in backend.calls
@@ -3082,6 +3086,9 @@ async def test_case_only_slip_toggles_caps_lock_and_retypes_once() -> None:
 
 def test_case_correction_signatures_are_narrow() -> None:
     assert is_standalone_i_autocorrect("for i in", "for I in")
+    assert is_standalone_i_autocorrect("if i % 15 == 0:", "if 1 % 15 == 0:")
+    assert is_standalone_i_autocorrect("if i % 15 == 0:", "if | % 15 == 0:")
+    assert is_standalone_i_autocorrect("if i % 15 == 0:", "if l % 15 == 0:")
     assert not is_standalone_i_autocorrect("limit", "lImit")
     assert not is_standalone_i_autocorrect("for i in", "FOR I IN")
     assert is_caps_lock_case_inversion("HARNESSE2E42", "harnesse2e42")
@@ -3649,7 +3656,7 @@ async def test_autolocate_retries_once_for_delayed_video_update() -> None:
         (
             "        if i % 15 == 0:",
             "if i % 15 = 0:",
-            "if i % 15 == 0:",
+            "if I % 15 == 0:",
             "Ln 4, Col 24",
         ),
     ],
@@ -3741,6 +3748,42 @@ async def test_precise_autolocate_rechecks_noisy_editor_punctuation(
     ocr = typer.ocr
     flat = _flat_grid()
 
+    def current_visible_row() -> str:
+        corrected = any(
+            method == "press_key" and call.get("code") == "Backspace"
+            for method, call in backend.calls
+        )
+        if (
+            corrected
+            and is_standalone_i_autocorrect(intended, visible_row)
+        ):
+            return intended.strip()
+        return visible_row
+
+    original_precise_ocr = ocr.ocr_precise
+
+    async def current_precise_ocr(
+        image_path: Path,
+        region: Region | None = None,
+    ) -> OCRResult:
+        result = await original_precise_ocr(image_path, region)
+        if (
+            region is not None
+            and not (
+                region.width == 512
+                and region.height <= 120
+                and region.y > 140
+            )
+            and result.lines
+            and result.lines[0].text == visible_row
+        ):
+            result.lines[0] = result.lines[0].model_copy(
+                update={"text": current_visible_row()}
+            )
+        return result
+
+    ocr.ocr_precise = current_precise_ocr  # type: ignore[method-assign]
+
     async def unchanged_grid() -> np.ndarray:
         return flat
 
@@ -3755,7 +3798,12 @@ async def test_precise_autolocate_rechecks_noisy_editor_punctuation(
 
     assert result.status == "verified_exact"
     assert result.field_text == intended
-    assert result.emitted_exactly_once is True
+    expected_correction = is_standalone_i_autocorrect(
+        intended,
+        visible_row,
+    )
+    assert result.correction_count == int(expected_correction)
+    assert result.emitted_exactly_once is (not expected_correction)
     assert any(
         region is not None
         and region.width == 512
@@ -3763,11 +3811,24 @@ async def test_precise_autolocate_rechecks_noisy_editor_punctuation(
         and region.y > 140
         for region in ocr.regions
     )
-    assert [
+    typed_calls = [
         kwargs
         for method, kwargs in backend.calls
         if method == "type_text"
-    ] == [{"text": intended, "code": True, "secret": False}]
+    ]
+    assert typed_calls[0] == {
+        "text": intended,
+        "code": True,
+        "secret": False,
+    }
+    assert typed_calls[1:] == (
+        [
+            {"text": "_", "code": True, "secret": False},
+            {"text": "i", "code": True, "secret": False},
+        ]
+        if expected_correction
+        else []
+    )
     _assert_no_enter(backend)
 
 
