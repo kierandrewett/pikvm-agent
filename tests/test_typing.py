@@ -7476,6 +7476,28 @@ def test_precise_filename_readback_excludes_only_known_save_as_type_chrome() -> 
         True,
     ) == intended
     assert WatchedTyper._typed_candidate(
+        (
+            f"File name: {intended}\n"
+            "Save as type: Text documents (*.txt)\n"
+            "Hide Folders"
+        ),
+        intended,
+        True,
+    ) == intended
+    assert WatchedTyper._typed_candidate(
+        (
+            f"File name: {intended}\n"
+            "Save as type: Text documents (*.txt)\n"
+            "Unexpected adjacent text"
+        ),
+        intended,
+        True,
+    ) == (
+        f"File name: {intended}\n"
+        "Save as type: Text documents (*.txt)\n"
+        "Unexpected adjacent text"
+    )
+    assert WatchedTyper._typed_candidate(
         f"{intended}\nUnexpected adjacent text",
         intended,
         True,

@@ -2741,10 +2741,15 @@ class WatchedTyper:
                 f"save as type: {row}"
                 for row in known_save_as_type_rows
             }
+            known_trailing_chrome_rows = {"hide folders"}
             if (
-                len(lines) == 2
+                len(lines) in {2, 3}
                 and lines[0] in known_filename_rows
                 and lines[1].casefold() in known_type_rows
+                and (
+                    len(lines) == 2
+                    or lines[2].casefold() in known_trailing_chrome_rows
+                )
             ):
                 return intended
         return read_back
