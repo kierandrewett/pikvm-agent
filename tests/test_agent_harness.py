@@ -18,6 +18,7 @@ from pikvm_agent.harness.agent import (
     _is_read_only_settings_request,
     _locally_verified_notepad_artifact_action,
     _normalize_plan_safety_constraints,
+    _normalize_notepad_artifact_code_actions,
     _normalize_sequential_key_actions,
     _normalize_windows_run_launch,
     _notepad_exact_text_controller,
@@ -1081,6 +1082,48 @@ def test_generated_code_plan_carries_one_durable_exact_artifact() -> None:
 
     assert plan.artifact_content == content
     assert plan.artifact_content_kind == "code"
+
+
+def test_generated_code_recovery_keeps_exact_segment_on_code_transport() -> None:
+    run = RunSnapshot(
+        run_id="notepad-code-recovery",
+        task="In Notepad, write PowerShell code.",
+        status=RunStatus.RUNNING,
+        plan=PlanDecision(
+            summary="Write the code.",
+            steps=["Enter it"],
+            success_criteria=["The code is visible."],
+            artifact_content="function Get-FileDigest {\n    param(",
+            artifact_content_kind="code",
+        ),
+    )
+    actions = [
+        {"type": "key", "keys": ["CTRL", "A"]},
+        {
+            "type": "type_text",
+            "text": "function Get-FileDigest {",
+            "code": False,
+            "context": "editor",
+            "verification": "exact",
+        },
+        {
+            "type": "type_text",
+            "text": "model-authored replacement",
+            "code": False,
+            "context": "editor",
+            "verification": "exact",
+        },
+    ]
+
+    normalized, changed = _normalize_notepad_artifact_code_actions(
+        run,
+        actions,
+    )
+
+    assert changed == 1
+    assert normalized[1]["code"] is True
+    assert normalized[2]["code"] is False
+    assert actions[1]["code"] is False
 
 
 def test_generated_code_plan_rejects_tabs_in_exact_artifact() -> None:

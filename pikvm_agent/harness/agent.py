@@ -1013,6 +1013,43 @@ def _notepad_exact_text_segments(run: RunSnapshot) -> tuple[str, ...]:
     return tuple(text for text, _ in _notepad_exact_text_parts(run))
 
 
+def _normalize_notepad_artifact_code_actions(
+    run: RunSnapshot,
+    actions: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], int]:
+    """Keep immutable Notepad code segments on the exact code transport.
+
+    A recovery controller can restate one durable artifact segment while
+    accidentally leaving ``code`` false.  The plan already classifies that
+    exact payload as code, so normalize only byte-identical editor actions;
+    arbitrary model-authored text is never upgraded by resemblance alone.
+    """
+
+    if (
+        run.plan is None
+        or run.plan.artifact_content_kind != "code"
+    ):
+        return [dict(action) for action in actions], 0
+    segments = set(_notepad_exact_text_segments(run))
+    if not segments:
+        return [dict(action) for action in actions], 0
+    normalized: list[dict[str, Any]] = []
+    changed = 0
+    for action in actions:
+        copied = dict(action)
+        if (
+            copied.get("type") == "type_text"
+            and copied.get("text") in segments
+            and str(copied.get("context") or "").casefold() == "editor"
+            and str(copied.get("verification") or "").casefold() == "exact"
+            and copied.get("code") is not True
+        ):
+            copied["code"] = True
+            changed += 1
+        normalized.append(copied)
+    return normalized, changed
+
+
 def _requires_fresh_notepad_document(run: RunSnapshot) -> bool:
     """Recognize the campaign contract that forbids restored Notepad tabs."""
 
@@ -2668,6 +2705,27 @@ class AgentHarness:
                 run.record(
                     "controller.sequential_keys_normalized",
                     added_actions=split_key_actions,
+                )
+            (
+                normalized_actions,
+                normalized_code_actions,
+            ) = _normalize_notepad_artifact_code_actions(
+                run,
+                proposed_actions,
+            )
+            if normalized_code_actions:
+                controller_data = controller.model_dump(
+                    mode="json",
+                    exclude_none=True,
+                )
+                controller_data["actions"] = normalized_actions
+                controller = ControllerDecision.model_validate(
+                    controller_data
+                )
+                proposed_actions = normalized_actions
+                run.record(
+                    "controller.notepad_artifact_code_normalized",
+                    action_count=normalized_code_actions,
                 )
             run.last_controller = controller
             if controller.outcome == "blocked":
