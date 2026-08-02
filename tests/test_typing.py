@@ -34,6 +34,7 @@ from pikvm_agent.executor.typing import (
     chunk_text,
     editor_caret_column_proves_leading_whitespace,
     editor_punctuation_transport_substitution,
+    editor_single_glyph_transport_deletion,
     editor_status_search_region,
     is_caps_lock_case_inversion,
     is_disjoint_editor_effect,
@@ -1754,6 +1755,41 @@ async def test_short_exact_editor_text_uses_guarded_fast_print() -> None:
     _assert_no_enter(backend)
 
 
+async def test_exact_editor_code_uses_guarded_fast_print() -> None:
+    """Bounded code rows use the backend's reliable at-most-once printer."""
+
+    backend = FakeBackend()
+    backend.guarded_exact_print = True  # type: ignore[attr-defined]
+    line = "        elif number % 3 == 0:"
+    orig_print = backend.print_text
+
+    async def printing(text: str) -> None:
+        await orig_print(text)
+        backend.set_screen(line)
+
+    backend.print_text = printing  # type: ignore[method-assign]
+    result = await WatchedTyper(
+        backend,
+        ScriptedOCR(line),
+    ).type_text(
+        line,
+        code=True,
+        exact=True,
+        context="editor",
+    )
+
+    assert result.used_fast_path is True
+    assert result.status == "verified_exact"
+    assert result.emitted_exactly_once is True
+    assert [
+        kwargs["text"]
+        for method, kwargs in backend.calls
+        if method == "print_text"
+    ] == [line]
+    assert not any(method == "type_text" for method, _ in backend.calls)
+    _assert_no_enter(backend)
+
+
 async def test_simple_exact_terminal_command_uses_guarded_fast_print() -> None:
     backend = FakeBackend()
     backend.guarded_exact_print = True  # type: ignore[attr-defined]
@@ -3238,6 +3274,25 @@ def test_case_correction_signatures_are_narrow() -> None:
         )
         is None
     )
+    intended = "        elif number % 3 == 0:"
+    assert editor_single_glyph_transport_deletion(
+        intended,
+        "1if number % 3 == 0:",
+    ) == (20, "e")
+    assert (
+        editor_single_glyph_transport_deletion(
+            intended,
+            "11f number % 3 == 0:",
+        )
+        is None
+    )
+    assert (
+        editor_single_glyph_transport_deletion(
+            intended,
+            "elif number % 3 == 0:",
+        )
+        is None
+    )
 
 
 @pytest.mark.parametrize(
@@ -3762,6 +3817,110 @@ async def test_editor_one_missing_glyph_is_inserted_locally(
     else:
         assert emitted == [intended]
         assert "ArrowLeft" not in pressed
+    _assert_no_enter(backend)
+
+
+async def test_editor_missing_leading_glyph_tolerates_l_one_ocr_confusion(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A caret-proved deletion may survive OCR confusing ``l`` with ``1``."""
+
+    async def no_sleep(_seconds: float) -> None:
+        return None
+
+    backend = FakeBackend()
+    intended = "        elif number % 3 == 0:"
+    visible_intended = intended.lstrip(" ")
+    observed = "1if number % 3 == 0:"
+
+    class MissingLeadingGlyphOCR:
+        async def ocr_precise(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path
+            repaired = any(
+                method == "type_text" and kwargs.get("text") == "e"
+                for method, kwargs in backend.calls
+            )
+            if (
+                region is not None
+                and region.x == 0
+                and region.width == 512
+                and region.height >= 90
+                and region.y > 140
+            ):
+                foreground_y = region.height - 20
+                return OCRResult(
+                    lines=[
+                        OCRLine(
+                            text=(
+                                "Ln 6, Col 30   171 characters"
+                                if repaired
+                                else "Ln 6, Col 29   170 characters"
+                            ),
+                            confidence=0.99,
+                            bbox=[20, foreground_y, 158, foreground_y + 12],
+                        )
+                    ]
+                )
+            return OCRResult(
+                lines=[
+                    OCRLine(
+                        text=visible_intended if repaired else observed,
+                        confidence=0.99,
+                        bbox=[80, 142, 200, 162],
+                    )
+                ],
+                spacing_evidence="verified",
+            )
+
+        async def ocr(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            return await self.ocr_precise(image_path, region)
+
+    monkeypatch.setattr(asyncio, "sleep", no_sleep)
+    typer = WatchedTyper(backend, MissingLeadingGlyphOCR())
+    flat = _flat_grid()
+    changed = flat.copy().reshape(GRID_ROWS, GRID_COLS)
+    changed[8:10, 5:25] = 200
+    grids = [flat, changed.reshape(-1)]
+
+    async def changed_grid() -> np.ndarray:
+        return grids.pop(0) if grids else changed.reshape(-1)
+
+    typer._grid = changed_grid  # type: ignore[method-assign]
+
+    result = await typer.type_text(
+        intended,
+        code=True,
+        exact=True,
+        context="editor",
+    )
+
+    assert result.status == "verified_exact", result
+    assert result.field_text == intended
+    assert result.correction_count == 1
+    assert result.emitted_exactly_once is False
+    assert [
+        kwargs["text"]
+        for method, kwargs in backend.calls
+        if method == "type_text"
+    ] == [intended, "e"]
+    pressed = [
+        kwargs.get("code")
+        for method, kwargs in backend.calls
+        if method == "press_key"
+    ]
+    first_left = pressed.index("ArrowLeft")
+    assert pressed[first_left - 1] == "End"
+    assert pressed[first_left : first_left + 20] == ["ArrowLeft"] * 20
+    assert pressed[first_left + 20] == "Home"
+    assert pressed[-1] == "End"
     _assert_no_enter(backend)
 
 

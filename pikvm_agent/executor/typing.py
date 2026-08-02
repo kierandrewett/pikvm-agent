@@ -765,7 +765,14 @@ def editor_single_glyph_transport_deletion(
     intended: str,
     observed: str,
 ) -> tuple[int, str] | None:
-    """Locate one uniquely missing editor glyph from the line end."""
+    """Locate one uniquely missing editor glyph from the line end.
+
+    Tiny editor text can render a lowercase ``l`` as ``1``. Permit at most one
+    such OCR-only confusion after removing the candidate missing glyph. This
+    remains non-authorizing on its own: the caller repeats the crop, requires
+    an independent caret column proving one missing position, inserts only the
+    missing glyph, and demands an exact post-repair readback.
+    """
 
     expected = intended.lstrip(" ")
     actual = strip_prompt(observed).strip()
@@ -778,12 +785,26 @@ def editor_single_glyph_transport_deletion(
         or len(folded_actual) + 1 != len(folded_expected)
     ):
         return None
+
+    def matches_with_one_l_one_confusion(candidate: str) -> bool:
+        confusions = 0
+        for wanted, seen in zip(candidate, folded_actual, strict=True):
+            if wanted == seen:
+                continue
+            if wanted == "l" and seen == "1":
+                confusions += 1
+                if confusions <= 1:
+                    continue
+            return False
+        return True
+
     missing_indices = [
         index
         for index in range(len(folded_expected))
         if (
-            folded_expected[:index] + folded_expected[index + 1 :]
-            == folded_actual
+            matches_with_one_l_one_confusion(
+                folded_expected[:index] + folded_expected[index + 1 :]
+            )
         )
     ]
     if len(missing_indices) != 1:
@@ -2658,12 +2679,12 @@ class WatchedTyper:
             and _SIMPLE_TERMINAL_ARGV.fullmatch(delivery_text) is not None
         )
 
-        # FAST TRANSPORT: long prose and exact simple terminal argv can use the
-        # server-side keymap printer, while remaining chunked, interruptible,
-        # visually read back, and never auto-submitted. Exact terminal text is
-        # restricted to the no-metacharacter grammar above; its separate Enter
-        # remains a later guarded action. Caps-on and secrets always stay on
-        # the compensating per-key transport.
+        # FAST TRANSPORT: long prose, exact editor code, and exact simple
+        # terminal argv can use the server-side keymap printer, while remaining
+        # chunked, interruptible, visually read back, and never auto-submitted.
+        # Exact terminal text is restricted to the no-metacharacter grammar
+        # above; its separate Enter remains a later guarded action. Caps-on and
+        # secrets always stay on the compensating per-key transport.
         print_text = getattr(self.backend, "print_text", None)
         caps_on = self.backend.get_caps_lock()
         guarded_terminal_print = (
@@ -2685,9 +2706,13 @@ class WatchedTyper:
         )
         guarded_editor_print = (
             precise
-            and not code
             and context.casefold() == "editor"
-            and total >= FAST_EDITOR_PRINT_MIN
+            and total
+            >= (
+                PRECISE_LOCATE_MIN_CHARS
+                if code
+                else FAST_EDITOR_PRINT_MIN
+            )
             and bool(
                 getattr(
                     self.backend,

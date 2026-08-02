@@ -3,8 +3,9 @@
 Composes the HID channel + HTTP snapshot/OCR/print into the single object that
 touches the Pi. Pixel coordinates are in the agent's frame space (``self.dims``);
 this class converts them to normalized HID units. Typing routes through the
-US/UK key map with Caps-Lock compensation; long prose can take the fast
-server-side print path. Newlines never auto-submit.
+US/UK key map with Caps-Lock compensation; guarded prose, editor code, and
+simple terminal text can take the watched server-side print path. Newlines
+never auto-submit.
 """
 
 from __future__ import annotations
@@ -12,20 +13,20 @@ from __future__ import annotations
 import asyncio
 import math
 import random
+from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 
 import httpx
 
 from pikvm_agent.config import PikvmConfig
-from pikvm_agent.core.errors import BackendError
-from pikvm_agent.debuglog import DEBUG
 from pikvm_agent.core.models import CapturedFrame, Region
+from pikvm_agent.debuglog import DEBUG
 from pikvm_agent.pikvm import keyboard_state as ks
 from pikvm_agent.pikvm import timing
 from pikvm_agent.pikvm.hid import HidChannel, clamp_norm, to_norm
+from pikvm_agent.pikvm.screenshot import crop, downscale, jpeg_size, to_captured_frame
 from pikvm_agent.pikvm.text import flatten_line_breaks
 from pikvm_agent.pikvm.windmouse import WindMouseOptions, wind_mouse_path
-from pikvm_agent.pikvm.screenshot import crop, downscale, jpeg_size, to_captured_frame
 
 
 async def _sleep(ms: float) -> None:
@@ -34,8 +35,9 @@ async def _sleep(ms: float) -> None:
 
 class PiKVMBackend:
     # The native /api/hid/print endpoint preserves keymap translation and its
-    # slow-printer cadence. WatchedTyper may use it for exact simple terminal
-    # argv only because it still performs visual readback and separates Enter.
+    # slow-printer cadence. WatchedTyper may use it for exact editor code and
+    # simple terminal argv because it still performs visual readback, keeps
+    # mutations bounded to one line, and separates every Enter action.
     guarded_exact_print = True
 
     def __init__(self, cfg: PikvmConfig) -> None:
