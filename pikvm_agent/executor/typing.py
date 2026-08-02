@@ -99,6 +99,7 @@ _EDITOR_STATUS_POSITION_RE = re.compile(
     re.IGNORECASE,
 )
 _STANDALONE_I_SUBSTITUTES = frozenset({"I", "1", "|", "l"})
+_STANDALONE_LOWERCASE_I_RE = re.compile(r"(?<![\w])i(?![\w])")
 _EDITOR_STATUS_CHARACTER_COUNT_RE = re.compile(
     r"\b(?P<characters>\d+)\s+characters?\b",
     re.IGNORECASE,
@@ -3297,11 +3298,10 @@ class WatchedTyper:
             fields without spaces can move focus for an independent read, but
             long drafts and fields with spaces move their caret to the start
             because a Windows address bar may discard unsubmitted text on
-            focus loss and selected text is materially harder to OCR. An exact
-            editor payload beginning with whitespace is an append transaction:
-            keep its caret at the end so the causal changed-pixel crop remains
-            grounded to the new suffix instead of exposing an unrelated prefix
-            of the accumulated document.
+            focus loss and selected text is materially harder to OCR. For an
+            indented editor append, Home moves only to the current line start;
+            the already-localized row remains grounded while its final glyph
+            becomes unobscured. End restores the append position afterwards.
             """
 
             nonlocal stable_field_read_performed
@@ -3311,12 +3311,16 @@ class WatchedTyper:
                 and text
                 and text[0].isspace()
             )
+            editor_autocorrect_candidate = bool(
+                editor_append
+                and _STANDALONE_LOWERCASE_I_RE.search(intended_snapshot)
+            )
             should_stabilize = (
                 precise
                 and not stable_field_read_performed
                 and intended_snapshot == text
                 and (
-                    (editor_field and not editor_append)
+                    (editor_field and not editor_autocorrect_candidate)
                     or (
                         single_line_field
                         and (
@@ -3360,14 +3364,18 @@ class WatchedTyper:
                 DEBUG.event(
                     "typing.caret_stabilizer",
                     method=(
-                        "editor_ctrl_home"
+                        "editor_line_home"
+                        if editor_append
+                        else "editor_ctrl_home"
                         if editor_field
                         else "caret_home"
                     ),
                     character_count=len(intended_snapshot),
                     stage="started",
                 )
-                if editor_field:
+                if editor_append:
+                    await self.backend.press_key("Home")
+                elif editor_field:
                     await self.backend.keypress(["ControlLeft", "Home"])
                 else:
                     await self.backend.press_key("Home")
@@ -3382,7 +3390,11 @@ class WatchedTyper:
                         allow_blind_fallback=True,
                     )
                 finally:
-                    if editor_field:
+                    if editor_append:
+                        with contextlib.suppress(Exception):
+                            await self.backend.press_key("End")
+                        await asyncio.sleep(_CLEAR_SETTLE_S)
+                    elif editor_field:
                         with contextlib.suppress(Exception):
                             await self.backend.keypress(
                                 ["ControlLeft", "End"]
@@ -3396,7 +3408,9 @@ class WatchedTyper:
                 DEBUG.event(
                     "typing.caret_stabilizer",
                     method=(
-                        "editor_ctrl_home"
+                        "editor_line_home"
+                        if editor_append
+                        else "editor_ctrl_home"
                         if editor_field
                         else "caret_home"
                     ),

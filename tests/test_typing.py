@@ -3290,6 +3290,101 @@ async def test_indented_editor_autocorrect_uses_status_proof_after_replacement(
     _assert_no_enter(backend)
 
 
+async def test_indented_editor_one_glyph_transport_slip_is_repaired_locally(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A grounded ``)`` -> ``0`` HID slip must not replay the code row."""
+
+    async def no_sleep(_seconds: float) -> None:
+        return None
+
+    backend = FakeBackend()
+    intended = '            result.append("FizzBuzz")'
+    visible_intended = intended.lstrip()
+    visible_slip = visible_intended[:-1] + "0"
+
+    class IndentedTransportSlipOCR:
+        async def ocr_precise(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path
+            if (
+                region is not None
+                and region.x == 0
+                and region.width == 512
+                and region.height >= 90
+                and region.y > 140
+            ):
+                foreground_y = region.height - 20
+                return OCRResult(
+                    lines=[
+                        OCRLine(
+                            text="Ln 5, Col 38",
+                            confidence=0.99,
+                            bbox=[20, foreground_y, 90, foreground_y + 12],
+                        )
+                    ]
+                )
+            corrected = any(
+                method == "press_key" and kwargs.get("code") == "Backspace"
+                for method, kwargs in backend.calls
+            )
+            return OCRResult(
+                lines=[
+                    OCRLine(
+                        text=visible_intended if corrected else visible_slip,
+                        confidence=0.99,
+                    )
+                ],
+                spacing_evidence="not_evaluated",
+            )
+
+        async def ocr(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            return await self.ocr_precise(image_path, region)
+
+    monkeypatch.setattr(asyncio, "sleep", no_sleep)
+    typer = WatchedTyper(backend, IndentedTransportSlipOCR())
+    flat = _flat_grid()
+    changed = flat.copy().reshape(GRID_ROWS, GRID_COLS)
+    changed[8:10, 5:28] = 200
+    grids = [flat, changed.reshape(-1)]
+
+    async def changed_grid() -> np.ndarray:
+        return grids.pop(0) if grids else changed.reshape(-1)
+
+    typer._grid = changed_grid  # type: ignore[method-assign]
+
+    result = await typer.type_text(
+        intended,
+        code=True,
+        exact=True,
+        context="editor",
+    )
+
+    assert result.status == "verified_exact", result
+    assert result.field_text == intended
+    assert result.correction_count == 1
+    assert result.emitted_exactly_once is False
+    assert [
+        kwargs["text"]
+        for method, kwargs in backend.calls
+        if method == "type_text"
+    ] == [intended, ")"]
+    pressed = [
+        kwargs.get("code")
+        for method, kwargs in backend.calls
+        if method == "press_key"
+    ]
+    assert pressed == ["End", "Backspace", "End"]
+    _assert_no_enter(backend)
+
+
 @pytest.mark.parametrize(
     ("reported_characters", "expected_status"),
     [
@@ -3949,6 +4044,101 @@ async def test_long_indented_editor_suffix_uses_status_alternative(
         intended if reported_column == 38 else suffix
     )
     assert result.emitted_exactly_once is True
+    _assert_no_enter(backend)
+
+
+async def test_indented_editor_append_moves_caret_off_final_punctuation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Read the final glyph with Home, then restore End for the next line."""
+
+    async def no_sleep(_seconds: float) -> None:
+        return None
+
+    intended = '            result.append("FizzBuzz")'
+    suffix = intended.lstrip(" ")
+
+    class CaretObscuredEditorOCR:
+        async def ocr_precise(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path
+            if (
+                region is not None
+                and region.x == 0
+                and region.width == 512
+                and region.height >= 90
+                and region.y > 140
+            ):
+                return OCRResult(
+                    alternatives=[
+                        OCRCandidate(
+                            text="Ln 5, Col 38\n142 characters\nPlain text",
+                            mean_confidence=0.99,
+                        )
+                    ]
+                )
+            if region is None:
+                return OCRResult()
+            pressed = [
+                kwargs.get("code")
+                for method, kwargs in backend.calls
+                if method == "press_key"
+            ]
+            caret_moved_home = bool(pressed and pressed[-1] == "Home")
+            return OCRResult(
+                lines=[
+                    OCRLine(
+                        text=(suffix if caret_moved_home else f"{suffix[:-1]}8"),
+                        confidence=0.99,
+                        bbox=[103, 130, 315, 153],
+                    )
+                ]
+            )
+
+        async def ocr(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            return await self.ocr_precise(image_path, region)
+
+    monkeypatch.setattr(asyncio, "sleep", no_sleep)
+    backend = FakeBackend()
+    typer = WatchedTyper(backend, CaretObscuredEditorOCR())
+    flat = _flat_grid()
+    changed = flat.copy().reshape(GRID_ROWS, GRID_COLS)
+    changed[8:10, 5:25] = 200
+    grids = [flat, changed.reshape(-1)]
+
+    async def changed_grid() -> np.ndarray:
+        return grids.pop(0) if grids else changed.reshape(-1)
+
+    typer._grid = changed_grid  # type: ignore[method-assign]
+
+    result = await typer.type_text(
+        intended,
+        code=True,
+        exact=True,
+        context="editor",
+    )
+
+    pressed = [
+        kwargs.get("code")
+        for method, kwargs in backend.calls
+        if method == "press_key"
+    ]
+    assert result.status == "verified_exact"
+    assert result.field_text == intended
+    assert result.emitted_exactly_once is True
+    assert pressed[-2:] == ["Home", "End"]
+    assert [
+        kwargs["text"]
+        for method, kwargs in backend.calls
+        if method == "type_text"
+    ] == [intended]
     _assert_no_enter(backend)
 
 
