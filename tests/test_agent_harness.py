@@ -3289,28 +3289,11 @@ def test_controller_action_schema_rejects_control_characters_in_text(
 
 
 @pytest.mark.parametrize("text", ["", " ", "    "])
-def test_controller_action_schema_rejects_invisible_editor_text(
+@pytest.mark.parametrize("context", ["", "editor", "field", "terminal"])
+def test_controller_action_schema_rejects_invisible_text(
     text: str,
+    context: str,
 ) -> None:
-    with pytest.raises(ValidationError, match="whitespace-only editor"):
-        ControllerDecision.model_validate(
-            {
-                "outcome": "act",
-                "intent": "Indent the next editor line.",
-                "actions": [
-                    {
-                        "type": "type_text",
-                        "text": text,
-                        "context": "editor",
-                        "verification": "exact",
-                    }
-                ],
-                "expected_evidence": ["The editor line is indented."],
-            }
-        )
-
-
-def test_controller_action_schema_repairs_context_free_whitespace_before_hid() -> None:
     with pytest.raises(ValidationError, match="whitespace-only type_text"):
         ControllerDecision.model_validate(
             {
@@ -3319,7 +3302,8 @@ def test_controller_action_schema_repairs_context_free_whitespace_before_hid() -
                 "actions": [
                     {
                         "type": "type_text",
-                        "text": "    ",
+                        "text": text,
+                        "context": context,
                         "verification": "exact",
                     }
                 ],
@@ -6158,6 +6142,59 @@ async def test_invalid_structured_controller_gets_one_pre_hid_repair_attempt() -
     assert "YOUR PREVIOUS JSON WAS REJECTED" not in controller_requests[0].prompt
     assert "YOUR PREVIOUS JSON WAS REJECTED" in controller_requests[1].prompt
     assert '"input"' not in controller_requests[1].prompt
+
+
+@pytest.mark.asyncio
+async def test_whitespace_only_controller_gets_one_pre_hid_repair_attempt() -> None:
+    class WhitespaceThenRepairedControllerProvider(ScriptedProvider):
+        def __init__(self) -> None:
+            super().__init__()
+            self.controller_calls = 0
+
+        async def complete(self, request: ModelRequest) -> ModelResponse:
+            if request.role == "controller":
+                self.controller_calls += 1
+                if self.controller_calls == 1:
+                    self.requests.append(request)
+                    return ModelResponse(
+                        provider=self.name,
+                        model="scripted-v1",
+                        data={
+                            "outcome": "act",
+                            "intent": "Indent the next editor line.",
+                            "actions": [
+                                {
+                                    "type": "type_text",
+                                    "text": "    ",
+                                    "verification": "exact",
+                                }
+                            ],
+                            "expected_evidence": [
+                                "The editor line is indented."
+                            ],
+                        },
+                    )
+            return await super().complete(request)
+
+    provider = WhitespaceThenRepairedControllerProvider()
+    computer = FakeComputer()
+    harness = build_harness(provider, computer)
+
+    completed = await harness.start("Type hello world in the open editor.")
+
+    assert completed.status is RunStatus.COMPLETED
+    assert provider.controller_calls == 2
+    assert len(computer.bursts) == 1
+    assert [
+        action["text"]
+        for action in computer.bursts[0]["actions"]
+        if action["type"] == "type_text"
+    ] == ["hello world"]
+    controller_requests = [
+        request for request in provider.requests if request.role == "controller"
+    ]
+    assert "YOUR PREVIOUS JSON WAS REJECTED" in controller_requests[1].prompt
+    assert "whitespace-only type_text" in controller_requests[1].prompt
 
 
 @pytest.mark.asyncio

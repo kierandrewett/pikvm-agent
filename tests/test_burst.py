@@ -423,6 +423,24 @@ async def test_burst_rejects_oversized_type_text_before_hid() -> None:
     assert be.calls == []
 
 
+async def test_burst_rejects_whitespace_only_type_text_before_hid() -> None:
+    be = FakeBackend()
+
+    with pytest.raises(BurstError, match="whitespace-only"):
+        await run_burst(
+            [
+                {
+                    "type": "type_text",
+                    "text": "    ",
+                    "verification": "exact",
+                }
+            ],
+            backend=be,
+        )
+
+    assert be.calls == []
+
+
 async def test_burst_rejects_total_type_text_over_limit_before_hid() -> None:
     be = FakeBackend()
     chunk = "x" * min(MAX_TYPE_TEXT_CHARS, max(1, MAX_BURST_TYPE_TEXT_CHARS // 4))

@@ -423,6 +423,12 @@ def validate_actions(
                 f"{verification!r}; use 'auto' or 'exact'"
             )
         text = str(action.get("text", ""))
+        if not text.strip():
+            raise BurstError(
+                f"type_text action {index} is whitespace-only and cannot be "
+                "visually verified; combine load-bearing whitespace with "
+                "visible text in one exact action"
+            )
         editor_prose = (
             str(action.get("context", "")).lower() == "editor"
             and action.get("code") is not True
