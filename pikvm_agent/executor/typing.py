@@ -1203,6 +1203,28 @@ def precise_readback_candidate_region(
         line_x0 = float(line_region.x)
         line_width = max(1.0, float(line_region.width))
         estimated_start = line_x0 + line_width * raw_start / line_length
+        first_target_alnum = next(
+            (
+                index
+                for index, character in enumerate(intended)
+                if character.isalnum()
+            ),
+            0,
+        )
+        visible_prefix_characters = sum(
+            1
+            for character in intended[:first_target_alnum]
+            if not character.isspace()
+        )
+        # The alphanumeric locator deliberately ignores punctuation, but the
+        # refined crop must not. A measured JSON row was localized from the
+        # first ``r`` in ``"retries"`` and clipped the opening quote; exact OCR
+        # then rejected a row that the editor had received correctly. Back off
+        # by the visible intended prefix while leaving leading whitespace to
+        # the independent caret-column proof.
+        visible_prefix_width = (
+            line_width / line_length * visible_prefix_characters
+        )
         estimated_width = max(
             1.0,
             line_width * (raw_end - raw_start) / line_length,
@@ -1218,7 +1240,12 @@ def precise_readback_candidate_region(
         vertical_padding = max(6, round(line_region.height * 0.50))
         x = max(
             0,
-            math.floor(container.x + estimated_start - 2),
+            math.floor(
+                container.x
+                + estimated_start
+                - visible_prefix_width
+                - 2
+            ),
         )
         y = max(
             0,

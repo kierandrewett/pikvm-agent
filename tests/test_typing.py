@@ -6721,6 +6721,28 @@ def test_precise_readback_prefers_exact_editor_row_over_tab_title() -> None:
     assert refined == Region(x=77, y=117, width=200, height=24)
 
 
+def test_precise_readback_retains_json_prefix_before_first_alphanumeric() -> None:
+    intended = '  "retries": 3,'
+    result = OCRResult(
+        lines=[
+            OCRLine(
+                text='retries": 3,',
+                confidence=0.9869,
+                bbox=[60, 6, 140, 18],
+            )
+        ]
+    )
+
+    refined = precise_readback_candidate_region(
+        result,
+        intended,
+        Region(x=0, y=112, width=291, height=32),
+        (1280, 800),
+    )
+
+    assert refined == Region(x=51, y=112, width=200, height=26)
+
+
 async def test_uncalibrated_precise_ocr_cannot_verify_visible_spaces() -> None:
     intended = "exactly one space"
 
