@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "report": "codex-50-live-progress",
-  "recorded_at": "2026-08-02T14:22:56Z",
+  "recorded_at": "2026-08-02T16:43:46Z",
   "manifest": "bench/codex-50-tasks.yaml",
   "environment": {
     "target": "authorized disposable Windows VNC VM",
@@ -16,9 +16,9 @@
   },
   "progress": {
     "planned": 50,
-    "unique_passed": 27,
-    "pending": 23,
-    "completion_percent": 54.0,
+    "unique_passed": 28,
+    "pending": 22,
+    "completion_percent": 56.0,
     "categories": {
       "Observation": {
         "passed": 5,
@@ -33,7 +33,7 @@
         "planned": 10
       },
       "Code entry": {
-        "passed": 2,
+        "passed": 3,
         "planned": 10
       },
       "File management": {
@@ -76,7 +76,8 @@
       "text-09",
       "text-10",
       "code-01",
-      "code-02"
+      "code-02",
+      "code-03"
     ]
   },
   "canonical_campaigns": [
@@ -232,6 +233,13 @@
         "code-02"
       ],
       "campaign_sha256": "393545a608eb5d3ce2355d2c964aac8a683569660cbab96a5df6291730f65a25"
+    },
+    {
+      "campaign_id": "codex-code-entry-code03-v8-20260802",
+      "tasks": [
+        "code-03"
+      ],
+      "campaign_sha256": "8f71fe476ed13f80e6213a588b9fd247fb94d85898a68ff7666a682c836dccdc"
     }
   ],
   "calc_09_acceptance": {
@@ -3186,10 +3194,226 @@
     },
     "full_ledger": "bench/results/2026-08-02/live-vnc/code-02-attempts.json"
   },
+  "code_03_acceptance": {
+    "task": "Write, save, reopen, and visually verify a PowerShell file-digest function in Notepad",
+    "result": "passed",
+    "run_id": "9ce2be0d-3021-42ac-8e3c-bef0e2455c6a",
+    "reason": "A fresh blank document received the requested seven-line Get-FileDigest function. The run retained ten verified-exact input receipts, saved code-03.ps1 through one bounded workspace approval, reopened it through the native Open dialog, and completed only after the verifier visibly checked the persisted function, mandatory Path parameter, and SHA256 Get-FileHash call. All 22 attempted actions completed with zero corrections, delivery retries, recoverable failures, provider failures, or same-run recovery.",
+    "wall_clock_ms": 474102,
+    "model_active_ms": 219880,
+    "provider_wait_ms": 190319,
+    "provider_serial_equivalent_ms": 221405,
+    "provider_overlap_ms": 31086,
+    "action_execution_ms": 276106,
+    "evidence_capture_ms": 3799,
+    "provider_calls": 27,
+    "reasoner_calls": 1,
+    "controller_calls": 9,
+    "verifier_calls": 17,
+    "actions_attempted": 22,
+    "actions_completed": 22,
+    "completion_efficiency": 1.0,
+    "exact_input_receipts": 10,
+    "input_receipt_totals": {
+      "requested_characters": 167,
+      "issued_characters": 167,
+      "observed_characters": 167,
+      "all_zero_edit_distance": true,
+      "all_zero_corrections": true,
+      "all_zero_delivery_retries": true,
+      "all_emitted_exactly_once": true
+    },
+    "unverified_inputs": 0,
+    "typing_corrections": 0,
+    "same_run_recoveries": 0,
+    "approval_count": 1,
+    "approval_scopes": [
+      "bounded_workspace_edit"
+    ],
+    "quiescence_status": "confirmed",
+    "reboot_ms": 78950,
+    "reboot_transition_observed": true,
+    "longest_action_ms": 44875,
+    "recording": {
+      "relative_path": "codex-code-entry-code03-v8-20260802/code-03/recording.webm",
+      "sha256": "49b5ff4e093adf6681fc34d2842184a266c9716b6a12a65c4149b89ffbea5d93",
+      "codec": "vp9",
+      "width": 2048,
+      "height": 1280,
+      "fps": 2,
+      "duration_ms": 464000,
+      "size_bytes": 1376006
+    },
+    "poster": {
+      "relative_path": "codex-code-entry-code03-v8-20260802/code-03/poster.jpg",
+      "sha256": "a052014247a81a10a3642f01ac91ef4e78295311152f55348e49d5673d1c1d3d"
+    },
+    "campaign_sha256": "8f71fe476ed13f80e6213a588b9fd247fb94d85898a68ff7666a682c836dccdc"
+  },
+  "code_03_attempts": [
+    {
+      "campaign_id": "codex-code-entry-code03-v1-20260802",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "run_id": "ba666dbc-f89d-4779-a320-0ec43935c87f",
+      "reason": "The indented closing parenthesis was issued once after five exact receipts but returned an empty readback and failed closed.",
+      "wall_clock_ms": 353982,
+      "provider_wait_ms": 60444,
+      "action_execution_ms": 290632,
+      "provider_calls": 8,
+      "actions_attempted": 11,
+      "actions_completed": 10,
+      "same_run_recoveries": 0,
+      "quiescence_status": "confirmed",
+      "reboot_ms": 82431,
+      "reboot_transition_observed": true,
+      "campaign_sha256": "235186a68810d936c6754d3e5c3a0c36ae6f0da181289b0d9540b7721e347fbe"
+    },
+    {
+      "campaign_id": "codex-code-entry-code03-v2-20260802",
+      "reported_status": "passed",
+      "accepted_status": "invalid",
+      "run_id": "9f879897-9a6b-4acc-961e-8b5d72a8cc90",
+      "reason": "The correct saved file was reopened, but the param row required a full-row replay; correction_count=1 and emitted_exactly_once=false violate the clean-pass contract.",
+      "wall_clock_ms": 409558,
+      "provider_wait_ms": 178975,
+      "action_execution_ms": 222680,
+      "provider_calls": 29,
+      "actions_attempted": 23,
+      "actions_completed": 23,
+      "same_run_recoveries": 1,
+      "quiescence_status": "confirmed",
+      "reboot_ms": 83622,
+      "reboot_transition_observed": true,
+      "campaign_sha256": "42cd20664790a4d83e1a4fb3c3c2cda087be005c037a063dbd4e91de4080d1ec"
+    },
+    {
+      "campaign_id": "codex-code-entry-code03-v3-20260802",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "run_id": "ba34fe10-b4d7-4b56-8d2d-26dcf4aa4cfc",
+      "reason": "The five-character closing parenthesis was issued once, but its crop included adjacent rows and returned 59 characters for a five-character intent.",
+      "wall_clock_ms": 290762,
+      "provider_wait_ms": 58311,
+      "action_execution_ms": 229777,
+      "provider_calls": 8,
+      "actions_attempted": 11,
+      "actions_completed": 10,
+      "same_run_recoveries": 0,
+      "quiescence_status": "confirmed",
+      "reboot_ms": 99175,
+      "reboot_transition_observed": true,
+      "campaign_sha256": "1b66266a898dcffad91f81d0ef543d5b4c1ac9fe53c3a52dde5f33d0b2cc8f83"
+    },
+    {
+      "campaign_id": "codex-code-entry-code03-v4-20260802",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "run_id": "0a3ec959-bf60-4afe-a8c0-4c5e134bcd6a",
+      "reason": "After the expected missing-file audit, the visible fresh header still produced an empty OCR read and the unverified-draft guard blocked continuation.",
+      "wall_clock_ms": 266587,
+      "provider_wait_ms": 132180,
+      "action_execution_ms": 120975,
+      "provider_calls": 19,
+      "actions_attempted": 6,
+      "actions_completed": 5,
+      "same_run_recoveries": 3,
+      "quiescence_status": "confirmed",
+      "reboot_ms": 210927,
+      "reboot_transition_observed": true,
+      "campaign_sha256": "2f5ad78850c7a69d8fabf9d8d787b7909a67a57cb21c0580ba70ed7039cf24ad"
+    },
+    {
+      "campaign_id": "codex-code-entry-code03-v5-20260802",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "run_id": "f8b8c49c-21da-41e1-b50f-21de8e5632f4",
+      "reason": "The VNC transport delivered two of four repeated leading spaces in the param row, and exact readback rejected the resulting indentation loss.",
+      "wall_clock_ms": 208652,
+      "provider_wait_ms": 99646,
+      "action_execution_ms": 104497,
+      "provider_calls": 12,
+      "actions_attempted": 5,
+      "actions_completed": 4,
+      "same_run_recoveries": 2,
+      "quiescence_status": "confirmed",
+      "reboot_ms": 87248,
+      "reboot_transition_observed": true,
+      "campaign_sha256": "f8f50b8043dd9e553550bb70fac4f78418fc5ab9352fa51f656ff63a0faa717b"
+    },
+    {
+      "campaign_id": "codex-code-entry-code03-v6-20260802",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "run_id": "3d3b741d-ab11-49e0-9512-a148ff342605",
+      "reason": "Four ordinary rows were exact, but the visible indented closing parenthesis produced only a 37-pixel delta below the compact locator floor.",
+      "wall_clock_ms": 319724,
+      "provider_wait_ms": 98811,
+      "action_execution_ms": 216242,
+      "provider_calls": 12,
+      "actions_attempted": 11,
+      "actions_completed": 10,
+      "same_run_recoveries": 1,
+      "quiescence_status": "confirmed",
+      "reboot_ms": 79955,
+      "reboot_transition_observed": true,
+      "campaign_sha256": "dc433adfbad947ad461fd853679f10dc225175b7fa5e8a113d727520f5ca022f"
+    },
+    {
+      "campaign_id": "codex-code-entry-code03-v7-20260802",
+      "reported_status": "failed",
+      "accepted_status": "failed",
+      "run_id": "84f05243-9db3-4836-ac28-0b64dced4197",
+      "reason": "The exact first row and its Ln 1, Col 26 status proof were visible, but broad status OCR ran to deadline. Reboot attempt one lost capture readiness; cleanup recovery completed attempt two after bounded capture reconnect.",
+      "wall_clock_ms": 128300,
+      "provider_wait_ms": 37119,
+      "action_execution_ms": 90113,
+      "provider_calls": 4,
+      "actions_attempted": 3,
+      "actions_completed": 2,
+      "same_run_recoveries": 0,
+      "quiescence_status": "confirmed",
+      "reboot_ms": 437064,
+      "reboot_transition_observed": true,
+      "campaign_sha256": "2f1d9f4f4c58625e6d973f998b22d45534819e84de7aa03de42ba580c471de92"
+    },
+    {
+      "campaign_id": "codex-code-entry-code03-v8-20260802",
+      "reported_status": "passed",
+      "accepted_status": "passed",
+      "run_id": "9ce2be0d-3021-42ac-8e3c-bef0e2455c6a",
+      "reason": "Ten exact receipts covered the complete function and both filenames; save, native reopen, final visual verification, quiescence, and reset-ready all passed without correction or replay.",
+      "wall_clock_ms": 474102,
+      "provider_wait_ms": 190319,
+      "action_execution_ms": 276106,
+      "provider_calls": 27,
+      "actions_attempted": 22,
+      "actions_completed": 22,
+      "same_run_recoveries": 0,
+      "quiescence_status": "confirmed",
+      "reboot_ms": 78950,
+      "reboot_transition_observed": true,
+      "campaign_sha256": "8f71fe476ed13f80e6213a588b9fd247fb94d85898a68ff7666a682c836dccdc"
+    }
+  ],
+  "code_03_attempt_summary": {
+    "total_runs": 8,
+    "failed_runs": 6,
+    "invalid_runs": 1,
+    "passed_runs": 1,
+    "failure_terminal_outcomes": {
+      "unclean_self_correction": 1,
+      "incorrect_or_empty_ocr_region": 3,
+      "physical_repeated_space_loss": 1,
+      "structural_glyph_localization": 1,
+      "status_ocr_deadline_and_capture_recovery": 1
+    },
+    "full_ledger": "bench/results/2026-08-02/live-vnc/code-03-attempts.json"
+  },
   "verdict": {
-    "accuracy": "The campaign is 27/50. All ten Text entry tasks and the first two Code entry tasks pass with fresh input and independent reopen evidence. Code-02 completed 22/22 actions with eight exact receipts covering 128 requested, issued, and observed characters, zero corrections or retries, and no recovery. Six preceding failures remain in the denominator and the full seven-run ledger is linked.",
-    "speed": "Failing product target: accepted code-02 v7 took 433.040 seconds before reboot and 516.874 seconds including the reset-ready gate. A competent human can enter, save, reopen, and inspect this small JSON document materially faster.",
-    "dominant_cost": "Code-02 v7 spent 274.562 seconds in action execution and 153.022 seconds waiting for 27 provider calls. The compact closing brace alone took 69.153 seconds after causal localization. Exact screen verification is 63.40% of wall time; provider wait is 35.34%. Accuracy passes this task, but readback latency remains the primary speed problem.",
-    "next": "Continue with code-03 after removing redundant full-context OCR for an already localized exact structural glyph. Preserve exact-once input, native save/reopen proof, bounded workspace approval, fresh-artifact preparation, quiesce-before-reboot lifecycle, and failure-inclusive recordings."
+    "accuracy": "The campaign is 28/50. All ten Text entry tasks and the first three Code entry tasks pass with fresh input and independent reopen evidence. Code-03 completed 22/22 actions with ten exact receipts covering 167 requested, issued, and observed characters, zero corrections or retries, and no recovery. Six failures and one reported-pass-but-invalid correction run remain in the denominator; the full eight-run ledger is linked.",
+    "speed": "Failing product target: accepted code-03 v8 took 474.102 seconds before reboot and 553.052 seconds including the reset-ready gate. A competent human can enter, save, reopen, and inspect this seven-line PowerShell function materially faster.",
+    "dominant_cost": "Code-03 v8 spent 276.106 seconds in action execution and 190.319 seconds waiting for 27 provider calls. The first 25-character code row took 44.875 seconds, including a 15.816-second blind OCR fallback after causal localization. Exact screen verification is 58.24% of wall time; provider wait is 40.14%. Accuracy passes this task, but local-first readback and model-turn latency remain the primary speed problems.",
+    "next": "Continue with code-04 after removing the redundant blind OCR fallback for a locally grounded exact editor row. Preserve exact-once input, independent status proof for whitespace, native save/reopen proof, bounded workspace approval, fresh-artifact preparation, quiesce-before-reboot lifecycle, and failure-inclusive recordings."
   }
 }

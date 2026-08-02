@@ -51,8 +51,8 @@ support a claim of generally reliable autonomous Windows operation.
 
 ### Live 50-task Windows campaign
 
-The active disposable-Windows campaign has **27/50 unique accepted passes
-(54%)**. Every attempt is screen-recorded, every test ends with a VM reboot,
+The active disposable-Windows campaign has **28/50 unique accepted passes
+(56%)**. Every attempt is screen-recorded, every test ends with a VM reboot,
 and a pass is counted only once even when the same task is rerun during
 remediation. Production PiKVM was not contacted.
 
@@ -61,11 +61,11 @@ remediation. Production PiKVM was not contacted.
 | Observation | 5 | 5 | Complete |
 | Calculator | 10 | 10 | Complete |
 | Text entry | 10 | 10 | Complete |
-| Code entry | 2 | 10 | In progress |
+| Code entry | 3 | 10 | In progress |
 | File management | 0 | 5 | Pending |
 | Microsoft Excel | 0 | 5 | Pending |
 | Microsoft Word | 0 | 5 | Pending |
-| **Total** | **27** | **50** | **23 pending** |
+| **Total** | **28** | **50** | **22 pending** |
 
 The Calculator category is complete. The final temperature-conversion task
 visibly produced `23 °C = 73.4 °F`, completed 7/7 actions, and rebooted the VM
@@ -765,7 +765,36 @@ the causal glyph. The complete seven-run ledger is
 The canonical campaign digest is `sha256:393545a608eb`; its VP9 recording is
 `sha256:9b48087d9455` and its poster is `sha256:bc2999d393e0`.
 
-Failure-inclusive metrics, canonical campaign digests, the 27 accepted task
+Code-03 is the third accepted Code entry task. Seven earlier attempts are
+retained: six failed safely and v2 is invalid despite reporting success because
+the `param(` row required a full-row replay (`correction_count=1`,
+`emitted_exactly_once=false`). Later failures exposed an adjacent-row OCR crop,
+an empty header read after a missing-file audit, physical loss of two repeated
+spaces, a 37-pixel structural-glyph delta below the compact floor, and a
+correct 25-character header whose status proof ran past the action deadline.
+The v7 cleanup ledger also retains its first failed readiness check and the
+second verified reboot after the adapter learned to reconnect read-only capture.
+
+The accepted v8 run freshly created the seven-line PowerShell function, saved
+it as `code-03.ps1`, reopened it through the native Open dialog, and completed
+only after the independent verifier saw `Get-FileDigest`, the mandatory
+`[string]$Path` parameter, and the SHA-256 `Get-FileHash` call. Its ten exact
+receipts cover 167 requested, issued, and observed characters. Every receipt
+has zero edit distance, zero corrections, zero delivery retries, and exact-once
+emission. All 22 actions completed with one bounded-workspace approval and no
+same-run recovery.
+
+Accuracy passes code-03; speed still fails. The task took 474.102s before
+reboot and 553.052s through reset-ready. Action execution consumed 276.106s
+(58.2% of wall time); 27 model calls consumed 190.319s of provider wait
+(40.1%). The longest action took 44.875s, and the first 25-character code row
+spent 15.816s in the blind OCR fallback after local causal localization. The
+complete eight-run ledger is
+[`code-03-attempts.json`](results/2026-08-02/live-vnc/code-03-attempts.json).
+The canonical campaign digest is `sha256:8f71fe476ed1`; its VP9 recording is
+`sha256:49b5ff4e093a` and its poster is `sha256:a052014247a8`.
+
+Failure-inclusive metrics, canonical campaign digests, the 28 accepted task
 IDs, and the VP9 recording/poster hashes are retained in
 [`codex-50-progress.json`](results/2026-07-31/live-vnc/codex-50-progress.json).
 The complete 50-task manifest is
