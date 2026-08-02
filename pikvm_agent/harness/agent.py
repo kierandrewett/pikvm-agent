@@ -1275,6 +1275,88 @@ def _inserted_notepad_line_breaks(
     return line_breaks.count({"shift", "enter"}) == count
 
 
+def _locally_verified_notepad_artifact_action(
+    run: RunSnapshot,
+    action: PendingAction | None,
+    input_receipts: list[dict[str, Any]],
+    *,
+    after: ComputerObservation | None,
+) -> VerificationDecision | None:
+    """Trust exact local OCR once for one inert generated-artifact segment."""
+
+    if (
+        action is None
+        or run.plan is None
+        or run.plan.artifact_content is None
+        or after is None
+    ):
+        return None
+    segments = _notepad_exact_text_segments(run)
+    typed_index = _typed_notepad_segment_index(action, segments)
+    if typed_index is None or action.expects_task_completion:
+        return None
+    typed_actions = [
+        (index, item)
+        for index, item in enumerate(action.actions)
+        if item.get("type") == "type_text"
+    ]
+    if len(typed_actions) != 1 or any(
+        item.get("type")
+        not in {
+            "type_text",
+            "wait",
+            "wait_for_change",
+            "wait_for_stable_screen",
+        }
+        for item in action.actions
+    ):
+        return None
+    action_index, _ = typed_actions[0]
+    receipt = next(
+        (
+            item
+            for item in input_receipts
+            if item.get("index") == action_index
+        ),
+        None,
+    )
+    if receipt is None or not (
+        receipt.get("status") == "verified_exact"
+        and receipt.get("verdict") == "match"
+        and receipt.get("focus_evidence") == "read_back_verified"
+        and receipt.get("proof_state") == "exact_visual_readback"
+        and receipt.get("exact_readback_sha256_match") is True
+        and receipt.get("emitted_exactly_once") is True
+        and receipt.get("correction_count") == 0
+        and receipt.get("delivery_retries") == 0
+    ):
+        return None
+    summary = (
+        f"Exact local visual readback verified artifact segment "
+        f"{typed_index + 1} of {len(segments)}."
+    )
+    evidence = [
+        (
+            "The watched sender emitted the segment exactly once and the "
+            "independent local OCR readback matched its exact hash."
+        )
+    ]
+    return VerificationDecision(
+        verdict="verified",
+        summary=summary,
+        evidence=evidence,
+        criteria=[],
+        action_criteria=[
+            {
+                "criterion_index": index,
+                "satisfied": True,
+                "evidence": evidence[0],
+            }
+            for index in range(len(action.expected_evidence))
+        ],
+    )
+
+
 def _notepad_fast_path(
     run: RunSnapshot,
     *,
@@ -3558,6 +3640,41 @@ class AgentHarness:
             **receipt_outcome,
             **tool_outcome,
         )
+        local_verdict = _locally_verified_notepad_artifact_action(
+            run,
+            action,
+            input_receipts,
+            after=observation,
+        )
+        if local_verdict is not None:
+            run.last_verification = local_verdict
+            run.record(
+                "verification.local_completed",
+                verifier="exact_visual_readback",
+                verdict=local_verdict.verdict,
+                summary=local_verdict.summary,
+                evidence=local_verdict.evidence,
+                action_criteria=[
+                    item.model_dump(mode="json")
+                    for item in local_verdict.action_criteria
+                ],
+            )
+            deterministic_controller = _notepad_exact_text_controller(
+                run,
+                action,
+                max_actions=self.config.max_actions_per_burst,
+            )
+            if deterministic_controller is not None:
+                self._prefetched_controllers[run.run_id] = (
+                    deterministic_controller
+                )
+                run.record(
+                    "controller.notepad_followup_prepared",
+                    intent=deterministic_controller.intent,
+                    source="durable_plan_artifact",
+                )
+            await self.store.save(run)
+            return True
         await self.store.save(run)
         if parallel_next_control:
             await self._verify_and_prefetch_control(
@@ -4298,10 +4415,12 @@ class AgentHarness:
                 # publication can still verify that exact transition.
                 current_action["_completed"] = False
                 continue
-            if (
-                event.kind != "model.completed"
-                or event.data.get("role") != "verifier"
-            ):
+            model_verification = (
+                event.kind == "model.completed"
+                and event.data.get("role") == "verifier"
+            )
+            local_verification = event.kind == "verification.local_completed"
+            if not model_verification and not local_verification:
                 continue
             verification_action = (
                 current_action

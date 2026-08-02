@@ -15,6 +15,7 @@ from pikvm_agent.harness.agent import (
     _calculator_fast_path,
     _calculator_task_controller,
     _is_read_only_settings_request,
+    _locally_verified_notepad_artifact_action,
     _normalize_plan_safety_constraints,
     _normalize_sequential_key_actions,
     _normalize_windows_run_launch,
@@ -1219,6 +1220,219 @@ def test_generated_code_uses_indexed_exact_segments_without_tab_actions() -> Non
             based_on_control_epoch=0,
             idempotency_key=f"notepad-code-break-{index}",
         )
+
+
+def test_generated_code_exact_visual_receipt_skips_duplicate_model_proof() -> None:
+    content = "def answer():\n    return 42"
+    run = RunSnapshot(
+        run_id="notepad-local-exact-proof",
+        task="In Notepad, write a Python function.",
+        status=RunStatus.RUNNING,
+        plan=PlanDecision(
+            summary="Write the code.",
+            steps=["Enter the exact artifact"],
+            success_criteria=["The exact code is visible."],
+            artifact_content=content,
+            artifact_content_kind="code",
+        ),
+    )
+    action = PendingAction(
+        index=2,
+        intent="Enter exact segment 1 of 2 in the fresh Notepad document.",
+        actions=[
+            {
+                "type": "type_text",
+                "text": "def answer():",
+                "code": True,
+                "context": "editor",
+                "verification": "exact",
+            },
+            {
+                "type": "wait_for_stable_screen",
+                "stable_ms": 400,
+                "timeout_ms": 3_000,
+            },
+        ],
+        expected_evidence=["The exact first line is visible."],
+        based_on_world_version=2,
+        based_on_control_epoch=0,
+        idempotency_key="notepad-local-exact-proof",
+    )
+    receipt = {
+        "index": 0,
+        "status": "verified_exact",
+        "verdict": "match",
+        "focus_evidence": "read_back_verified",
+        "proof_state": "exact_visual_readback",
+        "exact_readback_sha256_match": True,
+        "emitted_exactly_once": True,
+        "correction_count": 0,
+        "delivery_retries": 0,
+    }
+
+    verdict = _locally_verified_notepad_artifact_action(
+        run,
+        action,
+        [receipt],
+        after=ComputerObservation(
+            session_id="session",
+            status="completed",
+            image_sha256="b" * 64,
+            screen_hash="b2",
+        ),
+    )
+
+    assert verdict is not None
+    assert verdict.verdict == "verified"
+    assert verdict.action_criteria[0].satisfied is True
+    assert "exact hash" in verdict.evidence[0]
+
+
+def test_generated_code_local_proof_rejects_sender_only_receipt() -> None:
+    run = RunSnapshot(
+        run_id="notepad-local-weak-proof",
+        task="In Notepad, write code.",
+        status=RunStatus.RUNNING,
+        plan=PlanDecision(
+            summary="Write the code.",
+            steps=["Enter it"],
+            success_criteria=["The code is visible."],
+            artifact_content="return 42",
+            artifact_content_kind="code",
+        ),
+    )
+    action = PendingAction(
+        index=2,
+        intent="Enter the requested exact text in the fresh Notepad document.",
+        actions=[
+            {
+                "type": "type_text",
+                "text": "return 42",
+                "code": True,
+                "context": "editor",
+                "verification": "exact",
+            }
+        ],
+        expected_evidence=["The exact text is visible."],
+        based_on_world_version=2,
+        based_on_control_epoch=0,
+        idempotency_key="notepad-local-weak-proof",
+    )
+
+    verdict = _locally_verified_notepad_artifact_action(
+        run,
+        action,
+        [
+            {
+                "index": 0,
+                "status": "delivered_unverified",
+                "verdict": "unverified",
+                "proof_state": "issued_only",
+            }
+        ],
+        after=ComputerObservation(session_id="session", status="completed"),
+    )
+
+    assert verdict is None
+
+
+def test_generated_code_local_proof_rejects_active_key_prefix() -> None:
+    run = RunSnapshot(
+        run_id="notepad-local-active-prefix",
+        task="In Notepad, write two lines of code.",
+        status=RunStatus.RUNNING,
+        plan=PlanDecision(
+            summary="Write the code.",
+            steps=["Enter it"],
+            success_criteria=["The code is visible."],
+            artifact_content="first()\nsecond()",
+            artifact_content_kind="code",
+        ),
+    )
+    action = PendingAction(
+        index=2,
+        intent="Enter exact segment 2 of 2 in the fresh Notepad document.",
+        actions=[
+            {"type": "key", "keys": ["SHIFT", "ENTER"]},
+            {
+                "type": "type_text",
+                "text": "second()",
+                "code": True,
+                "context": "editor",
+                "verification": "exact",
+            },
+        ],
+        expected_evidence=["The second line is visible."],
+        based_on_world_version=2,
+        based_on_control_epoch=0,
+        idempotency_key="notepad-local-active-prefix",
+    )
+    receipt = {
+        "index": 1,
+        "status": "verified_exact",
+        "verdict": "match",
+        "focus_evidence": "read_back_verified",
+        "proof_state": "exact_visual_readback",
+        "exact_readback_sha256_match": True,
+        "emitted_exactly_once": True,
+        "correction_count": 0,
+        "delivery_retries": 0,
+    }
+
+    assert (
+        _locally_verified_notepad_artifact_action(
+            run,
+            action,
+            [receipt],
+            after=ComputerObservation(
+                session_id="session",
+                status="completed",
+            ),
+        )
+        is None
+    )
+
+
+def test_generated_code_line_break_still_requires_model_verification() -> None:
+    run = RunSnapshot(
+        run_id="notepad-local-line-break",
+        task="In Notepad, write two lines of code.",
+        status=RunStatus.RUNNING,
+        plan=PlanDecision(
+            summary="Write the code.",
+            steps=["Enter it"],
+            success_criteria=["The code is visible."],
+            artifact_content="first()\nsecond()",
+            artifact_content_kind="code",
+        ),
+    )
+    action = PendingAction(
+        index=2,
+        intent=(
+            "Insert the requested line break after exact segment "
+            "1 of 2 in Notepad."
+        ),
+        actions=[{"type": "key", "keys": ["SHIFT", "ENTER"]}],
+        expected_evidence=["The caret is on the next line."],
+        based_on_world_version=2,
+        based_on_control_epoch=0,
+        idempotency_key="notepad-local-line-break",
+    )
+
+    assert (
+        _locally_verified_notepad_artifact_action(
+            run,
+            action,
+            [],
+            after=ComputerObservation(
+                session_id="session",
+                status="completed",
+                image_sha256="b" * 64,
+                screen_hash="b2",
+            ),
+        )
+        is None
+    )
 
 
 def test_controller_can_launch_a_standard_app_in_one_safe_burst() -> None:
