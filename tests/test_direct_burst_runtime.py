@@ -913,7 +913,7 @@ async def test_exact_explorer_receipt_records_post_action_screen_fingerprint(
                 "exact_readback_sha256_match": True,
                 "emitted_exactly_once": True,
                 "observed_text": "This PC",
-                "readback_frame_sha256": "f" * 64,
+                "readback_frame_sha256": shot["image_sha256"],
             }
         ],
         final_frame,
@@ -921,9 +921,10 @@ async def test_exact_explorer_receipt_records_post_action_screen_fingerprint(
 
     assert sr.verified_local_navigation_draft == {
         "text": "This PC",
-        "readback_frame_sha256": "f" * 64,
+        "readback_frame_sha256": shot["image_sha256"],
         "post_action_image_sha256": shot["image_sha256"],
         "frame_screen_hash": shot["screen_hash"],
+        "world_version": shot["world_version"],
         "control_epoch": shot["control_epoch"],
     }
 
@@ -957,7 +958,7 @@ async def test_exact_save_as_path_receipt_records_local_navigation_draft(
                 "exact_readback_sha256_match": True,
                 "emitted_exactly_once": True,
                 "observed_text": path,
-                "readback_frame_sha256": "f" * 64,
+                "readback_frame_sha256": shot["image_sha256"],
             }
         ],
         final_frame,
@@ -965,9 +966,55 @@ async def test_exact_save_as_path_receipt_records_local_navigation_draft(
 
     assert sr.verified_local_navigation_draft == {
         "text": path,
-        "readback_frame_sha256": "f" * 64,
+        "readback_frame_sha256": shot["image_sha256"],
         "post_action_image_sha256": shot["image_sha256"],
         "frame_screen_hash": shot["screen_hash"],
+        "world_version": shot["world_version"],
+        "control_epoch": shot["control_epoch"],
+    }
+
+
+async def test_exact_replaced_save_as_filename_records_local_commit_draft(
+    runtime: Runtime,
+) -> None:
+    sid = (await runtime.start_session("direct"))["session_id"]
+    shot = await runtime.get_session_summary(sid, capture=True)
+    sr = runtime._get(sid)
+    final_frame = sr.frames.latest()
+    assert final_frame is not None
+
+    runtime._update_verified_local_navigation_draft(
+        sr,
+        [
+            {"type": "key", "keys": ["CTRL", "A"]},
+            {
+                "type": "type_text",
+                "text": "code-04.sql",
+                "context": "field",
+                "verification": "exact",
+            },
+        ],
+        [
+            {
+                "index": 1,
+                "status": "verified_exact",
+                "verdict": "match",
+                "focus_evidence": "read_back_verified",
+                "exact_readback_sha256_match": True,
+                "emitted_exactly_once": True,
+                "observed_text": "code-04.sql",
+                "readback_frame_sha256": shot["image_sha256"],
+            }
+        ],
+        final_frame,
+    )
+
+    assert sr.verified_local_navigation_draft == {
+        "text": "code-04.sql",
+        "readback_frame_sha256": shot["image_sha256"],
+        "post_action_image_sha256": shot["image_sha256"],
+        "frame_screen_hash": shot["screen_hash"],
+        "world_version": shot["world_version"],
         "control_epoch": shot["control_epoch"],
     }
 
@@ -1000,7 +1047,7 @@ async def test_exact_windows_run_receipt_records_local_navigation_draft(
                 "exact_readback_sha256_match": True,
                 "emitted_exactly_once": True,
                 "observed_text": "notepad",
-                "readback_frame_sha256": "f" * 64,
+                "readback_frame_sha256": shot["image_sha256"],
             }
         ],
         final_frame,
@@ -1008,9 +1055,10 @@ async def test_exact_windows_run_receipt_records_local_navigation_draft(
 
     assert sr.verified_local_navigation_draft == {
         "text": "notepad",
-        "readback_frame_sha256": "f" * 64,
+        "readback_frame_sha256": shot["image_sha256"],
         "post_action_image_sha256": shot["image_sha256"],
         "frame_screen_hash": shot["screen_hash"],
+        "world_version": shot["world_version"],
         "control_epoch": shot["control_epoch"],
     }
 
@@ -1046,6 +1094,7 @@ async def test_matching_exact_windows_run_draft_grounds_one_local_enter(
         "readback_frame_sha256": shot["image_sha256"],
         "post_action_image_sha256": shot["image_sha256"],
         "frame_screen_hash": shot["screen_hash"],
+        "world_version": shot["world_version"],
         "control_epoch": shot["control_epoch"],
     }
 
@@ -1078,6 +1127,7 @@ async def test_exact_windows_run_draft_does_not_survive_pointer_input(
         "readback_frame_sha256": shot["image_sha256"],
         "post_action_image_sha256": shot["image_sha256"],
         "frame_screen_hash": shot["screen_hash"],
+        "world_version": shot["world_version"],
         "control_epoch": shot["control_epoch"],
     }
 
@@ -1111,9 +1161,10 @@ async def test_matching_exact_explorer_draft_grounds_one_local_enter(
     shot = await runtime.get_session_summary(sid, capture=True)
     runtime._get(sid).verified_local_navigation_draft = {
         "text": "This PC",
-        "readback_frame_sha256": "f" * 64,
+        "readback_frame_sha256": shot["image_sha256"],
         "post_action_image_sha256": shot["image_sha256"],
         "frame_screen_hash": shot["screen_hash"],
+        "world_version": shot["world_version"],
         "control_epoch": shot["control_epoch"],
     }
 
@@ -1157,9 +1208,10 @@ async def test_matching_exact_save_as_path_grounds_one_local_enter(
     shot = await runtime.get_session_summary(sid, capture=True)
     runtime._get(sid).verified_local_navigation_draft = {
         "text": path,
-        "readback_frame_sha256": "f" * 64,
+        "readback_frame_sha256": shot["image_sha256"],
         "post_action_image_sha256": shot["image_sha256"],
         "frame_screen_hash": shot["screen_hash"],
+        "world_version": shot["world_version"],
         "control_epoch": shot["control_epoch"],
     }
 
@@ -1172,6 +1224,49 @@ async def test_matching_exact_save_as_path_grounds_one_local_enter(
         based_on_world_version=shot["world_version"],
         based_on_control_epoch=shot["control_epoch"],
         idempotency_key="grounded-save-as-navigation",
+    )
+
+    assert result["status"] == "completed"
+    assert [call[1]["keys"] for call in _hid_calls(runtime)] == [["Enter"]]
+    assert runtime._get(sid).verified_local_navigation_draft is None
+
+
+async def test_matching_exact_save_as_filename_grounds_one_local_enter(
+    runtime: Runtime,
+) -> None:
+    class SaveAsOCR:
+        async def ocr(self, image_path, region=None):
+            del image_path, region
+            return OCRResult(
+                lines=[
+                    OCRLine(text="Save as"),
+                    OCRLine(text="This PC  New folder"),
+                    OCRLine(text="File name: code-04.sql"),
+                    OCRLine(text="Save as type: Text documents"),
+                ]
+            )
+
+    runtime._screen_parser.ocr = SaveAsOCR()
+    sid = (await runtime.start_session("direct"))["session_id"]
+    shot = await runtime.get_session_summary(sid, capture=True)
+    runtime._get(sid).verified_local_navigation_draft = {
+        "text": "code-04.sql",
+        "readback_frame_sha256": shot["image_sha256"],
+        "post_action_image_sha256": shot["image_sha256"],
+        "frame_screen_hash": shot["screen_hash"],
+        "world_version": shot["world_version"],
+        "control_epoch": shot["control_epoch"],
+    }
+
+    result = await runtime.run_burst(
+        sid,
+        [
+            {"type": "key", "keys": ["ENTER"]},
+            {"type": "wait_for_change", "timeout_ms": 3000},
+        ],
+        based_on_world_version=shot["world_version"],
+        based_on_control_epoch=shot["control_epoch"],
+        idempotency_key="grounded-save-as-filename",
     )
 
     assert result["status"] == "completed"
@@ -1219,6 +1314,7 @@ async def test_exact_same_frame_grounds_save_as_enter_despite_real_ocr_noise(
         "readback_frame_sha256": shot["image_sha256"],
         "post_action_image_sha256": shot["image_sha256"],
         "frame_screen_hash": shot["screen_hash"],
+        "world_version": shot["world_version"],
         "control_epoch": shot["control_epoch"],
     }
 
@@ -1266,6 +1362,7 @@ async def test_exact_save_as_path_does_not_ground_enter_on_message_surface(
         "readback_frame_sha256": shot["image_sha256"],
         "post_action_image_sha256": shot["image_sha256"],
         "frame_screen_hash": shot["screen_hash"],
+        "world_version": shot["world_version"],
         "control_epoch": shot["control_epoch"],
     }
 
@@ -1411,6 +1508,7 @@ async def test_exact_draft_does_not_ground_enter_on_a_message_surface(
         "readback_frame_sha256": shot["image_sha256"],
         "post_action_image_sha256": shot["image_sha256"],
         "frame_screen_hash": shot["screen_hash"],
+        "world_version": shot["world_version"],
         "control_epoch": shot["control_epoch"],
     }
 
@@ -1450,6 +1548,7 @@ async def test_exact_explorer_draft_rejects_a_changed_screen_fingerprint(
         "readback_frame_sha256": shot["image_sha256"],
         "post_action_image_sha256": shot["image_sha256"],
         "frame_screen_hash": "0" * 512,
+        "world_version": shot["world_version"],
         "control_epoch": shot["control_epoch"],
     }
 
@@ -1494,6 +1593,7 @@ async def test_save_as_draft_rejects_a_different_exact_frame(
         "readback_frame_sha256": shot["image_sha256"],
         "post_action_image_sha256": "0" * 64,
         "frame_screen_hash": shot["screen_hash"],
+        "world_version": shot["world_version"],
         "control_epoch": shot["control_epoch"],
     }
 

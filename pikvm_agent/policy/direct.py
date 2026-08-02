@@ -188,6 +188,13 @@ _COMMIT_KEYS = {"ENTER", "RETURN", "NUMPADENTER"}
 _WINDOWS_LOCAL_PATH = re.compile(
     r"^[A-Za-z]:\\[^<>:\"/|?*\x00-\x1f]{1,256}$"
 )
+_WINDOWS_LOCAL_FILENAME = re.compile(
+    r"^[^<>:\"/\\|?*\x00-\x1f]{1,128}$"
+)
+_WINDOWS_RESERVED_FILENAMES = re.compile(
+    r"^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\..*)?$",
+    re.IGNORECASE,
+)
 
 
 def is_safe_local_navigation_target(text: str) -> bool:
@@ -209,11 +216,24 @@ def is_safe_local_navigation_target(text: str) -> bool:
     )
 
 
+def is_safe_local_filename_draft(text: str) -> bool:
+    """Recognise one ordinary Windows basename for a grounded Save As dialog."""
+
+    return bool(
+        _WINDOWS_LOCAL_FILENAME.fullmatch(text)
+        and text not in {".", ".."}
+        and not text.endswith((" ", "."))
+        and not is_safe_windows_run_text(text)
+        and _WINDOWS_RESERVED_FILENAMES.fullmatch(text) is None
+    )
+
+
 def is_safe_local_commit_draft(text: str) -> bool:
     """Recognise text that one independently grounded Enter may commit."""
 
     return (
         is_safe_local_navigation_target(text)
+        or is_safe_local_filename_draft(text)
         or is_safe_windows_run_text(text)
     )
 
@@ -360,6 +380,42 @@ def is_confirmed_local_file_overwrite_surface(
     )
 
 
+def _is_communication_compose_surface(text: str) -> bool:
+    return bool(
+        any(
+            marker in text
+            for marker in (
+                "new message",
+                "replying to",
+                "message compose",
+                "new email",
+            )
+        )
+        and "send" in text
+    )
+
+
+def _save_as_surface_markers(text: str) -> set[str]:
+    compact = re.sub(r"[^a-z0-9]+", "", text)
+    markers = {
+        marker
+        for marker, compact_marker in (
+            ("file name", "filename"),
+            ("save as type", "saveastype"),
+            ("new folder", "newfolder"),
+            ("encoding", "encoding"),
+            ("this pc", "thispc"),
+        )
+        if marker in text or compact_marker in compact
+    }
+    if (
+        re.search(r"\b(?:s[a-z]?ve|ave)\s*as\b", text)
+        or "saveas" in compact
+    ):
+        markers.add("save as")
+    return markers
+
+
 def is_confirmed_file_explorer_surface(
     observed_surface_text: str,
     *,
@@ -374,37 +430,10 @@ def is_confirmed_file_explorer_surface(
         return False
     if draft_text != "This PC":
         top_band = " ".join(top_band_text.casefold().split())
-        communication_surface = (
-            any(
-                marker in text
-                for marker in (
-                    "new message",
-                    "replying to",
-                    "message compose",
-                )
-            )
-            and "send" in text
-        )
-        if communication_surface:
+        if _is_communication_compose_surface(text):
             return False
         marker_text = f"{text}\n{top_band}"
-        compact = re.sub(r"[^a-z0-9]+", "", marker_text)
-        save_as_visible = bool(
-            re.search(r"\b(?:s[a-z]?ve|ave)\s*as\b", marker_text)
-            or "saveas" in compact
-        )
-        file_picker_markers = {
-            marker
-            for marker, compact_marker in (
-                ("file name", "filename"),
-                ("save as type", "saveastype"),
-                ("new folder", "newfolder"),
-                ("encoding", "encoding"),
-            )
-            if marker in marker_text or compact_marker in compact
-        }
-        if save_as_visible:
-            file_picker_markers.add("save as")
+        file_picker_markers = _save_as_surface_markers(marker_text)
         return (
             (
                 draft_text.casefold() in top_band
@@ -435,6 +464,26 @@ def is_confirmed_file_explorer_surface(
     ) or (
         "quick access" in text and len(markers) >= 3
     )
+
+
+def is_confirmed_save_as_filename_surface(
+    observed_surface_text: str,
+    *,
+    draft_text: str,
+    verified_same_frame_draft: bool = False,
+) -> bool:
+    """Confirm a native Save As surface around one exact basename read-back."""
+
+    if (
+        not verified_same_frame_draft
+        or not is_safe_local_filename_draft(draft_text)
+    ):
+        return False
+    text = " ".join(observed_surface_text.casefold().split())
+    if _is_communication_compose_surface(text):
+        return False
+    markers = _save_as_surface_markers(text)
+    return "save as" in markers and len(markers) >= 2
 
 
 def is_confirmed_windows_run_surface(

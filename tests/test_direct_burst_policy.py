@@ -9,8 +9,10 @@ from pikvm_agent.policy.direct import (
     is_confirmed_local_file_overwrite_surface,
     is_confirmed_safe_windows_error_dismissal,
     is_confirmed_file_explorer_surface,
+    is_confirmed_save_as_filename_surface,
     is_confirmed_windows_run_surface,
     is_safe_local_navigation_target,
+    is_safe_local_filename_draft,
 )
 
 
@@ -570,6 +572,29 @@ def test_save_as_navigation_requires_safe_path_and_top_band_evidence() -> None:
         f"New message {path} Send",
         draft_text=path,
         top_band_text=path,
+    )
+
+
+def test_save_as_filename_commit_requires_exact_same_frame_dialog() -> None:
+    surface = "Save as  This PC  New folder  File name  Save as type"
+
+    assert is_safe_local_filename_draft("code-04.sql")
+    assert not is_safe_local_filename_draft("..")
+    assert not is_safe_local_filename_draft("CON.txt")
+    assert not is_safe_local_filename_draft(r"folder\code-04.sql")
+    assert is_confirmed_save_as_filename_surface(
+        surface,
+        draft_text="code-04.sql",
+        verified_same_frame_draft=True,
+    )
+    assert not is_confirmed_save_as_filename_surface(
+        surface,
+        draft_text="code-04.sql",
+    )
+    assert not is_confirmed_save_as_filename_surface(
+        "New message  File name code-04.sql  Send",
+        draft_text="code-04.sql",
+        verified_same_frame_draft=True,
     )
 
 

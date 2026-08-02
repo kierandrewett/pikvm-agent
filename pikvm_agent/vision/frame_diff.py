@@ -101,3 +101,18 @@ def is_blank(a: np.ndarray) -> bool:
 def screen_hash(fp: np.ndarray) -> str:
     """A stable hex digest of a fingerprint, for the frame record."""
     return fp.astype(np.uint8).tobytes().hex()
+
+
+def screen_hashes_match_surface(left: str, right: str) -> bool:
+    """Compare serialized fingerprints with the normal world-change policy."""
+
+    try:
+        left_fp = np.frombuffer(bytes.fromhex(left), dtype=np.uint8)
+        right_fp = np.frombuffer(bytes.fromhex(right), dtype=np.uint8)
+    except ValueError:
+        return False
+    return bool(
+        len(left_fp) == FP_SIZE * FP_SIZE
+        and len(right_fp) == FP_SIZE * FP_SIZE
+        and not fp_meaningful_change(left_fp, right_fp)
+    )

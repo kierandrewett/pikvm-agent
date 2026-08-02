@@ -46,8 +46,10 @@ from pikvm_agent.policy.direct import (
     classify_direct_burst,
     is_confirmed_calculator_surface,
     is_confirmed_file_explorer_surface,
+    is_confirmed_save_as_filename_surface,
     is_confirmed_windows_run_surface,
     is_safe_local_commit_draft,
+    is_safe_local_filename_draft,
     is_safe_local_navigation_target,
     needs_calculator_surface_grounding,
     needs_local_file_overwrite_surface_grounding,
@@ -58,6 +60,7 @@ from pikvm_agent.store.frames import FrameStore
 from pikvm_agent.store.sqlite import SessionStore
 from pikvm_agent.store.trace import TraceLog
 from pikvm_agent.vision.omniparser_manager import OmniParserManager
+from pikvm_agent.vision.frame_diff import screen_hashes_match_surface
 from pikvm_agent.vision.paddleocr_client import paddleocr_available
 from pikvm_agent.vision.providers import build_ocr_provider, build_screen_parser
 from pikvm_agent.vision.tesseract_ocr import tesseract_available
@@ -1503,6 +1506,17 @@ class Runtime:
             and is_confirmed_file_explorer_surface(observed_text)
         ):
             return (observed_text, True)
+        if is_safe_local_filename_draft(local_navigation_draft):
+            return (
+                observed_text,
+                is_confirmed_save_as_filename_surface(
+                    observed_text,
+                    draft_text=local_navigation_draft,
+                    verified_same_frame_draft=(
+                        verified_same_frame_draft
+                    ),
+                ),
+            )
         precise_ocr = getattr(ocr, "ocr_precise", None)
         if not callable(precise_ocr):
             return (observed_text, False)
@@ -1587,11 +1601,15 @@ class Runtime:
                 str(draft.get("text") or "")
             )
             and draft.get("control_epoch") == sr.control_epoch
+            and draft.get("world_version") == frame.world_version
+            and draft.get("readback_frame_sha256")
+            == draft.get("post_action_image_sha256")
             and len(frame_image_sha256) == 64
-            and draft.get("post_action_image_sha256")
-            == frame_image_sha256
             and len(frame_screen_hash) == 512
-            and draft.get("frame_screen_hash") == frame_screen_hash
+            and screen_hashes_match_surface(
+                str(draft.get("frame_screen_hash") or ""),
+                frame_screen_hash,
+            )
         )
 
     @staticmethod
@@ -1609,10 +1627,28 @@ class Runtime:
         ]
         if not active:
             return
-        if len(active) != 1 or active[0][1].get("type") != "type_text":
+        select_all = {"CTRL", "A"}
+        exact_field_replacement = bool(
+            len(active) == 2
+            and active[0][1].get("type") == "key"
+            and {
+                str(key).strip().upper()
+                for key in (
+                    active[0][1].get("keys")
+                    or [active[0][1].get("key")]
+                )
+                if key
+            }
+            == select_all
+            and active[1][1].get("type") == "type_text"
+        )
+        if not (
+            (len(active) == 1 and active[0][1].get("type") == "type_text")
+            or exact_field_replacement
+        ):
             sr.verified_local_navigation_draft = None
             return
-        index, action = active[0]
+        index, action = active[-1]
         receipt = next(
             (
                 item
@@ -1644,6 +1680,7 @@ class Runtime:
             and len(frame_sha256) == 64
             and len(final_screen_hash) == 512
             and len(final_image_sha256) == 64
+            and frame_sha256 == final_image_sha256
         )
         sr.verified_local_navigation_draft = (
             {
@@ -1651,6 +1688,7 @@ class Runtime:
                 "readback_frame_sha256": frame_sha256,
                 "post_action_image_sha256": final_image_sha256,
                 "frame_screen_hash": final_screen_hash,
+                "world_version": final_frame.world_version,
                 "control_epoch": sr.control_epoch,
             }
             if exact
