@@ -46,6 +46,8 @@ from pikvm_agent.policy.direct import (
     classify_direct_burst,
     is_confirmed_calculator_surface,
     is_confirmed_file_explorer_surface,
+    is_confirmed_windows_run_surface,
+    is_safe_local_commit_draft,
     is_safe_local_navigation_target,
     needs_calculator_surface_grounding,
     needs_local_file_overwrite_surface_grounding,
@@ -85,6 +87,47 @@ def _local_pointer_freshness_enabled(
         capabilities.isolated_benchmark_pointer_freshness
         and policy.allow_local_pointer_freshness
         and policy.default_profile == "isolated_benchmark"
+    )
+
+
+def _preserves_verified_local_navigation_draft(
+    actions: list[dict[str, Any]],
+) -> bool:
+    """Allow one visually inert Control chord between draft and commit."""
+
+    passive = {"wait", "wait_for_change", "wait_for_stable_screen"}
+    active = [
+        action for action in actions if action.get("type") not in passive
+    ]
+    if len(active) != 1 or active[0].get("type") != "key":
+        return False
+    keys = {
+        str(key).strip().upper()
+        for key in (
+            active[0].get("keys") or [active[0].get("key")]
+        )
+        if key
+    }
+    control_keys = {
+        "CTRL",
+        "CONTROL",
+        "CONTROLLEFT",
+        "CONTROLRIGHT",
+        "LCTRL",
+        "RCTRL",
+    }
+    commit_or_focus_keys = {
+        "ENTER",
+        "RETURN",
+        "NUMPADENTER",
+        "TAB",
+        "ESC",
+        "ESCAPE",
+    }
+    return bool(
+        len(keys) == 2
+        and keys & control_keys
+        and not keys & commit_or_focus_keys
     )
 
 
@@ -1470,12 +1513,20 @@ class Runtime:
         if not callable(precise_ocr):
             return (observed_text, False)
         if local_navigation_draft:
-            precise_region = Region(
-                x=frame.width * 0.05,
-                y=0,
-                width=frame.width * 0.90,
-                height=frame.height * 0.25,
-            )
+            if is_safe_local_navigation_target(local_navigation_draft):
+                precise_region = Region(
+                    x=frame.width * 0.05,
+                    y=0,
+                    width=frame.width * 0.90,
+                    height=frame.height * 0.25,
+                )
+            else:
+                precise_region = Region(
+                    x=0,
+                    y=frame.height * 0.68,
+                    width=frame.width * 0.40,
+                    height=frame.height * 0.32,
+                )
         else:
             precise_region = Region(
                 x=0,
@@ -1493,6 +1544,20 @@ class Runtime:
         precise_text = str(precise.text or "")[:2_000]
         if local_navigation_draft:
             combined_text = f"{observed_text}\n{precise_text}"
+            if not is_safe_local_navigation_target(
+                local_navigation_draft
+            ):
+                return (
+                    combined_text,
+                    is_confirmed_windows_run_surface(
+                        observed_text,
+                        draft_text=local_navigation_draft,
+                        dialog_text=precise_text,
+                        verified_same_frame_draft=(
+                            verified_same_frame_draft
+                        ),
+                    ),
+                )
             confirmed = is_confirmed_file_explorer_surface(
                 (
                     combined_text
@@ -1524,7 +1589,7 @@ class Runtime:
         return bool(
             draft
             and needs_local_navigation_surface_grounding(actions)
-            and is_safe_local_navigation_target(
+            and is_safe_local_commit_draft(
                 str(draft.get("text") or "")
             )
             and draft.get("control_epoch") == sr.control_epoch
@@ -1551,7 +1616,23 @@ class Runtime:
         if not active:
             return
         if len(active) != 1 or active[0][1].get("type") != "type_text":
-            sr.verified_local_navigation_draft = None
+            existing = sr.verified_local_navigation_draft or {}
+            final_screen_hash = str(
+                getattr(final_frame, "screen_hash", "") or ""
+            ).lower()
+            final_image_sha256 = str(
+                getattr(final_frame, "image_sha256", "") or ""
+            ).lower()
+            if not (
+                existing
+                and _preserves_verified_local_navigation_draft(actions)
+                and existing.get("control_epoch") == sr.control_epoch
+                and existing.get("post_action_image_sha256")
+                == final_image_sha256
+                and existing.get("frame_screen_hash")
+                == final_screen_hash
+            ):
+                sr.verified_local_navigation_draft = None
             return
         index, action = active[0]
         receipt = next(
@@ -1575,7 +1656,7 @@ class Runtime:
         exact = (
             action.get("context") == "field"
             and action.get("secret") is not True
-            and is_safe_local_navigation_target(text)
+            and is_safe_local_commit_draft(text)
             and receipt.get("status") == "verified_exact"
             and receipt.get("verdict") == "match"
             and receipt.get("focus_evidence") == "read_back_verified"

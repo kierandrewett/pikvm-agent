@@ -956,12 +956,7 @@ def _notepad_segment_break_count(run: RunSnapshot) -> int:
 def _launched_notepad(action: PendingAction | None) -> bool:
     if action is None:
         return False
-    return any(
-        item.get("type") == "type_text"
-        and str(item.get("text") or "").strip().casefold()
-        in {"notepad", "notepad.exe"}
-        for item in action.actions
-    )
+    return is_verified_windows_run_launch(action.actions)
 
 
 def _created_new_notepad_document(

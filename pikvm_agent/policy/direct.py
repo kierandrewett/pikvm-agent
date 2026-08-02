@@ -12,7 +12,10 @@ from dataclasses import dataclass
 from typing import Literal
 
 from pikvm_agent.config import PolicyConfig
-from pikvm_agent.core.windows_launch import is_verified_windows_run_launch
+from pikvm_agent.core.windows_launch import (
+    is_safe_windows_run_text,
+    is_verified_windows_run_launch,
+)
 from pikvm_agent.policy.risk import classify_command
 
 DirectStatus = Literal["allowed", "blocked", "approval_required"]
@@ -203,6 +206,15 @@ def is_safe_local_navigation_target(text: str) -> bool:
             and not part.endswith((" ", "."))
             for part in parts
         )
+    )
+
+
+def is_safe_local_commit_draft(text: str) -> bool:
+    """Recognise text that one independently grounded Enter may commit."""
+
+    return (
+        is_safe_local_navigation_target(text)
+        or is_safe_windows_run_text(text)
     )
 
 
@@ -422,6 +434,65 @@ def is_confirmed_file_explorer_surface(
         "file explorer" in text and len(markers) >= 2
     ) or (
         "quick access" in text and len(markers) >= 3
+    )
+
+
+def is_confirmed_windows_run_surface(
+    observed_surface_text: str,
+    *,
+    draft_text: str,
+    dialog_text: str = "",
+    verified_same_frame_draft: bool = False,
+) -> bool:
+    """Confirm the Windows Run dialog around one exact allowlisted draft."""
+
+    if not is_safe_windows_run_text(draft_text):
+        return False
+    text = " ".join(
+        f"{observed_surface_text}\n{dialog_text}".casefold().split()
+    )
+    normalized = re.sub(r"[^a-z0-9:-]+", " ", text).strip()
+    communication_surface = (
+        any(
+            marker in normalized
+            for marker in (
+                "new message",
+                "replying to",
+                "message compose",
+                "new email",
+            )
+        )
+        and "send" in normalized
+    )
+    controls = {
+        marker
+        for marker in ("open", "ok", "cancel", "browse")
+        if re.search(rf"\b{marker}\b", normalized)
+    }
+    instruction_markers = {
+        marker
+        for marker in (
+            "program",
+            "folder",
+            "document",
+            "internet",
+            "resource",
+            "windows",
+        )
+        if re.search(rf"\b{marker}\b", normalized)
+    }
+    draft_visible = bool(
+        re.search(
+            rf"\b{re.escape(draft_text.casefold())}\b",
+            normalized,
+        )
+    )
+    return bool(
+        not communication_surface
+        and (draft_visible or verified_same_frame_draft)
+        and "type the name of" in normalized
+        and len(instruction_markers) >= 4
+        and len(controls) >= 3
     )
 
 

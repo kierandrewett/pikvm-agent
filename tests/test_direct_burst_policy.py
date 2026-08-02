@@ -9,6 +9,7 @@ from pikvm_agent.policy.direct import (
     is_confirmed_local_file_overwrite_surface,
     is_confirmed_safe_windows_error_dismissal,
     is_confirmed_file_explorer_surface,
+    is_confirmed_windows_run_surface,
     is_safe_local_navigation_target,
 )
 
@@ -491,6 +492,38 @@ def test_verified_local_navigation_commit_requires_explicit_grounding() -> None:
         PolicyConfig(),
         verified_local_navigation_commit=True,
     ).status == "allowed"
+
+
+def test_windows_run_surface_accepts_real_ocr_noise_with_same_frame_draft() -> None:
+    dialog_text = (
+        "Run x Type the name of 8 program, folder, document or Internet "
+        "resource, and Windows will open i for you. Open: TEE "
+        "OK Cancel Browse"
+    )
+
+    assert is_confirmed_windows_run_surface(
+        "Windows desktop",
+        draft_text="notepad",
+        dialog_text=dialog_text,
+        verified_same_frame_draft=True,
+    )
+    assert not is_confirmed_windows_run_surface(
+        "Windows desktop",
+        draft_text="notepad",
+        dialog_text=dialog_text,
+    )
+
+
+def test_windows_run_surface_rejects_message_compose_lookalike() -> None:
+    assert not is_confirmed_windows_run_surface(
+        "New message  Send",
+        draft_text="notepad",
+        dialog_text=(
+            "Type the name of a program, folder, document or Internet "
+            "resource, and Windows will open it for you. Open OK Cancel Browse"
+        ),
+        verified_same_frame_draft=True,
+    )
 
 
 def test_file_explorer_surface_requires_multiple_independent_markers() -> None:
