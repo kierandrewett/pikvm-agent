@@ -339,52 +339,78 @@ class VncDotoolTransport:
         lease = VncTargetLease.acquire(self.endpoint)
         client: Any | None = None
         try:
-            try:
-                from vncdotool import api, client as vnc_client
-            except ImportError as exc:  # pragma: no cover - environment-dependent
-                raise RuntimeError(
-                    "VNC lab support is not installed; install pikvm-agent[harness]"
-                ) from exc
-
-            class LabVncFactory(vnc_client.VNCDoToolFactory):
-                # The adapter owns modifier state; vncdotool must not synthesize a
-                # US-layout Shift chord from a semantic character.
-                force_caps = False
-
-            connect_task = asyncio.create_task(
-                asyncio.to_thread(
-                    api.connect,
-                    self.endpoint,
-                    self.password,
-                    LabVncFactory,
-                    timeout=30,
-                    username=self.username,
-                )
-            )
-            try:
-                client = await asyncio.shield(connect_task)
-            except asyncio.CancelledError:
-                # Cancelling ``to_thread`` only abandons the await; the VNC
-                # connection continues in its worker. Keep the lease until the
-                # bounded attempt finishes, then close any client it created.
-                try:
-                    client = await asyncio.shield(connect_task)
-                except Exception:
-                    client = None
-                if client is not None:
-                    await asyncio.to_thread(client.disconnect)
-                    client = None
-                raise
+            client = await self._connect_client()
             self._client = client
             await asyncio.to_thread(self._release_client_modifiers)
             await self.screenshot()
         except BaseException:
-            self._client = None
-            if client is not None:
-                await asyncio.to_thread(client.disconnect)
+            failure_client, self._client = self._client or client, None
+            if failure_client is not None:
+                await self._disconnect_client_quietly(failure_client)
             lease.release()
             raise
         self._target_lease = lease
+
+    def _connect_client_blocking(self) -> Any:
+        try:
+            from vncdotool import api, client as vnc_client
+        except ImportError as exc:  # pragma: no cover - environment-dependent
+            raise RuntimeError(
+                "VNC lab support is not installed; install pikvm-agent[harness]"
+            ) from exc
+
+        class LabVncFactory(vnc_client.VNCDoToolFactory):
+            # The adapter owns modifier state; vncdotool must not synthesize a
+            # US-layout Shift chord from a semantic character.
+            force_caps = False
+
+        return api.connect(
+            self.endpoint,
+            self.password,
+            LabVncFactory,
+            timeout=30,
+            username=self.username,
+        )
+
+    async def _connect_client(self) -> Any:
+        connect_task = asyncio.create_task(
+            asyncio.to_thread(self._connect_client_blocking)
+        )
+        try:
+            return await asyncio.shield(connect_task)
+        except asyncio.CancelledError:
+            # Cancelling ``to_thread`` only abandons the await; the VNC
+            # connection continues in its worker. Keep the lease until the
+            # bounded attempt finishes, then close any client it created.
+            try:
+                client = await asyncio.shield(connect_task)
+            except Exception:
+                client = None
+            if client is not None:
+                await self._disconnect_client_quietly(client)
+            raise
+
+    @staticmethod
+    async def _disconnect_client_quietly(client: Any) -> None:
+        try:
+            await asyncio.wait_for(
+                asyncio.to_thread(client.disconnect),
+                timeout=2.0,
+            )
+        except Exception:
+            # A client whose screen request timed out can also stall during
+            # disconnect. It must not prevent a fresh connection or strand the
+            # target lease during adapter shutdown.
+            pass
+
+    async def _reconnect_locked(self) -> None:
+        previous, self._client = self._client, None
+        self._invalidate_frame()
+        if previous is not None:
+            await self._disconnect_client_quietly(previous)
+        client = await self._connect_client()
+        self._client = client
+        await asyncio.to_thread(self._release_client_modifiers)
 
     def _release_client_modifiers(self) -> None:
         client = self._require()
@@ -469,12 +495,13 @@ class VncDotoolTransport:
         time.sleep(0.075)
 
     async def close(self) -> None:
-        client, self._client = self._client, None
-        self._invalidate_frame()
-        lease, self._target_lease = self._target_lease, None
+        async with self._lock:
+            client, self._client = self._client, None
+            self._invalidate_frame()
+            lease, self._target_lease = self._target_lease, None
         try:
             if client is not None:
-                await asyncio.to_thread(client.disconnect)
+                await self._disconnect_client_quietly(client)
                 # The adapter is the only VNC consumer in this process. Stopping
                 # vncdotool's reactor lets uvicorn terminate cleanly on Ctrl+C.
                 from vncdotool import api
@@ -501,9 +528,8 @@ class VncDotoolTransport:
                 and now - self._frame_cached_at <= self.frame_cache_ttl_s
             ):
                 return self._cached_frame
-            client = self._require()
 
-            def capture() -> tuple[bytes, int, int]:
+            def capture(client: Any) -> tuple[bytes, int, int]:
                 output = io.BytesIO()
                 client.captureScreen(output, format="PNG")
                 output.seek(0)
@@ -512,7 +538,22 @@ class VncDotoolTransport:
                 image.save(encoded, "JPEG", quality=90)
                 return encoded.getvalue(), image.width, image.height
 
-            data, self.width, self.height = await asyncio.to_thread(capture)
+            if self._client is None:
+                await self._reconnect_locked()
+            try:
+                data, self.width, self.height = await asyncio.to_thread(
+                    capture,
+                    self._require(),
+                )
+            except TimeoutError:
+                # Guest reboots can leave the TCP/RFB client alive but unable
+                # to answer captures. Replace that stale client once and retry
+                # this read-only request; never replay keyboard or pointer I/O.
+                await self._reconnect_locked()
+                data, self.width, self.height = await asyncio.to_thread(
+                    capture,
+                    self._require(),
+                )
             self._cached_frame = data
             self._frame_cached_at = time.monotonic()
             return data

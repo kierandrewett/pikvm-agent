@@ -583,6 +583,55 @@ async def test_transport_coalesces_frequent_read_only_frame_consumers() -> None:
     assert client.captures == 1
 
 
+async def test_transport_reconnects_once_after_capture_timeout(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class StaleClient:
+        def __init__(self) -> None:
+            self.disconnected = False
+
+        def captureScreen(self, _output, *, format) -> None:
+            assert format == "PNG"
+            raise TimeoutError("guest reboot disconnected RFB capture")
+
+        def disconnect(self) -> None:
+            self.disconnected = True
+
+    class ReplacementClient:
+        def __init__(self) -> None:
+            self.captures = 0
+            self.released: list[str] = []
+
+        def keyUp(self, key: str) -> None:
+            self.released.append(key)
+
+        def captureScreen(self, output, *, format) -> None:
+            assert format == "PNG"
+            self.captures += 1
+            Image.new("RGB", (640, 400), (20, 40, 80)).save(output, "PNG")
+
+    stale = StaleClient()
+    replacement = ReplacementClient()
+    reconnects = 0
+
+    async def reconnect() -> ReplacementClient:
+        nonlocal reconnects
+        reconnects += 1
+        return replacement
+
+    transport = VncDotoolTransport("unused:5900")
+    transport._client = stale
+    monkeypatch.setattr(transport, "_connect_client", reconnect)
+
+    frame = await transport.screenshot()
+
+    assert Image.open(io.BytesIO(frame)).size == (640, 400)
+    assert stale.disconnected is True
+    assert reconnects == 1
+    assert replacement.captures == 1
+    assert replacement.released == ["shift", "ctrl", "alt", "super"]
+
+
 async def test_transport_invalidates_cached_frame_after_input() -> None:
     class Client:
         def __init__(self) -> None:
