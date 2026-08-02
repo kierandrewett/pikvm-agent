@@ -1016,8 +1016,10 @@ async def test_causal_code_row_uses_trimmed_glyphs_only_to_localize(
     )
 
 
+@pytest.mark.parametrize("autocorrect_i", [False, True])
 async def test_bounded_indented_editor_line_uses_causal_dense_row(
     monkeypatch: pytest.MonkeyPatch,
+    autocorrect_i: bool,
 ) -> None:
     """A status repaint must not hide one bounded exact code-row delivery."""
 
@@ -1033,7 +1035,6 @@ async def test_bounded_indented_editor_line_uses_causal_dense_row(
     backend = FakeBackend(width=1280, height=800)
     before_bytes, after_bytes = _ambiguous_dense_line_frames()
     backend.set_frame_bytes(before_bytes)
-    emitted = ""
     original_type = backend.type_text
 
     async def typing(
@@ -1042,12 +1043,20 @@ async def test_bounded_indented_editor_line_uses_causal_dense_row(
         code: bool = False,
         secret: bool = False,
     ) -> None:
-        nonlocal emitted
         await original_type(text, code=code, secret=secret)
-        emitted += text
         backend.set_frame_bytes(after_bytes)
 
     backend.type_text = typing  # type: ignore[method-assign]
+    intended = "        if i % 15 == 0:"
+
+    def visible_text() -> str:
+        correction_applied = any(
+            method == "press_key" and call.get("code") == "Backspace"
+            for method, call in backend.calls
+        )
+        if autocorrect_i and not correction_applied:
+            return intended.replace(" if i ", " if I ", 1)
+        return intended
 
     class CurrentEditorRowOCR:
         async def ocr(
@@ -1056,13 +1065,23 @@ async def test_bounded_indented_editor_line_uses_causal_dense_row(
             region: Region | None = None,
         ) -> OCRResult:
             del image_path
-            if region is None or region.y >= 200:
+            if region is None:
                 return OCRResult()
+            if region.y >= 200:
+                return OCRResult(
+                    lines=[
+                        OCRLine(
+                            text="Ln 4, Col 24",
+                            confidence=0.99,
+                            bbox=[12, region.height - 18, 90, region.height - 6],
+                        )
+                    ]
+                )
             if region.width < 120:
                 return OCRResult(
                     lines=[
                         OCRLine(
-                            text=emitted.strip(),
+                            text=visible_text().strip(),
                             confidence=0.99,
                             bbox=[4, 4, 72, 18],
                         )
@@ -1072,7 +1091,7 @@ async def test_bounded_indented_editor_line_uses_causal_dense_row(
             return OCRResult(
                 lines=[
                     OCRLine(
-                        text=emitted,
+                        text=visible_text(),
                         confidence=0.99,
                         bbox=[12, 4, 112, 18],
                     )
@@ -1087,7 +1106,6 @@ async def test_bounded_indented_editor_line_uses_causal_dense_row(
         ) -> OCRResult:
             return await self.ocr(image_path, region)
 
-    intended = "        if i % 15 == 0:"
     result = await WatchedTyper(backend, CurrentEditorRowOCR()).type_text(
         intended,
         exact=True,
@@ -1096,11 +1114,12 @@ async def test_bounded_indented_editor_line_uses_causal_dense_row(
     )
 
     assert result.status == "verified_exact"
-    assert result.emitted_exactly_once is True
+    assert result.correction_count == int(autocorrect_i)
+    assert result.emitted_exactly_once is (not autocorrect_i)
     assert [
         call["text"]
         for method, call in backend.calls
-        if method == "type_text"
+        if method == "type_text" and call["text"] not in {"_", "i"}
     ] == [intended]
 
 
@@ -3618,8 +3637,29 @@ async def test_autolocate_retries_once_for_delayed_video_update() -> None:
     assert result.ok is True
 
 
+@pytest.mark.parametrize(
+    ("intended", "noisy_row", "visible_row", "status_row"),
+    [
+        (
+            "    result = []",
+            "result = [J",
+            "result = []",
+            "Ln 2, Col 16",
+        ),
+        (
+            "        if i % 15 == 0:",
+            "if i % 15 = 0:",
+            "if i % 15 == 0:",
+            "Ln 4, Col 24",
+        ),
+    ],
+)
 async def test_precise_autolocate_rechecks_noisy_editor_punctuation(
     monkeypatch: pytest.MonkeyPatch,
+    intended: str,
+    noisy_row: str,
+    visible_row: str,
+    status_row: str,
 ) -> None:
     async def no_sleep(_seconds: float) -> None:
         return None
@@ -3651,7 +3691,7 @@ async def test_precise_autolocate_rechecks_noisy_editor_punctuation(
                 return OCRResult(
                     lines=[
                         OCRLine(
-                            text="result = [J",
+                            text=noisy_row,
                             confidence=0.91,
                             bbox=[64, 101, 121, 112],
                         )
@@ -3667,7 +3707,7 @@ async def test_precise_autolocate_rechecks_noisy_editor_punctuation(
                 return OCRResult(
                     lines=[
                         OCRLine(
-                            text="Ln 2, Col 16",
+                            text=status_row,
                             confidence=0.94,
                             bbox=[
                                 15,
@@ -3681,7 +3721,7 @@ async def test_precise_autolocate_rechecks_noisy_editor_punctuation(
             return OCRResult(
                 lines=[
                     OCRLine(
-                        text="result = []",
+                        text=visible_row,
                         confidence=0.99,
                     )
                 ],
@@ -3705,7 +3745,6 @@ async def test_precise_autolocate_rechecks_noisy_editor_punctuation(
         return flat
 
     typer._grid = unchanged_grid  # type: ignore[method-assign]
-    intended = "    result = []"
 
     result = await typer.type_text(
         intended,

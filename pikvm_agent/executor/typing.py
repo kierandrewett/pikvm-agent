@@ -2793,6 +2793,44 @@ class WatchedTyper:
                             )
                         )
                     ]
+                    if not exact_rows and bounded_editor_code:
+                        autocorrect_rows = [
+                            line
+                            for line in result.lines
+                            if (
+                                is_standalone_i_autocorrect(
+                                    intended_snapshot,
+                                    line.text,
+                                )
+                                and line.confidence is not None
+                                and float(line.confidence)
+                                >= MIN_GROUNDED_EXACT_OCR_CONFIDENCE
+                            )
+                        ]
+                        if len(autocorrect_rows) == 1:
+                            localized_region = candidate
+                            screen_row_region = ocr_line_screen_region(
+                                autocorrect_rows[0],
+                                candidate_readback_region,
+                                dims,
+                                pad=2,
+                            )
+                            if screen_row_region is not None:
+                                localized_region = screen_row_region
+                            DEBUG.event(
+                                "typing.causal_autocorrect_row_localized",
+                                intended_characters=len(intended_snapshot),
+                                region=localized_region.model_dump(),
+                            )
+                            DEBUG.event(
+                                "typing.dense_candidate_scan",
+                                candidate_count=len(candidates),
+                                checked=checked,
+                                matched=True,
+                                verified=False,
+                                region=localized_region.model_dump(),
+                            )
+                            return localized_region
                     if not exact_rows and spacing_verified:
                         spacing_rows = [
                             line
