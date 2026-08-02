@@ -2828,7 +2828,13 @@ class WatchedTyper:
         async def emit_text(value: str) -> None:
             emitted_parts.append(value)
             if fast_print:
-                printer = getattr(self.backend, "print_text", None)
+                printer = (
+                    getattr(self.backend, "print_exact_text", None)
+                    if precise and editor_field and code
+                    else None
+                )
+                if not callable(printer):
+                    printer = getattr(self.backend, "print_text", None)
                 if not callable(printer):
                     raise RuntimeError("fast print became unavailable")
                 await printer(value)

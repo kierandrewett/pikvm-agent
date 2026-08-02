@@ -33,40 +33,21 @@ async def _sleep(ms: float) -> None:
     await asyncio.sleep(ms / 1000.0)
 
 
-_PRINT_TRANSPORT_BOUNDARY_MS = 75.0
-
-
-def _print_transport_segments(
+def _has_shifted_punctuation(
     text: str,
     layout: ks.Layout,
-) -> list[tuple[bool, str]]:
-    """Partition bulk-print text around modifier-sensitive punctuation.
+) -> bool:
+    """Return whether exact text contains a modifier-sensitive symbol."""
 
-    Shifted symbols are the fragile case on RFB-backed Windows targets: the
-    bulk printer can lose the modifier or an entire symbol while ordinary
-    glyphs remain intact.  The HID path sends those symbols as independently
-    paced semantic key events.  Every requested character still appears in
-    exactly one segment and remains at-most-once.
-    """
-
-    segments: list[tuple[bool, str]] = []
-    pending = ""
-    pending_hid: bool | None = None
-    for character in text:
-        key = ks.key_for(character, layout)
-        use_hid = bool(
+    return any(
+        bool(
             key is not None
             and key.shift
             and not key.code.startswith("Key")
         )
-        if pending and pending_hid != use_hid:
-            segments.append((bool(pending_hid), pending))
-            pending = ""
-        pending_hid = use_hid
-        pending += character
-    if pending:
-        segments.append((bool(pending_hid), pending))
-    return segments
+        for character in text
+        if (key := ks.key_for(character, layout)) is not None
+    )
 
 
 class PiKVMBackend:
@@ -275,23 +256,31 @@ class PiKVMBackend:
         body = flatten_line_breaks(text)  # never auto-submit
         if not body:
             return
-        # Send ordinary text as word-boundary bursts rather than one uniform
-        # stream. Shifted punctuation takes the independently paced HID path:
-        # disposable Windows/RFB trials proved that the bulk endpoint could
-        # turn ``)`` into ``0`` or drop an adjacent quote while retaining every
-        # ordinary character.
-        segments = _print_transport_segments(body, self.layout)
-        for segment_index, (use_hid, segment) in enumerate(segments):
-            if use_hid:
-                await self.type_text(segment, code=True)
-            else:
-                chunks = timing.word_chunks(segment)
-                for chunk_index, chunk in enumerate(chunks):
-                    await self._print_chunk(chunk)
-                    if chunk_index < len(chunks) - 1:
-                        await _sleep(timing.print_chunk_pause_ms(chunk))
-            if segment_index < len(segments) - 1:
-                await _sleep(_PRINT_TRANSPORT_BOUNDARY_MS)
+        # Send as word-boundary bursts with human pauses between, rather than
+        # one long uniform stream.
+        chunks = timing.word_chunks(body)
+        for index, chunk in enumerate(chunks):
+            await self._print_chunk(chunk)
+            if index < len(chunks) - 1:
+                await _sleep(timing.print_chunk_pause_ms(chunk))
+
+    async def print_exact_text(self, text: str) -> None:
+        """Deliver one exact row without crossing transport ordering domains.
+
+        RFB-backed Windows trials proved two distinct bulk-print failures:
+        shifted symbols could be lost, and splitting a row between HTTP print
+        and websocket HID could reorder ``+`` after the following digit.  Keep
+        any modifier-sensitive exact row wholly on the paced HID channel;
+        symbol-free rows retain the faster bulk transport.
+        """
+
+        body = flatten_line_breaks(text)
+        if not body:
+            return
+        if _has_shifted_punctuation(body, self.layout):
+            await self.type_text(body, code=True)
+            return
+        await self.print_text(body)
 
     async def _print_chunk(self, chunk: str) -> None:
         params: dict[str, object] = {"limit": 0, "slow": 1}

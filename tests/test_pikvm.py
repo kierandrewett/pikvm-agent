@@ -138,10 +138,10 @@ async def test_windows_run_chord_uses_a_stable_modifier_dwell(
     assert sleeps == [250, 100, 100]
 
 
-async def test_native_print_isolates_shifted_punctuation_on_hid_transport(
+async def test_exact_print_keeps_shifted_punctuation_on_one_hid_transport(
     monkeypatch,
 ) -> None:
-    """Exact code symbols must not share the lossy bulk-print transport."""
+    """Do not reorder exact symbols across independent transport channels."""
 
     backend = PiKVMBackend(
         PikvmConfig(base_url="http://127.0.0.1:48020", layout="uk")
@@ -170,17 +170,46 @@ async def test_native_print_isolates_shifted_punctuation_on_hid_transport(
     monkeypatch.setattr(client_module, "_sleep", record_sleep)
 
     try:
-        await backend.print_text('            result.append("FizzBuzz")')
+        await backend.print_exact_text(
+            '            result.append("FizzBuzz")'
+        )
     finally:
         await backend._http.aclose()
 
     assert calls == [
-        ("print", "            result.append"),
-        ("type", '("'),
-        ("print", "FizzBuzz"),
-        ("type", '")'),
+        ("type", '            result.append("FizzBuzz")'),
     ]
-    assert sleeps == [75.0, 75.0, 75.0]
+    assert sleeps == []
+
+
+async def test_exact_print_keeps_symbol_free_text_on_bulk_transport(
+    monkeypatch,
+) -> None:
+    backend = PiKVMBackend(
+        PikvmConfig(base_url="http://127.0.0.1:48020", layout="uk")
+    )
+    calls: list[tuple[str, str]] = []
+
+    async def record_print(chunk: str) -> None:
+        calls.append(("print", chunk))
+
+    async def unexpected_type(
+        text: str,
+        *,
+        code: bool = False,
+        secret: bool = False,
+    ) -> None:
+        raise AssertionError((text, code, secret))
+
+    monkeypatch.setattr(backend, "_print_chunk", record_print)
+    monkeypatch.setattr(backend, "type_text", unexpected_type)
+
+    try:
+        await backend.print_exact_text("    result = []")
+    finally:
+        await backend._http.aclose()
+
+    assert calls == [("print", "    result = []")]
 
 
 def test_fake_backend_conforms_and_records() -> None:

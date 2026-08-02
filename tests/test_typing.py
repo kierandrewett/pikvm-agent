@@ -1790,6 +1790,37 @@ async def test_exact_editor_code_uses_guarded_fast_print() -> None:
     _assert_no_enter(backend)
 
 
+async def test_exact_editor_code_prefers_ordered_exact_printer() -> None:
+    backend = FakeBackend()
+    backend.guarded_exact_print = True  # type: ignore[attr-defined]
+    line = "    for number in range(1, limit + 1):"
+    exact_calls: list[str] = []
+
+    async def exact_printing(text: str) -> None:
+        exact_calls.append(text)
+        backend.set_screen(line)
+
+    async def unordered_printing(text: str) -> None:
+        raise AssertionError(f"unordered printer used for exact code: {text}")
+
+    backend.print_exact_text = exact_printing  # type: ignore[attr-defined]
+    backend.print_text = unordered_printing  # type: ignore[method-assign]
+    result = await WatchedTyper(
+        backend,
+        ScriptedOCR(line),
+    ).type_text(
+        line,
+        code=True,
+        exact=True,
+        context="editor",
+    )
+
+    assert result.status == "verified_exact"
+    assert result.emitted_exactly_once is True
+    assert exact_calls == [line]
+    _assert_no_enter(backend)
+
+
 async def test_guarded_editor_symbol_repair_uses_independent_per_key_transport(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
