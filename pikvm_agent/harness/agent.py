@@ -1312,6 +1312,152 @@ def _inserted_notepad_line_breaks(
     return line_breaks.count({"shift", "enter"}) == count
 
 
+_NOTEPAD_WORKSPACE_ARTIFACT_RE = re.compile(
+    r"C:\\PiKVM-Harness\\workspace\\codex-50\\"
+    r"(?P<basename>[A-Za-z0-9][A-Za-z0-9._-]{0,127})",
+    re.IGNORECASE,
+)
+_FOCUS_SAVE_AS_FILENAME_INTENT = (
+    "Focus the native Save As File name field."
+)
+_FOCUS_OPEN_FILENAME_INTENT = "Focus the native Open File name field."
+
+
+def _notepad_workspace_artifact_basename(run: RunSnapshot) -> str | None:
+    """Return one explicit short artifact name from the bounded lab path."""
+
+    basenames = {
+        match.group("basename")
+        for match in _NOTEPAD_WORKSPACE_ARTIFACT_RE.finditer(run.task)
+    }
+    return basenames.pop() if len(basenames) == 1 else None
+
+
+def _pending_action_uses_key_chord(
+    action: PendingAction | None,
+    expected: set[str],
+) -> bool:
+    if action is None:
+        return False
+    for item in action.actions:
+        if item.get("type") != "key":
+            continue
+        try:
+            canonical = set(normalize_keys(item.get("keys") or []))
+        except BurstError:
+            continue
+        if canonical == expected:
+            return True
+    return False
+
+
+def _notepad_file_dialog_controller(
+    run: RunSnapshot,
+    action: PendingAction | None,
+    *,
+    max_actions: int,
+) -> ControllerDecision | None:
+    """Prepare exact native-dialog filenames without stochastic focus loops."""
+
+    segments = _notepad_exact_text_segments(run)
+    basename = _notepad_workspace_artifact_basename(run)
+    if not segments or basename is None or action is None:
+        return None
+
+    typed_index = _typed_notepad_segment_index(action, segments)
+    final_segment_complete = bool(
+        typed_index == len(segments) - 1
+        and _notepad_segment_break_count(run, typed_index) == 0
+    )
+    if final_segment_complete:
+        actions = [
+            {"type": "key", "keys": ["CTRL", "SHIFT", "S"]},
+            {"type": "wait_for_change", "timeout_ms": 3_000},
+            {
+                "type": "wait_for_stable_screen",
+                "stable_ms": 400,
+                "timeout_ms": 3_000,
+            },
+        ]
+        intent = "Open native Save As for the exact Notepad artifact."
+        evidence = [
+            "A native Save As dialog is visibly open for the exact document."
+        ]
+    elif _pending_action_uses_key_chord(
+        action,
+        {"ControlLeft", "ShiftLeft", "KeyS"},
+    ):
+        actions = [
+            {"type": "key", "keys": ["ALT", "N"]},
+            {
+                "type": "wait_for_stable_screen",
+                "stable_ms": 400,
+                "timeout_ms": 2_000,
+            },
+        ]
+        intent = _FOCUS_SAVE_AS_FILENAME_INTENT
+        evidence = [
+            "The Save As dialog remains visible and its File name field shows "
+            "either a selected filename highlight or a text caret after Alt+N."
+        ]
+    elif _pending_action_uses_key_chord(
+        action,
+        {"ControlLeft", "KeyO"},
+    ):
+        actions = [
+            {"type": "key", "keys": ["ALT", "N"]},
+            {
+                "type": "wait_for_stable_screen",
+                "stable_ms": 400,
+                "timeout_ms": 2_000,
+            },
+        ]
+        intent = _FOCUS_OPEN_FILENAME_INTENT
+        evidence = [
+            "The Open dialog remains visible and its File name field shows "
+            "either a selected filename highlight or a text caret after Alt+N."
+        ]
+    elif (
+        action.intent
+        in {_FOCUS_SAVE_AS_FILENAME_INTENT, _FOCUS_OPEN_FILENAME_INTENT}
+        and _pending_action_uses_key_chord(
+            action,
+            {"AltLeft", "KeyN"},
+        )
+    ):
+        actions = [
+            {"type": "key", "keys": ["CTRL", "A"]},
+            {
+                "type": "type_text",
+                "text": basename,
+                "code": False,
+                "context": "field",
+                "verification": "exact",
+            },
+        ]
+        dialog = (
+            "Save As"
+            if action.intent == _FOCUS_SAVE_AS_FILENAME_INTENT
+            else "Open"
+        )
+        intent = f"Replace the native {dialog} filename with `{basename}`."
+        evidence = [
+            f"The native {dialog} File name field visibly reads exactly "
+            f"`{basename}`."
+        ]
+    else:
+        return None
+    if len(actions) > max_actions:
+        return None
+    return ControllerDecision(
+        outcome="act",
+        intent=intent,
+        actions=actions,
+        expected_evidence=evidence,
+        expects_task_completion=False,
+    )
+
+
 def _durable_last_verified_action(run: RunSnapshot) -> PendingAction | None:
     """Recover the latest verified action across call and process boundaries."""
 
@@ -1647,10 +1793,11 @@ The File name field is normally pre-populated. After its focus is independently
 verified, use Ctrl+A immediately before the exact basename in the same
 reversible input burst. Never assume the default selection is still active:
 typing without Ctrl+A can append the basename to Notepad's generated title.
-Require a visible text caret inside File name before treating that field as
-focused. If the caret is absent, use Alt+N to focus it.
-Never guess the field's raw coordinates. Then verify the focus before replacing
-the basename.
+Use Alt+N to focus File name. After that verified access-key action, either a
+selected filename highlight or a visible caret is sufficient visual focus
+evidence; selection normally hides the caret.
+Never guess the field's raw coordinates. Then verify the focus before
+replacing the basename.
 In File Explorer, use Ctrl+L as a separate reversible focus action instead of
 guessing address-bar coordinates. After that focus is independently verified,
 preserve the selection created by Ctrl+L: do not click, refocus, move the
@@ -2408,6 +2555,11 @@ class AgentHarness:
                         max_actions=self.config.max_actions_per_burst,
                     )
                     or _notepad_exact_text_controller(
+                        run,
+                        verified_action,
+                        max_actions=self.config.max_actions_per_burst,
+                    )
+                    or _notepad_file_dialog_controller(
                         run,
                         verified_action,
                         max_actions=self.config.max_actions_per_burst,
@@ -3845,6 +3997,10 @@ class AgentHarness:
                 run,
                 action,
                 max_actions=self.config.max_actions_per_burst,
+            ) or _notepad_file_dialog_controller(
+                run,
+                action,
+                max_actions=self.config.max_actions_per_burst,
             )
             if deterministic_controller is not None:
                 self._prefetched_controllers[run.run_id] = (
@@ -3899,6 +4055,11 @@ class AgentHarness:
                 max_actions=self.config.max_actions_per_burst,
             )
             or _notepad_exact_text_controller(
+                run,
+                action,
+                max_actions=self.config.max_actions_per_burst,
+            )
+            or _notepad_file_dialog_controller(
                 run,
                 action,
                 max_actions=self.config.max_actions_per_burst,

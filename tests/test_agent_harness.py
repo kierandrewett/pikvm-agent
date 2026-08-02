@@ -23,6 +23,7 @@ from pikvm_agent.harness.agent import (
     _normalize_windows_run_launch,
     _notepad_exact_text_controller,
     _notepad_exact_text_segments,
+    _notepad_file_dialog_controller,
     _notepad_fast_path,
     _notepad_new_document_controller,
     _verification_confirms_standard_calculator,
@@ -1084,6 +1085,126 @@ def test_generated_code_plan_carries_one_durable_exact_artifact() -> None:
     assert plan.artifact_content_kind == "code"
 
 
+def test_notepad_file_dialog_controller_uses_verified_access_key_focus() -> None:
+    basename = "code-04.sql"
+    run = RunSnapshot(
+        run_id="notepad-file-dialog",
+        task=(
+            "In Notepad, write a SQL query. Save it as "
+            "C:\\PiKVM-Harness\\workspace\\codex-50\\code-04.sql and "
+            "verify it."
+        ),
+        status=RunStatus.RUNNING,
+        plan=PlanDecision(
+            summary="Write SQL.",
+            steps=["Enter it", "Save and reopen it"],
+            success_criteria=["The saved query reopens."],
+            artifact_content="SELECT 1;",
+            artifact_content_kind="code",
+        ),
+    )
+    typed = PendingAction(
+        index=2,
+        intent="Enter the requested exact text in the fresh Notepad document.",
+        actions=[
+            {
+                "type": "type_text",
+                "text": "SELECT 1;",
+                "code": True,
+                "context": "editor",
+                "verification": "exact",
+            }
+        ],
+        based_on_world_version=2,
+        based_on_control_epoch=0,
+        idempotency_key="typed-final-sql",
+    )
+
+    save_as = _notepad_file_dialog_controller(
+        run,
+        typed,
+        max_actions=20,
+    )
+    assert save_as is not None
+    assert save_as.actions[0].keys == ["CTRL", "SHIFT", "S"]
+
+    opened = PendingAction(
+        index=3,
+        intent=save_as.intent,
+        actions=[
+            item.model_dump(mode="json", exclude_none=True)
+            for item in save_as.actions
+        ],
+        based_on_world_version=3,
+        based_on_control_epoch=0,
+        idempotency_key="opened-save-as",
+    )
+    focus = _notepad_file_dialog_controller(
+        run,
+        opened,
+        max_actions=20,
+    )
+    assert focus is not None
+    assert focus.actions[0].keys == ["ALT", "N"]
+    assert "selected filename highlight" in focus.expected_evidence[0]
+
+    focused = PendingAction(
+        index=4,
+        intent=focus.intent,
+        actions=[
+            item.model_dump(mode="json", exclude_none=True)
+            for item in focus.actions
+        ],
+        based_on_world_version=4,
+        based_on_control_epoch=0,
+        idempotency_key="focused-save-as-name",
+    )
+    filename = _notepad_file_dialog_controller(
+        run,
+        focused,
+        max_actions=20,
+    )
+    assert filename is not None
+    assert [item.type for item in filename.actions] == ["key", "type_text"]
+    assert filename.actions[1].text == basename
+    assert filename.actions[1].verification == "exact"
+
+
+def test_notepad_open_dialog_uses_the_same_grounded_filename_flow() -> None:
+    run = RunSnapshot(
+        run_id="notepad-open-dialog",
+        task=(
+            "In Notepad, create content. Save it as "
+            "C:\\PiKVM-Harness\\workspace\\codex-50\\code-04.sql."
+        ),
+        status=RunStatus.RUNNING,
+        plan=PlanDecision(
+            summary="Write SQL.",
+            steps=["Save and reopen it"],
+            success_criteria=["The saved query reopens."],
+            artifact_content="SELECT 1;",
+            artifact_content_kind="code",
+        ),
+    )
+    opened = PendingAction(
+        index=7,
+        intent="Open the native Open dialog.",
+        actions=[{"type": "key", "keys": ["CTRL", "O"]}],
+        based_on_world_version=7,
+        based_on_control_epoch=0,
+        idempotency_key="opened-native-open",
+    )
+
+    focus = _notepad_file_dialog_controller(
+        run,
+        opened,
+        max_actions=20,
+    )
+    assert focus is not None
+    assert focus.actions[0].keys == ["ALT", "N"]
+    assert "Open dialog" in focus.expected_evidence[0]
+
+
 def test_generated_code_recovery_keeps_exact_segment_on_code_transport() -> None:
     run = RunSnapshot(
         run_id="notepad-code-recovery",
@@ -1752,8 +1873,10 @@ def test_controller_can_launch_a_standard_app_in_one_safe_burst() -> None:
     assert "default selection is still active" in (
         _CONTROLLER_SYSTEM
     )
-    assert "visible text caret inside File name" in _CONTROLLER_SYSTEM
-    assert "use Alt+N to focus it" in _CONTROLLER_SYSTEM
+    assert "Use Alt+N to focus File name" in _CONTROLLER_SYSTEM
+    assert "selected filename highlight or a visible caret" in (
+        _CONTROLLER_SYSTEM
+    )
     assert "Never guess the field's raw coordinates" in _CONTROLLER_SYSTEM
     assert "Do not generalise this exception to web URLs" in _CONTROLLER_SYSTEM
     assert "the verifier's job, not a remaining computer" in _CONTROLLER_SYSTEM
