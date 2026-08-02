@@ -3285,6 +3285,25 @@ class WatchedTyper:
             }
             return candidates.pop() if len(candidates) == 1 else ""
 
+        async def read_editor_status_proof(
+            predicate: Callable[[OCRResult, Region], bool],
+        ) -> tuple[bool, Region | None]:
+            assert cur_region is not None
+            status_region = editor_status_search_region(cur_region, dims)
+            if status_region is None:
+                return False, None
+            bounded_status = await self._read_screen(
+                precise=True,
+                region=status_region,
+            )
+            proved = predicate(bounded_status, status_region)
+            if not proved:
+                bounded_status = await self._read_precise_screen_fallback(
+                    status_region,
+                )
+                proved = predicate(bounded_status, status_region)
+            return proved, status_region
+
         async def prove_editor_whitespace(
             read_back: str,
             intended_snapshot: str,
@@ -3344,60 +3363,32 @@ class WatchedTyper:
                 or single_line_replacement_candidate
             ):
                 return read_back
-            status_region = editor_status_search_region(
-                cur_region,
-                dims,
+
+            def status_predicate(
+                bounded_status: OCRResult,
+                status_region: Region,
+            ) -> bool:
+                return (
+                    editor_caret_column_proves_leading_whitespace(
+                        bounded_status,
+                        intended_snapshot,
+                        cur_region,
+                        dims,
+                        container_region=status_region,
+                    )
+                    if leading_whitespace_candidate
+                    else editor_status_proves_single_line_payload(
+                        bounded_status,
+                        intended_snapshot,
+                        cur_region,
+                        dims,
+                        container_region=status_region,
+                    )
+                )
+
+            status_proved, status_region = await read_editor_status_proof(
+                status_predicate,
             )
-            status_proved = False
-            if status_region is not None:
-                bounded_status = await self._read_screen(
-                    precise=True,
-                    region=status_region,
-                )
-                status_proved = (
-                    (
-                        editor_caret_column_proves_leading_whitespace(
-                            bounded_status,
-                            intended_snapshot,
-                            cur_region,
-                            dims,
-                            container_region=status_region,
-                        )
-                        if leading_whitespace_candidate
-                        else editor_status_proves_single_line_payload(
-                            bounded_status,
-                            intended_snapshot,
-                            cur_region,
-                            dims,
-                            container_region=status_region,
-                        )
-                    )
-                )
-                if not status_proved:
-                    bounded_status = (
-                        await self._read_precise_screen_fallback(
-                            status_region,
-                        )
-                    )
-                    status_proved = (
-                        (
-                            editor_caret_column_proves_leading_whitespace(
-                                bounded_status,
-                                intended_snapshot,
-                                cur_region,
-                                dims,
-                                container_region=status_region,
-                            )
-                            if leading_whitespace_candidate
-                            else editor_status_proves_single_line_payload(
-                                bounded_status,
-                                intended_snapshot,
-                                cur_region,
-                                dims,
-                                container_region=status_region,
-                            )
-                        )
-                    )
             DEBUG.event(
                 "typing.editor_whitespace_status",
                 proved=status_proved,
@@ -3909,6 +3900,138 @@ class WatchedTyper:
                 local_replacement_failure = (
                     "failed_symbol_mismatch",
                     PUNCTUATION_REPLACEMENT_FAILED_SUMMARY,
+                )
+                return
+            deletion_candidate = (
+                unique_editor_single_deletion_candidate(
+                    intended_snapshot,
+                )
+                if precise and editor_field
+                else ""
+            )
+            deletion = (
+                editor_single_glyph_transport_deletion(
+                    intended_snapshot,
+                    deletion_candidate,
+                )
+                if deletion_candidate
+                else None
+            )
+            if deletion is not None:
+                # OCR can omit a narrow glyph, so an edit-distance-one row is
+                # not enough to mutate the editor. Require the same unique
+                # deletion on a second settled high-confidence crop and an
+                # independent Notepad caret column that proves the line is one
+                # character short. Insert only that glyph from End; never
+                # clear or replay the line.
+                await asyncio.sleep(_CARET_BLINK_RECHECK_S)
+                await self._read_field(
+                    current_readback_region(intended_snapshot),
+                    intended=intended_snapshot,
+                    precise=True,
+                    allow_blind_fallback=True,
+                )
+                repeated = unique_editor_single_deletion_candidate(
+                    intended_snapshot,
+                )
+                repeated_deletion = (
+                    editor_single_glyph_transport_deletion(
+                        intended_snapshot,
+                        repeated,
+                    )
+                    if repeated
+                    else None
+                )
+                if repeated != deletion_candidate or repeated_deletion != deletion:
+                    last_read = repeated or read_back
+                    return
+
+                def missing_glyph_status_predicate(
+                    bounded_status: OCRResult,
+                    status_region: Region,
+                ) -> bool:
+                    return editor_caret_column_proves_one_missing_glyph(
+                        bounded_status,
+                        intended_snapshot,
+                        cur_region,
+                        dims,
+                        container_region=status_region,
+                    )
+
+                status_proved, status_region = await read_editor_status_proof(
+                    missing_glyph_status_predicate,
+                )
+                if not status_proved:
+                    last_read = repeated
+                    return
+                suffix_length, missing_character = deletion
+                DEBUG.event(
+                    "typing.editor_missing_glyph_detected",
+                    intended_characters=len(intended_snapshot),
+                    observed_characters=len(repeated),
+                    suffix_length=suffix_length,
+                    missing_character=missing_character,
+                    status_region=(
+                        status_region.model_dump()
+                        if status_region is not None
+                        else None
+                    ),
+                )
+                corrections += 1
+                await self.backend.press_key("End")
+                for _ in range(suffix_length):
+                    await self.backend.press_key("ArrowLeft")
+                    await asyncio.sleep(_CURSOR_REPEAT_SETTLE_S)
+                await emit_text(missing_character)
+                # Move the caret away from the final glyph for the exact OCR,
+                # then restore End before returning control to the caller.
+                await self.backend.press_key("Home")
+                await asyncio.sleep(_CLEAR_SETTLE_S)
+                try:
+                    corrected_read = self._typed_candidate(
+                        await self._read_field(
+                            current_readback_region(intended_snapshot),
+                            intended=intended_snapshot,
+                            precise=True,
+                            allow_blind_fallback=True,
+                        ),
+                        intended_snapshot,
+                        True,
+                    )
+                finally:
+                    await self.backend.press_key("End")
+                    await asyncio.sleep(_CLEAR_SETTLE_S)
+                corrected_read = unique_editor_exact_candidate_after_correction(
+                    intended_snapshot,
+                    corrected_read,
+                )
+                corrected_read = await prove_editor_whitespace(
+                    corrected_read,
+                    intended_snapshot,
+                    phase="missing_glyph_insertion",
+                )
+                last_read = corrected_read
+                restored = (
+                    compute_verdict(
+                        intended_snapshot,
+                        corrected_read,
+                        True,
+                    )
+                    == "match"
+                )
+                DEBUG.event(
+                    "typing.editor_missing_glyph_insertion",
+                    restored=restored,
+                    intended_characters=len(intended_snapshot),
+                    suffix_length=suffix_length,
+                )
+                if restored:
+                    if norm(intended_snapshot, True) == norm(text, True):
+                        verified_clean = True
+                    return
+                local_replacement_failure = (
+                    "failed_symbol_mismatch",
+                    MISSING_GLYPH_REPLACEMENT_FAILED_SUMMARY,
                 )
                 return
             if long_precise_layout_like_read:

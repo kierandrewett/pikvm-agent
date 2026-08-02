@@ -3404,8 +3404,17 @@ async def test_indented_editor_one_glyph_transport_slip_is_repaired_locally(
     _assert_no_enter(backend)
 
 
+@pytest.mark.parametrize(
+    ("reported_column", "expected_status"),
+    [
+        (20, "verified_exact"),
+        (21, "unverified_ambiguous"),
+    ],
+)
 async def test_editor_one_missing_glyph_is_inserted_locally(
     monkeypatch: pytest.MonkeyPatch,
+    reported_column: int,
+    expected_status: str,
 ) -> None:
     """A repeated, status-proved HID deletion inserts only the missing glyph."""
 
@@ -3431,10 +3440,21 @@ async def test_editor_one_missing_glyph_is_inserted_locally(
                 and region.y > 140
             ):
                 foreground_y = region.height - 20
+                repaired = any(
+                    method == "type_text" and kwargs.get("text") == "l"
+                    for method, kwargs in backend.calls
+                )
                 return OCRResult(
                     lines=[
                         OCRLine(
-                            text="Ln 1, Col 20   19 characters",
+                            text=(
+                                "Ln 1, Col 21   20 characters"
+                                if repaired
+                                else (
+                                    f"Ln 1, Col {reported_column}   "
+                                    "19 characters"
+                                )
+                            ),
                             confidence=0.99,
                             bbox=[20, foreground_y, 148, foreground_y + 12],
                         )
@@ -3480,22 +3500,27 @@ async def test_editor_one_missing_glyph_is_inserted_locally(
         context="editor",
     )
 
-    assert result.status == "verified_exact", result
-    assert result.field_text == intended
-    assert result.correction_count == 1
-    assert result.emitted_exactly_once is False
-    assert [
+    assert result.status == expected_status, result
+    assert result.correction_count == int(reported_column == 20)
+    assert result.emitted_exactly_once is (reported_column == 21)
+    emitted = [
         kwargs["text"]
         for method, kwargs in backend.calls
         if method == "type_text"
-    ] == [intended, "l"]
+    ]
     pressed = [
         kwargs.get("code")
         for method, kwargs in backend.calls
         if method == "press_key"
     ]
-    assert pressed[:8] == ["End", *(["ArrowLeft"] * 6), "Home"]
-    assert pressed[-1] == "End"
+    if reported_column == 20:
+        assert result.field_text == intended
+        assert emitted == [intended, "l"]
+        assert pressed[:8] == ["End", *(["ArrowLeft"] * 6), "Home"]
+        assert pressed[-1] == "End"
+    else:
+        assert emitted == [intended]
+        assert "ArrowLeft" not in pressed
     _assert_no_enter(backend)
 
 
