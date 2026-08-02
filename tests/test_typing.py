@@ -2989,8 +2989,9 @@ async def test_indented_editor_autocorrect_uses_status_proof_after_undo(
             del image_path
             if (
                 region is not None
+                and region.x == 0
                 and region.width == 512
-                and region.height <= 80
+                and region.height == 100
                 and region.y > 140
             ):
                 foreground_y = region.height - 20
@@ -3293,6 +3294,103 @@ async def test_precise_autolocate_rechecks_noisy_editor_punctuation(
         for method, kwargs in backend.calls
         if method == "type_text"
     ] == [{"text": intended, "code": True, "secret": False}]
+    _assert_no_enter(backend)
+
+
+@pytest.mark.parametrize(
+    ("reported_column", "expected_status"),
+    [
+        (38, "verified_exact"),
+        (37, "unverified_whitespace"),
+    ],
+)
+async def test_long_indented_editor_suffix_uses_status_alternative(
+    monkeypatch: pytest.MonkeyPatch,
+    reported_column: int,
+    expected_status: str,
+) -> None:
+    async def no_sleep(_seconds: float) -> None:
+        return None
+
+    intended = '            result.append("FizzBuzz")'
+    suffix = intended.lstrip(" ")
+
+    class ExactVisibleSuffixOCR:
+        async def ocr_precise(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path
+            if region is None:
+                return OCRResult()
+            if (
+                region is not None
+                and region.x == 0
+                and region.width == 512
+                and region.height == 100
+                and region.y > 140
+            ):
+                return OCRResult(
+                    lines=[
+                        OCRLine(
+                            text="in5 Colt 142 characters",
+                            confidence=0.73,
+                            bbox=[17, 32, 120, 42],
+                        )
+                    ],
+                    alternatives=[
+                        OCRCandidate(
+                            text=(
+                                f"Ln 5, Col {reported_column}\n"
+                                "142 characters\nPlain text"
+                            ),
+                            mean_confidence=0.98,
+                        )
+                    ],
+                )
+            return OCRResult(
+                lines=[
+                    OCRLine(
+                        text=suffix,
+                        confidence=0.99,
+                        bbox=[103, 130, 315, 153],
+                    )
+                ]
+            )
+
+        async def ocr(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            return await self.ocr_precise(image_path, region)
+
+    monkeypatch.setattr(asyncio, "sleep", no_sleep)
+    backend = FakeBackend()
+    typer = WatchedTyper(backend, ExactVisibleSuffixOCR())
+    flat = _flat_grid()
+    changed = flat.copy().reshape(GRID_ROWS, GRID_COLS)
+    changed[8:10, 5:25] = 200
+    grids = [flat, changed.reshape(-1)]
+
+    async def changed_grid() -> np.ndarray:
+        return grids.pop(0) if grids else changed.reshape(-1)
+
+    typer._grid = changed_grid  # type: ignore[method-assign]
+
+    result = await typer.type_text(
+        intended,
+        code=True,
+        exact=True,
+        context="editor",
+    )
+
+    assert result.status == expected_status
+    assert result.field_text == (
+        intended if reported_column == 38 else suffix
+    )
+    assert result.emitted_exactly_once is True
     _assert_no_enter(backend)
 
 

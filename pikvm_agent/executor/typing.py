@@ -86,9 +86,9 @@ MAX_AUTODETECTED_FIELD_HEIGHT = 80
 MAX_AUTODETECTED_FIELD_HEIGHT_FRAC = 0.15
 MAX_PROSE_EDGE_CONTEXT_CHARS = 96
 MAX_EDITOR_STATUS_VERTICAL_GAP_FRAC = 0.50
-MAX_EDITOR_STATUS_SEARCH_HEIGHT_FRAC = 0.075
+MAX_EDITOR_STATUS_SEARCH_HEIGHT_FRAC = 0.125
 EDITOR_STATUS_SEARCH_WIDTH_FRAC = 0.40
-EDITOR_STATUS_SEARCH_LEFT_CONTEXT_PX = 32
+EDITOR_STATUS_SEARCH_LEFT_CONTEXT_PX = 256
 AUTODETECTED_READBACK_MARGIN_X_FRAC = 0.075
 SHORT_FIELD_CONTEXT_ABOVE_PX = 80
 SHORT_FIELD_CONTEXT_BELOW_PX = 24
@@ -366,10 +366,12 @@ def editor_status_search_region(
             math.floor(row_region.x) - EDITOR_STATUS_SEARCH_LEFT_CONTEXT_PX,
         ),
     )
-    # Preserve only the deepest, status-row-sized part of the allowed band.
-    # A tall crop makes the tiny Notepad status glyphs disappear during OCR,
-    # while this compact band can still include the nearest foreground row and
-    # a stacked background row for the nearest-row discriminator above.
+    # Preserve only the deepest, compact part of the allowed band. The crop
+    # must still reach above a tall changed-pixel box and left of deeply
+    # indented code, where Notepad paints its line/column status. One eighth of
+    # the frame is small enough for precise OCR while retaining the foreground
+    # row plus at most a nearby stacked background row for the nearest-row
+    # discriminator above.
     y = row_bottom + search_depth - crop_height
     return Region(
         x=x,
@@ -1320,6 +1322,7 @@ class WatchedTyper:
         precise: bool = False,
         allow_semantic_spacing: bool = False,
         allow_blind_fallback: bool = False,
+        preserve_editor_indent_candidate: bool = False,
         minimum_confidence: float = MIN_MISMATCH_OCR_CONFIDENCE,
     ) -> str:
         """OCR the field. Capture the FULL frame and pass the region to the OCR
@@ -1530,6 +1533,16 @@ class WatchedTyper:
                     any(character in intended for character in (" ", "\t", "\n"))
                     and result.spacing_evidence != "verified"
                 ):
+                    visible_indent_candidate = bool(
+                        preserve_editor_indent_candidate
+                        and intended.startswith(" ")
+                        and result.text
+                        and not result.text[0].isspace()
+                        and fold_quotes(
+                            strip_prompt(result.text).strip()
+                        )
+                        == fold_quotes(intended.lstrip(" "))
+                    )
                     if (
                         allow_semantic_spacing
                         and norm(intended, precise)
@@ -1539,7 +1552,7 @@ class WatchedTyper:
                         )
                     ):
                         self._last_read_semantic_spacing = True
-                    else:
+                    elif not visible_indent_candidate:
                         # Ordinary OCR collapses whitespace. Exact completion
                         # needs independently repeated, calibrated word-gap
                         # evidence. A terminal command whose argv contains no
@@ -2827,6 +2840,30 @@ class WatchedTyper:
 
         stable_field_read_performed = False
 
+        async def read_field_with_editor_context(
+            region: Region,
+            intended_snapshot: str,
+            *,
+            allow_blind_fallback: bool,
+        ) -> str:
+            leading_spaces = len(intended_snapshot) - len(
+                intended_snapshot.lstrip(" ")
+            )
+            options: dict[str, Any] = {
+                "intended": intended_snapshot,
+                "precise": precise,
+                "allow_semantic_spacing": allow_semantic_spacing,
+                "allow_blind_fallback": allow_blind_fallback,
+            }
+            if (
+                precise
+                and editor_field
+                and not explicit_region
+                and leading_spaces >= 8
+            ):
+                options["preserve_editor_indent_candidate"] = True
+            return await self._read_field(region, **options)
+
         async def read_current_field(intended_snapshot: str) -> str:
             """Read a complete exact field once without trusting its caret.
 
@@ -2879,11 +2916,9 @@ class WatchedTyper:
             )
             should_blur = should_stabilize and not should_reposition_caret
             if not should_blur and not should_reposition_caret:
-                return await self._read_field(
+                return await read_field_with_editor_context(
                     current_readback_region(intended_snapshot),
-                    intended=intended_snapshot,
-                    precise=precise,
-                    allow_semantic_spacing=allow_semantic_spacing,
+                    intended_snapshot,
                     allow_blind_fallback=intended_snapshot == text,
                 )
             if should_continue is not None and not should_continue():
@@ -2915,11 +2950,9 @@ class WatchedTyper:
                     intended_snapshot
                 )
                 try:
-                    repositioned_read = await self._read_field(
+                    repositioned_read = await read_field_with_editor_context(
                         repositioned_region,
-                        intended=intended_snapshot,
-                        precise=precise,
-                        allow_semantic_spacing=allow_semantic_spacing,
+                        intended_snapshot,
                         allow_blind_fallback=True,
                     )
                 finally:
@@ -2978,11 +3011,9 @@ class WatchedTyper:
                 await self.backend.keypress(["Tab"])
                 moved_focus = True
                 await asyncio.sleep(_CLEAR_SETTLE_S)
-                blurred_read = await self._read_field(
+                blurred_read = await read_field_with_editor_context(
                     blurred_region,
-                    intended=intended_snapshot,
-                    precise=precise,
-                    allow_semantic_spacing=allow_semantic_spacing,
+                    intended_snapshot,
                     allow_blind_fallback=True,
                 )
                 DEBUG.event(
