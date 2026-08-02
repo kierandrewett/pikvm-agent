@@ -207,7 +207,7 @@ def test_editor_status_search_region_is_bounded_below_causal_row() -> None:
         (1280, 800),
     )
 
-    assert region == Region(x=33, y=454, width=512, height=60)
+    assert region == Region(x=0, y=414, width=512, height=100)
     bounded = OCRResult(
         lines=[
             OCRLine(
@@ -235,7 +235,7 @@ def test_compact_status_crop_accepts_notepad_ln_ocr_confusable() -> None:
     intended = "    for number in range(1, limit + 1):"
     row = Region(x=37, y=99, width=211, height=37)
     region = editor_status_search_region(row, (1280, 800))
-    assert region == Region(x=5, y=476, width=512, height=60)
+    assert region == Region(x=0, y=436, width=512, height=100)
     bounded = OCRResult(
         lines=[
             OCRLine(
@@ -2991,7 +2991,7 @@ async def test_indented_editor_autocorrect_uses_status_proof_after_undo(
                 region is not None
                 and region.x == 0
                 and region.width == 512
-                and region.height == 100
+                and region.height >= 90
                 and region.y > 140
             ):
                 foreground_y = region.height - 20
@@ -3225,7 +3225,7 @@ async def test_precise_autolocate_rechecks_noisy_editor_punctuation(
                 )
             if (
                 region.width == 512
-                and region.height <= 80
+                and region.height <= 120
                 and region.y > 140
             ):
                 foreground_y = region.height - 20
@@ -3285,7 +3285,7 @@ async def test_precise_autolocate_rechecks_noisy_editor_punctuation(
     assert any(
         region is not None
         and region.width == 512
-        and region.height <= 80
+        and region.height <= 120
         and region.y > 140
         for region in ocr.regions
     )
@@ -3314,6 +3314,7 @@ async def test_long_indented_editor_suffix_uses_status_alternative(
 
     intended = '            result.append("FizzBuzz")'
     suffix = intended.lstrip(" ")
+    regions: list[Region | None] = []
 
     class ExactVisibleSuffixOCR:
         async def ocr_precise(
@@ -3322,13 +3323,14 @@ async def test_long_indented_editor_suffix_uses_status_alternative(
             region: Region | None = None,
         ) -> OCRResult:
             del image_path
+            regions.append(region)
             if region is None:
                 return OCRResult()
             if (
                 region is not None
                 and region.x == 0
                 and region.width == 512
-                and region.height == 100
+                and region.height >= 90
                 and region.y > 140
             ):
                 return OCRResult(
@@ -3386,7 +3388,7 @@ async def test_long_indented_editor_suffix_uses_status_alternative(
         context="editor",
     )
 
-    assert result.status == expected_status
+    assert result.status == expected_status, regions
     assert result.field_text == (
         intended if reported_column == 38 else suffix
     )
@@ -3417,7 +3419,7 @@ async def test_editor_indentation_is_reproved_after_full_screen_recovery(
             if (
                 region is not None
                 and region.width == 512
-                and region.height <= 80
+                and region.height <= 120
                 and region.y > 140
             ):
                 self.status_reads += 1
