@@ -138,6 +138,51 @@ async def test_windows_run_chord_uses_a_stable_modifier_dwell(
     assert sleeps == [250, 100, 100]
 
 
+async def test_native_print_isolates_shifted_punctuation_on_hid_transport(
+    monkeypatch,
+) -> None:
+    """Exact code symbols must not share the lossy bulk-print transport."""
+
+    backend = PiKVMBackend(
+        PikvmConfig(base_url="http://127.0.0.1:48020", layout="uk")
+    )
+    calls: list[tuple[str, str]] = []
+    sleeps: list[float] = []
+
+    async def record_print(chunk: str) -> None:
+        calls.append(("print", chunk))
+
+    async def record_type(
+        text: str,
+        *,
+        code: bool = False,
+        secret: bool = False,
+    ) -> None:
+        assert code is True
+        assert secret is False
+        calls.append(("type", text))
+
+    async def record_sleep(milliseconds: float) -> None:
+        sleeps.append(milliseconds)
+
+    monkeypatch.setattr(backend, "_print_chunk", record_print)
+    monkeypatch.setattr(backend, "type_text", record_type)
+    monkeypatch.setattr(client_module, "_sleep", record_sleep)
+
+    try:
+        await backend.print_text('            result.append("FizzBuzz")')
+    finally:
+        await backend._http.aclose()
+
+    assert calls == [
+        ("print", "            result.append"),
+        ("type", '("'),
+        ("print", "FizzBuzz"),
+        ("type", '")'),
+    ]
+    assert sleeps == [75.0, 75.0, 75.0]
+
+
 def test_fake_backend_conforms_and_records() -> None:
     fb = FakeBackend()
     assert isinstance(fb, ComputerBackend)
