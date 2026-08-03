@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
 import io
+import threading
 
 import httpx
 import pytest
@@ -742,6 +744,53 @@ async def test_transport_reconnects_once_after_capture_timeout(
     assert stale.disconnected is True
     assert reconnects == 1
     assert replacement.captures == 1
+    assert replacement.released == ["shift", "ctrl", "alt", "super"]
+
+
+async def test_transport_reconnects_before_a_stale_capture_strands_http_clients(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    stale_capture_released = threading.Event()
+    replacement_png = io.BytesIO()
+    Image.new("RGB", (640, 400), (20, 40, 80)).save(replacement_png, "PNG")
+
+    class StaleClient:
+        def __init__(self) -> None:
+            self.disconnected = False
+
+        def captureScreen(self, _output, *, format) -> None:
+            assert format == "PNG"
+            stale_capture_released.wait(timeout=1)
+
+        def disconnect(self) -> None:
+            self.disconnected = True
+            stale_capture_released.set()
+
+    class ReplacementClient:
+        def __init__(self) -> None:
+            self.released: list[str] = []
+
+        def keyUp(self, key: str) -> None:
+            self.released.append(key)
+
+        def captureScreen(self, output, *, format) -> None:
+            assert format == "PNG"
+            output.write(replacement_png.getvalue())
+
+    stale = StaleClient()
+    replacement = ReplacementClient()
+    transport = VncDotoolTransport("unused:5900", capture_timeout_s=0.05)
+    transport._client = stale
+
+    async def reconnect() -> ReplacementClient:
+        return replacement
+
+    monkeypatch.setattr(transport, "_connect_client", reconnect)
+
+    frame = await asyncio.wait_for(transport.screenshot(), timeout=0.5)
+
+    assert Image.open(io.BytesIO(frame)).size == (640, 400)
+    assert stale.disconnected is True
     assert replacement.released == ["shift", "ctrl", "alt", "super"]
 
 

@@ -308,9 +308,12 @@ class VncDotoolTransport:
         keymap: str = "en-us",
         keyboard_profile: str = "generic",
         frame_cache_ttl_s: float = 0.75,
+        capture_timeout_s: float = 5.0,
     ) -> None:
         if frame_cache_ttl_s < 0:
             raise ValueError("frame_cache_ttl_s must be non-negative")
+        if capture_timeout_s <= 0:
+            raise ValueError("capture_timeout_s must be positive")
         self.endpoint = normalize_vnc_endpoint(endpoint)
         self.password = password
         self.username = username
@@ -318,6 +321,7 @@ class VncDotoolTransport:
         self.keymap = keymap
         self.keyboard_profile = keyboard_profile
         self.frame_cache_ttl_s = frame_cache_ttl_s
+        self._capture_timeout_s = capture_timeout_s
         self.width = 1
         self.height = 1
         self._client: Any | None = None
@@ -559,18 +563,18 @@ class VncDotoolTransport:
             if self._client is None:
                 await self._reconnect_locked()
             try:
-                data, self.width, self.height = await asyncio.to_thread(
-                    capture,
-                    self._require(),
+                data, self.width, self.height = await asyncio.wait_for(
+                    asyncio.to_thread(capture, self._require()),
+                    timeout=self._capture_timeout_s,
                 )
             except TimeoutError:
                 # Guest reboots can leave the TCP/RFB client alive but unable
                 # to answer captures. Replace that stale client once and retry
                 # this read-only request; never replay keyboard or pointer I/O.
                 await self._reconnect_locked()
-                data, self.width, self.height = await asyncio.to_thread(
-                    capture,
-                    self._require(),
+                data, self.width, self.height = await asyncio.wait_for(
+                    asyncio.to_thread(capture, self._require()),
+                    timeout=self._capture_timeout_s,
                 )
             self._cached_frame = data
             self._frame_cached_at = time.monotonic()
