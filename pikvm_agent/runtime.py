@@ -1941,20 +1941,32 @@ class Runtime:
         ]
         if not active:
             return
-        select_all = {"CTRL", "A"}
-        exact_field_replacement = bool(
-            len(active) == 2
-            and active[0][1].get("type") == "key"
-            and {
+        def key_chord(action: dict[str, Any]) -> set[str]:
+            if action.get("type") != "key":
+                return set()
+            return {
                 str(key).strip().upper()
                 for key in (
-                    active[0][1].get("keys")
-                    or [active[0][1].get("key")]
+                    action.get("keys") or [action.get("key")]
                 )
                 if key
             }
-            == select_all
-            and active[1][1].get("type") == "type_text"
+
+        field_replacement = [action for _, action in active]
+        exact_field_replacement = bool(
+            field_replacement
+            and field_replacement[-1].get("type") == "type_text"
+            and (
+                (
+                    len(field_replacement) == 2
+                    and key_chord(field_replacement[0]) == {"CTRL", "A"}
+                )
+                or (
+                    len(field_replacement) == 3
+                    and key_chord(field_replacement[0]) == {"ALT", "N"}
+                    and key_chord(field_replacement[1]) == {"CTRL", "A"}
+                )
+            )
         )
         if not (
             (len(active) == 1 and active[0][1].get("type") == "type_text")

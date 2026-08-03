@@ -1538,6 +1538,79 @@ async def test_exact_replaced_save_as_filename_records_local_commit_draft(
     }
 
 
+async def test_exact_open_filename_focus_replace_records_local_commit_draft(
+    runtime: Runtime,
+) -> None:
+    class OpenOCR:
+        async def ocr(self, image_path, region=None):
+            del image_path, region
+            return OCRResult(
+                lines=[
+                    OCRLine(text="Open"),
+                    OCRLine(text="This PC  New folder"),
+                    OCRLine(text="Name  Date modified  Type  Size"),
+                ]
+            )
+
+    runtime._screen_parser.ocr = OpenOCR()
+    sid = (await runtime.start_session("direct"))["session_id"]
+    shot = await runtime.get_session_summary(sid, capture=True)
+    sr = runtime._get(sid)
+    final_frame = sr.frames.latest()
+    assert final_frame is not None
+
+    runtime._update_verified_local_navigation_draft(
+        sr,
+        [
+            {"type": "key", "keys": ["ALT", "N"]},
+            {"type": "key", "keys": ["CTRL", "A"]},
+            {
+                "type": "type_text",
+                "text": "code-08.cmd",
+                "context": "field",
+                "verification": "exact",
+            },
+        ],
+        [
+            {
+                "index": 2,
+                "status": "verified_exact",
+                "verdict": "match",
+                "focus_evidence": "read_back_verified",
+                "exact_readback_sha256_match": True,
+                "emitted_exactly_once": True,
+                "observed_text": "code-08.cmd",
+                "readback_frame_sha256": "d" * 64,
+            }
+        ],
+        final_frame,
+    )
+
+    assert sr.verified_local_navigation_draft == {
+        "text": "code-08.cmd",
+        "readback_frame_sha256": "d" * 64,
+        "post_action_image_sha256": shot["image_sha256"],
+        "frame_screen_hash": shot["screen_hash"],
+        "world_version": shot["world_version"],
+        "control_epoch": shot["control_epoch"],
+    }
+
+    result = await runtime.run_burst(
+        sid,
+        [
+            {"type": "key", "keys": ["ENTER"]},
+            {"type": "wait_for_change", "timeout_ms": 3000},
+        ],
+        based_on_world_version=shot["world_version"],
+        based_on_control_epoch=shot["control_epoch"],
+        idempotency_key="grounded-open-after-focus-replace",
+    )
+
+    assert result["status"] == "completed"
+    assert [call[1]["keys"] for call in _hid_calls(runtime)] == [["Enter"]]
+    assert sr.verified_local_navigation_draft is None
+
+
 async def test_exact_windows_run_receipt_records_local_navigation_draft(
     runtime: Runtime,
 ) -> None:
