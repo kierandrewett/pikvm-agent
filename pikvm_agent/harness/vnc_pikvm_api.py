@@ -142,6 +142,7 @@ def create_vnc_pikvm_app(
                     "vnc_lab": {
                         "enabled": True,
                         "atomic_shifted_print": True,
+                        "keymap": keymap,
                     }
                 },
             },

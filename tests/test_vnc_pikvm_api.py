@@ -94,6 +94,7 @@ async def test_http_snapshot_print_and_ocr_match_pikvm_contract() -> None:
             ]
             is True
         )
+        assert info.json()["result"]["extras"]["vnc_lab"]["keymap"] == "en-gb"
 
         snap = await client.get("/api/streamer/snapshot")
         assert snap.status_code == 200

@@ -75,7 +75,8 @@ class PiKVMBackend:
         self.hid._headers = self._auth_headers()
         self.dims = {"width": 1920, "height": 1080}
         self.native_dims: tuple[int, int] | None = None
-        self.layout: ks.Layout = "uk" if cfg.layout == "uk" else "us"
+        self._configured_layout: ks.Layout = "uk" if cfg.layout == "uk" else "us"
+        self.layout: ks.Layout = self._configured_layout
         self._layout_from_user = False
         # Single source of truth for the cursor, in FRAME PIXELS. Updated on EVERY mouse
         # operation the daemon performs (moves, clicks). `trusted` is False until we've
@@ -156,6 +157,7 @@ class PiKVMBackend:
 
     async def connect(self) -> None:
         await self.hid.connect()
+        advertised_vnc_keymap: str | None = None
         try:
             response = await self._http.get(
                 f"{self._http_base()}/api/info",
@@ -171,8 +173,21 @@ class PiKVMBackend:
                 isinstance(vnc_lab, dict)
                 and vnc_lab.get("atomic_shifted_print") is True
             )
+            raw_keymap = vnc_lab.get("keymap") if isinstance(vnc_lab, dict) else None
+            if isinstance(raw_keymap, str) and raw_keymap.strip():
+                advertised_vnc_keymap = raw_keymap.strip()
         except Exception:  # noqa: BLE001 - capability discovery fails closed
             self._atomic_shifted_print = False
+        advertised_layout = ks.keymap_to_layout(advertised_vnc_keymap)
+        if (
+            advertised_layout is not None
+            and advertised_layout != self._configured_layout
+        ):
+            raise RuntimeError(
+                "VNC lab adapter keymap "
+                f"{advertised_vnc_keymap} does not match configured layout "
+                f"{self._configured_layout}"
+            )
 
     async def aclose(self) -> None:
         await self.hid.close()

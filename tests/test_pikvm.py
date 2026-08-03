@@ -5,6 +5,7 @@ from __future__ import annotations
 import io
 
 import httpx
+import pytest
 from PIL import Image
 
 from pikvm_agent.config import PikvmConfig
@@ -140,6 +141,42 @@ async def test_backend_discovers_atomic_shifted_print_capability() -> None:
     try:
         await backend.connect()
         assert backend._atomic_shifted_print is True
+    finally:
+        await backend._http.aclose()
+
+
+async def test_backend_refuses_vnc_lab_keymap_drift() -> None:
+    backend = PiKVMBackend(
+        PikvmConfig(base_url="http://127.0.0.1:48020", layout="uk")
+    )
+    await backend._http.aclose()
+
+    class Hid:
+        async def connect(self) -> None:
+            return None
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/api/info"
+        return httpx.Response(
+            200,
+            json={
+                "ok": True,
+                "result": {
+                    "extras": {
+                        "vnc_lab": {
+                            "atomic_shifted_print": True,
+                            "keymap": "en-us",
+                        }
+                    }
+                },
+            },
+        )
+
+    backend.hid = Hid()  # type: ignore[assignment]
+    backend._http = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    try:
+        with pytest.raises(RuntimeError, match="keymap en-us.*configured layout uk"):
+            await backend.connect()
     finally:
         await backend._http.aclose()
 
