@@ -344,6 +344,48 @@ def editor_row_candidate_above_disjoint_effect(
     return max(rows, key=lambda candidate: candidate.y + candidate.height)
 
 
+def structural_editor_row_above_status_effect(
+    candidates: list[Region],
+    dims: tuple[int, int],
+) -> Region | None:
+    """Return one compact causal row paired with a lower status repaint.
+
+    A punctuation-only editor append can be too small for OCR to identify, but
+    the same input also repaints Notepad's wider character-count status item.
+    Recover geometry only when exactly one upper candidate has a wider,
+    horizontally aligned lower effect inside the existing status-gap bound.
+    Expected text does not select the row, and exact OCR plus the independent
+    caret/status invariant still gate success after the caret is moved away.
+    """
+
+    width, height = dims
+    if width <= 0 or height <= 0 or len(candidates) < 2:
+        return None
+    maximum_gap = height * MAX_EDITOR_STATUS_VERTICAL_GAP_FRAC
+    maximum_offset = max(128.0, width * 0.20)
+    row_indices: set[int] = set()
+    for row_index, row in enumerate(candidates):
+        row_bottom = row.y + row.height
+        row_center_x = row.x + row.width / 2
+        for effect_index, effect in enumerate(candidates):
+            if effect_index == row_index or row_bottom > effect.y:
+                continue
+            vertical_gap = effect.y - row_bottom
+            effect_center_x = effect.x + effect.width / 2
+            if (
+                vertical_gap < max(row.height, effect.height)
+                or vertical_gap > maximum_gap
+                or abs(effect_center_x - row_center_x) > maximum_offset
+                or effect.width < row.width + DENSE_MIN_WIDTH
+            ):
+                continue
+            row_indices.add(row_index)
+            break
+    if len(row_indices) != 1:
+        return None
+    return candidates[row_indices.pop()]
+
+
 def unique_exact_structured_ocr_row(
     result: OCRResult,
     intended: str,
@@ -5240,10 +5282,27 @@ class WatchedTyper:
                         chunk_change = content_candidate
                     elif structural_code_glyph:
                         # A short punctuation-only append also repaints
-                        # Notepad's Ln/Col status. Without one causal editor
-                        # row above that effect, no later OCR fallback may
-                        # guess which tiny glyph region received the input.
-                        chunk_change = None
+                        # Notepad's Ln/Col status. Recover only a unique causal
+                        # editor row paired with that wider lower effect. This
+                        # is geometry, not verification: the caret-stabilized
+                        # read and status invariant still have to prove it.
+                        structural_row = (
+                            structural_editor_row_above_status_effect(
+                                dense_candidates,
+                                dims,
+                            )
+                        )
+                        if structural_row is not None:
+                            self._refined_readback_region = structural_row
+                            self._refined_readback_intended = typed_so_far
+                            chunk_change = structural_row
+                            DEBUG.event(
+                                "typing.structural_editor_row_localized",
+                                intended_characters=len(typed_so_far),
+                                region=structural_row.model_dump(),
+                            )
+                        else:
+                            chunk_change = None
                 elif chunk_change is None:
                     chunk_change = await asyncio.to_thread(
                         locate_dense_changed_bbox,
@@ -5374,7 +5433,34 @@ class WatchedTyper:
                                     )
                                     retry_loc = recovered_retry
                             elif structural_code_glyph:
-                                retry_loc = None
+                                retry_candidates = await asyncio.to_thread(
+                                    locate_dense_changed_candidates,
+                                    dense_prev.data,
+                                    dense_retry.data,
+                                    dims,
+                                    allow_compact=True,
+                                )
+                                structural_row = (
+                                    structural_editor_row_above_status_effect(
+                                        retry_candidates,
+                                        dims,
+                                    )
+                                )
+                                if structural_row is not None:
+                                    self._refined_readback_region = (
+                                        structural_row
+                                    )
+                                    self._refined_readback_intended = (
+                                        typed_so_far
+                                    )
+                                    retry_loc = structural_row
+                                    DEBUG.event(
+                                        "typing.structural_editor_row_localized",
+                                        intended_characters=len(typed_so_far),
+                                        region=structural_row.model_dump(),
+                                    )
+                                else:
+                                    retry_loc = None
                             elif retry_loc is None:
                                 retry_loc = await asyncio.to_thread(
                                     locate_dense_changed_bbox,

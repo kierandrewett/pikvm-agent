@@ -52,6 +52,7 @@ from pikvm_agent.executor.typing import (
     regions_overlap,
     standalone_i_autocorrect_navigation,
     standalone_i_autocorrect_suffix_length,
+    structural_editor_row_above_status_effect,
 )
 from pikvm_agent.pikvm.fake import FakeBackend
 from pikvm_agent.pikvm.screenshot import to_captured_frame
@@ -181,6 +182,117 @@ def test_editor_row_candidate_recovers_nearest_row_above_status_effect() -> None
         [status, row],
         (1280, 800),
     ) is None
+
+
+def test_structural_editor_row_recovers_code06_v5_causal_pair() -> None:
+    status = Region(x=99, y=511, width=61, height=25)
+    row = Region(x=80, y=181, width=28, height=28)
+    unrelated_taskbar = Region(x=1240, y=768, width=24, height=24)
+
+    assert structural_editor_row_above_status_effect(
+        [status, row, unrelated_taskbar],
+        (1280, 800),
+    ) == row
+
+
+def test_structural_editor_row_rejects_ambiguous_causal_rows() -> None:
+    status = Region(x=99, y=511, width=61, height=25)
+
+    assert structural_editor_row_above_status_effect(
+        [
+            status,
+            Region(x=80, y=181, width=28, height=28),
+            Region(x=78, y=214, width=30, height=25),
+        ],
+        (1280, 800),
+    ) is None
+
+
+async def test_structural_editor_row_enables_caret_stabilized_exact_proof(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    intended = "  };"
+    backend = FakeBackend(width=1280, height=800)
+    backend.guarded_exact_print = True  # type: ignore[attr-defined]
+    status = Region(x=99, y=511, width=61, height=25)
+    row = Region(x=80, y=181, width=28, height=28)
+    taskbar = Region(x=1240, y=768, width=24, height=24)
+
+    async def exact_printing(text: str) -> None:
+        assert text == intended
+        backend.calls.append(("print_exact_text", {"text": text}))
+        backend.set_screen("structural row and status changed")
+
+    class StructuralOCR:
+        async def ocr_precise(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path
+            if region is not None and region.y >= 300:
+                return OCRResult(
+                    lines=[
+                        OCRLine(
+                            text="Ln 6, Col 5",
+                            confidence=0.99,
+                            bbox=[80, 10, 150, 25],
+                        )
+                    ]
+                )
+            caret_moved = any(
+                method == "press_key" and kwargs.get("code") == "Home"
+                for method, kwargs in backend.calls
+            )
+            return OCRResult(
+                lines=[
+                    OCRLine(
+                        text="};" if caret_moved else "}5",
+                        confidence=0.99,
+                        bbox=[2, 2, 24, 22],
+                    )
+                ]
+            )
+
+        async def ocr(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            return await self.ocr_precise(image_path, region)
+
+    monkeypatch.setattr(
+        typing_module,
+        "locate_changed_bbox",
+        lambda *_args, **_kwargs: None,
+    )
+    monkeypatch.setattr(
+        typing_module,
+        "locate_dense_changed_candidates",
+        lambda *_args, **_kwargs: [status, row, taskbar],
+    )
+    backend.print_exact_text = exact_printing  # type: ignore[attr-defined]
+
+    result = await WatchedTyper(backend, StructuralOCR()).type_text(
+        intended,
+        code=True,
+        exact=True,
+        context="editor",
+    )
+
+    assert result.status == "verified_exact", result
+    assert result.emitted_exactly_once is True
+    assert [
+        kwargs["text"]
+        for method, kwargs in backend.calls
+        if method == "print_exact_text"
+    ] == [intended]
+    assert [
+        kwargs["code"]
+        for method, kwargs in backend.calls
+        if method == "press_key"
+    ] == ["Home", "End"]
+    _assert_no_enter(backend)
 
 
 def test_nearest_editor_status_row_proves_leading_whitespace() -> None:
