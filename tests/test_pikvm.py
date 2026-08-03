@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 
+import httpx
 from PIL import Image
 
 from pikvm_agent.config import PikvmConfig
@@ -108,6 +109,41 @@ def test_backend_conforms_and_derives_origins() -> None:
     assert b2._ws_url() == "ws://10.0.0.5:8080/api/ws"
 
 
+async def test_backend_discovers_atomic_shifted_print_capability() -> None:
+    backend = PiKVMBackend(
+        PikvmConfig(base_url="http://127.0.0.1:48020", layout="uk")
+    )
+    await backend._http.aclose()
+
+    class Hid:
+        async def connect(self) -> None:
+            return None
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/api/info"
+        return httpx.Response(
+            200,
+            json={
+                "ok": True,
+                "result": {
+                    "extras": {
+                        "vnc_lab": {"atomic_shifted_print": True}
+                    }
+                },
+            },
+        )
+
+    backend.hid = Hid()  # type: ignore[assignment]
+    backend._http = httpx.AsyncClient(
+        transport=httpx.MockTransport(handler)
+    )
+    try:
+        await backend.connect()
+        assert backend._atomic_shifted_print is True
+    finally:
+        await backend._http.aclose()
+
+
 async def test_windows_run_chord_uses_a_stable_modifier_dwell(
     monkeypatch,
 ) -> None:
@@ -181,6 +217,37 @@ async def test_exact_print_keeps_shifted_punctuation_on_one_hid_transport(
 
     assert calls == [("type", row) for row in exact_rows]
     assert sleeps == []
+
+
+async def test_exact_print_uses_advertised_atomic_shifted_transport(
+    monkeypatch,
+) -> None:
+    backend = PiKVMBackend(
+        PikvmConfig(base_url="http://127.0.0.1:48020", layout="uk")
+    )
+    backend._atomic_shifted_print = True
+    calls: list[tuple[str, str]] = []
+
+    async def record_print(chunk: str) -> None:
+        calls.append(("print", chunk))
+
+    async def record_type(
+        text: str,
+        *,
+        code: bool = False,
+        secret: bool = False,
+    ) -> None:
+        calls.append(("type", text))
+
+    monkeypatch.setattr(backend, "_print_chunk", record_print)
+    monkeypatch.setattr(backend, "type_text", record_type)
+
+    try:
+        await backend.print_exact_text("@echo off")
+    finally:
+        await backend._http.aclose()
+
+    assert calls == [("print", "@echo off")]
 
 
 async def test_exact_print_keeps_symbol_free_text_on_bulk_transport(

@@ -88,6 +88,7 @@ class PiKVMBackend:
         }
         self._client_count: int | None = None
         self._shift_held = False
+        self._atomic_shifted_print = False
         # Per-session typing persona — a consistent personal speed for this session.
         self._type_base_gap = timing.base_gap_ms()
 
@@ -155,6 +156,23 @@ class PiKVMBackend:
 
     async def connect(self) -> None:
         await self.hid.connect()
+        try:
+            response = await self._http.get(
+                f"{self._http_base()}/api/info",
+                headers=self._auth_headers(),
+                timeout=4.0,
+            )
+            response.raise_for_status()
+            payload = response.json()
+            result = payload.get("result") if isinstance(payload, dict) else None
+            extras = result.get("extras") if isinstance(result, dict) else None
+            vnc_lab = extras.get("vnc_lab") if isinstance(extras, dict) else None
+            self._atomic_shifted_print = bool(
+                isinstance(vnc_lab, dict)
+                and vnc_lab.get("atomic_shifted_print") is True
+            )
+        except Exception:  # noqa: BLE001 - capability discovery fails closed
+            self._atomic_shifted_print = False
 
     async def aclose(self) -> None:
         await self.hid.close()
@@ -277,7 +295,10 @@ class PiKVMBackend:
         body = flatten_line_breaks(text)
         if not body:
             return
-        if _has_shifted_punctuation(body, self.layout):
+        if (
+            _has_shifted_punctuation(body, self.layout)
+            and not self._atomic_shifted_print
+        ):
             await self.type_text(body, code=True)
             return
         await self.print_text(body)

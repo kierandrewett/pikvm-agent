@@ -138,7 +138,12 @@ def create_vnc_pikvm_app(
             "ok": True,
             "result": {
                 "system": {"hostname": "vnc-lab-adapter"},
-                "extras": {"vnc_lab": {"enabled": True}},
+                "extras": {
+                    "vnc_lab": {
+                        "enabled": True,
+                        "atomic_shifted_print": True,
+                    }
+                },
             },
         }
 

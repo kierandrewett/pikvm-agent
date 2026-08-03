@@ -86,7 +86,14 @@ async def test_http_snapshot_print_and_ocr_match_pikvm_contract() -> None:
     vnc = FakeVncTransport()
     transport = httpx.ASGITransport(app=create_vnc_pikvm_app(vnc, keymap="en-gb"))
     async with httpx.AsyncClient(transport=transport, base_url="http://lab") as client:
-        assert (await client.get("/api/info")).status_code == 200
+        info = await client.get("/api/info")
+        assert info.status_code == 200
+        assert (
+            info.json()["result"]["extras"]["vnc_lab"][
+                "atomic_shifted_print"
+            ]
+            is True
+        )
 
         snap = await client.get("/api/streamer/snapshot")
         assert snap.status_code == 200
