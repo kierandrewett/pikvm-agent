@@ -918,16 +918,18 @@ class VncAdapter:
 
         path = str(CAMPAIGN_WORKSPACE)
         prepared: list[dict[str, str]] = []
-        command = f"cmd /d /c mkdir {path} 2>nul"
+        await self.show_desktop()
+        await self._type_run_command(f"cmd /d /c mkdir {path} 2>nul")
         for artifact in fresh_artifacts or []:
             safe_artifact = _validate_fresh_artifact_path(artifact)
             candidate = PureWindowsPath(safe_artifact)
             prior = candidate.with_name(
                 f"{candidate.name}.pikvm-prior-{uuid.uuid4().hex}"
             )
-            command += (
-                f' & if exist "{candidate}" '
-                f'move /y "{candidate}" "{prior}" >nul'
+            await self._type_run_command(
+                f"cmd /d /c cd /d {path}"
+                f' && if exist "{candidate.name}" '
+                f'move /-y "{candidate.name}" "{prior.name}" >nul'
             )
             prepared.append(
                 {
@@ -935,12 +937,12 @@ class VncAdapter:
                     "preserved_as": str(prior),
                 }
             )
-        await self._type_run_command(command)
+        await self.show_desktop()
         ready = await self.wait_until_ready(timeout_s=15, stable_s=1)
         return {
             **ready,
             "path": path,
-            "method": "visible_windows_run",
+            "method": "visible_windows_run_segmented",
             "fresh_artifacts": prepared,
         }
 

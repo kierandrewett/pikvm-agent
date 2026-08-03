@@ -901,7 +901,7 @@ async def test_reboot_replaces_any_existing_run_dialog_text(
 
 
 @pytest.mark.asyncio
-async def test_campaign_workspace_preflight_uses_one_bounded_visible_command(
+async def test_campaign_workspace_preflight_uses_segmented_visible_commands(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     sent: list[dict[str, object]] = []
@@ -934,6 +934,7 @@ async def test_campaign_workspace_preflight_uses_one_bounded_visible_command(
 
     assert result["path"] == r"C:\PiKVM-Harness\workspace\codex-50"
     assert result["ready"] is True
+    assert result["method"] == "visible_windows_run_segmented"
     assert printed == [
         r"cmd /d /c mkdir C:\PiKVM-Harness\workspace\codex-50 2>nul"
     ]
@@ -949,6 +950,7 @@ async def test_campaign_workspace_preflight_preserves_a_prior_task_artifact(
 ) -> None:
     sent: list[dict[str, object]] = []
     printed: list[str] = []
+    desktop_calls = 0
     monkeypatch.setattr(
         showcase_runner,
         "websocket_connect",
@@ -964,6 +966,10 @@ async def test_campaign_workspace_preflight_preserves_a_prior_task_artifact(
     ) as client:
         adapter = VncAdapter(client, "http://127.0.0.1:48002")
 
+        async def show_desktop() -> None:
+            nonlocal desktop_calls
+            desktop_calls += 1
+
         async def visible_transition(**_kwargs: object) -> bool:
             return True
 
@@ -976,6 +982,7 @@ async def test_campaign_workspace_preflight_preserves_a_prior_task_artifact(
         adapter._wait_for_run_dialog = (  # type: ignore[method-assign]
             visible_transition
         )
+        adapter.show_desktop = show_desktop  # type: ignore[method-assign]
         adapter.wait_until_ready = ready  # type: ignore[method-assign]
         result = await adapter.ensure_campaign_workspace(
             [
@@ -999,15 +1006,17 @@ async def test_campaign_workspace_preflight_preserves_a_prior_task_artifact(
             "preserved_as": preserved,
         }
     ]
+    assert desktop_calls == 2
     assert printed == [
+        r"cmd /d /c mkdir C:\PiKVM-Harness\workspace\codex-50 2>nul",
         (
-            r"cmd /d /c mkdir C:\PiKVM-Harness\workspace\codex-50 2>nul"
-            r' & if exist "C:\PiKVM-Harness\workspace\codex-50'
-            r'\text-10-exact.txt" move /y '
-            r'"C:\PiKVM-Harness\workspace\codex-50\text-10-exact.txt" '
-            f'"{preserved}" >nul'
-        )
+            r"cmd /d /c cd /d C:\PiKVM-Harness\workspace\codex-50"
+            r' && if exist "text-10-exact.txt" move /-y '
+            r'"text-10-exact.txt" '
+            rf'"text-10-exact.txt.pikvm-prior-{"a" * 32}" >nul'
+        ),
     ]
+    assert max(map(len, printed)) < 200
 
 
 @pytest.mark.parametrize(
