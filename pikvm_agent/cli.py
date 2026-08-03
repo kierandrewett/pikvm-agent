@@ -8,6 +8,7 @@ the ``pikvm-agent`` console script resolves after install.
 
 from __future__ import annotations
 
+import json
 import os
 import sys
 from pathlib import Path
@@ -755,6 +756,99 @@ def harness_active_client_config(
         f"Wrote path-free managed {normalized_client} MCP config: "
         f"{destination}"
     )
+
+
+@harness_app.command("active-client-install")
+def harness_active_client_install(
+    client: str = typer.Option(
+        ...,
+        "--client",
+        help="Client settings format; reviewed installation currently supports gemini.",
+    ),
+    config: Path = typer.Option(
+        ...,
+        "--config",
+        exists=True,
+        dir_okay=False,
+        readable=True,
+        help="Existing client settings file to preserve and update atomically.",
+    ),
+    server_name: str = typer.Option(
+        "pikvm",
+        "--server-name",
+        help="MCP server name for the managed registration.",
+    ),
+    reviewed_sha256: str | None = typer.Option(
+        None,
+        "--reviewed-sha256",
+        help=(
+            "Apply only the exact candidate emitted by the planning invocation; "
+            "omit to inspect the plan without changing settings."
+        ),
+    ),
+) -> None:
+    """Plan or atomically install the active managed MCP registration."""
+
+    from pikvm_agent.harness.managed_client_install import (
+        ManagedClientInstallError,
+        install_active_managed_registration,
+        plan_active_managed_install,
+    )
+
+    normalized_client = client.strip().lower()
+    if normalized_client != "gemini":
+        typer.echo(
+            "managed client installation refused: supported client is gemini",
+            err=True,
+        )
+        raise typer.Exit(2)
+    try:
+        plan = plan_active_managed_install(
+            client="gemini",
+            config_path=config,
+            executable=sys.executable,
+            server_name=server_name,
+        )
+        if reviewed_sha256 is None:
+            payload = plan.summary()
+            payload["applied"] = False
+        else:
+            receipt = install_active_managed_registration(
+                plan=plan,
+                reviewed_sha256=reviewed_sha256,
+            )
+            payload = receipt.summary()
+            payload["applied"] = True
+    except ManagedClientInstallError as exc:
+        typer.echo(f"managed client installation refused: {exc}", err=True)
+        raise typer.Exit(2)
+    typer.echo(json.dumps(payload, indent=2))
+
+
+@harness_app.command("active-client-rollback")
+def harness_active_client_rollback(
+    receipt: Path = typer.Option(
+        ...,
+        "--receipt",
+        exists=True,
+        dir_okay=False,
+        readable=True,
+        help="Owner-only receipt emitted by active-client-install.",
+    ),
+) -> None:
+    """Restore exact pre-install settings when no later edits exist."""
+
+    from pikvm_agent.harness.managed_client_install import (
+        ManagedClientInstallError,
+        rollback_active_managed_registration,
+    )
+
+    try:
+        payload = rollback_active_managed_registration(receipt)
+    except ManagedClientInstallError as exc:
+        typer.echo(f"managed client rollback refused: {exc}", err=True)
+        raise typer.Exit(2)
+    typer.echo(json.dumps(payload, indent=2))
 
 
 @harness_app.command("client-audit")

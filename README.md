@@ -91,7 +91,7 @@ The target-free restart acceptance also completed for Codex, Claude, Gemini,
 and OpenCode 4/4 with exact scoped environments, exact managed inventories,
 visible durable tasks, safe outage errors, and recovery through the same MCP
 process; it made no external model call or computer connection. See
-[`managed-client acceptance`](bench/results/2026-07-28/safety/managed-client-acceptance.json).
+[`managed-client acceptance`](bench/results/2026-08-03/safety/managed-client-acceptance-post-install.json).
 
 ### Which process is actually the agent?
 
@@ -103,15 +103,23 @@ clients. When connected safely, they can submit, inspect, pause, continue, or
 abort a managed task; they do not receive individual keyboard, pointer, or
 screen tools and do not choose the next HID action.
 
-This separation is required rather than cosmetic. A 2026-07-28 read-only audit
-of the actually effective local client registrations found Codex and OpenCode
-still pointed at raw PiKVM MCP, Gemini had no managed registration, and
-Claude's ambient registration was ambiguous. Only this repository's explicit
-Claude project scope resolved to one managed registration. No persisted client
-configuration was changed by the audit. Until a client is deliberately cut
-over, launching the desktop harness is the safe default; an ambient coding CLI
-must not be assumed to use the managed loop. See the failure-inclusive
-[`effective client route audit`](bench/results/2026-07-28/safety/effective-client-route-audit.json).
+This separation is required rather than cosmetic. The retained historical
+audit proves that all 24 archived Claude, Codex, and OpenCode sessions predate
+the cutover: 4,416/4,453 calls were selected directly by the outer coding
+client, 37 used the older hidden route, and zero used the current managed
+facade. The current effective state is different and independently checked.
+Codex, Claude, OpenCode, and Gemini now each resolve to exactly one official
+managed registration with no raw, direct, duplicate, or ambiguous PiKVM
+surface. Gemini's native MCP inventory reports the managed server connected;
+its provider-owned individual-tier OAuth is still rejected upstream before
+model work, so configuration safety is not misreported as model compatibility.
+See the anonymous current audits for
+[`Codex`](bench/results/2026-08-03/safety/active-codex-managed-audit.json),
+[`Claude`](bench/results/2026-08-03/safety/active-claude-managed-audit.json),
+[`OpenCode`](bench/results/2026-08-03/safety/active-opencode-managed-audit.json),
+and [`Gemini`](bench/results/2026-08-03/safety/active-gemini-managed-audit.json),
+plus the failure-inclusive
+[`historical session audit`](docs/HISTORICAL_SESSION_FAILURE_AUDIT.md).
 
 ## Install
 
@@ -173,6 +181,24 @@ PIKVM_USER=admin PIKVM_PASSWORD=… uv run pikvm-agent daemon
 uv run pikvm-agent harness serve --config config.harness.yaml
 uv run pikvm-agent harness active-client-config \
   --client codex
+```
+
+Gemini's persistent settings can be cut over without hand-editing them. The
+first command is read-only and emits the exact candidate plus its review
+digest. Supplying that digest applies the unchanged candidate atomically,
+retains an owner-only byte-for-byte backup and receipt, and enables a guarded
+compare-and-swap rollback:
+
+```bash
+uv run pikvm-agent harness active-client-install \
+  --client gemini --config ~/.gemini/settings.json
+
+uv run pikvm-agent harness active-client-install \
+  --client gemini --config ~/.gemini/settings.json \
+  --reviewed-sha256 <digest-from-the-plan>
+
+uv run pikvm-agent harness active-client-rollback \
+  --receipt <receipt-from-the-install>
 ```
 
 The generated registration contains no harness path, machine endpoint, or
