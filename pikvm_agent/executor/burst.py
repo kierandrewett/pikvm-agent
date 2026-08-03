@@ -29,6 +29,7 @@ from pikvm_agent.core.spreadsheet_grid import (
     SpreadsheetGridError,
     validate_spreadsheet_grid,
 )
+from pikvm_agent.core.windows_launch import is_verified_windows_run_launch
 from pikvm_agent.executor.typing import chunk_text
 from pikvm_agent.executor.verification import (
     is_editor_prose,
@@ -554,6 +555,18 @@ async def run_burst(
     total = len(actions)
     executed: list[str] = []
     action_receipts: list[dict[str, Any]] = []
+    safe_windows_run_text_index = (
+        next(
+            (
+                index
+                for index, action in enumerate(actions)
+                if action.get("type") == "type_text"
+            ),
+            -1,
+        )
+        if is_verified_windows_run_launch(actions)
+        else -1
+    )
 
     def _stop() -> tuple[str, str] | None:
         if should_continue is not None and not should_continue():
@@ -604,6 +617,7 @@ async def run_burst(
                 backend=backend,
                 typer=typer,
                 should_continue=lambda: _stop() is None,
+                safe_windows_run_delivery=(i == safe_windows_run_text_index),
                 change_baseline=(
                     pending_change_baseline
                     if kind == "wait_for_change"
@@ -932,6 +946,7 @@ async def _dispatch(
     backend: Any,
     typer: Any,
     should_continue: ShouldContinue | None,
+    safe_windows_run_delivery: bool = False,
     change_baseline: Any = None,
 ) -> dict[str, Any] | None:
     if kind == "key":
@@ -1000,6 +1015,51 @@ async def _dispatch(
                     ).hexdigest(),
                     "emitted_exactly_once": emitted == len(delivery_text),
                     "used_fast_path": callable(printer),
+                }
+            )
+            return receipt
+        if safe_windows_run_delivery:
+            delivery_text = flatten_line_breaks(str(text))
+            if should_continue is not None and not should_continue():
+                raise BurstInterrupted(
+                    {
+                        "type": "type_text",
+                        "issued_characters": 0,
+                        "requested_characters": len(delivery_text),
+                    },
+                    action_receipt=_unwatched_typing_receipt(
+                        str(text),
+                        secret=False,
+                        typed_characters=0,
+                    ),
+                )
+            printer = getattr(backend, "print_exact_text", None)
+            if not callable(printer):
+                printer = getattr(backend, "print_text", None)
+            if callable(printer):
+                await printer(delivery_text)
+            else:
+                await backend.type_text(
+                    delivery_text,
+                    code=False,
+                    secret=False,
+                )
+            receipt = _unwatched_typing_receipt(
+                str(text),
+                secret=False,
+            )
+            receipt.update(
+                {
+                    "used_fast_path": callable(printer),
+                    "focus_evidence": "atomic_windows_run_gesture",
+                    "emitted_characters": len(delivery_text),
+                    "emitted_sha256": hashlib.sha256(
+                        delivery_text.encode("utf-8")
+                    ).hexdigest(),
+                    "emitted_exactly_once": True,
+                    "verification_deferred_to": (
+                        "post_launch_visual_verifier"
+                    ),
                 }
             )
             return receipt

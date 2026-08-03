@@ -778,6 +778,82 @@ class _StubTyper:
         return r
 
 
+async def test_allowlisted_windows_run_launch_uses_delivery_receipt_then_visual_gate(
+) -> None:
+    backend = FakeBackend()
+    typer = _StubTyper("failed_focus_lost")
+    actions = [
+        {"type": "key", "keys": ["WIN", "R"]},
+        {
+            "type": "type_text",
+            "text": "notepad",
+            "context": "field",
+            "verification": "exact",
+        },
+        {"type": "key", "keys": ["ENTER"]},
+    ]
+
+    outcome = await run_burst(actions, backend=backend, typer=typer)
+
+    assert outcome.status == "completed"
+    assert typer.calls == []
+    assert ("print_text", {"text": "notepad"}) in backend.calls
+    assert outcome.action_receipts == [
+        {
+            "index": 1,
+            "type": "type_text",
+            "status": "delivered_unverified",
+            "verdict": "unverified",
+            "observed_text_redacted": False,
+            "issued_characters": 7,
+            "requested_characters": 7,
+            "delivery_characters": 7,
+            "delivery_transformed": False,
+            "correction_count": 0,
+            "delivery_retries": 0,
+            "used_fast_path": True,
+            "focus_evidence": "atomic_windows_run_gesture",
+            "proof_state": "issued_only",
+            "requested_sha256": hashlib.sha256(b"notepad").hexdigest(),
+            "delivery_sha256": hashlib.sha256(b"notepad").hexdigest(),
+            "issued_prefix_sha256": hashlib.sha256(b"notepad").hexdigest(),
+            "exact_readback_sha256_match": False,
+            "emitted_characters": 7,
+            "emitted_sha256": hashlib.sha256(b"notepad").hexdigest(),
+            "emitted_exactly_once": True,
+            "verification_deferred_to": "post_launch_visual_verifier",
+        }
+    ]
+
+
+async def test_non_allowlisted_windows_run_text_keeps_watched_exact_verification(
+) -> None:
+    backend = FakeBackend()
+    typer = _StubTyper(
+        "verified_exact",
+        field_text="cmd",
+        typed_characters=3,
+        intended_characters=3,
+    )
+    actions = [
+        {"type": "key", "keys": ["WIN", "R"]},
+        {
+            "type": "type_text",
+            "text": "cmd",
+            "context": "field",
+            "verification": "exact",
+        },
+        {"type": "key", "keys": ["ENTER"]},
+    ]
+
+    outcome = await run_burst(actions, backend=backend, typer=typer)
+
+    assert outcome.status == "completed"
+    assert typer.calls == ["cmd"]
+    assert typer.exact_modes == [True]
+    assert not any(method == "print_text" for method, _ in backend.calls)
+
+
 async def test_editor_prose_can_explicitly_use_lenient_watched_mode() -> None:
     text = (
         "Shakespeare treats choice as a human burden; his characters inherit "
