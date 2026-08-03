@@ -1,0 +1,180 @@
+{
+  "schema_version": 1,
+  "report": "codex-code-entry-code06-failure-inclusive-attempts",
+  "recorded_at": "2026-08-03T02:24:00Z",
+  "environment": {
+    "target": "authorized disposable Windows VNC VM",
+    "production_target_contacted": false,
+    "endpoint_retained": false,
+    "reboot_after_every_test": true
+  },
+  "task": {
+    "task_id": "code-06",
+    "category": "Code entry",
+    "summary": "Write, save, reopen, and visually verify a JavaScript debounce implementation in Notepad"
+  },
+  "model_route": {
+    "provider": "codex-fast",
+    "model": "gpt-5.6-terra",
+    "reasoning_effort": "low",
+    "service_tier": "priority",
+    "roles": [
+      "reasoner",
+      "controller",
+      "verifier"
+    ]
+  },
+  "summary": {
+    "full_task_runs": 4,
+    "failed_runs": 4,
+    "invalid_runs": 0,
+    "passed_runs": 0,
+    "all_failures_retained": true,
+    "all_recordings_retained": true,
+    "all_reboots_ready": true,
+    "all_reboots_observed_real_transition": true,
+    "all_known_text_deliveries_replayed": false,
+    "release_gate": "failing"
+  },
+  "attempts": [
+    {
+      "campaign_id": "codex-code-entry-code06-v1-20260803",
+      "accepted_status": "failed",
+      "run_id": "1ee3c79a-27aa-4320-b51a-7b9b890105af",
+      "reason": "The first five code rows and their separators verified, but the four-character indented closing row returned an empty OCR readback. The at-most-once guard stopped before save and did not replay the issued row.",
+      "wall_clock_ms": 380754,
+      "provider_wait_ms": 125360,
+      "provider_wait_share": 0.32924145248638226,
+      "action_execution_ms": 249665,
+      "action_execution_share": 0.6557120870693414,
+      "provider_calls": 15,
+      "actions_attempted": 13,
+      "actions_completed": 12,
+      "failed_input_requested_characters": 4,
+      "failed_input_issued_characters": 4,
+      "failed_input_observed_characters": 0,
+      "failed_input_delivery_retries": 0,
+      "reboot_ms": 117147,
+      "reboot_transition_observed": true,
+      "campaign_sha256": "40d443ffb66b86d12e951bd8de140b710c026824ab876b38e6ce7d3a859c479a",
+      "recording_sha256": "6a697c6b2fdc605c9f3219389e9f738d103ace6be2400814b3e5324459f2ab04",
+      "poster_sha256": "c2ea658112a9f2f6f7ea4dc8ffe9fbbe82026479daa053837369b1843aa2283d"
+    },
+    {
+      "campaign_id": "codex-code-entry-code06-v2-20260803",
+      "accepted_status": "failed",
+      "run_id": "12fd2ffc-8a23-4f97-bd5d-fa1152fe7672",
+      "reason": "The same four-character closing row was visibly present in the retained evaluated frame, but exact OCR still returned empty. The run failed closed with zero replay, proving a verifier false negative rather than a missing input.",
+      "wall_clock_ms": 441556,
+      "provider_wait_ms": 116423,
+      "provider_wait_share": 0.26366531085524825,
+      "action_execution_ms": 317795,
+      "action_execution_share": 0.7197161854894962,
+      "provider_calls": 16,
+      "actions_attempted": 15,
+      "actions_completed": 14,
+      "failed_input_requested_characters": 4,
+      "failed_input_issued_characters": 4,
+      "failed_input_observed_characters": 0,
+      "failed_input_delivery_retries": 0,
+      "reboot_ms": 77216,
+      "reboot_transition_observed": true,
+      "campaign_sha256": "08bc781967dd80342268228759f4bdbddefdd520c3c2869c168da9f809b9b8dd",
+      "recording_sha256": "e02878849ff17539cd1dd491696211e96db5f06b0ba27bc4477b8bb6655f9a1a",
+      "poster_sha256": "d210db559c75cb942a87e2ac73a909f30302d0cf4d6dee9ace3d41eb7067ae99"
+    },
+    {
+      "campaign_id": "codex-code-entry-code06-v3-20260803",
+      "accepted_status": "failed",
+      "run_id": "f82a9b7b-d672-4787-b3b8-694baa962c29",
+      "reason": "The sender issued the 12-character indented timer declaration once, but the target character count increased by only four and the retained frame showed a strict suffix. The receipt incorrectly labelled this partial transport delivery as focus loss; the guard prevented replay.",
+      "wall_clock_ms": 190541,
+      "provider_wait_ms": 55649,
+      "provider_wait_share": 0.2920578773072462,
+      "action_execution_ms": 131857,
+      "action_execution_share": 0.6920137923071675,
+      "provider_calls": 8,
+      "actions_attempted": 5,
+      "actions_completed": 4,
+      "failed_input_requested_characters": 12,
+      "failed_input_issued_characters": 12,
+      "causally_delivered_characters": 4,
+      "failed_input_delivery_retries": 0,
+      "reboot_ms": 104847,
+      "reboot_transition_observed": true,
+      "campaign_sha256": "f1e0ffc584b228553437c7b4b4587e441192d0ef99c7482b591a7bb7e381bc40",
+      "recording_sha256": "adaafa62ee83cfc34c9a5e7c4e37e75872e64005dae824004d28a8fe292b609f",
+      "poster_sha256": "ccf80195a29c28e390039d7699a4759d6892a35575333475044a8477c6b10bd7"
+    },
+    {
+      "campaign_id": "codex-code-entry-code06-v4b-20260803",
+      "manifest_campaign_id": "codex-windows-50",
+      "accepted_status": "failed",
+      "run_id": "2016f9ee-3277-40ca-a192-f74978dfc019",
+      "reason": "The new single-task selector ran only Code-06. The first 30-character row eventually verified exactly, but consumed 107.957 seconds. The next 12-character declaration again returned an empty readback; the reasoner treated it as visibly present and requested a focus click, which the unverified-draft guard correctly rejected instead of allowing an unsafe append or replay.",
+      "wall_clock_ms": 249215,
+      "provider_wait_ms": 68512,
+      "provider_wait_share": 0.2749112212346769,
+      "action_execution_ms": 177504,
+      "action_execution_share": 0.7122524727644804,
+      "provider_calls": 9,
+      "actions_attempted": 5,
+      "actions_completed": 4,
+      "longest_action_ms": 107956.98,
+      "failed_input_requested_characters": 12,
+      "failed_input_issued_characters": 12,
+      "failed_input_observed_characters": 0,
+      "failed_input_delivery_retries": 0,
+      "same_run_recoveries": 1,
+      "quiescence_status": "confirmed",
+      "reboot_ms": 102990,
+      "reboot_transition_observed": true,
+      "campaign_sha256": "fab57d0cad688fa1e2de24b795e483750044d1ec29ed9a47688f5caf1d7edd51",
+      "recording_sha256": "26acc338ed83db106ba7ccfa441dd20469b95688df384e2568312f2dc018e124",
+      "poster_sha256": "7308e8323e8d840db1e6946edc7583b357bb0a82852071b8094cec2decc9761c"
+    }
+  ],
+  "remediations": [
+    {
+      "after_attempt": "v1",
+      "commit": "9ace5a390b4f968af671ccc510e02437f7f22a92",
+      "change": "Verify compact structural code fragments instead of excluding them from exact readback."
+    },
+    {
+      "after_attempt": "v3",
+      "commit": "99781761fc53bee5b54b324c93adf1cf7f8b269a",
+      "change": "Isolate exact blind-readback targets from adjacent editor rows."
+    },
+    {
+      "after_attempt": "v3",
+      "commit": "1c3d3de4fc8d3e8b40ef51ee916360428a8f4fd2",
+      "change": "Classify causally observed strict prefix or suffix delivery as truncated and never authorize replay or success."
+    },
+    {
+      "before_attempt": "v4b",
+      "commit": "561f7a2fcb4ea1fdc22ee48a1afef70a70971475",
+      "change": "Add an explicit single-task campaign selector that filters before adapter preflight."
+    }
+  ],
+  "invalid_scope_run": {
+    "excluded_from_code_06_denominator": true,
+    "reason": "The former stop-after option bounded the end of a campaign but did not select its starting task. The incorrectly scoped invocation completed Observe-01 and Observe-02, rebooting after each, then was stopped at the next task boundary before Observe-03 created a managed run or sent input.",
+    "completed_tasks": [
+      "observe-01",
+      "observe-02"
+    ],
+    "incomplete_task": "observe-03",
+    "incomplete_task_run_id": null,
+    "computer_input_started_for_incomplete_task": false,
+    "replacement_selector_commit": "561f7a2fcb4ea1fdc22ee48a1afef70a70971475"
+  },
+  "next_gate": {
+    "status": "pending",
+    "requirements": [
+      "Prove the 12-character declaration exactly without replay after delayed, partial, or empty visual readback.",
+      "Replace the 107.957-second first-row verification path with a bounded proof that preserves exactness.",
+      "Save, reopen, and independently verify the complete JavaScript artifact.",
+      "Retain recording, quiescence, and a transition-observed reboot."
+    ]
+  }
+}

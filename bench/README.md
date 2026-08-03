@@ -854,6 +854,37 @@ turns. The complete ten-run ledger and supporting diagnostics are
 The canonical campaign digest is `sha256:f0868f7a3474`; its VP9 recording is
 `sha256:fc000d2404d5` and its poster is `sha256:a9c34fd9f657`.
 
+Code-06 is still **pending** after four retained failures. v1 and v2 reached an
+indented four-character closing row after verifying the preceding code, but
+exact OCR returned empty. The retained v2 evaluated frame shows the row was
+actually present, so that attempt is a verifier false negative rather than a
+missing input. Neither attempt replayed the ambiguous row. v3 exposed a real
+transport failure earlier in the task: all 12 characters of `  let timer;`
+were issued once, but Notepad's character count increased by only four and the
+retained frame showed a strict suffix. That delivery was initially
+misclassified as focus loss; the causal classifier now reports a truncated
+delivery without authorizing replay or success.
+
+v4b used the new explicit single-task selector and ran only Code-06. Its first
+30-character code row verified exactly but took 107.957s. The timer declaration
+then returned another empty readback; the reasoner treated the declaration as
+visibly present and proposed a focus click, while the unverified-draft guard
+correctly refused to risk appending or replaying from an unknown caret. The run
+failed after 249.215s before reboot: action/OCR execution consumed 177.504s
+(71.2%), while nine model calls consumed 68.512s (27.5%). Its mandatory reboot
+observed a real transition and returned ready after 102.990s. The recording,
+poster, quiescence, and failure are all retained.
+
+An earlier attempted v4 invocation is explicitly excluded from the Code-06
+denominator: `--stop-after-task code-06` bounded the campaign's end but still
+started at task one. It completed and rebooted after Observe-01 and Observe-02,
+then was stopped at the next task boundary before Observe-03 created a run or
+sent input. The replacement `--only-task code-06` selector filters the manifest
+before adapter preflight. The complete four-run ledger and invalid-scope note
+are [`code-06-attempts.json`](results/2026-08-03/live-vnc/code-06-attempts.json).
+The ledger digest is `sha256:0865c57963d0`. Code-06 remains a failing accuracy
+and speed gate; it does not increase the 30/50 campaign pass count.
+
 Failure-inclusive metrics, canonical campaign digests, the 30 accepted task
 IDs, and the VP9 recording/poster hashes are retained in
 [`codex-50-progress.json`](results/2026-07-31/live-vnc/codex-50-progress.json).
