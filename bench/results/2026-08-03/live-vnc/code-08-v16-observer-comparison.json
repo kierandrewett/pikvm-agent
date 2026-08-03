@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "campaign_id": "codex-code-entry-code08-v16-20260803",
+  "run_id": "61ad10c5-68ae-4a70-b6b8-c3603ba626d7",
+  "source_commit": "d0f413b",
+  "accepted_status": "infrastructure_invalid",
+  "campaign_reported_status": "failed",
+  "environment": {
+    "production_contacted": false,
+    "endpoint_retained_in_repository": false,
+    "adapter_keymap": "en-gb"
+  },
+  "managed_run": {
+    "provider": "codex-fast",
+    "model": "gpt-5.6-terra",
+    "actions_attempted": 1,
+    "actions_completed": 0,
+    "current_run_input_bytes": 0,
+    "stop_reason": "A click grounded only to OCR text `cK` was classified as unknown risk and was not auto-approved.",
+    "safety_result": "No HID action committed and no dangerous control fired."
+  },
+  "immutable_plan": {
+    "windows_crlf_bytes": 113,
+    "sha256": "b257acff8b0a721e18cc7705f1ee55962f9b28d591cd6dd670a325ba1c81b2a5"
+  },
+  "current_path_observer": {
+    "transport": "guarded MCP visual matrix",
+    "path": "C:/PiKVM-Harness/workspace/codex-50/code-08.cmd",
+    "captures": [
+      {
+        "sequence": 6,
+        "pages": 6,
+        "checksum_valid": true
+      },
+      {
+        "sequence": 7,
+        "pages": 6,
+        "checksum_valid": true
+      }
+    ],
+    "observed_bytes": 117,
+    "observed_sha256": "989870aef8b574688745aedb851ce7bd35f1efa7f674fb528238b9f62550fe55",
+    "matches_v15_artifact": true,
+    "matches_current_run_cumulative_input": false,
+    "matches_current_immutable_plan": false,
+    "first_plan_mismatch": 113,
+    "trailing_extra_hex": "0d0a0d0a",
+    "dangerous_commit_count": 0,
+    "guest_identity_present": true,
+    "input_desktop_present": true
+  },
+  "claimed_preserved_path_observer": {
+    "transport": "guarded MCP visual matrix",
+    "path": "C:/PiKVM-Harness/workspace/codex-50/code-08.cmd.pikvm-prior-bc9d8ea443b44c71a8dd46b7cf401823",
+    "captures": [
+      {
+        "pages": 4,
+        "checksum_valid": true,
+        "file_error": "open failed"
+      },
+      {
+        "pages": 4,
+        "checksum_valid": true,
+        "file_error": "open failed"
+      }
+    ],
+    "file_observed": false,
+    "dangerous_commit_count": 0,
+    "guest_identity_present": true,
+    "input_desktop_present": true
+  },
+  "finding": "The 276-character raw-HID preflight command silently failed: the old v15 artifact remained at the live path, the claimed preservation path did not exist, and the observer window remained on the task surface. v16 is therefore infrastructure-invalid rather than an accuracy result.",
+  "remediation": {
+    "commit": "ab78925",
+    "change": "Show the desktop before and after setup and split workspace creation from each basename-only preservation operation, keeping every typed command below 200 characters."
+  }
+}

@@ -25,15 +25,15 @@
     ]
   },
   "summary": {
-    "recorded_attempts": 15,
+    "recorded_attempts": 16,
     "valid_full_task_runs": 12,
     "failed_runs": 11,
-    "infrastructure_invalid_runs": 3,
+    "infrastructure_invalid_runs": 4,
     "passed_runs": 1,
     "canonical_attempt": "v10",
     "all_failures_retained": true,
     "all_recordings_retained": true,
-    "reboots_ready": 14,
+    "reboots_ready": 15,
     "reboots_failed_or_pending": 1,
     "release_gate": "accuracy passing; speed failing; post-pass speed remediation remains active"
   },
@@ -450,6 +450,60 @@
       },
       "poster_sha256": "f505ca3e4adb0ca456f357b697b3c9fbacd4a6b97308bba82ab96a1c25c1c11b",
       "campaign_sha256": "214474f72c1b0dd9ce61b5de90facfb2fdeb65d939efb8495d2fb4a1be0dfcae"
+    },
+    {
+      "campaign_id": "codex-code-entry-code08-v16-20260803",
+      "accepted_status": "infrastructure_invalid",
+      "campaign_reported_status": "failed",
+      "run_id": "61ad10c5-68ae-4a70-b6b8-c3603ba626d7",
+      "source_commit": "d0f413b",
+      "reason": "The managed run correctly stopped before committing an unknown-risk click, but it did not begin from a valid clean task surface. The 276-character raw-HID workspace preflight silently failed while reporting a preservation intent as ready: two observer captures found the old 117-byte v15 artifact at the live path, while two further captures found no file at the claimed preservation path. The visible observer from the preceding acceptance check also remained on screen. No task input committed, so v16 is retained as infrastructure-invalid rather than counted as a model accuracy result.",
+      "wall_clock_ms": 24064,
+      "task_duration_ms": 172562,
+      "preflight_ms": 59443,
+      "model_active_ms": 19677,
+      "provider_wait_ms": 20100,
+      "provider_serial_equivalent_ms": 20100,
+      "provider_overlap_ms": 0,
+      "action_execution_ms": 3676,
+      "evidence_capture_ms": 0,
+      "provider_calls": 2,
+      "reasoner_calls": 1,
+      "controller_calls": 1,
+      "verifier_calls": 0,
+      "actions_attempted": 1,
+      "actions_completed": 0,
+      "approval_count": 1,
+      "approval_risks": [
+        "unknown"
+      ],
+      "observer_artifact_comparison": {
+        "transport": "guarded MCP visual matrix",
+        "path": "C:/PiKVM-Harness/workspace/codex-50/code-08.cmd",
+        "observed_bytes": 117,
+        "observed_sha256": "989870aef8b574688745aedb851ce7bd35f1efa7f674fb528238b9f62550fe55",
+        "matches_v15_artifact": true,
+        "current_run_input_bytes": 0,
+        "immutable_plan_expected_bytes": 113,
+        "immutable_plan_expected_sha256": "b257acff8b0a721e18cc7705f1ee55962f9b28d591cd6dd670a325ba1c81b2a5",
+        "immutable_plan_exact_match": false,
+        "claimed_preserved_path_observed": false,
+        "comparison_report": "bench/results/2026-08-03/live-vnc/code-08-v16-observer-comparison.json"
+      },
+      "quiescence_status": "confirmed",
+      "reboot_ms": 86767,
+      "reboot_transition_observed": true,
+      "recording": {
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2.0,
+        "duration_ms": 101500,
+        "size_bytes": 416626,
+        "sha256": "0dd8e0853081c23c6e6d6af94a76eaa3ec57e39d80dc1320273c481490b229a2"
+      },
+      "poster_sha256": "7a33190fce05da2e7f632e9154d738a60c46ef0148dbc9139b7145d729f4bdf4",
+      "campaign_sha256": "8974b1931f138236927a563633984114511acf718d8c12c2ffee2d7413bd213e"
     }
   ],
   "remediations": [
@@ -529,6 +583,11 @@
         "a7ec0cb"
       ],
       "change": "Preserve deferred input provenance, prevent a grouped editor burst from appending its terminal newline twice, and keep the first accepted artifact content immutable across replans."
+    },
+    {
+      "after_attempt": "v16",
+      "commit": "ab78925",
+      "change": "Show the desktop before and after task setup and segment the silent 276-character workspace command into short basename-only preservation operations."
     }
   ],
   "next_gate": {
@@ -542,7 +601,7 @@
       "The accepted run completed a transition-observed mandatory reboot and retained its recording."
     ],
     "blocking_infrastructure_state": null,
-    "next_attempt": "v16 after preserving deferred provenance, removing the duplicate trailing editor break, and making artifact content immutable across replans",
+    "next_attempt": "v17 after segmenting workspace preflight input and restoring a clean desktop around setup",
     "next_task_after_speed_gate": "code-09"
   }
 }

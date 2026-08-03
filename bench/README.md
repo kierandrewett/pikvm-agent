@@ -1044,7 +1044,7 @@ actions, completed 26, and requested four bounded-workspace approvals. Worse,
 the model populated two Notepad documents before converging on the exact saved
 payload. The 874-second VP9 recording is 3,842,300 bytes.
 
-Five post-pass attempts remain visible rather than replacing v10:
+Six post-pass attempts remain visible rather than replacing v10:
 
 | Attempt | Accuracy status | Managed wall | Provider calls | Result |
 | --- | --- | ---: | ---: | --- |
@@ -1054,6 +1054,7 @@ Five post-pass attempts remain visible rather than replacing v10:
 | v13 | Infrastructure-invalid | 478.588s | 25 | Caret-only filename recovery converged, but the restored adapter used a US keymap against the UK guest and changed byte zero from `@` to `"`; reboot completed |
 | v14 | Failed | 179.702s | 2 | Correct UK-keymap lab; exact OCR of the safe seven-character `notepad` Run field consumed 158.625s across two attempts, then interrupted before any program content |
 | v15 | Failed (public false positive) | 708.568s | 75 | Safe launch fell to 22.028s, but the observer found a duplicate trailing CRLF; missing deferred provenance caused 15 completion rejections, then a replan erased the immutable artifact contract and incorrectly passed |
+| v16 | Infrastructure-invalid | 24.064s | 2 | Policy safely blocked an unknown-risk click before input, but the observer found the stale v15 artifact at the live path and no file at the preflight's claimed preservation path |
 
 The v11 recording directly produced the caret-only filename remediation. v13
 exercised it: the first autocomplete-biased readback recovered without
@@ -1109,9 +1110,26 @@ returned `artifact_content: null`; accepting that downgrade disabled the gate
 and turned unchanged pixels into a public pass. Commits `0dcbd2c`, `137d559`,
 and `a7ec0cb` respectively preserve deferred provenance, prevent the duplicate
 terminal break, and make the first accepted artifact contract immutable across
-replans. v16 will test all three together.
+replans. v16 was intended to test all three together.
 
-The complete 15-attempt ledger includes all three infrastructure-invalid runs,
+v16 did exercise those three code changes, but it never reached a valid task
+surface. The controller proposed one click grounded only to OCR text `cK`;
+policy classified it as unknown risk, did not auto-approve it, and committed
+zero inputs. Quiescence and the transition-observed 86.767-second mandatory
+reboot passed. That safe stop prevented an ambiguous screen from becoming a
+computer action.
+
+Independent observer evidence then invalidated the setup rather than the
+model. Two six-page captures found 117 bytes at the live path with the exact
+v15 SHA-256, despite v16 issuing zero input bytes and planning 113 bytes. Two
+four-page captures reported `open failed` for the path the preflight claimed
+had preserved. The old 276-character raw-HID setup command had silently failed
+while the runner recorded only its intent, and the preceding observer window
+was still visible. v16 is retained as infrastructure-invalid. Commit
+`ab78925` shows the desktop around setup and splits the long command into
+basename-only operations below 200 characters; v17 will test that cleanly.
+
+The complete 16-attempt ledger includes all four infrastructure-invalid runs,
 eleven valid-task failures, campaign/recording hashes, exact observer proof,
 remediation commits, and every reset state:
 [`code-08-attempts.json`](results/2026-08-03/live-vnc/code-08-attempts.json).
@@ -1119,8 +1137,10 @@ The v13 byte-level comparison is
 [`code-08-v13-observer-comparison.json`](results/2026-08-03/live-vnc/code-08-v13-observer-comparison.json),
 `sha256:2c286aa86836`; the v15 plan/cumulative-input comparison is
 [`code-08-v15-observer-comparison.json`](results/2026-08-03/live-vnc/code-08-v15-observer-comparison.json).
-Its digest is `sha256:1e08f3beb8a2`; the updated ledger digest is
-`sha256:d546bbb54a4b`.
+Its digest is `sha256:1e08f3beb8a2`; the v16 current/prior-path comparison is
+[`code-08-v16-observer-comparison.json`](results/2026-08-03/live-vnc/code-08-v16-observer-comparison.json),
+`sha256:fd345f2bc6ab`. The updated ledger digest is
+`sha256:1bf5be8fa2a3`.
 The canonical v10 campaign digest is `sha256:9dbc7c98e97a`; its VP9 recording
 is `sha256:cd1af2f018d2` and its poster is `sha256:f74b6f4f38ae`.
 
