@@ -1018,8 +1018,10 @@ The authenticated first-party proof panel selected v2 as the current attempt
 and served its 1,646,548-byte recording as `video/webm`; the retained v1
 failure remains separately addressable rather than being overwritten.
 
-Code-08 is **accepted at v10** for accuracy after nine retained valid-task
-failures and one infrastructure-invalid preflight attempt. Earlier iterations
+Code-08 is **accepted at v23** for accuracy. v10 remains the first retained
+pass after nine valid-task failures and one infrastructure-invalid preflight
+attempt; v23 now supersedes it with a faster, independently exact run. Earlier
+iterations
 reduced the task from slow row-by-row entry to one nine-row deferred-exact
 batch, grounded titleless Windows 11 Notepad from bounded OCR and pixels, and
 replaced repeated full-path dialog entry with a visible workspace breadcrumb
@@ -1027,7 +1029,7 @@ plus the short basename. The failures were not discarded: they include the
 900-second v2 timeout, four unverified-draft stops, three non-allowlisted
 approval stops, and a repeated-action stop.
 
-The accepted v10 run saved and reopened `code-08.cmd`. The model's done claim
+The historical v10 run saved and reopened `code-08.cmd`. The model's done claim
 was not the acceptance oracle. After the run's transition-observed reboot, the
 installed lab observer was retargeted to the safe nested artifact path and read
 the file through guarded MCP's visual matrix. It returned exactly 133 bytes.
@@ -1036,7 +1038,7 @@ SHA-256, `8c8d0c1be4aefe5667eb3c7c3edc54e18a309dc4af59d5456978ba6e6a14891a`.
 The observed program pings localhost once, prints `healthy` with exit code 0
 on success, and prints `unhealthy` with exit code 1 otherwise.
 
-Accuracy passes; speed is unacceptable. v10 took 869.893s before reboot and
+That run passed accuracy but not speed. v10 took 869.893s before reboot and
 1,079.054s through reset-ready. The critical path included 476.667s of
 provider wait and 719.647s of action execution, with overlap between them. It
 made 66 model calls (nine reasoner, 24 controller, 33 verifier), attempted 28
@@ -1044,7 +1046,7 @@ actions, completed 26, and requested four bounded-workspace approvals. Worse,
 the model populated two Notepad documents before converging on the exact saved
 payload. The 874-second VP9 recording is 3,842,300 bytes.
 
-Twelve post-pass attempts remain visible rather than replacing v10:
+Thirteen post-v10 attempts remain visible rather than rewriting history:
 
 | Attempt | Accuracy status | Managed wall | Provider calls | Result |
 | --- | --- | ---: | ---: | --- |
@@ -1061,6 +1063,7 @@ Twelve post-pass attempts remain visible rather than replacing v10:
 | v20 | Failed safely before document input | 76.633s | 4 | The taller crop retained the status row, but normal OCR omitted only the tiny `File` menu label |
 | v21 | Failed safely before document input | 81.292s | 4 | Precise broad-window OCR still omitted `File`; the unchanged geometry gate refused the batch |
 | v22 | Failed after exact batch entry | 235.364s | 12 | Same-frame menu fusion allowed all nine rows once; ambiguous Save As filename readback then triggered the unverified-draft guard, and the observer found no committed file |
+| v23 | **Passed** | 318.782s | 20 | The native filename edit produced an exact receipt despite autocomplete history; the observer matched all 127 current-run bytes |
 
 The v11 recording directly produced the caret-only filename remediation. v13
 exercised it: the first autocomplete-biased readback recovered without
@@ -1222,8 +1225,36 @@ valid-task failure, not a false pass: editor delivery worked, filename
 grounding did not, and no filesystem mutation was invented from pixels. The
 next gate is a selected-edit-control proof for the native filename field.
 
-The complete 22-attempt ledger includes all six infrastructure-invalid runs,
-fifteen valid-task failures, campaign/recording hashes, exact observer proof,
+v23 passed that gate on pushed commit `c8c8129`. The same-frame filename
+locator used the independent `File name` label to select the horizontally
+paired edit row and exclude the history popup beneath it. The 11-character
+basename was issued once and read back exactly as `code-08.cmd`, with an exact
+visual receipt bound to frame SHA-256 `2a9d80ca1b96`. The model then saved and
+reopened the file. All 12 actions completed, two expected approvals were both
+limited to `bounded_workspace_edit`, and quiescence was confirmed. Two
+same-run recovery cycles remain visible: one conservative Open-dialog focus
+change was not visually distinguishable, and the runner resumed the existing
+checkpoint without duplicating program input.
+
+The managed loop took 318.782s. Provider wait consumed 151.807s (47.6%) and
+action execution 156.257s (49.0%), across 20 model calls: three reasoner, five
+controller, and twelve verifier calls. This is 63.4% faster than v10's managed
+wall time, but more than five minutes is still slower than the product goal.
+Accuracy passes; speed still fails.
+
+The campaign's 85.620-second mandatory reboot observed a real transition and
+returned to a stable desktop. The installed observer was then retargeted to
+the exact nested file. One four-page checksum-valid guarded-MCP capture
+returned 127 bytes with SHA-256 `c5e247fcb3f1`, exactly matching v23's nine
+rows and eight Windows-CRLF line breaks. It reported zero dangerous commits
+and retained both guest identity and input-desktop evidence. Preflight had
+proved the original path absent, so no prior artifact was claimed or expected.
+The independent post-observer reboot also observed a real transition and a
+stable desktop in 82.892s.
+
+The complete 23-attempt ledger includes all six infrastructure-invalid runs,
+fifteen valid-task failures, two accepted runs, campaign/recording hashes,
+exact observer proof,
 remediation commits, and every reset state:
 [`code-08-attempts.json`](results/2026-08-03/live-vnc/code-08-attempts.json).
 The v13 byte-level comparison is
@@ -1242,10 +1273,13 @@ Its digest is `sha256:1e08f3beb8a2`; the v16 current/prior-path comparison is
 [`code-08-v19-observer-comparison.json`](results/2026-08-03/live-vnc/code-08-v19-observer-comparison.json),
 `sha256:8d0f4b0ff21b`; and the v22 failed-save proof is
 [`code-08-v22-observer-comparison.json`](results/2026-08-03/live-vnc/code-08-v22-observer-comparison.json),
-`sha256:98bc88a080de`. The updated ledger digest is
-`sha256:442e7578df6b`.
-The canonical v10 campaign digest is `sha256:9dbc7c98e97a`; its VP9 recording
-is `sha256:cd1af2f018d2` and its poster is `sha256:f74b6f4f38ae`.
+`sha256:98bc88a080de`; and the v23 exact current-run comparison is
+[`code-08-v23-observer-comparison.json`](results/2026-08-03/live-vnc/code-08-v23-observer-comparison.json).
+Its digest is `sha256:e067041bfd7a`; the updated ledger digest is
+`sha256:937a3326efbf`.
+The canonical v23 campaign digest is `sha256:23ad16dfc6f0`; its VP9 recording
+is `sha256:c5e7c2671b4d` and its poster is `sha256:3f5ffdf44062`.
+The v10 campaign and media remain retained in the ledger.
 
 Failure-inclusive metrics, canonical campaign digests, the 33 accepted task
 IDs, and the VP9 recording/poster hashes are retained in

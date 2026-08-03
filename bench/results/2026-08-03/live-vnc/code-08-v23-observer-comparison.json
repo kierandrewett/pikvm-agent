@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "campaign_id": "codex-code-entry-code08-v23-20260803",
+  "run_id": "740f53b9-c757-4338-a3da-afe266d01a0c",
+  "source_commit": "c8c8129",
+  "accepted_status": "passed",
+  "campaign_reported_status": "passed",
+  "environment": {
+    "production_contacted": false,
+    "endpoint_retained_in_repository": false,
+    "adapter_keymap": "en-gb"
+  },
+  "preflight": {
+    "preservation_status": "verified_absent",
+    "claimed_prior_file": false
+  },
+  "immutable_editor_input": {
+    "rows": 9,
+    "line_breaks": 8,
+    "windows_crlf_bytes": 127,
+    "sha256": "c5e247fcb3f17892938d047673cab4efbc6588140cd5d6b5047c553a8349ced4",
+    "all_text_segments_emitted_exactly_once": true
+  },
+  "filename_receipt": {
+    "requested": "code-08.cmd",
+    "observed": "code-08.cmd",
+    "status": "verified_exact",
+    "proof_state": "exact_visual_readback",
+    "readback_frame_sha256": "2a9d80ca1b96f6a4e9520a7492c7e343234acd7cfa6cb9e34bd4f946b415f111",
+    "emitted_exactly_once": true
+  },
+  "current_path_observer": {
+    "transport": "guarded MCP visual matrix",
+    "protocol": "pikvm-observer.v1",
+    "direct_run_id": "direct-4af0aa3e-399f-4f50-baf2-1b2dedd3ff37",
+    "caller_label": "code08-v23-current-observer",
+    "sequence": 2,
+    "pages": 4,
+    "checksum_valid": true,
+    "path": "C:/PiKVM-Harness/workspace/codex-50/code-08.cmd",
+    "file_error": "",
+    "observed_bytes": 127,
+    "observed_sha256": "c5e247fcb3f17892938d047673cab4efbc6588140cd5d6b5047c553a8349ced4",
+    "exact_match_to_current_run": true,
+    "dangerous_commit_count": 0,
+    "guest_identity_present": true,
+    "input_desktop_present": true
+  },
+  "managed_run": {
+    "actions_attempted": 12,
+    "actions_completed": 12,
+    "provider_calls": 20,
+    "same_run_recoveries": 2,
+    "approval_scopes": [
+      "bounded_workspace_edit"
+    ],
+    "quiescence_confirmed": true
+  },
+  "mandatory_reboot": {
+    "ready": true,
+    "transition_observed": true,
+    "duration_ms": 85620,
+    "ready_frame_sha256": "0fe7432b378338e7f4881d6a628d869402593b2f93128b930fd54bad86adf689"
+  },
+  "reset_after_observer": {
+    "ready": true,
+    "transition_observed": true,
+    "duration_ms": 82892,
+    "ready_frame_sha256": "9c165ed9e6c4f0352b394e5366f6450970bb3b34d7c3afc1980fed126591f45a"
+  },
+  "finding": "The native filename locator excluded the autocomplete history, produced an exact visual readback receipt for code-08.cmd, and allowed the save/reopen flow to complete. The installed observer independently returned the exact 127 bytes emitted by this run, with zero dangerous commits. Accuracy passes; the 318.782-second managed loop still fails the speed objective."
+}
