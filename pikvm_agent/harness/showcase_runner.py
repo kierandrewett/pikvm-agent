@@ -7,6 +7,7 @@ import contextlib
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import time
@@ -81,6 +82,72 @@ ApprovalDisposition = Literal["approve", "refuse", "wait"]
 CAMPAIGN_WORKSPACE = PureWindowsPath(
     r"C:\PiKVM-Harness\workspace\codex-50"
 )
+_OCR_MARKER_ALPHABET = "ABCDEFGHJKLMNPQR"
+
+
+def _ocr_marker_token(hex_value: str) -> str:
+    """Map 48 random bits to twelve OCR-safe unambiguous letters."""
+
+    return "".join(
+        _OCR_MARKER_ALPHABET[int(character, 16)]
+        for character in hex_value[:12]
+    )
+
+
+def _cmd_marker_expression(marker: str) -> str:
+    """Hide the literal marker in a cmd expression until expansion."""
+
+    prefix, token = marker[:-12], marker[-12:]
+    return f"{prefix}%PIKVMJOIN:X=%{token}"
+
+
+def _bounded_marker_distance(left: str, right: str, *, limit: int) -> int:
+    """Return a tiny bounded edit distance for short OCR nonce tokens."""
+
+    if abs(len(left) - len(right)) > limit:
+        return limit + 1
+    previous = list(range(len(right) + 1))
+    for row, left_char in enumerate(left, start=1):
+        current = [row]
+        for column, right_char in enumerate(right, start=1):
+            current.append(
+                min(
+                    previous[column] + 1,
+                    current[column - 1] + 1,
+                    previous[column - 1] + (left_char != right_char),
+                )
+            )
+        if min(current) > limit:
+            return limit + 1
+        previous = current
+    return previous[-1]
+
+
+def _ocr_marker_match_count(observed: str, expected: str) -> int:
+    """Count marker-bearing OCR lines with one measured nonce glyph error."""
+
+    marker = expected.upper()
+    prefix, token = marker[:-12], marker[-12:]
+    pattern = re.compile(
+        rf"{re.escape(prefix)}([A-Z]{{{len(token) - 1},{len(token) + 1}}})"
+    )
+    matches = 0
+    for line in observed.upper().splitlines():
+        compact = re.sub(r"\s+", "", line)
+        if marker in compact:
+            matches += 1
+        elif any(
+            _bounded_marker_distance(match.group(1), token, limit=1) <= 1
+            for match in pattern.finditer(compact)
+        ):
+            matches += 1
+    return matches
+
+
+def _ocr_marker_matches(observed: str, expected: str) -> bool:
+    """Match a unique success marker with one measured OCR glyph error."""
+
+    return _ocr_marker_match_count(observed, expected) > 0
 
 
 class ShowcaseCampaignAlreadyRunning(LocalProcessLeaseAlreadyHeld):
@@ -869,10 +936,10 @@ class VncAdapter:
                 baseline=baseline,
                 timeout_s=4,
             ):
-                await self.wait_until_ready(
-                    timeout_s=8,
-                    stable_s=0.5,
-                )
+                # The Run dialog itself is the expected non-desktop state.
+                # Its sustained two-frame transition above is the grounding
+                # proof; a desktop/taskbar readiness gate is invalid here.
+                await asyncio.sleep(0.5)
                 return
             await send_key("Escape", True)
             await send_key("Escape", False)
@@ -909,6 +976,75 @@ class VncAdapter:
             await asyncio.sleep(0.2)
             await self._send_key_and_wait(socket, "Enter", True)
             await self._send_key_and_wait(socket, "Enter", False)
+            await asyncio.sleep(0.3)
+
+    async def _type_focused_console_command(self, command: str) -> None:
+        """Type one short command into the already-proven workspace shell."""
+
+        parsed = urlparse(self.base_url)
+        websocket_url = urlunparse(
+            (
+                "wss" if parsed.scheme == "https" else "ws",
+                parsed.netloc,
+                "/api/ws",
+                "",
+                "",
+                "",
+            )
+        )
+        async with websocket_connect(websocket_url, open_timeout=10) as socket:
+            await self._send_key_and_wait(socket, "Escape", True)
+            await self._send_key_and_wait(socket, "Escape", False)
+            fragments = command.split("-")
+            for index, fragment in enumerate(fragments):
+                if fragment:
+                    response = await self.client.post(
+                        f"{self.base_url}/api/hid/print",
+                        content=fragment,
+                        timeout=_hid_print_timeout_s(fragment),
+                    )
+                    response.raise_for_status()
+                if index < len(fragments) - 1:
+                    await self._send_key_and_wait(socket, "Minus", True)
+                    await self._send_key_and_wait(socket, "Minus", False)
+            await asyncio.sleep(0.2)
+            await self._send_key_and_wait(socket, "Enter", True)
+            await self._send_key_and_wait(socket, "Enter", False)
+            await asyncio.sleep(0.3)
+
+    async def _wait_for_ocr_marker(
+        self,
+        marker: str,
+        *,
+        timeout_s: float,
+        minimum_matches: int = 1,
+    ) -> bool:
+        """Read one unique console marker before trusting visible setup."""
+
+        deadline = time.monotonic() + timeout_s
+        while time.monotonic() < deadline:
+            try:
+                response = await self.client.get(
+                    f"{self.base_url}/api/streamer/snapshot",
+                    params={
+                        "ocr": "1",
+                        "ocr_left": "0",
+                        "ocr_top": "0",
+                        "ocr_right": "2048",
+                        "ocr_bottom": "640",
+                    },
+                    timeout=min(10, max(1, deadline - time.monotonic())),
+                )
+                response.raise_for_status()
+                if (
+                    _ocr_marker_match_count(response.text, marker)
+                    >= minimum_matches
+                ):
+                    return True
+            except httpx.HTTPError:
+                pass
+            await asyncio.sleep(0.25)
+        return False
 
     async def ensure_campaign_workspace(
         self,
@@ -917,23 +1053,71 @@ class VncAdapter:
         """Prepare a clean task surface without deleting prior evidence."""
 
         path = str(CAMPAIGN_WORKSPACE)
+        visible_path = path.replace("\\", "/")
         prepared: list[dict[str, str]] = []
         await self.show_desktop()
-        await self._type_run_command(f"cmd /d /c mkdir {path} 2>nul")
+        await self._type_run_command(
+            f"cmd /d /c mkdir {visible_path} 2>nul"
+        )
+        if fresh_artifacts:
+            workspace_token = uuid.uuid4().hex
+            workspace_marker = (
+                f"PIKVMWORKSPACE{_ocr_marker_token(workspace_token)}"
+            )
+            await self._type_run_command(
+                f"cmd /d /k cd /d {visible_path} "
+                f"&& echo {workspace_marker}"
+            )
+            if not await self._wait_for_ocr_marker(
+                workspace_marker,
+                timeout_s=12,
+            ):
+                raise TimeoutError(
+                    "campaign workspace did not produce a visible success "
+                    "marker"
+                )
+            await self._type_focused_console_command("set PIKVMJOIN=X")
         for artifact in fresh_artifacts or []:
             safe_artifact = _validate_fresh_artifact_path(artifact)
             candidate = PureWindowsPath(safe_artifact)
-            prior = candidate.with_name(
-                f"{candidate.name}.pikvm-prior-{uuid.uuid4().hex}"
+            marker_token = uuid.uuid4().hex
+            prior_name = f"pikvmprior{marker_token}{candidate.suffix}"
+            prior = candidate.with_name(prior_name)
+            ocr_token = _ocr_marker_token(marker_token)
+            absent_marker = f"PIKVMABSENT{ocr_token}"
+            await self._type_focused_console_command(
+                f"if not exist {candidate.name} "
+                f"echo {_cmd_marker_expression(absent_marker)}"
             )
-            await self._type_run_command(
-                f'cmd /d /c ren "{candidate}" "{prior.name}"'
-            )
+            if await self._wait_for_ocr_marker(
+                absent_marker,
+                timeout_s=4,
+            ):
+                preservation_status = "verified_absent"
+            else:
+                preserved_marker = f"PIKVMPRESERVED{ocr_token}"
+                await self._type_focused_console_command(
+                    f"ren {candidate.name} {prior.name}"
+                )
+                await self._type_focused_console_command(
+                    f"if exist {prior.name} "
+                    f"if not exist {candidate.name} "
+                    f"echo {_cmd_marker_expression(preserved_marker)}"
+                )
+                if not await self._wait_for_ocr_marker(
+                    preserved_marker,
+                    timeout_s=12,
+                ):
+                    raise TimeoutError(
+                        "artifact preservation did not produce a visible "
+                        "success marker"
+                    )
+                preservation_status = "verified_visible_marker"
             prepared.append(
                 {
                     "path": str(candidate),
                     "preserved_as": str(prior),
-                    "preservation_status": "requested_unverified",
+                    "preservation_status": preservation_status,
                 }
             )
         await self.show_desktop()

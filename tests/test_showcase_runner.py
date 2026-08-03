@@ -872,10 +872,9 @@ async def test_reboot_replaces_any_existing_run_dialog_text(
             return True
 
         async def ready(**_kwargs: object) -> dict[str, object]:
-            return {
-                "ready": True,
-                "frame_sha256": "f" * 64,
-            }
+            raise AssertionError(
+                "the open Run dialog must not use the desktop-ready gate"
+            )
 
         adapter._wait_for_run_dialog = (  # type: ignore[method-assign]
             visible_transition
@@ -936,7 +935,7 @@ async def test_campaign_workspace_preflight_uses_segmented_visible_commands(
     assert result["ready"] is True
     assert result["method"] == "visible_windows_run_segmented"
     assert printed == [
-        r"cmd /d /c mkdir C:\PiKVM-Harness\workspace\codex-50 2>nul"
+        "cmd /d /c mkdir C:/PiKVM-Harness/workspace/codex-50 2>nul"
     ]
     assert {
         "key": "Enter",
@@ -984,6 +983,13 @@ async def test_campaign_workspace_preflight_preserves_a_prior_task_artifact(
         )
         adapter.show_desktop = show_desktop  # type: ignore[method-assign]
         adapter.wait_until_ready = ready  # type: ignore[method-assign]
+
+        async def marker_visible(marker: str, **_kwargs: object) -> bool:
+            return marker.startswith(("PIKVMWORKSPACE", "PIKVMPRESERVED"))
+
+        adapter._wait_for_ocr_marker = (  # type: ignore[method-assign]
+            marker_visible
+        )
         result = await adapter.ensure_campaign_workspace(
             [
                 (
@@ -995,7 +1001,7 @@ async def test_campaign_workspace_preflight_preserves_a_prior_task_artifact(
 
     preserved = (
         r"C:\PiKVM-Harness\workspace\codex-50"
-        rf"\text-10-exact.txt.pikvm-prior-{'a' * 32}"
+        rf"\pikvmprior{'a' * 32}.txt"
     )
     assert result["fresh_artifacts"] == [
         {
@@ -1004,19 +1010,176 @@ async def test_campaign_workspace_preflight_preserves_a_prior_task_artifact(
                 r"\text-10-exact.txt"
             ),
             "preserved_as": preserved,
-            "preservation_status": "requested_unverified",
+            "preservation_status": "verified_visible_marker",
         }
     ]
     assert desktop_calls == 2
     assert printed == [
-        r"cmd /d /c mkdir C:\PiKVM-Harness\workspace\codex-50 2>nul",
+        "cmd /d /c mkdir C:/PiKVM-Harness/workspace/codex-50 2>nul",
         (
-            r'cmd /d /c ren "C:\PiKVM-Harness\workspace\codex-50'
-            r'\text-10-exact.txt" '
-            rf'"text-10-exact.txt.pikvm-prior-{"a" * 32}"'
+            "cmd /d /k cd /d C:/PiKVM-Harness/workspace/codex-50 "
+            r"&& echo PIKVMWORKSPACELLLLLLLLLLLL"
+        ),
+        "set PIKVMJOIN=X",
+        (
+            "if not exist text"
+        ),
+        (
+            "10"
+        ),
+        (
+            r"exact.txt echo PIKVMABSENT"
+            r"%PIKVMJOIN:X=%LLLLLLLLLLLL"
+        ),
+        (
+            "ren text"
+        ),
+        (
+            "10"
+        ),
+        (
+            r"exact.txt " rf"pikvmprior{'a' * 32}.txt"
+        ),
+        (
+            rf"if exist pikvmprior{'a' * 32}.txt if not exist text"
+        ),
+        (
+            "10"
+        ),
+        (
+            r"exact.txt echo PIKVMPRESERVED"
+            r"%PIKVMJOIN:X=%LLLLLLLLLLLL"
         ),
     ]
     assert max(map(len, printed)) < 200
+    assert all("\\" not in command for command in printed)
+    assert sum(
+        event == {"key": "Minus", "state": True}
+        for event in [item["event"] for item in sent]
+    ) == 6
+
+
+@pytest.mark.asyncio
+async def test_campaign_workspace_preflight_fails_when_preservation_is_not_visible(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    sent: list[dict[str, object]] = []
+    printed: list[str] = []
+    monkeypatch.setattr(
+        showcase_runner,
+        "websocket_connect",
+        _socket_factory(sent),
+    )
+    monkeypatch.setattr(
+        showcase_runner.uuid,
+        "uuid4",
+        lambda: type("Uuid", (), {"hex": "b" * 32})(),
+    )
+    async with httpx.AsyncClient(
+        transport=httpx.MockTransport(_snapshot_handler(printed))
+    ) as client:
+        adapter = VncAdapter(client, "http://127.0.0.1:48002")
+
+        async def visible_transition(**_kwargs: object) -> bool:
+            return True
+
+        async def marker_missing(_marker: str, **_kwargs: object) -> bool:
+            return _marker.startswith("PIKVMWORKSPACE")
+
+        async def ready(**_kwargs: object) -> dict[str, object]:
+            return {
+                "ready": True,
+                "frame_sha256": "f" * 64,
+            }
+
+        adapter._wait_for_run_dialog = (  # type: ignore[method-assign]
+            visible_transition
+        )
+        adapter._wait_for_ocr_marker = (  # type: ignore[method-assign]
+            marker_missing
+        )
+        adapter.wait_until_ready = ready  # type: ignore[method-assign]
+
+        with pytest.raises(
+            TimeoutError,
+            match="artifact preservation did not produce a visible success marker",
+        ):
+            await adapter.ensure_campaign_workspace(
+                [
+                    (
+                        r"C:\PiKVM-Harness\workspace\codex-50"
+                        r"\text-10-exact.txt"
+                    )
+                ]
+            )
+
+    assert printed[-1].endswith(
+        "echo PIKVMPRESERVED"
+        "%PIKVMJOIN:X=%MMMMMMMMMMMM"
+    )
+    assert any(command.startswith("ren text") for command in printed)
+    assert not any("&&" in command for command in printed[3:])
+
+
+@pytest.mark.asyncio
+async def test_campaign_workspace_preflight_accepts_visibly_absent_artifact(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    sent: list[dict[str, object]] = []
+    printed: list[str] = []
+    monkeypatch.setattr(
+        showcase_runner,
+        "websocket_connect",
+        _socket_factory(sent),
+    )
+    monkeypatch.setattr(
+        showcase_runner.uuid,
+        "uuid4",
+        lambda: type("Uuid", (), {"hex": "c" * 32})(),
+    )
+    async with httpx.AsyncClient(
+        transport=httpx.MockTransport(_snapshot_handler(printed))
+    ) as client:
+        adapter = VncAdapter(client, "http://127.0.0.1:48002")
+
+        async def visible_transition(**_kwargs: object) -> bool:
+            return True
+
+        async def marker_visible(marker: str, **_kwargs: object) -> bool:
+            return marker.startswith("PIKVMWORKSPACE") or marker == (
+                "PIKVMABSENTNNNNNNNNNNNN"
+            )
+
+        async def ready(**_kwargs: object) -> dict[str, object]:
+            return {
+                "ready": True,
+                "frame_sha256": "f" * 64,
+            }
+
+        adapter._wait_for_run_dialog = (  # type: ignore[method-assign]
+            visible_transition
+        )
+        adapter._wait_for_ocr_marker = (  # type: ignore[method-assign]
+            marker_visible
+        )
+        adapter.wait_until_ready = ready  # type: ignore[method-assign]
+        result = await adapter.ensure_campaign_workspace(
+            [
+                (
+                    r"C:\PiKVM-Harness\workspace\codex-50"
+                    r"\text-10-exact.txt"
+                )
+            ]
+        )
+
+    assert result["fresh_artifacts"][0]["preservation_status"] == (
+        "verified_absent"
+    )
+    assert printed[-1].endswith(
+        "echo PIKVMABSENT"
+        "%PIKVMJOIN:X=%NNNNNNNNNNNN"
+    )
+    assert not any(command.startswith("ren ") for command in printed)
 
 
 @pytest.mark.parametrize(
@@ -1049,6 +1212,50 @@ def test_showcase_manifest_rejects_unbounded_fresh_artifacts(
                 ],
             }
         )
+
+
+def test_preflight_marker_match_tolerates_one_ocr_glyph_error() -> None:
+    assert showcase_runner._ocr_marker_matches(
+        (
+            "Administrator: C:\\WINDOWS\n"
+            "PIKVMWORKSPACEABCDUFGHJKLM\n"
+            "Everything Spotify"
+        ),
+        "PIKVMWORKSPACEABCDVFGHJKLM",
+    )
+
+
+def test_preflight_marker_match_rejects_stale_or_wrong_markers() -> None:
+    assert not showcase_runner._ocr_marker_matches(
+        "PIKVMWORKSPACEAAAAAAAAAAAA",
+        "PIKVMWORKSPACEBBBBBBBBBBBB",
+    )
+    assert not showcase_runner._ocr_marker_matches(
+        "PIKVMABSENTABCDVFGHJKLM",
+        "PIKVMWORKSPACEABCDVFGHJKLM",
+    )
+
+
+def test_preflight_marker_count_distinguishes_command_from_output() -> None:
+    marker = "PIKVMABSENTABCDVFGHJKLM"
+    command_only = f"C:\\workspace>if not exist code-08.cmd echo {marker}"
+    command_and_output = f"{command_only}\n{marker}"
+
+    assert showcase_runner._ocr_marker_match_count(command_only, marker) == 1
+    assert (
+        showcase_runner._ocr_marker_match_count(command_and_output, marker)
+        == 2
+    )
+
+
+def test_cmd_marker_expression_only_reveals_marker_after_expansion() -> None:
+    marker = "PIKVMPRESERVEDABCDVFGHJKLM"
+    expression = showcase_runner._cmd_marker_expression(marker)
+
+    assert marker not in expression
+    assert expression == (
+        "PIKVMPRESERVED%PIKVMJOIN:X=%ABCDVFGHJKLM"
+    )
 
 
 @pytest.mark.asyncio
