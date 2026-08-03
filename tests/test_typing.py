@@ -2659,6 +2659,83 @@ async def test_short_exact_field_reads_once_with_caret_blurred() -> None:
     _assert_no_enter(backend)
 
 
+async def test_short_filename_moves_caret_without_blurring_into_file_type() -> None:
+    backend = FakeBackend()
+    intended = "code-08.cmd"
+    emitted = ""
+
+    def field_frame(text: str) -> bytes:
+        image = Image.new("RGB", (1280, 720), (24, 28, 36))
+        draw = ImageDraw.Draw(image)
+        draw.rectangle([80, 100, 520, 150], fill=(245, 245, 245))
+        draw.text((100, 115), text, fill=(20, 20, 20))
+        output = io.BytesIO()
+        image.save(output, format="JPEG", quality=95)
+        return output.getvalue()
+
+    class SaveAsFieldOCR:
+        async def ocr(self, image_path, region=None):
+            return await self.ocr_precise(image_path, region=region)
+
+        async def ocr_precise(self, image_path, region=None):
+            del image_path, region
+            caret_home = any(
+                method == "press_key" and kwargs["code"] == "Home"
+                for method, kwargs in backend.calls
+            )
+            blurred = any(
+                method == "keypress" and kwargs["keys"] == ["Tab"]
+                for method, kwargs in backend.calls
+            )
+            observed = (
+                "Text documents (*.txt)"
+                if blurred
+                else intended
+                if caret_home
+                else "code-08.cimd"
+            )
+            return OCRResult(
+                lines=[
+                    OCRLine(
+                        text=observed,
+                        confidence=0.99,
+                        bbox=[100, 115, 260, 135],
+                    )
+                ],
+                spacing_evidence="verified",
+            )
+
+    original_type = backend.type_text
+    backend.set_frame_bytes(field_frame(""))
+
+    async def typing(
+        text: str,
+        *,
+        code: bool = False,
+        secret: bool = False,
+    ) -> None:
+        nonlocal emitted
+        await original_type(text, code=code, secret=secret)
+        emitted += text
+        backend.set_frame_bytes(field_frame(emitted))
+
+    backend.type_text = typing  # type: ignore[method-assign]
+
+    result = await WatchedTyper(backend, SaveAsFieldOCR()).type_text(
+        intended,
+        exact=True,
+        context="field",
+    )
+
+    assert result.status == "verified_exact", result
+    assert result.emitted_exactly_once is True
+    assert emitted == intended
+    assert ("press_key", {"code": "Home"}) in backend.calls
+    assert ("keypress", {"keys": ["Tab"]}) not in backend.calls
+    assert ("keypress", {"keys": ["ShiftLeft", "Tab"]}) not in backend.calls
+    _assert_no_enter(backend)
+
+
 @pytest.mark.parametrize(
     ("stabilized_read", "expected_status"),
     [

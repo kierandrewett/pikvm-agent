@@ -4372,6 +4372,15 @@ class WatchedTyper:
                 and (
                     editor_field
                     or total > 20
+                    # A native Save As/Open filename field is immediately
+                    # followed by the file-type control. Blurring a short
+                    # basename with Tab therefore moves the independent OCR
+                    # read onto e.g. ``Text documents (*.txt)`` and can make
+                    # correctly delivered input look like a wrong-region
+                    # failure. Keep focus in the filename field and move only
+                    # its caret; the subsequent OCR still has to match every
+                    # requested character before any commit is allowed.
+                    or _SAFE_FILENAME.fullmatch(intended_snapshot) is not None
                     or any(
                         character.isspace()
                         for character in intended_snapshot
