@@ -218,6 +218,45 @@ def _normalize_plan_safety_constraints(
     )
 
 
+def _preserve_immutable_artifact_contract(
+    run: RunSnapshot,
+    plan: PlanDecision,
+) -> tuple[PlanDecision, str | None]:
+    """Prevent a later replan from weakening accepted artifact provenance."""
+
+    original_content: str | None = None
+    original_kind: str | None = None
+    for event in run.events:
+        if event.kind != "model.completed" or event.data.get("role") != "reasoner":
+            continue
+        recorded_plan = event.data.get("plan")
+        if not isinstance(recorded_plan, dict):
+            continue
+        content = recorded_plan.get("artifact_content")
+        kind = recorded_plan.get("artifact_content_kind")
+        if isinstance(content, str) and kind in {"code", "prose"}:
+            original_content = content
+            original_kind = str(kind)
+            break
+    if original_content is None or original_kind is None:
+        return plan, None
+    if (
+        plan.artifact_content == original_content
+        and plan.artifact_content_kind == original_kind
+    ):
+        return plan, None
+    reason = "removed" if plan.artifact_content is None else "changed"
+    return (
+        plan.model_copy(
+            update={
+                "artifact_content": original_content,
+                "artifact_content_kind": original_kind,
+            }
+        ),
+        reason,
+    )
+
+
 _READ_ONLY_SETTINGS_VERB = re.compile(
     r"\b(?:check|describe|find|inspect|read|report|show|tell|view|what|which)\b",
     re.IGNORECASE,
@@ -3425,12 +3464,31 @@ class AgentHarness:
         plan, normalized_constraint_count = _normalize_plan_safety_constraints(
             plan
         )
+        proposed_artifact_content = plan.artifact_content
+        plan, artifact_preservation_reason = (
+            _preserve_immutable_artifact_contract(run, plan)
+        )
         run.plan = plan
         if normalized_constraint_count:
             run.record(
                 "plan.constraints_normalized",
                 count=normalized_constraint_count,
                 source="generic_non_mutation_guard",
+            )
+        if artifact_preservation_reason is not None:
+            run.record(
+                "plan.artifact_contract_preserved",
+                reason=artifact_preservation_reason,
+                original_sha256=hashlib.sha256(
+                    (plan.artifact_content or "").encode("utf-8")
+                ).hexdigest(),
+                proposed_sha256=(
+                    hashlib.sha256(
+                        proposed_artifact_content.encode("utf-8")
+                    ).hexdigest()
+                    if proposed_artifact_content is not None
+                    else None
+                ),
             )
         run.record(
             "model.completed",

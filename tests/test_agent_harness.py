@@ -27,6 +27,7 @@ from pikvm_agent.harness.agent import (
     _notepad_file_dialog_controller,
     _notepad_fast_path,
     _notepad_new_document_controller,
+    _preserve_immutable_artifact_contract,
     _verification_confirms_standard_calculator,
 )
 from pikvm_agent.harness.agent_models import (
@@ -55,6 +56,53 @@ from pikvm_agent.harness.model_pool import ModelPool, RoleRoute
 
 def test_default_harness_burst_budget_supports_full_local_workflows() -> None:
     assert HarnessConfig().max_actions_per_burst == 20
+
+
+def test_replan_cannot_drop_or_replace_immutable_artifact_content() -> None:
+    original = "@echo off\nping -n 1 127.0.0.1 >nul\n"
+    run = RunSnapshot(
+        run_id="immutable-artifact-replan",
+        task="Write a batch file in Notepad.",
+        status=RunStatus.RUNNING,
+    )
+    run.record(
+        "model.completed",
+        role="reasoner",
+        plan={
+            "summary": "Author the batch file.",
+            "steps": ["Type it"],
+            "success_criteria": ["The exact batch file is visible."],
+            "constraints": [],
+            "artifact_content": original,
+            "artifact_content_kind": "code",
+        },
+    )
+
+    dropped, dropped_reason = _preserve_immutable_artifact_contract(
+        run,
+        PlanDecision(
+            summary="Nothing remains.",
+            steps=["Stop"],
+            success_criteria=["The file is visible."],
+        ),
+    )
+    replaced, replaced_reason = _preserve_immutable_artifact_contract(
+        run,
+        PlanDecision(
+            summary="Rewrite the file.",
+            steps=["Type something else"],
+            success_criteria=["Different content is visible."],
+            artifact_content="echo changed",
+            artifact_content_kind="code",
+        ),
+    )
+
+    assert dropped.artifact_content == original
+    assert dropped.artifact_content_kind == "code"
+    assert dropped_reason == "removed"
+    assert replaced.artifact_content == original
+    assert replaced.artifact_content_kind == "code"
+    assert replaced_reason == "changed"
 
 
 def test_modifier_free_key_sequence_is_expanded_before_hid() -> None:
