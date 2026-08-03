@@ -1583,6 +1583,14 @@ def harness_showcase_run(
         max=50,
         help="Bounded paused-checkpoint recoveries before a task fails.",
     ),
+    only_task_id: str | None = typer.Option(
+        None,
+        "--only-task",
+        help=(
+            "Run exactly this task from the manifest. Unlike "
+            "--stop-after-task, earlier tasks are not executed."
+        ),
+    ),
     stop_after_task_id: str | None = typer.Option(
         None,
         "--stop-after-task",
@@ -1623,6 +1631,7 @@ def harness_showcase_run(
                 reboot_timeout_s=reboot_timeout_s,
                 frame_interval_s=frame_interval_s,
                 max_same_run_recoveries=max_same_run_recoveries,
+                only_task_id=only_task_id,
                 stop_after_task_id=stop_after_task_id,
             )
         )

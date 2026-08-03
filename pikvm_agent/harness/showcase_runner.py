@@ -1227,19 +1227,42 @@ async def run_showcase_campaign(
     reboot_timeout_s: float = 300,
     frame_interval_s: float = 0.5,
     max_same_run_recoveries: int = 8,
+    only_task_id: str | None = None,
     stop_after_task_id: str | None = None,
 ) -> dict[str, Any]:
     manifest = load_showcase_manifest(manifest_path)
     if max_same_run_recoveries < 1:
         raise ValueError("max_same_run_recoveries must be positive")
+    manifest_task_ids = {task.task_id for task in manifest.tasks}
+    if (
+        only_task_id is not None
+        and only_task_id not in manifest_task_ids
+    ):
+        raise ValueError(f"only task is not in manifest: {only_task_id}")
     if (
         stop_after_task_id is not None
-        and stop_after_task_id not in {
-            task.task_id for task in manifest.tasks
-        }
+        and stop_after_task_id not in manifest_task_ids
     ):
         raise ValueError(
             f"stop-after task is not in manifest: {stop_after_task_id}"
+        )
+    if (
+        only_task_id is not None
+        and stop_after_task_id is not None
+        and only_task_id != stop_after_task_id
+    ):
+        raise ValueError(
+            "only-task and stop-after-task must name the same task"
+        )
+    if only_task_id is not None:
+        manifest = manifest.model_copy(
+            update={
+                "tasks": [
+                    task
+                    for task in manifest.tasks
+                    if task.task_id == only_task_id
+                ]
+            }
         )
     try:
         lease = ShowcaseCampaignLease.acquire(

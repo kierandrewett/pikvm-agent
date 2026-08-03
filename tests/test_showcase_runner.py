@@ -426,6 +426,8 @@ tasks:
             "http://127.0.0.1:48001",
             "--stop-after-task",
             "task-1",
+            "--only-task",
+            "task-1",
         ],
         env={
             "PIKVM_HARNESS_AGENT_TOKEN": "a" * 32,
@@ -442,6 +444,90 @@ tasks:
     )
     assert calls[0]["max_same_run_recoveries"] == 8
     assert calls[0]["stop_after_task_id"] == "task-1"
+    assert calls[0]["only_task_id"] == "task-1"
+
+
+@pytest.mark.asyncio
+async def test_showcase_only_task_filters_before_adapter_preflight(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manifest_path = tmp_path / "manifest.yaml"
+    manifest_path.write_text(
+        """
+schema_version: 1
+campaign_id: selected-campaign
+title: Selected campaign
+provider: codex-fast
+tasks:
+  - task_id: task-1
+    title: First
+    category: Observation
+    prompt: Describe the desktop.
+  - task_id: task-2
+    title: Second
+    category: Observation
+    prompt: Describe the taskbar.
+""".strip(),
+        encoding="utf-8",
+    )
+    captured: list[ShowcaseManifest] = []
+
+    async def selected_runner(**kwargs):
+        captured.append(kwargs["manifest"])
+        return {"campaign_id": "selected-campaign", "status": "paused"}
+
+    monkeypatch.setattr(
+        showcase_runner,
+        "_run_showcase_campaign_locked",
+        selected_runner,
+    )
+
+    await showcase_runner.run_showcase_campaign(
+        manifest_path=manifest_path,
+        output_root=tmp_path / "output",
+        harness_url="http://127.0.0.1:48001",
+        adapter_url="http://127.0.0.1:48002",
+        agent_token="a" * 32,
+        operator_token="b" * 32,
+        operator_origin="http://127.0.0.1:48001",
+        only_task_id="task-2",
+    )
+
+    assert [task.task_id for task in captured[0].tasks] == ["task-2"]
+
+
+@pytest.mark.asyncio
+async def test_showcase_rejects_unknown_only_task_before_connecting(
+    tmp_path: Path,
+) -> None:
+    manifest_path = tmp_path / "manifest.yaml"
+    manifest_path.write_text(
+        """
+schema_version: 1
+campaign_id: selected-campaign
+title: Selected campaign
+provider: codex-fast
+tasks:
+  - task_id: task-1
+    title: Observe
+    category: Observation
+    prompt: Describe the desktop.
+""".strip(),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="only task is not in manifest"):
+        await showcase_runner.run_showcase_campaign(
+            manifest_path=manifest_path,
+            output_root=tmp_path / "output",
+            harness_url="http://127.0.0.1:48001",
+            adapter_url="http://127.0.0.1:48002",
+            agent_token="a" * 32,
+            operator_token="b" * 32,
+            operator_origin="http://127.0.0.1:48001",
+            only_task_id="missing-task",
+        )
 
 
 @pytest.mark.asyncio
