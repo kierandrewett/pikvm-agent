@@ -7920,6 +7920,92 @@ def test_precise_readback_localizes_measured_save_as_filename_noise() -> None:
     assert refined == Region(x=217, y=429, width=200, height=24)
 
 
+async def test_precise_readback_prefers_native_filename_edit_over_history() -> None:
+    intended = "code-08.cmd"
+
+    class SaveAsHistoryOCR:
+        def __init__(self) -> None:
+            self.regions: list[Region | None] = []
+
+        async def ocr_precise(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path
+            self.regions.append(region)
+            if len(self.regions) == 1:
+                return OCRResult(
+                    lines=[
+                        OCRLine(
+                            text="File game",
+                            confidence=0.9842,
+                            bbox=[75, 15, 112, 26],
+                        ),
+                        OCRLine(
+                            text="kode-08.cmd",
+                            confidence=0.9793,
+                            bbox=[116, 14, 163, 24],
+                        ),
+                        OCRLine(
+                            text=(
+                                "code-08.cmd.pikvm-prior-"
+                                "6a891adbe4834964b74b3"
+                            ),
+                            confidence=0.974,
+                            bbox=[118, 23, 290, 39],
+                        ),
+                        OCRLine(
+                            text=(
+                                "code-08.cmd.pikvm-prior-"
+                                "d0140da7081c41eb8187c"
+                            ),
+                            confidence=0.9977,
+                            bbox=[119, 60, 289, 72],
+                        ),
+                    ]
+                )
+            assert region is not None
+            if region.y < 390:
+                return OCRResult(
+                    lines=[
+                        OCRLine(
+                            text=intended,
+                            confidence=0.999,
+                            bbox=[2, 6, 48, 16],
+                        )
+                    ]
+                )
+            return OCRResult(
+                lines=[
+                    OCRLine(
+                        text=(
+                            "code-08.cmd.pikvm-prior-"
+                            "d0140da7081c41eb8187c"
+                        ),
+                        confidence=0.999,
+                        bbox=[2, 6, 190, 16],
+                    )
+                ]
+            )
+
+    ocr = SaveAsHistoryOCR()
+    typer = WatchedTyper(FakeBackend(width=1280, height=800), ocr)
+
+    observed = await typer._read_field(
+        Region(x=37, y=355, width=753, height=223),
+        intended=intended,
+        precise=True,
+    )
+
+    assert observed == intended
+    assert len(ocr.regions) == 2
+    refined = ocr.regions[1]
+    assert refined is not None
+    assert refined.y < 390
+    assert typer._refined_readback_region == refined
+
+
 def test_precise_readback_prefers_exact_editor_row_over_tab_title() -> None:
     intended = "def fizzbuzz(limit):"
     result = OCRResult(

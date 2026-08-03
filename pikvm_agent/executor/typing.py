@@ -1589,8 +1589,60 @@ def precise_readback_candidate_region(
         return None
 
     container_midpoint_y = container.height / 2
+    intended_is_filename = _SAFE_FILENAME.fullmatch(intended) is not None
+    filename_label_regions: list[Region] = []
+    if intended_is_filename:
+        for candidate in result.lines:
+            label_text = "".join(
+                character.casefold()
+                for character in candidate.text
+                if character.isalnum()
+            )
+            label_region = ocr_line_region(
+                candidate,
+                (
+                    math.ceil(container.width),
+                    math.ceil(container.height),
+                ),
+                pad=0,
+            )
+            if (
+                label_region is not None
+                and 6 <= len(label_text) <= 10
+                and levenshtein("filename", label_text, 2) <= 2
+            ):
+                filename_label_regions.append(label_region)
 
-    def candidate_order(line: OCRLine) -> tuple[int, float]:
+    def filename_row_is_labelled(
+        line: OCRLine,
+        line_region: Region | None,
+    ) -> bool:
+        if not intended_is_filename or line_region is None:
+            return False
+        normalized = "".join(
+            character.casefold()
+            for character in line.text
+            if character.isalnum()
+        )
+        if normalized.startswith("filename"):
+            return True
+        for label in filename_label_regions:
+            overlap = max(
+                0.0,
+                min(
+                    line_region.y + line_region.height,
+                    label.y + label.height,
+                )
+                - max(line_region.y, label.y),
+            )
+            if (
+                line_region.x >= label.x + label.width - 8
+                and overlap >= min(line_region.height, label.height) * 0.5
+            ):
+                return True
+        return False
+
+    def candidate_order(line: OCRLine) -> tuple[int, int, float]:
         line_region = ocr_line_region(
             line,
             (
@@ -1608,7 +1660,18 @@ def precise_readback_candidate_region(
             if line_region is not None
             else math.inf
         )
+        # A native Windows filename edit can open an autocomplete popup below
+        # itself. Those history rows often begin with the newly typed basename
+        # and can even contain it exactly, while OCR makes one glyph error in
+        # the selected edit row. Prefer only the row horizontally paired with
+        # the independently visible ``File name`` label. Exact comparison is
+        # still performed by a fresh OCR pass over the resulting crop.
         return (
+            (
+                0
+                if filename_row_is_labelled(line, line_region)
+                else 1
+            ),
             0 if line.text == intended else 1,
             midpoint_distance,
         )
