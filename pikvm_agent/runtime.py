@@ -302,6 +302,9 @@ def _is_confirmed_blank_titleless_notepad_editor(
     frame_height: int,
     origin_x: float = 0,
     origin_y: float = 0,
+    additional_observations: tuple[
+        tuple[OCRResult, float, float], ...
+    ] = (),
 ) -> bool:
     """Recognize fresh Windows 11 Notepad despite bounded OCR corruption.
 
@@ -314,28 +317,32 @@ def _is_confirmed_blank_titleless_notepad_editor(
     evidence: list[
         tuple[str, tuple[float, float, float, float]]
     ] = []
-    for line in observed.lines:
-        box = bbox_from_ocr(line.bbox)
-        rectangle = (
-            (
-                float(box.x),
-                float(box.y),
-                float(box.x + box.w),
-                float(box.y + box.h),
-            )
-            if box is not None
-            else None
-        )
-        if rectangle is not None and (origin_x or origin_y):
+    for observation, offset_x, offset_y in (
+        (observed, origin_x, origin_y),
+        *additional_observations,
+    ):
+        for line in observation.lines:
+            box = bbox_from_ocr(line.bbox)
             rectangle = (
-                rectangle[0] + origin_x,
-                rectangle[1] + origin_y,
-                rectangle[2] + origin_x,
-                rectangle[3] + origin_y,
+                (
+                    float(box.x),
+                    float(box.y),
+                    float(box.x + box.w),
+                    float(box.y + box.h),
+                )
+                if box is not None
+                else None
             )
-        text = " ".join(str(line.text or "").casefold().split())
-        if rectangle is not None and text:
-            evidence.append((text, rectangle))
+            if rectangle is not None and (offset_x or offset_y):
+                rectangle = (
+                    rectangle[0] + offset_x,
+                    rectangle[1] + offset_y,
+                    rectangle[2] + offset_x,
+                    rectangle[3] + offset_y,
+                )
+            text = " ".join(str(line.text or "").casefold().split())
+            if rectangle is not None and text:
+                evidence.append((text, rectangle))
 
     titles = [
         (text, box)
@@ -1644,6 +1651,15 @@ class Runtime:
                 # feed it through the same independent geometry and blank
                 # canvas proof before allowing editor newlines.
                 precise_ocr = getattr(ocr, "ocr_precise", None)
+                evidence_observed = (
+                    bounded if bounded is not None else observed
+                )
+                evidence_origin_x = (
+                    window_region.x if bounded is not None else 0
+                )
+                evidence_origin_y = (
+                    window_region.y if bounded is not None else 0
+                )
                 if not confirmed and callable(precise_ocr):
                     try:
                         precise = await precise_ocr(
@@ -1666,6 +1682,51 @@ class Runtime:
                         observed_text = (
                             f"{observed_text}\n"
                             f"{str(precise.text or '')[:2_000]}"
+                        )
+                        evidence_observed = precise
+                        evidence_origin_x = window_region.x
+                        evidence_origin_y = window_region.y
+                if not confirmed and callable(precise_ocr):
+                    # A narrow same-frame strip prevents dense background
+                    # tabs from causing Tesseract to omit only Notepad's
+                    # small `File` menu label. Fuse the strip with the broad
+                    # title/status evidence; no strip can authorize input by
+                    # itself because the unchanged canvas geometry proof
+                    # still consumes all evidence from the immutable frame.
+                    menu_region = Region(
+                        x=frame.width * 0.02,
+                        y=frame.height * 0.06,
+                        width=frame.width * 0.28,
+                        height=frame.height * 0.07,
+                    )
+                    try:
+                        menu = await precise_ocr(
+                            Path(frame.image_path),
+                            region=menu_region,
+                        )
+                    except Exception:
+                        menu = None
+                    if menu is not None:
+                        confirmed = (
+                            _is_confirmed_blank_titleless_notepad_editor(
+                                evidence_observed,
+                                Path(frame.image_path),
+                                frame_width=frame.width,
+                                frame_height=frame.height,
+                                origin_x=evidence_origin_x,
+                                origin_y=evidence_origin_y,
+                                additional_observations=(
+                                    (
+                                        menu,
+                                        menu_region.x,
+                                        menu_region.y,
+                                    ),
+                                ),
+                            )
+                        )
+                        observed_text = (
+                            f"{observed_text}\n"
+                            f"{str(menu.text or '')[:2_000]}"
                         )
             return (
                 observed_text,
