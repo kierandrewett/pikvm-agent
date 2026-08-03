@@ -938,6 +938,91 @@ async def test_live_titleless_notepad_ocr_corruption_allows_deferred_newlines(
     ]
 
 
+async def test_titleless_notepad_uses_bounded_window_ocr_when_full_frame_misses(
+    runtime: Runtime,
+) -> None:
+    class WindowRecoveredNotepadOCR:
+        def __init__(self) -> None:
+            self.regions: list[Region | None] = []
+
+        async def ocr(self, image_path, region=None):
+            del image_path
+            self.regions.append(region)
+            if region is None:
+                return OCRResult(
+                    lines=[
+                        OCRLine(
+                            text=(
+                                "pM Wats unter Uniled United Untled code"
+                            ),
+                            bbox=[45, 51, 829, 77],
+                        ),
+                        OCRLine(text="Edge", bbox=[11, 102, 64, 125]),
+                    ]
+                )
+            return OCRResult(
+                lines=[
+                    OCRLine(
+                        text="Untitiee Untitled Untitted",
+                        bbox=[16, 28, 645, 44],
+                    ),
+                    OCRLine(
+                        text="File Edit View",
+                        bbox=[0, 38, 113, 60],
+                    ),
+                    OCRLine(
+                        text="O characters",
+                        bbox=[88, 470, 131, 482],
+                    ),
+                    OCRLine(
+                        text="Windows (CRU)",
+                        bbox=[728, 472, 782, 481],
+                    ),
+                    OCRLine(
+                        text="UTF-8",
+                        bbox=[833, 474, 853, 480],
+                    ),
+                ]
+            )
+
+    provider = WindowRecoveredNotepadOCR()
+    runtime._screen_parser.ocr = provider
+    sid = (await runtime.start_session("direct"))["session_id"]
+    shot = await runtime.get_session_summary(sid, capture=True)
+    actions = [
+        {
+            "type": "type_text",
+            "text": "@echo off",
+            "code": True,
+            "context": "editor",
+            "verification": "deferred_exact",
+        },
+        {"type": "key", "keys": ["ENTER"]},
+        {
+            "type": "type_text",
+            "text": "exit /b 0",
+            "code": True,
+            "context": "editor",
+            "verification": "deferred_exact",
+        },
+    ]
+
+    result = await runtime.run_burst(
+        sid,
+        actions,
+        based_on_world_version=shot["world_version"],
+        based_on_control_epoch=shot["control_epoch"],
+        idempotency_key="bounded-window-notepad-deferred-newline",
+    )
+
+    assert result["status"] == "completed"
+    assert len(provider.regions) == 2
+    assert provider.regions[0] is None
+    assert provider.regions[1] is not None
+    assert provider.regions[1].width < shot["width"]
+    assert provider.regions[1].height < shot["height"]
+
+
 async def test_titleless_notepad_chrome_behind_busy_foreground_fails_closed(
     runtime: Runtime,
 ) -> None:

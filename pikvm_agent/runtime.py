@@ -300,6 +300,8 @@ def _is_confirmed_blank_titleless_notepad_editor(
     *,
     frame_width: int,
     frame_height: int,
+    origin_x: float = 0,
+    origin_y: float = 0,
 ) -> bool:
     """Recognize fresh Windows 11 Notepad despite bounded OCR corruption.
 
@@ -324,6 +326,13 @@ def _is_confirmed_blank_titleless_notepad_editor(
             if box is not None
             else None
         )
+        if rectangle is not None and (origin_x or origin_y):
+            rectangle = (
+                rectangle[0] + origin_x,
+                rectangle[1] + origin_y,
+                rectangle[2] + origin_x,
+                rectangle[3] + origin_y,
+            )
         text = " ".join(str(line.text or "").casefold().split())
         if rectangle is not None and text:
             evidence.append((text, rectangle))
@@ -1588,16 +1597,45 @@ class Runtime:
             return ("", False, False, False)
         observed_text = str(observed.text or "")[:2_000]
         if deferred_editor:
+            confirmed = _is_confirmed_blank_titleless_notepad_editor(
+                observed,
+                Path(frame.image_path),
+                frame_width=frame.width,
+                frame_height=frame.height,
+            )
+            if not confirmed:
+                window_region = Region(
+                    x=frame.width * 0.02,
+                    y=frame.height * 0.03,
+                    width=frame.width * 0.72,
+                    height=frame.height * 0.70,
+                )
+                try:
+                    bounded = await ocr.ocr(
+                        Path(frame.image_path),
+                        region=window_region,
+                    )
+                except Exception:
+                    bounded = None
+                if bounded is not None:
+                    confirmed = (
+                        _is_confirmed_blank_titleless_notepad_editor(
+                            bounded,
+                            Path(frame.image_path),
+                            frame_width=frame.width,
+                            frame_height=frame.height,
+                            origin_x=window_region.x,
+                            origin_y=window_region.y,
+                        )
+                    )
+                    observed_text = (
+                        f"{observed_text}\n{str(bounded.text or '')[:2_000]}"
+                    )
             return (
                 observed_text,
                 False,
                 False,
-                _is_confirmed_blank_titleless_notepad_editor(
-                    observed,
-                    Path(frame.image_path),
-                    frame_width=frame.width,
-                    frame_height=frame.height,
-                ),
+                confirmed,
             )
         if local_file_overwrite:
             precise_ocr = getattr(ocr, "ocr_precise", None)
