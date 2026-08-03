@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "report": "codex-code-entry-code06-failure-inclusive-attempts",
-  "recorded_at": "2026-08-03T03:39:56Z",
+  "recorded_at": "2026-08-03T03:54:17Z",
   "environment": {
     "target": "authorized disposable Windows VNC VM",
     "production_target_contacted": false,
@@ -25,8 +25,8 @@
     ]
   },
   "summary": {
-    "full_task_runs": 7,
-    "failed_runs": 7,
+    "full_task_runs": 8,
+    "failed_runs": 8,
     "invalid_runs": 0,
     "passed_runs": 0,
     "all_failures_retained": true,
@@ -234,6 +234,40 @@
       "campaign_sha256": "e40b2d000b6fd007d4dee2dae59702ff400d3ab2d4f6944a26df8065f08ae4fc",
       "recording_sha256": "9fa65a6039e117d788b34a52002e57efb93849fffac0c61db36dd0d1f2950929",
       "poster_sha256": "a9f95897f9e4ed5502374d16566be8e934d268ad8cabb691cae3a9170abb5e01"
+    },
+    {
+      "campaign_id": "codex-code-entry-code06-v8-20260803",
+      "manifest_campaign_id": "codex-windows-50",
+      "accepted_status": "failed",
+      "run_id": "9e259fa8-5057-4fcf-a7a7-fee1b542efaf",
+      "reason": "The glyph-only horizontal selector encountered more than one substantial causal band in the transient live frame and returned no crop, so the caller silently fell back to the original 35-by-28-pixel structural region. After `Home`, blind exact OCR again returned `| };`. The receipt rejected the caret-contaminated wrong-region contains match, emitted the four requested characters exactly once, and performed no replay. Two model-only recovery cycles sent no further HID before the run blocked.",
+      "wall_clock_ms": 340234,
+      "provider_wait_ms": 106697,
+      "provider_wait_share": 0.3135988760676476,
+      "action_execution_ms": 227069,
+      "action_execution_share": 0.6673906781803112,
+      "provider_calls": 15,
+      "reasoner_calls": 3,
+      "controller_calls": 5,
+      "verifier_calls": 7,
+      "actions_attempted": 13,
+      "actions_completed": 12,
+      "failed_action_ms": 18507,
+      "failed_input_status": "unverified_wrong_region",
+      "failed_input_requested_characters": 4,
+      "failed_input_issued_characters": 4,
+      "failed_input_observed_characters": 4,
+      "failed_input_readback": "| };",
+      "failed_input_delivery_retries": 0,
+      "failed_input_emitted_exactly_once": true,
+      "recovery_cycles_after_failed_input": 2,
+      "hid_inputs_after_failed_input": 0,
+      "quiescence_status": "confirmed",
+      "reboot_ms": 79104,
+      "reboot_transition_observed": true,
+      "campaign_sha256": "afe549cd3f58d5f3aaaeb69589db173850db58334143a9a74a5fbb2eee996d9f",
+      "recording_sha256": "5336206d260d80c2bacfa1c6958f6b24cd4080efec9f35a88e29bbaeb84dcfe4",
+      "poster_sha256": "000b1997fa4c82e3258434c4b6953bd9316edd722b362a5b50ad0cbb961ce811"
     }
   ],
   "remediations": [
@@ -276,6 +310,11 @@
       "after_attempt": "v7",
       "commit": "be5ff92cdee32012f5a053b7f8d302892c9ae26f",
       "change": "Split the target row into horizontal changed-pixel bands as well, rejecting the one-pixel Home caret and cropping only the unambiguous substantial glyph band."
+    },
+    {
+      "after_attempt": "v8",
+      "commit": "5fb8835ea82459b328317a3faa6ba697190c5436",
+      "change": "Use causal pixels only for the vertical row selection, then derive horizontal bounds from glyphs still visible in the after frame so a vanished pre-input caret cannot create a second substantial band or force fallback to the raw crop."
     }
   ],
   "invalid_scope_run": {
@@ -293,7 +332,7 @@
   "next_gate": {
     "status": "pending",
     "requirements": [
-      "Prove the compact four-character closing row from the glyph-only horizontal and vertical pixel band with caret-stabilized exact OCR and independent status evidence, without replay.",
+      "Prove the compact four-character closing row from the after-frame glyph band with caret-stabilized exact OCR and independent status evidence, without replay or raw-crop fallback.",
       "Stop model-only recovery promptly when every proposed mutation is forbidden by an unverified input draft.",
       "Save, reopen, and independently verify the complete JavaScript artifact.",
       "Retain recording, quiescence, and a transition-observed reboot."
