@@ -396,10 +396,12 @@ def structural_editor_readback_band(
 
     Dense localisation deliberately pads changed components for ordinary OCR.
     On a tiny appended punctuation row that padding can include the preceding
-    editor line. Use only the causal before/after pixels to split vertical and
-    horizontal bands, discard one-pixel caret/JPEG noise, and select the lowest
-    unambiguous substantial text band. This supplies geometry only; exact OCR
-    and the independent editor status invariant remain mandatory.
+    editor line. Use causal before/after pixels to select the vertical band,
+    then bound the text that remains visible in the after frame. The latter is
+    important because the vanished pre-input caret is also a large causal
+    change, but must not be included once the caret is moved to Home for OCR.
+    This supplies geometry only; exact OCR and the independent editor status
+    invariant remain mandatory.
     """
 
     width, height = dims
@@ -457,7 +459,12 @@ def structural_editor_readback_band(
     if not substantial:
         return None
     band_start, band_end = max(substantial, key=lambda band: band[1])
-    column_counts = changed[band_start:band_end].sum(axis=0)
+    after_band = after[y0 + band_start : y0 + band_end, x0:x1]
+    background = np.median(after_band.reshape(-1, 3), axis=0)
+    foreground = (
+        np.max(np.abs(after_band - background), axis=2) > DENSE_PIXEL_DELTA
+    )
+    column_counts = foreground.sum(axis=0)
     active_columns = [
         index
         for index, count in enumerate(column_counts.tolist())

@@ -251,6 +251,26 @@ def test_structural_editor_readback_band_rejects_caret_only_noise() -> None:
     )
 
 
+def test_structural_editor_readback_band_ignores_vanished_old_caret() -> None:
+    before = Image.new("RGB", (128, 80), "#202020")
+    after = Image.new("RGB", (128, 80), "#202020")
+    ImageDraw.Draw(before).rectangle((10, 36, 18, 48), fill="#f0f0f0")
+    after_draw = ImageDraw.Draw(after)
+    after_draw.rectangle((30, 36, 42, 48), fill="#f0f0f0")
+    after_draw.line((47, 36, 47, 48), fill="#f0f0f0", width=1)
+    before_output = io.BytesIO()
+    after_output = io.BytesIO()
+    before.save(before_output, "PNG")
+    after.save(after_output, "PNG")
+
+    assert structural_editor_readback_band(
+        before_output.getvalue(),
+        after_output.getvalue(),
+        Region(x=5, y=30, width=50, height=25),
+        (128, 80),
+    ) == Region(x=27, y=33, width=19, height=19)
+
+
 async def test_structural_editor_row_enables_caret_stabilized_exact_proof(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
