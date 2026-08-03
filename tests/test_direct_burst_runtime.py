@@ -938,6 +938,83 @@ async def test_live_titleless_notepad_ocr_corruption_allows_deferred_newlines(
     ]
 
 
+async def test_notepad_grounding_crop_includes_foreground_status_row(
+    runtime: Runtime,
+) -> None:
+    bounded_regions: list[Region] = []
+
+    class CropSensitiveNotepadOCR:
+        async def ocr(self, image_path, region=None):
+            del image_path
+            if region is None:
+                return OCRResult(
+                    lines=[
+                        OCRLine(
+                            text="File Edit View",
+                            bbox=[120, 140, 200, 152],
+                        )
+                    ]
+                )
+            bounded_regions.append(region)
+            if region.height < runtime.backend.dims["height"] * 0.80:
+                return OCRResult(lines=[])
+            return OCRResult(
+                lines=[
+                    OCRLine(
+                        text="Untitled",
+                        bbox=[120, 90, 220, 110],
+                    ),
+                    OCRLine(
+                        text="File Edit View",
+                        bbox=[120, 120, 220, 140],
+                    ),
+                    OCRLine(
+                        text="Ln 1, Col 1 0 characters",
+                        bbox=[40, 520, 220, 540],
+                    ),
+                    OCRLine(
+                        text="Plain text 100% Windows (CRLF) UTF-8",
+                        bbox=[700, 520, 900, 540],
+                    ),
+                ]
+            )
+
+    runtime._screen_parser.ocr = CropSensitiveNotepadOCR()
+    sid = (await runtime.start_session("direct"))["session_id"]
+    shot = await runtime.get_session_summary(sid, capture=True)
+    actions = [
+        {
+            "type": "type_text",
+            "text": "@echo off",
+            "code": True,
+            "context": "editor",
+            "verification": "deferred_exact",
+        },
+        {"type": "key", "keys": ["ENTER"]},
+        {
+            "type": "type_text",
+            "text": "exit /b 0",
+            "code": True,
+            "context": "editor",
+            "verification": "deferred_exact",
+        },
+    ]
+
+    result = await runtime.run_burst(
+        sid,
+        actions,
+        based_on_world_version=shot["world_version"],
+        based_on_control_epoch=shot["control_epoch"],
+        idempotency_key="foreground-notepad-status-row-crop",
+    )
+
+    assert result["status"] == "completed"
+    assert bounded_regions
+    assert bounded_regions[0].height == (
+        runtime.backend.dims["height"] * 0.82
+    )
+
+
 async def test_titleless_notepad_uses_bounded_window_ocr_when_full_frame_misses(
     runtime: Runtime,
 ) -> None:

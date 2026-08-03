@@ -1608,7 +1608,13 @@ class Runtime:
                     x=frame.width * 0.02,
                     y=frame.height * 0.03,
                     width=frame.width * 0.72,
-                    height=frame.height * 0.70,
+                    # The live Windows 11 Notepad status row sits near 73%
+                    # of a 1280x800 frame. The former 70% crop clipped the
+                    # independently grounded `0 characters` / `Windows
+                    # (CRLF)` evidence and falsely treated editor newlines as
+                    # an unknown commit action. Stop above the taskbar while
+                    # retaining the complete foreground editor window.
+                    height=frame.height * 0.82,
                 )
                 try:
                     bounded = await ocr.ocr(
