@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "report": "codex-50-live-progress",
-  "recorded_at": "2026-08-03T17:19:25Z",
+  "recorded_at": "2026-08-03T17:31:30Z",
   "manifest": "bench/codex-50-tasks.yaml",
   "environment": {
     "target": "authorized disposable Windows VNC VM",
@@ -3451,10 +3451,10 @@
     "full_ledger": "bench/results/2026-08-02/live-vnc/code-03-attempts.json"
   },
   "verdict": {
-    "accuracy": "The campaign is 33/50. All ten Text entry tasks and the first eight Code entry tasks pass. Code-08 v10 saved and reopened the requested batch file; the installed observer independently returned 133 bytes whose CRLF-normalized SHA-256 exactly matched the later program-entry tool call. All 13 attempts, including three infrastructure-invalid runs and nine valid-task failures, remain in the ledger.",
+    "accuracy": "The campaign is 33/50. All ten Text entry tasks and the first eight Code entry tasks pass. Code-08 v10 saved and reopened the requested batch file; the installed observer independently returned 133 bytes whose CRLF-normalized SHA-256 exactly matched the later program-entry tool call. All 14 attempts, including three infrastructure-invalid runs and ten valid-task failures, remain in the ledger.",
     "speed": "Failing product target: accepted code-08 v10 took 869.893 seconds for the managed run and 1079.054 seconds from task preflight through the reset-ready gate. It populated two Notepad documents and made 66 provider calls before converging, materially slower than a competent human.",
     "dominant_cost": "Code-08 v10 spent 719.647 seconds in action execution and 476.667 seconds waiting on the critical provider path, with 336.204 seconds of overlap. Thirty-three verifier turns, 24 controller turns, nine reasoner turns, and repeated Save/Open loops dominate the avoidable cost.",
-    "next": "Run code-08 v14 after restarting the isolated adapter with the configured UK keymap and validating the new fail-closed drift check. Preserve exact observer comparison, bounded workspace approval, fresh-artifact preparation, quiescence, mandatory reboot, recording, and all failures before advancing to code-09."
+    "next": "Run code-08 v15 after replacing inline OCR only inside the existing strict allowlisted Windows Run launch shape with delivery acknowledgement plus post-launch visual verification. Preserve exact observer comparison, bounded workspace approval, fresh-artifact preparation, quiescence, mandatory reboot, recording, and all failures before advancing to code-09."
   },
   "code_04_acceptance": {
     "task": "Write, save, reopen, and visually verify a grouped customer-value SQL query in Notepad",
@@ -3986,29 +3986,28 @@
     "campaign_sha256": "9dbc7c98e97adf5224a5ed14239c04bfb2e1366e10dbbe37b38951281ffcc27f"
   },
   "code_08_attempt_summary": {
-    "recorded_attempts": 13,
-    "valid_full_task_runs": 10,
-    "failed_runs": 9,
+    "recorded_attempts": 14,
+    "valid_full_task_runs": 11,
+    "failed_runs": 10,
     "infrastructure_invalid_runs": 3,
     "passed_runs": 1,
     "canonical_campaign_id": "codex-code-entry-code08-v10-20260803",
-    "post_pass_speed_attempts": 3,
-    "post_pass_state": "v11 retained a repeated Save-field wrong-region failure; v12 recovered and completed its pending reboot; v13 is infrastructure-invalid because the restored adapter used a US keymap against the UK guest",
+    "post_pass_speed_attempts": 4,
+    "post_pass_state": "v11 retained a repeated Save-field wrong-region failure; v12 recovered and completed its pending reboot; v13 retained the restored-adapter keymap mismatch; v14 failed before content because exact OCR consumed the safe Notepad launch deadline",
     "latest_post_pass_attempt": {
-      "campaign_id": "codex-code-entry-code08-v13-20260803",
-      "accepted_status": "infrastructure_invalid",
-      "run_id": "4650a0fc-5006-4f0d-a70a-7cf4ad5d4c05",
-      "wall_clock_ms": 478588,
-      "task_duration_ms": 646193,
-      "provider_calls": 25,
-      "actions_attempted": 14,
-      "actions_completed": 12,
-      "reboot_ms": 83474,
+      "campaign_id": "codex-code-entry-code08-v14-20260803",
+      "accepted_status": "failed",
+      "run_id": "1ae8bd13-22ef-458f-9fe8-152f17101eff",
+      "wall_clock_ms": 179702,
+      "task_duration_ms": 343157,
+      "provider_calls": 2,
+      "actions_attempted": 2,
+      "actions_completed": 0,
+      "action_execution_ms": 158625,
+      "program_content_actions": 0,
+      "reboot_ms": 95535,
       "reboot_transition_observed": true,
-      "observer_expected_sha256": "e73555962d56a13e7838533b286b69dfbccf0419f29dda102a73aaa7d4ea41a4",
-      "observer_actual_sha256": "9ccaebc0da4fc8c0cc2370a7b408431188a1421f333020383cb806a6c8dba56e",
-      "observer_exact_match": false,
-      "remediation_commit": "a4c40db"
+      "observer_comparison": "not applicable; no task artifact content was entered"
     },
     "full_ledger": "bench/results/2026-08-03/live-vnc/code-08-attempts.json"
   }

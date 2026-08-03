@@ -1044,7 +1044,7 @@ actions, completed 26, and requested four bounded-workspace approvals. Worse,
 the model populated two Notepad documents before converging on the exact saved
 payload. The 874-second VP9 recording is 3,842,300 bytes.
 
-Three post-pass attempts remain visible rather than replacing v10:
+Four post-pass attempts remain visible rather than replacing v10:
 
 | Attempt | Accuracy status | Managed wall | Provider calls | Result |
 | --- | --- | ---: | ---: | --- |
@@ -1052,6 +1052,7 @@ Three post-pass attempts remain visible rather than replacing v10:
 | v11 | Failed | 605.362s before bounded abort | 44 | Filename was delivered exactly, but verifier Tab moved into `Text documents (*.txt)` and repeated the Save As loop four times |
 | v12 | Infrastructure-invalid | 63.892s | 2 | Isolated VNC framebuffer returned HTTP 500 before any content action completed; after recovery the retained campaign completed its mandatory reboot without replaying content |
 | v13 | Infrastructure-invalid | 478.588s | 25 | Caret-only filename recovery converged, but the restored adapter used a US keymap against the UK guest and changed byte zero from `@` to `"`; reboot completed |
+| v14 | Failed | 179.702s | 2 | Correct UK-keymap lab; exact OCR of the safe seven-character `notepad` Run field consumed 158.625s across two attempts, then interrupted before any program content |
 
 The v11 recording directly produced the caret-only filename remediation. v13
 exercised it: the first autocomplete-biased readback recovered without
@@ -1069,16 +1070,28 @@ were not: ping failure entered `unhealthy`/exit 1, while success entered
 was interrupted. v13 is therefore retained as infrastructure-invalid rather
 than counted as an accuracy result. Commit `a4c40db` makes the adapter advertise
 its keymap and refuses a lab connection when it differs from the configured
-layout. The next live run is v14 with the isolated adapter restored to the
-configured UK keymap; it is not pre-declared a pass.
+layout. v14 then ran with the isolated adapter restored to the configured UK
+keymap; it was not pre-declared a pass.
 
-The complete 13-attempt ledger, including all three infrastructure-invalid
-runs, all campaign/recording hashes, exact observer proof, remediation commits,
-and both recovered reboots is
+v14 validated that environment, then isolated a separate speed defect before
+any artifact content was entered. The model spent 19.702s across one reasoner
+and one controller call; the first safe Notepad launch action consumed
+158.625s, or 88.3% of the managed run. Its exact Run-field readback exhausted
+the 120-second tool deadline, retried once, and interrupted after another
+38.506s. Quiescence and the transition-observed 95.535-second reboot both
+passed. The next remediation keeps exact verification for arbitrary Run,
+terminal, URL, path, argument, and consequential input, but replaces inline
+OCR only inside the existing strict allowlisted Win+R executable shape with an
+honest delivery receipt and post-launch visual verification. v15 will test that
+path and is not pre-declared a pass.
+
+The complete 14-attempt ledger includes all three infrastructure-invalid runs,
+ten valid-task failures, campaign/recording hashes, exact observer proof,
+remediation commits, and every reset state:
 [`code-08-attempts.json`](results/2026-08-03/live-vnc/code-08-attempts.json).
 The v13 byte-level comparison is
 [`code-08-v13-observer-comparison.json`](results/2026-08-03/live-vnc/code-08-v13-observer-comparison.json),
-`sha256:2c286aa86836`. The ledger digest is `sha256:c67139d62b2a`.
+`sha256:2c286aa86836`. The ledger digest is `sha256:07a052aa0a9e`.
 The canonical v10 campaign digest is `sha256:9dbc7c98e97a`; its VP9 recording
 is `sha256:cd1af2f018d2` and its poster is `sha256:f74b6f4f38ae`.
 

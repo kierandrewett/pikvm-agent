@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "report": "codex-code-entry-code08-failure-inclusive-attempts",
-  "recorded_at": "2026-08-03T17:19:25Z",
+  "recorded_at": "2026-08-03T17:31:30Z",
   "environment": {
     "target": "authorized disposable Windows VNC VM",
     "production_target_contacted": false,
@@ -25,15 +25,15 @@
     ]
   },
   "summary": {
-    "recorded_attempts": 13,
-    "valid_full_task_runs": 10,
-    "failed_runs": 9,
+    "recorded_attempts": 14,
+    "valid_full_task_runs": 11,
+    "failed_runs": 10,
     "infrastructure_invalid_runs": 3,
     "passed_runs": 1,
     "canonical_attempt": "v10",
     "all_failures_retained": true,
     "all_recordings_retained": true,
-    "reboots_ready": 12,
+    "reboots_ready": 13,
     "reboots_failed_or_pending": 1,
     "release_gate": "accuracy passing; speed failing; post-pass speed remediation remains active"
   },
@@ -348,6 +348,45 @@
       },
       "poster_sha256": "dc692971c54d287534f3433a5a3288c53423a5a6fe7fc7c6419eee7b4b531300",
       "campaign_sha256": "2cae9ac684cfff81ea82d901f9d26db7bb307421c6d94a538030346c1cacc34c"
+    },
+    {
+      "campaign_id": "codex-code-entry-code08-v14-20260803",
+      "accepted_status": "failed",
+      "run_id": "1ae8bd13-22ef-458f-9fe8-152f17101eff",
+      "source_commit": "b8908c2",
+      "reason": "The corrected UK-keymap lab passed preflight and began a standard allowlisted Notepad launch. Exact OCR of the seven-character Run field consumed the entire 120-second computer-call deadline, returned transport-uncertain, retried once, and then returned interrupted after another 38.506 seconds. No program content was entered. The failure isolated 88.3% of managed time to action execution rather than model latency.",
+      "wall_clock_ms": 179702,
+      "task_duration_ms": 343157,
+      "preflight_ms": 59592,
+      "model_active_ms": 19172,
+      "provider_wait_ms": 19702,
+      "provider_serial_equivalent_ms": 19702,
+      "provider_overlap_ms": 0,
+      "action_execution_ms": 158625,
+      "action_execution_share": 0.8827113777253452,
+      "provider_calls": 2,
+      "reasoner_calls": 1,
+      "controller_calls": 1,
+      "verifier_calls": 0,
+      "actions_attempted": 2,
+      "actions_completed": 0,
+      "action_recoverable_failures": 1,
+      "program_content_actions": 0,
+      "observer_comparison": "not applicable; no task artifact content was entered",
+      "quiescence_status": "confirmed",
+      "reboot_ms": 95535,
+      "reboot_transition_observed": true,
+      "recording": {
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2.0,
+        "duration_ms": 215500,
+        "size_bytes": 805966,
+        "sha256": "5477f173f9a644e5c486237aa5c613ce242c70231cc16826dc08edb276c496e9"
+      },
+      "poster_sha256": "33ff11cd45665dfd17acece611e983ef7c15b2e002237dc8d7f036a439b02731",
+      "campaign_sha256": "6ce9a18d758d5fe3ad809181ea6642f54be794e2ed256c224398351307913124"
     }
   ],
   "remediations": [
@@ -426,7 +465,7 @@
       "The accepted run completed a transition-observed mandatory reboot and retained its recording."
     ],
     "blocking_infrastructure_state": null,
-    "next_attempt": "v14 after restarting the isolated adapter with the configured UK keymap and validating the fail-closed drift check",
+    "next_attempt": "v15 after replacing inline OCR with delivery acknowledgement only inside the existing strict allowlisted Windows Run launch shape",
     "next_task_after_speed_gate": "code-09"
   }
 }
