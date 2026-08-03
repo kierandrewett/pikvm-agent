@@ -386,6 +386,88 @@ def structural_editor_row_above_status_effect(
     return candidates[row_indices.pop()]
 
 
+def structural_editor_readback_band(
+    before_image: bytes,
+    after_image: bytes,
+    row_region: Region,
+    dims: tuple[int, int],
+) -> Region | None:
+    """Narrow a structural delta to its lowest substantial text band.
+
+    Dense localisation deliberately pads changed components for ordinary OCR.
+    On a tiny appended punctuation row that padding can include the preceding
+    editor line. Use only the causal before/after pixels to split vertical
+    bands, discard one-pixel caret/JPEG noise, and select the lowest substantial
+    band. This supplies geometry only; exact OCR and the independent editor
+    status invariant remain mandatory.
+    """
+
+    width, height = dims
+    if width <= 0 or height <= 0 or not before_image or not after_image:
+        return None
+    try:
+        before = np.asarray(
+            Image.open(io.BytesIO(before_image)).convert("RGB"),
+            dtype=np.int16,
+        )
+        after = np.asarray(
+            Image.open(io.BytesIO(after_image)).convert("RGB"),
+            dtype=np.int16,
+        )
+    except Exception:
+        return None
+    if before.shape != after.shape or before.ndim != 3:
+        return None
+    x0 = max(0, min(width, math.floor(row_region.x)))
+    y0 = max(0, min(height, math.floor(row_region.y)))
+    x1 = max(x0, min(width, math.ceil(row_region.x + row_region.width)))
+    y1 = max(y0, min(height, math.ceil(row_region.y + row_region.height)))
+    if x1 <= x0 or y1 <= y0:
+        return None
+    changed = (
+        np.max(np.abs(after[y0:y1, x0:x1] - before[y0:y1, x0:x1]), axis=2)
+        > DENSE_PIXEL_DELTA
+    )
+    row_counts = changed.sum(axis=1)
+    active_rows = [
+        index
+        for index, count in enumerate(row_counts.tolist())
+        if int(count) >= 2
+    ]
+    if not active_rows:
+        return None
+    bands: list[tuple[int, int]] = []
+    start = previous = active_rows[0]
+    for current in active_rows[1:]:
+        if current <= previous + 2:
+            previous = current
+            continue
+        bands.append((start, previous + 1))
+        start = previous = current
+    bands.append((start, previous + 1))
+    substantial = [
+        (start, end)
+        for start, end in bands
+        if (
+            end - start >= DENSE_MIN_HEIGHT
+            and int(row_counts[start:end].sum())
+            >= DENSE_COMPACT_MIN_CHANGED_PIXELS
+        )
+    ]
+    if not substantial:
+        return None
+    band_start, band_end = max(substantial, key=lambda band: band[1])
+    padding = 3
+    readback_y0 = max(y0, y0 + band_start - padding)
+    readback_y1 = min(y1, y0 + band_end + padding)
+    return Region(
+        x=float(x0),
+        y=float(readback_y0),
+        width=float(x1 - x0),
+        height=float(max(1, readback_y1 - readback_y0)),
+    )
+
+
 def unique_exact_structured_ocr_row(
     result: OCRResult,
     intended: str,
@@ -5293,13 +5375,23 @@ class WatchedTyper:
                             )
                         )
                         if structural_row is not None:
-                            self._refined_readback_region = structural_row
+                            structural_readback = (
+                                structural_editor_readback_band(
+                                    dense_prev.data,
+                                    dense_now.data,
+                                    structural_row,
+                                    dims,
+                                )
+                                or structural_row
+                            )
+                            self._refined_readback_region = structural_readback
                             self._refined_readback_intended = typed_so_far
-                            chunk_change = structural_row
+                            chunk_change = structural_readback
                             DEBUG.event(
                                 "typing.structural_editor_row_localized",
                                 intended_characters=len(typed_so_far),
-                                region=structural_row.model_dump(),
+                                raw_region=structural_row.model_dump(),
+                                region=structural_readback.model_dump(),
                             )
                         else:
                             chunk_change = None
@@ -5447,17 +5539,27 @@ class WatchedTyper:
                                     )
                                 )
                                 if structural_row is not None:
+                                    structural_readback = (
+                                        structural_editor_readback_band(
+                                            dense_prev.data,
+                                            dense_retry.data,
+                                            structural_row,
+                                            dims,
+                                        )
+                                        or structural_row
+                                    )
                                     self._refined_readback_region = (
-                                        structural_row
+                                        structural_readback
                                     )
                                     self._refined_readback_intended = (
                                         typed_so_far
                                     )
-                                    retry_loc = structural_row
+                                    retry_loc = structural_readback
                                     DEBUG.event(
                                         "typing.structural_editor_row_localized",
                                         intended_characters=len(typed_so_far),
-                                        region=structural_row.model_dump(),
+                                        raw_region=structural_row.model_dump(),
+                                        region=structural_readback.model_dump(),
                                     )
                                 else:
                                     retry_loc = None

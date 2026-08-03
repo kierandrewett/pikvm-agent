@@ -52,6 +52,7 @@ from pikvm_agent.executor.typing import (
     regions_overlap,
     standalone_i_autocorrect_navigation,
     standalone_i_autocorrect_suffix_length,
+    structural_editor_readback_band,
     structural_editor_row_above_status_effect,
 )
 from pikvm_agent.pikvm.fake import FakeBackend
@@ -206,6 +207,47 @@ def test_structural_editor_row_rejects_ambiguous_causal_rows() -> None:
         ],
         (1280, 800),
     ) is None
+
+
+def test_structural_editor_readback_band_selects_lowest_changed_text_row() -> None:
+    before = Image.new("RGB", (128, 80), "#202020")
+    after = before.copy()
+    draw = ImageDraw.Draw(after)
+    draw.rectangle((12, 20, 52, 26), fill="#f0f0f0")
+    draw.rectangle((10, 36, 32, 43), fill="#f0f0f0")
+    draw.point((20, 51), fill="#f0f0f0")
+    before_output = io.BytesIO()
+    after_output = io.BytesIO()
+    before.save(before_output, "PNG")
+    after.save(after_output, "PNG")
+
+    assert structural_editor_readback_band(
+        before_output.getvalue(),
+        after_output.getvalue(),
+        Region(x=5, y=15, width=60, height=42),
+        (128, 80),
+    ) == Region(x=5, y=33, width=60, height=14)
+
+
+def test_structural_editor_readback_band_rejects_caret_only_noise() -> None:
+    before = Image.new("RGB", (128, 80), "#202020")
+    after = before.copy()
+    draw = ImageDraw.Draw(after)
+    draw.line((28, 30, 28, 44), fill="#f0f0f0", width=1)
+    before_output = io.BytesIO()
+    after_output = io.BytesIO()
+    before.save(before_output, "PNG")
+    after.save(after_output, "PNG")
+
+    assert (
+        structural_editor_readback_band(
+            before_output.getvalue(),
+            after_output.getvalue(),
+            Region(x=20, y=20, width=24, height=36),
+            (128, 80),
+        )
+        is None
+    )
 
 
 async def test_structural_editor_row_enables_caret_stabilized_exact_proof(
