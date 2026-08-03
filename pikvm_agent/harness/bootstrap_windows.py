@@ -32,7 +32,9 @@ def validate_observer_file_path(file_path: str) -> str:
 
     normalized_path = file_path.replace("\\", "/")
     if not re.fullmatch(
-        r"C:/PiKVM-Harness/workspace/[A-Za-z0-9][A-Za-z0-9._-]{0,95}",
+        r"C:/PiKVM-Harness/workspace/"
+        r"(?:[A-Za-z0-9][A-Za-z0-9._-]{0,63}/){0,2}"
+        r"[A-Za-z0-9][A-Za-z0-9._-]{0,95}",
         normalized_path,
     ):
         raise ValueError(

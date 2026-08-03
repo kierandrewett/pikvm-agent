@@ -187,6 +187,19 @@ def test_bootstrap_can_select_a_runtime_only_workspace_artifact() -> None:
     assert len(commands[-1]) < 180
 
 
+def test_bootstrap_can_read_a_bounded_nested_campaign_artifact() -> None:
+    commands = build_bootstrap_commands(
+        reuse_installed=True,
+        file_path=(
+            r"C:\PiKVM-Harness\workspace\codex-50\code-08.cmd"
+        ),
+    )
+
+    assert commands[-1].endswith(
+        " --file C:/PiKVM-Harness/workspace/codex-50/code-08.cmd"
+    )
+
+
 def test_reuse_installed_observer_restarts_it_with_the_fresh_artifact_path() -> None:
     commands = build_bootstrap_commands(
         reuse_installed=True,
