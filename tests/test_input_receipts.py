@@ -214,6 +214,69 @@ def test_public_receipt_keeps_requested_and_delivery_hashes_distinct() -> None:
     assert receipt["proof_state"] == "exact_ocr_readback"
 
 
+def test_public_receipt_preserves_deferred_readback_provenance() -> None:
+    intended = "@echo off"
+    intended_sha256 = _sha256(intended)
+    raw = {
+        "action_receipts": [
+            {
+                "index": 0,
+                "type": "type_text",
+                "status": "delivered_unverified",
+                "verdict": "unverified",
+                "focus_evidence": "read_back_deferred",
+                "proof_state": "issued_only",
+                "requested_characters": len(intended),
+                "delivery_characters": len(intended),
+                "issued_characters": len(intended),
+                "emitted_characters": len(intended),
+                "requested_sha256": intended_sha256,
+                "delivery_sha256": intended_sha256,
+                "issued_prefix_sha256": intended_sha256,
+                "emitted_sha256": intended_sha256,
+                "emitted_exactly_once": True,
+            }
+        ]
+    }
+
+    receipt = public_input_receipts(
+        raw,
+        [{"type": "type_text", "text": intended}],
+    )[0]
+
+    assert receipt["focus_evidence"] == "read_back_deferred"
+    assert receipt["proof_state"] == "issued_only"
+
+
+def test_public_receipt_preserves_atomic_windows_run_provenance() -> None:
+    intended = "notepad"
+    intended_sha256 = _sha256(intended)
+    raw = {
+        "action_receipts": [
+            {
+                "index": 0,
+                "type": "type_text",
+                "status": "delivered_unverified",
+                "verdict": "unverified",
+                "focus_evidence": "atomic_windows_run_gesture",
+                "proof_state": "issued_only",
+                "requested_characters": len(intended),
+                "issued_characters": len(intended),
+                "requested_sha256": intended_sha256,
+                "issued_prefix_sha256": intended_sha256,
+            }
+        ]
+    }
+
+    receipt = public_input_receipts(
+        raw,
+        [{"type": "type_text", "text": intended}],
+    )[0]
+
+    assert receipt["focus_evidence"] == "atomic_windows_run_gesture"
+    assert receipt["proof_state"] == "issued_only"
+
+
 def test_exact_status_cannot_hide_an_incomplete_sender_prefix() -> None:
     intended = "one space"
     raw = {

@@ -45,7 +45,9 @@ def public_input_receipts(
         },
         "verdict": {"match", "contains", "mismatch", "unverified"},
         "focus_evidence": {
+            "atomic_windows_run_gesture",
             "focus_lost",
+            "read_back_deferred",
             "read_back_verified",
             "read_back_unverified",
             "read_back_mismatch",
