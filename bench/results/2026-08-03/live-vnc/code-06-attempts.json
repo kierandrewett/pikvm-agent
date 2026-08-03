@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "report": "codex-code-entry-code06-failure-inclusive-attempts",
-  "recorded_at": "2026-08-03T03:54:17Z",
+  "recorded_at": "2026-08-03T04:34:12Z",
   "environment": {
     "target": "authorized disposable Windows VNC VM",
     "production_target_contacted": false,
@@ -25,16 +25,16 @@
     ]
   },
   "summary": {
-    "full_task_runs": 8,
+    "full_task_runs": 9,
     "failed_runs": 8,
     "invalid_runs": 0,
-    "passed_runs": 0,
+    "passed_runs": 1,
     "all_failures_retained": true,
     "all_recordings_retained": true,
     "all_reboots_ready": true,
     "all_reboots_observed_real_transition": true,
     "all_known_text_deliveries_replayed": false,
-    "release_gate": "failing"
+    "release_gate": "accuracy passing; speed failing"
   },
   "attempts": [
     {
@@ -268,6 +268,68 @@
       "campaign_sha256": "afe549cd3f58d5f3aaaeb69589db173850db58334143a9a74a5fbb2eee996d9f",
       "recording_sha256": "5336206d260d80c2bacfa1c6958f6b24cd4080efec9f35a88e29bbaeb84dcfe4",
       "poster_sha256": "000b1997fa4c82e3258434c4b6953bd9316edd722b362a5b50ad0cbb961ce811"
+    },
+    {
+      "campaign_id": "codex-code-entry-code06-v9-20260803",
+      "manifest_campaign_id": "codex-windows-50",
+      "accepted_status": "passed",
+      "run_id": "76d26aa9-e9cf-4145-81a9-472515cdbd83",
+      "reason": "A fresh blank Notepad document received the complete debounce implementation. All 12 type receipts verified exactly: 222 requested, issued, and observed characters, zero edit distance, zero corrections or delivery retries, and exact-once emission. The four-character `  };` row live-proved the post-v8 crop: its raw 35-by-33-pixel region narrowed to the 18-by-22-pixel after-frame glyph band, blind OCR read the two visible punctuation glyphs, and independent spacing evidence proved the two leading spaces. The file was saved, reopened, independently verified, quiesced, recorded, and rebooted after a real transition.",
+      "wall_clock_ms": 455964,
+      "task_duration_ms": 607519,
+      "provider_wait_ms": 123109,
+      "provider_wait_share": 0.269997192760832,
+      "provider_serial_equivalent_ms": 129011,
+      "provider_overlap_ms": 5902,
+      "action_execution_ms": 327511,
+      "action_execution_share": 0.7182825837127492,
+      "evidence_capture_ms": 3452,
+      "provider_calls": 19,
+      "reasoner_calls": 1,
+      "controller_calls": 2,
+      "verifier_calls": 16,
+      "actions_attempted": 26,
+      "actions_completed": 26,
+      "exact_input_receipts": 12,
+      "input_receipt_totals": {
+        "requested_characters": 222,
+        "issued_characters": 222,
+        "observed_characters": 222,
+        "all_zero_edit_distance": true,
+        "all_zero_corrections": true,
+        "all_zero_delivery_retries": true,
+        "all_emitted_exactly_once": true,
+        "all_exact_readback_sha256_match": true
+      },
+      "structural_row": {
+        "requested_text": "  };",
+        "raw_region": {
+          "x": 69,
+          "y": 213,
+          "width": 35,
+          "height": 33
+        },
+        "readback_region": {
+          "x": 86,
+          "y": 219,
+          "width": 18,
+          "height": 22
+        },
+        "visible_ocr_characters": 2,
+        "leading_spaces_proved": 2,
+        "receipt_status": "verified_exact"
+      },
+      "recovery_cycles": 0,
+      "approval_count": 2,
+      "approval_scopes": [
+        "bounded_workspace_edit"
+      ],
+      "quiescence_status": "confirmed",
+      "reboot_ms": 82486,
+      "reboot_transition_observed": true,
+      "campaign_sha256": "4a85c4b86c58bcacf829d27ce4c2bb76be56fa2c39533858f6bad7e14f6c09cf",
+      "recording_sha256": "a1612a691088df7f2c05a430571a6f5492742e5af3d00b8ad11d8e8f4bf171d7",
+      "poster_sha256": "59bb4556f83bb3da93c6557e4a2d558f67ff5617b1e4743fd4278c539fac40e2"
     }
   ],
   "remediations": [
@@ -330,12 +392,14 @@
     "replacement_selector_commit": "561f7a2fcb4ea1fdc22ee48a1afef70a70971475"
   },
   "next_gate": {
-    "status": "pending",
-    "requirements": [
-      "Prove the compact four-character closing row from the after-frame glyph band with caret-stabilized exact OCR and independent status evidence, without replay or raw-crop fallback.",
-      "Stop model-only recovery promptly when every proposed mutation is forbidden by an unverified input draft.",
-      "Save, reopen, and independently verify the complete JavaScript artifact.",
-      "Retain recording, quiescence, and a transition-observed reboot."
-    ]
+    "status": "passed",
+    "accepted_attempt": "v9",
+    "evidence": [
+      "The compact four-character closing row verified exactly from the after-frame glyph band plus independent leading-space evidence, without replay or raw-crop fallback.",
+      "All 12 text receipts were exact-once with zero edit distance, corrections, or retries.",
+      "The complete JavaScript artifact was saved, reopened, and independently verified.",
+      "Recording, quiescence, and a transition-observed reboot are retained."
+    ],
+    "remaining_product_gate": "speed"
   }
 }
