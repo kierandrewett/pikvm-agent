@@ -948,7 +948,9 @@ def test_exact_notepad_paragraphs_use_separate_verified_text_and_line_breaks() -
     first_paragraph = _notepad_exact_text_controller(
         run,
         document,
-        max_actions=20,
+        # Keep this test on the bounded fallback path; grouped entry has its
+        # own coverage below.
+        max_actions=4,
     )
 
     assert first_paragraph is not None
@@ -1066,7 +1068,8 @@ def test_exact_notepad_lines_use_one_verified_break_between_each_line() -> None:
         text_decision = _notepad_exact_text_controller(
             run,
             prior,
-            max_actions=20,
+            # Keep this test on the per-line fallback path.
+            max_actions=2 if index == 0 else 20,
         )
         assert text_decision is not None
         typed = [
@@ -1149,6 +1152,9 @@ def test_generated_code_plan_carries_one_durable_exact_artifact() -> None:
 
 def test_notepad_file_dialog_controller_uses_verified_access_key_focus() -> None:
     basename = "code-04.sql"
+    artifact_path = (
+        "C:\\PiKVM-Harness\\workspace\\codex-50\\code-04.sql"
+    )
     run = RunSnapshot(
         run_id="notepad-file-dialog",
         task=(
@@ -1228,7 +1234,7 @@ def test_notepad_file_dialog_controller_uses_verified_access_key_focus() -> None
     )
     assert filename is not None
     assert [item.type for item in filename.actions] == ["key", "type_text"]
-    assert filename.actions[1].text == basename
+    assert filename.actions[1].text == artifact_path
     assert filename.actions[1].verification == "exact"
 
     named_for_save = PendingAction(
@@ -1305,7 +1311,7 @@ def test_notepad_file_dialog_controller_uses_verified_access_key_focus() -> None
         max_actions=20,
     )
     assert open_filename is not None
-    assert open_filename.actions[1].text == basename
+    assert open_filename.actions[1].text == artifact_path
 
     named_for_open = PendingAction(
         index=9,
@@ -1468,7 +1474,7 @@ def test_generated_artifact_does_not_activate_notepad_path_for_vscode() -> None:
     )
 
 
-def test_generated_code_uses_indexed_exact_segments_without_tab_actions() -> None:
+def test_generated_code_groups_exact_segments_without_tab_actions() -> None:
     content = (
         "def fizzbuzz(limit):\n"
         "    results = []\n"
@@ -1507,65 +1513,120 @@ def test_generated_code_uses_indexed_exact_segments_without_tab_actions() -> Non
         based_on_control_epoch=0,
         idempotency_key="notepad-code-new-document",
     )
-    for index, expected in enumerate(content.splitlines()):
-        text_decision = _notepad_exact_text_controller(
-            run,
-            prior,
-            max_actions=20,
-        )
-        assert text_decision is not None
-        assert text_decision.intent == (
-            f"Enter exact segment {index + 1} of {len(content.splitlines())} "
-            "in the fresh Notepad document."
-        )
-        text_actions = [
-            action.model_dump(mode="json", exclude_none=True)
-            for action in text_decision.actions
-        ]
-        assert text_actions[0] == {
-            "type": "type_text",
-            "text": expected,
-            "code": True,
-            "secret": False,
-            "context": "editor",
-            "verification": "exact",
+    text_decision = _notepad_exact_text_controller(
+        run,
+        prior,
+        max_actions=20,
+    )
+    assert text_decision is not None
+    assert text_decision.intent == (
+        "Enter all 6 exact segments in the fresh Notepad document."
+    )
+    text_actions = [
+        action.model_dump(mode="json", exclude_none=True)
+        for action in text_decision.actions
+    ]
+    expected_types = [
+        action["text"]
+        for action in text_actions
+        if action["type"] == "type_text"
+    ]
+    assert expected_types == content.splitlines()
+    assert [
+        action
+        for action in text_actions
+        if action["type"] == "key"
+    ] == [
+        {"type": "key", "keys": ["SHIFT", "ENTER"]}
+        for _ in range(5)
+    ]
+    assert all(action.get("keys") != ["TAB"] for action in text_actions)
+
+
+def test_generated_code_grouped_receipts_skip_per_line_model_proof() -> None:
+    content = "@echo off\nping -n 1 127.0.0.1 >nul\nexit /b 0\n"
+    run = RunSnapshot(
+        run_id="notepad-grouped-local-proof",
+        task=(
+            "In Notepad, write a batch file and save it as "
+            "C:\\PiKVM-Harness\\workspace\\codex-50\\code-08.cmd."
+        ),
+        status=RunStatus.RUNNING,
+        plan=PlanDecision(
+            summary="Write the batch file.",
+            steps=["Enter it", "Save it"],
+            success_criteria=["The exact batch file is visible."],
+            artifact_content=content,
+            artifact_content_kind="code",
+        ),
+    )
+    new_document = PendingAction(
+        index=1,
+        intent="Create a fresh blank Notepad document.",
+        actions=[{"type": "key", "keys": ["ControlLeft", "KeyN"]}],
+        based_on_world_version=2,
+        based_on_control_epoch=0,
+        idempotency_key="notepad-grouped-new-document",
+    )
+    decision = _notepad_exact_text_controller(
+        run,
+        new_document,
+        max_actions=20,
+    )
+    assert decision is not None
+    action = PendingAction(
+        index=2,
+        intent=decision.intent,
+        actions=[
+            item.model_dump(mode="json", exclude_none=True)
+            for item in decision.actions
+        ],
+        expected_evidence=decision.expected_evidence,
+        based_on_world_version=3,
+        based_on_control_epoch=0,
+        idempotency_key="notepad-grouped-code",
+    )
+    receipts = [
+        {
+            "index": index,
+            "status": "verified_exact",
+            "verdict": "match",
+            "focus_evidence": "read_back_verified",
+            "proof_state": "exact_visual_readback",
+            "requested_sha256": hashlib.sha256(
+                item.text.encode("utf-8")
+            ).hexdigest(),
+            "exact_readback_sha256_match": True,
+            "emitted_exactly_once": True,
+            "correction_count": 0,
+            "delivery_retries": 0,
         }
-        assert all(action.get("keys") != ["TAB"] for action in text_actions)
-        prior = PendingAction(
-            index=2 + index * 2,
-            intent=text_decision.intent,
-            actions=text_actions,
-            based_on_world_version=3 + index * 2,
-            based_on_control_epoch=0,
-            idempotency_key=f"notepad-code-text-{index}",
-        )
-        if index == len(content.splitlines()) - 1:
-            assert (
-                _notepad_exact_text_controller(run, prior, max_actions=20)
-                is None
-            )
-            break
-        line_break = _notepad_exact_text_controller(
-            run,
-            prior,
-            max_actions=20,
-        )
-        assert line_break is not None
-        break_actions = [
-            action.model_dump(mode="json", exclude_none=True)
-            for action in line_break.actions
-        ]
-        assert break_actions[:1] == [
-            {"type": "key", "keys": ["SHIFT", "ENTER"]}
-        ]
-        prior = PendingAction(
-            index=3 + index * 2,
-            intent=line_break.intent,
-            actions=break_actions,
-            based_on_world_version=4 + index * 2,
-            based_on_control_epoch=0,
-            idempotency_key=f"notepad-code-break-{index}",
-        )
+        for index, item in enumerate(decision.actions)
+        if item.type == "type_text" and item.text is not None
+    ]
+
+    verdict = _locally_verified_notepad_artifact_action(
+        run,
+        action,
+        receipts,
+        after=ComputerObservation(
+            session_id="session",
+            status="completed",
+            image_sha256="c" * 64,
+            screen_hash="c2",
+        ),
+    )
+    save_as = _notepad_file_dialog_controller(
+        run,
+        action,
+        max_actions=20,
+    )
+
+    assert verdict is not None
+    assert verdict.verdict == "verified"
+    assert "all 3" in verdict.summary
+    assert save_as is not None
+    assert save_as.actions[0].keys == ["CTRL", "SHIFT", "S"]
 
 
 def test_generated_code_exact_visual_receipt_skips_duplicate_model_proof() -> None:
@@ -4398,6 +4459,49 @@ def test_controller_action_schema_allows_passive_evidence_after_text() -> None:
     assert [action.type for action in decision.actions] == [
         "type_text",
         "wait_for_stable_screen",
+    ]
+
+
+def test_controller_action_schema_allows_exact_editor_multiline_burst() -> None:
+    decision = ControllerDecision.model_validate(
+        {
+            "outcome": "act",
+            "intent": "Enter three exact inert editor lines.",
+            "actions": [
+                {
+                    "type": "type_text",
+                    "text": "@echo off",
+                    "code": True,
+                    "context": "editor",
+                    "verification": "exact",
+                },
+                {"type": "key", "keys": ["SHIFT", "ENTER"]},
+                {
+                    "type": "type_text",
+                    "text": "echo healthy",
+                    "code": True,
+                    "context": "editor",
+                    "verification": "exact",
+                },
+                {"type": "key", "keys": ["SHIFT", "ENTER"]},
+                {
+                    "type": "type_text",
+                    "text": "exit /b 0",
+                    "code": True,
+                    "context": "editor",
+                    "verification": "exact",
+                },
+            ],
+            "expected_evidence": ["The exact three lines are visible."],
+        }
+    )
+
+    assert [action.type for action in decision.actions] == [
+        "type_text",
+        "key",
+        "type_text",
+        "key",
+        "type_text",
     ]
 
 

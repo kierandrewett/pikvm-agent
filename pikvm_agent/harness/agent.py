@@ -1146,18 +1146,59 @@ def _notepad_exact_text_controller(
     *,
     max_actions: int,
 ) -> ControllerDecision | None:
-    """Advance one exact Notepad text segment after verified local input."""
+    """Advance exact Notepad text with a bounded grouped path and fallback."""
 
     segments = _notepad_exact_text_segments(run)
     if not segments:
         return None
+    if _created_new_notepad_document(action) and len(segments) > 1:
+        actions: list[dict[str, Any]] = []
+        is_code = bool(
+            run.plan is not None
+            and run.plan.artifact_content_kind == "code"
+        )
+        for segment, break_count in _notepad_exact_text_parts(run):
+            actions.append(
+                {
+                    "type": "type_text",
+                    "text": segment,
+                    "code": is_code,
+                    "context": "editor",
+                    "verification": "exact",
+                }
+            )
+            actions.extend(
+                {"type": "key", "keys": ["SHIFT", "ENTER"]}
+                for _ in range(break_count)
+            )
+        actions.append(
+            {
+                "type": "wait_for_stable_screen",
+                "stable_ms": 400,
+                "timeout_ms": 3_000,
+            }
+        )
+        if len(actions) <= max_actions:
+            return ControllerDecision(
+                outcome="act",
+                intent=(
+                    f"Enter all {len(segments)} exact segments in the fresh "
+                    "Notepad document."
+                ),
+                actions=actions,
+                expected_evidence=[
+                    "Notepad visibly contains the complete requested artifact "
+                    "with every exact segment and line break in order."
+                ],
+                expects_task_completion=False,
+            )
     payload: str | None = None
     payload_index: int | None = None
     if _created_new_notepad_document(action):
         payload_index = 0
         payload = segments[0]
     else:
-        typed_index = _typed_notepad_segment_index(action, segments)
+        typed_index = _typed_notepad_segment_index(run, action)
         break_count = (
             _notepad_segment_break_count(run, typed_index)
             if typed_index is not None
@@ -1259,13 +1300,16 @@ def _notepad_exact_text_controller(
 
 
 def _typed_notepad_segment_index(
+    run: RunSnapshot,
     action: PendingAction | None,
-    segments: tuple[str, ...],
 ) -> int | None:
     """Recover durable segment progress from the verified action intent."""
 
+    segments = _notepad_exact_text_segments(run)
     if action is None:
         return None
+    if _pending_action_enters_all_notepad_parts(run, action):
+        return len(segments) - 1
     indexed = re.fullmatch(
         r"Enter exact segment (?P<index>\d+) of (?P<count>\d+) "
         r"in the fresh Notepad document\.",
@@ -1289,6 +1333,57 @@ def _typed_notepad_segment_index(
         ),
         None,
     )
+
+
+def _pending_action_enters_all_notepad_parts(
+    run: RunSnapshot,
+    action: PendingAction | None,
+) -> bool:
+    """Match one bounded, ordered exact-text burst for the whole artifact."""
+
+    if action is None:
+        return False
+    parts = _notepad_exact_text_parts(run)
+    intent = re.fullmatch(
+        r"Enter all (?P<count>\d+) exact segments in the fresh "
+        r"Notepad document\.",
+        action.intent,
+    )
+    if intent is None or int(intent.group("count")) != len(parts):
+        return False
+    content_actions = [
+        item
+        for item in action.actions
+        if item.get("type")
+        not in {"wait", "wait_for_change", "wait_for_stable_screen"}
+    ]
+    cursor = 0
+    for segment, break_count in parts:
+        if cursor >= len(content_actions):
+            return False
+        typed = content_actions[cursor]
+        if not (
+            typed.get("type") == "type_text"
+            and str(typed.get("text") or "") == segment
+            and str(typed.get("context") or "") == "editor"
+            and str(typed.get("verification") or "") == "exact"
+        ):
+            return False
+        cursor += 1
+        for _ in range(break_count):
+            if cursor >= len(content_actions):
+                return False
+            item = content_actions[cursor]
+            if item.get("type") != "key":
+                return False
+            try:
+                keys = set(normalize_keys(item.get("keys") or []))
+            except BurstError:
+                return False
+            if keys != {"ShiftLeft", "Enter"}:
+                return False
+            cursor += 1
+    return cursor == len(content_actions)
 
 
 def _typed_exact_editor_text(
@@ -1372,6 +1467,48 @@ def _notepad_workspace_artifact_basename(run: RunSnapshot) -> str | None:
     return basenames.pop() if len(basenames) == 1 else None
 
 
+def _notepad_workspace_artifact_path(run: RunSnapshot) -> str | None:
+    """Return one explicit, bounded absolute artifact path from the task."""
+
+    paths = {
+        match.group(0)
+        for match in _NOTEPAD_WORKSPACE_ARTIFACT_RE.finditer(run.task)
+    }
+    return paths.pop() if len(paths) == 1 else None
+
+
+def _completed_notepad_exact_text(
+    run: RunSnapshot,
+    action: PendingAction | None,
+) -> bool:
+    """Recognize exact content completion, including a trailing newline."""
+
+    if _pending_action_enters_all_notepad_parts(run, action):
+        return True
+    segments = _notepad_exact_text_segments(run)
+    if not segments or action is None:
+        return False
+    typed_index = _typed_notepad_segment_index(run, action)
+    if typed_index == len(segments) - 1:
+        return _notepad_segment_break_count(run, typed_index) == 0
+    break_match = re.fullmatch(
+        r"Insert the requested (?:single blank line|line break) after "
+        r"exact segment (?P<index>\d+) of (?P<count>\d+) in Notepad\.",
+        action.intent,
+    )
+    if break_match is None:
+        return False
+    final_index = int(break_match.group("index")) - 1
+    return (
+        int(break_match.group("count")) == len(segments)
+        and final_index == len(segments) - 1
+        and _inserted_notepad_line_breaks(
+            action,
+            _notepad_segment_break_count(run, final_index),
+        )
+    )
+
+
 def _pending_action_uses_key_chord(
     action: PendingAction | None,
     expected: set[str],
@@ -1411,21 +1548,21 @@ def _notepad_file_dialog_controller(
 
     segments = _notepad_exact_text_segments(run)
     basename = _notepad_workspace_artifact_basename(run)
-    if not segments or basename is None or action is None:
+    artifact_path = _notepad_workspace_artifact_path(run)
+    if (
+        not segments
+        or basename is None
+        or artifact_path is None
+        or action is None
+    ):
         return None
 
-    typed_index = _typed_notepad_segment_index(action, segments)
-    final_segment_complete = bool(
-        typed_index == len(segments) - 1
-        and _notepad_segment_break_count(run, typed_index) == 0
-    )
+    final_segment_complete = _completed_notepad_exact_text(run, action)
     save_filename_intent = _replace_notepad_dialog_filename_intent(
-        "Save As",
-        basename,
+        "Save As", artifact_path
     )
     open_filename_intent = _replace_notepad_dialog_filename_intent(
-        "Open",
-        basename,
+        "Open", artifact_path
     )
     save_artifact_intent = _save_notepad_artifact_intent(basename)
     expects_task_completion = False
@@ -1445,7 +1582,7 @@ def _notepad_file_dialog_controller(
         ]
     elif (
         action.intent == save_filename_intent
-        and _pending_action_exactly_types_field(action, basename)
+        and _pending_action_exactly_types_field(action, artifact_path)
     ):
         actions = [
             {"type": "key", "keys": ["ENTER"]},
@@ -1524,7 +1661,7 @@ def _notepad_file_dialog_controller(
             {"type": "key", "keys": ["CTRL", "A"]},
             {
                 "type": "type_text",
-                "text": basename,
+                "text": artifact_path,
                 "code": False,
                 "context": "field",
                 "verification": "exact",
@@ -1535,14 +1672,16 @@ def _notepad_file_dialog_controller(
             if action.intent == _FOCUS_SAVE_AS_FILENAME_INTENT
             else "Open"
         )
-        intent = _replace_notepad_dialog_filename_intent(dialog, basename)
+        intent = _replace_notepad_dialog_filename_intent(
+            dialog, artifact_path
+        )
         evidence = [
             f"The native {dialog} File name field visibly reads exactly "
-            f"`{basename}`."
+            f"`{artifact_path}`."
         ]
     elif (
         action.intent == open_filename_intent
-        and _pending_action_exactly_types_field(action, basename)
+        and _pending_action_exactly_types_field(action, artifact_path)
     ):
         actions = [
             {"type": "key", "keys": ["ENTER"]},
@@ -1659,7 +1798,7 @@ def _locally_verified_notepad_artifact_action(
     ):
         return None
     segments = _notepad_exact_text_segments(run)
-    typed_index = _typed_notepad_segment_index(action, segments)
+    typed_index = _typed_notepad_segment_index(run, action)
     if typed_index is None or action.expects_task_completion:
         return None
     typed_actions = [
@@ -1667,36 +1806,46 @@ def _locally_verified_notepad_artifact_action(
         for index, item in enumerate(action.actions)
         if item.get("type") == "type_text"
     ]
-    if len(typed_actions) != 1 or any(
-        item.get("type")
-        not in {
-            "type_text",
-            "wait",
-            "wait_for_change",
-            "wait_for_stable_screen",
-        }
-        for item in action.actions
+    grouped = _pending_action_enters_all_notepad_parts(run, action)
+    allowed_types = {
+        "type_text",
+        "wait",
+        "wait_for_change",
+        "wait_for_stable_screen",
+    } | ({"key"} if grouped else set())
+    if (
+        not typed_actions
+        or (not grouped and len(typed_actions) != 1)
+        or any(item.get("type") not in allowed_types for item in action.actions)
     ):
         return None
-    action_index, _ = typed_actions[0]
-    receipt = next(
-        (
-            item
-            for item in input_receipts
-            if item.get("index") == action_index
-        ),
-        None,
-    )
-    if receipt is None or not _is_verified_exact_input_receipt(receipt):
-        return None
+    receipts_by_index = {
+        item.get("index"): item
+        for item in input_receipts
+        if isinstance(item, dict)
+    }
+    for action_index, _ in typed_actions:
+        receipt = receipts_by_index.get(action_index)
+        if receipt is None or not _is_verified_exact_input_receipt(receipt):
+            return None
     summary = (
-        f"Exact local visual readback verified artifact segment "
-        f"{typed_index + 1} of {len(segments)}."
+        f"Exact local visual readback verified all {len(segments)} artifact "
+        "segments in one bounded burst."
+        if grouped
+        else (
+            f"Exact local visual readback verified artifact segment "
+            f"{typed_index + 1} of {len(segments)}."
+        )
     )
     evidence = [
         (
-            "The watched sender emitted the segment exactly once and the "
+            "The watched sender emitted every segment exactly once and each "
             "independent local OCR readback matched its exact hash."
+            if grouped
+            else (
+                "The watched sender emitted the segment exactly once and the "
+                "independent local OCR readback matched its exact hash."
+            )
         )
     ]
     return VerificationDecision(

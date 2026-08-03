@@ -523,6 +523,41 @@ class ControllerDecision(StrictModelDecision):
             WaitForStableScreenAction,
             WaitForChangeAction,
         )
+        active_actions = [
+            action
+            for action in self.actions
+            if not isinstance(action, passive_evidence_types)
+        ]
+        editor_multiline_burst = (
+            sum(isinstance(action, TypeTextAction) for action in active_actions)
+            >= 2
+        )
+        seen_text = False
+        break_after_text = False
+        for action in active_actions:
+            if isinstance(action, TypeTextAction):
+                editor_multiline_burst = editor_multiline_burst and (
+                    action.context == "editor"
+                    and action.verification == "exact"
+                    and (not seen_text or break_after_text)
+                )
+                seen_text = True
+                break_after_text = False
+                continue
+            editor_multiline_burst = editor_multiline_burst and (
+                seen_text
+                and isinstance(action, KeyAction)
+                and {
+                    str(key).strip().casefold()
+                    for key in action.keys
+                }
+                in (
+                    {"shift", "enter"},
+                    {"shiftleft", "enter"},
+                    {"shiftright", "enter"},
+                )
+            )
+            break_after_text = True
         verified_windows_run_launch = is_verified_windows_run_launch(
             [action.model_dump(mode="json") for action in self.actions]
         )
@@ -557,6 +592,7 @@ class ControllerDecision(StrictModelDecision):
                 typed_text
                 and not isinstance(action, passive_evidence_types)
                 and not verified_windows_run_launch
+                and not editor_multiline_burst
             ):
                 raise ValueError(
                     "type_text cannot have an active follow-up in the same burst"
