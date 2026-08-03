@@ -153,6 +153,12 @@ NO_FOCUS_SUMMARY = (
     "target field (or otherwise focus it), verify the caret/focus, then call "
     "type_text once."
 )
+PARTIAL_DELIVERY_SUMMARY = (
+    "Typing stopped after the causal editor row showed only a strict fragment "
+    "of the requested text. The sender issued the payload once; do not append "
+    "or replay it. Treat the current editor line as a truncated draft and "
+    "clear it only through an independently verified rollback."
+)
 FOCUS_CHANGED_SUMMARY = (
     "Typing stopped because substantial pixels changed outside the established "
     "field between chunks. Treat this as focus theft or an unexpected window: "
@@ -3253,6 +3259,7 @@ class WatchedTyper:
         delivery_retries = 0
         last_read = ""
         verified_clean = False
+        causal_partial_delivery = ""
         local_replacement_failure: tuple[VerificationStatus, str] | None = None
         bounded_editor_code = bool(
             editor_field
@@ -3739,6 +3746,84 @@ class WatchedTyper:
             finally:
                 if tmp is not None:
                     tmp.unlink(missing_ok=True)
+
+        async def causal_partial_editor_candidate(
+            before_frame: CapturedFrame | None,
+            after_frame: CapturedFrame | None,
+            intended_snapshot: str,
+        ) -> tuple[str, Region] | None:
+            """Return one causal, high-confidence strict editor fragment.
+
+            A Windows RFB server can accept the HTTP print request while the
+            guest paints only a suffix of the row.  That is not permission to
+            replay anything, but it is enough to distinguish partial delivery
+            from an unfocused field.  Candidate geometry comes only from the
+            before/after emission frames; expected text may classify a strict
+            fragment but never select pixels or authorize success.
+            """
+
+            if (
+                not bounded_editor_code
+                or before_frame is None
+                or after_frame is None
+                or not before_frame.data
+                or not after_frame.data
+            ):
+                return None
+            candidates = await asyncio.to_thread(
+                locate_dense_changed_candidates,
+                before_frame.data,
+                after_frame.data,
+                dims,
+                allow_compact=structural_code_glyph,
+            )
+            visible_intended = intended_snapshot.strip()
+            if len(visible_intended) < 4:
+                return None
+            matches: list[tuple[str, Region, OCRResult]] = []
+            for candidate in candidates[:4]:
+                result = await self._read_screen(
+                    precise=True,
+                    region=candidate,
+                )
+                rows = {
+                    strip_prompt(line.text).strip()
+                    for line in result.lines
+                    if (
+                        line.text.strip()
+                        and line.confidence is not None
+                        and float(line.confidence) >= 0.95
+                    )
+                }
+                fragments = {
+                    row
+                    for row in rows
+                    if (
+                        3 <= len(row) < len(visible_intended)
+                        and (
+                            visible_intended.startswith(row)
+                            or visible_intended.endswith(row)
+                        )
+                    )
+                }
+                if len(fragments) == 1:
+                    matches.append((fragments.pop(), candidate, result))
+            if len(matches) != 1:
+                return None
+            observed, region, result = matches[0]
+            self._last_field_ocr_result = result
+            DEBUG.event(
+                "typing.causal_partial_editor_row",
+                intended_characters=len(intended_snapshot),
+                observed_characters=len(observed),
+                fragment_kind=(
+                    "prefix"
+                    if visible_intended.startswith(observed)
+                    else "suffix"
+                ),
+                region=region.model_dump(),
+            )
+            return observed, region
 
         def cadence(i: int) -> bool:
             if not can_vision or cur_region is None:
@@ -5339,6 +5424,21 @@ class WatchedTyper:
                                     verified_clean = True
                             break
 
+                        partial = await causal_partial_editor_candidate(
+                            dense_prev,
+                            dense_retry,
+                            typed_so_far,
+                        )
+                        if partial is not None:
+                            causal_partial_delivery, cur_region = partial
+                            last_read = causal_partial_delivery
+                            self._refined_readback_region = cur_region
+                            self._refined_readback_intended = typed_so_far
+                            located = True
+                            grid_now = grid_retry
+                            dense_now = dense_retry
+                            break
+
                     if (
                         not located
                         and len(typed_so_far) >= ABORT_MIN_CHARS
@@ -5712,6 +5812,25 @@ class WatchedTyper:
         verdict = compute_verdict(text, last_read, precise)
         if self._semantic_spacing_normalized:
             verdict = "match"
+        if (
+            causal_partial_delivery
+            and verdict not in {"match", "contains"}
+        ):
+            await self._release_all_quietly()
+            return self._halted_result(
+                status="unverified_truncated",
+                field_text=last_read or causal_partial_delivery,
+                corrected=corrections > 0 or delivery_retries > 0,
+                correction_count=corrections,
+                delivery_retries=delivery_retries,
+                used_fast_path=fast_print,
+                typed_characters=len(text),
+                intended_characters=len(text),
+                summary=PARTIAL_DELIVERY_SUMMARY,
+                intended_text=text,
+                emitted_text="".join(emitted_parts),
+                readback_frame_sha256=self._last_readback_frame_sha256,
+            )
         corrected = corrections > 0 or delivery_retries > 0
         return self._finalise(
             text,

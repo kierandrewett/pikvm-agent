@@ -4955,6 +4955,102 @@ async def test_autolocate_retries_once_for_delayed_video_update() -> None:
     assert result.ok is True
 
 
+async def test_causal_partial_editor_row_is_truncated_not_focus_lost(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A landed suffix must not be reported as an unfocused field.
+
+    The retained Code-06 VNC trace issued ``  let timer;`` once, then painted
+    only the final ``mer;`` on the otherwise blank Notepad row.  The coarse
+    luminance grid did not move, but the full-resolution causal diff retained
+    the editor row.  That is evidence of partial transport delivery, not
+    evidence that the field never had focus.
+    """
+
+    async def no_sleep(_seconds: float) -> None:
+        return None
+
+    intended = "  let timer;"
+    visible_suffix = "mer;"
+    before_bytes, after_bytes = _ambiguous_dense_line_frames()
+    backend = FakeBackend(width=1280, height=800)
+    backend.guarded_exact_print = True  # type: ignore[attr-defined]
+    backend.set_frame_bytes(before_bytes)
+    original_print = backend.print_text
+
+    async def partially_delivered_print(text: str) -> None:
+        await original_print(text)
+        backend.set_frame_bytes(after_bytes)
+
+    backend.print_exact_text = partially_delivered_print  # type: ignore[attr-defined]
+
+    class PartialEditorOCR:
+        async def ocr_precise(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path
+            if region is not None and region.y < 200:
+                return OCRResult(
+                    lines=[
+                        OCRLine(
+                            text=visible_suffix,
+                            confidence=0.99,
+                            bbox=[8, 8, 48, 26],
+                        )
+                    ]
+                )
+            return OCRResult()
+
+        async def ocr(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            return await self.ocr_precise(image_path, region)
+
+        async def ocr_precise_fallback(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            return await self.ocr_precise(image_path, region)
+
+    monkeypatch.setattr(asyncio, "sleep", no_sleep)
+    monkeypatch.setattr(
+        typing_module,
+        "locate_changed_bbox",
+        lambda *_args, **_kwargs: None,
+    )
+    monkeypatch.setattr(
+        typing_module,
+        "locate_dense_changed_candidates",
+        lambda *_args, **_kwargs: [
+            Region(x=36, y=88, width=64, height=32),
+            Region(x=72, y=472, width=88, height=32),
+        ],
+    )
+
+    result = await WatchedTyper(backend, PartialEditorOCR()).type_text(
+        intended,
+        code=True,
+        exact=True,
+        context="editor",
+    )
+
+    assert result.status == "unverified_truncated", result
+    assert result.field_text == visible_suffix
+    assert result.emitted_exactly_once is True
+    assert result.correction_count == 0
+    assert [
+        kwargs["text"]
+        for method, kwargs in backend.calls
+        if method == "print_text"
+    ] == [intended]
+    _assert_no_enter(backend)
+
+
 @pytest.mark.parametrize(
     ("intended", "noisy_row", "visible_row", "status_row"),
     [
