@@ -25,15 +25,15 @@
     ]
   },
   "summary": {
-    "recorded_attempts": 14,
-    "valid_full_task_runs": 11,
-    "failed_runs": 10,
+    "recorded_attempts": 15,
+    "valid_full_task_runs": 12,
+    "failed_runs": 11,
     "infrastructure_invalid_runs": 3,
     "passed_runs": 1,
     "canonical_attempt": "v10",
     "all_failures_retained": true,
     "all_recordings_retained": true,
-    "reboots_ready": 13,
+    "reboots_ready": 14,
     "reboots_failed_or_pending": 1,
     "release_gate": "accuracy passing; speed failing; post-pass speed remediation remains active"
   },
@@ -387,6 +387,69 @@
       },
       "poster_sha256": "33ff11cd45665dfd17acece611e983ef7c15b2e002237dc8d7f036a439b02731",
       "campaign_sha256": "6ce9a18d758d5fe3ad809181ea6642f54be794e2ed256c224398351307913124"
+    },
+    {
+      "campaign_id": "codex-code-entry-code08-v15-20260803",
+      "accepted_status": "failed",
+      "campaign_reported_status": "passed",
+      "run_id": "b82382a3-a6f1-4538-aee1-41927209d165",
+      "source_commit": "b55cceb",
+      "reason": "The narrow safe-launch remediation reduced the first Notepad action from 158.625 seconds to 22.028 seconds and all 15 HID actions completed. The installed observer then returned 117 bytes that exactly matched the cumulative input sequence, but the immutable plan required only 115 bytes: a continuation action appended a duplicate terminal CRLF after the grouped burst had already emitted it. The public receipt boundary also dropped deferred provenance, causing 15 deterministic completion rejections and 14 no-progress resumptions. The final replan erased artifact_content and bypassed that gate, so the campaign's public pass is retained as a false positive while the accepted result fails byte-exact accuracy.",
+      "wall_clock_ms": 708568,
+      "task_duration_ms": 885378,
+      "preflight_ms": 63995,
+      "model_active_ms": 538602,
+      "provider_wait_ms": 525716,
+      "provider_serial_equivalent_ms": 539779,
+      "provider_overlap_ms": 14063,
+      "action_execution_ms": 157615,
+      "evidence_capture_ms": 4320,
+      "provider_calls": 75,
+      "reasoner_calls": 18,
+      "controller_calls": 23,
+      "verifier_calls": 34,
+      "actions_attempted": 15,
+      "actions_completed": 15,
+      "approval_count": 2,
+      "approval_scopes": [
+        "bounded_workspace_edit"
+      ],
+      "safe_launcher": {
+        "v14_latency_ms": 158625,
+        "v15_latency_ms": 22028,
+        "speedup": 7.201062284365353,
+        "receipt_status": "delivered_unverified",
+        "post_launch_visual_verification": true
+      },
+      "observer_artifact_comparison": {
+        "transport": "guarded MCP visual matrix",
+        "path": "C:/PiKVM-Harness/workspace/codex-50/code-08.cmd",
+        "observed_bytes": 117,
+        "observed_sha256": "989870aef8b574688745aedb851ce7bd35f1efa7f674fb528238b9f62550fe55",
+        "cumulative_input_exact_match": true,
+        "immutable_plan_expected_bytes": 115,
+        "immutable_plan_expected_sha256": "706c0cb88a68cb8d338a53e93dea2db53340b4546118ec4850677534f815c798",
+        "immutable_plan_exact_match": false,
+        "trailing_extra_hex": "0d0a",
+        "comparison_report": "bench/results/2026-08-03/live-vnc/code-08-v15-observer-comparison.json"
+      },
+      "verification_uncertain_events": 4,
+      "completion_gate_rejections": 15,
+      "autonomous_resumes": 14,
+      "quiescence_status": "confirmed",
+      "reboot_ms": 91892,
+      "reboot_transition_observed": true,
+      "recording": {
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2.0,
+        "duration_ms": 613000,
+        "size_bytes": 2302038,
+        "sha256": "2653c22a59a3503ed9fbdc52673b0736e9da27403dc07e4bb6661751153508d8"
+      },
+      "poster_sha256": "f505ca3e4adb0ca456f357b697b3c9fbacd4a6b97308bba82ab96a1c25c1c11b",
+      "campaign_sha256": "214474f72c1b0dd9ce61b5de90facfb2fdeb65d939efb8495d2fb4a1be0dfcae"
     }
   ],
   "remediations": [
@@ -452,6 +515,20 @@
       "after_attempt": "v13",
       "commit": "a4c40db",
       "change": "Expose the isolated adapter keymap and refuse a VNC lab connection when it disagrees with the configured layout, preventing US/UK shifted-symbol corruption from reaching a task."
+    },
+    {
+      "after_attempt": "v14",
+      "commit": "b55cceb",
+      "change": "Defer inline OCR only for the existing strict allowlisted Windows Run launch and require the ordinary post-launch visual verifier."
+    },
+    {
+      "after_attempt": "v15",
+      "commits": [
+        "0dcbd2c",
+        "137d559",
+        "a7ec0cb"
+      ],
+      "change": "Preserve deferred input provenance, prevent a grouped editor burst from appending its terminal newline twice, and keep the first accepted artifact content immutable across replans."
     }
   ],
   "next_gate": {
@@ -465,7 +542,7 @@
       "The accepted run completed a transition-observed mandatory reboot and retained its recording."
     ],
     "blocking_infrastructure_state": null,
-    "next_attempt": "v15 after replacing inline OCR with delivery acknowledgement only inside the existing strict allowlisted Windows Run launch shape",
+    "next_attempt": "v16 after preserving deferred provenance, removing the duplicate trailing editor break, and making artifact content immutable across replans",
     "next_task_after_speed_gate": "code-09"
   }
 }

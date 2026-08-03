@@ -1044,7 +1044,7 @@ actions, completed 26, and requested four bounded-workspace approvals. Worse,
 the model populated two Notepad documents before converging on the exact saved
 payload. The 874-second VP9 recording is 3,842,300 bytes.
 
-Four post-pass attempts remain visible rather than replacing v10:
+Five post-pass attempts remain visible rather than replacing v10:
 
 | Attempt | Accuracy status | Managed wall | Provider calls | Result |
 | --- | --- | ---: | ---: | --- |
@@ -1053,6 +1053,7 @@ Four post-pass attempts remain visible rather than replacing v10:
 | v12 | Infrastructure-invalid | 63.892s | 2 | Isolated VNC framebuffer returned HTTP 500 before any content action completed; after recovery the retained campaign completed its mandatory reboot without replaying content |
 | v13 | Infrastructure-invalid | 478.588s | 25 | Caret-only filename recovery converged, but the restored adapter used a US keymap against the UK guest and changed byte zero from `@` to `"`; reboot completed |
 | v14 | Failed | 179.702s | 2 | Correct UK-keymap lab; exact OCR of the safe seven-character `notepad` Run field consumed 158.625s across two attempts, then interrupted before any program content |
+| v15 | Failed (public false positive) | 708.568s | 75 | Safe launch fell to 22.028s, but the observer found a duplicate trailing CRLF; missing deferred provenance caused 15 completion rejections, then a replan erased the immutable artifact contract and incorrectly passed |
 
 The v11 recording directly produced the caret-only filename remediation. v13
 exercised it: the first autocomplete-biased readback recovered without
@@ -1079,19 +1080,47 @@ and one controller call; the first safe Notepad launch action consumed
 158.625s, or 88.3% of the managed run. Its exact Run-field readback exhausted
 the 120-second tool deadline, retried once, and interrupted after another
 38.506s. Quiescence and the transition-observed 95.535-second reboot both
-passed. The next remediation keeps exact verification for arbitrary Run,
-terminal, URL, path, argument, and consequential input, but replaces inline
+passed. The next remediation kept exact verification for arbitrary Run,
+terminal, URL, path, argument, and consequential input, but replaced inline
 OCR only inside the existing strict allowlisted Win+R executable shape with an
-honest delivery receipt and post-launch visual verification. v15 will test that
-path and is not pre-declared a pass.
+honest delivery receipt and post-launch visual verification. That path was
+exercised by the retained v15 attempt below; it was not pre-declared a pass.
 
-The complete 14-attempt ledger includes all three infrastructure-invalid runs,
-ten valid-task failures, campaign/recording hashes, exact observer proof,
+v15 proved that narrow launch remediation: the identical 11-input Notepad
+launch completed in 22.028s, **7.20× faster** than v14, with an honest
+`delivered_unverified` receipt followed by ordinary visual verification. The
+full task still took 708.568s because 75 provider calls consumed 525.716s, or
+74.2% of the critical path. Fifteen HID actions all completed; the run then
+spent 14 autonomous resumptions repeating reasoner/controller/verifier turns.
+
+The campaign's own status is `passed`, but independent acceptance rejects that
+verdict. Two checksum-valid observer captures (four pages, then five pages)
+returned the exact nested path and 117 bytes. Those bytes exactly match the
+cumulative HID sequence: the grouped program-entry burst plus a later
+`Shift+Enter`. They do **not** match the immutable 115-byte Windows-CRLF plan;
+the saved file has one extra terminal CRLF at offset 115. The grouped burst had
+already emitted the plan's final newline, but the continuation controller
+appended it again.
+
+The retained event stream exposed two further safety defects. The public input
+receipt sanitizer removed `read_back_deferred`, so the deterministic exact
+content gate rejected 15 visually complete verdicts. The final replan then
+returned `artifact_content: null`; accepting that downgrade disabled the gate
+and turned unchanged pixels into a public pass. Commits `0dcbd2c`, `137d559`,
+and `a7ec0cb` respectively preserve deferred provenance, prevent the duplicate
+terminal break, and make the first accepted artifact contract immutable across
+replans. v16 will test all three together.
+
+The complete 15-attempt ledger includes all three infrastructure-invalid runs,
+eleven valid-task failures, campaign/recording hashes, exact observer proof,
 remediation commits, and every reset state:
 [`code-08-attempts.json`](results/2026-08-03/live-vnc/code-08-attempts.json).
 The v13 byte-level comparison is
 [`code-08-v13-observer-comparison.json`](results/2026-08-03/live-vnc/code-08-v13-observer-comparison.json),
-`sha256:2c286aa86836`. The ledger digest is `sha256:07a052aa0a9e`.
+`sha256:2c286aa86836`; the v15 plan/cumulative-input comparison is
+[`code-08-v15-observer-comparison.json`](results/2026-08-03/live-vnc/code-08-v15-observer-comparison.json).
+Its digest is `sha256:1e08f3beb8a2`; the updated ledger digest is
+`sha256:d546bbb54a4b`.
 The canonical v10 campaign digest is `sha256:9dbc7c98e97a`; its VP9 recording
 is `sha256:cd1af2f018d2` and its poster is `sha256:f74b6f4f38ae`.
 

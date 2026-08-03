@@ -3451,10 +3451,10 @@
     "full_ledger": "bench/results/2026-08-02/live-vnc/code-03-attempts.json"
   },
   "verdict": {
-    "accuracy": "The campaign is 33/50. All ten Text entry tasks and the first eight Code entry tasks pass. Code-08 v10 saved and reopened the requested batch file; the installed observer independently returned 133 bytes whose CRLF-normalized SHA-256 exactly matched the later program-entry tool call. All 14 attempts, including three infrastructure-invalid runs and ten valid-task failures, remain in the ledger.",
+    "accuracy": "The campaign is 33/50. All ten Text entry tasks and the first eight Code entry tasks pass. Code-08 v10 remains canonical. v15's public pass is rejected: the observer returned 117 bytes that matched cumulative HID but contained one duplicate terminal CRLF beyond the immutable 115-byte plan. All 15 attempts, including three infrastructure-invalid runs and eleven valid-task failures, remain in the ledger.",
     "speed": "Failing product target: accepted code-08 v10 took 869.893 seconds for the managed run and 1079.054 seconds from task preflight through the reset-ready gate. It populated two Notepad documents and made 66 provider calls before converging, materially slower than a competent human.",
     "dominant_cost": "Code-08 v10 spent 719.647 seconds in action execution and 476.667 seconds waiting on the critical provider path, with 336.204 seconds of overlap. Thirty-three verifier turns, 24 controller turns, nine reasoner turns, and repeated Save/Open loops dominate the avoidable cost.",
-    "next": "Run code-08 v15 after replacing inline OCR only inside the existing strict allowlisted Windows Run launch shape with delivery acknowledgement plus post-launch visual verification. Preserve exact observer comparison, bounded workspace approval, fresh-artifact preparation, quiescence, mandatory reboot, recording, and all failures before advancing to code-09."
+    "next": "Run code-08 v16 after preserving deferred receipt provenance, preventing the duplicate trailing editor break, and making the first artifact contract immutable across replans. Preserve exact observer comparison, bounded workspace approval, fresh-artifact preparation, quiescence, mandatory reboot, recording, and all failures before advancing to code-09."
   },
   "code_04_acceptance": {
     "task": "Write, save, reopen, and visually verify a grouped customer-value SQL query in Notepad",
@@ -3986,28 +3986,32 @@
     "campaign_sha256": "9dbc7c98e97adf5224a5ed14239c04bfb2e1366e10dbbe37b38951281ffcc27f"
   },
   "code_08_attempt_summary": {
-    "recorded_attempts": 14,
-    "valid_full_task_runs": 11,
-    "failed_runs": 10,
+    "recorded_attempts": 15,
+    "valid_full_task_runs": 12,
+    "failed_runs": 11,
     "infrastructure_invalid_runs": 3,
     "passed_runs": 1,
     "canonical_campaign_id": "codex-code-entry-code08-v10-20260803",
-    "post_pass_speed_attempts": 4,
-    "post_pass_state": "v11 retained a repeated Save-field wrong-region failure; v12 recovered and completed its pending reboot; v13 retained the restored-adapter keymap mismatch; v14 failed before content because exact OCR consumed the safe Notepad launch deadline",
+    "post_pass_speed_attempts": 5,
+    "post_pass_state": "v11 retained a repeated Save-field wrong-region failure; v12 recovered and completed its pending reboot; v13 retained the restored-adapter keymap mismatch; v14 failed before content because exact OCR consumed the safe Notepad launch deadline; v15 accelerated that launch but exposed a duplicate trailing CRLF, missing deferred provenance, and an immutable-plan downgrade false positive",
     "latest_post_pass_attempt": {
-      "campaign_id": "codex-code-entry-code08-v14-20260803",
+      "campaign_id": "codex-code-entry-code08-v15-20260803",
       "accepted_status": "failed",
-      "run_id": "1ae8bd13-22ef-458f-9fe8-152f17101eff",
-      "wall_clock_ms": 179702,
-      "task_duration_ms": 343157,
-      "provider_calls": 2,
-      "actions_attempted": 2,
-      "actions_completed": 0,
-      "action_execution_ms": 158625,
-      "program_content_actions": 0,
-      "reboot_ms": 95535,
+      "campaign_reported_status": "passed",
+      "run_id": "b82382a3-a6f1-4538-aee1-41927209d165",
+      "wall_clock_ms": 708568,
+      "task_duration_ms": 885378,
+      "provider_calls": 75,
+      "actions_attempted": 15,
+      "actions_completed": 15,
+      "action_execution_ms": 157615,
+      "safe_launcher_latency_ms": 22028,
+      "safe_launcher_speedup_vs_v14": 7.201062284365353,
+      "completion_gate_rejections": 15,
+      "autonomous_resumes": 14,
+      "reboot_ms": 91892,
       "reboot_transition_observed": true,
-      "observer_comparison": "not applicable; no task artifact content was entered"
+      "observer_comparison": "117 observed bytes exactly matched cumulative HID, but the immutable 115-byte plan was followed by one duplicate terminal CRLF; the public pass is a false positive"
     },
     "full_ledger": "bench/results/2026-08-03/live-vnc/code-08-attempts.json"
   }

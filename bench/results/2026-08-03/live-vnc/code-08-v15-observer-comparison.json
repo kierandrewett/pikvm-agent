@@ -1,0 +1,104 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-08-03T18:13:13Z",
+  "campaign_id": "codex-code-entry-code08-v15-20260803",
+  "run_id": "b82382a3-a6f1-4538-aee1-41927209d165",
+  "task_id": "code-08",
+  "source_commit": "b55cceb",
+  "environment": {
+    "target": "authorized disposable Windows VNC VM",
+    "production_target_contacted": false,
+    "endpoint_retained": false,
+    "adapter_keymap": "en-gb"
+  },
+  "safe_launcher": {
+    "target": "notepad",
+    "v14_action_latency_ms": 158625,
+    "v15_action_latency_ms": 22028,
+    "speedup": 7.201062284365353,
+    "latency_reduction": 0.8611315996847911,
+    "receipt_status": "delivered_unverified",
+    "post_launch_visual_verification": true
+  },
+  "observer": {
+    "transport": "guarded MCP visual matrix",
+    "protocol": "pikvm-observer.v1",
+    "path": "C:/PiKVM-Harness/workspace/codex-50/code-08.cmd",
+    "observed_bytes": 117,
+    "observed_sha256": "989870aef8b574688745aedb851ce7bd35f1efa7f674fb528238b9f62550fe55",
+    "decoding_captures": [
+      {
+        "pages": 4,
+        "checksum_valid": true
+      },
+      {
+        "pages": 5,
+        "checksum_valid": true
+      }
+    ],
+    "dangerous_commits": 0,
+    "guest_identity_present": true,
+    "input_desktop_present": true
+  },
+  "cumulative_input_comparison": {
+    "program_entry_event_sequence": 76,
+    "trailing_break_event_sequence": 91,
+    "expected_bytes": 117,
+    "expected_sha256": "989870aef8b574688745aedb851ce7bd35f1efa7f674fb528238b9f62550fe55",
+    "observed_bytes": 117,
+    "observed_sha256": "989870aef8b574688745aedb851ce7bd35f1efa7f674fb528238b9f62550fe55",
+    "exact_match": true,
+    "byte_errors": 0
+  },
+  "immutable_plan_comparison": {
+    "reasoner_event_sequence": 10,
+    "newline_normalization": "Windows CRLF",
+    "expected_bytes": 115,
+    "expected_sha256": "706c0cb88a68cb8d338a53e93dea2db53340b4546118ec4850677534f815c798",
+    "observed_bytes": 117,
+    "observed_sha256": "989870aef8b574688745aedb851ce7bd35f1efa7f674fb528238b9f62550fe55",
+    "exact_match": false,
+    "byte_errors": 2,
+    "first_mismatch": 115,
+    "trailing_extra_hex": "0d0a",
+    "trailing_extra": "one duplicate Windows line break"
+  },
+  "public_verdict_audit": {
+    "campaign_status": "passed",
+    "accepted_status": "failed",
+    "false_positive": true,
+    "verification_uncertain_events": 4,
+    "completion_gate_rejections": 15,
+    "autonomous_resumes": 14,
+    "provider_calls": 75,
+    "final_replan_removed_artifact_content": true,
+    "completion_gate_was_bypassed": true
+  },
+  "semantic_review": {
+    "ping_success_branch": "healthy with exit code 0",
+    "ping_failure_branch": "unhealthy with exit code 1",
+    "branch_logic_matches_task": true
+  },
+  "diagnosis": {
+    "classification": "valid_task_failure",
+    "causes": [
+      "The grouped editor controller already emitted the immutable artifact's terminal newline, then the continuation controller issued Shift+Enter and appended a duplicate CRLF.",
+      "The public receipt boundary removed read_back_deferred provenance, so the exact-content completion gate rejected 15 otherwise verified completions.",
+      "The final reasoner replan removed artifact_content; the harness accepted the downgrade and stopped applying the exact-content gate."
+    ],
+    "remediations": [
+      {
+        "commit": "0dcbd2c",
+        "description": "Preserve deferred and atomic-launch provenance across the public receipt boundary."
+      },
+      {
+        "commit": "137d559",
+        "description": "Do not append the terminal line break twice after a grouped editor burst."
+      },
+      {
+        "commit": "a7ec0cb",
+        "description": "Keep the first accepted artifact content immutable across all later replans."
+      }
+    ]
+  }
+}
