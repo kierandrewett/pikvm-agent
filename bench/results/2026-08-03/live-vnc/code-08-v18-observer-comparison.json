@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "campaign_id": "codex-code-entry-code08-v18-20260803",
+  "run_id": "45833f90-462b-4ddf-a2c1-815d5a33bc93",
+  "source_commit": "c9bd0b0",
+  "accepted_status": "infrastructure_invalid",
+  "campaign_reported_status": "failed",
+  "environment": {
+    "production_contacted": false,
+    "endpoint_retained_in_repository": false,
+    "adapter_keymap": "en-gb"
+  },
+  "managed_run": {
+    "provider": "codex-fast",
+    "model": "gpt-5.6-terra",
+    "actions_attempted": 8,
+    "actions_completed": 7,
+    "provider_calls": 11,
+    "autonomous_resumes": 0,
+    "unknown_risk_overwrite_committed": false
+  },
+  "immutable_plan": {
+    "windows_crlf_bytes": 119,
+    "sha256": "88f3a01bad47f3edac3e1ce23df669abd49d49381329d522b151e6d16d46bbf4",
+    "terminal_newline": true
+  },
+  "current_path_observer": {
+    "transport": "guarded MCP visual matrix",
+    "path": "C:/PiKVM-Harness/workspace/codex-50/code-08.cmd",
+    "captures": [
+      {
+        "sequence": 2,
+        "pages": 4,
+        "checksum_valid": true
+      },
+      {
+        "sequence": 3,
+        "pages": 5,
+        "checksum_valid": true
+      }
+    ],
+    "observed_bytes": 127,
+    "observed_sha256": "c5e247fcb3f17892938d047673cab4efbc6588140cd5d6b5047c553a8349ced4",
+    "matches_v17_artifact": true,
+    "matches_current_run_editor_input": false,
+    "matches_immutable_plan": false,
+    "dangerous_commit_count": 0,
+    "guest_identity_present": true,
+    "input_desktop_present": true
+  },
+  "claimed_preserved_path_observer": {
+    "transport": "guarded MCP visual matrix",
+    "path": "C:/PiKVM-Harness/workspace/codex-50/code-08.cmd.pikvm-prior-d91456718ea34f2f8d21e1e05caf8536",
+    "captures": [
+      {
+        "sequence": 2,
+        "pages": 4,
+        "checksum_valid": true,
+        "file_error": "open failed"
+      }
+    ],
+    "file_observed": false,
+    "dangerous_commit_count": 0,
+    "guest_identity_present": true,
+    "input_desktop_present": true
+  },
+  "safety_stop": {
+    "screen_state": "Save As overwrite confirmation for code-08.cmd",
+    "proposed_target": "Yes",
+    "risk": "unknown",
+    "campaign_disposition": "refused",
+    "input_committed": false
+  },
+  "reset_after_observer": {
+    "ready": true,
+    "transition_observed": true,
+    "duration_ms": 84745,
+    "ready_frame_sha256": "4731cc8ec1a99549b6789ae9091d727690aaade05e1abbd1cdafa4b9c6d3ccaf"
+  },
+  "finding": "The no-chaining ren command remained a silent no-op. The original path still contained the exact 127-byte v17 artifact and the claimed preservation path did not exist. The v18 draft was entered in an unsaved Notepad buffer; the harness refused the unknown-risk overwrite confirmation, so no old or new file bytes were destroyed.",
+  "next_remediation": "Make the visible Run command self-verifying before recording preflight readiness, and fail the preflight before model spend when the preservation command cannot be proven."
+}

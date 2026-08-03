@@ -1044,7 +1044,7 @@ actions, completed 26, and requested four bounded-workspace approvals. Worse,
 the model populated two Notepad documents before converging on the exact saved
 payload. The 874-second VP9 recording is 3,842,300 bytes.
 
-Seven post-pass attempts remain visible rather than replacing v10:
+Eight post-pass attempts remain visible rather than replacing v10:
 
 | Attempt | Accuracy status | Managed wall | Provider calls | Result |
 | --- | --- | ---: | ---: | --- |
@@ -1056,6 +1056,7 @@ Seven post-pass attempts remain visible rather than replacing v10:
 | v15 | Failed (public false positive) | 708.568s | 75 | Safe launch fell to 22.028s, but the observer found a duplicate trailing CRLF; missing deferred provenance caused 15 completion rejections, then a replan erased the immutable artifact contract and incorrectly passed |
 | v16 | Infrastructure-invalid | 24.064s | 2 | Policy safely blocked an unknown-risk click before input, but the observer found the stale v15 artifact at the live path and no file at the preflight's claimed preservation path |
 | v17 | Infrastructure-invalid (model bytes exact) | 284.372s | 16 | Two observer captures exactly matched the 127-byte plan and cumulative input; the claimed prior-evidence path still did not exist |
+| v18 | Infrastructure-invalid (overwrite safely refused) | 200.962s | 11 | The unchained `ren` was still a silent no-op; the observer found v17 bytes at the original path and no preserved file, while policy refused the unknown-risk overwrite confirmation |
 
 The v11 recording directly produced the caret-only filename remediation. v13
 exercised it: the first autocomplete-biased readback recovered without
@@ -1147,7 +1148,30 @@ Commit `2536526` replaces it with one shorter `ren` command, removes shell
 chaining, and records preservation as `requested_unverified` until observer
 proof exists. v18 will test both current bytes and that prior-evidence claim.
 
-The complete 17-attempt ledger includes all five infrastructure-invalid runs,
+v18 proved that removing shell chaining was necessary but not sufficient. The
+57.093-second preflight reported readiness, then the managed run typed its
+119-byte Windows-CRLF plan into an unsaved Notepad buffer. Save As revealed
+that `code-08.cmd` still existed. The first two bounded workspace approvals
+were accepted, but the proposed `Yes` overwrite click was classified as
+unknown risk and refused before input, preserving the existing artifact.
+
+Independent observer captures then established the filesystem state. Two
+captures (four pages and five pages) returned the original path and the exact
+127-byte v17 SHA-256 `c5e247fcb3f1`. A separate four-page capture of the
+claimed unique preservation path returned `open failed`. No dangerous commit
+was observed. The model loop itself took 200.962s: 93.363s was provider wait
+(46.5%) and 104.861s was action execution (52.2%), across 11 provider calls
+and seven completed actions. The mandatory campaign reboot completed in
+84.371s with a visible transition, and the post-observer reset independently
+completed in 84.745s with a visible transition.
+
+This is retained as infrastructure-invalid rather than a model failure: the
+task never received the clean surface promised by preflight, the new draft was
+never committed, and the old file was not overwritten. The next gate is to
+make the visible Run preservation command self-verifying and fail preflight
+before any model spend when preservation cannot be proven.
+
+The complete 18-attempt ledger includes all six infrastructure-invalid runs,
 eleven valid-task failures, campaign/recording hashes, exact observer proof,
 remediation commits, and every reset state:
 [`code-08-attempts.json`](results/2026-08-03/live-vnc/code-08-attempts.json).
@@ -1159,8 +1183,10 @@ Its digest is `sha256:1e08f3beb8a2`; the v16 current/prior-path comparison is
 [`code-08-v16-observer-comparison.json`](results/2026-08-03/live-vnc/code-08-v16-observer-comparison.json),
 `sha256:fd345f2bc6ab`; the v17 current/prior-path comparison is
 [`code-08-v17-observer-comparison.json`](results/2026-08-03/live-vnc/code-08-v17-observer-comparison.json),
-`sha256:f136333a2b5a`. The updated ledger digest is
-`sha256:7fe963b68e7d`.
+`sha256:f136333a2b5a`; the v18 current/prior-path comparison is
+[`code-08-v18-observer-comparison.json`](results/2026-08-03/live-vnc/code-08-v18-observer-comparison.json),
+`sha256:851e69547c5f`. The updated ledger digest is
+`sha256:5a8a2bfdefb3`.
 The canonical v10 campaign digest is `sha256:9dbc7c98e97a`; its VP9 recording
 is `sha256:cd1af2f018d2` and its poster is `sha256:f74b6f4f38ae`.
 
