@@ -7607,8 +7607,8 @@ async def test_precise_readback_defers_visible_indent_to_editor_status() -> None
     assert ocr.fallback_calls == 0
 
 
-@pytest.mark.parametrize("intended", ["}", "  ]", "    )"])
-async def test_single_structural_code_glyph_uses_grounded_compact_crop(
+@pytest.mark.parametrize("intended", ["}", "  ]", "    )", "  };"])
+async def test_short_structural_code_fragment_uses_grounded_compact_crop(
     monkeypatch: pytest.MonkeyPatch,
     intended: str,
 ) -> None:
@@ -7676,7 +7676,7 @@ async def test_single_structural_code_glyph_uses_grounded_compact_crop(
                         )
                     ]
                 )
-            if 120 < region.y < 250:
+            if region.y < 250 and region.y + region.height > 120:
                 self.compact_reads += 1
                 if self.compact_reads < 3:
                     return OCRResult()
@@ -7701,7 +7701,8 @@ async def test_single_structural_code_glyph_uses_grounded_compact_crop(
                 lines=[
                     OCRLine(
                         text=(
-                            '{\n  "enabled": true,\n  ]\n}'
+                            '{\n  "enabled": true,\n'
+                            f"{intended}\n}}"
                         ),
                         confidence=0.99,
                     )

@@ -103,6 +103,8 @@ _EDITOR_STATUS_POSITION_RE = re.compile(
 _STANDALONE_I_SUBSTITUTES = frozenset({"I", "1", "|", "l"})
 _STANDALONE_LOWERCASE_I_RE = re.compile(r"(?<![\w])i(?![\w])")
 _STRUCTURAL_CODE_GLYPHS = frozenset("{}[]()")
+_STRUCTURAL_CODE_SUFFIX_GLYPHS = _STRUCTURAL_CODE_GLYPHS | frozenset(",;")
+_STRUCTURAL_CODE_FRAGMENT_MAX_CHARS = 4
 _EDITOR_STATUS_CHARACTER_COUNT_RE = re.compile(
     r"\b(?P<characters>\d+)\s+characters?\b",
     re.IGNORECASE,
@@ -178,6 +180,26 @@ MISSING_GLYPH_REPLACEMENT_FAILED_SUMMARY = (
     "did not restore the exact text. Do not append or replay the draft until "
     "the visible field is corrected."
 )
+
+
+def is_structural_code_fragment(text: str) -> bool:
+    """Recognize one short punctuation-only closing fragment.
+
+    Code generators commonly emit closing rows such as ``};`` or ``]);``.
+    Their tiny VNC pixel delta needs the same compact causal-crop treatment as
+    a single ``}``, while exact OCR and the editor caret-column proof still
+    gate acceptance of every glyph and any leading indentation.
+    """
+
+    visible = text.strip()
+    return (
+        0 < len(visible) <= _STRUCTURAL_CODE_FRAGMENT_MAX_CHARS
+        and any(character in _STRUCTURAL_CODE_GLYPHS for character in visible)
+        and all(
+            character in _STRUCTURAL_CODE_SUFFIX_GLYPHS
+            for character in visible
+        )
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -3241,7 +3263,7 @@ class WatchedTyper:
             precise
             and editor_field
             and code
-            and text.strip() in _STRUCTURAL_CODE_GLYPHS
+            and is_structural_code_fragment(text)
         )
         defer_blind_editor_readback = bool(
             precise
