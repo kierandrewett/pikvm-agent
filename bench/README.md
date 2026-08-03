@@ -854,7 +854,7 @@ turns. The complete ten-run ledger and supporting diagnostics are
 The canonical campaign digest is `sha256:f0868f7a3474`; its VP9 recording is
 `sha256:fc000d2404d5` and its poster is `sha256:a9c34fd9f657`.
 
-Code-06 is still **pending** after six retained failures. v1 and v2 reached an
+Code-06 is still **pending** after seven retained failures. v1 and v2 reached an
 indented four-character closing row after verifying the preceding code, but
 exact OCR returned empty. The retained v2 evaluated frame shows the row was
 actually present, so that attempt is a verifier false negative rather than a
@@ -911,18 +911,35 @@ The post-v6 remediation splits that causal region into vertical changed-pixel
 bands, rejects one-pixel caret/JPEG noise, and sends only the lowest substantial
 text band to exact OCR. It uses no expected text to choose the band. Retained
 frame replay narrows v5's 28px region to 18px and v6's two-line 29px region to
-17px; 283 typing, OCR, burst, and receipt regressions pass. A live v7 must still
-prove the target-only crop, independent status evidence, save, reopen, and
-final verification before Code-06 can pass.
+17px; 283 typing, OCR, burst, and receipt regressions pass.
+
+v7 proved that vertical split live: the target readback was one row and 18px
+high, with no text from the preceding line. It then exposed a distinct caret
+artifact. Moving to `Home` placed a one-pixel caret at the crop's left edge, so
+blind exact OCR returned `| };` instead of `};`. The receipt rejected that
+wrong-region contains match, emitted the four requested characters exactly
+once, and performed no replay. Two model-only recovery cycles sent no further
+HID before the run blocked. The run took 454.552s before reboot. Action/OCR
+consumed 317.774s (69.9%), while 16 model calls consumed 129.043s (28.4%).
+Quiescence passed, and the mandatory reboot observed a real transition and
+returned ready after 116.788s. All media and campaign hashes are retained.
+
+The post-v7 remediation also splits the target row horizontally. On the
+retained v7 pair it excludes the left caret and narrows `x=37..76` to the
+substantial glyph-only band at `x=53..71`; it likewise preserves glyph-only
+bands for v5 and v6. The selection uses causal pixels only, requires one
+unambiguous substantial band, and still delegates indentation to the independent
+caret-column proof. The full 283-test regression set passes. A live v8 must
+still prove this crop, save, reopen, and independently verify the complete file.
 
 An earlier attempted v4 invocation is explicitly excluded from the Code-06
 denominator: `--stop-after-task code-06` bounded the campaign's end but still
 started at task one. It completed and rebooted after Observe-01 and Observe-02,
 then was stopped at the next task boundary before Observe-03 created a run or
 sent input. The replacement `--only-task code-06` selector filters the manifest
-before adapter preflight. The complete six-run ledger and invalid-scope note
+before adapter preflight. The complete seven-run ledger and invalid-scope note
 are [`code-06-attempts.json`](results/2026-08-03/live-vnc/code-06-attempts.json).
-The ledger digest is `sha256:6406513d294a`. Code-06 remains a failing accuracy
+The ledger digest is `sha256:bdc736764aa0`. Code-06 remains a failing accuracy
 and speed gate; it does not increase the 30/50 campaign pass count.
 
 Failure-inclusive metrics, canonical campaign digests, the 30 accepted task

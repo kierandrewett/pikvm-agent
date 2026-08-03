@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "report": "codex-code-entry-code06-failure-inclusive-attempts",
-  "recorded_at": "2026-08-03T03:16:06Z",
+  "recorded_at": "2026-08-03T03:39:56Z",
   "environment": {
     "target": "authorized disposable Windows VNC VM",
     "production_target_contacted": false,
@@ -25,8 +25,8 @@
     ]
   },
   "summary": {
-    "full_task_runs": 6,
-    "failed_runs": 6,
+    "full_task_runs": 7,
+    "failed_runs": 7,
     "invalid_runs": 0,
     "passed_runs": 0,
     "all_failures_retained": true,
@@ -200,6 +200,40 @@
       "campaign_sha256": "b8f3d03a8d6ecd0b76a44e86463b5ef667783f6e1016cee2cf027b4c9f4adff9",
       "recording_sha256": "56100c1bd1863c6cc6d847e79060a4ebd2886108041aaf8e51374a29bb52306c",
       "poster_sha256": "32855df7d0260d0658b7372e161eb5b608b2244a2022536e83e013e5c3b1c8cb"
+    },
+    {
+      "campaign_id": "codex-code-entry-code06-v7-20260803",
+      "manifest_campaign_id": "codex-windows-50",
+      "accepted_status": "failed",
+      "run_id": "e5cdab18-5420-419f-a627-4063e6f4cd68",
+      "reason": "The vertical pixel-band remediation worked live: the compact row crop fell to one 18-pixel-high row and no longer included the preceding line. After `Home`, however, the left-side caret remained inside that crop and blind exact OCR returned `| };`. The receipt rejected the caret-contaminated wrong-region contains match, issued no replay, and two model-only recovery cycles sent no further HID before the run blocked.",
+      "wall_clock_ms": 454552,
+      "provider_wait_ms": 129043,
+      "provider_wait_share": 0.2838905119766275,
+      "action_execution_ms": 317774,
+      "action_execution_share": 0.6990927330646439,
+      "provider_calls": 16,
+      "reasoner_calls": 3,
+      "controller_calls": 5,
+      "verifier_calls": 8,
+      "actions_attempted": 15,
+      "actions_completed": 14,
+      "failed_action_ms": 24908,
+      "failed_input_status": "unverified_wrong_region",
+      "failed_input_requested_characters": 4,
+      "failed_input_issued_characters": 4,
+      "failed_input_observed_characters": 4,
+      "failed_input_readback": "| };",
+      "failed_input_delivery_retries": 0,
+      "failed_input_emitted_exactly_once": true,
+      "recovery_cycles_after_failed_input": 2,
+      "hid_inputs_after_failed_input": 0,
+      "quiescence_status": "confirmed",
+      "reboot_ms": 116788,
+      "reboot_transition_observed": true,
+      "campaign_sha256": "e40b2d000b6fd007d4dee2dae59702ff400d3ab2d4f6944a26df8065f08ae4fc",
+      "recording_sha256": "9fa65a6039e117d788b34a52002e57efb93849fffac0c61db36dd0d1f2950929",
+      "poster_sha256": "a9f95897f9e4ed5502374d16566be8e934d268ad8cabb691cae3a9170abb5e01"
     }
   ],
   "remediations": [
@@ -237,6 +271,11 @@
       "after_attempt": "v6",
       "commit": "3ae373779d0a78fae4e94b972d2f969afe3d17cd",
       "change": "Split the causal compact delta into vertical pixel bands, discard caret and JPEG noise, and OCR only the lowest substantial editor text band."
+    },
+    {
+      "after_attempt": "v7",
+      "commit": "be5ff92cdee32012f5a053b7f8d302892c9ae26f",
+      "change": "Split the target row into horizontal changed-pixel bands as well, rejecting the one-pixel Home caret and cropping only the unambiguous substantial glyph band."
     }
   ],
   "invalid_scope_run": {
@@ -254,7 +293,7 @@
   "next_gate": {
     "status": "pending",
     "requirements": [
-      "Prove the compact four-character closing row from the target-only lower pixel band with caret-stabilized exact OCR and independent status evidence, without replay.",
+      "Prove the compact four-character closing row from the glyph-only horizontal and vertical pixel band with caret-stabilized exact OCR and independent status evidence, without replay.",
       "Stop model-only recovery promptly when every proposed mutation is forbidden by an unverified input draft.",
       "Save, reopen, and independently verify the complete JavaScript artifact.",
       "Retain recording, quiescence, and a transition-observed reboot."
