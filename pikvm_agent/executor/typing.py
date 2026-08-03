@@ -396,10 +396,10 @@ def structural_editor_readback_band(
 
     Dense localisation deliberately pads changed components for ordinary OCR.
     On a tiny appended punctuation row that padding can include the preceding
-    editor line. Use only the causal before/after pixels to split vertical
-    bands, discard one-pixel caret/JPEG noise, and select the lowest substantial
-    band. This supplies geometry only; exact OCR and the independent editor
-    status invariant remain mandatory.
+    editor line. Use only the causal before/after pixels to split vertical and
+    horizontal bands, discard one-pixel caret/JPEG noise, and select the lowest
+    unambiguous substantial text band. This supplies geometry only; exact OCR
+    and the independent editor status invariant remain mandatory.
     """
 
     width, height = dims
@@ -457,13 +457,44 @@ def structural_editor_readback_band(
     if not substantial:
         return None
     band_start, band_end = max(substantial, key=lambda band: band[1])
+    column_counts = changed[band_start:band_end].sum(axis=0)
+    active_columns = [
+        index
+        for index, count in enumerate(column_counts.tolist())
+        if int(count) >= 2
+    ]
+    if not active_columns:
+        return None
+    column_bands: list[tuple[int, int]] = []
+    start = previous = active_columns[0]
+    for current in active_columns[1:]:
+        if current <= previous + 2:
+            previous = current
+            continue
+        column_bands.append((start, previous + 1))
+        start = previous = current
+    column_bands.append((start, previous + 1))
+    substantial_columns = [
+        (start, end)
+        for start, end in column_bands
+        if (
+            end - start >= DENSE_MIN_WIDTH
+            and int(column_counts[start:end].sum())
+            >= DENSE_COMPACT_MIN_CHANGED_PIXELS
+        )
+    ]
+    if len(substantial_columns) != 1:
+        return None
+    column_start, column_end = substantial_columns[0]
     padding = 3
+    readback_x0 = max(x0, x0 + column_start - padding)
+    readback_x1 = min(x1, x0 + column_end + padding)
     readback_y0 = max(y0, y0 + band_start - padding)
     readback_y1 = min(y1, y0 + band_end + padding)
     return Region(
-        x=float(x0),
+        x=float(readback_x0),
         y=float(readback_y0),
-        width=float(x1 - x0),
+        width=float(max(1, readback_x1 - readback_x0)),
         height=float(max(1, readback_y1 - readback_y0)),
     )
 

@@ -214,7 +214,8 @@ def test_structural_editor_readback_band_selects_lowest_changed_text_row() -> No
     after = before.copy()
     draw = ImageDraw.Draw(after)
     draw.rectangle((12, 20, 52, 26), fill="#f0f0f0")
-    draw.rectangle((10, 36, 32, 43), fill="#f0f0f0")
+    draw.line((10, 36, 10, 43), fill="#f0f0f0", width=1)
+    draw.rectangle((22, 36, 32, 43), fill="#f0f0f0")
     draw.point((20, 51), fill="#f0f0f0")
     before_output = io.BytesIO()
     after_output = io.BytesIO()
@@ -226,7 +227,7 @@ def test_structural_editor_readback_band_selects_lowest_changed_text_row() -> No
         after_output.getvalue(),
         Region(x=5, y=15, width=60, height=42),
         (128, 80),
-    ) == Region(x=5, y=33, width=60, height=14)
+    ) == Region(x=19, y=33, width=17, height=14)
 
 
 def test_structural_editor_readback_band_rejects_caret_only_noise() -> None:
