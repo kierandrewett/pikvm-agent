@@ -258,9 +258,9 @@ def recommended_runtime_ms(actions: list[dict[str, Any]]) -> int:
         kind = action.get("type")
         if kind == "type_text":
             typed_characters += len(str(action.get("text", "")))
-            if (
-                action.get("verification") == "exact"
-                or action.get("code") is True
+            if action.get("verification") == "exact" or (
+                action.get("code") is True
+                and action.get("verification") != "deferred_exact"
             ):
                 exact_readbacks += 1
         elif kind == "spreadsheet_grid":
@@ -353,6 +353,7 @@ def validate_actions(
     total_type_text_chars = 0
     contiguous_text_parts: list[str] = []
     contiguous_text_start = 0
+    deferred_exact_indexes: list[int] = []
     spreadsheet_grid_count = 0
     other_active_action_count = 0
     for index, raw in enumerate(actions):
@@ -417,11 +418,13 @@ def validate_actions(
             continue
 
         verification = str(action.get("verification") or "auto").lower()
-        if verification not in {"auto", "exact"}:
+        if verification not in {"auto", "exact", "deferred_exact"}:
             raise BurstError(
                 f"type_text action {index} has unsupported verification "
-                f"{verification!r}; use 'auto' or 'exact'"
+                f"{verification!r}; use 'auto', 'exact', or 'deferred_exact'"
             )
+        if verification == "deferred_exact":
+            deferred_exact_indexes.append(index)
         text = str(action.get("text", ""))
         if not text.strip():
             raise BurstError(
@@ -473,6 +476,55 @@ def validate_actions(
                 f"{contiguous_text_start}-{len(actions) - 1}"
             ),
         )
+    if deferred_exact_indexes:
+        typed_indexes = [
+            index
+            for index, action in enumerate(actions)
+            if action.get("type") == "type_text"
+        ]
+        active = [
+            action
+            for action in actions
+            if action.get("type")
+            not in {"wait", "wait_for_stable_screen", "wait_for_change"}
+        ]
+        deferred_shape_ok = (
+            len(deferred_exact_indexes) >= 2
+            and deferred_exact_indexes == typed_indexes
+            and all(
+                (
+                    action.get("type") == "type_text"
+                    and action.get("code") is True
+                    and str(action.get("context") or "").casefold() == "editor"
+                    and str(action.get("verification") or "").casefold()
+                    == "deferred_exact"
+                )
+                or (
+                    action.get("type") == "key"
+                    and set(
+                        normalize_keys(
+                            action.get("keys")
+                            or ([action["key"]] if action.get("key") else [])
+                        )
+                    )
+                    == {"ShiftLeft", "Enter"}
+                )
+                for action in active
+            )
+            and active
+            and active[0].get("type") == "type_text"
+            and all(
+                left.get("type") != right.get("type")
+                or left.get("type") == "key"
+                for left, right in zip(active, active[1:])
+            )
+        )
+        if not deferred_shape_ok:
+            raise BurstError(
+                "deferred_exact is limited to two or more exact code rows in "
+                "one inert editor-only burst, separated only by Shift+Enter; "
+                "a later verifier must gate every submit or save action"
+            )
     if spreadsheet_grid_count and (
         spreadsheet_grid_count != 1 or other_active_action_count
     ):
@@ -897,6 +949,59 @@ async def _dispatch(
             and is_editor_prose(str(text))
         )
         requested_verification = str(a.get("verification") or "").lower()
+        if requested_verification == "deferred_exact":
+            delivery_text = flatten_line_breaks(str(text))
+            emitted = 0
+            printer = getattr(backend, "print_exact_text", None)
+            if not callable(printer):
+                printer = getattr(backend, "print_text", None)
+            for chunk in chunk_text(delivery_text):
+                if should_continue is not None and not should_continue():
+                    receipt = _unwatched_typing_receipt(
+                        str(text),
+                        secret=False,
+                        typed_characters=emitted,
+                    )
+                    receipt.update(
+                        {
+                            "focus_evidence": "read_back_deferred",
+                            "emitted_characters": emitted,
+                            "emitted_sha256": hashlib.sha256(
+                                delivery_text[:emitted].encode("utf-8")
+                            ).hexdigest(),
+                            "emitted_exactly_once": False,
+                        }
+                    )
+                    raise BurstInterrupted(
+                        {
+                            "type": "type_text",
+                            "issued_characters": emitted,
+                            "requested_characters": len(delivery_text),
+                        },
+                        action_receipt=receipt,
+                    )
+                if callable(printer):
+                    await printer(chunk)
+                else:
+                    await backend.type_text(chunk, code=code, secret=False)
+                emitted += len(chunk)
+            receipt = _unwatched_typing_receipt(
+                str(text),
+                secret=False,
+                typed_characters=emitted,
+            )
+            receipt.update(
+                {
+                    "focus_evidence": "read_back_deferred",
+                    "emitted_characters": emitted,
+                    "emitted_sha256": hashlib.sha256(
+                        delivery_text.encode("utf-8")
+                    ).hexdigest(),
+                    "emitted_exactly_once": emitted == len(delivery_text),
+                    "used_fast_path": callable(printer),
+                }
+            )
+            return receipt
         exact_verification = (
             requested_verification == "exact"
             or not requested_verification

@@ -420,7 +420,7 @@ class TypeTextAction(StrictModelDecision):
     code: bool = False
     secret: bool = False
     context: Literal["", "editor", "field", "terminal"] = ""
-    verification: Literal["auto", "exact"] | None = None
+    verification: Literal["auto", "exact", "deferred_exact"] | None = None
 
     @field_validator("text")
     @classmethod
@@ -538,7 +538,7 @@ class ControllerDecision(StrictModelDecision):
             if isinstance(action, TypeTextAction):
                 editor_multiline_burst = editor_multiline_burst and (
                     action.context == "editor"
-                    and action.verification == "exact"
+                    and action.verification in {"exact", "deferred_exact"}
                     and (not seen_text or break_after_text)
                 )
                 seen_text = True

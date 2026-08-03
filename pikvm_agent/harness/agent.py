@@ -1164,7 +1164,7 @@ def _notepad_exact_text_controller(
                     "text": segment,
                     "code": is_code,
                     "context": "editor",
-                    "verification": "exact",
+                    "verification": "deferred_exact",
                 }
             )
             actions.extend(
@@ -1366,7 +1366,8 @@ def _pending_action_enters_all_notepad_parts(
             typed.get("type") == "type_text"
             and str(typed.get("text") or "") == segment
             and str(typed.get("context") or "") == "editor"
-            and str(typed.get("verification") or "") == "exact"
+            and str(typed.get("verification") or "")
+            in {"exact", "deferred_exact"}
         ):
             return False
         cursor += 1
@@ -1886,12 +1887,36 @@ def _has_fresh_notepad_artifact_receipts(run: RunSnapshot) -> bool:
     ]
     if not remaining:
         return False
+    deferred_complete = False
     for event in run.events:
         if event.kind != "action.completed":
+            if (
+                deferred_complete
+                and event.kind == "model.completed"
+                and event.data.get("role") == "verifier"
+            ):
+                if event.data.get("verdict") in {"verified", "complete"}:
+                    return True
+                deferred_complete = False
             continue
         receipts = event.data.get("input_receipts")
         if not isinstance(receipts, list):
             continue
+        deferred_hashes = [
+            str(receipt.get("requested_sha256") or "")
+            for receipt in receipts
+            if (
+                isinstance(receipt, dict)
+                and receipt.get("status") == "delivered_unverified"
+                and receipt.get("verdict") == "unverified"
+                and receipt.get("focus_evidence") == "read_back_deferred"
+                and receipt.get("proof_state") == "issued_only"
+                and receipt.get("emitted_exactly_once") is True
+                and receipt.get("correction_count") == 0
+                and receipt.get("delivery_retries") == 0
+            )
+        ]
+        deferred_complete = sorted(deferred_hashes) == sorted(remaining)
         for receipt in receipts:
             if not isinstance(receipt, dict) or not _is_verified_exact_input_receipt(
                 receipt
@@ -2035,23 +2060,25 @@ truth for generated editor content. Do not rewrite, repair, extend, or improvise
 it from the screenshot. The deterministic editor path enters its indexed exact
 segments; after that, continue only with saving, reopening, and verification.
 For multi-line content in a verified local editor, including generated prose,
-never put newline control characters inside type_text. Enter each text segment
-with a separate exact type_text action and verify it. Create every editor line
-break with Shift+Enter in a later bounded action. Never propose bare Enter for
-an editor line break: it is intentionally treated as a possible commit outside
+never put newline control characters inside type_text. The deterministic
+artifact controller may enter two or more immutable code segments in one
+editor-only ``deferred_exact`` burst, separated solely by Shift+Enter; that
+burst must end without submitting, saving, or changing applications, and one
+independent full-document verifier must pass before any later commit action.
+Outside that narrow controller-owned shape, enter each text segment with a
+separate exact type_text action and verify it. Never propose bare Enter for an
+editor line break: it is intentionally treated as a possible commit outside
 the editor. Create one required blank line with two separate Shift+Enter key
-actions and verify that non-submitting blank-line action before entering the
-next exact text segment. Never send indentation as a whitespace-only editor
-type_text action because pixels cannot prove invisible text. When spaces are
-load-bearing, include the indentation and visible line content in one exact
-segment. In plain-text code editors, every code segment must carry its full
-space-based indentation and must begin from the verified new line; never use
-Tab to create code indentation. Never treat Home as an absolute column-one
-command or repair indentation with Home plus Shift+End because modern Notepad
-Home stops at the first non-whitespace character. If exact code entry is
-contradicted, request a clean-document replan instead of accumulating an
-indentation repair. Never put active key actions after type_text in the same
-burst.
+actions. Never send indentation as a whitespace-only editor type_text action
+because pixels cannot prove invisible text. When spaces are load-bearing,
+include the indentation and visible line content in one exact segment. In
+plain-text code editors, every code segment must carry its full space-based
+indentation and must begin from the verified new line; never use Tab to create
+code indentation. Never treat Home as an absolute column-one command or repair
+indentation with Home plus Shift+End because modern Notepad Home stops at the
+first non-whitespace character. If exact code entry is contradicted, request a
+clean-document replan instead of accumulating an indentation repair. Never put
+active key actions after an ordinary type_text action in the same burst.
 When the user explicitly requires repeated spaces or other load-bearing
 whitespace inside one editor line, set code true for that format-sensitive
 text segment so it receives strict formatting delivery and exact readback.

@@ -1532,6 +1532,11 @@ def test_generated_code_groups_exact_segments_without_tab_actions() -> None:
         if action["type"] == "type_text"
     ]
     assert expected_types == content.splitlines()
+    assert all(
+        action.get("verification") == "deferred_exact"
+        for action in text_actions
+        if action["type"] == "type_text"
+    )
     assert [
         action
         for action in text_actions
@@ -7733,6 +7738,70 @@ def test_fresh_notepad_completion_requires_current_run_exact_receipts() -> None:
                 }
             ],
         )
+
+    assert AgentHarness._completion_rejection_reason(run, verdict) is None
+
+
+def test_fresh_notepad_completion_accepts_one_independently_verified_deferred_burst(
+) -> None:
+    segments = ("@echo off", "  exit /b 0")
+    run = RunSnapshot(
+        run_id="fresh-notepad-deferred-provenance",
+        task=(
+            "For this text acceptance, create a new blank document. Do not "
+            "treat restored or pre-existing document content as task "
+            "completion.\n\nTask:\nIn Notepad, type the requested batch file."
+        ),
+        status=RunStatus.RUNNING,
+        plan=PlanDecision(
+            summary="Type both lines in a fresh document.",
+            steps=["Type both lines", "Verify them"],
+            success_criteria=["The fresh document contains both lines."],
+            artifact_content="\n".join(segments),
+            artifact_content_kind="code",
+        ),
+    )
+    verdict = VerificationDecision(
+        verdict="complete",
+        summary="The fresh document contains the requested batch file.",
+        evidence=["Both exact lines are visible in the fresh document."],
+        criteria=[
+            {
+                "criterion_index": 0,
+                "satisfied": True,
+                "evidence": "Both exact lines are visible.",
+            }
+        ],
+        action_criteria=[],
+    )
+    run.record(
+        "action.completed",
+        index=2,
+        input_receipts=[
+            {
+                "status": "delivered_unverified",
+                "verdict": "unverified",
+                "focus_evidence": "read_back_deferred",
+                "proof_state": "issued_only",
+                "emitted_exactly_once": True,
+                "correction_count": 0,
+                "delivery_retries": 0,
+                "requested_sha256": hashlib.sha256(
+                    segment.encode("utf-8")
+                ).hexdigest(),
+            }
+            for segment in segments
+        ],
+    )
+
+    assert AgentHarness._completion_rejection_reason(run, verdict) is not None
+
+    run.record(
+        "model.completed",
+        role="verifier",
+        verdict="verified",
+        summary="The complete visible document matches both requested lines.",
+    )
 
     assert AgentHarness._completion_rejection_reason(run, verdict) is None
 

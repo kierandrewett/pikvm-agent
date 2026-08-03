@@ -143,6 +143,22 @@ def test_auto_runtime_budget_covers_exact_editor_readback() -> None:
     assert recommended_runtime_ms(actions) >= 60_000
 
 
+def test_auto_runtime_budget_charges_one_later_verifier_not_inline_ocr_per_line(
+) -> None:
+    actions = [
+        {
+            "type": "type_text",
+            "text": line,
+            "code": True,
+            "context": "editor",
+            "verification": "deferred_exact",
+        }
+        for line in ("@echo off", "ping -n 1 127.0.0.1 >nul", "exit /b 0")
+    ]
+
+    assert recommended_runtime_ms(actions) < 60_000
+
+
 def test_auto_runtime_budget_counts_spreadsheet_grid_cells() -> None:
     rows = [
         [f"Q{row}", f"{120 + row}.8", f"={row + 2}*1.1", "Reviewed"]
@@ -1304,6 +1320,111 @@ async def test_burst_print_method_cannot_bypass_watched_verification() -> None:
     assert typer.calls == ["long"]
     assert not any(method == "print_text" for method, _ in be.calls)
     assert not any(method == "keypress" for method, _ in be.calls)
+
+
+async def test_burst_defers_exact_editor_rows_to_one_post_burst_verifier() -> None:
+    be = FakeBackend()
+    typer = _StubTyper("verified_exact")
+    rows = ("@echo off", "  exit /b 0")
+
+    out = await run_burst(
+        [
+            {
+                "type": "type_text",
+                "text": rows[0],
+                "code": True,
+                "context": "editor",
+                "verification": "deferred_exact",
+            },
+            {"type": "key", "keys": ["SHIFT", "ENTER"]},
+            {
+                "type": "type_text",
+                "text": rows[1],
+                "code": True,
+                "context": "editor",
+                "verification": "deferred_exact",
+            },
+        ],
+        backend=be,
+        typer=typer,
+    )
+
+    assert out.status == "completed"
+    assert typer.calls == []
+    assert [
+        call["text"] for method, call in be.calls if method == "print_text"
+    ] == list(rows)
+    assert [
+        call["keys"] for method, call in be.calls if method == "keypress"
+    ] == [["ShiftLeft", "Enter"]]
+    assert [receipt["status"] for receipt in out.action_receipts] == [
+        "delivered_unverified",
+        "delivered_unverified",
+    ]
+    assert all(
+        receipt["emitted_exactly_once"] is True
+        and receipt["focus_evidence"] == "read_back_deferred"
+        for receipt in out.action_receipts
+    )
+
+
+@pytest.mark.parametrize(
+    "actions",
+    [
+        [
+            {
+                "type": "type_text",
+                "text": "unsafe single row",
+                "code": True,
+                "context": "editor",
+                "verification": "deferred_exact",
+            }
+        ],
+        [
+            {
+                "type": "type_text",
+                "text": "row one",
+                "code": True,
+                "context": "field",
+                "verification": "deferred_exact",
+            },
+            {"type": "key", "keys": ["SHIFT", "ENTER"]},
+            {
+                "type": "type_text",
+                "text": "row two",
+                "code": True,
+                "context": "field",
+                "verification": "deferred_exact",
+            },
+        ],
+        [
+            {
+                "type": "type_text",
+                "text": "row one",
+                "code": True,
+                "context": "editor",
+                "verification": "deferred_exact",
+            },
+            {"type": "key", "keys": ["ENTER"]},
+            {
+                "type": "type_text",
+                "text": "row two",
+                "code": True,
+                "context": "editor",
+                "verification": "deferred_exact",
+            },
+        ],
+    ],
+)
+async def test_burst_rejects_deferred_readback_outside_inert_multiline_editor(
+    actions,
+) -> None:
+    be = FakeBackend()
+
+    with pytest.raises(BurstError, match="deferred_exact"):
+        await run_burst(actions, backend=be)
+
+    assert be.calls == []
 
 
 async def test_burst_rejects_no_verify_escape_hatch_before_hid() -> None:
