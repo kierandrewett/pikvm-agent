@@ -5092,12 +5092,13 @@ class WatchedTyper:
                 )
                 if exact_change is not None:
                     chunk_change = exact_change
-                elif bounded_editor_code and not structural_code_glyph:
+                elif bounded_editor_code:
                     dense_candidates = await asyncio.to_thread(
                         locate_dense_changed_candidates,
                         dense_prev.data,
                         dense_now.data,
                         dims,
+                        allow_compact=structural_code_glyph,
                     )
                     content_candidate = (
                         editor_row_candidate_above_disjoint_effect(
@@ -5124,12 +5125,12 @@ class WatchedTyper:
                             region=content_candidate.model_dump(),
                         )
                         chunk_change = content_candidate
-                elif structural_code_glyph:
-                    # A one-glyph editor append also repaints Notepad's
-                    # Ln/Col status. Until exact cropped OCR grounds the
-                    # structural glyph, the coarse grid cannot distinguish
-                    # that status effect from the actual editor row.
-                    chunk_change = None
+                    elif structural_code_glyph:
+                        # A short punctuation-only append also repaints
+                        # Notepad's Ln/Col status. Without one causal editor
+                        # row above that effect, no later OCR fallback may
+                        # guess which tiny glyph region received the input.
+                        chunk_change = None
                 elif chunk_change is None:
                     chunk_change = await asyncio.to_thread(
                         locate_dense_changed_bbox,

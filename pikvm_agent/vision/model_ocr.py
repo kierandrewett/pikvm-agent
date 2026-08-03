@@ -40,8 +40,9 @@ class _BlindTranscription(BaseModel):
 _PROMPT = (
     "Blind OCR task. Transcribe every visible character inside the red "
     "rectangle in the upper context image exactly from left to right. The "
-    "lower panel is an enlarged copy of that same target. The rectangles are "
-    "only locators and are not text. Preserve case and punctuation. Do not "
+    "lower panel is an enlarged contextual copy; only its inner red rectangle "
+    "is the same exact target. The rectangles are only locators and are not "
+    "text. Preserve case and punctuation. Do not "
     "normalize, autocorrect, complete, or infer a likely value. Return "
     "zero-based character positions that are genuinely unclear. Distinguish "
     "straight from curly quotation marks and distinguish the visible glyphs "
@@ -163,17 +164,28 @@ class BlindModelOcrProvider:
         )
         canvas.paste(image, (0, 0))
         canvas.paste(detail, (_PANEL_GAP, image.height + _PANEL_GAP))
+        target_left = max(detail_left, math.floor(region.x))
+        target_top = max(detail_top, math.floor(region.y))
+        target_right = min(
+            detail_right,
+            math.ceil(region.x + region.width),
+        )
+        target_bottom = min(
+            detail_bottom,
+            math.ceil(region.y + region.height),
+        )
         ImageDraw.Draw(canvas).rectangle(
             (
-                _PANEL_GAP - _LOCATOR_WIDTH,
-                image.height + _PANEL_GAP - _LOCATOR_WIDTH,
-                _PANEL_GAP + detail.width + _LOCATOR_WIDTH,
-                (
-                    image.height
-                    + _PANEL_GAP
-                    + detail.height
-                    + _LOCATOR_WIDTH
-                ),
+                _PANEL_GAP
+                + (target_left - detail_left) * _DETAIL_SCALE,
+                image.height
+                + _PANEL_GAP
+                + (target_top - detail_top) * _DETAIL_SCALE,
+                _PANEL_GAP
+                + (target_right - detail_left) * _DETAIL_SCALE,
+                image.height
+                + _PANEL_GAP
+                + (target_bottom - detail_top) * _DETAIL_SCALE,
             ),
             outline=(255, 64, 64),
             width=_LOCATOR_WIDTH,

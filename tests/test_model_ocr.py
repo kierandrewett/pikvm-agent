@@ -34,6 +34,36 @@ def _frame(path: Path) -> None:
     image.save(path)
 
 
+def test_enlarged_locator_boxes_the_exact_target_not_its_padding(
+    tmp_path: Path,
+) -> None:
+    image_path = tmp_path / "screen.png"
+    _frame(image_path)
+    annotated = BlindModelOcrProvider._annotated_frame(
+        image_path,
+        Region(x=40, y=50, width=10, height=10),
+    )
+
+    try:
+        with Image.open(annotated) as image:
+            red_pixels = [
+                (x, y)
+                for y in range(180, image.height)
+                for x in range(image.width)
+                if image.getpixel((x, y)) == (255, 64, 64)
+            ]
+    finally:
+        annotated.unlink(missing_ok=True)
+
+    assert red_pixels
+    assert (
+        min(x for x, _y in red_pixels),
+        min(y for _x, y in red_pixels),
+        max(x for x, _y in red_pixels),
+        max(y for _x, y in red_pixels),
+    ) == (48, 228, 108, 288)
+
+
 async def test_blind_model_ocr_requires_two_matching_transcriptions(
     tmp_path: Path,
 ) -> None:

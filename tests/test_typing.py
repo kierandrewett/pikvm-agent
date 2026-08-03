@@ -7723,6 +7723,67 @@ async def test_short_structural_code_fragment_uses_grounded_compact_crop(
     assert ocr.compact_reads >= 3
 
 
+async def test_structural_fragment_uses_blind_exact_crop_after_local_ocr_miss(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    intended = "  };"
+    backend = _ambiguous_dense_typing_backend(monkeypatch)
+
+    class EmptyLocalExactBlindOCR:
+        def __init__(self) -> None:
+            self.fallback_calls = 0
+
+        async def ocr(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path
+            if region is not None and region.y >= 200:
+                return OCRResult(
+                    lines=[
+                        OCRLine(
+                            text="Ln 8, Col 5",
+                            confidence=0.99,
+                            bbox=[4, 8, 74, 20],
+                        )
+                    ]
+                )
+            return OCRResult()
+
+        async def ocr_precise(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            return await self.ocr(image_path, region)
+
+        async def ocr_precise_fallback(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path, region
+            self.fallback_calls += 1
+            return OCRResult(
+                lines=[OCRLine(text="};", confidence=0.99)],
+                spacing_evidence="verified",
+            )
+
+    ocr = EmptyLocalExactBlindOCR()
+    result = await WatchedTyper(backend, ocr).type_text(
+        intended,
+        code=True,
+        exact=True,
+        context="editor",
+    )
+
+    assert result.status == "verified_exact"
+    assert result.field_text == intended
+    assert result.emitted_exactly_once is True
+    assert ocr.fallback_calls == 1
+
+
 def test_dense_locator_nominates_compact_glyph_only_when_requested() -> None:
     before = Image.new("RGB", (1280, 800), "#202020")
     after = before.copy()
