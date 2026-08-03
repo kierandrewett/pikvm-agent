@@ -93,6 +93,57 @@ async def test_showcase_campaign_and_media_are_authenticated(tmp_path: Path) -> 
 
 
 @pytest.mark.asyncio
+async def test_nested_retained_attempt_is_current_and_serves_its_media(
+    tmp_path: Path,
+) -> None:
+    frame = tmp_path / "frame.jpg"
+    frame.write_bytes(b"frame")
+    direct = tmp_path / "showcases" / "older-attempt"
+    direct.mkdir(parents=True)
+    older = campaign_payload()
+    older["campaign_id"] = "older-attempt"
+    (direct / "campaign.json").write_text(json.dumps(older), encoding="utf-8")
+
+    retained = tmp_path / "showcases" / "code06-v9" / "codex-50"
+    task_dir = retained / "screen-01"
+    task_dir.mkdir(parents=True)
+    latest = campaign_payload()
+    latest["status"] = "completed"
+    latest["updated_at"] = "2026-07-29T12:05:00Z"
+    (retained / "campaign.json").write_text(
+        json.dumps(latest),
+        encoding="utf-8",
+    )
+    (task_dir / "recording.webm").write_bytes(b"nested-video")
+    store = InMemoryRunStore()
+    app = create_harness_app(
+        harness=StubHarness(store, frame),  # type: ignore[arg-type]
+        store=store,
+        models=StubModels(),
+        access_token=TEST_ACCESS_TOKEN,
+        agent_token=TEST_AGENT_TOKEN,
+        allowed_origins={"http://harness"},
+        showcase_dir=tmp_path / "showcases",
+    )
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app),
+        base_url="http://harness",
+        headers={"authorization": f"Bearer {TEST_ACCESS_TOKEN}"},
+    ) as client:
+        current = await client.get("/api/showcases/current")
+        recording = await client.get(
+            "/api/showcases/code06-v9/tasks/screen-01/recording",
+        )
+
+    assert current.status_code == 200
+    assert current.json()["campaign_id"] == "code06-v9"
+    assert current.json()["source_campaign_id"] == "codex-50"
+    assert recording.status_code == 200
+    assert recording.content == b"nested-video"
+
+
+@pytest.mark.asyncio
 async def test_showcase_media_cannot_escape_campaign_directory(
     tmp_path: Path,
 ) -> None:

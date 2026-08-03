@@ -80,6 +80,7 @@ export type ShowcaseTask = {
 export type ShowcaseCampaign = {
   schema_version: 1;
   campaign_id: string;
+  source_campaign_id?: string | null;
   title: string;
   status: "queued" | "running" | "completed" | "failed";
   model?: { provider?: string };
