@@ -1257,7 +1257,7 @@ def test_notepad_file_dialog_controller_uses_verified_access_key_focus() -> None
         max_actions=20,
     )
     assert save is not None
-    assert save.actions[0].keys == ["ENTER"]
+    assert save.actions[0].keys == ["ALT", "S"]
 
     saved = PendingAction(
         index=6,

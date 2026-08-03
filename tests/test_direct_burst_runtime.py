@@ -1670,6 +1670,55 @@ async def test_exact_same_frame_grounds_save_as_enter_despite_real_ocr_noise(
     assert runtime._get(sid).verified_local_navigation_draft is None
 
 
+async def test_verified_save_as_basename_grounds_alt_s_as_local_file_edit(
+    runtime: Runtime,
+) -> None:
+    class SaveAsOCR:
+        async def ocr(self, image_path, region=None):
+            del image_path, region
+            return OCRResult(
+                lines=[
+                    OCRLine(text="Save as"),
+                    OCRLine(text="This PC  New folder"),
+                    OCRLine(text="File name: code-08.cmd"),
+                ]
+            )
+
+        async def ocr_precise(self, image_path, region=None):
+            del image_path
+            assert region is not None
+            return OCRResult(
+                lines=[
+                    OCRLine(text="Save as  This PC  New folder"),
+                    OCRLine(text="File name: code-08.cmd"),
+                ]
+            )
+
+    runtime._screen_parser.ocr = SaveAsOCR()
+    sid = (await runtime.start_session("direct"))["session_id"]
+    shot = await runtime.get_session_summary(sid, capture=True)
+    runtime._get(sid).verified_local_navigation_draft = {
+        "text": "code-08.cmd",
+        "readback_frame_sha256": shot["image_sha256"],
+        "post_action_image_sha256": shot["image_sha256"],
+        "frame_screen_hash": shot["screen_hash"],
+        "world_version": shot["world_version"],
+        "control_epoch": shot["control_epoch"],
+    }
+
+    result = await runtime.run_burst(
+        sid,
+        [{"type": "key", "keys": ["ALT", "S"]}],
+        based_on_world_version=shot["world_version"],
+        based_on_control_epoch=shot["control_epoch"],
+        idempotency_key="grounded-save-as-access-key",
+    )
+
+    assert result["status"] == "needs_approval"
+    assert result["approval_request"]["risk"] == "local_file_edit"
+    assert _hid_calls(runtime) == []
+
+
 async def test_exact_save_as_path_does_not_ground_enter_on_message_surface(
     runtime: Runtime,
 ) -> None:

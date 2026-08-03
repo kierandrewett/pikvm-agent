@@ -617,6 +617,17 @@ def test_verified_save_as_filename_commit_is_a_local_file_edit() -> None:
         "local_file_edit",
     )
 
+    access_key_verdict = classify_direct_burst(
+        [{"type": "key", "keys": ["ALT", "S"]}],
+        PolicyConfig(),
+        verified_local_file_save_commit=True,
+    )
+
+    assert (access_key_verdict.status, access_key_verdict.category) == (
+        "approval_required",
+        "local_file_edit",
+    )
+
 
 def test_windows_run_surface_accepts_real_ocr_noise_with_same_frame_draft() -> None:
     dialog_text = (

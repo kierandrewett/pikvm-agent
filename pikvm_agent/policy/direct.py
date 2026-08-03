@@ -374,7 +374,22 @@ def needs_local_navigation_surface_grounding(
         )
         if key
     }
-    return keys in ({"ENTER"}, {"RETURN"}, {"NUMPADENTER"})
+    has_alt = bool(
+        keys
+        & {
+            "ALT",
+            "ALTLEFT",
+            "ALTRIGHT",
+            "LALT",
+            "RALT",
+            "OPTION",
+        }
+    )
+    return keys in ({"ENTER"}, {"RETURN"}, {"NUMPADENTER"}) or (
+        len(keys) == 2
+        and has_alt
+        and bool(keys & {"S", "KEYS"})
+    )
 
 
 def needs_local_file_overwrite_surface_grounding(
@@ -1136,9 +1151,17 @@ def classify_direct_burst(
             if has_alt and keys & {"S", "KEYS"}:
                 candidates.append(
                     (
-                        "communication_send",
+                        (
+                            "local_file_edit"
+                            if verified_local_file_save_commit
+                            else "communication_send"
+                        ),
                         "medium",
-                        "application send shortcut requires human review",
+                        (
+                            "Save As access key requires human review"
+                            if verified_local_file_save_commit
+                            else "application send shortcut requires human review"
+                        ),
                     )
                 )
             if (

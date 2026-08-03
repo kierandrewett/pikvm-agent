@@ -1591,7 +1591,7 @@ def _notepad_file_dialog_controller(
         and _pending_action_exactly_types_field(action, basename)
     ):
         actions = [
-            {"type": "key", "keys": ["ENTER"]},
+            {"type": "key", "keys": ["ALT", "S"]},
             {"type": "wait_for_change", "timeout_ms": 3_000},
             {
                 "type": "wait_for_stable_screen",
@@ -1606,7 +1606,10 @@ def _notepad_file_dialog_controller(
         ]
     elif (
         action.intent == save_artifact_intent
-        and _pending_action_uses_key_chord(action, {"Enter"})
+        and _pending_action_uses_key_chord(
+            action,
+            {"AltLeft", "KeyS"},
+        )
     ):
         actions = [
             {"type": "key", "keys": ["CTRL", "O"]},
