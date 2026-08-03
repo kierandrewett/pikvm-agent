@@ -1004,16 +1004,16 @@ async def test_campaign_workspace_preflight_preserves_a_prior_task_artifact(
                 r"\text-10-exact.txt"
             ),
             "preserved_as": preserved,
+            "preservation_status": "requested_unverified",
         }
     ]
     assert desktop_calls == 2
     assert printed == [
         r"cmd /d /c mkdir C:\PiKVM-Harness\workspace\codex-50 2>nul",
         (
-            r"cmd /d /c cd /d C:\PiKVM-Harness\workspace\codex-50"
-            r' && if exist "text-10-exact.txt" move /-y '
-            r'"text-10-exact.txt" '
-            rf'"text-10-exact.txt.pikvm-prior-{"a" * 32}" >nul'
+            r'cmd /d /c ren "C:\PiKVM-Harness\workspace\codex-50'
+            r'\text-10-exact.txt" '
+            rf'"text-10-exact.txt.pikvm-prior-{"a" * 32}"'
         ),
     ]
     assert max(map(len, printed)) < 200
