@@ -854,7 +854,7 @@ turns. The complete ten-run ledger and supporting diagnostics are
 The canonical campaign digest is `sha256:f0868f7a3474`; its VP9 recording is
 `sha256:fc000d2404d5` and its poster is `sha256:a9c34fd9f657`.
 
-Code-06 is still **pending** after four retained failures. v1 and v2 reached an
+Code-06 is still **pending** after five retained failures. v1 and v2 reached an
 indented four-character closing row after verifying the preceding code, but
 exact OCR returned empty. The retained v2 evaluated frame shows the row was
 actually present, so that attempt is a verifier false negative rather than a
@@ -875,14 +875,35 @@ failed after 249.215s before reboot: action/OCR execution consumed 177.504s
 observed a real transition and returned ready after 102.990s. The recording,
 poster, quiescence, and failure are all retained.
 
+v5 proved the bounded status-row remediation live. The first 30-character row
+fell from 107.957s in v4b to 21.224s, an 80.3% reduction, and the 12-character
+timer declaration verified exactly in 18.331s. Three later rows also verified.
+The run then failed closed on the compact `  };` row: all four characters were
+issued exactly once, but its semicolon fused with the caret and the local OCR
+read it as `5`. No delivery replay occurred. Four model-only recovery cycles
+revisited forbidden focus-click proposals but sent no further HID input before
+quiescence, exposing a separate recovery-loop latency defect. The run took
+392.607s before reboot: action/OCR execution consumed 228.194s (58.1%), while
+20 model calls consumed 154.945s (39.5%). Its mandatory reboot observed a real
+transition and returned ready after 91.706s. Recording and poster hashes are
+retained in the ledger.
+
+The post-v5 structural-row remediation does not accept the visually ambiguous
+glyph. It uses the unique compact editor repaint paired with the wider lower
+status repaint only to localize the row, moves the caret away, and still
+requires exact OCR plus independent caret/status evidence. The regression
+proves the four-character fragment is issued once, verified after `Home`, and
+restored with `End`; replay and `Enter` remain forbidden. A live v6 is required
+before Code-06 can pass.
+
 An earlier attempted v4 invocation is explicitly excluded from the Code-06
 denominator: `--stop-after-task code-06` bounded the campaign's end but still
 started at task one. It completed and rebooted after Observe-01 and Observe-02,
 then was stopped at the next task boundary before Observe-03 created a run or
 sent input. The replacement `--only-task code-06` selector filters the manifest
-before adapter preflight. The complete four-run ledger and invalid-scope note
+before adapter preflight. The complete five-run ledger and invalid-scope note
 are [`code-06-attempts.json`](results/2026-08-03/live-vnc/code-06-attempts.json).
-The ledger digest is `sha256:0865c57963d0`. Code-06 remains a failing accuracy
+The ledger digest is `sha256:f5c26ed0454f`. Code-06 remains a failing accuracy
 and speed gate; it does not increase the 30/50 campaign pass count.
 
 Failure-inclusive metrics, canonical campaign digests, the 30 accepted task

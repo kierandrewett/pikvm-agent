@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "report": "codex-code-entry-code06-failure-inclusive-attempts",
-  "recorded_at": "2026-08-03T02:24:00Z",
+  "recorded_at": "2026-08-03T02:50:38Z",
   "environment": {
     "target": "authorized disposable Windows VNC VM",
     "production_target_contacted": false,
@@ -25,8 +25,8 @@
     ]
   },
   "summary": {
-    "full_task_runs": 4,
-    "failed_runs": 4,
+    "full_task_runs": 5,
+    "failed_runs": 5,
     "invalid_runs": 0,
     "passed_runs": 0,
     "all_failures_retained": true,
@@ -132,6 +132,37 @@
       "campaign_sha256": "fab57d0cad688fa1e2de24b795e483750044d1ec29ed9a47688f5caf1d7edd51",
       "recording_sha256": "26acc338ed83db106ba7ccfa441dd20469b95688df384e2568312f2dc018e124",
       "poster_sha256": "7308e8323e8d840db1e6946edc7583b357bb0a82852071b8094cec2decc9761c"
+    },
+    {
+      "campaign_id": "codex-code-entry-code06-v5-20260803",
+      "manifest_campaign_id": "codex-windows-50",
+      "accepted_status": "failed",
+      "run_id": "e055170f-eff7-4e14-a118-b5547819e734",
+      "reason": "The bounded trailing status-row proof reduced the first 30-character row from 107.957 seconds to 21.224 seconds and verified the timer declaration plus three later rows. The four-character closing row was issued exactly once but its semicolon fused with the caret and OCR read it as `5`; the guard blocked replay and every proposed focus click. Four model-only recovery cycles sent no further HID input before quiescence.",
+      "wall_clock_ms": 392607,
+      "provider_wait_ms": 154945,
+      "provider_wait_share": 0.39465674325725214,
+      "action_execution_ms": 228194,
+      "action_execution_share": 0.5812275379705405,
+      "provider_calls": 20,
+      "reasoner_calls": 5,
+      "controller_calls": 8,
+      "verifier_calls": 7,
+      "actions_attempted": 13,
+      "actions_completed": 12,
+      "first_code_row_action_ms": 21224,
+      "failed_input_requested_characters": 4,
+      "failed_input_issued_characters": 4,
+      "failed_input_observed_characters": 0,
+      "failed_input_delivery_retries": 0,
+      "recovery_cycles_after_failed_input": 4,
+      "hid_inputs_after_failed_input": 0,
+      "quiescence_status": "confirmed",
+      "reboot_ms": 91706,
+      "reboot_transition_observed": true,
+      "campaign_sha256": "667ef18b5b6982572686df6677b66824dd3c0f72a980ecf8d84bfaac4e2f68d6",
+      "recording_sha256": "a5f100173f91df570ef1789d61047635bef34e341a98c7440fd430833b851366",
+      "poster_sha256": "207bffc410d1c0b458d619347d786854a2ed8550b13b82bcfc3d8c39fad71961"
     }
   ],
   "remediations": [
@@ -154,6 +185,16 @@
       "before_attempt": "v4b",
       "commit": "561f7a2fcb4ea1fdc22ee48a1afef70a70971475",
       "change": "Add an explicit single-task campaign selector that filters before adapter preflight."
+    },
+    {
+      "after_attempt": "v4b",
+      "commit": "386e67340fbdbfc367d08cdf031aae2a3658120d",
+      "change": "Retain the complete foreground editor status row so exact caret-column proof does not fall through to broad OCR."
+    },
+    {
+      "after_attempt": "v5",
+      "commit": "2d070848f90a383996cc8cd4a9f60b5b1b4b7412",
+      "change": "Localize a unique compact structural editor row from its wider lower status repaint, then move the caret away for exact OCR while preserving independent status proof."
     }
   ],
   "invalid_scope_run": {
@@ -171,8 +212,8 @@
   "next_gate": {
     "status": "pending",
     "requirements": [
-      "Prove the 12-character declaration exactly without replay after delayed, partial, or empty visual readback.",
-      "Replace the 107.957-second first-row verification path with a bounded proof that preserves exactness.",
+      "Prove the compact four-character closing row with caret-stabilized exact OCR and independent status evidence, without replay.",
+      "Stop model-only recovery promptly when every proposed mutation is forbidden by an unverified input draft.",
       "Save, reopen, and independently verify the complete JavaScript artifact.",
       "Retain recording, quiescence, and a transition-observed reboot."
     ]
