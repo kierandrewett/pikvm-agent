@@ -1637,6 +1637,36 @@ class Runtime:
                     observed_text = (
                         f"{observed_text}\n{str(bounded.text or '')[:2_000]}"
                     )
+                # General screen OCR can turn the small Windows 11 Notepad
+                # menu into e.g. ``Dim Edit View`` even though every other
+                # title/status/canvas check is intact. Only pay for the
+                # multi-scale precise read after both cheaper reads fail, and
+                # feed it through the same independent geometry and blank
+                # canvas proof before allowing editor newlines.
+                precise_ocr = getattr(ocr, "ocr_precise", None)
+                if not confirmed and callable(precise_ocr):
+                    try:
+                        precise = await precise_ocr(
+                            Path(frame.image_path),
+                            region=window_region,
+                        )
+                    except Exception:
+                        precise = None
+                    if precise is not None:
+                        confirmed = (
+                            _is_confirmed_blank_titleless_notepad_editor(
+                                precise,
+                                Path(frame.image_path),
+                                frame_width=frame.width,
+                                frame_height=frame.height,
+                                origin_x=window_region.x,
+                                origin_y=window_region.y,
+                            )
+                        )
+                        observed_text = (
+                            f"{observed_text}\n"
+                            f"{str(precise.text or '')[:2_000]}"
+                        )
             return (
                 observed_text,
                 False,

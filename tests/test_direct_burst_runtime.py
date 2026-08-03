@@ -1015,6 +1015,86 @@ async def test_notepad_grounding_crop_includes_foreground_status_row(
     )
 
 
+async def test_notepad_grounding_retries_bounded_crop_with_precise_ocr(
+    runtime: Runtime,
+) -> None:
+    precise_regions: list[Region] = []
+
+    class PrecisionRecoveredNotepadOCR:
+        async def ocr(self, image_path, region=None):
+            del image_path
+            if region is None:
+                return OCRResult(lines=[])
+            return OCRResult(
+                lines=[
+                    OCRLine(text="Untitled", bbox=[120, 90, 220, 110]),
+                    OCRLine(text="Dim Edit View", bbox=[120, 120, 220, 140]),
+                    OCRLine(
+                        text="Ln 1, Col 1 0 characters",
+                        bbox=[40, 520, 220, 540],
+                    ),
+                    OCRLine(
+                        text="Plain text 100% Windows (CRLF) UTF-8",
+                        bbox=[700, 520, 900, 540],
+                    ),
+                ]
+            )
+
+        async def ocr_precise(self, image_path, region=None):
+            del image_path
+            assert region is not None
+            precise_regions.append(region)
+            return OCRResult(
+                lines=[
+                    OCRLine(text="Untitled", bbox=[120, 90, 220, 110]),
+                    OCRLine(text="File Edit View", bbox=[120, 120, 220, 140]),
+                    OCRLine(
+                        text="Ln 1, Col 1 0 characters",
+                        bbox=[40, 520, 220, 540],
+                    ),
+                    OCRLine(
+                        text="Plain text 100% Windows (CRLF) UTF-8",
+                        bbox=[700, 520, 900, 540],
+                    ),
+                ]
+            )
+
+    runtime._screen_parser.ocr = PrecisionRecoveredNotepadOCR()
+    sid = (await runtime.start_session("direct"))["session_id"]
+    shot = await runtime.get_session_summary(sid, capture=True)
+    actions = [
+        {
+            "type": "type_text",
+            "text": "@echo off",
+            "code": True,
+            "context": "editor",
+            "verification": "deferred_exact",
+        },
+        {"type": "key", "keys": ["ENTER"]},
+        {
+            "type": "type_text",
+            "text": "exit /b 0",
+            "code": True,
+            "context": "editor",
+            "verification": "deferred_exact",
+        },
+    ]
+
+    result = await runtime.run_burst(
+        sid,
+        actions,
+        based_on_world_version=shot["world_version"],
+        based_on_control_epoch=shot["control_epoch"],
+        idempotency_key="precise-foreground-notepad-recovery",
+    )
+
+    assert result["status"] == "completed"
+    assert len(precise_regions) == 1
+    assert [call for call in _hid_calls(runtime) if call[0] == "keypress"] == [
+        ("keypress", {"keys": ["Enter"]})
+    ]
+
+
 async def test_titleless_notepad_uses_bounded_window_ocr_when_full_frame_misses(
     runtime: Runtime,
 ) -> None:
