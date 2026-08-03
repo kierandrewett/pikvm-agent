@@ -1044,25 +1044,41 @@ actions, completed 26, and requested four bounded-workspace approvals. Worse,
 the model populated two Notepad documents before converging on the exact saved
 payload. The 874-second VP9 recording is 3,842,300 bytes.
 
-Two post-pass speed attempts remain visible rather than replacing v10:
+Three post-pass attempts remain visible rather than replacing v10:
 
 | Attempt | Accuracy status | Managed wall | Provider calls | Result |
 | --- | --- | ---: | ---: | --- |
 | v10 | **Passed** | 869.893s | 66 | Exact observer bytes matched the later program-entry call; severe save/open wandering |
 | v11 | Failed | 605.362s before bounded abort | 44 | Filename was delivered exactly, but verifier Tab moved into `Text documents (*.txt)` and repeated the Save As loop four times |
-| v12 | Infrastructure-invalid | 63.892s | 2 | Isolated VNC framebuffer returned HTTP 500 before any content action completed; endpoint recovery and the mandatory reboot are pending |
+| v12 | Infrastructure-invalid | 63.892s | 2 | Isolated VNC framebuffer returned HTTP 500 before any content action completed; after recovery the retained campaign completed its mandatory reboot without replaying content |
+| v13 | Infrastructure-invalid | 478.588s | 25 | Caret-only filename recovery converged, but the restored adapter used a US keymap against the UK guest and changed byte zero from `@` to `"`; reboot completed |
 
-The v11 recording directly produced the next remediation: short safe filenames
-now retain field focus and move only the caret for OCR, so the adjacent file
-type cannot be mistaken for the filename. All 215 typing tests pass, including
-the measured wrong-region regression. v12 could not exercise that fix because
-the disposable VNC endpoint went unavailable. The next live run is v13 after
-endpoint recovery and an explicit clean reboot; it is not pre-declared a pass.
+The v11 recording directly produced the caret-only filename remediation. v13
+exercised it: the first autocomplete-biased readback recovered without
+retyping the document, and the later receipt verified exact `code-08.cmd`.
+Independent observer bytes then exposed a different infrastructure failure.
+The model requested `@echo off`; every request, emission, and delivery hash for
+that row agreed, yet the saved file began `"echo off`. The only differing byte
+was offset zero (`0x40` expected, `0x22` observed). The retained lab config was
+UK while the manually restored adapter advertised US, the exact shifted-symbol
+swap expected from that mismatch.
 
-The complete 12-attempt ledger, including both infrastructure-invalid runs,
-all campaign/recording hashes, exact observer proof, remediation commits, and
-the pending v12 reboot is
+The verifier also incorrectly claimed the batch branches were reversed. They
+were not: ping failure entered `unhealthy`/exit 1, while success entered
+`healthy`/exit 0. It attempted an unnecessary rewrite before the next action
+was interrupted. v13 is therefore retained as infrastructure-invalid rather
+than counted as an accuracy result. Commit `a4c40db` makes the adapter advertise
+its keymap and refuses a lab connection when it differs from the configured
+layout. The next live run is v14 with the isolated adapter restored to the
+configured UK keymap; it is not pre-declared a pass.
+
+The complete 13-attempt ledger, including all three infrastructure-invalid
+runs, all campaign/recording hashes, exact observer proof, remediation commits,
+and both recovered reboots is
 [`code-08-attempts.json`](results/2026-08-03/live-vnc/code-08-attempts.json).
+The v13 byte-level comparison is
+[`code-08-v13-observer-comparison.json`](results/2026-08-03/live-vnc/code-08-v13-observer-comparison.json),
+`sha256:2c286aa86836`. The ledger digest is `sha256:c67139d62b2a`.
 The canonical v10 campaign digest is `sha256:9dbc7c98e97a`; its VP9 recording
 is `sha256:cd1af2f018d2` and its poster is `sha256:f74b6f4f38ae`.
 

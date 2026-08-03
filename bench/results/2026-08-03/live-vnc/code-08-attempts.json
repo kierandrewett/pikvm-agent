@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "report": "codex-code-entry-code08-failure-inclusive-attempts",
-  "recorded_at": "2026-08-03T09:00:03Z",
+  "recorded_at": "2026-08-03T17:19:25Z",
   "environment": {
     "target": "authorized disposable Windows VNC VM",
     "production_target_contacted": false,
@@ -25,16 +25,16 @@
     ]
   },
   "summary": {
-    "recorded_attempts": 12,
+    "recorded_attempts": 13,
     "valid_full_task_runs": 10,
     "failed_runs": 9,
-    "infrastructure_invalid_runs": 2,
+    "infrastructure_invalid_runs": 3,
     "passed_runs": 1,
     "canonical_attempt": "v10",
     "all_failures_retained": true,
     "all_recordings_retained": true,
-    "reboots_ready": 10,
-    "reboots_failed_or_pending": 2,
+    "reboots_ready": 12,
+    "reboots_failed_or_pending": 1,
     "release_gate": "accuracy passing; speed failing; post-pass speed remediation remains active"
   },
   "attempts": [
@@ -269,7 +269,7 @@
       "campaign_id": "codex-code-entry-code08-v12-20260803",
       "accepted_status": "infrastructure_invalid",
       "run_id": "afecd4dc-3ef0-410d-9b39-57f773019282",
-      "reason": "The isolated VNC adapter lost its framebuffer during the first Notepad-launch action and returned HTTP 500. No content action completed. The automatic reboot could not start because the same endpoint was unavailable; recovery and the post-test reboot remain pending before v13.",
+      "reason": "The isolated VNC adapter lost its framebuffer during the first Notepad-launch action and returned HTTP 500. No content action completed. After endpoint recovery, the retained campaign completed its mandatory reboot without replaying content.",
       "wall_clock_ms": 63892,
       "task_duration_ms": 125476,
       "provider_wait_ms": 16408,
@@ -277,7 +277,9 @@
       "provider_calls": 2,
       "actions_attempted": 1,
       "actions_completed": 0,
-      "reboot_status": "pending_endpoint_recovery",
+      "reboot_status": "ready",
+      "reboot_ms": 97439,
+      "reboot_transition_observed": true,
       "recording": {
         "codec": "vp9",
         "width": 2048,
@@ -287,7 +289,65 @@
         "size_bytes": 185665,
         "sha256": "5633a699708e008da761aa2339c4c76ffeda675d7cfaa933ec74d588a557509e"
       },
-      "campaign_sha256": "7df9c572cc9d7ed37a745168d218e825721b11e17edd5e60b4bbb68d5a04fe33"
+      "campaign_sha256": "51e7c8fc39768f4e0179d849346820797aa585356fc65276a66ef8bf109402ca"
+    },
+    {
+      "campaign_id": "codex-code-entry-code08-v13-20260803",
+      "accepted_status": "infrastructure_invalid",
+      "run_id": "4650a0fc-5006-4f0d-a70a-7cf4ad5d4c05",
+      "source_commit": "43754e6",
+      "reason": "The caret-only filename remediation recovered from one autocomplete-biased readback and later verified the exact basename. The saved program retained the requested ping/errorlevel branch semantics, but the observer found byte zero changed from @ to a double quote. Event receipts prove the model requested @echo off and request/emission/delivery hashes matched; the restored adapter was incorrectly running an en-us keymap against the UK guest. The verifier then falsely called the correct branches reversed, attempted an unnecessary rewrite, and the next action was interrupted. This run is retained but excluded from accuracy statistics.",
+      "wall_clock_ms": 478588,
+      "task_duration_ms": 646193,
+      "model_active_ms": 213470,
+      "provider_wait_ms": 198647,
+      "provider_serial_equivalent_ms": 213711,
+      "provider_overlap_ms": 15064,
+      "action_execution_ms": 265761,
+      "evidence_capture_ms": 3501,
+      "provider_calls": 25,
+      "reasoner_calls": 3,
+      "controller_calls": 7,
+      "verifier_calls": 15,
+      "actions_attempted": 14,
+      "actions_completed": 12,
+      "approval_count": 1,
+      "filename_receipts": [
+        {
+          "status": "unverified_wrong_region",
+          "observed": "autocomplete-biased prior filename",
+          "recovered_without_retyping_document": true
+        },
+        {
+          "status": "verified_exact",
+          "observed": "code-08.cmd"
+        }
+      ],
+      "observer_artifact_comparison": {
+        "transport": "guarded MCP visual matrix",
+        "expected_bytes": 135,
+        "observed_bytes": 135,
+        "expected_sha256": "e73555962d56a13e7838533b286b69dfbccf0419f29dda102a73aaa7d4ea41a4",
+        "observed_sha256": "9ccaebc0da4fc8c0cc2370a7b408431188a1421f333020383cb806a6c8dba56e",
+        "exact_match": false,
+        "differing_byte_offsets": [
+          0
+        ],
+        "comparison_report": "bench/results/2026-08-03/live-vnc/code-08-v13-observer-comparison.json"
+      },
+      "reboot_ms": 83474,
+      "reboot_transition_observed": true,
+      "recording": {
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2.0,
+        "duration_ms": 438500,
+        "size_bytes": 1833141,
+        "sha256": "5f49979d6241bff41c88dea7be105dbe17d537ed25ec60486ea729cfad9e4c42"
+      },
+      "poster_sha256": "dc692971c54d287534f3433a5a3288c53423a5a6fe7fc7c6419eee7b4b531300",
+      "campaign_sha256": "2cae9ac684cfff81ea82d901f9d26db7bb307421c6d94a538030346c1cacc34c"
     }
   ],
   "remediations": [
@@ -348,6 +408,11 @@
       "after_attempt": "v11",
       "commit": "bc45198",
       "change": "Keep short safe filenames focused and move only the caret for OCR, preventing Tab from selecting the adjacent file-type control."
+    },
+    {
+      "after_attempt": "v13",
+      "commit": "a4c40db",
+      "change": "Expose the isolated adapter keymap and refuse a VNC lab connection when it disagrees with the configured layout, preventing US/UK shifted-symbol corruption from reaching a task."
     }
   ],
   "next_gate": {
@@ -360,8 +425,8 @@
       "Observed and tool-call-derived CRLF payload hashes are identical.",
       "The accepted run completed a transition-observed mandatory reboot and retained its recording."
     ],
-    "blocking_infrastructure_state": "The v12 post-test reboot is pending because the disposable VNC endpoint is unavailable.",
-    "next_attempt": "v13 after endpoint recovery and explicit clean reboot",
+    "blocking_infrastructure_state": null,
+    "next_attempt": "v14 after restarting the isolated adapter with the configured UK keymap and validating the fail-closed drift check",
     "next_task_after_speed_gate": "code-09"
   }
 }

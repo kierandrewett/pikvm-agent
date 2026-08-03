@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-08-03T17:19:25Z",
+  "campaign_id": "codex-code-entry-code08-v13-20260803",
+  "run_id": "4650a0fc-5006-4f0d-a70a-7cf4ad5d4c05",
+  "task_id": "code-08",
+  "source_commit": "43754e6",
+  "environment": {
+    "target": "authorized disposable Windows VNC VM",
+    "production_target_contacted": false,
+    "endpoint_retained": false
+  },
+  "tool_call": {
+    "event_sequence": 53,
+    "action_count": 17,
+    "typed_rows": 9,
+    "verification": "deferred_exact",
+    "requested_emitted_and_delivery_hashes_equal_per_row": true,
+    "expected_bytes": 135,
+    "expected_sha256": "e73555962d56a13e7838533b286b69dfbccf0419f29dda102a73aaa7d4ea41a4"
+  },
+  "observer": {
+    "transport": "guarded MCP visual matrix",
+    "protocol": "pikvm-observer.v1",
+    "path": "C:/PiKVM-Harness/workspace/codex-50/code-08.cmd",
+    "observed_bytes": 135,
+    "observed_sha256": "9ccaebc0da4fc8c0cc2370a7b408431188a1421f333020383cb806a6c8dba56e",
+    "newline_normalization": "Windows CRLF",
+    "exact_match": false,
+    "byte_differences": [
+      {
+        "offset": 0,
+        "expected_hex": "40",
+        "expected_character": "@",
+        "observed_hex": "22",
+        "observed_character": "\""
+      }
+    ]
+  },
+  "semantic_review": {
+    "ping_success_branch": "healthy with exit code 0",
+    "ping_failure_branch": "unhealthy with exit code 1",
+    "branch_logic_matches_task": true,
+    "verifier_claimed_branches_were_reversed": true,
+    "verifier_claim_was_correct": false,
+    "resulting_correction_was_necessary": false
+  },
+  "diagnosis": {
+    "classification": "infrastructure_invalid",
+    "cause": "The restored isolated adapter advertised an en-us keymap while the retained lab configuration expected a UK guest layout. The US/UK shifted-symbol mismatch deterministically changed @ to a double quote.",
+    "model_requested_expected_first_row": true,
+    "transport_hashes_matched_request": true,
+    "observer_decoding_consensus": "4 of 4 guarded pages decoded successfully",
+    "remediation_commit": "a4c40db",
+    "remediation": "Advertise the VNC adapter keymap and refuse lab connection when it drifts from the configured layout."
+  }
+}
