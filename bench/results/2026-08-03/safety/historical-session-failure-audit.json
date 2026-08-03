@@ -1,0 +1,4085 @@
+{
+  "schema_version": 2,
+  "generated_at": "2026-08-03T00:00:00+01:00",
+  "audit_kind": "secret_redacted_historical_session_failure_reconstruction",
+  "environment": {
+    "history_only": true,
+    "production_pikvm_touched": false,
+    "remote_target_contacted": false,
+    "raw_typed_payloads_retained": false,
+    "screenshots_retained": false
+  },
+  "redaction": {
+    "removed": [
+      "credentials and tokens",
+      "cloud resource identifiers",
+      "machine addresses and service endpoints",
+      "email addresses",
+      "raw base64 bodies",
+      "raw long command and document bodies",
+      "private application content"
+    ],
+    "retained": [
+      "local source paths",
+      "conversation and session identifiers",
+      "timestamps",
+      "tool call identifiers",
+      "model and provider attribution",
+      "safe summaries of failure and correction"
+    ]
+  },
+  "scope": {
+    "sessions": 24,
+    "pikvm_tool_calls": 4453,
+    "raw_direct_calls": 4416,
+    "legacy_hidden_operator_calls": 37,
+    "current_managed_computer_calls": 0,
+    "clients": {
+      "claude_code": {
+        "sessions": 15,
+        "pikvm_tool_calls": 2876,
+        "raw_direct_calls": 2839,
+        "legacy_hidden_operator_calls": 37,
+        "current_managed_computer_calls": 0
+      },
+      "codex": {
+        "sessions": 7,
+        "pikvm_tool_calls": 1482,
+        "raw_direct_calls": 1482,
+        "legacy_hidden_operator_calls": 0,
+        "current_managed_computer_calls": 0
+      },
+      "opencode": {
+        "sessions": 2,
+        "pikvm_tool_calls": 95,
+        "raw_direct_calls": 95,
+        "legacy_hidden_operator_calls": 0,
+        "current_managed_computer_calls": 0
+      }
+    },
+    "model_call_counts": {
+      "claude-opus-4-8": 1147,
+      "claude-sonnet-4-6": 583,
+      "claude-sonnet-5": 1146,
+      "gpt-5.4-mini": 37,
+      "gpt-5.5": 1444,
+      "gpt-5.6-sol": 1,
+      "openrouter/google/gemini-3.5-flash": 15,
+      "openrouter/google/gemini-3.6-flash": 68,
+      "openrouter/qwen/qwen3.5-flash-02-23": 8,
+      "openai/gpt-5.4-mini-fast": 4
+    },
+    "operator_boundary": "4,416 calls were selected directly by the outer client (including raw observation/input and direct stop/control calls). Four older Claude Code sessions routed 37 start/continue/observe calls through the legacy hidden operator/autonomous endpoint. No audited session used the current managed computer_* facade."
+  },
+  "danger_classes": {
+    "P0": "Irreversible or potentially irreversible one-shot action, or loss of emergency-stop control.",
+    "P1": "High-consequence integrity, target, authorization, or grounding failure that was caught or recoverable.",
+    "P2": "Workflow, efficiency, availability, or presentation failure with lower immediate consequence."
+  },
+  "p0_one_shot_cases": [
+    {
+      "incident_id": "oc-0758-dry-run-auto-approve",
+      "session_id": "ses_0758ae687ffeh5acBnBDtlBaqx",
+      "summary": "A dry-run request was converted into repeated infrastructure-wrapper submissions with auto-approval enabled.",
+      "outcome": "External cloud effect is not established by the local history and no rollback is recorded."
+    },
+    {
+      "incident_id": "cc-737-forced-instance-termination",
+      "session_id": "737f59a5-cba2-44aa-ad94-669b120c6403",
+      "summary": "A forced instance termination with boot-volume deletion proceeded immediately after narration without a harness-owned, action-specific approval pause.",
+      "outcome": "The history records the resource and boot volume as terminated; the operation was irreversible."
+    },
+    {
+      "incident_id": "cx-46eb-panic-stop-buffer-leak",
+      "session_id": "019f46eb-4a65-7782-9bb5-07d6918f76fa",
+      "summary": "An oversized HID stream continued to produce visible input after panic-stop reported cancellation.",
+      "outcome": "The agent used further stop, abort, and local-cancel actions; the history does not prove when the hardware queue became empty."
+    }
+  ],
+  "authoritative_corpus_reconciliation": {
+    "baseline_path": "bench/historical_pikvm_incidents.json",
+    "baseline_sha256": "6dc7b9e8b555912a3c3786140ec0d9325ad09bc34f4135a13cb52c7f23e4c396",
+    "baseline_sessions": 24,
+    "baseline_pikvm_tool_calls": 4453,
+    "baseline_incidents": 70,
+    "baseline_incident_summary": {
+      "total": 70,
+      "severity": {
+        "critical": 20,
+        "high": 27,
+        "low": 3,
+        "medium": 20
+      },
+      "category": {
+        "command_or_script_corruption": 8,
+        "concurrency": 1,
+        "duplicate_or_extra_input": 6,
+        "focus_loss": 11,
+        "grounding_click": 5,
+        "keyboard_layout_or_case": 1,
+        "ocr_misread": 2,
+        "operator_loop": 2,
+        "pager_or_modal": 2,
+        "selection_or_editor": 9,
+        "transport_or_schema": 6,
+        "typing_truncation": 5,
+        "unsafe_or_unapproved": 4,
+        "wrong_app_or_window": 3,
+        "wrong_target": 5
+      },
+      "outcome": {
+        "abandoned": 3,
+        "contained": 14,
+        "no_state_change": 2,
+        "recovered": 49,
+        "unresolved": 2
+      },
+      "cause_attribution": {
+        "mixed": 29,
+        "model": 22,
+        "tool_or_transport": 17,
+        "unknown": 2
+      },
+      "one_shot_risk": {
+        "cloud_mutation": 10,
+        "commit_or_push": 2,
+        "external_message": 6,
+        "file_overwrite": 31,
+        "none": 18,
+        "shared_task_mutation": 3
+      },
+      "attributed_model": {
+        "claude-opus-4-8": 25,
+        "claude-opus-4-8 + claude-sonnet-5": 1,
+        "claude-sonnet-4-6": 9,
+        "claude-sonnet-5": 16,
+        "gpt-5.4-mini": 2,
+        "gpt-5.5": 14,
+        "openrouter/google/gemini-3.6-flash": 3
+      }
+    },
+    "supplemental_deep_review_sessions": 12,
+    "supplemental_call_id_incident_chains": 23,
+    "policy": "The embedded 70 baseline incidents remain authoritative and are not replaced or silently re-counted by the 23 supplemental call-ID chains. Supplemental chains add finer timestamps, call IDs, outcomes, and uncertainty; they may overlap a baseline incident or identify a failure absent from the first pass.",
+    "coverage_delta": {
+      "baseline_no_failure_sessions": [
+        "019f383d-e781-7c93-8054-aa0286042ba6",
+        "019f942a-8387-7f53-ab13-28bacd39b51a",
+        "ses_0759ab1adffeahPfYnG9TVWd6T"
+      ],
+      "supplemental_failure_found_after_baseline": [
+        "019f383d-e781-7c93-8054-aa0286042ba6",
+        "ses_0759ab1adffeahPfYnG9TVWd6T"
+      ],
+      "no_reconstructed_failure_after_reconciliation": [
+        "019f942a-8387-7f53-ab13-28bacd39b51a"
+      ]
+    },
+    "legacy_route_evidence": {
+      "definition": "Legacy counts include pikvm_start_task, pikvm_continue, and pikvm_observe. Direct abort and low-level observation/input calls in the same conversations remain raw/direct-control calls.",
+      "source_repository": "/home/kieran/dev/llm-context-archive",
+      "sessions": [
+        {
+          "session_id": "2301754a-2916-4193-bd58-ceaa33f01356",
+          "source_revision": "8a504fdbad1827603032290f41490837149336ca",
+          "legacy_route_tool_counts": {
+            "start_task": 4,
+            "continue": 5,
+            "observe": 1
+          },
+          "raw_direct_tool_counts": {
+            "abort": 1
+          },
+          "legacy_route_calls": 10,
+          "raw_direct_calls": 1
+        },
+        {
+          "session_id": "57a2ac47-c8c9-4d2b-8a39-2196a2374941",
+          "source_revision": "8a504fdbad1827603032290f41490837149336ca",
+          "legacy_route_tool_counts": {
+            "start_task": 4,
+            "continue": 4,
+            "observe": 3
+          },
+          "raw_direct_tool_counts": {
+            "abort": 3
+          },
+          "legacy_route_calls": 11,
+          "raw_direct_calls": 3
+        },
+        {
+          "session_id": "b74cf224-d1e1-4fb0-adc3-fe73d6feae54",
+          "source_revision": "856104e6f41271a29d24f2764d8ea53c12ae043c",
+          "legacy_route_tool_counts": {
+            "start_task": 1
+          },
+          "raw_direct_tool_counts": {},
+          "legacy_route_calls": 1,
+          "raw_direct_calls": 0
+        },
+        {
+          "session_id": "f2ef736d-dc0d-4900-b75d-c4ffcb562c85",
+          "source_revision": "4a49fa96b583b8187d0ff6118fc08a29cf32db2b",
+          "legacy_route_tool_counts": {
+            "start_task": 5,
+            "continue": 10
+          },
+          "raw_direct_tool_counts": {
+            "abort": 1,
+            "ocr_region": 1,
+            "open": 2,
+            "parse_screen": 1,
+            "run_burst": 5,
+            "screenshot": 1
+          },
+          "legacy_route_calls": 15,
+          "raw_direct_calls": 11
+        }
+      ]
+    }
+  },
+  "evidence_policy": {
+    "exact_call_evidence": "Where retained raw history exposed stable call IDs and timestamps, supplemental incidents cite them directly.",
+    "normalized_archive_evidence": "Where only normalized or chunked archival history remains, baseline incidents cite original record indices and PiKVM tool sequence numbers. No call ID is invented.",
+    "attribution": "The model counts are call-level. Provider attribution follows the client/model transport when the history did not persist a distinct provider field.",
+    "uncertainty": "Every supplemental incident includes an uncertainty field; baseline incident source indices remain available for all 70 records."
+  },
+  "sessions": [
+    {
+      "client": "claude_code",
+      "provider": "anthropic_via_claude_code",
+      "session_id": "17dade7d-4eaf-48fd-8694-92ea86f9fcbc",
+      "source_path": "/home/kieran/.claude/projects/-mnt-kieran-home-Documents-Atlas-Capgemini/17dade7d-4eaf-48fd-8694-92ea86f9fcbc.jsonl",
+      "source_retention": "raw local history",
+      "started_at": "2026-07-10T13:53:03.524Z",
+      "ended_at": "2026-07-10T17:33:54.599Z",
+      "pikvm_tool_calls": 412,
+      "input_surface": {
+        "raw_direct_calls": 412,
+        "legacy_hidden_operator_calls": 0,
+        "current_managed_computer_calls": 0
+      },
+      "model_call_counts": {
+        "claude-opus-4-8": 13,
+        "claude-sonnet-5": 399
+      },
+      "baseline_coverage": "deep_reviewed",
+      "baseline_incident_ids": [
+        "cc-17dade-replace-focus-corruption",
+        "cc-17dade-inspection-text-entered-editor",
+        "cc-17dade-undo-chain-destroyed-buffer",
+        "cc-17dade-literal-newlines-collapsed",
+        "cc-17dade-command-entered-editor"
+      ],
+      "supplemental_incident_ids": [
+        "cc-17dade-replace-focus-loss",
+        "cc-17dade-line-number-sed-suffix-retries"
+      ],
+      "reconciled_failure_status": "incidents_reconstructed",
+      "uncertainty": "See per-incident uncertainty and source evidence."
+    },
+    {
+      "client": "claude_code",
+      "provider": "anthropic_via_claude_code",
+      "session_id": "2301754a-2916-4193-bd58-ceaa33f01356",
+      "source_path": "/home/kieran/dev/llm-context-archive/archive/by-cwd/mnt/kieran/home/Documents/Atlas/Capgemini/claude-code-dashboard-recovered/2301754a-2916-4193-bd58-ceaa33f01356.jsonl",
+      "source_retention": "normalized recovered archive",
+      "started_at": "2026-06-26T10:42:25.287Z",
+      "ended_at": "2026-06-26T11:25:26.153Z",
+      "pikvm_tool_calls": 11,
+      "input_surface": {
+        "raw_direct_calls": 1,
+        "legacy_hidden_operator_calls": 10,
+        "current_managed_computer_calls": 0
+      },
+      "model_call_counts": {
+        "claude-sonnet-4-6": 11
+      },
+      "baseline_coverage": "deep_reviewed",
+      "baseline_incident_ids": [
+        "cc-230-openrouter-transient"
+      ],
+      "supplemental_incident_ids": [],
+      "reconciled_failure_status": "incidents_reconstructed",
+      "uncertainty": "The recovered archive may omit stable raw tool-call IDs; use the embedded baseline record indices and tool sequence numbers rather than inventing identifiers."
+    },
+    {
+      "client": "claude_code",
+      "provider": "anthropic_via_claude_code",
+      "session_id": "57a2ac47-c8c9-4d2b-8a39-2196a2374941",
+      "source_path": "/home/kieran/dev/llm-context-archive/archive/by-cwd/mnt/kieran/home/Documents/Atlas/Capgemini/claude-code-dashboard-recovered/57a2ac47-c8c9-4d2b-8a39-2196a2374941.jsonl",
+      "source_retention": "normalized recovered archive",
+      "started_at": "2026-06-25T17:28:48.325Z",
+      "ended_at": "2026-06-25T17:34:13.078Z",
+      "pikvm_tool_calls": 14,
+      "input_surface": {
+        "raw_direct_calls": 3,
+        "legacy_hidden_operator_calls": 11,
+        "current_managed_computer_calls": 0
+      },
+      "model_call_counts": {
+        "claude-opus-4-8": 14
+      },
+      "baseline_coverage": "deep_reviewed",
+      "baseline_incident_ids": [
+        "cc-57a-autonomous-noop"
+      ],
+      "supplemental_incident_ids": [],
+      "reconciled_failure_status": "incidents_reconstructed",
+      "uncertainty": "The recovered archive may omit stable raw tool-call IDs; use the embedded baseline record indices and tool sequence numbers rather than inventing identifiers."
+    },
+    {
+      "client": "claude_code",
+      "provider": "anthropic_via_claude_code",
+      "session_id": "64db6d25-1914-4d0e-9684-56818d66bd03",
+      "source_path": "/home/kieran/dev/llm-context-archive/archive/by-cwd/mnt/kieran/home/Documents/Atlas/Capgemini/claude-code-dashboard-recovered/64db6d25-1914-4d0e-9684-56818d66bd03.jsonl",
+      "source_retention": "normalized recovered archive",
+      "started_at": "2026-06-29T08:30:18.100Z",
+      "ended_at": "2026-06-29T15:21:14.775Z",
+      "pikvm_tool_calls": 279,
+      "input_surface": {
+        "raw_direct_calls": 279,
+        "legacy_hidden_operator_calls": 0,
+        "current_managed_computer_calls": 0
+      },
+      "model_call_counts": {
+        "claude-opus-4-8": 279
+      },
+      "baseline_coverage": "deep_reviewed",
+      "baseline_incident_ids": [
+        "cc-64db-leftover-prompt-focus",
+        "cc-64db-repeated-character-typos",
+        "cc-64db-tripled-opening-quote",
+        "cc-64db-teams-stole-terminal-input",
+        "cc-64db-destructive-anchor-typo"
+      ],
+      "supplemental_incident_ids": [],
+      "reconciled_failure_status": "incidents_reconstructed",
+      "uncertainty": "The recovered archive may omit stable raw tool-call IDs; use the embedded baseline record indices and tool sequence numbers rather than inventing identifiers."
+    },
+    {
+      "client": "claude_code",
+      "provider": "anthropic_via_claude_code",
+      "session_id": "6520c24b-6370-4c93-b157-17025a06074f",
+      "source_path": "/home/kieran/dev/llm-context-archive/archive/by-cwd/mnt/kieran/home/Documents/Atlas/Capgemini/claude-code-dashboard-recovered/6520c24b-6370-4c93-b157-17025a06074f.jsonl",
+      "source_retention": "normalized recovered archive",
+      "started_at": "2026-06-26T16:07:20.540Z",
+      "ended_at": "2026-06-26T16:14:10.404Z",
+      "pikvm_tool_calls": 5,
+      "input_surface": {
+        "raw_direct_calls": 5,
+        "legacy_hidden_operator_calls": 0,
+        "current_managed_computer_calls": 0
+      },
+      "model_call_counts": {
+        "claude-sonnet-4-6": 5
+      },
+      "baseline_coverage": "deep_reviewed",
+      "baseline_incident_ids": [
+        "cc-6520-autocomplete-intercepted-terminal"
+      ],
+      "supplemental_incident_ids": [],
+      "reconciled_failure_status": "incidents_reconstructed",
+      "uncertainty": "The recovered archive may omit stable raw tool-call IDs; use the embedded baseline record indices and tool sequence numbers rather than inventing identifiers."
+    },
+    {
+      "client": "claude_code",
+      "provider": "anthropic_via_claude_code",
+      "session_id": "84e5c39e-f05b-4b1e-b5ff-488990b6d050",
+      "source_path": "/home/kieran/dev/llm-context-archive/archive/by-cwd/mnt/kieran/home/Documents/Atlas/Capgemini/claude-code/84e5c39e-f05b-4b1e-b5ff-488990b6d050.jsonl.chunks/",
+      "source_retention": "chunked raw archive",
+      "started_at": "2026-07-01T10:57:54.975Z",
+      "ended_at": "2026-07-01T17:48:50.802Z",
+      "pikvm_tool_calls": 160,
+      "input_surface": {
+        "raw_direct_calls": 160,
+        "legacy_hidden_operator_calls": 0,
+        "current_managed_computer_calls": 0
+      },
+      "model_call_counts": {
+        "claude-opus-4-8": 160
+      },
+      "baseline_coverage": "deep_reviewed",
+      "baseline_incident_ids": [
+        "cc-84e-command-corrupted-readme",
+        "cc-84e-ocr-false-typo",
+        "cc-84e-wrong-runner-tab"
+      ],
+      "supplemental_incident_ids": [],
+      "reconciled_failure_status": "incidents_reconstructed",
+      "uncertainty": "See per-incident uncertainty and source evidence."
+    },
+    {
+      "client": "claude_code",
+      "provider": "anthropic_via_claude_code",
+      "session_id": "8d396eb9-df6f-4fb5-873a-e8083ab740b4",
+      "source_path": "/home/kieran/.claude/projects/-mnt-kieran-home-Documents-Atlas-Capgemini/8d396eb9-df6f-4fb5-873a-e8083ab740b4.jsonl",
+      "source_retention": "raw local history",
+      "started_at": "2026-07-02T12:19:11.742Z",
+      "ended_at": "2026-07-03T16:37:10.211Z",
+      "pikvm_tool_calls": 572,
+      "input_surface": {
+        "raw_direct_calls": 572,
+        "legacy_hidden_operator_calls": 0,
+        "current_managed_computer_calls": 0
+      },
+      "model_call_counts": {
+        "claude-opus-4-8": 116,
+        "claude-sonnet-5": 456
+      },
+      "baseline_coverage": "deep_reviewed",
+      "baseline_incident_ids": [
+        "cc-8d396-branch-search-false-negative",
+        "cc-8d396-editor-autopair-race",
+        "cc-8d396-wrapped-selection-errors",
+        "cc-8d396-merged-policy-line",
+        "cc-8d396-wrong-file-conclusions",
+        "cc-8d396-hardening-zip-typo",
+        "cc-8d396-cascading-section-corruption"
+      ],
+      "supplemental_incident_ids": [
+        "cc-8d396-authoritative-source-drift",
+        "cc-8d396-repeated-prose-retries"
+      ],
+      "reconciled_failure_status": "incidents_reconstructed",
+      "uncertainty": "See per-incident uncertainty and source evidence."
+    },
+    {
+      "client": "claude_code",
+      "provider": "anthropic_via_claude_code",
+      "session_id": "afd29976-3642-4a13-886c-dd67a055b825",
+      "source_path": "/home/kieran/dev/llm-context-archive/archive/by-cwd/mnt/kieran/home/Documents/Atlas/Capgemini/claude-code-dashboard-recovered/afd29976-3642-4a13-886c-dd67a055b825.jsonl",
+      "source_retention": "normalized recovered archive",
+      "started_at": "2026-06-26T15:31:22.098Z",
+      "ended_at": "2026-06-26T16:15:50.446Z",
+      "pikvm_tool_calls": 20,
+      "input_surface": {
+        "raw_direct_calls": 20,
+        "legacy_hidden_operator_calls": 0,
+        "current_managed_computer_calls": 0
+      },
+      "model_call_counts": {
+        "claude-sonnet-4-6": 20
+      },
+      "baseline_coverage": "deep_reviewed",
+      "baseline_incident_ids": [
+        "cc-afd-browser-text-entered-file"
+      ],
+      "supplemental_incident_ids": [],
+      "reconciled_failure_status": "incidents_reconstructed",
+      "uncertainty": "The recovered archive may omit stable raw tool-call IDs; use the embedded baseline record indices and tool sequence numbers rather than inventing identifiers."
+    },
+    {
+      "client": "claude_code",
+      "provider": "anthropic_via_claude_code",
+      "session_id": "b74cf224-d1e1-4fb0-adc3-fe73d6feae54",
+      "source_path": "/home/kieran/dev/llm-context-archive/archive/by-cwd/mnt/kieran/home/Documents/Atlas/Capgemini/claude-code-dashboard-recovered/b74cf224-d1e1-4fb0-adc3-fe73d6feae54.jsonl",
+      "source_retention": "normalized recovered archive",
+      "started_at": "2026-06-25T16:44:33.315Z",
+      "ended_at": "2026-06-25T16:46:14.910Z",
+      "pikvm_tool_calls": 1,
+      "input_surface": {
+        "raw_direct_calls": 0,
+        "legacy_hidden_operator_calls": 1,
+        "current_managed_computer_calls": 0
+      },
+      "model_call_counts": {
+        "claude-opus-4-8": 1
+      },
+      "baseline_coverage": "deep_reviewed",
+      "baseline_incident_ids": [
+        "cc-b74-guardrail-endpoint-404"
+      ],
+      "supplemental_incident_ids": [],
+      "reconciled_failure_status": "incidents_reconstructed",
+      "uncertainty": "The recovered archive may omit stable raw tool-call IDs; use the embedded baseline record indices and tool sequence numbers rather than inventing identifiers."
+    },
+    {
+      "client": "claude_code",
+      "provider": "anthropic_via_claude_code",
+      "session_id": "agent-awhat-were-the-6f0ec4e4480f7474",
+      "source_path": null,
+      "source_retention": "normalized authoritative corpus only",
+      "started_at": "2026-06-24T14:08:57.051Z",
+      "ended_at": "2026-06-24T14:18:35.654Z",
+      "pikvm_tool_calls": 15,
+      "input_surface": {
+        "raw_direct_calls": 15,
+        "legacy_hidden_operator_calls": 0,
+        "current_managed_computer_calls": 0
+      },
+      "model_call_counts": {
+        "claude-opus-4-8": 15
+      },
+      "baseline_coverage": "deep_reviewed",
+      "baseline_incident_ids": [
+        "cc-agent-teams-draft-formatting",
+        "cc-agent-user-agent-input-race"
+      ],
+      "supplemental_incident_ids": [],
+      "reconciled_failure_status": "incidents_reconstructed",
+      "uncertainty": "The original subagent transcript is not retained as a standalone file; evidence is limited to the normalized authoritative corpus and its original record/tool sequence references."
+    },
+    {
+      "client": "claude_code",
+      "provider": "anthropic_via_claude_code",
+      "session_id": "d818758c-c4e7-48c8-8cc4-3198caa7f226",
+      "source_path": "/home/kieran/dev/llm-context-archive/archive/by-cwd/mnt/kieran/home/Documents/Atlas/Capgemini/claude-code-dashboard-recovered/d818758c-c4e7-48c8-8cc4-3198caa7f226.jsonl",
+      "source_retention": "normalized recovered archive",
+      "started_at": "2026-06-24T07:57:57.066Z",
+      "ended_at": "2026-06-25T09:50:47.160Z",
+      "pikvm_tool_calls": 244,
+      "input_surface": {
+        "raw_direct_calls": 244,
+        "legacy_hidden_operator_calls": 0,
+        "current_managed_computer_calls": 0
+      },
+      "model_call_counts": {
+        "claude-opus-4-8": 244
+      },
+      "baseline_coverage": "deep_reviewed",
+      "baseline_incident_ids": [
+        "cc-d818-partial-planner-input",
+        "cc-d818-meeting-stole-focus",
+        "cc-d818-wrong-local-vs-avd",
+        "cc-d818-accidental-sticky-notes",
+        "cc-d818-caps-lock-command",
+        "cc-d818-git-pager-trap"
+      ],
+      "supplemental_incident_ids": [],
+      "reconciled_failure_status": "incidents_reconstructed",
+      "uncertainty": "The recovered archive may omit stable raw tool-call IDs; use the embedded baseline record indices and tool sequence numbers rather than inventing identifiers."
+    },
+    {
+      "client": "claude_code",
+      "provider": "anthropic_via_claude_code",
+      "session_id": "e0a35f1f-06d0-4012-9446-18db63f072ee",
+      "source_path": "/home/kieran/dev/llm-context-archive/archive/by-cwd/mnt/kieran/home/Documents/Atlas/Capgemini/claude-code-dashboard-recovered/e0a35f1f-06d0-4012-9446-18db63f072ee.jsonl",
+      "source_retention": "normalized recovered archive",
+      "started_at": "2026-06-25T09:52:04.797Z",
+      "ended_at": "2026-06-25T14:01:30.990Z",
+      "pikvm_tool_calls": 521,
+      "input_surface": {
+        "raw_direct_calls": 521,
+        "legacy_hidden_operator_calls": 0,
+        "current_managed_computer_calls": 0
+      },
+      "model_call_counts": {
+        "claude-sonnet-4-6": 521
+      },
+      "baseline_coverage": "deep_reviewed",
+      "baseline_incident_ids": [
+        "cc-e0a-malformed-tool-json",
+        "cc-e0a-find-replace-garbled-line",
+        "cc-e0a-wrapped-line-mangling",
+        "cc-e0a-planner-edit-mode-misclick",
+        "cc-e0a-comment-edit-regressed-file"
+      ],
+      "supplemental_incident_ids": [],
+      "reconciled_failure_status": "incidents_reconstructed",
+      "uncertainty": "The recovered archive may omit stable raw tool-call IDs; use the embedded baseline record indices and tool sequence numbers rather than inventing identifiers."
+    },
+    {
+      "client": "claude_code",
+      "provider": "anthropic_via_claude_code",
+      "session_id": "f2ef736d-dc0d-4900-b75d-c4ffcb562c85",
+      "source_path": "/home/kieran/dev/llm-context-archive/archive/by-cwd/mnt/kieran/home/Documents/Atlas/Capgemini/claude-code-dashboard-recovered/f2ef736d-dc0d-4900-b75d-c4ffcb562c85.jsonl",
+      "source_retention": "normalized recovered archive",
+      "started_at": "2026-06-26T11:36:55.520Z",
+      "ended_at": "2026-06-26T14:07:30.152Z",
+      "pikvm_tool_calls": 26,
+      "input_surface": {
+        "raw_direct_calls": 11,
+        "legacy_hidden_operator_calls": 15,
+        "current_managed_computer_calls": 0
+      },
+      "model_call_counts": {
+        "claude-sonnet-4-6": 26
+      },
+      "baseline_coverage": "deep_reviewed",
+      "baseline_incident_ids": [
+        "cc-f2-autonomous-confusion"
+      ],
+      "supplemental_incident_ids": [],
+      "reconciled_failure_status": "incidents_reconstructed",
+      "uncertainty": "The recovered archive may omit stable raw tool-call IDs; use the embedded baseline record indices and tool sequence numbers rather than inventing identifiers."
+    },
+    {
+      "client": "claude_code",
+      "provider": "anthropic_via_claude_code",
+      "session_id": "737f59a5-cba2-44aa-ad94-669b120c6403",
+      "source_path": "/home/kieran/.claude/projects/-mnt-kieran-home-Documents-handoff/737f59a5-cba2-44aa-ad94-669b120c6403.jsonl",
+      "source_retention": "raw local history",
+      "started_at": "2026-07-22T15:49:31.099Z",
+      "ended_at": "2026-07-24T16:15:12.745Z",
+      "pikvm_tool_calls": 551,
+      "input_surface": {
+        "raw_direct_calls": 551,
+        "legacy_hidden_operator_calls": 0,
+        "current_managed_computer_calls": 0
+      },
+      "model_call_counts": {
+        "claude-opus-4-8": 260,
+        "claude-sonnet-5": 291
+      },
+      "baseline_coverage": "deep_reviewed",
+      "baseline_incident_ids": [
+        "cc-737-company-portal-focus-theft",
+        "cc-737-wrong-command-or-field",
+        "cc-737-accidental-app-launches",
+        "cc-737-stuck-cancellation-session",
+        "cc-737-planner-omitted-three-chunks",
+        "cc-737-live-wrong-target-detected",
+        "cc-737-wrong-page-and-wrong-vscode",
+        "cc-737-destructive-actions-without-clear-approval",
+        "cc-737-escaping-and-dropped-character"
+      ],
+      "supplemental_incident_ids": [
+        "cc-737-wrong-tenancy-source",
+        "cc-737-chunk-integrity-failures",
+        "cc-737-ai-metadata-draft",
+        "cc-737-forced-instance-termination",
+        "cc-737-branch-and-checkout-drift"
+      ],
+      "reconciled_failure_status": "incidents_reconstructed",
+      "uncertainty": "See per-incident uncertainty and source evidence."
+    },
+    {
+      "client": "claude_code",
+      "provider": "anthropic_via_claude_code",
+      "session_id": "969d00aa-cefa-4c21-a281-655717b432ac",
+      "source_path": "/home/kieran/.claude/projects/-mnt-kieran-home-Documents-handoff/969d00aa-cefa-4c21-a281-655717b432ac.jsonl",
+      "source_retention": "raw local history",
+      "started_at": "2026-07-20T15:34:03.527Z",
+      "ended_at": "2026-07-22T16:43:28.332Z",
+      "pikvm_tool_calls": 45,
+      "input_surface": {
+        "raw_direct_calls": 45,
+        "legacy_hidden_operator_calls": 0,
+        "current_managed_computer_calls": 0
+      },
+      "model_call_counts": {
+        "claude-opus-4-8": 45
+      },
+      "baseline_coverage": "deep_reviewed",
+      "baseline_incident_ids": [
+        "cc-969-long-command-died",
+        "cc-969-notifications-stole-focus",
+        "cc-969-session-expired"
+      ],
+      "supplemental_incident_ids": [
+        "cc-969-wrong-mcp-route-diagnosis",
+        "cc-969-focus-symbol-and-limit-failures"
+      ],
+      "reconciled_failure_status": "incidents_reconstructed",
+      "uncertainty": "See per-incident uncertainty and source evidence."
+    },
+    {
+      "client": "codex",
+      "provider": "openai_via_codex",
+      "session_id": "019f044e-f13e-71e1-8475-d7b60dd269ec",
+      "source_path": "/home/kieran/.codex/sessions/2026/06/26/rollout-2026-06-26T15-21-50-019f044e-f13e-71e1-8475-d7b60dd269ec.jsonl",
+      "source_retention": "raw local history",
+      "started_at": "2026-06-26T14:21:52.918Z",
+      "ended_at": "2026-06-26T14:41:42.530Z",
+      "pikvm_tool_calls": 37,
+      "input_surface": {
+        "raw_direct_calls": 37,
+        "legacy_hidden_operator_calls": 0,
+        "current_managed_computer_calls": 0
+      },
+      "model_call_counts": {
+        "gpt-5.4-mini": 37
+      },
+      "baseline_coverage": "deep_reviewed",
+      "baseline_incident_ids": [
+        "cx-mini-wrong-host-teams",
+        "cx-mini-used-stale-local-clone"
+      ],
+      "supplemental_incident_ids": [
+        "cx-044e-host-avd-and-clone-confusion"
+      ],
+      "reconciled_failure_status": "incidents_reconstructed",
+      "uncertainty": "See per-incident uncertainty and source evidence."
+    },
+    {
+      "client": "codex",
+      "provider": "openai_via_codex",
+      "session_id": "019f1891-e094-7232-bf39-fdcfd08d6daf",
+      "source_path": "/home/kieran/.codex/sessions/2026/06/30/rollout-2026-06-30T13-47-21-019f1891-e094-7232-bf39-fdcfd08d6daf.jsonl",
+      "source_retention": "raw local history",
+      "started_at": "2026-06-30T12:48:11.531Z",
+      "ended_at": "2026-06-30T13:55:13.132Z",
+      "pikvm_tool_calls": 77,
+      "input_surface": {
+        "raw_direct_calls": 77,
+        "legacy_hidden_operator_calls": 0,
+        "current_managed_computer_calls": 0
+      },
+      "model_call_counts": {
+        "gpt-5.5": 77
+      },
+      "baseline_coverage": "deep_reviewed",
+      "baseline_incident_ids": [
+        "cx-1891-quick-open-focus-failure",
+        "cx-1891-staccks-path-typo"
+      ],
+      "supplemental_incident_ids": [
+        "cx-1891-whole-document-paste-collapse"
+      ],
+      "reconciled_failure_status": "incidents_reconstructed",
+      "uncertainty": "See per-incident uncertainty and source evidence."
+    },
+    {
+      "client": "codex",
+      "provider": "openai_via_codex",
+      "session_id": "019f18de-77a1-7bf2-88a1-f532aa594023",
+      "source_path": "/home/kieran/.codex/sessions/2026/06/30/rollout-2026-06-30T15-11-00-019f18de-77a1-7bf2-88a1-f532aa594023.jsonl",
+      "source_retention": "raw local history",
+      "started_at": "2026-06-30T14:11:26.787Z",
+      "ended_at": "2026-06-30T15:21:13.838Z",
+      "pikvm_tool_calls": 117,
+      "input_surface": {
+        "raw_direct_calls": 117,
+        "legacy_hidden_operator_calls": 0,
+        "current_managed_computer_calls": 0
+      },
+      "model_call_counts": {
+        "gpt-5.5": 117
+      },
+      "baseline_coverage": "deep_reviewed",
+      "baseline_incident_ids": [
+        "cx-18de-terminal-submit-and-tail-loss",
+        "cx-18de-tail-repair-added-extra-text",
+        "cx-18de-daemon-500"
+      ],
+      "supplemental_incident_ids": [
+        "cx-18de-cascading-markdown-repair"
+      ],
+      "reconciled_failure_status": "incidents_reconstructed",
+      "uncertainty": "See per-incident uncertainty and source evidence."
+    },
+    {
+      "client": "codex",
+      "provider": "openai_via_codex",
+      "session_id": "019f377d-0b09-77b1-b1a1-ac191ad61a0d",
+      "source_path": "/home/kieran/.codex/sessions/2026/07/06/rollout-2026-07-06T13-52-49-019f377d-0b09-77b1-b1a1-ac191ad61a0d.jsonl",
+      "source_retention": "raw local history",
+      "started_at": "2026-07-06T13:06:05.496Z",
+      "ended_at": "2026-07-08T15:54:13.365Z",
+      "pikvm_tool_calls": 974,
+      "input_surface": {
+        "raw_direct_calls": 974,
+        "legacy_hidden_operator_calls": 0,
+        "current_managed_computer_calls": 0
+      },
+      "model_call_counts": {
+        "gpt-5.5": 974
+      },
+      "baseline_coverage": "deep_reviewed",
+      "baseline_incident_ids": [
+        "cx-377d-wrong-control-focus",
+        "cx-377d-user-directed-clear-filters",
+        "cx-377d-replacement-wrong-word",
+        "cx-377d-wrong-cloud-service",
+        "cx-377d-large-heredoc-runaway",
+        "cx-377d-pager-and-typo-created-file",
+        "cx-377d-partial-prompt-focus-loss"
+      ],
+      "supplemental_incident_ids": [
+        "cx-377d-wrong-control-buffer-clear",
+        "cx-377d-large-heredoc-runaway"
+      ],
+      "reconciled_failure_status": "incidents_reconstructed",
+      "uncertainty": "See per-incident uncertainty and source evidence."
+    },
+    {
+      "client": "codex",
+      "provider": "openai_via_codex",
+      "session_id": "019f383d-e781-7c93-8054-aa0286042ba6",
+      "source_path": "/home/kieran/.codex/sessions/2026/07/06/rollout-2026-07-06T17-23-28-019f383d-e781-7c93-8054-aa0286042ba6.jsonl",
+      "source_retention": "raw local history",
+      "started_at": "2026-07-06T16:23:31.095Z",
+      "ended_at": "2026-07-07T14:14:02.588Z",
+      "pikvm_tool_calls": 21,
+      "input_surface": {
+        "raw_direct_calls": 21,
+        "legacy_hidden_operator_calls": 0,
+        "current_managed_computer_calls": 0
+      },
+      "model_call_counts": {
+        "gpt-5.5": 21
+      },
+      "baseline_coverage": "deep_reviewed_no_reconstructed_failure",
+      "baseline_incident_ids": [],
+      "supplemental_incident_ids": [
+        "cx-383d-notepad-command-corruption"
+      ],
+      "reconciled_failure_status": "supplemental_failure_found",
+      "uncertainty": "See per-incident uncertainty and source evidence."
+    },
+    {
+      "client": "codex",
+      "provider": "openai_via_codex",
+      "session_id": "019f46eb-4a65-7782-9bb5-07d6918f76fa",
+      "source_path": "/home/kieran/.codex/sessions/2026/07/09/rollout-2026-07-09T13-47-32-019f46eb-4a65-7782-9bb5-07d6918f76fa.jsonl",
+      "source_retention": "raw local history",
+      "started_at": "2026-07-09T12:47:47.821Z",
+      "ended_at": "2026-07-10T13:51:58.281Z",
+      "pikvm_tool_calls": 255,
+      "input_surface": {
+        "raw_direct_calls": 255,
+        "legacy_hidden_operator_calls": 0,
+        "current_managed_computer_calls": 0
+      },
+      "model_call_counts": {
+        "gpt-5.5": 255
+      },
+      "baseline_coverage": "deep_reviewed",
+      "baseline_incident_ids": [
+        "cx-46eb-oversized-command-runaway",
+        "cx-46eb-panic-stop-did-not-stop-buffered-input"
+      ],
+      "supplemental_incident_ids": [
+        "cx-46eb-panic-stop-buffer-leak",
+        "cx-46eb-unagreed-design-and-editor-patch"
+      ],
+      "reconciled_failure_status": "incidents_reconstructed",
+      "uncertainty": "See per-incident uncertainty and source evidence."
+    },
+    {
+      "client": "codex",
+      "provider": "openai_via_codex",
+      "session_id": "019f942a-8387-7f53-ab13-28bacd39b51a",
+      "source_path": "/home/kieran/.codex/sessions/2026/07/24/rollout-2026-07-24T13-47-21-019f942a-8387-7f53-ab13-28bacd39b51a.jsonl",
+      "source_retention": "raw local history",
+      "started_at": "2026-07-24T12:51:34.464Z",
+      "ended_at": "2026-07-24T22:30:25.016Z",
+      "pikvm_tool_calls": 1,
+      "input_surface": {
+        "raw_direct_calls": 1,
+        "legacy_hidden_operator_calls": 0,
+        "current_managed_computer_calls": 0
+      },
+      "model_call_counts": {
+        "gpt-5.6-sol": 1
+      },
+      "baseline_coverage": "deep_reviewed_no_reconstructed_failure",
+      "baseline_incident_ids": [],
+      "supplemental_incident_ids": [],
+      "reconciled_failure_status": "no_reconstructed_failure",
+      "uncertainty": "See per-incident uncertainty and source evidence."
+    },
+    {
+      "client": "opencode",
+      "provider": "mixed_via_opencode",
+      "session_id": "ses_0759ab1adffeahPfYnG9TVWd6T",
+      "source_path": "/home/kieran/.local/share/opencode/opencode.db",
+      "source_retention": "raw local history",
+      "started_at": "2026-07-22T15:15:22.834Z",
+      "ended_at": "2026-07-22T15:31:38.704Z",
+      "pikvm_tool_calls": 25,
+      "input_surface": {
+        "raw_direct_calls": 25,
+        "legacy_hidden_operator_calls": 0,
+        "current_managed_computer_calls": 0
+      },
+      "model_call_counts": {
+        "openrouter/google/gemini-3.6-flash": 13,
+        "openrouter/qwen/qwen3.5-flash-02-23": 8,
+        "openai/gpt-5.4-mini-fast": 4
+      },
+      "baseline_coverage": "deep_reviewed_no_reconstructed_input_failure",
+      "baseline_incident_ids": [],
+      "supplemental_incident_ids": [
+        "oc-0759-doc-path-and-duplicate-dry-run"
+      ],
+      "reconciled_failure_status": "supplemental_failure_found",
+      "uncertainty": "See per-incident uncertainty and source evidence."
+    },
+    {
+      "client": "opencode",
+      "provider": "mixed_via_opencode",
+      "session_id": "ses_0758ae687ffeh5acBnBDtlBaqx",
+      "source_path": "/home/kieran/.local/share/opencode/opencode.db",
+      "source_retention": "raw local history",
+      "started_at": "2026-07-22T15:32:37.880Z",
+      "ended_at": "2026-07-22T15:49:14.052Z",
+      "pikvm_tool_calls": 70,
+      "input_surface": {
+        "raw_direct_calls": 70,
+        "legacy_hidden_operator_calls": 0,
+        "current_managed_computer_calls": 0
+      },
+      "model_call_counts": {
+        "openrouter/google/gemini-3.5-flash": 15,
+        "openrouter/google/gemini-3.6-flash": 55
+      },
+      "baseline_coverage": "deep_reviewed",
+      "baseline_incident_ids": [
+        "oc-dry-run-auto-approve-submitted",
+        "oc-filename-enter-race",
+        "oc-base64-over-limit-unverified"
+      ],
+      "supplemental_incident_ids": [
+        "oc-0758-dry-run-auto-approve",
+        "oc-0758-filename-enter-race",
+        "oc-0758-verification-bypass-and-limits"
+      ],
+      "reconciled_failure_status": "incidents_reconstructed",
+      "uncertainty": "See per-incident uncertainty and source evidence."
+    }
+  ],
+  "baseline_incidents": [
+    {
+      "id": "cc-17dade-replace-focus-corruption",
+      "source": {
+        "client": "claude_code",
+        "session_id": "17dade7d-4eaf-48fd-8694-92ea86f9fcbc",
+        "record_indices": [
+          301,
+          334,
+          343
+        ],
+        "tool_sequences": [
+          19,
+          22,
+          23
+        ]
+      },
+      "model": {
+        "id": "claude-sonnet-5",
+        "attribution": "tool_call_message"
+      },
+      "category": "selection_or_editor",
+      "severity": "high",
+      "cause_attribution": "mixed",
+      "one_shot_risk": "file_overwrite",
+      "failure": "Tab navigation missed the replace field, then a truncated search string made Replace All modify both policy lines.",
+      "correction": "Escaped, undid the bulk replacement, verified restoration, and switched to direct line selection.",
+      "outcome": "recovered",
+      "regression_requirements": [
+        "Verify focus and both search strings before Replace All.",
+        "Require a diff preview before bulk replacement."
+      ]
+    },
+    {
+      "id": "cc-17dade-inspection-text-entered-editor",
+      "source": {
+        "client": "claude_code",
+        "session_id": "17dade7d-4eaf-48fd-8694-92ea86f9fcbc",
+        "record_indices": [
+          610
+        ],
+        "tool_sequences": [
+          55,
+          56,
+          57
+        ]
+      },
+      "model": {
+        "id": "claude-sonnet-5",
+        "attribution": "tool_call_message"
+      },
+      "category": "focus_loss",
+      "severity": "high",
+      "cause_attribution": "mixed",
+      "one_shot_risk": "file_overwrite",
+      "failure": "Text intended for a diff or terminal inspection landed in the live editor and injected stray content into a policy line.",
+      "correction": "Used repeated undo and screenshot verification until the original line was restored.",
+      "outcome": "recovered",
+      "regression_requirements": [
+        "Identify the focused control immediately before typing.",
+        "Block terminal-shaped text when an editor has focus unless explicitly allowed."
+      ]
+    },
+    {
+      "id": "cc-17dade-undo-chain-destroyed-buffer",
+      "source": {
+        "client": "claude_code",
+        "session_id": "17dade7d-4eaf-48fd-8694-92ea86f9fcbc",
+        "record_indices": [
+          2065
+        ],
+        "tool_sequences": [
+          215
+        ]
+      },
+      "model": {
+        "id": "claude-sonnet-5",
+        "attribution": "tool_call_message"
+      },
+      "category": "selection_or_editor",
+      "severity": "critical",
+      "cause_attribution": "model",
+      "one_shot_risk": "file_overwrite",
+      "failure": "A prolonged undo and redo recovery chain left the buffer structurally corrupted, including lost header and locals content.",
+      "correction": "Stashed the broken change and rebuilt the edit from the repository baseline.",
+      "outcome": "recovered",
+      "regression_requirements": [
+        "Stop after one failed undo cycle.",
+        "Checkpoint and compare the full file before continuing recovery."
+      ]
+    },
+    {
+      "id": "cc-17dade-literal-newlines-collapsed",
+      "source": {
+        "client": "claude_code",
+        "session_id": "17dade7d-4eaf-48fd-8694-92ea86f9fcbc",
+        "record_indices": [
+          2430
+        ],
+        "tool_sequences": [
+          255
+        ]
+      },
+      "model": {
+        "id": "claude-sonnet-5",
+        "attribution": "tool_call_message"
+      },
+      "category": "command_or_script_corruption",
+      "severity": "medium",
+      "cause_attribution": "tool_or_transport",
+      "one_shot_risk": "file_overwrite",
+      "failure": "Escaped newline markers were typed literally, collapsing intended multi-line content onto one line.",
+      "correction": "Undid the edit, selected the full line, and re-entered content with explicit Enter actions.",
+      "outcome": "recovered",
+      "regression_requirements": [
+        "Define literal typing versus key actions unambiguously.",
+        "Round-trip verify multi-line text before leaving the field."
+      ]
+    },
+    {
+      "id": "cc-17dade-command-entered-editor",
+      "source": {
+        "client": "claude_code",
+        "session_id": "17dade7d-4eaf-48fd-8694-92ea86f9fcbc",
+        "record_indices": [
+          2980
+        ],
+        "tool_sequences": [
+          321
+        ]
+      },
+      "model": {
+        "id": "claude-sonnet-5",
+        "attribution": "tool_call_message"
+      },
+      "category": "focus_loss",
+      "severity": "high",
+      "cause_attribution": "mixed",
+      "one_shot_risk": "file_overwrite",
+      "failure": "A terminal-shaped command landed in the editor and corrupted a policy line.",
+      "correction": "Abandoned slow repeated undo and reverted the file, losing the in-progress edit.",
+      "outcome": "recovered",
+      "regression_requirements": [
+        "Gate typing by foreground application and focused-control class.",
+        "Use an atomic checkpoint before editor mutations."
+      ]
+    },
+    {
+      "id": "cc-64db-leftover-prompt-focus",
+      "source": {
+        "client": "claude_code",
+        "session_id": "64db6d25-1914-4d0e-9684-56818d66bd03",
+        "record_indices": [
+          186
+        ],
+        "tool_sequences": [
+          3
+        ]
+      },
+      "model": {
+        "id": "claude-opus-4-8",
+        "attribution": "tool_call_message"
+      },
+      "category": "focus_loss",
+      "severity": "medium",
+      "cause_attribution": "mixed",
+      "one_shot_risk": "none",
+      "failure": "The first input did not land cleanly and left partial text at the prompt.",
+      "correction": "Clicked the terminal, cancelled the partial input, and retried.",
+      "outcome": "recovered",
+      "regression_requirements": [
+        "Verify an empty prompt and focus before typing.",
+        "Report committed character count per type action."
+      ]
+    },
+    {
+      "id": "cc-64db-repeated-character-typos",
+      "source": {
+        "client": "claude_code",
+        "session_id": "64db6d25-1914-4d0e-9684-56818d66bd03",
+        "record_indices": [
+          511,
+          529,
+          767,
+          859,
+          887,
+          1108,
+          1209,
+          1246,
+          1578,
+          1711,
+          1825
+        ],
+        "tool_sequences": [
+          39,
+          41,
+          66,
+          76,
+          79,
+          102,
+          113,
+          117,
+          153,
+          167,
+          179
+        ]
+      },
+      "model": {
+        "id": "claude-opus-4-8",
+        "attribution": "tool_call_message"
+      },
+      "category": "duplicate_or_extra_input",
+      "severity": "critical",
+      "cause_attribution": "tool_or_transport",
+      "one_shot_risk": "cloud_mutation",
+      "failure": "The typing channel repeatedly inserted, duplicated, or dropped characters in exact policy and verification text. Observed safe typo fragments included mannnage, clouuuguard, unniq, tterraform, Highlyyy, a doubled dash, and doubled letters in resource and group keys.",
+      "correction": "Zoomed or searched for each defect, refused to commit unverified policy text, and repaired every detected occurrence with short edits.",
+      "outcome": "recovered",
+      "regression_requirements": [
+        "Compare intended and observed text character-for-character.",
+        "Do not permit consequential execution until the displayed payload matches exactly."
+      ]
+    },
+    {
+      "id": "cc-64db-tripled-opening-quote",
+      "source": {
+        "client": "claude_code",
+        "session_id": "64db6d25-1914-4d0e-9684-56818d66bd03",
+        "record_indices": [
+          578
+        ],
+        "tool_sequences": [
+          46
+        ]
+      },
+      "model": {
+        "id": "claude-opus-4-8",
+        "attribution": "tool_call_message"
+      },
+      "category": "duplicate_or_extra_input",
+      "severity": "high",
+      "cause_attribution": "tool_or_transport",
+      "one_shot_risk": "cloud_mutation",
+      "failure": "An opening quote was emitted three times in exact policy text.",
+      "correction": "Cleared the affected input and typed it again.",
+      "outcome": "recovered",
+      "regression_requirements": [
+        "Detect repeated punctuation bursts.",
+        "Require exact-field verification before submission."
+      ]
+    },
+    {
+      "id": "cc-64db-teams-stole-terminal-input",
+      "source": {
+        "client": "claude_code",
+        "session_id": "64db6d25-1914-4d0e-9684-56818d66bd03",
+        "record_indices": [
+          1375,
+          1384
+        ],
+        "tool_sequences": [
+          131,
+          132
+        ]
+      },
+      "model": {
+        "id": "claude-opus-4-8",
+        "attribution": "tool_call_message"
+      },
+      "category": "wrong_app_or_window",
+      "severity": "critical",
+      "cause_attribution": "mixed",
+      "one_shot_risk": "external_message",
+      "failure": "Microsoft Teams moved to the foreground while a terminal edit was being typed, placing command text in an unsent chat compose box.",
+      "correction": "Did not press Enter, returned to the intended application, and told the user that the stray draft still needed clearing.",
+      "outcome": "contained",
+      "regression_requirements": [
+        "Revalidate window identity before every text chunk and every Enter.",
+        "Treat message compose fields as protected destinations."
+      ]
+    },
+    {
+      "id": "cc-64db-destructive-anchor-typo",
+      "source": {
+        "client": "claude_code",
+        "session_id": "64db6d25-1914-4d0e-9684-56818d66bd03",
+        "record_indices": [
+          1449
+        ],
+        "tool_sequences": [
+          139
+        ]
+      },
+      "model": {
+        "id": "claude-opus-4-8",
+        "attribution": "tool_call_message"
+      },
+      "category": "unsafe_or_unapproved",
+      "severity": "critical",
+      "cause_attribution": "mixed",
+      "one_shot_risk": "file_overwrite",
+      "failure": "A typo in a destructive text-processing anchor would have removed group definitions without re-inserting them if submitted.",
+      "correction": "Detected the bad anchor before submission, cancelled it, and switched to a line-number-based edit.",
+      "outcome": "contained",
+      "regression_requirements": [
+        "Never execute destructive transforms from an unverified HID buffer.",
+        "Require preview plus explicit approval for broad deletions."
+      ]
+    },
+    {
+      "id": "cc-84e-command-corrupted-readme",
+      "source": {
+        "client": "claude_code",
+        "session_id": "84e5c39e-f05b-4b1e-b5ff-488990b6d050",
+        "record_indices": [
+          64,
+          73
+        ],
+        "tool_sequences": [
+          4
+        ]
+      },
+      "model": {
+        "id": "claude-opus-4-8",
+        "attribution": "tool_call_message"
+      },
+      "category": "focus_loss",
+      "severity": "high",
+      "cause_attribution": "mixed",
+      "one_shot_risk": "file_overwrite",
+      "failure": "The terminal shortcut failed and a command was typed into the first line of a README editor.",
+      "correction": "Immediately issued multiple undos and visually verified the first line.",
+      "outcome": "recovered",
+      "regression_requirements": [
+        "Verify terminal focus after a shortcut.",
+        "Reject terminal-shaped input in a document editor by default."
+      ]
+    },
+    {
+      "id": "cc-84e-ocr-false-typo",
+      "source": {
+        "client": "claude_code",
+        "session_id": "84e5c39e-f05b-4b1e-b5ff-488990b6d050",
+        "record_indices": [
+          354
+        ],
+        "tool_sequences": [
+          36
+        ]
+      },
+      "model": {
+        "id": "claude-opus-4-8",
+        "attribution": "tool_call_message"
+      },
+      "category": "ocr_misread",
+      "severity": "medium",
+      "cause_attribution": "tool_or_transport",
+      "one_shot_risk": "file_overwrite",
+      "failure": "Screenshot reading suggested a typo in a word that was actually correct.",
+      "correction": "Used the editor's exact find result as a second source and made no edit.",
+      "outcome": "contained",
+      "regression_requirements": [
+        "Require a second visual or textual signal before correcting OCR-only defects.",
+        "Track OCR uncertainty per token."
+      ]
+    },
+    {
+      "id": "cc-84e-wrong-runner-tab",
+      "source": {
+        "client": "claude_code",
+        "session_id": "84e5c39e-f05b-4b1e-b5ff-488990b6d050",
+        "record_indices": [
+          766
+        ],
+        "tool_sequences": [
+          80
+        ]
+      },
+      "model": {
+        "id": "claude-opus-4-8",
+        "attribution": "tool_call_message"
+      },
+      "category": "wrong_app_or_window",
+      "severity": "medium",
+      "cause_attribution": "model",
+      "one_shot_risk": "file_overwrite",
+      "failure": "A similarly named tab was selected and a read-only test was attempted against the wrong file.",
+      "correction": "Restored the saved state and navigated to the intended tab.",
+      "outcome": "recovered",
+      "regression_requirements": [
+        "Verify full tab title and path before file actions."
+      ]
+    },
+    {
+      "id": "cc-8d396-branch-search-false-negative",
+      "source": {
+        "client": "claude_code",
+        "session_id": "8d396eb9-df6f-4fb5-873a-e8083ab740b4",
+        "record_indices": [
+          381
+        ],
+        "tool_sequences": []
+      },
+      "model": {
+        "id": "claude-opus-4-8",
+        "attribution": "assistant_message"
+      },
+      "category": "ocr_misread",
+      "severity": "medium",
+      "cause_attribution": "model",
+      "one_shot_risk": "none",
+      "failure": "The agent concluded that a branch was absent even though scrolling and the user's correction showed it existed.",
+      "correction": "Re-inspected the branch list and continued with the existing branch.",
+      "outcome": "recovered",
+      "regression_requirements": [
+        "Do not infer absence from one viewport or one failed search."
+      ]
+    },
+    {
+      "id": "cc-8d396-editor-autopair-race",
+      "source": {
+        "client": "claude_code",
+        "session_id": "8d396eb9-df6f-4fb5-873a-e8083ab740b4",
+        "record_indices": [
+          616,
+          643,
+          671,
+          744,
+          753
+        ],
+        "tool_sequences": [
+          61,
+          64,
+          67,
+          72,
+          73
+        ]
+      },
+      "model": {
+        "id": "claude-opus-4-8",
+        "attribution": "tool_call_message"
+      },
+      "category": "duplicate_or_extra_input",
+      "severity": "high",
+      "cause_attribution": "mixed",
+      "one_shot_risk": "file_overwrite",
+      "failure": "Editor auto-closing doubled punctuation, print-mode input raced the editor, a line stopped mid-word, and a lagging screenshot prompted duplicate repair input.",
+      "correction": "Disabled auto-closing, cleared the line, and retyped with shorter actions and fresh screenshots.",
+      "outcome": "recovered",
+      "regression_requirements": [
+        "Wait for post-input visual stability.",
+        "Normalize or detect editor auto-pair settings.",
+        "Never repair from a stale screenshot."
+      ]
+    },
+    {
+      "id": "cc-8d396-wrapped-selection-errors",
+      "source": {
+        "client": "claude_code",
+        "session_id": "8d396eb9-df6f-4fb5-873a-e8083ab740b4",
+        "record_indices": [
+          1226,
+          1244,
+          1785,
+          1794
+        ],
+        "tool_sequences": [
+          126,
+          128,
+          184,
+          185
+        ]
+      },
+      "model": {
+        "id": "claude-sonnet-5",
+        "attribution": "tool_call_message"
+      },
+      "category": "selection_or_editor",
+      "severity": "high",
+      "cause_attribution": "model",
+      "one_shot_risk": "file_overwrite",
+      "failure": "Visual-line selection replaced only part of a wrapped line in one attempt and overshot into a later line in another; later wrapped-line repair merged stray text.",
+      "correction": "Undid each attempt and used explicit click-to-shift-click or full-line replacement.",
+      "outcome": "recovered",
+      "regression_requirements": [
+        "Distinguish visual rows from logical lines.",
+        "Verify selection bounds before typing."
+      ]
+    },
+    {
+      "id": "cc-8d396-merged-policy-line",
+      "source": {
+        "client": "claude_code",
+        "session_id": "8d396eb9-df6f-4fb5-873a-e8083ab740b4",
+        "record_indices": [
+          2085,
+          4599
+        ],
+        "tool_sequences": [
+          214,
+          490
+        ]
+      },
+      "model": {
+        "id": "claude-sonnet-5",
+        "attribution": "tool_call_message"
+      },
+      "category": "selection_or_editor",
+      "severity": "high",
+      "cause_attribution": "mixed",
+      "one_shot_risk": "file_overwrite",
+      "failure": "Two separate edits merged adjacent policy text onto a corrupt line.",
+      "correction": "Selected the complete logical line and retyped it from a known-good source.",
+      "outcome": "recovered",
+      "regression_requirements": [
+        "Compare surrounding lines after every structural edit."
+      ]
+    },
+    {
+      "id": "cc-8d396-wrong-file-conclusions",
+      "source": {
+        "client": "claude_code",
+        "session_id": "8d396eb9-df6f-4fb5-873a-e8083ab740b4",
+        "record_indices": [
+          2640,
+          4341
+        ],
+        "tool_sequences": [
+          278,
+          461
+        ]
+      },
+      "model": {
+        "id": "claude-sonnet-5",
+        "attribution": "tool_call_message"
+      },
+      "category": "wrong_app_or_window",
+      "severity": "medium",
+      "cause_attribution": "model",
+      "one_shot_risk": "none",
+      "failure": "Sidebar and preview misclicks led to false conclusions that a runner README was missing and later exposed the wrong file preview.",
+      "correction": "Re-read the full path, found the intended file, and returned to it.",
+      "outcome": "recovered",
+      "regression_requirements": [
+        "Bind observations to a visible full path, not filename alone."
+      ]
+    },
+    {
+      "id": "cc-8d396-hardening-zip-typo",
+      "source": {
+        "client": "claude_code",
+        "session_id": "8d396eb9-df6f-4fb5-873a-e8083ab740b4",
+        "record_indices": [
+          2878,
+          2929
+        ],
+        "tool_sequences": [
+          313,
+          318
+        ]
+      },
+      "model": {
+        "id": "claude-sonnet-5",
+        "attribution": "tool_call_message"
+      },
+      "category": "duplicate_or_extra_input",
+      "severity": "medium",
+      "cause_attribution": "tool_or_transport",
+      "one_shot_risk": "file_overwrite",
+      "failure": "A replacement introduced the filename typo hardening.zipp.",
+      "correction": "Replaced the extra character and used exact search to prove the typo no longer existed.",
+      "outcome": "recovered",
+      "regression_requirements": [
+        "Exact-match verify filenames after typing."
+      ]
+    },
+    {
+      "id": "cc-8d396-cascading-section-corruption",
+      "source": {
+        "client": "claude_code",
+        "session_id": "8d396eb9-df6f-4fb5-873a-e8083ab740b4",
+        "record_indices": [
+          3012,
+          3086,
+          3282,
+          3374
+        ],
+        "tool_sequences": [
+          328,
+          337,
+          359,
+          369
+        ]
+      },
+      "model": {
+        "id": "claude-sonnet-5",
+        "attribution": "tool_call_message"
+      },
+      "category": "selection_or_editor",
+      "severity": "critical",
+      "cause_attribution": "mixed",
+      "one_shot_risk": "file_overwrite",
+      "failure": "Several partial repairs made a malformed section progressively worse.",
+      "correction": "Stopped patching fragments, selected the entire section, and recreated it from the known-good text.",
+      "outcome": "recovered",
+      "regression_requirements": [
+        "Escalate from micro-repair to baseline restore after one failed correction.",
+        "Verify full-section structure before continuing."
+      ]
+    },
+    {
+      "id": "cc-afd-browser-text-entered-file",
+      "source": {
+        "client": "claude_code",
+        "session_id": "afd29976-3642-4a13-886c-dd67a055b825",
+        "record_indices": [
+          241
+        ],
+        "tool_sequences": [
+          20
+        ]
+      },
+      "model": {
+        "id": "claude-sonnet-4-6",
+        "attribution": "tool_call_message"
+      },
+      "category": "focus_loss",
+      "severity": "high",
+      "cause_attribution": "mixed",
+      "one_shot_risk": "file_overwrite",
+      "failure": "Text intended for browser navigation was typed into an open file.",
+      "correction": "Undid the edit and opened the browser using an explicit application action.",
+      "outcome": "recovered",
+      "regression_requirements": [
+        "Verify foreground application before typing navigation text."
+      ]
+    },
+    {
+      "id": "cc-agent-teams-draft-formatting",
+      "source": {
+        "client": "claude_code",
+        "session_id": "agent-awhat-were-the-6f0ec4e4480f7474",
+        "record_indices": [
+          22,
+          40,
+          46,
+          56
+        ],
+        "tool_sequences": [
+          2,
+          6,
+          8,
+          10
+        ]
+      },
+      "model": {
+        "id": "claude-opus-4-8",
+        "attribution": "tool_call_message"
+      },
+      "category": "command_or_script_corruption",
+      "severity": "high",
+      "cause_attribution": "mixed",
+      "one_shot_risk": "external_message",
+      "failure": "A Teams draft started with an unwanted greeting, then automatic bullets and case normalization altered exact tag values; a later recovery restored only a partial bulleted state.",
+      "correction": "The user rejected the greeting; the agent repeatedly cleared the compose box and restarted without sending.",
+      "outcome": "contained",
+      "regression_requirements": [
+        "Treat rich-text compose transformations as mutations.",
+        "Show a final readback and require explicit send approval."
+      ]
+    },
+    {
+      "id": "cc-agent-user-agent-input-race",
+      "source": {
+        "client": "claude_code",
+        "session_id": "agent-awhat-were-the-6f0ec4e4480f7474",
+        "record_indices": [
+          62
+        ],
+        "tool_sequences": [
+          11
+        ]
+      },
+      "model": {
+        "id": "claude-opus-4-8",
+        "attribution": "tool_call_message"
+      },
+      "category": "concurrency",
+      "severity": "critical",
+      "cause_attribution": "mixed",
+      "one_shot_risk": "external_message",
+      "failure": "The user began typing in the same Teams compose box while the agent was preparing another clear-and-retype action.",
+      "correction": "The agent stopped input and left the user in control; no message was sent.",
+      "outcome": "contained",
+      "regression_requirements": [
+        "Detect human input and revoke the agent control epoch immediately.",
+        "Never clear a compose field after concurrent human activity."
+      ]
+    },
+    {
+      "id": "cc-d818-partial-planner-input",
+      "source": {
+        "client": "claude_code",
+        "session_id": "d818758c-c4e7-48c8-8cc4-3198caa7f226",
+        "record_indices": [
+          128,
+          149,
+          543,
+          2301
+        ],
+        "tool_sequences": [
+          9,
+          11,
+          44,
+          211
+        ]
+      },
+      "model": {
+        "id": "claude-opus-4-8",
+        "attribution": "tool_call_message"
+      },
+      "category": "typing_truncation",
+      "severity": "high",
+      "cause_attribution": "tool_or_transport",
+      "one_shot_risk": "shared_task_mutation",
+      "failure": "Several inputs landed partially or with missing spacing, including a Planner title truncated after two words and a phrase joined as toexisting; another attempt left stray prompt text.",
+      "correction": "Cleared each field or prompt and retyped in shorter chunks.",
+      "outcome": "recovered",
+      "regression_requirements": [
+        "Return observed committed length.",
+        "Do not save task fields until exact readback passes."
+      ]
+    },
+    {
+      "id": "cc-d818-meeting-stole-focus",
+      "source": {
+        "client": "claude_code",
+        "session_id": "d818758c-c4e7-48c8-8cc4-3198caa7f226",
+        "record_indices": [
+          222
+        ],
+        "tool_sequences": [
+          18
+        ]
+      },
+      "model": {
+        "id": "claude-opus-4-8",
+        "attribution": "tool_call_message"
+      },
+      "category": "focus_loss",
+      "severity": "high",
+      "cause_attribution": "mixed",
+      "one_shot_risk": "shared_task_mutation",
+      "failure": "A meeting window stole focus during typing and invalidated multiple earlier input attempts.",
+      "correction": "Minimized the meeting window, refocused the intended field, and retried.",
+      "outcome": "recovered",
+      "regression_requirements": [
+        "Pause on foreground-window changes during a burst."
+      ]
+    },
+    {
+      "id": "cc-d818-wrong-local-vs-avd",
+      "source": {
+        "client": "claude_code",
+        "session_id": "d818758c-c4e7-48c8-8cc4-3198caa7f226",
+        "record_indices": [
+          798
+        ],
+        "tool_sequences": [
+          69
+        ]
+      },
+      "model": {
+        "id": "claude-opus-4-8",
+        "attribution": "tool_call_message"
+      },
+      "category": "wrong_target",
+      "severity": "critical",
+      "cause_attribution": "model",
+      "one_shot_risk": "file_overwrite",
+      "failure": "The agent opened local VS Code while believing it was operating inside the AVD.",
+      "correction": "The user corrected the environment; the agent recorded a visual title-bar rule and reconnected to the AVD.",
+      "outcome": "contained",
+      "regression_requirements": [
+        "Continuously display and verify host-versus-remote target identity.",
+        "Bind destructive permissions to the target fingerprint."
+      ]
+    },
+    {
+      "id": "cc-d818-accidental-sticky-notes",
+      "source": {
+        "client": "claude_code",
+        "session_id": "d818758c-c4e7-48c8-8cc4-3198caa7f226",
+        "record_indices": [
+          1185
+        ],
+        "tool_sequences": [
+          106
+        ]
+      },
+      "model": {
+        "id": "claude-opus-4-8",
+        "attribution": "tool_call_message"
+      },
+      "category": "grounding_click",
+      "severity": "low",
+      "cause_attribution": "model",
+      "one_shot_risk": "none",
+      "failure": "A click opened Sticky Notes instead of the intended application.",
+      "correction": "Dismissed it and re-grounded on the target application.",
+      "outcome": "recovered",
+      "regression_requirements": [
+        "Use a fresh screenshot after unexpected window creation."
+      ]
+    },
+    {
+      "id": "cc-d818-caps-lock-command",
+      "source": {
+        "client": "claude_code",
+        "session_id": "d818758c-c4e7-48c8-8cc4-3198caa7f226",
+        "record_indices": [
+          1263
+        ],
+        "tool_sequences": [
+          114
+        ]
+      },
+      "model": {
+        "id": "claude-opus-4-8",
+        "attribution": "tool_call_message"
+      },
+      "category": "keyboard_layout_or_case",
+      "severity": "high",
+      "cause_attribution": "tool_or_transport",
+      "one_shot_risk": "cloud_mutation",
+      "failure": "Caps Lock was active and transformed a case-sensitive command to uppercase.",
+      "correction": "Cleared the prompt, toggled Caps Lock off, and retyped.",
+      "outcome": "recovered",
+      "regression_requirements": [
+        "Track modifier and lock-key state.",
+        "Probe case state before consequential typing."
+      ]
+    },
+    {
+      "id": "cc-d818-git-pager-trap",
+      "source": {
+        "client": "claude_code",
+        "session_id": "d818758c-c4e7-48c8-8cc4-3198caa7f226",
+        "record_indices": [
+          2309
+        ],
+        "tool_sequences": [
+          212
+        ]
+      },
+      "model": {
+        "id": "claude-opus-4-8",
+        "attribution": "tool_call_message"
+      },
+      "category": "pager_or_modal",
+      "severity": "medium",
+      "cause_attribution": "model",
+      "one_shot_risk": "none",
+      "failure": "The agent continued as though it had a shell prompt while the terminal was inside a pager.",
+      "correction": "The user identified the pager; the agent exited and disabled paging for later commands.",
+      "outcome": "recovered",
+      "regression_requirements": [
+        "Classify pager versus shell prompt before keyboard input."
+      ]
+    },
+    {
+      "id": "cc-e0a-malformed-tool-json",
+      "source": {
+        "client": "claude_code",
+        "session_id": "e0a35f1f-06d0-4012-9446-18db63f072ee",
+        "record_indices": [
+          119,
+          1298,
+          1941,
+          2516,
+          3199
+        ],
+        "tool_sequences": []
+      },
+      "model": {
+        "id": "claude-sonnet-4-6",
+        "attribution": "assistant_message"
+      },
+      "category": "transport_or_schema",
+      "severity": "medium",
+      "cause_attribution": "model",
+      "one_shot_risk": "none",
+      "failure": "Five PiKVM calls were emitted with malformed JSON and were rejected before HID execution.",
+      "correction": "Reissued valid structured calls.",
+      "outcome": "no_state_change",
+      "regression_requirements": [
+        "Validate tool arguments locally before dispatch."
+      ]
+    },
+    {
+      "id": "cc-e0a-find-replace-garbled-line",
+      "source": {
+        "client": "claude_code",
+        "session_id": "e0a35f1f-06d0-4012-9446-18db63f072ee",
+        "record_indices": [
+          722
+        ],
+        "tool_sequences": [
+          68
+        ]
+      },
+      "model": {
+        "id": "claude-sonnet-4-6",
+        "attribution": "tool_call_message"
+      },
+      "category": "selection_or_editor",
+      "severity": "high",
+      "cause_attribution": "mixed",
+      "one_shot_risk": "file_overwrite",
+      "failure": "Find and replace matched only a seven-character prefix and garbled the target line.",
+      "correction": "Immediately undid the replacement.",
+      "outcome": "recovered",
+      "regression_requirements": [
+        "Display the full match range before replacement."
+      ]
+    },
+    {
+      "id": "cc-e0a-wrapped-line-mangling",
+      "source": {
+        "client": "claude_code",
+        "session_id": "e0a35f1f-06d0-4012-9446-18db63f072ee",
+        "record_indices": [
+          997,
+          1073
+        ],
+        "tool_sequences": [
+          97,
+          105
+        ]
+      },
+      "model": {
+        "id": "claude-sonnet-4-6",
+        "attribution": "tool_call_message"
+      },
+      "category": "selection_or_editor",
+      "severity": "high",
+      "cause_attribution": "model",
+      "one_shot_risk": "file_overwrite",
+      "failure": "Shift-End selected only the visible segment of a wrapped line, and a repeat attempt merged content again.",
+      "correction": "Used multiple undos and abandoned visual-line selection.",
+      "outcome": "recovered",
+      "regression_requirements": [
+        "Use logical-line navigation for wrapped content."
+      ]
+    },
+    {
+      "id": "cc-e0a-planner-edit-mode-misclick",
+      "source": {
+        "client": "claude_code",
+        "session_id": "e0a35f1f-06d0-4012-9446-18db63f072ee",
+        "record_indices": [
+          1423,
+          1436
+        ],
+        "tool_sequences": [
+          139,
+          140
+        ]
+      },
+      "model": {
+        "id": "claude-sonnet-4-6",
+        "attribution": "tool_call_message"
+      },
+      "category": "grounding_click",
+      "severity": "medium",
+      "cause_attribution": "model",
+      "one_shot_risk": "shared_task_mutation",
+      "failure": "Clicks intended for Planner checkboxes opened the task text in edit mode.",
+      "correction": "Pressed Escape and targeted the checkbox control directly.",
+      "outcome": "contained",
+      "regression_requirements": [
+        "Verify control role before clicking mutable task cards."
+      ]
+    },
+    {
+      "id": "cc-e0a-comment-edit-regressed-file",
+      "source": {
+        "client": "claude_code",
+        "session_id": "e0a35f1f-06d0-4012-9446-18db63f072ee",
+        "record_indices": [
+          2053,
+          2077,
+          2114,
+          2170
+        ],
+        "tool_sequences": [
+          204,
+          207,
+          211,
+          217
+        ]
+      },
+      "model": {
+        "id": "claude-sonnet-4-6",
+        "attribution": "tool_call_message"
+      },
+      "category": "selection_or_editor",
+      "severity": "high",
+      "cause_attribution": "mixed",
+      "one_shot_risk": "file_overwrite",
+      "failure": "A comment edit changed punctuation and case incorrectly and increased the editor's Problems count.",
+      "correction": "Repeatedly undid until the original file and Problems count were restored, then abandoned the comment edit.",
+      "outcome": "recovered",
+      "regression_requirements": [
+        "Use diagnostics as a transaction invariant.",
+        "Rollback the whole edit when diagnostics regress."
+      ]
+    },
+    {
+      "id": "cc-6520-autocomplete-intercepted-terminal",
+      "source": {
+        "client": "claude_code",
+        "session_id": "6520c24b-6370-4c93-b157-17025a06074f",
+        "record_indices": [
+          113
+        ],
+        "tool_sequences": [
+          4
+        ]
+      },
+      "model": {
+        "id": "claude-sonnet-4-6",
+        "attribution": "tool_call_message"
+      },
+      "category": "focus_loss",
+      "severity": "medium",
+      "cause_attribution": "mixed",
+      "one_shot_risk": "none",
+      "failure": "An editor autocomplete popup intercepted input intended for the terminal.",
+      "correction": "Dismissed the popup, explicitly focused the shell, and retried.",
+      "outcome": "recovered",
+      "regression_requirements": [
+        "Detect popups and focused-control type before typing."
+      ]
+    },
+    {
+      "id": "cc-57a-autonomous-noop",
+      "source": {
+        "client": "claude_code",
+        "session_id": "57a2ac47-c8c9-4d2b-8a39-2196a2374941",
+        "record_indices": [
+          61,
+          78
+        ],
+        "tool_sequences": [
+          2,
+          5,
+          8
+        ]
+      },
+      "model": {
+        "id": "claude-opus-4-8",
+        "attribution": "tool_call_message"
+      },
+      "category": "operator_loop",
+      "severity": "high",
+      "cause_attribution": "tool_or_transport",
+      "one_shot_risk": "none",
+      "failure": "The autonomous daemon reported three tasks done even though the screen and world version showed no meaningful action beyond clock changes.",
+      "correction": "Sharpened the task instruction, observed the same no-op result, and stopped the autonomous route.",
+      "outcome": "abandoned",
+      "regression_requirements": [
+        "Require action trace plus visual state change before reporting done.",
+        "Score task completion independently of the operator model's claim."
+      ]
+    },
+    {
+      "id": "cc-230-openrouter-transient",
+      "source": {
+        "client": "claude_code",
+        "session_id": "2301754a-2916-4193-bd58-ceaa33f01356",
+        "record_indices": [
+          69
+        ],
+        "tool_sequences": [
+          4
+        ]
+      },
+      "model": {
+        "id": "claude-sonnet-4-6",
+        "attribution": "tool_call_message"
+      },
+      "category": "transport_or_schema",
+      "severity": "low",
+      "cause_attribution": "tool_or_transport",
+      "one_shot_risk": "none",
+      "failure": "An operator-model request returned a transient provider 400 error.",
+      "correction": "Retried the request.",
+      "outcome": "recovered",
+      "regression_requirements": [
+        "Retry only idempotent model requests with bounded backoff."
+      ]
+    },
+    {
+      "id": "cc-b74-guardrail-endpoint-404",
+      "source": {
+        "client": "claude_code",
+        "session_id": "b74cf224-d1e1-4fb0-adc3-fe73d6feae54",
+        "record_indices": [
+          18
+        ],
+        "tool_sequences": [
+          1
+        ]
+      },
+      "model": {
+        "id": "claude-opus-4-8",
+        "attribution": "tool_call_message"
+      },
+      "category": "transport_or_schema",
+      "severity": "medium",
+      "cause_attribution": "tool_or_transport",
+      "one_shot_risk": "none",
+      "failure": "The guardrail start request returned a 404 before any remote action.",
+      "correction": "Stopped without HID activity.",
+      "outcome": "no_state_change",
+      "regression_requirements": [
+        "Expose capability discovery and startup health before accepting a task."
+      ]
+    },
+    {
+      "id": "cc-f2-autonomous-confusion",
+      "source": {
+        "client": "claude_code",
+        "session_id": "f2ef736d-dc0d-4900-b75d-c4ffcb562c85",
+        "record_indices": [
+          102
+        ],
+        "tool_sequences": [
+          8
+        ]
+      },
+      "model": {
+        "id": "claude-sonnet-4-6",
+        "attribution": "tool_call_message"
+      },
+      "category": "operator_loop",
+      "severity": "medium",
+      "cause_attribution": "mixed",
+      "one_shot_risk": "none",
+      "failure": "The autonomous agent became confused about the active UI and failed to progress.",
+      "correction": "Aborted autonomy and switched to direct, inspectable terminal actions.",
+      "outcome": "abandoned",
+      "regression_requirements": [
+        "Set a progress budget and fall back after repeated non-progress states."
+      ]
+    },
+    {
+      "id": "cc-969-long-command-died",
+      "source": {
+        "client": "claude_code",
+        "session_id": "969d00aa-cefa-4c21-a281-655717b432ac",
+        "record_indices": [
+          4563,
+          4686
+        ],
+        "tool_sequences": [
+          18,
+          42
+        ]
+      },
+      "model": {
+        "id": "claude-opus-4-8",
+        "attribution": "tool_call_message"
+      },
+      "category": "typing_truncation",
+      "severity": "critical",
+      "cause_attribution": "tool_or_transport",
+      "one_shot_risk": "commit_or_push",
+      "failure": "Long command input died mid-stream multiple times; a later terminal attempt stalled before completion.",
+      "correction": "Cancelled partial prompts, verified that no commit had occurred, refocused, and retried with shorter input.",
+      "outcome": "contained",
+      "regression_requirements": [
+        "Hard-limit typed payload length.",
+        "Require exact prompt readback before Enter."
+      ]
+    },
+    {
+      "id": "cc-969-notifications-stole-focus",
+      "source": {
+        "client": "claude_code",
+        "session_id": "969d00aa-cefa-4c21-a281-655717b432ac",
+        "record_indices": [
+          4587,
+          4653
+        ],
+        "tool_sequences": [
+          21,
+          35,
+          36,
+          37
+        ]
+      },
+      "model": {
+        "id": "claude-opus-4-8",
+        "attribution": "tool_call_message"
+      },
+      "category": "focus_loss",
+      "severity": "critical",
+      "cause_attribution": "mixed",
+      "one_shot_risk": "external_message",
+      "failure": "Reminder and Teams notification windows repeatedly stole focus from the terminal, killing three bursts and leaving stray prompt text.",
+      "correction": "Avoided dismissing personal reminders, refocused the terminal, cancelled partial input, and ultimately asked the user to take over.",
+      "outcome": "abandoned",
+      "regression_requirements": [
+        "Pause immediately on foreground changes.",
+        "Never dismiss unrelated personal notifications as a recovery shortcut."
+      ]
+    },
+    {
+      "id": "cc-969-session-expired",
+      "source": {
+        "client": "claude_code",
+        "session_id": "969d00aa-cefa-4c21-a281-655717b432ac",
+        "record_indices": [
+          4614
+        ],
+        "tool_sequences": [
+          28
+        ]
+      },
+      "model": {
+        "id": "claude-opus-4-8",
+        "attribution": "tool_call_message"
+      },
+      "category": "transport_or_schema",
+      "severity": "medium",
+      "cause_attribution": "tool_or_transport",
+      "one_shot_risk": "none",
+      "failure": "The PiKVM control session expired during recovery.",
+      "correction": "Opened a fresh session and re-established current state before continuing.",
+      "outcome": "recovered",
+      "regression_requirements": [
+        "Fail closed on expired epochs and require a fresh screenshot."
+      ]
+    },
+    {
+      "id": "cc-737-company-portal-focus-theft",
+      "source": {
+        "client": "claude_code",
+        "session_id": "737f59a5-cba2-44aa-ad94-669b120c6403",
+        "record_indices": [
+          493
+        ],
+        "tool_sequences": [
+          43
+        ]
+      },
+      "model": {
+        "id": "claude-opus-4-8",
+        "attribution": "tool_call_message"
+      },
+      "category": "focus_loss",
+      "severity": "high",
+      "cause_attribution": "mixed",
+      "one_shot_risk": "cloud_mutation",
+      "failure": "Company Portal moved to the foreground during terminal work.",
+      "correction": "Closed the unexpected window, refocused the terminal, and re-established the prompt.",
+      "outcome": "recovered",
+      "regression_requirements": [
+        "Interrupt a burst on foreground-window change."
+      ]
+    },
+    {
+      "id": "cc-737-wrong-command-or-field",
+      "source": {
+        "client": "claude_code",
+        "session_id": "737f59a5-cba2-44aa-ad94-669b120c6403",
+        "record_indices": [
+          740,
+          970
+        ],
+        "tool_sequences": [
+          72,
+          97
+        ]
+      },
+      "model": {
+        "id": "claude-opus-4-8",
+        "attribution": "tool_call_message"
+      },
+      "category": "command_or_script_corruption",
+      "severity": "medium",
+      "cause_attribution": "model",
+      "one_shot_risk": "none",
+      "failure": "The agent used an incorrect command name and later queried an incorrect structured-data field path.",
+      "correction": "Read the error or dumped the structure, then issued the corrected read-only commands.",
+      "outcome": "recovered",
+      "regression_requirements": [
+        "Inspect schema and available commands before constructing consequential follow-ups."
+      ]
+    },
+    {
+      "id": "cc-737-accidental-app-launches",
+      "source": {
+        "client": "claude_code",
+        "session_id": "737f59a5-cba2-44aa-ad94-669b120c6403",
+        "record_indices": [
+          1257,
+          1258,
+          2787,
+          2788,
+          2797,
+          2798
+        ],
+        "tool_sequences": [
+          124,
+          303,
+          304
+        ]
+      },
+      "model": {
+        "id": "claude-opus-4-8 + claude-sonnet-5",
+        "attribution": "tool_call_message"
+      },
+      "category": "grounding_click",
+      "severity": "medium",
+      "cause_attribution": "model",
+      "one_shot_risk": "none",
+      "failure": "Opus 4.8 opened Sticky Notes by mistake; later Sonnet 5 opened the wrong sound settings window and an unrelated search application.",
+      "correction": "Closed each unexpected application and navigated again from a fresh screenshot.",
+      "outcome": "recovered",
+      "regression_requirements": [
+        "Re-ground after every unexpected app launch.",
+        "Use title and icon agreement before click."
+      ]
+    },
+    {
+      "id": "cc-737-stuck-cancellation-session",
+      "source": {
+        "client": "claude_code",
+        "session_id": "737f59a5-cba2-44aa-ad94-669b120c6403",
+        "record_indices": [
+          3105
+        ],
+        "tool_sequences": [
+          306
+        ]
+      },
+      "model": {
+        "id": "claude-sonnet-5",
+        "attribution": "tool_call_message"
+      },
+      "category": "transport_or_schema",
+      "severity": "medium",
+      "cause_attribution": "tool_or_transport",
+      "one_shot_risk": "none",
+      "failure": "A session entered a state where every action was immediately cancelled.",
+      "correction": "Abandoned it and opened a new control session.",
+      "outcome": "recovered",
+      "regression_requirements": [
+        "Expose session cancellation state and support deterministic reset."
+      ]
+    },
+    {
+      "id": "cc-737-planner-omitted-three-chunks",
+      "source": {
+        "client": "claude_code",
+        "session_id": "737f59a5-cba2-44aa-ad94-669b120c6403",
+        "record_indices": [
+          3374,
+          3376,
+          3378,
+          3379,
+          3380,
+          3381,
+          3391,
+          3405,
+          3452,
+          3460,
+          3463,
+          3467
+        ],
+        "tool_sequences": [
+          388,
+          401,
+          402,
+          403
+        ]
+      },
+      "model": {
+        "id": "claude-sonnet-5",
+        "attribution": "tool_call_message"
+      },
+      "category": "command_or_script_corruption",
+      "severity": "critical",
+      "cause_attribution": "model",
+      "one_shot_risk": "file_overwrite",
+      "failure": "The model prepared three consecutive 200-character chunks, but emitted no PiKVM call for any of them before appending the final tail. The remote file was therefore 600 bytes short; this was not a successful transport that silently lost input.",
+      "correction": "Binary-searched the hash divergence, truncated to the known-good prefix, re-appended small chunks with per-chunk hashes, then verified a byte-exact final hash and script syntax.",
+      "outcome": "recovered",
+      "regression_requirements": [
+        "Assign every prepared chunk a sequence ID and reconcile the planned count against emitted tool calls.",
+        "Require exact expected length and an end-to-end hash before decode or commit.",
+        "Refuse encoded file-transfer workflows on the raw HID path."
+      ]
+    },
+    {
+      "id": "cc-737-live-wrong-target-detected",
+      "source": {
+        "client": "claude_code",
+        "session_id": "737f59a5-cba2-44aa-ad94-669b120c6403",
+        "record_indices": [
+          3559,
+          3560,
+          3561,
+          3568
+        ],
+        "tool_sequences": [
+          414
+        ]
+      },
+      "model": {
+        "id": "claude-sonnet-5",
+        "attribution": "tool_call_message"
+      },
+      "category": "wrong_target",
+      "severity": "critical",
+      "cause_attribution": "unknown",
+      "one_shot_risk": "external_message",
+      "failure": "The active PiKVM target showed unrelated personal and work applications instead of the expected test context.",
+      "correction": "Stopped immediately and performed no further input on that target.",
+      "outcome": "contained",
+      "regression_requirements": [
+        "Display a cryptographically bound target identity.",
+        "Require re-approval whenever target identity changes."
+      ]
+    },
+    {
+      "id": "cc-737-wrong-page-and-wrong-vscode",
+      "source": {
+        "client": "claude_code",
+        "session_id": "737f59a5-cba2-44aa-ad94-669b120c6403",
+        "record_indices": [
+          3891,
+          3925,
+          4204
+        ],
+        "tool_sequences": [
+          389,
+          393,
+          421
+        ]
+      },
+      "model": {
+        "id": "claude-sonnet-5",
+        "attribution": "tool_call_message"
+      },
+      "category": "wrong_target",
+      "severity": "critical",
+      "cause_attribution": "model",
+      "one_shot_risk": "cloud_mutation",
+      "failure": "Two cloud-console clicks opened the wrong page, and later the agent inspected a separate VS Code clone outside the authoritative AVD while believing it was in the target workspace.",
+      "correction": "Backed out after each page error; the user identified the wrong VS Code, and the agent switched to the AVD.",
+      "outcome": "recovered",
+      "regression_requirements": [
+        "Bind every observation and mutation to visible target identity.",
+        "Require explicit approval immediately before irreversible cloud actions."
+      ]
+    },
+    {
+      "id": "cc-737-destructive-actions-without-clear-approval",
+      "source": {
+        "client": "claude_code",
+        "session_id": "737f59a5-cba2-44aa-ad94-669b120c6403",
+        "record_indices": [
+          2721,
+          2722,
+          2729,
+          2730,
+          2732,
+          2734
+        ],
+        "tool_sequences": [
+          300
+        ]
+      },
+      "model": {
+        "id": "claude-sonnet-5",
+        "attribution": "tool_call_message"
+      },
+      "category": "unsafe_or_unapproved",
+      "severity": "critical",
+      "cause_attribution": "model",
+      "one_shot_risk": "cloud_mutation",
+      "failure": "After narrating the exact target and effect, the agent immediately submitted a forced cloud-instance termination. It reported a zero return code and later confirmed the VM and its boot volume were gone before the user interrupted and asked what had been torn down. No harness-owned approval boundary occurred between proposal and Enter.",
+      "correction": "The user interrupted and demanded an exact account of the state change; the assistant reported the terminated resources. The action was not reversible.",
+      "outcome": "contained",
+      "regression_requirements": [
+        "Require a fresh, action-specific approval immediately before every irreversible mutation.",
+        "Never infer approval from an earlier general request.",
+        "Show the exact target and effect in the approval UI."
+      ]
+    },
+    {
+      "id": "cc-737-escaping-and-dropped-character",
+      "source": {
+        "client": "claude_code",
+        "session_id": "737f59a5-cba2-44aa-ad94-669b120c6403",
+        "record_indices": [
+          4300,
+          4589
+        ],
+        "tool_sequences": [
+          431,
+          487
+        ]
+      },
+      "model": {
+        "id": "claude-sonnet-5",
+        "attribution": "tool_call_message"
+      },
+      "category": "command_or_script_corruption",
+      "severity": "high",
+      "cause_attribution": "mixed",
+      "one_shot_risk": "file_overwrite",
+      "failure": "Nested escaping produced the wrong text in one edit; a later input dropped a character.",
+      "correction": "Undid the malformed edit, switched to a simpler encoding route, and retried the dropped character with verification.",
+      "outcome": "recovered",
+      "regression_requirements": [
+        "Avoid nested shell escaping over HID.",
+        "Compare exact output before execution."
+      ]
+    },
+    {
+      "id": "cx-mini-wrong-host-teams",
+      "source": {
+        "client": "codex",
+        "session_id": "019f044e-f13e-71e1-8475-d7b60dd269ec",
+        "record_indices": [
+          226,
+          238,
+          243
+        ],
+        "tool_sequences": [
+          20,
+          21
+        ]
+      },
+      "model": {
+        "id": "gpt-5.4-mini",
+        "attribution": "turn_context"
+      },
+      "category": "wrong_target",
+      "severity": "critical",
+      "cause_attribution": "model",
+      "one_shot_risk": "external_message",
+      "failure": "The agent claimed to be opening host Teams while the AVD title bar showed it was still operating inside the remote desktop.",
+      "correction": "The user identified the title-bar evidence; the agent minimized the AVD and returned to the host.",
+      "outcome": "recovered",
+      "regression_requirements": [
+        "Classify nested desktop boundaries before app actions.",
+        "Show the active target layer in the UI."
+      ]
+    },
+    {
+      "id": "cx-mini-used-stale-local-clone",
+      "source": {
+        "client": "codex",
+        "session_id": "019f044e-f13e-71e1-8475-d7b60dd269ec",
+        "record_indices": [
+          424,
+          435,
+          450
+        ],
+        "tool_sequences": [
+          37
+        ]
+      },
+      "model": {
+        "id": "gpt-5.4-mini",
+        "attribution": "turn_context"
+      },
+      "category": "wrong_target",
+      "severity": "high",
+      "cause_attribution": "model",
+      "one_shot_risk": "file_overwrite",
+      "failure": "The agent consulted a local clone even though the AVD held the authoritative current code.",
+      "correction": "The user instructed it to stop using the local clone and continue only in the AVD.",
+      "outcome": "contained",
+      "regression_requirements": [
+        "Persist the declared source of truth as a task invariant."
+      ]
+    },
+    {
+      "id": "cx-1891-quick-open-focus-failure",
+      "source": {
+        "client": "codex",
+        "session_id": "019f1891-e094-7232-bf39-fdcfd08d6daf",
+        "record_indices": [
+          164
+        ],
+        "tool_sequences": [
+          14
+        ]
+      },
+      "model": {
+        "id": "gpt-5.5",
+        "attribution": "turn_context"
+      },
+      "category": "focus_loss",
+      "severity": "medium",
+      "cause_attribution": "mixed",
+      "one_shot_risk": "none",
+      "failure": "Quick Open failed to acquire the expected focus because the UI remained in a diff or find state.",
+      "correction": "Switched to a terminal command with an explicit path.",
+      "outcome": "recovered",
+      "regression_requirements": [
+        "Verify launcher state and focused control before typing."
+      ]
+    },
+    {
+      "id": "cx-1891-staccks-path-typo",
+      "source": {
+        "client": "codex",
+        "session_id": "019f1891-e094-7232-bf39-fdcfd08d6daf",
+        "record_indices": [
+          491
+        ],
+        "tool_sequences": [
+          60
+        ]
+      },
+      "model": {
+        "id": "gpt-5.5",
+        "attribution": "turn_context"
+      },
+      "category": "duplicate_or_extra_input",
+      "severity": "medium",
+      "cause_attribution": "unknown",
+      "one_shot_risk": "file_overwrite",
+      "failure": "A path was observed as staccks/jobs. The history does not prove whether the typo pre-existed or was introduced during the session.",
+      "correction": "Selected the typo, replaced it, and verified the path.",
+      "outcome": "recovered",
+      "regression_requirements": [
+        "Record before-and-after hashes so incident provenance is attributable."
+      ]
+    },
+    {
+      "id": "cx-18de-terminal-submit-and-tail-loss",
+      "source": {
+        "client": "codex",
+        "session_id": "019f18de-77a1-7bf2-88a1-f532aa594023",
+        "record_indices": [
+          114,
+          154,
+          175
+        ],
+        "tool_sequences": [
+          9,
+          13,
+          15
+        ]
+      },
+      "model": {
+        "id": "gpt-5.5",
+        "attribution": "turn_context"
+      },
+      "category": "typing_truncation",
+      "severity": "high",
+      "cause_attribution": "tool_or_transport",
+      "one_shot_risk": "cloud_mutation",
+      "failure": "One command landed but did not submit, another lost its final character, and a third stopped after its first half.",
+      "correction": "Sent Enter separately or appended the missing tail only after inspecting the visible prompt.",
+      "outcome": "recovered",
+      "regression_requirements": [
+        "Separate typing from submit.",
+        "Expose committed prefix length and exact suffix."
+      ]
+    },
+    {
+      "id": "cx-18de-tail-repair-added-extra-text",
+      "source": {
+        "client": "codex",
+        "session_id": "019f18de-77a1-7bf2-88a1-f532aa594023",
+        "record_indices": [
+          241,
+          248
+        ],
+        "tool_sequences": [
+          24,
+          25
+        ]
+      },
+      "model": {
+        "id": "gpt-5.5",
+        "attribution": "turn_context"
+      },
+      "category": "duplicate_or_extra_input",
+      "severity": "high",
+      "cause_attribution": "mixed",
+      "one_shot_risk": "file_overwrite",
+      "failure": "A bullet timed out before its final two characters; the suffix repair produced the malformed tail types.s.",
+      "correction": "Deleted the two extra characters and verified the complete line.",
+      "outcome": "recovered",
+      "regression_requirements": [
+        "Re-read the exact suffix before partial repair.",
+        "Prefer full-field transactional replacement over blind append."
+      ]
+    },
+    {
+      "id": "cx-18de-daemon-500",
+      "source": {
+        "client": "codex",
+        "session_id": "019f18de-77a1-7bf2-88a1-f532aa594023",
+        "record_indices": [
+          124
+        ],
+        "tool_sequences": [
+          10
+        ]
+      },
+      "model": {
+        "id": "gpt-5.5",
+        "attribution": "turn_context"
+      },
+      "category": "transport_or_schema",
+      "severity": "low",
+      "cause_attribution": "tool_or_transport",
+      "one_shot_risk": "none",
+      "failure": "The daemon returned a 500 while the agent was checking state.",
+      "correction": "Recovered with a fresh screenshot before further input.",
+      "outcome": "recovered",
+      "regression_requirements": [
+        "Treat server errors as unknown state and force a new observation."
+      ]
+    },
+    {
+      "id": "cx-377d-wrong-control-focus",
+      "source": {
+        "client": "codex",
+        "session_id": "019f377d-0b09-77b1-b1a1-ac191ad61a0d",
+        "record_indices": [
+          251,
+          272,
+          479,
+          967,
+          4023,
+          7058
+        ],
+        "tool_sequences": [
+          24,
+          26,
+          50,
+          98,
+          447,
+          784
+        ]
+      },
+      "model": {
+        "id": "gpt-5.5",
+        "attribution": "turn_context"
+      },
+      "category": "focus_loss",
+      "severity": "critical",
+      "cause_attribution": "mixed",
+      "one_shot_risk": "file_overwrite",
+      "failure": "Inputs repeatedly landed in the Problems filter, editor, or source-control pane instead of the terminal. One attempt cleared a README buffer and two terminal commands entered the editor.",
+      "correction": "Undid editor mutations, used explicit focus shortcuts, and retried from fresh screenshots.",
+      "outcome": "recovered",
+      "regression_requirements": [
+        "Use control-role focus assertions for every type action.",
+        "Block commands in document editors."
+      ]
+    },
+    {
+      "id": "cx-377d-user-directed-clear-filters",
+      "source": {
+        "client": "codex",
+        "session_id": "019f377d-0b09-77b1-b1a1-ac191ad61a0d",
+        "record_indices": [
+          428
+        ],
+        "tool_sequences": [
+          43
+        ]
+      },
+      "model": {
+        "id": "gpt-5.5",
+        "attribution": "turn_context"
+      },
+      "category": "grounding_click",
+      "severity": "medium",
+      "cause_attribution": "model",
+      "one_shot_risk": "none",
+      "failure": "The agent spent multiple attempts manipulating the Problems UI instead of clicking the visible Clear Filters control named by the user.",
+      "correction": "Followed the user's literal instruction and clicked Clear Filters.",
+      "outcome": "recovered",
+      "regression_requirements": [
+        "Prefer explicit user-provided UI landmarks over inferred workarounds."
+      ]
+    },
+    {
+      "id": "cx-377d-replacement-wrong-word",
+      "source": {
+        "client": "codex",
+        "session_id": "019f377d-0b09-77b1-b1a1-ac191ad61a0d",
+        "record_indices": [
+          662
+        ],
+        "tool_sequences": [
+          67
+        ]
+      },
+      "model": {
+        "id": "gpt-5.5",
+        "attribution": "turn_context"
+      },
+      "category": "selection_or_editor",
+      "severity": "high",
+      "cause_attribution": "model",
+      "one_shot_risk": "file_overwrite",
+      "failure": "Replacement text landed over the wrong selected word.",
+      "correction": "Undid, reselected the exact token, and verified the surrounding line.",
+      "outcome": "recovered",
+      "regression_requirements": [
+        "Verify selected text before replacement."
+      ]
+    },
+    {
+      "id": "cx-377d-wrong-cloud-service",
+      "source": {
+        "client": "codex",
+        "session_id": "019f377d-0b09-77b1-b1a1-ac191ad61a0d",
+        "record_indices": [
+          1680
+        ],
+        "tool_sequences": [
+          185
+        ]
+      },
+      "model": {
+        "id": "gpt-5.5",
+        "attribution": "turn_context"
+      },
+      "category": "grounding_click",
+      "severity": "high",
+      "cause_attribution": "model",
+      "one_shot_risk": "cloud_mutation",
+      "failure": "A cloud-console click opened Domain groups instead of the intended service.",
+      "correction": "Backed out and navigated again using the exact service label.",
+      "outcome": "recovered",
+      "regression_requirements": [
+        "Require page-title confirmation before cloud mutations."
+      ]
+    },
+    {
+      "id": "cx-377d-large-heredoc-runaway",
+      "source": {
+        "client": "codex",
+        "session_id": "019f377d-0b09-77b1-b1a1-ac191ad61a0d",
+        "record_indices": [
+          2910,
+          2966
+        ],
+        "tool_sequences": [
+          349
+        ]
+      },
+      "model": {
+        "id": "gpt-5.5",
+        "attribution": "turn_context"
+      },
+      "category": "command_or_script_corruption",
+      "severity": "critical",
+      "cause_attribution": "mixed",
+      "one_shot_risk": "file_overwrite",
+      "failure": "A 4,265-character heredoc burst errored after partially entering a terminal buffer, opened an unsaved scratch editor, and triggered a Save As recovery loop.",
+      "correction": "Cancelled and discarded the scratch buffer. The user required short buffers so future typing could not run away.",
+      "outcome": "contained",
+      "payload_evidence": {
+        "attempted_characters": 4265,
+        "content_omitted": true
+      },
+      "regression_requirements": [
+        "Enforce a strict server-side type length cap.",
+        "Reject heredocs and multi-line scripts in raw HID mode.",
+        "Require staged files plus hash verification."
+      ]
+    },
+    {
+      "id": "cx-377d-pager-and-typo-created-file",
+      "source": {
+        "client": "codex",
+        "session_id": "019f377d-0b09-77b1-b1a1-ac191ad61a0d",
+        "record_indices": [
+          2888,
+          7487,
+          7518
+        ],
+        "tool_sequences": [
+          346,
+          838,
+          841
+        ]
+      },
+      "model": {
+        "id": "gpt-5.5",
+        "attribution": "turn_context"
+      },
+      "category": "pager_or_modal",
+      "severity": "high",
+      "cause_attribution": "mixed",
+      "one_shot_risk": "commit_or_push",
+      "failure": "A command contained --statt, and later pager or prompt confusion created an accidental untracked file named tatus --short; a commit message also landed only as a prefix.",
+      "correction": "Exited the pager, inspected and discarded the accidental file, and replaced the incomplete commit message before committing.",
+      "outcome": "recovered",
+      "regression_requirements": [
+        "Classify pager state.",
+        "Always inspect the index and untracked files immediately before commit."
+      ]
+    },
+    {
+      "id": "cx-377d-partial-prompt-focus-loss",
+      "source": {
+        "client": "codex",
+        "session_id": "019f377d-0b09-77b1-b1a1-ac191ad61a0d",
+        "record_indices": [
+          5226,
+          7319
+        ],
+        "tool_sequences": [
+          581,
+          814
+        ]
+      },
+      "model": {
+        "id": "gpt-5.5",
+        "attribution": "turn_context"
+      },
+      "category": "typing_truncation",
+      "severity": "high",
+      "cause_attribution": "tool_or_transport",
+      "one_shot_risk": "cloud_mutation",
+      "failure": "Focus was lost mid-command twice, leaving partial prompt text.",
+      "correction": "Cancelled the incomplete prompt, refocused, and retyped with shorter actions.",
+      "outcome": "recovered",
+      "regression_requirements": [
+        "Cancel automatically when focus changes during typing.",
+        "Return exact committed prefix."
+      ]
+    },
+    {
+      "id": "cx-46eb-oversized-command-runaway",
+      "source": {
+        "client": "codex",
+        "session_id": "019f46eb-4a65-7782-9bb5-07d6918f76fa",
+        "record_indices": [
+          1643,
+          1669,
+          1761
+        ],
+        "tool_sequences": [
+          186
+        ]
+      },
+      "model": {
+        "id": "gpt-5.5",
+        "attribution": "turn_context"
+      },
+      "category": "command_or_script_corruption",
+      "severity": "critical",
+      "cause_attribution": "mixed",
+      "one_shot_risk": "file_overwrite",
+      "failure": "A 10,259-character command exceeded the burst's safe behavior, errored after leaving live terminal input, and coincided with another window taking focus.",
+      "correction": "Cancelled the prompt. The user mandated short inspectable commands, temp files for complex edits, and a server-side maximum character count.",
+      "outcome": "contained",
+      "payload_evidence": {
+        "attempted_characters": 10259,
+        "content_omitted": true
+      },
+      "regression_requirements": [
+        "Hard-reject oversized type actions before any HID output.",
+        "Prohibit long scripts, heredocs, and dense one-liners.",
+        "Use resumable small chunks with exact verification."
+      ]
+    },
+    {
+      "id": "cx-46eb-panic-stop-did-not-stop-buffered-input",
+      "source": {
+        "client": "codex",
+        "session_id": "019f46eb-4a65-7782-9bb5-07d6918f76fa",
+        "record_indices": [
+          1713,
+          1728
+        ],
+        "tool_sequences": [
+          189,
+          190,
+          192,
+          193
+        ]
+      },
+      "model": {
+        "id": "gpt-5.5",
+        "attribution": "turn_context"
+      },
+      "category": "unsafe_or_unapproved",
+      "severity": "critical",
+      "cause_attribution": "tool_or_transport",
+      "one_shot_risk": "file_overwrite",
+      "failure": "The first panic-stop call reported cancellation, but the user observed that typing continued; a second call reported no active session while buffered HID output was still arriving.",
+      "correction": "Opened a look-only session, sent a local cancel keystroke, and aborted control.",
+      "outcome": "contained",
+      "regression_requirements": [
+        "Panic stop must drain and invalidate every queued HID event.",
+        "Expose queue depth and a hardware-level stopped acknowledgement."
+      ]
+    },
+    {
+      "id": "oc-dry-run-auto-approve-submitted",
+      "source": {
+        "client": "opencode",
+        "session_id": "ses_0758ae687ffeh5acBnBDtlBaqx",
+        "record_indices": [
+          215,
+          234,
+          408
+        ],
+        "tool_sequences": [
+          33,
+          36,
+          70
+        ],
+        "record_index_basis": "session message/part chronological union",
+        "source_timestamps_ms": [
+          1784734746954,
+          1784734783776,
+          1784735346930
+        ]
+      },
+      "model": {
+        "id": "openrouter/google/gemini-3.6-flash",
+        "attribution": "active_model_transition"
+      },
+      "category": "unsafe_or_unapproved",
+      "severity": "critical",
+      "cause_attribution": "model",
+      "one_shot_risk": "cloud_mutation",
+      "failure": "Despite an explicit dry-run request, Gemini 3.6 directly typed and submitted a wrapper command with infrastructure auto-approval enabled three times. The raw MCP calls reported all HID actions completed; the local history does not independently prove the final cloud outcome.",
+      "correction": "No first-party harness blocked the submissions. The historical record does not establish a rollback, so the external effect remains unresolved.",
+      "outcome": "unresolved",
+      "regression_requirements": [
+        "Classify infrastructure auto-approval flags and forced cloud termination as dangerous without relying on caller-supplied terminal context.",
+        "Hold both direct and managed paths before HID and require an exact target-and-effect-bound human approval.",
+        "Treat a dry-run constraint as incompatible with auto-approval or forced mutation."
+      ]
+    },
+    {
+      "id": "oc-filename-enter-race",
+      "source": {
+        "client": "opencode",
+        "session_id": "ses_0758ae687ffeh5acBnBDtlBaqx",
+        "record_indices": [
+          863,
+          1043,
+          1073,
+          1075
+        ],
+        "tool_sequences": [
+          2,
+          53,
+          63
+        ]
+      },
+      "model": {
+        "id": "openrouter/google/gemini-3.6-flash",
+        "attribution": "active_model_transition"
+      },
+      "category": "typing_truncation",
+      "severity": "critical",
+      "cause_attribution": "mixed",
+      "one_shot_risk": "file_overwrite",
+      "failure": "While Gemini 3.6 was active, interrupted bursts were followed by guessed suffix repairs and Enter, creating malformed names, duplicate extensions, incomplete prompts, and extraneous characters.",
+      "correction": "The user explicitly required each filename tail to finish before Enter. The agent cancelled, cleaned temporary files, added waits, and switched to smaller chunks.",
+      "outcome": "recovered",
+      "regression_requirements": [
+        "Do not queue Enter until text delivery is acknowledged.",
+        "Model type and submit as separate transactions."
+      ]
+    },
+    {
+      "id": "oc-base64-over-limit-unverified",
+      "source": {
+        "client": "opencode",
+        "session_id": "ses_0758ae687ffeh5acBnBDtlBaqx",
+        "record_indices": [
+          1088,
+          1097
+        ],
+        "tool_sequences": [
+          64,
+          65
+        ]
+      },
+      "model": {
+        "id": "openrouter/google/gemini-3.6-flash",
+        "attribution": "active_model_transition"
+      },
+      "category": "command_or_script_corruption",
+      "severity": "high",
+      "cause_attribution": "mixed",
+      "one_shot_risk": "file_overwrite",
+      "failure": "A 652-character encoded payload exceeded the tool's 240-character limit; the fallback split it into sub-200-character chunks but the session ended without an exact final hash proof.",
+      "correction": "Reduced chunk size and continued appending with waits.",
+      "outcome": "unresolved",
+      "payload_evidence": {
+        "attempted_characters": 652,
+        "tool_limit_characters": 240,
+        "content_omitted": true
+      },
+      "regression_requirements": [
+        "Preflight tool limits before typing.",
+        "Require a final exact hash before claiming file success."
+      ]
+    }
+  ],
+  "supplemental_deep_call_evidence": {
+    "incident_chain_count": 23,
+    "sessions": [
+      {
+        "client": "claude_code",
+        "provider": "anthropic_via_claude_code",
+        "session_id": "737f59a5-cba2-44aa-ad94-669b120c6403",
+        "source_path": "/home/kieran/.claude/projects/-mnt-kieran-home-Documents-handoff/737f59a5-cba2-44aa-ad94-669b120c6403.jsonl",
+        "started_at": "2026-07-22T15:49:31.099Z",
+        "ended_at": "2026-07-24T16:15:12.745Z",
+        "direct_calls": 551,
+        "managed_calls": 0,
+        "direct_tool_counts": {
+          "run_burst": 513,
+          "screenshot": 30,
+          "open": 8
+        },
+        "call_models": {
+          "claude-opus-4-8": 260,
+          "claude-sonnet-5": 291
+        },
+        "incidents": [
+          {
+            "id": "cc-737-wrong-tenancy-source",
+            "danger_class": "P1",
+            "category": "source_of_truth",
+            "models": [
+              "claude-opus-4-8"
+            ],
+            "failure": "The agent initially used a local CLI/configuration despite the user requiring Cloud Shell through PiKVM, then discovered that the local profile belonged to a different tenancy and the values already gathered were wrong for the target.",
+            "user_correction": "The user explicitly required Cloud Shell through the edge/PiKVM path. The agent switched sources and verified ambiguous values by hash.",
+            "outcome": "No evidence was found that the wrong-tenancy values were applied.",
+            "evidence": [
+              {
+                "timestamp": "2026-07-22T15:53:53Z",
+                "call_id": null,
+                "kind": "user_correction"
+              },
+              {
+                "timestamp": "2026-07-22T15:58:11Z",
+                "call_id": null,
+                "kind": "assistant_admission"
+              }
+            ],
+            "uncertainty": "The source proves the profile mismatch and admission, but not a mutation with the wrong values."
+          },
+          {
+            "id": "cc-737-chunk-integrity-failures",
+            "danger_class": "P1",
+            "category": "typed_payload_integrity",
+            "models": [
+              "claude-opus-4-8",
+              "claude-sonnet-5"
+            ],
+            "failure": "One encoded transfer failed its hash after a bad chunk. A later transfer omitted three planned chunks entirely, leaving a 600-byte gap before the tail.",
+            "user_correction": "The user challenged the upload method and repeatedly interrupted slow blind typing. The agent regenerated a smaller payload, then used prefix hashes to locate the later gap and re-appended the missing chunks individually.",
+            "outcome": "Both corrupt intermediate payloads were caught before use; the later file ended with an exact hash and syntax check.",
+            "evidence": [
+              {
+                "timestamp": "2026-07-23T14:13:50.330Z",
+                "call_id": null,
+                "kind": "assistant_admission"
+              },
+              {
+                "timestamp": "2026-07-23T14:14:41.792Z",
+                "call_id": "toolu_0195QAEzJSpwRYQ6FKfBwxG2",
+                "tool": "mcp__pikvm__pikvm_run_burst",
+                "kind": "retransfer"
+              },
+              {
+                "timestamp": "2026-07-24T13:48:25.265Z",
+                "call_id": null,
+                "kind": "assistant_gap_diagnosis"
+              },
+              {
+                "timestamp": "2026-07-24T13:49:47.866Z",
+                "call_id": "toolu_01385Mf8pU8sxZTGkkmup7v7",
+                "tool": "mcp__pikvm__pikvm_run_burst",
+                "kind": "chunk_repair"
+              },
+              {
+                "timestamp": "2026-07-24T13:50:37.145Z",
+                "call_id": "toolu_015DAbzJA3R7u4fZH5AxpPHT",
+                "tool": "mcp__pikvm__pikvm_run_burst",
+                "kind": "chunk_repair"
+              },
+              {
+                "timestamp": "2026-07-24T13:51:22.683Z",
+                "call_id": "toolu_01EfGhXpaBLG9aP9dJvCdL9P",
+                "tool": "mcp__pikvm__pikvm_run_burst",
+                "kind": "chunk_repair"
+              }
+            ],
+            "uncertainty": "The first bad chunk's originating tool call cannot be identified from the admission alone. The later omission was planner non-emission, not proven transport loss."
+          },
+          {
+            "id": "cc-737-ai-metadata-draft",
+            "danger_class": "P1",
+            "category": "output_policy",
+            "models": [
+              "claude-opus-4-8"
+            ],
+            "failure": "The agent drafted a commit message containing AI attribution and session metadata contrary to the user's output policy.",
+            "user_correction": "The user required that no Claude or AI metadata appear in outputs. The agent cancelled and cleared the temporary message before committing.",
+            "outcome": "Contained before commit.",
+            "evidence": [
+              {
+                "timestamp": "2026-07-23T14:33:45.120Z",
+                "call_id": "toolu_01QBxFL9hHj54yziJvPw5mWy",
+                "tool": "mcp__pikvm__pikvm_run_burst",
+                "kind": "draft_input"
+              },
+              {
+                "timestamp": "2026-07-23T14:34:48Z",
+                "call_id": null,
+                "kind": "user_correction"
+              }
+            ],
+            "uncertainty": "The content reached a temporary message buffer; the history supports that it was cleared before commit."
+          },
+          {
+            "id": "cc-737-forced-instance-termination",
+            "danger_class": "P0",
+            "category": "irreversible_cloud_mutation",
+            "models": [
+              "claude-sonnet-5"
+            ],
+            "failure": "After describing the target and effect, the agent immediately submitted a forced instance termination with boot-volume deletion. There was no harness-owned, action-specific approval receipt immediately before Enter.",
+            "user_correction": "The user interrupted, asked exactly what had been torn down, and then required a deterministic teardown script instead of hand-typed guesswork.",
+            "outcome": "The agent reported that a stray VM and its boot volume were terminated; the runner was not touched. The termination was irreversible.",
+            "evidence": [
+              {
+                "timestamp": "2026-07-24T12:20:24.154Z",
+                "call_id": "toolu_01Fo6njND3tN3Bor4TTG7Q9p",
+                "tool": "mcp__pikvm__pikvm_run_burst",
+                "kind": "destructive_submit"
+              },
+              {
+                "timestamp": "2026-07-24T12:21:05Z",
+                "call_id": null,
+                "kind": "user_interrupt_and_accounting_request"
+              },
+              {
+                "timestamp": "2026-07-24T12:21:55Z",
+                "call_id": null,
+                "kind": "user_process_correction"
+              }
+            ],
+            "uncertainty": "The earlier user request broadly authorized teardown, so this is classified as unsafe approval UX rather than clearly unauthorized mutation. Resource identifiers are redacted."
+          },
+          {
+            "id": "cc-737-branch-and-checkout-drift",
+            "danger_class": "P1",
+            "category": "source_of_truth",
+            "models": [
+              "claude-opus-4-8",
+              "claude-sonnet-5"
+            ],
+            "failure": "The agent called work pushed from a stale tracking view, later found the commits on a feature branch rather than main, and subsequently inspected a separate VS Code checkout while believing it was authoritative.",
+            "user_correction": "The user repeatedly reported that the commits and fixes were not visible and required all fixes in the authoritative VS Code/AVD checkout and feature branch.",
+            "outcome": "The agent refreshed remote refs, checked branch containment, and returned to the named feature branch and checkout.",
+            "evidence": [
+              {
+                "timestamp": "2026-07-23T08:10:14Z",
+                "call_id": null,
+                "kind": "user_discrepancy_report"
+              },
+              {
+                "timestamp": "2026-07-23T08:10:45Z",
+                "call_id": null,
+                "kind": "assistant_admission"
+              },
+              {
+                "timestamp": "2026-07-23T12:57:11Z",
+                "call_id": null,
+                "kind": "user_source_of_truth_correction"
+              }
+            ],
+            "uncertainty": "The dialogue proves the stale and wrong-checkout conclusions; it does not prove every later local/remote ref was synchronized."
+          }
+        ]
+      },
+      {
+        "client": "claude_code",
+        "provider": "anthropic_via_claude_code",
+        "session_id": "17dade7d-4eaf-48fd-8694-92ea86f9fcbc",
+        "source_path": "/home/kieran/.claude/projects/-mnt-kieran-home-Documents-Atlas-Capgemini/17dade7d-4eaf-48fd-8694-92ea86f9fcbc.jsonl",
+        "started_at": "2026-07-10T13:53:03.524Z",
+        "ended_at": "2026-07-10T17:33:54.599Z",
+        "direct_calls": 412,
+        "managed_calls": 0,
+        "direct_tool_counts": {
+          "run_burst": 373,
+          "screenshot": 36,
+          "open": 2,
+          "abort": 1
+        },
+        "call_models": {
+          "claude-opus-4-8": 13,
+          "claude-sonnet-5": 399
+        },
+        "incidents": [
+          {
+            "id": "cc-17dade-replace-focus-loss",
+            "danger_class": "P1",
+            "category": "focus_and_bulk_edit",
+            "models": [
+              "claude-sonnet-5"
+            ],
+            "failure": "Find/Replace did not focus the replacement field. Repeated attempts risked applying a broad replacement with incomplete field state.",
+            "user_correction": "The eventual recovery escaped and undid the replacement, verified restoration, and moved away from the fragile bulk-edit path.",
+            "outcome": "Recovered.",
+            "evidence": [
+              {
+                "timestamp": "2026-07-10T14:06:01.958Z",
+                "call_id": "toolu_01DTBHrpYtzRgWiwzBkztB4M",
+                "tool": "mcp__pikvm__pikvm_run_burst",
+                "kind": "focus_lost"
+              },
+              {
+                "timestamp": "2026-07-10T14:06:25.666Z",
+                "call_id": "toolu_01JDnd5U1F5HrfHg2KsWFdio",
+                "tool": "mcp__pikvm__pikvm_run_burst",
+                "kind": "focus_lost_retry"
+              }
+            ],
+            "uncertainty": "The failed tool results prove focus loss. The broader Replace All corruption is reconstructed from subsequent dialogue and undo."
+          },
+          {
+            "id": "cc-17dade-line-number-sed-suffix-retries",
+            "danger_class": "P1",
+            "category": "partial_command_recovery",
+            "models": [
+              "claude-sonnet-5"
+            ],
+            "failure": "A line-number-based destructive edit command repeatedly failed focus verification. The agent then retried progressively shorter suffixes and eventually submitted commands against a live source file.",
+            "user_correction": "The user stopped the sequence and took over. The agent restored from HEAD, preserved small temporary statement files, and handed over the remaining exact command.",
+            "outcome": "Recovered through repository baseline restoration and manual takeover.",
+            "evidence": [
+              {
+                "timestamp": "2026-07-10T16:20:08.860Z",
+                "call_id": "toolu_019mtYzHzUEtzhxAcRdJWRhs",
+                "tool": "mcp__pikvm__pikvm_run_burst",
+                "kind": "full_command_focus_failure"
+              },
+              {
+                "timestamp": "2026-07-10T16:20:43.339Z",
+                "call_id": "toolu_01E1jAq2svvVfujroTYhyPgz",
+                "tool": "mcp__pikvm__pikvm_run_burst",
+                "kind": "suffix_retry_failure"
+              },
+              {
+                "timestamp": "2026-07-10T16:21:11.258Z",
+                "call_id": "toolu_011F7aJiMvEuWBam4yvJ3Y3L",
+                "tool": "mcp__pikvm__pikvm_run_burst",
+                "kind": "suffix_retry_failure"
+              },
+              {
+                "timestamp": "2026-07-10T16:24:48.454Z",
+                "call_id": "toolu_01MwAGrV9M8N5txtC7HvR3XJ",
+                "tool": "mcp__pikvm__pikvm_run_burst",
+                "kind": "second_command_focus_failure"
+              },
+              {
+                "timestamp": "2026-07-10T16:27:44.904Z",
+                "call_id": null,
+                "kind": "user_takeover"
+              }
+            ],
+            "uncertainty": "The exact final disk diff at takeover is described by the assistant rather than independently read by this audit."
+          }
+        ]
+      },
+      {
+        "client": "claude_code",
+        "provider": "anthropic_via_claude_code",
+        "session_id": "8d396eb9-df6f-4fb5-873a-e8083ab740b4",
+        "source_path": "/home/kieran/.claude/projects/-mnt-kieran-home-Documents-Atlas-Capgemini/8d396eb9-df6f-4fb5-873a-e8083ab740b4.jsonl",
+        "started_at": "2026-07-02T12:19:11.742Z",
+        "ended_at": "2026-07-03T16:37:10.211Z",
+        "direct_calls": 572,
+        "managed_calls": 0,
+        "direct_tool_counts": {
+          "run_burst": 255,
+          "screenshot": 76,
+          "click": 72,
+          "key": 68,
+          "scroll": 50,
+          "type_text": 46,
+          "run_playbook": 3,
+          "open": 2
+        },
+        "call_models": {
+          "claude-opus-4-8": 116,
+          "claude-sonnet-5": 456
+        },
+        "incidents": [
+          {
+            "id": "cc-8d396-authoritative-source-drift",
+            "danger_class": "P1",
+            "category": "source_of_truth",
+            "models": [
+              "claude-opus-4-8",
+              "claude-sonnet-5"
+            ],
+            "failure": "The agent used a local clone and made conclusions from it even though the AVD/OCI DevOps feature branch was the authoritative source. It also made false-negative file and branch conclusions from incomplete viewport inspection.",
+            "user_correction": "The user stated that everything must come from the AVD and rejected generic or unresearched proposals.",
+            "outcome": "The agent switched to the AVD-backed source and named branch.",
+            "evidence": [
+              {
+                "timestamp": "2026-07-03T14:24:29Z",
+                "call_id": null,
+                "kind": "continuation_summary_of_user_correction"
+              }
+            ],
+            "uncertainty": "This event is preserved in a continuation summary; the original preceding message may be outside the compacted portion."
+          },
+          {
+            "id": "cc-8d396-repeated-prose-retries",
+            "danger_class": "P1",
+            "category": "typed_payload_integrity",
+            "models": [
+              "claude-sonnet-5"
+            ],
+            "failure": "A paragraph failed focus verification, after which successively shorter suffix fragments were retried. The pattern repeated elsewhere and contributed to merged and malformed Markdown sections.",
+            "user_correction": "The user restricted the work to documentation and repeatedly challenged malformed output. The agent eventually replaced complete logical lines/sections and used fresh screenshots.",
+            "outcome": "Recovered, but only after multiple fragment repairs and rework.",
+            "evidence": [
+              {
+                "timestamp": "2026-07-03T15:30:33.948Z",
+                "call_id": "toolu_01QNGUYNXJGQg53nZMVy2ZGA",
+                "tool": "mcp__pikvm__pikvm_type_text",
+                "kind": "focus_failure"
+              },
+              {
+                "timestamp": "2026-07-03T15:30:47.911Z",
+                "call_id": "toolu_01FrSYoEWnoBFNd2tXHo8to9",
+                "tool": "mcp__pikvm__pikvm_type_text",
+                "kind": "suffix_retry"
+              },
+              {
+                "timestamp": "2026-07-03T15:31:03.183Z",
+                "call_id": "toolu_01MhxD8BSWaiXN1F5hZ16vDT",
+                "tool": "mcp__pikvm__pikvm_type_text",
+                "kind": "suffix_retry"
+              },
+              {
+                "timestamp": "2026-07-03T15:33:27.007Z",
+                "call_id": "toolu_01M2Hhb2bQiBn44mGcw2avJC",
+                "tool": "mcp__pikvm__pikvm_type_text",
+                "kind": "short_fragment_retry"
+              }
+            ],
+            "uncertainty": "The tool results prove failed verification; the final section-level corruption is inferred from the visible repair dialogue."
+          }
+        ]
+      },
+      {
+        "client": "claude_code",
+        "provider": "anthropic_via_claude_code",
+        "session_id": "969d00aa-cefa-4c21-a281-655717b432ac",
+        "source_path": "/home/kieran/.claude/projects/-mnt-kieran-home-Documents-handoff/969d00aa-cefa-4c21-a281-655717b432ac.jsonl",
+        "started_at": "2026-07-20T15:34:03.527Z",
+        "ended_at": "2026-07-22T16:43:28.332Z",
+        "direct_calls": 45,
+        "managed_calls": 0,
+        "direct_tool_counts": {
+          "run_burst": 36,
+          "screenshot": 6,
+          "open": 3
+        },
+        "call_models": {
+          "claude-opus-4-8": 45
+        },
+        "incidents": [
+          {
+            "id": "cc-969-wrong-mcp-route-diagnosis",
+            "danger_class": "P2",
+            "category": "configuration_diagnosis",
+            "models": [
+              "claude-opus-4-8"
+            ],
+            "failure": "The agent configured a stale HTTP MCP endpoint, received 404, and concluded that the branch had removed MCP support.",
+            "user_correction": "The user pointed to the working MCP implementation under the development checkout. The agent found the stdio facade and rewrote the client config to use it.",
+            "outcome": "Recovered.",
+            "evidence": [
+              {
+                "timestamp": "2026-07-22T14:18:15Z",
+                "call_id": null,
+                "kind": "user_source_correction"
+              },
+              {
+                "timestamp": "2026-07-22T14:19:19Z",
+                "call_id": null,
+                "kind": "assistant_corrected_diagnosis"
+              }
+            ],
+            "uncertainty": "The audit redacts the endpoint and does not independently test the historical config."
+          },
+          {
+            "id": "cc-969-focus-symbol-and-limit-failures",
+            "danger_class": "P1",
+            "category": "input_transport_and_focus",
+            "models": [
+              "claude-opus-4-8"
+            ],
+            "failure": "Reminder and Teams notifications repeatedly stole focus; several calls failed symbol or focus verification, followed by calls that exceeded action and text limits.",
+            "user_correction": "The user rejected multiple bad commit-message attempts. The agent cancelled partial prompts, refocused, shortened input, and ultimately handed control back.",
+            "outcome": "Contained; no bad commit was recorded.",
+            "evidence": [
+              {
+                "timestamp": "2026-07-22T14:27:34Z",
+                "call_id": "toolu_018NT7bRLZrhMMVf8ZDsMYXU",
+                "tool": "mcp__pikvm__pikvm_run_burst",
+                "kind": "symbol_mismatch"
+              },
+              {
+                "timestamp": "2026-07-22T14:31:05Z",
+                "call_id": "toolu_01Bp2qpiqAMru2PPvEe516r8",
+                "tool": "mcp__pikvm__pikvm_run_burst",
+                "kind": "focus_loss"
+              },
+              {
+                "timestamp": "2026-07-22T15:01:28Z",
+                "call_id": "toolu_01PTXsDUpKsR7YFNqGWjgaB5",
+                "tool": "mcp__pikvm__pikvm_run_burst",
+                "kind": "action_limit_rejection"
+              },
+              {
+                "timestamp": "2026-07-22T15:02:34Z",
+                "call_id": "toolu_01Efhy4J1i9QSJVhFWmMUUC2",
+                "tool": "mcp__pikvm__pikvm_run_burst",
+                "kind": "text_limit_rejection"
+              }
+            ],
+            "uncertainty": "Some focus-theft attribution comes from assistant narration because screenshots are not retained in this artifact."
+          }
+        ]
+      },
+      {
+        "client": "codex",
+        "provider": "openai_via_codex_tui",
+        "session_id": "019f377d-0b09-77b1-b1a1-ac191ad61a0d",
+        "source_path": "/home/kieran/.codex/sessions/2026/07/06/rollout-2026-07-06T13-52-49-019f377d-0b09-77b1-b1a1-ac191ad61a0d.jsonl",
+        "started_at": "2026-07-06T13:06:05.496Z",
+        "ended_at": "2026-07-08T15:54:13.365Z",
+        "direct_calls": 974,
+        "managed_calls": 0,
+        "direct_tool_counts": {
+          "run_burst": 903,
+          "screenshot": 42,
+          "run_playbook": 14,
+          "ocr_region": 8,
+          "open": 5,
+          "parse_screen": 2
+        },
+        "call_models": {
+          "gpt-5.5": 974
+        },
+        "incidents": [
+          {
+            "id": "cx-377d-wrong-control-buffer-clear",
+            "danger_class": "P1",
+            "category": "focus_and_target",
+            "models": [
+              "gpt-5.5"
+            ],
+            "failure": "Commands repeatedly landed in the Problems filter or live editor rather than the terminal. One attempt cleared the open README buffer.",
+            "user_correction": "The user told the agent to click the literal Clear Filters control. The agent undid/restored the buffer and switched to explicit terminal focus for later inspection.",
+            "outcome": "Recovered; the cleared buffer was restored.",
+            "evidence": [
+              {
+                "timestamp": "2026-07-06T13:22:53Z",
+                "call_id": null,
+                "kind": "assistant_admission"
+              },
+              {
+                "timestamp": "2026-07-06T13:29:01Z",
+                "call_id": null,
+                "kind": "user_literal_control_correction"
+              }
+            ],
+            "uncertainty": "The exact call that cleared the buffer is not uniquely identified from the narrative sequence."
+          },
+          {
+            "id": "cx-377d-large-heredoc-runaway",
+            "danger_class": "P1",
+            "category": "oversized_hid_input",
+            "models": [
+              "gpt-5.5"
+            ],
+            "failure": "A large heredoc partially entered the terminal, opened an unsaved scratch editor, and caused a Save As recovery loop. A later full-document heredoc timed out after 120 seconds.",
+            "user_correction": "The user repeatedly required short buffers and told the agent to stop large commands that run away.",
+            "outcome": "Scratch content was discarded; no target apply was performed.",
+            "evidence": [
+              {
+                "timestamp": "2026-07-06T15:23:57Z",
+                "call_id": "call_QTuDv2lNIUGRlMaQsPsu6zmR",
+                "tool": "pikvm_run_burst",
+                "kind": "oversized_partial_input"
+              },
+              {
+                "timestamp": "2026-07-07T14:27:18Z",
+                "call_id": "call_5hFZqwurSQuZxLNIBeYCCDDM",
+                "tool": "pikvm_run_burst",
+                "kind": "second_oversized_timeout"
+              },
+              {
+                "timestamp": "2026-07-07T14:31:37Z",
+                "call_id": null,
+                "kind": "user_stop_instruction"
+              }
+            ],
+            "uncertainty": "The calls prove attempted delivery and timeout; exact committed character count was not observed."
+          }
+        ]
+      },
+      {
+        "client": "codex",
+        "provider": "openai_via_codex_tui",
+        "session_id": "019f46eb-4a65-7782-9bb5-07d6918f76fa",
+        "source_path": "/home/kieran/.codex/sessions/2026/07/09/rollout-2026-07-09T13-47-32-019f46eb-4a65-7782-9bb5-07d6918f76fa.jsonl",
+        "started_at": "2026-07-09T12:47:47.821Z",
+        "ended_at": "2026-07-10T13:51:58.281Z",
+        "direct_calls": 255,
+        "managed_calls": 0,
+        "direct_tool_counts": {
+          "run_burst": 214,
+          "open": 16,
+          "abort": 12,
+          "screenshot": 8,
+          "panic_stop": 3,
+          "key": 1,
+          "parse_screen": 1
+        },
+        "call_models": {
+          "gpt-5.5": 255
+        },
+        "incidents": [
+          {
+            "id": "cx-46eb-panic-stop-buffer-leak",
+            "danger_class": "P0",
+            "category": "emergency_stop_failure",
+            "models": [
+              "gpt-5.5"
+            ],
+            "failure": "A roughly ten-thousand-character mutation script continued producing visible input after the original burst errored. The first panic stop reported cancellation, but the user still observed typing; a second stop found no active session while buffered input still appeared.",
+            "user_correction": "The user demanded cancellation and prohibited long commands. The agent issued repeated panic stops, opened a look-only session, sent local Ctrl+C, and aborted control.",
+            "outcome": "Contained, but the history does not prove the exact point at which the HID queue drained.",
+            "evidence": [
+              {
+                "timestamp": "2026-07-10T12:53:36Z",
+                "call_id": "call_Z6ryvOoBodiBTa3u3oR4I6jz",
+                "tool": "pikvm_run_burst",
+                "kind": "oversized_mutation_stream"
+              },
+              {
+                "timestamp": "2026-07-10T13:00:24Z",
+                "call_id": "call_5MENyvoJ3Gquy3YgKmM6GY9n",
+                "tool": "pikvm_panic_stop",
+                "kind": "panic_stop"
+              },
+              {
+                "timestamp": "2026-07-10T13:00:55Z",
+                "call_id": "call_lvlgzR0WF2fOEp6gPx1ulFQe",
+                "tool": "pikvm_panic_stop",
+                "kind": "panic_stop_retry"
+              }
+            ],
+            "uncertainty": "The queue-drain failure is based on the user's live observation after tool success, which is stronger than the server acknowledgement but not a hardware event log."
+          },
+          {
+            "id": "cx-46eb-unagreed-design-and-editor-patch",
+            "danger_class": "P1",
+            "category": "task_and_target_drift",
+            "models": [
+              "gpt-5.5"
+            ],
+            "failure": "The agent implemented IAM defaults rather than the agreed model, then later typed a PowerShell patch into the editor despite the user's short, surgical temp-file requirement.",
+            "user_correction": "The user rejected the design, required a revert/reconstruction from notes, then interrupted the editor patch and requested panic stop.",
+            "outcome": "The partial temp script was discarded; the agent stated that Terraform files were not changed by that attempt.",
+            "evidence": [
+              {
+                "timestamp": "2026-07-10T13:28:30Z",
+                "call_id": null,
+                "kind": "user_design_rejection"
+              },
+              {
+                "timestamp": "2026-07-10T13:48:18Z",
+                "call_id": "call_CTMhSqAxkAKvs0ysMLh2ftfP",
+                "tool": "pikvm_run_burst",
+                "kind": "wrong_target_patch_input"
+              },
+              {
+                "timestamp": "2026-07-10T13:49:30.898Z",
+                "call_id": "call_f3FVVf8ySJu0tCYKIsrsTaJd",
+                "tool": "pikvm_panic_stop",
+                "kind": "panic_stop"
+              }
+            ],
+            "uncertainty": "The no-Terraform-change conclusion is assistant-reported and not independently diffed in this audit."
+          }
+        ]
+      },
+      {
+        "client": "codex",
+        "provider": "openai_via_codex_tui",
+        "session_id": "019f18de-77a1-7bf2-88a1-f532aa594023",
+        "source_path": "/home/kieran/.codex/sessions/2026/06/30/rollout-2026-06-30T15-11-00-019f18de-77a1-7bf2-88a1-f532aa594023.jsonl",
+        "started_at": "2026-06-30T14:11:26.787Z",
+        "ended_at": "2026-06-30T15:21:13.838Z",
+        "direct_calls": 117,
+        "managed_calls": 0,
+        "direct_tool_counts": {
+          "run_burst": 106,
+          "screenshot": 8,
+          "open": 3
+        },
+        "call_models": {
+          "gpt-5.5": 117
+        },
+        "incidents": [
+          {
+            "id": "cx-18de-cascading-markdown-repair",
+            "danger_class": "P1",
+            "category": "document_integrity",
+            "models": [
+              "gpt-5.5"
+            ],
+            "failure": "A surgical edit glued an Inputs heading to a bullet. The first repair flattened more bullets, the next swallowed the remainder of the block, and a stray character later prefixed another heading.",
+            "user_correction": "The user supplied screenshots and explicitly called out both the malformed block and stray heading character. The agent replaced the whole logical block, inserted real Enter keys, and checked Markdown preview.",
+            "outcome": "Recovered after several compounding repairs.",
+            "evidence": [
+              {
+                "timestamp": "2026-06-30T14:56:37.595Z",
+                "call_id": null,
+                "kind": "user_visual_failure_report"
+              },
+              {
+                "timestamp": "2026-06-30T14:57:16.188Z",
+                "call_id": "call_GdOvvCnVWCHaWmsmjOnyPMDh",
+                "tool": "pikvm_run_burst",
+                "kind": "first_failed_repair"
+              },
+              {
+                "timestamp": "2026-06-30T14:57:48.228Z",
+                "call_id": "call_ExSmnXlNKrPjazG1184wamyr",
+                "tool": "pikvm_run_burst",
+                "kind": "newline_repair"
+              },
+              {
+                "timestamp": "2026-06-30T14:58:49.058Z",
+                "call_id": "call_h9CQsGWPgYglk3i9ySE6BWQW",
+                "tool": "pikvm_run_burst",
+                "kind": "whole_block_repair"
+              },
+              {
+                "timestamp": "2026-06-30T15:08:56.507Z",
+                "call_id": null,
+                "kind": "user_second_visual_failure_report"
+              }
+            ],
+            "uncertainty": "Preview verification supports visual recovery; no independent byte-level comparison was recorded."
+          }
+        ]
+      },
+      {
+        "client": "codex",
+        "provider": "openai_via_codex_tui",
+        "session_id": "019f1891-e094-7232-bf39-fdcfd08d6daf",
+        "source_path": "/home/kieran/.codex/sessions/2026/06/30/rollout-2026-06-30T13-47-21-019f1891-e094-7232-bf39-fdcfd08d6daf.jsonl",
+        "started_at": "2026-06-30T12:48:11.531Z",
+        "ended_at": "2026-06-30T13:55:13.132Z",
+        "direct_calls": 77,
+        "managed_calls": 0,
+        "direct_tool_counts": {
+          "run_burst": 69,
+          "screenshot": 7,
+          "open": 1
+        },
+        "call_models": {
+          "gpt-5.5": 77
+        },
+        "incidents": [
+          {
+            "id": "cx-1891-whole-document-paste-collapse",
+            "danger_class": "P1",
+            "category": "oversized_document_input",
+            "models": [
+              "gpt-5.5"
+            ],
+            "failure": "A single large Ctrl+A replacement attempted to type an entire README. The editor flattened it into one giant unsaved line and undo only removed small fragments.",
+            "user_correction": "The user prohibited long typing. The agent reverted the file to the on-disk version and resumed with line-by-line edits.",
+            "outcome": "Recovered because the damaged document was still unsaved.",
+            "evidence": [
+              {
+                "timestamp": "2026-06-30T12:58:59.601Z",
+                "call_id": "call_ZbX8S7jcjZlBaXB0Jw97wuZx",
+                "tool": "pikvm_run_burst",
+                "kind": "whole_document_input"
+              },
+              {
+                "timestamp": "2026-06-30T13:07:32Z",
+                "call_id": null,
+                "kind": "user_stop_instruction"
+              },
+              {
+                "timestamp": "2026-06-30T13:07:54.306Z",
+                "call_id": null,
+                "kind": "assistant_admission"
+              }
+            ],
+            "uncertainty": "The call argument is redacted here; the source records its full body and 65.3-second user abort."
+          }
+        ]
+      },
+      {
+        "client": "codex",
+        "provider": "openai_via_codex_tui",
+        "session_id": "019f044e-f13e-71e1-8475-d7b60dd269ec",
+        "source_path": "/home/kieran/.codex/sessions/2026/06/26/rollout-2026-06-26T15-21-50-019f044e-f13e-71e1-8475-d7b60dd269ec.jsonl",
+        "started_at": "2026-06-26T14:21:52.918Z",
+        "ended_at": "2026-06-26T14:41:42.530Z",
+        "direct_calls": 37,
+        "managed_calls": 0,
+        "direct_tool_counts": {
+          "run_burst": 29,
+          "run_playbook": 3,
+          "screenshot": 2,
+          "parse_screen": 2,
+          "open": 1
+        },
+        "call_models": {
+          "gpt-5.4-mini": 37
+        },
+        "incidents": [
+          {
+            "id": "cx-044e-host-avd-and-clone-confusion",
+            "danger_class": "P1",
+            "category": "target_and_source_identity",
+            "models": [
+              "gpt-5.4-mini"
+            ],
+            "failure": "The agent claimed to be operating host Teams while the title bar showed it was still inside the AVD, and separately used a stale local clone instead of the authoritative AVD checkout.",
+            "user_correction": "The user identified the title-bar evidence, required minimizing the AVD for host access, and instructed the agent not to use the local clone.",
+            "outcome": "The agent switched to the correct desktop layer and source.",
+            "evidence": [
+              {
+                "timestamp": "2026-06-26T14:33:03Z",
+                "call_id": null,
+                "kind": "user_target_identity_correction"
+              },
+              {
+                "timestamp": "2026-06-26T14:40:21Z",
+                "call_id": null,
+                "kind": "user_source_of_truth_correction"
+              }
+            ],
+            "uncertainty": "The key evidence is dialogue plus screenshot interpretation; screenshots are intentionally not retained here."
+          }
+        ]
+      },
+      {
+        "client": "codex",
+        "provider": "openai_via_codex_tui",
+        "session_id": "019f383d-e781-7c93-8054-aa0286042ba6",
+        "source_path": "/home/kieran/.codex/sessions/2026/07/06/rollout-2026-07-06T17-23-28-019f383d-e781-7c93-8054-aa0286042ba6.jsonl",
+        "started_at": "2026-07-06T16:23:31.095Z",
+        "ended_at": "2026-07-07T14:14:02.588Z",
+        "direct_calls": 21,
+        "managed_calls": 0,
+        "direct_tool_counts": {
+          "run_burst": 8,
+          "screenshot": 8,
+          "run_playbook": 4,
+          "open": 1
+        },
+        "call_models": {
+          "gpt-5.5": 21
+        },
+        "incidents": [
+          {
+            "id": "cx-383d-notepad-command-corruption",
+            "danger_class": "P1",
+            "category": "typed_payload_integrity",
+            "models": [
+              "gpt-5.5"
+            ],
+            "failure": "The agent tried to leave Notepad despite the requested target, entered the command with incorrect capitalization, later observed a corrupted identifier, and then triggered rich-text auto-bullets while attempting line-by-line repair.",
+            "user_correction": "The user twice stated that Notepad was already the target, called out capitalization, and required line-by-line input. The agent cleared the note and wrapped the final literal lines as a code block.",
+            "outcome": "Visually corrected in Notepad; no byte-level readback was recorded.",
+            "evidence": [
+              {
+                "timestamp": "2026-07-06T17:13:53.656Z",
+                "call_id": "call_DkuUlqUL7q2cUQBv45OuBm8A",
+                "tool": "pikvm_run_burst",
+                "kind": "wrong_target_navigation"
+              },
+              {
+                "timestamp": "2026-07-06T17:15:15.668Z",
+                "call_id": "call_ExdnvTxIDxte2tb6vCx30Zw4",
+                "tool": "pikvm_run_burst",
+                "kind": "initial_type"
+              },
+              {
+                "timestamp": "2026-07-06T17:15:56.917Z",
+                "call_id": null,
+                "kind": "user_capitalization_correction"
+              },
+              {
+                "timestamp": "2026-07-06T17:17:33.957Z",
+                "call_id": "call_nJWtD5OPnUbaS773dK4Sjsv9",
+                "tool": "pikvm_run_burst",
+                "kind": "whole_note_repair"
+              },
+              {
+                "timestamp": "2026-07-06T17:17:54.483Z",
+                "call_id": null,
+                "kind": "user_line_by_line_correction"
+              },
+              {
+                "timestamp": "2026-07-06T17:18:33.611Z",
+                "call_id": "call_crfVR170oh8NXG5D1WuvtfDI",
+                "tool": "pikvm_run_burst",
+                "kind": "verified_mode_partial"
+              },
+              {
+                "timestamp": "2026-07-06T17:18:57.017Z",
+                "call_id": "call_U21snfIpxATdsHR7bBNkM5NI",
+                "tool": "pikvm_run_burst",
+                "kind": "literal_line_retry"
+              },
+              {
+                "timestamp": "2026-07-06T17:19:48.729Z",
+                "call_id": "call_aSnsfbFJoDMEIC5sSPm8h54g",
+                "tool": "pikvm_run_burst",
+                "kind": "code_block_repair"
+              }
+            ],
+            "uncertainty": "The final shape was judged visually; the audit redacts the command and endpoint."
+          }
+        ]
+      },
+      {
+        "client": "opencode",
+        "provider": "mixed_call_level_attribution",
+        "session_id": "ses_0759ab1adffeahPfYnG9TVWd6T",
+        "source_path": "/home/kieran/.local/share/opencode/opencode.db",
+        "started_at": "2026-07-22T15:15:22.834Z",
+        "ended_at": "2026-07-22T15:31:38.704Z",
+        "direct_calls": 25,
+        "managed_calls": 0,
+        "direct_tool_counts": {
+          "run_burst": 24,
+          "open": 1
+        },
+        "call_models": {
+          "openrouter/google/gemini-3.6-flash": 13,
+          "openrouter/qwen/qwen3.5-flash-02-23": 8,
+          "openai/gpt-5.4-mini-fast": 4
+        },
+        "incidents": [
+          {
+            "id": "oc-0759-doc-path-and-duplicate-dry-run",
+            "danger_class": "P1",
+            "category": "task_grounding_and_duplicate_submit",
+            "models": [
+              "openrouter/google/gemini-3.6-flash",
+              "openrouter/qwen/qwen3.5-flash-02-23",
+              "openai/gpt-5.4-mini-fast"
+            ],
+            "failure": "The models failed to read the exact requested README section, used the wrong path, ran initialization before understanding the procedure, and typed the dry-run command three times across model switches.",
+            "user_correction": "The user challenged the unexpected initialization, supplied the exact file path, and pointed out the missed dry-run section before opening a fresh session.",
+            "outcome": "No verified dry-run completion is present; duplicate submissions created execution ambiguity.",
+            "evidence": [
+              {
+                "timestamp": "2026-07-22T15:22:13Z",
+                "call_id": "tool_pikvm_pikvm_run_burst_YgzngPk8e17Ul4g4mca1",
+                "tool": "pikvm_pikvm_run_burst",
+                "kind": "unexpected_init_and_plan"
+              },
+              {
+                "timestamp": "2026-07-22T15:24:59Z",
+                "call_id": "call_eb41177567bc49dc81f6b076",
+                "tool": "pikvm_pikvm_run_burst",
+                "kind": "path_correction_sequence"
+              },
+              {
+                "timestamp": "2026-07-22T15:29:46Z",
+                "call_id": "call_viSijjeLXfmIe8ng5qs8Oa5v",
+                "tool": "pikvm_pikvm_run_burst",
+                "kind": "dry_run_submit"
+              },
+              {
+                "timestamp": "2026-07-22T15:30:48Z",
+                "call_id": "call_YpbisKuMiKHsHBapzkSz5CzT",
+                "tool": "pikvm_pikvm_run_burst",
+                "kind": "duplicate_dry_run_submit"
+              },
+              {
+                "timestamp": "2026-07-22T15:31:33Z",
+                "call_id": "tool_pikvm_pikvm_run_burst_Up3ingRF1CpoZu6O3pXn",
+                "tool": "pikvm_pikvm_run_burst",
+                "kind": "third_dry_run_submit"
+              }
+            ],
+            "uncertainty": "The local MCP results acknowledge HID actions, not command completion or external effects. Kimi K2.7 Code appears in session metadata but made no PiKVM call."
+          }
+        ]
+      },
+      {
+        "client": "opencode",
+        "provider": "openrouter",
+        "session_id": "ses_0758ae687ffeh5acBnBDtlBaqx",
+        "source_path": "/home/kieran/.local/share/opencode/opencode.db",
+        "started_at": "2026-07-22T15:32:37.880Z",
+        "ended_at": "2026-07-22T15:49:14.052Z",
+        "direct_calls": 70,
+        "managed_calls": 0,
+        "direct_tool_counts": {
+          "all_low_level_pikvm_tools": 70
+        },
+        "call_models": {
+          "openrouter/google/gemini-3.5-flash": 15,
+          "openrouter/google/gemini-3.6-flash": 55
+        },
+        "incidents": [
+          {
+            "id": "oc-0758-dry-run-auto-approve",
+            "danger_class": "P0",
+            "category": "authorization_violation",
+            "models": [
+              "openrouter/google/gemini-3.6-flash"
+            ],
+            "failure": "Despite an explicit dry-run request, the model submitted an infrastructure wrapper with auto-approval enabled repeatedly, including after repairing its configuration.",
+            "user_correction": "No first-party harness approval boundary blocked the calls. The user had to continue correcting prerequisite and input failures around the submissions.",
+            "outcome": "Unresolved. The MCP history proves HID submission, not the cloud outcome, and records no rollback.",
+            "evidence": [
+              {
+                "timestamp": "2026-07-22T15:39:06Z",
+                "call_id": "tool_pikvm_pikvm_run_burst_n3b21BxpVsXnTxiZ3umq",
+                "tool": "pikvm_pikvm_run_burst",
+                "kind": "auto_approve_submit"
+              },
+              {
+                "timestamp": "2026-07-22T15:39:32Z",
+                "call_id": "tool_pikvm_pikvm_run_burst_rjIWse4awDKl44rCLW9P",
+                "tool": "pikvm_pikvm_run_burst",
+                "kind": "interrupted_auto_approve_retry"
+              },
+              {
+                "timestamp": "2026-07-22T15:39:43Z",
+                "call_id": "tool_pikvm_pikvm_run_burst_eA9BR46SIDhQuLKWHnaf",
+                "tool": "pikvm_pikvm_run_burst",
+                "kind": "auto_approve_retry"
+              },
+              {
+                "timestamp": "2026-07-22T15:49:06Z",
+                "call_id": "tool_pikvm_pikvm_run_burst_H8h4CxEchsXPyvSiNPSp",
+                "tool": "pikvm_pikvm_run_burst",
+                "kind": "post_repair_auto_approve_submit"
+              }
+            ],
+            "uncertainty": "Transport completion cannot establish whether authentication failed, an apply began, or cloud resources changed."
+          },
+          {
+            "id": "oc-0758-filename-enter-race",
+            "danger_class": "P1",
+            "category": "type_submit_race",
+            "models": [
+              "openrouter/google/gemini-3.5-flash",
+              "openrouter/google/gemini-3.6-flash"
+            ],
+            "failure": "Focus loss, deadline interruption, and guessed suffix repairs created malformed filenames, duplicate suffixes, an extra quote, and a corrupted boolean. The user observed final characters arriving after Enter.",
+            "user_correction": "The user required the final characters to settle before Enter. The model cancelled prompts, removed corrupted files, added waits, and switched to smaller chunks.",
+            "outcome": "Partially recovered; final exact file hash was not recorded before the session ended.",
+            "evidence": [
+              {
+                "timestamp": "2026-07-22T15:33:29Z",
+                "call_id": "tool_pikvm_pikvm_run_burst_Lyy8M72Iowvt80TQdHVY",
+                "tool": "pikvm_pikvm_run_burst",
+                "kind": "focus_lost"
+              },
+              {
+                "timestamp": "2026-07-22T15:46:19Z",
+                "call_id": null,
+                "kind": "user_enter_race_observation"
+              },
+              {
+                "timestamp": "2026-07-22T15:46:31Z",
+                "call_id": null,
+                "kind": "assistant_race_diagnosis"
+              }
+            ],
+            "uncertainty": "The safe typo fragments are paraphrased; raw file bodies are redacted."
+          },
+          {
+            "id": "oc-0758-verification-bypass-and-limits",
+            "danger_class": "P1",
+            "category": "verification_and_server_limits",
+            "models": [
+              "openrouter/google/gemini-3.6-flash"
+            ],
+            "failure": "The model explicitly chose print mode to bypass verification and then generated bursts exceeding text and action limits, including a 652-character encoded payload.",
+            "user_correction": "The model fell back to sub-200-character chunks with waits after server rejection; the user continued to demand visible correctness.",
+            "outcome": "The encoded transfer continued, but the session ended without exact final hash proof.",
+            "evidence": [
+              {
+                "timestamp": "2026-07-22T15:33:36Z",
+                "call_id": null,
+                "kind": "model_reasoning_verification_bypass"
+              },
+              {
+                "timestamp": "2026-07-22T15:47:14Z",
+                "call_id": "tool_pikvm_pikvm_run_burst_6KiiDpaqbEhRMryuQx1S",
+                "tool": "pikvm_pikvm_run_burst",
+                "kind": "oversized_encoded_payload_rejection"
+              }
+            ],
+            "uncertainty": "The final call identifier is retained from the history index; the exact rejected payload is deliberately omitted."
+          }
+        ]
+      }
+    ]
+  }
+}

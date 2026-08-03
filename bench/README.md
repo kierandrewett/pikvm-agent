@@ -2314,7 +2314,7 @@ _Generated from checked JSON evidence as of 2026-07-28. Manifest `sha256:d58fdca
 | OSWorld-Verified tracer | Codex, Claude, and mixed role routes | 9 current; 45 scored + 12 unscored attempts | 7/9 current; 13/45 all scored attempts | 128.56s / 883.97s | 2,687.64s current set | Diagnostic; two current failures; 13/45 full-attempt success | [JSON](results/2026-07-28/osworld/summary.json) · `sha256:e365be11d033` |
 | OSWorld exact-input remediation | Opus reasoner → Sonnet controller/verifier | 12 scored attempts | 7/12; 116/132 actions, 87.9%; 2 exact long drafts before separate commits | 10.57s / 11.96s controller | 284.70s latest pass | 7 strict completions and 8 official goal states in 12; 3 strict post-input passes at 284.70s median; latency failing product target | [JSON](results/2026-07-28/osworld/summary.json) · `sha256:e365be11d033` |
 | Windows Agent Arena | — | 154 tasks discovered | Not run | — | — | Blocked by missing official image | [JSON](results/2026-07-24/inventories/windows-agent-arena.json) · `sha256:c52ba54f6b29` |
-| Historical PiKVM incident audit | Claude Code + Codex + OpenCode histories | 24 conversations; 4,453 PiKVM calls | 70 incidents: 20 critical, 27 high | — | — | Available local histories audited | [JSON](historical_pikvm_incidents.json) · `sha256:6dc7b9e8b555` |
+| Historical PiKVM incident audit | Claude Code + Codex + OpenCode histories | 24 conversations; 4,453 PiKVM calls | 4,416 outer-direct + 37 legacy hidden-route + 0 current managed calls; 70 authoritative incidents plus 23 separately labelled deep chains; 3 P0 one-shot cases | — | — | Complete available-history inventory; proves the coding clients did not use the current managed operator loop | [Source-cited audit](../docs/HISTORICAL_SESSION_FAILURE_AUDIT.md) · [reconciled JSON](results/2026-08-03/safety/historical-session-failure-audit.json) · `sha256:2a8f2282b24b` · [baseline JSON](historical_pikvm_incidents.json) |
 | Historical critical/high regression coverage | Checked local control ledger | 47 critical/high incidents | 7 locally covered; 40 partial; 0 open | — | — | Coverage ledger; most incidents remain partial | [JSON](historical_pikvm_coverage.json) · `sha256:d6164522d369` |
 <!-- pikvm-scorecard:end -->
 
@@ -2976,14 +2976,19 @@ with 4,453 PiKVM tool calls. A deep, sequence-aware reconstruction identified
 are not model failure rates—the corpus intentionally records visible
 failure/correction chains—but they are direct regression inputs.
 
-A 2026-07-27 source correction also established the route actually used. The
-reference Claude conversation made 551/551 PiKVM calls directly; the seven
-audited Codex histories made 1,482/1,482 low-level calls, and the two OpenCode
-histories made 95/95 direct calls. None used the current managed `computer_*`
-facade. Four older Claude conversations made 37 calls through a different
-legacy autonomous route; its internal model was not recorded and its failures
-must not be attributed to the visible outer Claude model.
+A 2026-08-03 all-history source reconciliation established the route actually
+used: 4,416 calls were low-level calls selected by the outer coding model, 37
+calls in four older Claude conversations used a different hidden
+operator/autonomous route, and zero used the current managed `computer_*`
+facade. The legacy route's inner model was not recorded and is reported as
+unknown rather than attributed to the visible outer Claude model.
 
+- [`HISTORICAL_SESSION_FAILURE_AUDIT.md`](../docs/HISTORICAL_SESSION_FAILURE_AUDIT.md)
+  provides the 24-session route/model/correction inventory, three P0 one-shot
+  cases, and 23 supplemental call-ID/timestamp chains.
+- [`historical-session-failure-audit.json`](results/2026-08-03/safety/historical-session-failure-audit.json)
+  embeds and reconciles the complete 70-incident baseline without double
+  counting the supplemental evidence.
 - [`HISTORICAL_FAILURE_AUDIT.md`](../docs/HISTORICAL_FAILURE_AUDIT.md) explains
   the failures, model attribution, user corrections, and one-shot risk.
 - [`historical_pikvm_incidents.json`](historical_pikvm_incidents.json) contains
@@ -2993,6 +2998,9 @@ must not be attributed to the visible outer Claude model.
   regression nodes, and an explicit remaining gap.
 - `tests/test_historical_pikvm_incidents.py` validates its provenance,
   redaction, summaries, and the two largest reconstructed runaway payloads.
+- `tests/test_historical_session_failure_audit.py` fails if a session, call,
+  route class, baseline incident, supplemental chain, timestamp, call ID, or
+  redaction invariant drifts.
 
 The checked coverage ledger is intentionally severe: of 47 critical/high
 incidents, 7 are locally covered, 40 are partial, and 0 are open. The five
