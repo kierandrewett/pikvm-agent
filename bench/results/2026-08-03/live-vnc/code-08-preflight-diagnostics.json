@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "report": "code-08-visible-artifact-preservation-diagnostics",
+  "recorded_at": "2026-08-03T22:18:28Z",
+  "environment": {
+    "target": "authorized disposable Windows VNC VM",
+    "production_target_contacted": false,
+    "endpoint_retained": false,
+    "adapter_keymap": "en-gb"
+  },
+  "purpose": "Prove artifact absence or preservation through short visible cmd.exe operations before a model run begins.",
+  "retained_trials": [
+    {
+      "result": "failed",
+      "finding": "A wrapped conditional marker was not a reliable visible success proof."
+    },
+    {
+      "result": "failed",
+      "finding": "An undefined percent-delimited variable remained literal in interactive cmd.exe instead of expanding to an empty string."
+    },
+    {
+      "result": "failed",
+      "finding": "The percent-CD substring expression depended on a tilde that the raw VNC printer did not emit reliably."
+    },
+    {
+      "result": "failed",
+      "finding": "set NAME= deletes the variable, so the later percent-delimited reference remained literal in this interactive shell."
+    },
+    {
+      "result": "passed",
+      "method": "Initialize PIKVMJOIN=X and render the marker through percent-PIKVMJOIN:X-equals-percent substitution.",
+      "preservation_status": "verified_visible_marker",
+      "preserved_path": "C:/PiKVM-Harness/workspace/codex-50/pikvmprior6ebb0bfe9cc541e8898b3b8baf2a86cf.cmd"
+    }
+  ],
+  "observer_canaries": [
+    {
+      "path": "C:/PiKVM-Harness/workspace/codex-50/pikvmprioracb6e6433f714477919ee4a3a1be82a8.cmd",
+      "observed_bytes": 11,
+      "observed_hex": "505245434845434b200d0a",
+      "observed_sha256": "3c065f1691ffece544f3bb6558d02badc58d8f9b7db7a2668b31a538134c2899",
+      "finding": "The installed observer independently read the non-empty preserved canary."
+    },
+    {
+      "path": "C:/PiKVM-Harness/workspace/codex-50/pikvmprior6ebb0bfe9cc541e8898b3b8baf2a86cf.cmd",
+      "observed_bytes": 0,
+      "finding": "The later diagnostic canary raced shell creation and was retained as zero bytes rather than promoted to proof."
+    }
+  ],
+  "validated_runner_behavior": {
+    "absence_status": "verified_absent",
+    "preservation_status": "verified_visible_marker",
+    "rename_is_standalone": true,
+    "existence_probe_is_separate": true,
+    "marker_hidden_from_command_echo": true,
+    "unverified_preservation_is_ready": false
+  },
+  "source_commit": "dcec712",
+  "finding": "The final visible preflight no longer treats a requested rename as completed. It records readiness only after a separate visible absence or preserved-path marker is recognized."
+}

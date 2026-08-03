@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "report": "codex-code-entry-code08-failure-inclusive-attempts",
-  "recorded_at": "2026-08-03T19:28:06Z",
+  "recorded_at": "2026-08-03T22:18:28Z",
   "environment": {
     "target": "authorized disposable Windows VNC VM",
     "production_target_contacted": false,
@@ -25,15 +25,15 @@
     ]
   },
   "summary": {
-    "recorded_attempts": 18,
-    "valid_full_task_runs": 12,
-    "failed_runs": 11,
+    "recorded_attempts": 22,
+    "valid_full_task_runs": 16,
+    "failed_runs": 15,
     "infrastructure_invalid_runs": 6,
     "passed_runs": 1,
     "canonical_attempt": "v10",
     "all_failures_retained": true,
     "all_recordings_retained": true,
-    "reboots_ready": 17,
+    "reboots_ready": 21,
     "reboots_failed_or_pending": 1,
     "release_gate": "accuracy passing; speed failing; post-pass speed remediation remains active"
   },
@@ -620,6 +620,197 @@
       },
       "poster_sha256": "414009a6a41fd0f584e3699638a0c7415bf7684c9fbe545f46456cd783d74f3e",
       "campaign_sha256": "03707385f5c66aaed843776a4c6832c523de4f4d314b75e6e637cd36ee240892"
+    },
+    {
+      "campaign_id": "codex-code-entry-code08-v19-20260803",
+      "accepted_status": "failed",
+      "campaign_reported_status": "failed",
+      "run_id": "99a3b476-432a-4686-bf1a-eff364bf5ce6",
+      "source_commit": "dcec712",
+      "reason": "The self-verifying preflight proved code-08.cmd absent, but ordinary OCR clipped the foreground Notepad status row. Policy therefore treated the nine-row editor batch's Enter keys as unknown-risk and refused the non-allowlisted approval before document input. The installed observer independently returned open failed for the current path.",
+      "wall_clock_ms": 80768,
+      "task_duration_ms": 235503,
+      "preflight_ms": 60137,
+      "model_active_ms": 33663,
+      "provider_wait_ms": 34612,
+      "provider_serial_equivalent_ms": 34612,
+      "provider_overlap_ms": 0,
+      "action_execution_ms": 44653,
+      "evidence_capture_ms": 924,
+      "provider_calls": 4,
+      "reasoner_calls": 1,
+      "controller_calls": 1,
+      "verifier_calls": 2,
+      "actions_attempted": 3,
+      "actions_completed": 2,
+      "approval_requests": 1,
+      "approvals_granted": 0,
+      "document_input_committed": false,
+      "observer_artifact_comparison": {
+        "transport": "guarded MCP visual matrix",
+        "path": "C:/PiKVM-Harness/workspace/codex-50/code-08.cmd",
+        "file_error": "open failed",
+        "dangerous_commit_count": 0,
+        "comparison_report": "bench/results/2026-08-03/live-vnc/code-08-v19-observer-comparison.json"
+      },
+      "reboot_ms": 90343,
+      "reboot_transition_observed": true,
+      "post_observer_reset_ms": 81930,
+      "post_observer_reset_transition_observed": true,
+      "recording": {
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2.0,
+        "duration_ms": 169500,
+        "size_bytes": 1691422,
+        "sha256": "5e5349d7910a4a0755cf1d4ca81faf85d8dddbe87d26c03530a0adc480d1a07c"
+      },
+      "poster_sha256": "62db03445415dcbcd9f8d85c53f0fb828058df1a695d3e62da8056b422c3918a",
+      "campaign_sha256": "840691d5d2670b4af4151ae5a8509c9e6f3e5cbbcece0b90d31495913804a8a8"
+    },
+    {
+      "campaign_id": "codex-code-entry-code08-v20-20260803",
+      "accepted_status": "failed",
+      "campaign_reported_status": "failed",
+      "run_id": "b2db26bb-a9f6-47ba-9302-a5c5bb451725",
+      "source_commit": "adb0c58",
+      "reason": "The taller bounded crop retained the status row, but normal OCR still rendered the tiny foreground menu without its File label. The unchanged independent Notepad gate refused the nine-row Enter batch before document input.",
+      "wall_clock_ms": 76633,
+      "task_duration_ms": 219206,
+      "preflight_ms": 62460,
+      "model_active_ms": 32626,
+      "provider_wait_ms": 33242,
+      "provider_serial_equivalent_ms": 33242,
+      "provider_overlap_ms": 0,
+      "action_execution_ms": 42185,
+      "evidence_capture_ms": 669,
+      "provider_calls": 4,
+      "reasoner_calls": 1,
+      "controller_calls": 1,
+      "verifier_calls": 2,
+      "actions_attempted": 3,
+      "actions_completed": 2,
+      "approval_requests": 1,
+      "approvals_granted": 0,
+      "document_input_committed": false,
+      "observer_gap": "No installed-observer capture was completed before v21. The next recorded preflight independently returned verified_absent; this is retained as a coverage gap rather than rewritten as observer proof.",
+      "reboot_ms": 75043,
+      "reboot_transition_observed": true,
+      "recording": {
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2.0,
+        "duration_ms": 144000,
+        "size_bytes": 850474,
+        "sha256": "3043ee3652e149980895bea64d472159767c6023af93f3af5bda091fe28a9a08"
+      },
+      "poster_sha256": "8b6950b1a7941be33b5d75e5971cb0fe0a57d8a22d994a73e3ecb6800cd1513e",
+      "campaign_sha256": "8e89acdc334fc5db9ab1ab1050e1e88c8467dcb13f7aad184b86cce0804a5d2c"
+    },
+    {
+      "campaign_id": "codex-code-entry-code08-v21-20260803",
+      "accepted_status": "failed",
+      "campaign_reported_status": "failed",
+      "run_id": "af0cc386-d773-471e-99a4-914401be0170",
+      "source_commit": "c967e11",
+      "reason": "The precise broad-window fallback retained title, status, CRLF and blank-canvas evidence but again omitted only Notepad's File menu label. Policy refused the nine-row Enter batch before document input.",
+      "wall_clock_ms": 81292,
+      "task_duration_ms": 249016,
+      "preflight_ms": 61535,
+      "model_active_ms": 32659,
+      "provider_wait_ms": 33680,
+      "provider_serial_equivalent_ms": 33680,
+      "provider_overlap_ms": 0,
+      "action_execution_ms": 46258,
+      "evidence_capture_ms": 683,
+      "provider_calls": 4,
+      "reasoner_calls": 1,
+      "controller_calls": 1,
+      "verifier_calls": 2,
+      "actions_attempted": 3,
+      "actions_completed": 2,
+      "approval_requests": 1,
+      "approvals_granted": 0,
+      "document_input_committed": false,
+      "observer_gap": "No installed-observer capture was completed before v22. The next recorded preflight independently returned verified_absent; this is retained as a coverage gap rather than rewritten as observer proof.",
+      "reboot_ms": 102053,
+      "reboot_transition_observed": true,
+      "recording": {
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2.0,
+        "duration_ms": 168500,
+        "size_bytes": 877400,
+        "sha256": "68c1791a469fa1952c07a5d818e44383799c60ab484e771da883f080bc3eda9d"
+      },
+      "poster_sha256": "f8069728ff59a4cf37813a829a66bd97476980cb5ba7233431a3ac4ecca53ff9",
+      "campaign_sha256": "8b2880873cb9d68c80ddeff124ba0961f1b5667c1e0a6a6133377f3fa7fd24df"
+    },
+    {
+      "campaign_id": "codex-code-entry-code08-v22-20260803",
+      "accepted_status": "failed",
+      "campaign_reported_status": "failed",
+      "run_id": "60a05c67-ab40-4f21-b6e5-dbc2f250d2f4",
+      "source_commit": "38a4e1b",
+      "reason": "The precise same-frame menu strip completed the title, menu, status and blank-canvas proof, allowing all nine code rows to execute once. The Save As filename receipt then observed a longer prior-suggestion string instead of exact code-08.cmd. One bounded recovery was retained; the unverified-draft guard blocked the controller before Save commit. The installed observer returned open failed for the current path.",
+      "wall_clock_ms": 235364,
+      "task_duration_ms": 392977,
+      "preflight_ms": 58951,
+      "model_active_ms": 110760,
+      "provider_wait_ms": 103148,
+      "provider_serial_equivalent_ms": 111453,
+      "provider_overlap_ms": 8305,
+      "action_execution_ms": 128616,
+      "evidence_capture_ms": 1531,
+      "provider_calls": 12,
+      "reasoner_calls": 2,
+      "controller_calls": 4,
+      "verifier_calls": 6,
+      "actions_attempted": 7,
+      "actions_completed": 6,
+      "approval_requests": 1,
+      "approvals_granted": 1,
+      "approval_scopes": [
+        "bounded_workspace_edit"
+      ],
+      "same_run_recoveries": 1,
+      "editor_input": {
+        "rows": 9,
+        "windows_crlf_bytes": 135,
+        "sha256": "e73555962d56a13e7838533b286b69dfbccf0419f29dda102a73aaa7d4ea41a4",
+        "all_text_segments_emitted_exactly_once": true
+      },
+      "filename_receipt": {
+        "requested": "code-08.cmd",
+        "status": "unverified_wrong_region",
+        "observed_text": "code-08.cmd.pikvm-prior-d0140da7081c41eb8187c",
+        "save_committed": false
+      },
+      "observer_artifact_comparison": {
+        "transport": "guarded MCP visual matrix",
+        "path": "C:/PiKVM-Harness/workspace/codex-50/code-08.cmd",
+        "file_error": "open failed",
+        "dangerous_commit_count": 0,
+        "comparison_report": "bench/results/2026-08-03/live-vnc/code-08-v22-observer-comparison.json"
+      },
+      "reboot_ms": 93384,
+      "reboot_transition_observed": true,
+      "post_observer_reset_ms": 97856,
+      "post_observer_reset_transition_observed": true,
+      "recording": {
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2.0,
+        "duration_ms": 264500,
+        "size_bytes": 1534696,
+        "sha256": "bc92dc8ba42be7c5432aa75d163d6c21f6e408aedcd71aa230fc50dae25d4c7b"
+      },
+      "poster_sha256": "97e153a9c0638d7d2a394d5b83700a31bad1947ddaefdd0ce2d71098be060693",
+      "campaign_sha256": "f85332d55edaf227ced4ee8ef45e507855226ab5ea354fd806c7a0d600a71f9f"
     }
   ],
   "remediations": [
@@ -709,6 +900,26 @@
       "after_attempt": "v17",
       "commit": "2536526",
       "change": "Remove shifted shell chaining from artifact preservation, use a single bounded ren command, and report its result as requested-unverified until observer proof exists."
+    },
+    {
+      "after_attempt": "v18",
+      "commit": "dcec712",
+      "change": "Separate rename and existence proof, emit OCR-safe markers without shifted punctuation, and accept preflight readiness only after verified absence or a visible preserved-path marker."
+    },
+    {
+      "after_attempt": "v19",
+      "commit": "adb0c58",
+      "change": "Extend the bounded foreground-Notepad crop far enough to retain the independently grounded status row."
+    },
+    {
+      "after_attempt": "v20",
+      "commit": "c967e11",
+      "change": "Retry the unchanged blank-Notepad geometry proof with multi-scale precise OCR only after both cheaper reads fail."
+    },
+    {
+      "after_attempt": "v21",
+      "commit": "38a4e1b",
+      "change": "Fuse a narrow same-frame menu-strip read with the broad title, status and blank-canvas evidence when dense background tabs hide only the File label."
     }
   ],
   "next_gate": {
@@ -722,7 +933,7 @@
       "The accepted run completed a transition-observed mandatory reboot and retained its recording."
     ],
     "blocking_infrastructure_state": null,
-    "next_attempt": "v19 after making the visible Run preservation command self-verifying and failing preflight before model spend when preservation is not proven",
+    "next_attempt": "v23 after grounding the native Save As filename field to its exact selected edit control so a prior autocomplete suggestion cannot become a wrong-region receipt",
     "next_task_after_speed_gate": "code-09"
   }
 }

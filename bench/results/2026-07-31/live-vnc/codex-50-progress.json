@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "report": "codex-50-live-progress",
-  "recorded_at": "2026-08-03T17:31:30Z",
+  "recorded_at": "2026-08-03T22:18:28Z",
   "manifest": "bench/codex-50-tasks.yaml",
   "environment": {
     "target": "authorized disposable Windows VNC VM",
@@ -3451,10 +3451,10 @@
     "full_ledger": "bench/results/2026-08-02/live-vnc/code-03-attempts.json"
   },
   "verdict": {
-    "accuracy": "The campaign is 33/50. All ten Text entry tasks and the first eight Code entry tasks pass. Code-08 v10 remains canonical. v18 is infrastructure-invalid because the unchained preservation command remained a silent no-op; policy safely refused the resulting unknown-risk overwrite. All 18 attempts, including six infrastructure-invalid runs and eleven valid-task failures, remain in the ledger.",
+    "accuracy": "The campaign is 33/50. All ten Text entry tasks and the first eight Code entry tasks pass. Code-08 v10 remains canonical. The self-verifying preflight is now live: v19-v21 safely exposed three foreground-Notepad OCR misses before document input, and v22 executed all nine rows once before the unverified-draft guard blocked an ambiguous Save As filename. All 22 attempts, including six infrastructure-invalid runs and fifteen valid-task failures, remain in the ledger.",
     "speed": "Failing product target: accepted code-08 v10 took 869.893 seconds for the managed run and 1079.054 seconds from task preflight through the reset-ready gate. It populated two Notepad documents and made 66 provider calls before converging, materially slower than a competent human.",
     "dominant_cost": "Code-08 v10 spent 719.647 seconds in action execution and 476.667 seconds waiting on the critical provider path, with 336.204 seconds of overlap. Thirty-three verifier turns, 24 controller turns, nine reasoner turns, and repeated Save/Open loops dominate the avoidable cost.",
-    "next": "Run code-08 v19 only after making the visible Run preservation command self-verifying and failing preflight before model spend when preservation is not proven. Preserve exact observer comparison, bounded workspace approval, fresh-artifact preparation, quiescence, mandatory reboot, recording, and all failures before advancing to code-09."
+    "next": "Run code-08 v23 only after grounding the native Save As filename field to its selected edit control so autocomplete cannot produce a wrong-region receipt. Preserve exact observer comparison, bounded workspace approval, fresh-artifact preparation, quiescence, mandatory reboot, recording, and all failures before advancing to code-09."
   },
   "code_04_acceptance": {
     "task": "Write, save, reopen, and visually verify a grouped customer-value SQL query in Notepad",
@@ -3986,30 +3986,30 @@
     "campaign_sha256": "9dbc7c98e97adf5224a5ed14239c04bfb2e1366e10dbbe37b38951281ffcc27f"
   },
   "code_08_attempt_summary": {
-    "recorded_attempts": 18,
-    "valid_full_task_runs": 12,
-    "failed_runs": 11,
+    "recorded_attempts": 22,
+    "valid_full_task_runs": 16,
+    "failed_runs": 15,
     "infrastructure_invalid_runs": 6,
     "passed_runs": 1,
     "canonical_campaign_id": "codex-code-entry-code08-v10-20260803",
-    "post_pass_speed_attempts": 8,
-    "post_pass_state": "v11 retained a repeated Save-field wrong-region failure; v12 recovered and completed its pending reboot; v13 retained the restored-adapter keymap mismatch; v14 failed before content because exact OCR consumed the safe Notepad launch deadline; v15 accelerated that launch but exposed a duplicate trailing CRLF, missing deferred provenance, and an immutable-plan downgrade false positive; v16 safely blocked an unknown click but exposed a silently failed long-HID workspace preflight; v17 achieved exact current-run bytes in 16 provider calls but failed the claimed prior-evidence path; v18 safely refused the resulting overwrite after the shorter unchained ren command also proved to be a silent no-op",
+    "post_pass_speed_attempts": 12,
+    "post_pass_state": "v11 retained a repeated Save-field wrong-region failure; v12 recovered and completed its pending reboot; v13 retained the restored-adapter keymap mismatch; v14 failed before content because exact OCR consumed the safe Notepad launch deadline; v15 accelerated that launch but exposed a duplicate trailing CRLF, missing deferred provenance, and an immutable-plan downgrade false positive; v16 safely blocked an unknown click but exposed a silently failed long-HID workspace preflight; v17 achieved exact current-run bytes in 16 provider calls but failed the claimed prior-evidence path; v18 safely refused the resulting overwrite after the shorter unchained ren command also proved to be a silent no-op; v19-v21 retained three distinct foreground-Notepad OCR false negatives; v22 fused same-frame menu evidence, executed all nine rows once, then failed closed on an ambiguous native filename readback",
     "latest_post_pass_attempt": {
-      "campaign_id": "codex-code-entry-code08-v18-20260803",
-      "accepted_status": "infrastructure_invalid",
+      "campaign_id": "codex-code-entry-code08-v22-20260803",
+      "accepted_status": "failed",
       "campaign_reported_status": "failed",
-      "run_id": "45833f90-462b-4ddf-a2c1-815d5a33bc93",
-      "wall_clock_ms": 200962,
-      "task_duration_ms": 347584,
-      "provider_calls": 11,
-      "actions_attempted": 8,
-      "actions_completed": 7,
-      "action_execution_ms": 104861,
+      "run_id": "60a05c67-ab40-4f21-b6e5-dbc2f250d2f4",
+      "wall_clock_ms": 235364,
+      "task_duration_ms": 392977,
+      "provider_calls": 12,
+      "actions_attempted": 7,
+      "actions_completed": 6,
+      "action_execution_ms": 128616,
       "completion_gate_rejections": 1,
       "autonomous_resumes": 0,
-      "reboot_ms": 84371,
+      "reboot_ms": 93384,
       "reboot_transition_observed": true,
-      "observer_comparison": "Two captures found the unchanged 127-byte v17 artifact at the original path, while a separate capture found no file at the claimed preservation path; the unknown-risk overwrite was refused before input"
+      "observer_comparison": "A three-page checksum-valid capture returned open failed for the requested current path and zero dangerous commits; the exact nine-row editor batch had executed, but the unverified-draft guard blocked the ambiguous filename before Save commit"
     },
     "full_ledger": "bench/results/2026-08-03/live-vnc/code-08-attempts.json"
   }

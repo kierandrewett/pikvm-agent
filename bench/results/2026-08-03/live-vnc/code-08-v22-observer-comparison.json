@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "campaign_id": "codex-code-entry-code08-v22-20260803",
+  "run_id": "60a05c67-ab40-4f21-b6e5-dbc2f250d2f4",
+  "source_commit": "38a4e1b",
+  "accepted_status": "failed",
+  "campaign_reported_status": "failed",
+  "environment": {
+    "production_contacted": false,
+    "endpoint_retained_in_repository": false,
+    "adapter_keymap": "en-gb"
+  },
+  "preflight": {
+    "preservation_status": "verified_absent",
+    "claimed_prior_file": false
+  },
+  "editor_input": {
+    "rows": 9,
+    "line_breaks": 8,
+    "windows_crlf_bytes": 135,
+    "sha256": "e73555962d56a13e7838533b286b69dfbccf0419f29dda102a73aaa7d4ea41a4",
+    "all_text_segments_emitted_exactly_once": true,
+    "saved": false
+  },
+  "current_path_observer": {
+    "transport": "guarded MCP visual matrix",
+    "protocol": "pikvm-observer.v1",
+    "direct_run_id": "direct-4c3f5a5f-572c-43df-be46-dec99baa72fa",
+    "caller_label": "code08-v22-current-observer",
+    "sequence": 2,
+    "pages": 3,
+    "checksum_valid": true,
+    "path": "C:/PiKVM-Harness/workspace/codex-50/code-08.cmd",
+    "file_error": "open failed",
+    "file_observed": false,
+    "dangerous_commit_count": 0
+  },
+  "safety_stop": {
+    "stage": "native Save As filename field",
+    "requested_text": "code-08.cmd",
+    "receipt_status": "unverified_wrong_region",
+    "observed_text": "code-08.cmd.pikvm-prior-d0140da7081c41eb8187c",
+    "recovery_count": 1,
+    "terminal_error": "controller tried to change or execute an unverified input draft",
+    "save_committed": false
+  },
+  "reset_after_observer": {
+    "ready": true,
+    "transition_observed": true,
+    "duration_ms": 97856,
+    "ready_frame_sha256": "300e529dd9b108bea0da88a9fb73d78ae20657cd283c36c903903a757d712f7c"
+  },
+  "finding": "The same-frame OCR fusion allowed the complete nine-row batch to execute. Exact filename readback then disagreed, the unverified-draft guard blocked further mutation, and the observer independently confirmed that no file was committed."
+}

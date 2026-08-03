@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "campaign_id": "codex-code-entry-code08-v19-20260803",
+  "run_id": "99a3b476-432a-4686-bf1a-eff364bf5ce6",
+  "source_commit": "dcec712",
+  "accepted_status": "failed",
+  "campaign_reported_status": "failed",
+  "environment": {
+    "production_contacted": false,
+    "endpoint_retained_in_repository": false,
+    "adapter_keymap": "en-gb"
+  },
+  "preflight": {
+    "preservation_status": "verified_absent",
+    "claimed_prior_file": false
+  },
+  "current_path_observer": {
+    "transport": "guarded MCP visual matrix",
+    "direct_run_id": "direct-4796d843-5950-42d6-82eb-5f082d0a57a6",
+    "caller_label": "code08-v19-current-observer",
+    "path": "C:/PiKVM-Harness/workspace/codex-50/code-08.cmd",
+    "file_error": "open failed",
+    "file_observed": false,
+    "dangerous_commit_count": 0
+  },
+  "reset_after_observer": {
+    "ready": true,
+    "transition_observed": true,
+    "duration_ms": 81930
+  },
+  "finding": "The false-positive blank-Notepad approval emitted no document input and created no file. The observer independently confirmed absence after the campaign reboot."
+}

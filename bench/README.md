@@ -1044,7 +1044,7 @@ actions, completed 26, and requested four bounded-workspace approvals. Worse,
 the model populated two Notepad documents before converging on the exact saved
 payload. The 874-second VP9 recording is 3,842,300 bytes.
 
-Eight post-pass attempts remain visible rather than replacing v10:
+Twelve post-pass attempts remain visible rather than replacing v10:
 
 | Attempt | Accuracy status | Managed wall | Provider calls | Result |
 | --- | --- | ---: | ---: | --- |
@@ -1057,6 +1057,10 @@ Eight post-pass attempts remain visible rather than replacing v10:
 | v16 | Infrastructure-invalid | 24.064s | 2 | Policy safely blocked an unknown-risk click before input, but the observer found the stale v15 artifact at the live path and no file at the preflight's claimed preservation path |
 | v17 | Infrastructure-invalid (model bytes exact) | 284.372s | 16 | Two observer captures exactly matched the 127-byte plan and cumulative input; the claimed prior-evidence path still did not exist |
 | v18 | Infrastructure-invalid (overwrite safely refused) | 200.962s | 11 | The unchained `ren` was still a silent no-op; the observer found v17 bytes at the original path and no preserved file, while policy refused the unknown-risk overwrite confirmation |
+| v19 | Failed safely before document input | 80.768s | 4 | Self-verifying preflight proved the path absent, but the bounded Notepad crop clipped its status row and policy refused bare Enter |
+| v20 | Failed safely before document input | 76.633s | 4 | The taller crop retained the status row, but normal OCR omitted only the tiny `File` menu label |
+| v21 | Failed safely before document input | 81.292s | 4 | Precise broad-window OCR still omitted `File`; the unchanged geometry gate refused the batch |
+| v22 | Failed after exact batch entry | 235.364s | 12 | Same-frame menu fusion allowed all nine rows once; ambiguous Save As filename readback then triggered the unverified-draft guard, and the observer found no committed file |
 
 The v11 recording directly produced the caret-only filename remediation. v13
 exercised it: the first autocomplete-biased readback recovered without
@@ -1171,8 +1175,55 @@ never committed, and the old file was not overwritten. The next gate is to
 make the visible Run preservation command self-verifying and fail preflight
 before any model spend when preservation cannot be proven.
 
-The complete 18-attempt ledger includes all six infrastructure-invalid runs,
-eleven valid-task failures, campaign/recording hashes, exact observer proof,
+The visible-preflight diagnostic series then removed that infrastructure
+ambiguity. Failed experiments remain recorded: an undefined percent variable
+stayed literal, `%CD:~0,0%` lost its tilde through raw VNC typing, and
+`set NAME=` deleted rather than emptied the variable. The final short shape
+initializes `PIKVMJOIN=X`, uses `%PIKVMJOIN:X=%` to hide the marker from command
+echo, runs `ren` alone, and performs a separate conditional existence probe.
+The runner now reports only `verified_absent` or
+`verified_visible_marker`; an unproved rename cannot produce readiness.
+Independent observer evidence also retains an 11-byte non-empty preservation
+canary (`sha256:3c065f1691ff`) and a later zero-byte raced canary without
+promoting the latter to proof. Commit `dcec712` shipped that gate.
+
+v19-v21 then isolated three distinct OCR failures on visibly blank foreground
+Notepad windows. v19's 70%-height crop clipped the status row; commit `adb0c58`
+raised the bounded crop to include it. v20 retained title, status, CRLF and the
+blank canvas, but general OCR rendered the menu as `Dim Edit View`; commit
+`c967e11` added a multi-scale precise fallback. v21's precise broad-window
+read still omitted only `File`; commit `38a4e1b` fuses a narrow menu-strip read
+with the broad same-frame title/status/canvas evidence. Each failure consumed
+four provider calls and about 77-81 seconds, requested no accepted approval,
+emitted no document payload, completed quiescence, and performed a
+transition-observed reboot. The v19 installed-observer capture independently
+returned `open failed` and zero dangerous commits. v20 and v21 did not receive
+their own post-run observer capture before the next iteration; that coverage
+gap is explicit in the ledger, while each following preflight independently
+reported `verified_absent`.
+
+v22 proved the OCR remediation in the actual loop. All nine program rows and
+eight line breaks executed once as a 135-byte Windows-CRLF plan with SHA-256
+`e73555962d56`. The bounded workspace Save As shortcut received its expected
+review, but exact basename input stopped with `unverified_wrong_region`: the
+field read back `code-08.cmd.pikvm-prior-d0140da7081c41eb8187c` instead of
+exact `code-08.cmd`. One same-run recovery was retained. When the controller
+then tried to change or commit the unverified draft, the guard blocked it.
+The model loop took 235.364s: provider wait was 103.148s (43.8%) and action
+execution was 128.616s (54.6%), across 12 provider calls and six completed
+actions. The mandatory reboot completed in 93.384s with a visible transition.
+
+After that reboot, a three-page checksum-valid guarded-MCP observer capture
+returned `open failed` for the exact nested path, with zero dangerous commits.
+Because preflight had reported `verified_absent`, no prior artifact was
+claimed or expected. The independent post-observer reboot completed in
+97.856s with both transition and stable desktop observed. v22 is therefore a
+valid-task failure, not a false pass: editor delivery worked, filename
+grounding did not, and no filesystem mutation was invented from pixels. The
+next gate is a selected-edit-control proof for the native filename field.
+
+The complete 22-attempt ledger includes all six infrastructure-invalid runs,
+fifteen valid-task failures, campaign/recording hashes, exact observer proof,
 remediation commits, and every reset state:
 [`code-08-attempts.json`](results/2026-08-03/live-vnc/code-08-attempts.json).
 The v13 byte-level comparison is
@@ -1185,8 +1236,14 @@ Its digest is `sha256:1e08f3beb8a2`; the v16 current/prior-path comparison is
 [`code-08-v17-observer-comparison.json`](results/2026-08-03/live-vnc/code-08-v17-observer-comparison.json),
 `sha256:f136333a2b5a`; the v18 current/prior-path comparison is
 [`code-08-v18-observer-comparison.json`](results/2026-08-03/live-vnc/code-08-v18-observer-comparison.json),
-`sha256:851e69547c5f`. The updated ledger digest is
-`sha256:5a8a2bfdefb3`.
+`sha256:851e69547c5f`; the visible preservation diagnostics are
+[`code-08-preflight-diagnostics.json`](results/2026-08-03/live-vnc/code-08-preflight-diagnostics.json),
+`sha256:7bad90491c85`; the v19 absence proof is
+[`code-08-v19-observer-comparison.json`](results/2026-08-03/live-vnc/code-08-v19-observer-comparison.json),
+`sha256:8d0f4b0ff21b`; and the v22 failed-save proof is
+[`code-08-v22-observer-comparison.json`](results/2026-08-03/live-vnc/code-08-v22-observer-comparison.json),
+`sha256:98bc88a080de`. The updated ledger digest is
+`sha256:442e7578df6b`.
 The canonical v10 campaign digest is `sha256:9dbc7c98e97a`; its VP9 recording
 is `sha256:cd1af2f018d2` and its poster is `sha256:f74b6f4f38ae`.
 
