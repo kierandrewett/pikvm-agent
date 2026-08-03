@@ -1023,18 +1023,21 @@ rows:
 
   - suite: "Historical PiKVM incident audit"
     route: "Claude Code + Codex + OpenCode histories"
-    source: "historical_pikvm_incidents.json"
+    source: "results/2026-08-03/safety/historical-session-failure-audit.json"
     fields:
       sessions: {path: "scope.sessions", format: "integer"}
       calls: {path: "scope.pikvm_tool_calls", format: "integer"}
-      incidents: {path: "incident_summary.total", format: "integer"}
-      critical: {path: "incident_summary.severity.critical", format: "integer"}
-      high: {path: "incident_summary.severity.high", format: "integer"}
+      direct: {path: "scope.raw_direct_calls", format: "integer"}
+      legacy: {path: "scope.legacy_hidden_operator_calls", format: "integer"}
+      managed: {path: "scope.current_managed_computer_calls", format: "integer"}
+      incidents: {path: "authoritative_corpus_reconciliation.baseline_incidents", format: "integer"}
+      supplemental: {path: "authoritative_corpus_reconciliation.supplemental_call_id_incident_chains", format: "integer"}
+      p0: {path: "p0_one_shot_cases", format: "count"}
     cases: "{sessions} conversations; {calls} PiKVM calls"
-    result: "{incidents} incidents: {critical} critical, {high} high"
+    result: "{direct} outer-direct + {legacy} legacy hidden-route + {managed} current managed calls; {incidents} authoritative incidents plus {supplemental} separately labelled deep chains; {p0} P0 one-shot cases"
     latency: "—"
     wall: "—"
-    status: "Available local histories audited"
+    status: "Complete available-history inventory; proves the coding clients did not use the current managed operator loop"
 
   - suite: "Historical critical/high regression coverage"
     route: "Checked local control ledger"

@@ -2341,7 +2341,7 @@ messaging integration.
 ## Current headline
 
 <!-- pikvm-scorecard:start -->
-_Generated from checked JSON evidence as of 2026-07-28. Manifest `sha256:d58fdcaefbdb`; run `pikvm-agent harness scorecard --check` to detect drift._
+_Generated from checked JSON evidence as of 2026-07-28. Manifest `sha256:7888f19e3252`; run `pikvm-agent harness scorecard --check` to detect drift._
 
 | Suite | Route | Cases | Result | Median / p95 | Wall | Status | Evidence |
 | --- | --- | ---: | ---: | ---: | ---: | --- | --- |
@@ -2402,7 +2402,7 @@ _Generated from checked JSON evidence as of 2026-07-28. Manifest `sha256:d58fdca
 | OSWorld-Verified tracer | Codex, Claude, and mixed role routes | 9 current; 45 scored + 12 unscored attempts | 7/9 current; 13/45 all scored attempts | 128.56s / 883.97s | 2,687.64s current set | Diagnostic; two current failures; 13/45 full-attempt success | [JSON](results/2026-07-28/osworld/summary.json) · `sha256:e365be11d033` |
 | OSWorld exact-input remediation | Opus reasoner → Sonnet controller/verifier | 12 scored attempts | 7/12; 116/132 actions, 87.9%; 2 exact long drafts before separate commits | 10.57s / 11.96s controller | 284.70s latest pass | 7 strict completions and 8 official goal states in 12; 3 strict post-input passes at 284.70s median; latency failing product target | [JSON](results/2026-07-28/osworld/summary.json) · `sha256:e365be11d033` |
 | Windows Agent Arena | — | 154 tasks discovered | Not run | — | — | Blocked by missing official image | [JSON](results/2026-07-24/inventories/windows-agent-arena.json) · `sha256:c52ba54f6b29` |
-| Historical PiKVM incident audit | Claude Code + Codex + OpenCode histories | 24 conversations; 4,453 PiKVM calls | 4,416 outer-direct + 37 legacy hidden-route + 0 current managed calls; 70 authoritative incidents plus 23 separately labelled deep chains; 3 P0 one-shot cases | — | — | Complete available-history inventory; proves the coding clients did not use the current managed operator loop | [Source-cited audit](../docs/HISTORICAL_SESSION_FAILURE_AUDIT.md) · [reconciled JSON](results/2026-08-03/safety/historical-session-failure-audit.json) · `sha256:2a8f2282b24b` · [baseline JSON](historical_pikvm_incidents.json) |
+| Historical PiKVM incident audit | Claude Code + Codex + OpenCode histories | 24 conversations; 4,453 PiKVM calls | 4,416 outer-direct + 37 legacy hidden-route + 0 current managed calls; 70 authoritative incidents plus 23 separately labelled deep chains; 3 P0 one-shot cases | — | — | Complete available-history inventory; proves the coding clients did not use the current managed operator loop | [JSON](results/2026-08-03/safety/historical-session-failure-audit.json) · `sha256:2a8f2282b24b` |
 | Historical critical/high regression coverage | Checked local control ledger | 47 critical/high incidents | 7 locally covered; 40 partial; 0 open | — | — | Coverage ledger; most incidents remain partial | [JSON](historical_pikvm_coverage.json) · `sha256:d6164522d369` |
 <!-- pikvm-scorecard:end -->
 

@@ -89,6 +89,8 @@ const latencyLabel = (milliseconds: number | null | undefined) => {
 };
 
 const FAST_ACTION_PATH_MEDIAN_MS = 5_000;
+const SECRET_SETUP_NOTE =
+  "Provider setup stays local; secret values never enter this UI.";
 
 const authOwnerLabel = (owner: string | undefined) => {
   if (owner === "provider_cli") return "Provider-owned sign-in";
@@ -539,7 +541,7 @@ export function ProviderConnectionsSheet({
             Models
           </SheetTitle>
           <SheetDescription>
-          Choose models for this task. Secret values never enter the UI.
+            Choose models for this task. {SECRET_SETUP_NOTE}
           </SheetDescription>
           <div className="flex flex-wrap gap-2 pt-2">
             <Badge variant="secondary">
