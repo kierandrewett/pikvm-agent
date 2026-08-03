@@ -56,21 +56,22 @@ support a claim of generally reliable autonomous Windows operation.
 
 ### Live 50-task Windows campaign
 
-The active disposable-Windows campaign has **32/50 unique accepted passes
-(64%)**. Every attempt is screen-recorded, every test ends with a VM reboot,
-and a pass is counted only once even when the same task is rerun during
-remediation. Production PiKVM was not contacted.
+The active disposable-Windows campaign has **33/50 unique accepted passes
+(66%)**. Every attempt is screen-recorded. The runner requires every test to
+end with a VM reboot; a missing or failed reboot is retained as a failure
+rather than being hidden. A pass is counted only once even when the same task
+is rerun during remediation. Production PiKVM was not contacted.
 
 | Category | Passed | Planned | Current state |
 | --- | ---: | ---: | --- |
 | Observation | 5 | 5 | Complete |
 | Calculator | 10 | 10 | Complete |
 | Text entry | 10 | 10 | Complete |
-| Code entry | 7 | 10 | In progress |
+| Code entry | 8 | 10 | In progress |
 | File management | 0 | 5 | Pending |
 | Microsoft Excel | 0 | 5 | Pending |
 | Microsoft Word | 0 | 5 | Pending |
-| **Total** | **32** | **50** | **18 pending** |
+| **Total** | **33** | **50** | **17 pending** |
 
 The Calculator category is complete. The final temperature-conversion task
 visibly produced `23 °C = 73.4 °F`, completed 7/7 actions, and rebooted the VM
@@ -1017,7 +1018,55 @@ The authenticated first-party proof panel selected v2 as the current attempt
 and served its 1,646,548-byte recording as `video/webm`; the retained v1
 failure remains separately addressable rather than being overwritten.
 
-Failure-inclusive metrics, canonical campaign digests, the 32 accepted task
+Code-08 is **accepted at v10** for accuracy after nine retained valid-task
+failures and one infrastructure-invalid preflight attempt. Earlier iterations
+reduced the task from slow row-by-row entry to one nine-row deferred-exact
+batch, grounded titleless Windows 11 Notepad from bounded OCR and pixels, and
+replaced repeated full-path dialog entry with a visible workspace breadcrumb
+plus the short basename. The failures were not discarded: they include the
+900-second v2 timeout, four unverified-draft stops, three non-allowlisted
+approval stops, and a repeated-action stop.
+
+The accepted v10 run saved and reopened `code-08.cmd`. The model's done claim
+was not the acceptance oracle. After the run's transition-observed reboot, the
+installed lab observer was retargeted to the safe nested artifact path and read
+the file through guarded MCP's visual matrix. It returned exactly 133 bytes.
+Those bytes and the later program-entry tool call have the same Windows-CRLF
+SHA-256, `8c8d0c1be4aefe5667eb3c7c3edc54e18a309dc4af59d5456978ba6e6a14891a`.
+The observed program pings localhost once, prints `healthy` with exit code 0
+on success, and prints `unhealthy` with exit code 1 otherwise.
+
+Accuracy passes; speed is unacceptable. v10 took 869.893s before reboot and
+1,079.054s through reset-ready. The critical path included 476.667s of
+provider wait and 719.647s of action execution, with overlap between them. It
+made 66 model calls (nine reasoner, 24 controller, 33 verifier), attempted 28
+actions, completed 26, and requested four bounded-workspace approvals. Worse,
+the model populated two Notepad documents before converging on the exact saved
+payload. The 874-second VP9 recording is 3,842,300 bytes.
+
+Two post-pass speed attempts remain visible rather than replacing v10:
+
+| Attempt | Accuracy status | Managed wall | Provider calls | Result |
+| --- | --- | ---: | ---: | --- |
+| v10 | **Passed** | 869.893s | 66 | Exact observer bytes matched the later program-entry call; severe save/open wandering |
+| v11 | Failed | 605.362s before bounded abort | 44 | Filename was delivered exactly, but verifier Tab moved into `Text documents (*.txt)` and repeated the Save As loop four times |
+| v12 | Infrastructure-invalid | 63.892s | 2 | Isolated VNC framebuffer returned HTTP 500 before any content action completed; endpoint recovery and the mandatory reboot are pending |
+
+The v11 recording directly produced the next remediation: short safe filenames
+now retain field focus and move only the caret for OCR, so the adjacent file
+type cannot be mistaken for the filename. All 215 typing tests pass, including
+the measured wrong-region regression. v12 could not exercise that fix because
+the disposable VNC endpoint went unavailable. The next live run is v13 after
+endpoint recovery and an explicit clean reboot; it is not pre-declared a pass.
+
+The complete 12-attempt ledger, including both infrastructure-invalid runs,
+all campaign/recording hashes, exact observer proof, remediation commits, and
+the pending v12 reboot is
+[`code-08-attempts.json`](results/2026-08-03/live-vnc/code-08-attempts.json).
+The canonical v10 campaign digest is `sha256:9dbc7c98e97a`; its VP9 recording
+is `sha256:cd1af2f018d2` and its poster is `sha256:f74b6f4f38ae`.
+
+Failure-inclusive metrics, canonical campaign digests, the 33 accepted task
 IDs, and the VP9 recording/poster hashes are retained in
 [`codex-50-progress.json`](results/2026-07-31/live-vnc/codex-50-progress.json).
 The complete 50-task manifest is

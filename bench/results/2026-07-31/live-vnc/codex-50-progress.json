@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "report": "codex-50-live-progress",
-  "recorded_at": "2026-08-03T05:21:40Z",
+  "recorded_at": "2026-08-03T09:00:03Z",
   "manifest": "bench/codex-50-tasks.yaml",
   "environment": {
     "target": "authorized disposable Windows VNC VM",
@@ -16,9 +16,9 @@
   },
   "progress": {
     "planned": 50,
-    "unique_passed": 32,
-    "pending": 18,
-    "completion_percent": 64.0,
+    "unique_passed": 33,
+    "pending": 17,
+    "completion_percent": 66.0,
     "categories": {
       "Observation": {
         "passed": 5,
@@ -33,7 +33,7 @@
         "planned": 10
       },
       "Code entry": {
-        "passed": 7,
+        "passed": 8,
         "planned": 10
       },
       "File management": {
@@ -81,7 +81,8 @@
       "code-04",
       "code-05",
       "code-06",
-      "code-07"
+      "code-07",
+      "code-08"
     ]
   },
   "canonical_campaigns": [
@@ -272,6 +273,13 @@
         "code-07"
       ],
       "campaign_sha256": "ead7dadee0df70bab3f13b4f48f5babc810347d43a313c56df8e88e5610189cd"
+    },
+    {
+      "campaign_id": "codex-code-entry-code08-v10-20260803",
+      "tasks": [
+        "code-08"
+      ],
+      "campaign_sha256": "9dbc7c98e97adf5224a5ed14239c04bfb2e1366e10dbbe37b38951281ffcc27f"
     }
   ],
   "calc_09_acceptance": {
@@ -3443,10 +3451,10 @@
     "full_ledger": "bench/results/2026-08-02/live-vnc/code-03-attempts.json"
   },
   "verdict": {
-    "accuracy": "The campaign is 32/50. All ten Text entry tasks and the first seven Code entry tasks pass with fresh input and independent reopen evidence. Code-07 v2 completed 24/24 actions with ten exact receipts covering 154 requested, issued, and observed characters, zero edit distance, corrections, or retries. Its v1 restored-session focus failure remains in the denominator.",
-    "speed": "Failing product target: accepted code-07 v2 took 526.062 seconds for the managed run and 902.528 seconds from task preflight through the reset-ready gate. A competent human can enter, save, reopen, and inspect this seven-line YAML definition materially faster.",
-    "dominant_cost": "Code-07 v2 spent 317.297 seconds in action execution and 197.626 seconds waiting on the critical provider path. Action execution is 60.32% of run wall time; provider wait is 37.57%. Twenty verifier turns across 27 provider calls, a 59.812-second visible preflight, and a 307.747-second guest reboot are the dominant avoidable costs.",
-    "next": "Continue with code-08 while preserving exact-once input, delayed Notepad session-restore settling, deterministic Save/Open commit grounding, independent reopen proof, bounded workspace approval, fresh-artifact preparation, quiesce-before-reboot lifecycle, and failure-inclusive recordings."
+    "accuracy": "The campaign is 33/50. All ten Text entry tasks and the first eight Code entry tasks pass. Code-08 v10 saved and reopened the requested batch file; the installed observer independently returned 133 bytes whose CRLF-normalized SHA-256 exactly matched the later program-entry tool call. All 12 attempts, including two infrastructure-invalid runs and nine valid-task failures, remain in the ledger.",
+    "speed": "Failing product target: accepted code-08 v10 took 869.893 seconds for the managed run and 1079.054 seconds from task preflight through the reset-ready gate. It populated two Notepad documents and made 66 provider calls before converging, materially slower than a competent human.",
+    "dominant_cost": "Code-08 v10 spent 719.647 seconds in action execution and 476.667 seconds waiting on the critical provider path, with 336.204 seconds of overlap. Thirty-three verifier turns, 24 controller turns, nine reasoner turns, and repeated Save/Open loops dominate the avoidable cost.",
+    "next": "Recover the disposable VNC endpoint, complete v12's pending post-test reboot, and run code-08 v13 on the caret-only filename proof before advancing to code-09. Preserve exact observer comparison, bounded workspace approval, fresh-artifact preparation, quiescence, mandatory reboot, recording, and all failures."
   },
   "code_04_acceptance": {
     "task": "Write, save, reopen, and visually verify a grouped customer-value SQL query in Notepad",
@@ -3920,5 +3928,72 @@
       "delayed_notepad_session_restore_focus_loss": 1
     },
     "full_ledger": "bench/results/2026-08-03/live-vnc/code-07-attempts.json"
+  },
+  "code_08_acceptance": {
+    "task": "Write, save, reopen, and verify a Windows batch health check in Notepad",
+    "result": "passed",
+    "run_id": "90af0596-4e7e-48b5-b6f5-7dbc7d6acff5",
+    "reason": "After nine retained valid-task failures and one preflight infrastructure-invalid attempt, v10 saved and reopened the requested batch file. The installed observer read the nested file through guarded MCP and returned 133 bytes whose SHA-256 exactly matched the later program-entry tool call after Windows CRLF normalization. The model populated two Notepad documents and used 66 provider calls, so the result passes accuracy but fails speed.",
+    "wall_clock_ms": 869893,
+    "task_duration_ms": 1079054,
+    "preflight_ms": 60391,
+    "model_active_ms": 553025,
+    "provider_wait_ms": 476667,
+    "provider_serial_equivalent_ms": 553671,
+    "provider_overlap_ms": 77004,
+    "action_execution_ms": 719647,
+    "evidence_capture_ms": 6906,
+    "provider_calls": 66,
+    "reasoner_calls": 9,
+    "controller_calls": 24,
+    "verifier_calls": 33,
+    "actions_attempted": 28,
+    "actions_completed": 26,
+    "completion_efficiency": 0.9285714285714286,
+    "document_payload_batches": 2,
+    "accepted_saved_payload_action_index": 16,
+    "approval_count": 4,
+    "approval_scopes": [
+      "bounded_workspace_edit"
+    ],
+    "observer_exact_artifact_proof": {
+      "transport": "guarded MCP visual matrix",
+      "protocol": "pikvm-observer.v1",
+      "path": "C:/PiKVM-Harness/workspace/codex-50/code-08.cmd",
+      "expected_bytes": 133,
+      "observed_bytes": 133,
+      "newline_normalization": "Windows CRLF",
+      "expected_sha256": "8c8d0c1be4aefe5667eb3c7c3edc54e18a309dc4af59d5456978ba6e6a14891a",
+      "observed_sha256": "8c8d0c1be4aefe5667eb3c7c3edc54e18a309dc4af59d5456978ba6e6a14891a",
+      "exact_match": true
+    },
+    "reboot_ms": 129527,
+    "reboot_transition_observed": true,
+    "recording": {
+      "sha256": "cd1af2f018d25ff05dd47f497f6a5a6c181d71f2555a6fc7c7dd42478f8e25fa",
+      "codec": "vp9",
+      "width": 2048,
+      "height": 1280,
+      "fps": 2.0,
+      "duration_ms": 874000,
+      "size_bytes": 3842300,
+      "relative_path": "codex-code-entry-code08-v10-20260803/codex-windows-50/code-08/recording.webm"
+    },
+    "poster": {
+      "relative_path": "codex-code-entry-code08-v10-20260803/codex-windows-50/code-08/poster.jpg",
+      "sha256": "f74b6f4f38ae2344c87fa24193234b87c1a5dfbc12b53dac38b77359fc5a2311"
+    },
+    "campaign_sha256": "9dbc7c98e97adf5224a5ed14239c04bfb2e1366e10dbbe37b38951281ffcc27f"
+  },
+  "code_08_attempt_summary": {
+    "recorded_attempts": 12,
+    "valid_full_task_runs": 10,
+    "failed_runs": 9,
+    "infrastructure_invalid_runs": 2,
+    "passed_runs": 1,
+    "canonical_campaign_id": "codex-code-entry-code08-v10-20260803",
+    "post_pass_speed_attempts": 2,
+    "post_pass_state": "v11 retained a repeated Save-field wrong-region failure; v12 is infrastructure-invalid and its reboot is pending endpoint recovery",
+    "full_ledger": "bench/results/2026-08-03/live-vnc/code-08-attempts.json"
   }
 }

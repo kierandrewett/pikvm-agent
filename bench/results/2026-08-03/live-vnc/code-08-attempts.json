@@ -1,0 +1,367 @@
+{
+  "schema_version": 1,
+  "report": "codex-code-entry-code08-failure-inclusive-attempts",
+  "recorded_at": "2026-08-03T09:00:03Z",
+  "environment": {
+    "target": "authorized disposable Windows VNC VM",
+    "production_target_contacted": false,
+    "endpoint_retained": false,
+    "reboot_after_every_test": true
+  },
+  "task": {
+    "task_id": "code-08",
+    "category": "Code entry",
+    "summary": "Write, save, reopen, and verify a Windows batch health check in Notepad"
+  },
+  "model_route": {
+    "provider": "codex-fast",
+    "model": "gpt-5.6-terra",
+    "reasoning_effort": "low",
+    "service_tier": "priority",
+    "roles": [
+      "reasoner",
+      "controller",
+      "verifier"
+    ]
+  },
+  "summary": {
+    "recorded_attempts": 12,
+    "valid_full_task_runs": 10,
+    "failed_runs": 9,
+    "infrastructure_invalid_runs": 2,
+    "passed_runs": 1,
+    "canonical_attempt": "v10",
+    "all_failures_retained": true,
+    "all_recordings_retained": true,
+    "reboots_ready": 10,
+    "reboots_failed_or_pending": 2,
+    "release_gate": "accuracy passing; speed failing; post-pass speed remediation remains active"
+  },
+  "attempts": [
+    {
+      "campaign_id": "codex-code-entry-code08-v1-20260803",
+      "accepted_status": "infrastructure_invalid",
+      "run_id": null,
+      "reason": "The VNC adapter timed out during visible workspace preflight before a managed run or any task input existed. The campaign reboot call also timed out.",
+      "task_duration_ms": 93536,
+      "reboot_status": "failed",
+      "campaign_sha256": "41f1e6fd4855f3280701f028ff30af3421a056c53d9b6524dcb792722ce889fe",
+      "recording_sha256": "8f0c0478a412c20158c99d9aee1157cf850b7897b313662cab7640ed06dcaeb3"
+    },
+    {
+      "campaign_id": "codex-code-entry-code08-v2-20260803",
+      "accepted_status": "failed",
+      "run_id": "636e107a-2c23-4169-b70b-a2cc6c6237b8f6",
+      "reason": "The model reached 35 completed actions but exceeded the 900-second managed-run limit while repeatedly entering and verifying the program line by line.",
+      "wall_clock_ms": 899837,
+      "task_duration_ms": 1104317,
+      "provider_wait_ms": 572646,
+      "action_execution_ms": 306827,
+      "provider_calls": 77,
+      "actions_attempted": 35,
+      "actions_completed": 35,
+      "reboot_ms": 107401,
+      "reboot_transition_observed": true,
+      "campaign_sha256": "eb7d8e2d5b5e805153b7e6173d0c760bccf6aae469c8690b07894ec154cadecf",
+      "recording_sha256": "d0cc1bcd40a5ac82e32a8d369a0e4369d83a73bbdf7bd879b633387248d79b3c"
+    },
+    {
+      "campaign_id": "codex-code-entry-code08-v3-20260803",
+      "accepted_status": "failed",
+      "run_id": "2c994c92-93ef-4e1a-a59d-2b132770b8f6",
+      "reason": "The first batched Notepad draft was issued once, but its readback remained unverified. The unverified-draft guard blocked every proposed follow-up that could change or execute the ambiguous draft.",
+      "wall_clock_ms": 154917,
+      "task_duration_ms": 341746,
+      "provider_wait_ms": 56204,
+      "action_execution_ms": 96468,
+      "provider_calls": 7,
+      "actions_attempted": 3,
+      "actions_completed": 2,
+      "reboot_ms": 118672,
+      "reboot_transition_observed": true,
+      "campaign_sha256": "a7d19dbd632d0641a358ca6c5cb2b8a4325ecdb46a0c1113fce02b2969af51d5",
+      "recording_sha256": "431f90dff7a592c06fe029fdc29f176413c15e048f31dd335665d89fab74f4a6"
+    },
+    {
+      "campaign_id": "codex-code-entry-code08-v4-20260803",
+      "accepted_status": "failed",
+      "run_id": "5eab15fb-a523-429c-b942-57f02bbac219",
+      "reason": "Atomic shifted-character transport removed one delivery fault, but exact multiline proof still selected the wrong screen region and the unverified-draft guard stopped the run.",
+      "wall_clock_ms": 409283,
+      "task_duration_ms": 564839,
+      "provider_wait_ms": 155746,
+      "action_execution_ms": 246043,
+      "provider_calls": 19,
+      "actions_attempted": 8,
+      "actions_completed": 4,
+      "reboot_ms": 88757,
+      "reboot_transition_observed": true,
+      "campaign_sha256": "8e51f96301afaa4d7c1f7e201e08ba7a9166b5937ad3f0c596862b1eefd4ee5b",
+      "recording_sha256": "5cbb8673bae07b59b529030395843d1ee120b1cd89974e05fa322df48054e5a1"
+    },
+    {
+      "campaign_id": "codex-code-entry-code08-v5-20260803",
+      "accepted_status": "failed",
+      "run_id": "9ccaf2d1-f872-4053-bb2b-21590cd98258",
+      "reason": "The multiline verifier preserved the input but the controller repeated an unchanged paused action. The campaign stopped after the identical error repeated twice.",
+      "wall_clock_ms": 226705,
+      "task_duration_ms": 386354,
+      "provider_wait_ms": 130220,
+      "action_execution_ms": 86546,
+      "provider_calls": 17,
+      "actions_attempted": 5,
+      "actions_completed": 5,
+      "reboot_ms": 91259,
+      "reboot_transition_observed": true,
+      "campaign_sha256": "06d927b33bb2e810ddff8e0d4ab51d64ca82242c5e6821b3f5d4246effea3f72",
+      "recording_sha256": "42ce8197647068d79ccd5603937b84b4654c7f2c95e6f1ad3783348489310c76"
+    },
+    {
+      "campaign_id": "codex-code-entry-code08-v6-20260803",
+      "accepted_status": "failed",
+      "run_id": "e35ca3f3-f4f7-4570-92e2-7c65d1bc10ad",
+      "reason": "The compact line-break commit was classified outside the bounded local-edit allowlist. The campaign refused to auto-approve it and stopped fail-closed.",
+      "wall_clock_ms": 98703,
+      "task_duration_ms": 254298,
+      "provider_calls": 4,
+      "actions_attempted": 3,
+      "actions_completed": 2,
+      "reboot_ms": 87794,
+      "reboot_transition_observed": true,
+      "campaign_sha256": "9c82f4d751afc352bef8b9b517ba420e852a64fff6c79c1a390fd45b33c1c0d7",
+      "recording_sha256": "396b4e14de48a118df918ffe16b36b87b00eca86b6873c469cae07e7aa691f08"
+    },
+    {
+      "campaign_id": "codex-code-entry-code08-v7-20260803",
+      "accepted_status": "failed",
+      "run_id": "663f239b-b4f8-44f6-8d47-6a6c3bf2d6bf",
+      "reason": "Titleless Windows Notepad was still not independently grounded strongly enough for the batched line-break action, so the campaign stopped at a non-allowlisted approval before entering the program.",
+      "wall_clock_ms": 89853,
+      "task_duration_ms": 246772,
+      "provider_calls": 4,
+      "actions_attempted": 3,
+      "actions_completed": 2,
+      "reboot_ms": 92483,
+      "reboot_transition_observed": true,
+      "campaign_sha256": "0ced9845a5ad6cc66fd374bd12a96986e3134740567f9aa5c54893c5a155816a",
+      "recording_sha256": "03fd0b19f46952b46f6b00ba322786e44ed4bfdb460fc37eb7e063cc62214add"
+    },
+    {
+      "campaign_id": "codex-code-entry-code08-v8-20260803",
+      "accepted_status": "failed",
+      "run_id": "2addde25-c7af-4623-a650-5c611bf51d16",
+      "reason": "Pixel-grounded titleless Notepad allowed all nine code rows to be delivered in one deferred-exact batch, but the later full-path Save/Open field readback loop remained unverified and was blocked before commit.",
+      "wall_clock_ms": 484181,
+      "task_duration_ms": 637931,
+      "provider_wait_ms": 257173,
+      "action_execution_ms": 207117,
+      "provider_calls": 35,
+      "actions_attempted": 16,
+      "actions_completed": 14,
+      "program_batch_rows": 9,
+      "program_batch_duration_ms": 24003,
+      "program_batch_emitted_exactly_once": true,
+      "reboot_ms": 86182,
+      "reboot_transition_observed": true,
+      "campaign_sha256": "8b75fc84759ec2e2525ce687019c35a47a5ce424fa52ff866fc765f6e78f22cb",
+      "recording_sha256": "1861c000dfd9ce408371d11b2860b83f2dd507c801d2319ba74a1880afb98f4d"
+    },
+    {
+      "campaign_id": "codex-code-entry-code08-v9-20260803",
+      "accepted_status": "failed",
+      "run_id": "5d6d1680-9d13-4230-a3e7-c80c25ad0c24",
+      "reason": "The full-frame OCR pass missed an obviously visible blank Notepad window and the titleless-surface gate refused the code batch. A bounded window crop recovered the exact title, menu, character count, newline mode, and encoding after the run.",
+      "wall_clock_ms": 94537,
+      "task_duration_ms": 255800,
+      "provider_calls": 4,
+      "actions_attempted": 3,
+      "actions_completed": 2,
+      "reboot_ms": 97643,
+      "reboot_transition_observed": true,
+      "campaign_sha256": "b9757cfa39a5441f0da454f1c49d162ee7944fb332a8086f9668f7ed68269ed5",
+      "recording_sha256": "bd441b79e4e7d3eeeab955708139e9d48d68b1d2f46794e333108611fd01279d"
+    },
+    {
+      "campaign_id": "codex-code-entry-code08-v10-20260803",
+      "accepted_status": "passed",
+      "run_id": "90af0596-4e7e-48b5-b6f5-7dbc7d6acff5",
+      "reason": "The bounded Notepad OCR retry enabled the deferred nine-row batch, and basename-only native dialogs eventually saved and reopened the file. The installed observer then read the nested artifact through guarded MCP and returned bytes that exactly matched the later program-entry tool call after Windows CRLF normalization. The model populated two separate Notepad documents and wandered through repeated save/open checks, so this is an accuracy pass and a severe speed failure.",
+      "wall_clock_ms": 869893,
+      "task_duration_ms": 1079054,
+      "model_active_ms": 553025,
+      "provider_wait_ms": 476667,
+      "provider_serial_equivalent_ms": 553671,
+      "provider_overlap_ms": 77004,
+      "action_execution_ms": 719647,
+      "evidence_capture_ms": 6906,
+      "provider_calls": 66,
+      "reasoner_calls": 9,
+      "controller_calls": 24,
+      "verifier_calls": 33,
+      "actions_attempted": 28,
+      "actions_completed": 26,
+      "approval_count": 4,
+      "approval_scopes": [
+        "bounded_workspace_edit"
+      ],
+      "document_payload_batches": 2,
+      "accepted_saved_payload_action_index": 16,
+      "observer_exact_artifact_proof": {
+        "transport": "guarded MCP visual matrix",
+        "protocol": "pikvm-observer.v1",
+        "path": "C:/PiKVM-Harness/workspace/codex-50/code-08.cmd",
+        "expected_bytes": 133,
+        "observed_bytes": 133,
+        "newline_normalization": "Windows CRLF",
+        "expected_sha256": "8c8d0c1be4aefe5667eb3c7c3edc54e18a309dc4af59d5456978ba6e6a14891a",
+        "observed_sha256": "8c8d0c1be4aefe5667eb3c7c3edc54e18a309dc4af59d5456978ba6e6a14891a",
+        "exact_match": true
+      },
+      "reboot_ms": 129527,
+      "reboot_transition_observed": true,
+      "recording": {
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2.0,
+        "duration_ms": 874000,
+        "size_bytes": 3842300,
+        "sha256": "cd1af2f018d25ff05dd47f497f6a5a6c181d71f2555a6fc7c7dd42478f8e25fa"
+      },
+      "poster_sha256": "f74b6f4f38ae2344c87fa24193234b87c1a5dfbc12b53dac38b77359fc5a2311",
+      "campaign_sha256": "9dbc7c98e97adf5224a5ed14239c04bfb2e1366e10dbbe37b38951281ffcc27f"
+    },
+    {
+      "campaign_id": "codex-code-entry-code08-v11-20260803",
+      "accepted_status": "failed",
+      "run_id": "51300b67-b3ab-48a0-847f-45633dbe3791",
+      "reason": "The run delivered the nine program rows once, then repeated the Save As filename loop four times. Exact `code-08.cmd` delivery was acknowledged once per attempt, but the verifier moved focus with Tab and read the adjacent `Text documents (*.txt)` control as the filename. The run was aborted after the fourth measured repetition instead of waiting for the 900-second limit.",
+      "wall_clock_ms": 605362,
+      "task_duration_ms": 786015,
+      "provider_wait_ms": 339847,
+      "action_execution_ms": 246901,
+      "provider_calls": 44,
+      "actions_attempted": 19,
+      "actions_completed": 17,
+      "approval_count": 4,
+      "filename_receipt": {
+        "requested_characters": 11,
+        "issued_characters": 11,
+        "emitted_characters": 11,
+        "emitted_exactly_once": true,
+        "observed_wrong_region": "Text documents (*.txt)",
+        "status": "unverified_wrong_region"
+      },
+      "reboot_ms": 103585,
+      "reboot_transition_observed": true,
+      "recording": {
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2.0,
+        "duration_ms": 603000,
+        "size_bytes": 3105755,
+        "sha256": "975e91d783e6a3eca44279330a38d66b721ad1ca7e9152b95581fd4ea2f34e50"
+      },
+      "campaign_sha256": "303038200eed40534de5c3571ef68af3aa2c81426dd0f0a030bf60d723f35ad1"
+    },
+    {
+      "campaign_id": "codex-code-entry-code08-v12-20260803",
+      "accepted_status": "infrastructure_invalid",
+      "run_id": "afecd4dc-3ef0-410d-9b39-57f773019282",
+      "reason": "The isolated VNC adapter lost its framebuffer during the first Notepad-launch action and returned HTTP 500. No content action completed. The automatic reboot could not start because the same endpoint was unavailable; recovery and the post-test reboot remain pending before v13.",
+      "wall_clock_ms": 63892,
+      "task_duration_ms": 125476,
+      "provider_wait_ms": 16408,
+      "action_execution_ms": 47175,
+      "provider_calls": 2,
+      "actions_attempted": 1,
+      "actions_completed": 0,
+      "reboot_status": "pending_endpoint_recovery",
+      "recording": {
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2.0,
+        "duration_ms": 25000,
+        "size_bytes": 185665,
+        "sha256": "5633a699708e008da761aa2339c4c76ffeda675d7cfaa933ec74d588a557509e"
+      },
+      "campaign_sha256": "7df9c572cc9d7ed37a745168d218e825721b11e17edd5e60b4bbb68d5a04fe33"
+    }
+  ],
+  "remediations": [
+    {
+      "after_attempt": "v1",
+      "commit": "f3ca215",
+      "change": "Bound stale VNC capture before reconnect so adapter loss cannot hold an action indefinitely."
+    },
+    {
+      "after_attempt": "v2",
+      "commit": "e668078",
+      "change": "Batch exact Notepad artifact entry instead of paying one model/OCR cycle per row."
+    },
+    {
+      "after_attempt": "v3",
+      "commit": "39b3c06",
+      "change": "Negotiate atomic shifted-character transport for punctuation-heavy code."
+    },
+    {
+      "after_attempt": "v4",
+      "commit": "604cb98",
+      "change": "Verify one multiline editor burst once after delivery."
+    },
+    {
+      "after_attempt": "v5",
+      "commit": "da67a0b",
+      "change": "Ground Notepad line-break batches before allowing Enter."
+    },
+    {
+      "after_attempt": "v6",
+      "commit": "8148a71",
+      "change": "Recognize titleless Windows Notepad as the bounded editor surface."
+    },
+    {
+      "after_attempt": "v7",
+      "commit": "bbdfa90",
+      "change": "Combine titleless Notepad OCR geometry with blank-canvas pixels and skip unnecessary precise OCR on the hot path."
+    },
+    {
+      "after_attempt": "v8",
+      "commit": "1c08fd7",
+      "change": "Use the visible workspace breadcrumb and short basename in native Save/Open dialogs instead of repeatedly typing the full path."
+    },
+    {
+      "after_attempt": "v9",
+      "commit": "da81ad9",
+      "change": "Retry blank-Notepad proof once inside the bounded foreground window when full-frame OCR misses it."
+    },
+    {
+      "after_attempt": "v10",
+      "commits": [
+        "fe4a5c2",
+        "0b03b4d"
+      ],
+      "change": "Commit Save As with the native Alt+S access key and permit the observer to read two safe nested workspace segments."
+    },
+    {
+      "after_attempt": "v11",
+      "commit": "bc45198",
+      "change": "Keep short safe filenames focused and move only the caret for OCR, preventing Tab from selecting the adjacent file-type control."
+    }
+  ],
+  "next_gate": {
+    "accuracy_status": "passed",
+    "accepted_attempt": "v10",
+    "speed_status": "failed",
+    "accepted_wall_clock_ms": 869893,
+    "evidence": [
+      "The installed observer returned the exact nested artifact path and 133 bytes.",
+      "Observed and tool-call-derived CRLF payload hashes are identical.",
+      "The accepted run completed a transition-observed mandatory reboot and retained its recording."
+    ],
+    "blocking_infrastructure_state": "The v12 post-test reboot is pending because the disposable VNC endpoint is unavailable.",
+    "next_attempt": "v13 after endpoint recovery and explicit clean reboot",
+    "next_task_after_speed_gate": "code-09"
+  }
+}
