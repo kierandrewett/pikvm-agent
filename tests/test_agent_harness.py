@@ -1632,10 +1632,16 @@ def test_generated_code_grouped_receipts_skip_per_line_model_proof() -> None:
         action,
         max_actions=20,
     )
+    duplicate_trailing_break = _notepad_exact_text_controller(
+        run,
+        action,
+        max_actions=20,
+    )
 
     assert verdict is not None
     assert verdict.verdict == "verified"
     assert "all 3" in verdict.summary
+    assert duplicate_trailing_break is None
     assert save_as is not None
     assert save_as.actions[0].keys == ["CTRL", "SHIFT", "S"]
 

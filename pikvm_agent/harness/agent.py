@@ -1151,6 +1151,12 @@ def _notepad_exact_text_controller(
     segments = _notepad_exact_text_segments(run)
     if not segments:
         return None
+    if _pending_action_enters_all_notepad_parts(run, action):
+        # The grouped controller already emitted every line break described by
+        # the immutable artifact, including a trailing newline.  Do not feed
+        # the final segment back through the per-segment continuation path and
+        # append that terminal break a second time.
+        return None
     if _created_new_notepad_document(action) and len(segments) > 1:
         actions: list[dict[str, Any]] = []
         is_code = bool(
