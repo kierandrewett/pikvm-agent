@@ -1168,7 +1168,7 @@ def _notepad_exact_text_controller(
                 }
             )
             actions.extend(
-                {"type": "key", "keys": ["SHIFT", "ENTER"]}
+                {"type": "key", "keys": ["ENTER"]}
                 for _ in range(break_count)
             )
         actions.append(
@@ -1381,7 +1381,7 @@ def _pending_action_enters_all_notepad_parts(
                 keys = set(normalize_keys(item.get("keys") or []))
             except BurstError:
                 return False
-            if keys != {"ShiftLeft", "Enter"}:
+            if keys != {"Enter"}:
                 return False
             cursor += 1
     return cursor == len(content_actions)
@@ -2062,9 +2062,10 @@ segments; after that, continue only with saving, reopening, and verification.
 For multi-line content in a verified local editor, including generated prose,
 never put newline control characters inside type_text. The deterministic
 artifact controller may enter two or more immutable code segments in one
-editor-only ``deferred_exact`` burst, separated solely by Shift+Enter; that
-burst must end without submitting, saving, or changing applications, and one
-independent full-document verifier must pass before any later commit action.
+editor-only ``deferred_exact`` burst, separated solely by Enter after the
+runtime independently confirms the focused Notepad surface; that burst must
+end without saving or changing applications, and one independent full-document
+verifier must pass before any later commit action.
 Outside that narrow controller-owned shape, enter each text segment with a
 separate exact type_text action and verify it. Never propose bare Enter for an
 editor line break: it is intentionally treated as a possible commit outside

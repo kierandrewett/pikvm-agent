@@ -1542,7 +1542,7 @@ def test_generated_code_groups_exact_segments_without_tab_actions() -> None:
         for action in text_actions
         if action["type"] == "key"
     ] == [
-        {"type": "key", "keys": ["SHIFT", "ENTER"]}
+        {"type": "key", "keys": ["ENTER"]}
         for _ in range(5)
     ]
     assert all(action.get("keys") != ["TAB"] for action in text_actions)
@@ -4245,7 +4245,8 @@ async def test_controller_prompt_prefers_a_stable_legible_end_state() -> None:
     assert "Do not click into or overwrite restored content" in normalized
     assert "never put newline control characters inside type_text" in normalized
     assert "two separate Shift+Enter key actions" in normalized
-    assert "non-submitting blank-line action" in normalized
+    assert "deferred_exact" in normalized
+    assert "independently confirms the focused Notepad surface" in normalized
     assert "including generated prose" in normalized
     assert "Never propose bare Enter for an editor line break" in normalized
     assert "Never send indentation as a whitespace-only editor type_text" in normalized

@@ -290,6 +290,63 @@ def is_confirmed_calculator_surface(observed_surface_text: str) -> bool:
     )
 
 
+def needs_deferred_exact_editor_surface_grounding(
+    actions: list[dict],
+) -> bool:
+    """Identify one inert multiline code draft whose Enters need editor proof."""
+
+    active = [
+        action
+        for action in actions
+        if action.get("type")
+        not in {"wait", "wait_for_change", "wait_for_stable_screen"}
+    ]
+    typed = [action for action in active if action.get("type") == "type_text"]
+    if (
+        len(typed) < 2
+        or not active
+        or active[0].get("type") != "type_text"
+    ):
+        return False
+    for action in active:
+        if action.get("type") == "type_text":
+            if not (
+                action.get("code") is True
+                and str(action.get("context") or "").casefold() == "editor"
+                and str(action.get("verification") or "").casefold()
+                == "deferred_exact"
+            ):
+                return False
+            continue
+        if action.get("type") != "key":
+            return False
+        keys = {
+            str(key).strip().upper()
+            for key in (action.get("keys") or [action.get("key")])
+            if key
+        }
+        if keys not in ({"ENTER"}, {"RETURN"}):
+            return False
+    return all(
+        left.get("type") != right.get("type")
+        or left.get("type") == "key"
+        for left, right in zip(active, active[1:])
+    )
+
+
+def is_confirmed_notepad_editor_surface(observed_surface_text: str) -> bool:
+    """Require independent title and editor-chrome evidence for bare newlines."""
+
+    text = " ".join(observed_surface_text.casefold().split())
+    return bool(
+        "notepad" in text
+        and (
+            all(marker in text for marker in ("file", "edit", "view"))
+            or all(marker in text for marker in ("ln ", "col", "characters"))
+        )
+    )
+
+
 def needs_local_navigation_surface_grounding(
     actions: list[dict],
 ) -> bool:
@@ -958,6 +1015,10 @@ def classify_direct_burst(
         needs_calculator_surface_grounding(actions)
         and is_confirmed_calculator_surface(observed_surface_text)
     )
+    verified_deferred_editor_newlines = (
+        needs_deferred_exact_editor_surface_grounding(actions)
+        and is_confirmed_notepad_editor_surface(observed_surface_text)
+    )
     verified_safe_error_dismissal = (
         is_confirmed_safe_windows_error_dismissal(
             actions,
@@ -1074,6 +1135,7 @@ def classify_direct_burst(
                 keys in ({"ENTER"}, {"RETURN"}, {"NUMPADENTER"})
                 and not safe_windows_run_launch
                 and not verified_calculator_expression
+                and not verified_deferred_editor_newlines
                 and not verified_safe_error_dismissal
             ):
                 if verified_local_file_save_commit:

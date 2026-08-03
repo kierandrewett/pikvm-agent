@@ -532,6 +532,17 @@ class ControllerDecision(StrictModelDecision):
             sum(isinstance(action, TypeTextAction) for action in active_actions)
             >= 2
         )
+        deferred_editor_multiline_burst = bool(
+            editor_multiline_burst
+            and all(
+                not isinstance(action, TypeTextAction)
+                or (
+                    action.context == "editor"
+                    and action.verification == "deferred_exact"
+                )
+                for action in active_actions
+            )
+        )
         seen_text = False
         break_after_text = False
         for action in active_actions:
@@ -544,17 +555,26 @@ class ControllerDecision(StrictModelDecision):
                 seen_text = True
                 break_after_text = False
                 continue
-            editor_multiline_burst = editor_multiline_burst and (
-                seen_text
-                and isinstance(action, KeyAction)
-                and {
+            line_break_keys = (
+                {
                     str(key).strip().casefold()
                     for key in action.keys
                 }
-                in (
-                    {"shift", "enter"},
-                    {"shiftleft", "enter"},
-                    {"shiftright", "enter"},
+                if isinstance(action, KeyAction)
+                else set()
+            )
+            editor_multiline_burst = editor_multiline_burst and (
+                seen_text
+                and isinstance(action, KeyAction)
+                and (
+                    line_break_keys == {"enter"}
+                    if deferred_editor_multiline_burst
+                    else line_break_keys
+                    in (
+                        {"shift", "enter"},
+                        {"shiftleft", "enter"},
+                        {"shiftright", "enter"},
+                    )
                 )
             )
             break_after_text = True

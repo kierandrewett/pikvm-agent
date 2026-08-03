@@ -507,7 +507,7 @@ def validate_actions(
                             or ([action["key"]] if action.get("key") else [])
                         )
                     )
-                    == {"ShiftLeft", "Enter"}
+                    == {"Enter"}
                 )
                 for action in active
             )
@@ -522,8 +522,9 @@ def validate_actions(
         if not deferred_shape_ok:
             raise BurstError(
                 "deferred_exact is limited to two or more exact code rows in "
-                "one inert editor-only burst, separated only by Shift+Enter; "
-                "a later verifier must gate every submit or save action"
+                "one inert editor-only burst, separated only by Enter on an "
+                "independently confirmed editor surface; a later verifier "
+                "must gate every submit or save action"
             )
     if spreadsheet_grid_count and (
         spreadsheet_grid_count != 1 or other_active_action_count

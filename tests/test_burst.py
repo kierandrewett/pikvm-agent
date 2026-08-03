@@ -1336,7 +1336,7 @@ async def test_burst_defers_exact_editor_rows_to_one_post_burst_verifier() -> No
                 "context": "editor",
                 "verification": "deferred_exact",
             },
-            {"type": "key", "keys": ["SHIFT", "ENTER"]},
+            {"type": "key", "keys": ["ENTER"]},
             {
                 "type": "type_text",
                 "text": rows[1],
@@ -1356,7 +1356,7 @@ async def test_burst_defers_exact_editor_rows_to_one_post_burst_verifier() -> No
     ] == list(rows)
     assert [
         call["keys"] for method, call in be.calls if method == "keypress"
-    ] == [["ShiftLeft", "Enter"]]
+    ] == [["Enter"]]
     assert [receipt["status"] for receipt in out.action_receipts] == [
         "delivered_unverified",
         "delivered_unverified",
@@ -1405,7 +1405,7 @@ async def test_burst_defers_exact_editor_rows_to_one_post_burst_verifier() -> No
                 "context": "editor",
                 "verification": "deferred_exact",
             },
-            {"type": "key", "keys": ["ENTER"]},
+            {"type": "key", "keys": ["CTRL", "ENTER"]},
             {
                 "type": "type_text",
                 "text": "row two",

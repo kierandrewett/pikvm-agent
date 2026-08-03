@@ -810,6 +810,58 @@ async def test_grounded_calculator_expression_does_not_need_send_approval(
     ]
 
 
+async def test_confirmed_notepad_allows_bounded_deferred_editor_newlines(
+    runtime: Runtime,
+) -> None:
+    class NotepadOCR:
+        async def ocr(self, image_path, region=None):
+            del image_path, region
+            return OCRResult(
+                lines=[
+                    OCRLine(text="Untitled - Notepad", bbox=[20, 20, 180, 45]),
+                    OCRLine(text="File Edit View", bbox=[20, 50, 180, 75]),
+                    OCRLine(
+                        text="Ln 1, Col 1 0 characters",
+                        bbox=[20, 680, 250, 710],
+                    ),
+                ]
+            )
+
+    runtime._screen_parser.ocr = NotepadOCR()
+    sid = (await runtime.start_session("direct"))["session_id"]
+    shot = await runtime.get_session_summary(sid, capture=True)
+    actions = [
+        {
+            "type": "type_text",
+            "text": "@echo off",
+            "code": True,
+            "context": "editor",
+            "verification": "deferred_exact",
+        },
+        {"type": "key", "keys": ["ENTER"]},
+        {
+            "type": "type_text",
+            "text": "exit /b 0",
+            "code": True,
+            "context": "editor",
+            "verification": "deferred_exact",
+        },
+    ]
+
+    result = await runtime.run_burst(
+        sid,
+        actions,
+        based_on_world_version=shot["world_version"],
+        based_on_control_epoch=shot["control_epoch"],
+        idempotency_key="grounded-notepad-deferred-newline",
+    )
+
+    assert result["status"] == "completed"
+    assert [call for call in _hid_calls(runtime) if call[0] == "keypress"] == [
+        ("keypress", {"keys": ["Enter"]})
+    ]
+
+
 async def test_safe_error_click_reads_only_the_dialog_before_dismissal(
     runtime: Runtime,
 ) -> None:

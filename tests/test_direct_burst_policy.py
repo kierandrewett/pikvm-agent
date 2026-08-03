@@ -515,6 +515,50 @@ def test_shift_enter_remains_a_non_submitting_editor_line_break() -> None:
     assert verdict.status == "allowed"
 
 
+def test_deferred_exact_rows_allow_bare_enter_only_on_confirmed_notepad() -> None:
+    actions = [
+        {
+            "type": "type_text",
+            "text": "@echo off",
+            "code": True,
+            "context": "editor",
+            "verification": "deferred_exact",
+        },
+        {"type": "key", "keys": ["ENTER"]},
+        {
+            "type": "type_text",
+            "text": "exit /b 0",
+            "code": True,
+            "context": "editor",
+            "verification": "deferred_exact",
+        },
+    ]
+
+    allowed = classify_direct_burst(
+        actions,
+        PolicyConfig(),
+        observed_surface_text=(
+            "Untitled - Notepad\nFile Edit View\nLn 1, Col 1 0 characters"
+        ),
+    )
+    unknown = classify_direct_burst(actions, PolicyConfig())
+    communications = classify_direct_burst(
+        actions,
+        PolicyConfig(),
+        observed_surface_text="Microsoft Teams Chat Type a message",
+    )
+
+    assert allowed.status == "allowed"
+    assert (unknown.status, unknown.category) == (
+        "approval_required",
+        "unknown",
+    )
+    assert (communications.status, communications.category) == (
+        "approval_required",
+        "unknown",
+    )
+
+
 def test_numpad_enter_also_fails_closed_on_an_unknown_surface() -> None:
     verdict = _classify([{"type": "key", "keys": ["NumpadEnter"]}])
 

@@ -53,6 +53,7 @@ from pikvm_agent.policy.direct import (
     is_safe_local_filename_draft,
     is_safe_local_navigation_target,
     needs_calculator_surface_grounding,
+    needs_deferred_exact_editor_surface_grounding,
     needs_local_file_overwrite_surface_grounding,
     needs_local_navigation_surface_grounding,
     needs_safe_windows_error_dismissal_surface_grounding,
@@ -1434,6 +1435,7 @@ class Runtime:
         """Ground one local commit as navigation or a local file save."""
 
         calculator = needs_calculator_surface_grounding(actions)
+        deferred_editor = needs_deferred_exact_editor_surface_grounding(actions)
         safe_error_dismissal = (
             not local_navigation_draft
             and needs_safe_windows_error_dismissal_surface_grounding(actions)
@@ -1444,6 +1446,7 @@ class Runtime:
         )
         if (
             not calculator
+            and not deferred_editor
             and not local_navigation_draft
             and not safe_error_dismissal
             and not local_file_overwrite
