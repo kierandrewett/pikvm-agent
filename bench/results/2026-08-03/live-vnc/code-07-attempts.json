@@ -1,0 +1,163 @@
+{
+  "schema_version": 1,
+  "report": "codex-code-entry-code07-failure-inclusive-attempts",
+  "recorded_at": "2026-08-03T05:21:40Z",
+  "environment": {
+    "target": "authorized disposable Windows VNC VM",
+    "production_target_contacted": false,
+    "endpoint_retained": false,
+    "reboot_after_every_test": true
+  },
+  "task": {
+    "task_id": "code-07",
+    "category": "Code entry",
+    "summary": "Write, save, reopen, and visually verify a YAML service definition in Notepad"
+  },
+  "model_route": {
+    "provider": "codex-fast",
+    "model": "gpt-5.6-terra",
+    "reasoning_effort": "low",
+    "service_tier": "priority",
+    "roles": [
+      "reasoner",
+      "controller",
+      "verifier"
+    ]
+  },
+  "summary": {
+    "full_task_runs": 2,
+    "failed_runs": 1,
+    "invalid_runs": 0,
+    "passed_runs": 1,
+    "all_failures_retained": true,
+    "all_recordings_retained": true,
+    "all_reboots_ready": true,
+    "all_reboots_observed_real_transition": true,
+    "release_gate": "accuracy passing; speed failing"
+  },
+  "attempts": [
+    {
+      "campaign_id": "codex-code-entry-code07-v1-20260803",
+      "manifest_campaign_id": "codex-windows-50",
+      "accepted_status": "failed",
+      "run_id": "6a4c52f7-3562-43fa-bec4-0ef617a26b0d",
+      "reason": "Notepad continued restoring old windows after the independent verifier saw a new blank document. The sender issued `services:` once, but a restored window stole foreground focus before the readback frame. The receipt failed as focus-lost; the unverified-draft guard refused replay, Ctrl+N, and focus clicks, so the run blocked before Save As.",
+      "wall_clock_ms": 185462,
+      "task_duration_ms": 370545,
+      "preflight_ms": 61226,
+      "provider_wait_ms": 95277,
+      "provider_wait_share": 0.5137278795656253,
+      "action_execution_ms": 84043,
+      "action_execution_share": 0.4531548241688324,
+      "provider_calls": 11,
+      "reasoner_calls": 4,
+      "controller_calls": 5,
+      "verifier_calls": 2,
+      "actions_attempted": 3,
+      "actions_completed": 2,
+      "failed_input_requested_characters": 9,
+      "failed_input_issued_characters": 9,
+      "failed_input_observed_characters": 0,
+      "failed_input_delivery_retries": 0,
+      "failed_input_emitted_exactly_once": true,
+      "hid_replays_after_failed_input": 0,
+      "quiescence_status": "confirmed",
+      "reboot_ms": 119029,
+      "reboot_transition_observed": true,
+      "recording": {
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2.0,
+        "duration_ms": 265500,
+        "size_bytes": 879318
+      },
+      "campaign_sha256": "3c744f6967c8872351c55d94525195b0c8a58184f525602b532e1aeb7d5c1680",
+      "recording_sha256": "73b8104cf4734fb08fbd0922e181ce8ecde0b5d5ef5327ebde8729353be363ff",
+      "poster_sha256": "33796ec4aedd0f7ac642a10a225d3b379789a511a6da302369b915c9cb902b9b"
+    },
+    {
+      "campaign_id": "codex-code-entry-code07-v2-20260803",
+      "manifest_campaign_id": "codex-windows-50",
+      "accepted_status": "passed",
+      "run_id": "c750fb5c-7577-413a-aafd-56ec6551293c",
+      "reason": "The hardened fresh-document action waited for Notepad session restoration to settle before issuing Ctrl+N. Seven YAML rows and both native-dialog filenames then verified exactly. The saved file reopened through the native Open dialog, the requested service, image, restart policy, environment values, and indentation were independently verified, quiescence passed, and the mandatory reboot observed a real transition.",
+      "wall_clock_ms": 526062,
+      "task_duration_ms": 902528,
+      "preflight_ms": 59812,
+      "model_active_ms": 197074,
+      "provider_wait_ms": 197626,
+      "provider_wait_share": 0.3756705483384088,
+      "provider_serial_equivalent_ms": 197626,
+      "provider_overlap_ms": 0,
+      "action_execution_ms": 317297,
+      "action_execution_share": 0.6031551414091875,
+      "evidence_capture_ms": 3807,
+      "provider_calls": 27,
+      "reasoner_calls": 3,
+      "controller_calls": 4,
+      "verifier_calls": 20,
+      "actions_attempted": 24,
+      "actions_completed": 24,
+      "exact_input_receipts": 10,
+      "input_receipt_totals": {
+        "requested_characters": 154,
+        "issued_characters": 154,
+        "observed_characters": 154,
+        "all_zero_edit_distance": true,
+        "all_zero_corrections": true,
+        "all_zero_delivery_retries": true,
+        "all_emitted_exactly_once": true,
+        "all_exact_readback_sha256_match": true
+      },
+      "verified_yaml_rows": [
+        "services:",
+        "  observer:",
+        "    image: observer:1.0",
+        "    restart: unless-stopped",
+        "    environment:",
+        "      LOG_LEVEL: info",
+        "      PORT: 8080"
+      ],
+      "same_run_recoveries": 1,
+      "recovery_reason": "The first post-Open verifier saw the complete YAML but requested stronger filename evidence because the Notepad tab label was truncated. The exact Open filename receipt was preserved and no artifact text was replayed.",
+      "approval_count": 2,
+      "approval_scopes": [
+        "bounded_workspace_edit"
+      ],
+      "quiescence_status": "confirmed",
+      "reboot_ms": 307747,
+      "reboot_transition_observed": true,
+      "recording": {
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2.0,
+        "duration_ms": 704000,
+        "size_bytes": 1646548
+      },
+      "campaign_sha256": "ead7dadee0df70bab3f13b4f48f5babc810347d43a313c56df8e88e5610189cd",
+      "recording_sha256": "4b23816747d510babd65f3ba4ad896c8ee53df41cdff9811e67af8b6d93119bd",
+      "poster_sha256": "d6c3f21feddf9d9ef9f6eef4e78323da92f39a94a53ca64a659d201708bec9a6"
+    }
+  ],
+  "remediations": [
+    {
+      "after_attempt": "v1",
+      "commit": "11f241af884ac589c4163826776965fafd88de34",
+      "change": "Wait eight bounded seconds for delayed Notepad session restoration before creating the task-owned document, then require a 1.5-second stable screen before exact text entry."
+    }
+  ],
+  "next_gate": {
+    "status": "passed",
+    "accepted_attempt": "v2",
+    "evidence": [
+      "All seven indentation-sensitive YAML rows verified exactly with no correction, retry, or replay.",
+      "Save As and Open each produced a separate exact `code-07.yaml` receipt.",
+      "All 24 actions completed and the reopened content passed independent verification.",
+      "Both attempts retained recordings, confirmed quiescence, and completed transition-observed reboots."
+    ],
+    "remaining_product_gate": "speed",
+    "next_task": "code-08"
+  }
+}

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "report": "codex-50-live-progress",
-  "recorded_at": "2026-08-03T04:34:12Z",
+  "recorded_at": "2026-08-03T05:21:40Z",
   "manifest": "bench/codex-50-tasks.yaml",
   "environment": {
     "target": "authorized disposable Windows VNC VM",
@@ -16,9 +16,9 @@
   },
   "progress": {
     "planned": 50,
-    "unique_passed": 31,
-    "pending": 19,
-    "completion_percent": 62.0,
+    "unique_passed": 32,
+    "pending": 18,
+    "completion_percent": 64.0,
     "categories": {
       "Observation": {
         "passed": 5,
@@ -33,7 +33,7 @@
         "planned": 10
       },
       "Code entry": {
-        "passed": 6,
+        "passed": 7,
         "planned": 10
       },
       "File management": {
@@ -80,7 +80,8 @@
       "code-03",
       "code-04",
       "code-05",
-      "code-06"
+      "code-06",
+      "code-07"
     ]
   },
   "canonical_campaigns": [
@@ -264,6 +265,13 @@
         "code-06"
       ],
       "campaign_sha256": "4a85c4b86c58bcacf829d27ce4c2bb76be56fa2c39533858f6bad7e14f6c09cf"
+    },
+    {
+      "campaign_id": "codex-code-entry-code07-v2-20260803",
+      "tasks": [
+        "code-07"
+      ],
+      "campaign_sha256": "ead7dadee0df70bab3f13b4f48f5babc810347d43a313c56df8e88e5610189cd"
     }
   ],
   "calc_09_acceptance": {
@@ -3435,10 +3443,10 @@
     "full_ledger": "bench/results/2026-08-02/live-vnc/code-03-attempts.json"
   },
   "verdict": {
-    "accuracy": "The campaign is 31/50. All ten Text entry tasks and the first six Code entry tasks pass with fresh input and independent reopen evidence. Code-06 completed 26/26 actions with 12 exact receipts covering 222 requested, issued, and observed characters, zero edit distance, corrections, or retries, and no recovery. Its eight failed full-task runs remain in the denominator.",
-    "speed": "Failing product target: accepted code-06 v9 took 455.964 seconds before reboot and 607.519 seconds from task preflight through the reset-ready gate. A competent human can enter, save, reopen, and inspect this JavaScript function materially faster.",
-    "dominant_cost": "Code-06 v9 spent 327.511 seconds in action execution and 123.109 seconds waiting on the critical provider path. Action execution is 71.83% of run wall time; provider wait is 27.00%. Sixteen verifier turns across 19 provider calls remain the dominant avoidable interaction cost.",
-    "next": "Continue with code-07 while preserving exact-once input, deterministic Save/Open commit grounding, independent reopen proof, bounded workspace approval, fresh-artifact preparation, quiesce-before-reboot lifecycle, failure-inclusive recordings, and the live-proven structural-row crop."
+    "accuracy": "The campaign is 32/50. All ten Text entry tasks and the first seven Code entry tasks pass with fresh input and independent reopen evidence. Code-07 v2 completed 24/24 actions with ten exact receipts covering 154 requested, issued, and observed characters, zero edit distance, corrections, or retries. Its v1 restored-session focus failure remains in the denominator.",
+    "speed": "Failing product target: accepted code-07 v2 took 526.062 seconds for the managed run and 902.528 seconds from task preflight through the reset-ready gate. A competent human can enter, save, reopen, and inspect this seven-line YAML definition materially faster.",
+    "dominant_cost": "Code-07 v2 spent 317.297 seconds in action execution and 197.626 seconds waiting on the critical provider path. Action execution is 60.32% of run wall time; provider wait is 37.57%. Twenty verifier turns across 27 provider calls, a 59.812-second visible preflight, and a 307.747-second guest reboot are the dominant avoidable costs.",
+    "next": "Continue with code-08 while preserving exact-once input, delayed Notepad session-restore settling, deterministic Save/Open commit grounding, independent reopen proof, bounded workspace approval, fresh-artifact preparation, quiesce-before-reboot lifecycle, and failure-inclusive recordings."
   },
   "code_04_acceptance": {
     "task": "Write, save, reopen, and visually verify a grouped customer-value SQL query in Notepad",
@@ -3834,5 +3842,83 @@
     },
     "excluded_scope_runs": 1,
     "full_ledger": "bench/results/2026-08-03/live-vnc/code-06-attempts.json"
+  },
+  "code_07_acceptance": {
+    "task": "Write, save, reopen, and visually verify a YAML service definition in Notepad",
+    "result": "passed",
+    "run_id": "c750fb5c-7577-413a-aafd-56ec6551293c",
+    "reason": "After a retained v1 restored-session focus failure, v2 waited for Notepad session restoration to settle, created a fresh task-owned document, entered seven indentation-sensitive YAML rows, saved and reopened `code-07.yaml`, and completed only after independent content verification. Quiescence and a transition-observed reboot both passed.",
+    "wall_clock_ms": 526062,
+    "task_duration_ms": 902528,
+    "preflight_ms": 59812,
+    "model_active_ms": 197074,
+    "provider_wait_ms": 197626,
+    "provider_serial_equivalent_ms": 197626,
+    "provider_overlap_ms": 0,
+    "action_execution_ms": 317297,
+    "evidence_capture_ms": 3807,
+    "provider_calls": 27,
+    "reasoner_calls": 3,
+    "controller_calls": 4,
+    "verifier_calls": 20,
+    "actions_attempted": 24,
+    "actions_completed": 24,
+    "completion_efficiency": 1.0,
+    "exact_input_receipts": 10,
+    "input_receipt_totals": {
+      "requested_characters": 154,
+      "issued_characters": 154,
+      "observed_characters": 154,
+      "all_zero_edit_distance": true,
+      "all_zero_corrections": true,
+      "all_zero_delivery_retries": true,
+      "all_emitted_exactly_once": true,
+      "all_exact_readback_sha256_match": true
+    },
+    "verified_yaml_rows": [
+      "services:",
+      "  observer:",
+      "    image: observer:1.0",
+      "    restart: unless-stopped",
+      "    environment:",
+      "      LOG_LEVEL: info",
+      "      PORT: 8080"
+    ],
+    "unverified_inputs": 0,
+    "typing_corrections": 0,
+    "same_run_recoveries": 1,
+    "approval_count": 2,
+    "approval_scopes": [
+      "bounded_workspace_edit"
+    ],
+    "quiescence_status": "confirmed",
+    "reboot_ms": 307747,
+    "reboot_transition_observed": true,
+    "recording": {
+      "sha256": "4b23816747d510babd65f3ba4ad896c8ee53df41cdff9811e67af8b6d93119bd",
+      "codec": "vp9",
+      "width": 2048,
+      "height": 1280,
+      "fps": 2.0,
+      "duration_ms": 704000,
+      "size_bytes": 1646548,
+      "relative_path": "codex-code-entry-code07-v2-20260803/codex-windows-50/code-07/recording.webm"
+    },
+    "poster": {
+      "relative_path": "codex-code-entry-code07-v2-20260803/codex-windows-50/code-07/poster.jpg",
+      "sha256": "d6c3f21feddf9d9ef9f6eef4e78323da92f39a94a53ca64a659d201708bec9a6"
+    },
+    "campaign_sha256": "ead7dadee0df70bab3f13b4f48f5babc810347d43a313c56df8e88e5610189cd"
+  },
+  "code_07_attempt_summary": {
+    "total_runs": 2,
+    "failed_runs": 1,
+    "invalid_runs": 0,
+    "passed_runs": 1,
+    "canonical_campaign_id": "codex-code-entry-code07-v2-20260803",
+    "failure_terminal_outcomes": {
+      "delayed_notepad_session_restore_focus_loss": 1
+    },
+    "full_ledger": "bench/results/2026-08-03/live-vnc/code-07-attempts.json"
   }
 }
