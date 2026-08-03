@@ -25,15 +25,15 @@
     ]
   },
   "summary": {
-    "recorded_attempts": 16,
+    "recorded_attempts": 17,
     "valid_full_task_runs": 12,
     "failed_runs": 11,
-    "infrastructure_invalid_runs": 4,
+    "infrastructure_invalid_runs": 5,
     "passed_runs": 1,
     "canonical_attempt": "v10",
     "all_failures_retained": true,
     "all_recordings_retained": true,
-    "reboots_ready": 15,
+    "reboots_ready": 16,
     "reboots_failed_or_pending": 1,
     "release_gate": "accuracy passing; speed failing; post-pass speed remediation remains active"
   },
@@ -504,6 +504,61 @@
       },
       "poster_sha256": "7a33190fce05da2e7f632e9154d738a60c46ef0148dbc9139b7145d729f4bdf4",
       "campaign_sha256": "8974b1931f138236927a563633984114511acf718d8c12c2ffee2d7413bd213e"
+    },
+    {
+      "campaign_id": "codex-code-entry-code08-v17-20260803",
+      "accepted_status": "infrastructure_invalid",
+      "campaign_reported_status": "passed",
+      "run_id": "7e48ad95-6570-4af8-a2b2-f4cda74b19f2",
+      "source_commit": "71e7933",
+      "reason": "The managed model run was exact and substantially faster: all 12 actions completed, two observer captures returned 127 bytes matching both the immutable plan and cumulative editor input, and there were no completion rejections or autonomous resumptions. The setup gate still failed independent verification, however. A checksum-valid observer capture returned open failed for the claimed preserved-old-artifact path. Because preservation was reported but not achieved, v17 is retained as infrastructure-invalid rather than replacing the canonical accepted attempt.",
+      "wall_clock_ms": 284372,
+      "task_duration_ms": 477414,
+      "preflight_ms": 64196,
+      "model_active_ms": 139365,
+      "provider_wait_ms": 131143,
+      "provider_serial_equivalent_ms": 139757,
+      "provider_overlap_ms": 8614,
+      "action_execution_ms": 146395,
+      "evidence_capture_ms": 2831,
+      "provider_calls": 16,
+      "reasoner_calls": 1,
+      "controller_calls": 3,
+      "verifier_calls": 12,
+      "actions_attempted": 12,
+      "actions_completed": 12,
+      "approval_count": 2,
+      "approval_scopes": [
+        "bounded_workspace_edit"
+      ],
+      "completion_gate_rejections": 0,
+      "autonomous_resumes": 0,
+      "observer_artifact_comparison": {
+        "transport": "guarded MCP visual matrix",
+        "path": "C:/PiKVM-Harness/workspace/codex-50/code-08.cmd",
+        "observed_bytes": 127,
+        "observed_sha256": "c5e247fcb3f17892938d047673cab4efbc6588140cd5d6b5047c553a8349ced4",
+        "cumulative_input_exact_match": true,
+        "immutable_plan_expected_bytes": 127,
+        "immutable_plan_expected_sha256": "c5e247fcb3f17892938d047673cab4efbc6588140cd5d6b5047c553a8349ced4",
+        "immutable_plan_exact_match": true,
+        "claimed_preserved_path_observed": false,
+        "comparison_report": "bench/results/2026-08-03/live-vnc/code-08-v17-observer-comparison.json"
+      },
+      "quiescence_status": "confirmed",
+      "reboot_ms": 124448,
+      "reboot_transition_observed": true,
+      "recording": {
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2.0,
+        "duration_ms": 319000,
+        "size_bytes": 1615929,
+        "sha256": "870f6eafc4f5ad1ebe10085f327486e3047cc871d8c27c8079856930d379067d"
+      },
+      "poster_sha256": "68158b92145166108e917a8a8c6b16cf7831c3e5bea6e9093d9c01f47ecb0c24",
+      "campaign_sha256": "c2e937e2648fd81ffbd31966506565256afed221960a63358ed32690ee26db57"
     }
   ],
   "remediations": [
@@ -588,6 +643,11 @@
       "after_attempt": "v16",
       "commit": "ab78925",
       "change": "Show the desktop before and after task setup and segment the silent 276-character workspace command into short basename-only preservation operations."
+    },
+    {
+      "after_attempt": "v17",
+      "commit": "2536526",
+      "change": "Remove shifted shell chaining from artifact preservation, use a single bounded ren command, and report its result as requested-unverified until observer proof exists."
     }
   ],
   "next_gate": {
@@ -601,7 +661,7 @@
       "The accepted run completed a transition-observed mandatory reboot and retained its recording."
     ],
     "blocking_infrastructure_state": null,
-    "next_attempt": "v17 after segmenting workspace preflight input and restoring a clean desktop around setup",
+    "next_attempt": "v18 after replacing chained artifact preservation with one bounded ren command and honest unverified status",
     "next_task_after_speed_gate": "code-09"
   }
 }

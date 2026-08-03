@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "campaign_id": "codex-code-entry-code08-v17-20260803",
+  "run_id": "7e48ad95-6570-4af8-a2b2-f4cda74b19f2",
+  "source_commit": "71e7933",
+  "accepted_status": "infrastructure_invalid",
+  "campaign_reported_status": "passed",
+  "environment": {
+    "production_contacted": false,
+    "endpoint_retained_in_repository": false,
+    "adapter_keymap": "en-gb"
+  },
+  "managed_run": {
+    "provider": "codex-fast",
+    "model": "gpt-5.6-terra",
+    "actions_attempted": 12,
+    "actions_completed": 12,
+    "provider_calls": 16,
+    "autonomous_resumes": 0,
+    "completion_gate_rejections": 0
+  },
+  "immutable_plan": {
+    "windows_crlf_bytes": 127,
+    "sha256": "c5e247fcb3f17892938d047673cab4efbc6588140cd5d6b5047c553a8349ced4",
+    "terminal_newline": false
+  },
+  "current_path_observer": {
+    "transport": "guarded MCP visual matrix",
+    "path": "C:/PiKVM-Harness/workspace/codex-50/code-08.cmd",
+    "captures": [
+      {
+        "sequence": 2,
+        "pages": 4,
+        "checksum_valid": true
+      },
+      {
+        "sequence": 3,
+        "pages": 5,
+        "checksum_valid": true
+      }
+    ],
+    "observed_bytes": 127,
+    "observed_sha256": "c5e247fcb3f17892938d047673cab4efbc6588140cd5d6b5047c553a8349ced4",
+    "matches_cumulative_editor_input": true,
+    "matches_immutable_plan": true,
+    "byte_errors": 0,
+    "dangerous_commit_count": 0,
+    "guest_identity_present": true,
+    "input_desktop_present": true
+  },
+  "claimed_preserved_path_observer": {
+    "transport": "guarded MCP visual matrix",
+    "path": "C:/PiKVM-Harness/workspace/codex-50/code-08.cmd.pikvm-prior-56b431e396c04199997f83fabf04d972",
+    "captures": [
+      {
+        "sequence": 2,
+        "pages": 4,
+        "checksum_valid": true,
+        "file_error": "open failed"
+      }
+    ],
+    "file_observed": false,
+    "dangerous_commit_count": 0,
+    "guest_identity_present": true,
+    "input_desktop_present": true
+  },
+  "finding": "The model and HID transport achieved exact current-run bytes with a much smaller control loop, but the campaign's setup still falsely claimed that the previous artifact had been preserved. v17 is infrastructure-invalid until both the live artifact and the preservation claim pass independently.",
+  "remediation": {
+    "commit": "2536526",
+    "change": "Replace the chained cd/if/move command with one short ren command containing no shell chaining, and expose preservation_status as requested_unverified until observer evidence confirms it."
+  }
+}
