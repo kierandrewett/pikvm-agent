@@ -332,10 +332,37 @@ def test_editor_status_search_region_keeps_low_foreground_row_visible() -> None:
     assert region.y < 489 < region.y + region.height
 
 
+def test_editor_status_search_region_retains_complete_low_status_glyphs() -> None:
+    """The Code-06 v4 crop must not clip the causal status repaint."""
+
+    row = Region(
+        x=40,
+        y=29.62962962962963,
+        width=733.3333333333334,
+        height=88.88888888888889,
+    )
+    status_effect = Region(x=72, y=477, width=85, height=27)
+
+    region = editor_status_search_region(row, (1280, 800))
+
+    assert region is not None
+    candidates = [
+        region,
+        *typing_module.editor_status_search_subregions(region),
+    ]
+    assert any(
+        candidate.y <= status_effect.y
+        and candidate.y + candidate.height
+        >= status_effect.y + status_effect.height
+        for candidate in candidates
+    )
+
+
 def test_editor_status_search_subregions_cover_broad_crop() -> None:
     region = Region(x=0, y=368, width=512, height=150)
 
     assert typing_module.editor_status_search_subregions(region) == [
+        Region(x=0, y=454, width=512, height=128),
         Region(x=0, y=368, width=512, height=64),
         Region(x=0, y=411, width=512, height=64),
         Region(x=0, y=454, width=512, height=64),
@@ -419,6 +446,56 @@ def test_split_status_items_prove_single_line_document_invariants() -> None:
         row,
         (1280, 800),
         container_region=region,
+    )
+
+
+def test_trailing_status_crop_uses_foreground_row_from_code06_v4() -> None:
+    """A lower background Notepad row cannot override the causal foreground."""
+
+    intended = "function debounce(fn, delay) {"
+    row = Region(
+        x=40,
+        y=29.62962962962963,
+        width=733.3333333333334,
+        height=88.88888888888889,
+    )
+    trailing = Region(
+        x=0,
+        y=429.6296296296296,
+        width=512,
+        height=128,
+    )
+    result = OCRResult(
+        lines=[
+            OCRLine(
+                text="Ln 1, Col 31",
+                confidence=0.9278,
+                bbox=[48, 55, 89, 65],
+            ),
+            OCRLine(
+                text="30 characters",
+                confidence=0.9730,
+                bbox=[98, 54, 149, 66],
+            ),
+            OCRLine(
+                text="Ln 9, Col 4",
+                confidence=0.9508,
+                bbox=[80, 88, 120, 98],
+            ),
+            OCRLine(
+                text="128 characters",
+                confidence=0.9989,
+                bbox=[132, 88, 184, 98],
+            ),
+        ]
+    )
+
+    assert editor_status_proves_single_line_payload(
+        result,
+        intended,
+        row,
+        (1280, 800),
+        container_region=trailing,
     )
 
 

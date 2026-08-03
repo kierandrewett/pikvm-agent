@@ -896,19 +896,45 @@ def editor_status_search_region(
     )
 
 
-def editor_status_search_subregions(region: Region) -> list[Region]:
-    """Return three overlapping status bands for tiny dark-theme text.
+def editor_status_search_subregions(
+    region: Region,
+    dims: tuple[int, int] | None = None,
+) -> list[Region]:
+    """Return bounded status bands for tiny dark-theme text.
 
     The broad geometry crop protects against stacked windows, but its empty
-    editor area can dominate Tesseract segmentation. Scan fixed top, middle,
-    and bottom bands derived only from that crop; no expected text or OCR
-    result influences their position.
+    editor area can dominate Tesseract segmentation. A status row whose top is
+    inside the allowed crop can still have its lower glyphs clipped at the
+    bottom edge. Scan that trailing edge first with one bounded two-glyph band,
+    then fixed top, middle, and bottom bands. No expected text or OCR result
+    influences their position, and the downstream geometry validator still
+    rejects a row whose top exceeds the original bounded search depth.
     """
 
     band_height = min(region.height, EDITOR_STATUS_COMPACT_HEIGHT_PX)
     travel = max(0.0, region.height - band_height)
     offsets = (0.0, travel / 2.0, travel)
-    return [
+    trailing_height = min(
+        region.height,
+        EDITOR_STATUS_COMPACT_HEIGHT_PX * 2,
+    )
+    trailing_y = (
+        region.y
+        + region.height
+        - min(region.height, EDITOR_STATUS_COMPACT_HEIGHT_PX)
+    )
+    if dims is not None:
+        trailing_height = min(
+            trailing_height,
+            max(1.0, float(dims[1]) - trailing_y),
+        )
+    trailing = Region(
+        x=region.x,
+        y=trailing_y,
+        width=region.width,
+        height=trailing_height,
+    )
+    compact = [
         Region(
             x=region.x,
             y=region.y + offset,
@@ -917,6 +943,7 @@ def editor_status_search_subregions(region: Region) -> list[Region]:
         )
         for offset in dict.fromkeys(offsets)
     ]
+    return [trailing, *compact]
 
 
 def is_standalone_i_autocorrect(intended: str, observed: str) -> bool:
@@ -3975,7 +4002,8 @@ class WatchedTyper:
             proved = predicate(bounded_status, status_region)
             if not proved:
                 for compact_region in editor_status_search_subregions(
-                    status_region
+                    status_region,
+                    dims,
                 ):
                     compact_status = await self._read_screen(
                         precise=True,
