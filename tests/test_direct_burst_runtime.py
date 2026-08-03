@@ -866,6 +866,149 @@ async def test_confirmed_notepad_allows_bounded_deferred_editor_newlines(
     ]
 
 
+async def test_live_titleless_notepad_ocr_corruption_allows_deferred_newlines(
+    runtime: Runtime,
+) -> None:
+    class LiveNotepadOCR:
+        async def ocr(self, image_path, region=None):
+            del image_path, region
+            return OCRResult(
+                lines=[
+                    OCRLine(
+                        text=(
+                            "eek ReSigbl Unfit! ReSabl text-OlDt Wait"
+                        ),
+                        bbox=[2, 36, 812, 58],
+                    ),
+                    OCRLine(
+                        text="File Edit View",
+                        bbox=[36, 65, 128, 76],
+                    ),
+                    OCRLine(
+                        text="Ln icolt _Ocharacters",
+                        bbox=[48, 480, 143, 502],
+                    ),
+                    OCRLine(
+                        text="Painter",
+                        bbox=[230, 481, 264, 503],
+                    ),
+                    OCRLine(
+                        text="100% Windows (CRUE",
+                        bbox=[698, 480, 798, 502],
+                    ),
+                    OCRLine(
+                        text="ures",
+                        bbox=[844, 480, 866, 502],
+                    ),
+                ]
+            )
+
+    runtime._screen_parser.ocr = LiveNotepadOCR()
+    sid = (await runtime.start_session("direct"))["session_id"]
+    shot = await runtime.get_session_summary(sid, capture=True)
+    actions = [
+        {
+            "type": "type_text",
+            "text": "@echo off",
+            "code": True,
+            "context": "editor",
+            "verification": "deferred_exact",
+        },
+        {"type": "key", "keys": ["ENTER"]},
+        {
+            "type": "type_text",
+            "text": "exit /b 0",
+            "code": True,
+            "context": "editor",
+            "verification": "deferred_exact",
+        },
+    ]
+
+    result = await runtime.run_burst(
+        sid,
+        actions,
+        based_on_world_version=shot["world_version"],
+        based_on_control_epoch=shot["control_epoch"],
+        idempotency_key="live-corrupt-notepad-deferred-newline",
+    )
+
+    assert result["status"] == "completed"
+    assert [call for call in _hid_calls(runtime) if call[0] == "keypress"] == [
+        ("keypress", {"keys": ["Enter"]})
+    ]
+
+
+async def test_titleless_notepad_chrome_behind_busy_foreground_fails_closed(
+    runtime: Runtime,
+) -> None:
+    class BackgroundNotepadOCR:
+        async def ocr(self, image_path, region=None):
+            del image_path, region
+            return OCRResult(
+                lines=[
+                    OCRLine(text="Unfit!", bbox=[20, 36, 180, 58]),
+                    OCRLine(
+                        text="File Edit View",
+                        bbox=[36, 65, 128, 76],
+                    ),
+                    OCRLine(
+                        text="Microsoft Teams Chat Type a message",
+                        bbox=[180, 120, 700, 170],
+                    ),
+                    OCRLine(
+                        text="Ln 1, Col 1 0 characters",
+                        bbox=[48, 480, 220, 502],
+                    ),
+                    OCRLine(
+                        text="100% Windows (CRLF)",
+                        bbox=[698, 480, 820, 502],
+                    ),
+                ]
+            )
+
+    image = Image.new("RGB", (1280, 720), (39, 39, 39))
+    draw = ImageDraw.Draw(image)
+    for y in range(90, 470, 16):
+        draw.rectangle(
+            (40, y, 860, y + 7),
+            fill=(210, 210, 210) if (y // 16) % 2 else (5, 5, 5),
+        )
+    output = io.BytesIO()
+    image.save(output, "JPEG", quality=90)
+    runtime.backend.set_frame_bytes(output.getvalue())
+    runtime._screen_parser.ocr = BackgroundNotepadOCR()
+    sid = (await runtime.start_session("direct"))["session_id"]
+    shot = await runtime.get_session_summary(sid, capture=True)
+    actions = [
+        {
+            "type": "type_text",
+            "text": "@echo off",
+            "code": True,
+            "context": "editor",
+            "verification": "deferred_exact",
+        },
+        {"type": "key", "keys": ["ENTER"]},
+        {
+            "type": "type_text",
+            "text": "exit /b 0",
+            "code": True,
+            "context": "editor",
+            "verification": "deferred_exact",
+        },
+    ]
+
+    result = await runtime.run_burst(
+        sid,
+        actions,
+        based_on_world_version=shot["world_version"],
+        based_on_control_epoch=shot["control_epoch"],
+        idempotency_key="background-notepad-deferred-newline",
+    )
+
+    assert result["status"] == "needs_approval"
+    assert _hid_calls(runtime) == []
+
+
 async def test_safe_error_click_reads_only_the_dialog_before_dismissal(
     runtime: Runtime,
 ) -> None:

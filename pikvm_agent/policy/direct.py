@@ -1002,6 +1002,7 @@ def classify_direct_burst(
     policy: PolicyConfig,
     *,
     observed_surface_text: str = "",
+    verified_deferred_editor_surface: bool = False,
     verified_local_navigation_commit: bool = False,
     verified_local_file_save_commit: bool = False,
 ) -> DirectBurstVerdict:
@@ -1023,7 +1024,10 @@ def classify_direct_burst(
     )
     verified_deferred_editor_newlines = (
         needs_deferred_exact_editor_surface_grounding(actions)
-        and is_confirmed_notepad_editor_surface(observed_surface_text)
+        and (
+            verified_deferred_editor_surface
+            or is_confirmed_notepad_editor_surface(observed_surface_text)
+        )
     )
     verified_safe_error_dismissal = (
         is_confirmed_safe_windows_error_dismissal(

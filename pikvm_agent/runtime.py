@@ -65,6 +65,7 @@ from pikvm_agent.vision.frame_diff import screen_hashes_match_surface
 from pikvm_agent.vision.omniparser_manager import OmniParserManager
 from pikvm_agent.vision.paddleocr_client import paddleocr_available
 from pikvm_agent.vision.providers import build_ocr_provider, build_screen_parser
+from pikvm_agent.vision.screen_parser import bbox_from_ocr
 from pikvm_agent.vision.tesseract_ocr import tesseract_available
 
 log = logging.getLogger("pikvm_agent.runtime")
@@ -210,30 +211,11 @@ def nearest_ocr_target_text(
     ]
     candidates: list[tuple[float, float, str]] = []
     for line in confident_lines:
-        box = line.bbox
+        box = bbox_from_ocr(line.bbox)
         if not box:
             continue
-        if (
-            len(box) == 4
-            and all(isinstance(value, (int, float)) for value in box)
-        ):
-            x0, y0, x1, y1 = (float(value) for value in box)
-        elif all(isinstance(point, list) and len(point) >= 2 for point in box):
-            points = [
-                (float(point[0]), float(point[1]))
-                for point in box
-                if isinstance(point, list) and len(point) >= 2
-            ]
-            if not points:
-                continue
-            x0, x1 = min(point[0] for point in points), max(
-                point[0] for point in points
-            )
-            y0, y1 = min(point[1] for point in points), max(
-                point[1] for point in points
-            )
-        else:
-            continue
+        x0, y0 = float(box.x), float(box.y)
+        x1, y1 = float(box.x + box.w), float(box.y + box.h)
         crop_relative = (
             0 <= x0 <= region.width
             and 0 <= x1 <= region.width + 2
@@ -266,6 +248,147 @@ def nearest_ocr_target_text(
     if len(confident_lines) == 1:
         return confident_lines[0].text.strip()
     return ""
+
+
+def _blank_editor_canvas_is_visible(
+    image_path: Path,
+    *,
+    menu_box: tuple[float, float, float, float],
+    character_box: tuple[float, float, float, float],
+    line_ending_box: tuple[float, float, float, float],
+    frame_width: int,
+    frame_height: int,
+) -> bool:
+    """Prove that the chrome encloses one unobscured blank editor canvas."""
+
+    left = max(0, int(min(menu_box[0], character_box[0])))
+    top = max(0, int(menu_box[3] + max(8, frame_height * 0.015)))
+    right = min(
+        frame_width,
+        int(
+            max(line_ending_box[2], character_box[2])
+            + frame_width * 0.05
+        ),
+    )
+    bottom = min(
+        frame_height,
+        int(min(character_box[1], line_ending_box[1]) - 10),
+    )
+    if (
+        right - left < frame_width * 0.35
+        or bottom - top < frame_height * 0.20
+    ):
+        return False
+    try:
+        with Image.open(image_path) as image:
+            gray = image.convert("L").crop((left, top, right, bottom))
+            histogram = gray.histogram()
+            pixel_count = max(1, gray.width * gray.height)
+            mode = max(range(len(histogram)), key=histogram.__getitem__)
+            near_mode = sum(
+                histogram[max(0, mode - 5) : min(256, mode + 6)]
+            )
+            standard_deviation = float(ImageStat.Stat(gray).stddev[0])
+    except (OSError, ValueError):
+        return False
+    return standard_deviation <= 8.0 and near_mode / pixel_count >= 0.94
+
+
+def _is_confirmed_blank_titleless_notepad_editor(
+    observed: OCRResult,
+    image_path: Path,
+    *,
+    frame_width: int,
+    frame_height: int,
+) -> bool:
+    """Recognize fresh Windows 11 Notepad despite bounded OCR corruption.
+
+    The title, menu and aligned status row must all be independently boxed,
+    and the rectangle between them must be a mostly uniform blank canvas. This
+    keeps background Notepad chrome or VS Code's similar status tokens from
+    authorizing bare Enter on an obscuring foreground surface.
+    """
+
+    evidence: list[
+        tuple[str, tuple[float, float, float, float]]
+    ] = []
+    for line in observed.lines:
+        box = bbox_from_ocr(line.bbox)
+        rectangle = (
+            (
+                float(box.x),
+                float(box.y),
+                float(box.x + box.w),
+                float(box.y + box.h),
+            )
+            if box is not None
+            else None
+        )
+        text = " ".join(str(line.text or "").casefold().split())
+        if rectangle is not None and text:
+            evidence.append((text, rectangle))
+
+    titles = [
+        (text, box)
+        for text, box in evidence
+        if "untit" in text or "unfit" in text
+    ]
+    menus = [
+        (text, box)
+        for text, box in evidence
+        if all(marker in text for marker in ("file", "edit", "view"))
+    ]
+    character_rows = [
+        (text, box)
+        for text, box in evidence
+        if "character" in text
+    ]
+    line_ending_rows = [
+        (text, box)
+        for text, box in evidence
+        if "windows" in text and "cr" in text
+    ]
+
+    for _title_text, title_box in titles:
+        for _menu_text, menu_box in menus:
+            if (
+                title_box[1] > frame_height * 0.20
+                or menu_box[1] > frame_height * 0.25
+                or title_box[1] > menu_box[1]
+                or menu_box[1] - title_box[3] > frame_height * 0.12
+            ):
+                continue
+            for _character_text, character_box in character_rows:
+                if (
+                    character_box[0] >= frame_width * 0.25
+                    or character_box[1] - menu_box[3]
+                    < frame_height * 0.20
+                    or character_box[1] > frame_height * 0.90
+                ):
+                    continue
+                for _line_text, line_ending_box in line_ending_rows:
+                    character_center = (
+                        character_box[1] + character_box[3]
+                    ) / 2
+                    line_center = (
+                        line_ending_box[1] + line_ending_box[3]
+                    ) / 2
+                    if (
+                        line_ending_box[0] <= frame_width * 0.35
+                        or abs(character_center - line_center)
+                        > frame_height * 0.04
+                    ):
+                        continue
+                    if _blank_editor_canvas_is_visible(
+                        image_path,
+                        menu_box=menu_box,
+                        character_box=character_box,
+                        line_ending_box=line_ending_box,
+                        frame_width=frame_width,
+                        frame_height=frame_height,
+                    ):
+                        return True
+    return False
 
 
 def build_backend(config: AppConfig) -> Any:
@@ -1030,6 +1153,7 @@ class Runtime:
             observed_surface_text,
             verified_local_navigation_surface,
             verified_local_file_save_surface,
+            verified_deferred_editor_surface,
         ) = await self._ground_keyboard_surface(
             grounded_actions,
             frame,
@@ -1046,6 +1170,9 @@ class Runtime:
             grounded_actions,
             self.config.policy,
             observed_surface_text=observed_surface_text,
+            verified_deferred_editor_surface=(
+                verified_deferred_editor_surface
+            ),
             verified_local_navigation_commit=(
                 matching_local_navigation_draft
                 and verified_local_navigation_surface
@@ -1431,7 +1558,7 @@ class Runtime:
         *,
         local_navigation_draft: str = "",
         verified_same_frame_draft: bool = False,
-    ) -> tuple[str, bool, bool]:
+    ) -> tuple[str, bool, bool, bool]:
         """Ground one local commit as navigation or a local file save."""
 
         calculator = needs_calculator_surface_grounding(actions)
@@ -1451,19 +1578,31 @@ class Runtime:
             and not safe_error_dismissal
             and not local_file_overwrite
         ):
-            return ("", False, False)
+            return ("", False, False, False)
         ocr = getattr(self._screen_parser, "ocr", None)
         if ocr is None:
-            return ("", False, False)
+            return ("", False, False, False)
         try:
             observed = await ocr.ocr(Path(frame.image_path))
         except Exception:
-            return ("", False, False)
+            return ("", False, False, False)
         observed_text = str(observed.text or "")[:2_000]
+        if deferred_editor:
+            return (
+                observed_text,
+                False,
+                False,
+                _is_confirmed_blank_titleless_notepad_editor(
+                    observed,
+                    Path(frame.image_path),
+                    frame_width=frame.width,
+                    frame_height=frame.height,
+                ),
+            )
         if local_file_overwrite:
             precise_ocr = getattr(ocr, "ocr_precise", None)
             if not callable(precise_ocr):
-                return (observed_text, False, False)
+                return (observed_text, False, False, False)
             try:
                 precise = await precise_ocr(
                     Path(frame.image_path),
@@ -1475,16 +1614,17 @@ class Runtime:
                     ),
                 )
             except Exception:
-                return (observed_text, False, False)
+                return (observed_text, False, False, False)
             return (
                 f"{observed_text}\n{str(precise.text or '')[:2_000]}",
+                False,
                 False,
                 False,
             )
         if safe_error_dismissal:
             precise_ocr = getattr(ocr, "ocr_precise", None)
             if not callable(precise_ocr):
-                return (observed_text, False, False)
+                return (observed_text, False, False, False)
             click = next(
                 (
                     action
@@ -1504,19 +1644,20 @@ class Runtime:
                     region=dialog_region,
                 )
             except Exception:
-                return (observed_text, False, False)
+                return (observed_text, False, False, False)
             return (
                 f"{observed_text}\n{str(precise.text or '')[:2_000]}",
                 False,
                 False,
+                False,
             )
         if calculator and is_confirmed_calculator_surface(observed_text):
-            return (observed_text, False, False)
+            return (observed_text, False, False, False)
         if (
             local_navigation_draft == "This PC"
             and is_confirmed_file_explorer_surface(observed_text)
         ):
-            return (observed_text, True, False)
+            return (observed_text, True, False, False)
         if is_safe_local_filename_draft(local_navigation_draft):
             precise_ocr = getattr(ocr, "ocr_precise", None)
             combined_text = observed_text
@@ -1551,10 +1692,11 @@ class Runtime:
                 combined_text,
                 save_as_confirmed or open_confirmed,
                 save_as_confirmed,
+                False,
             )
         precise_ocr = getattr(ocr, "ocr_precise", None)
         if not callable(precise_ocr):
-            return (observed_text, False, False)
+            return (observed_text, False, False, False)
         if local_navigation_draft:
             if is_safe_local_navigation_target(local_navigation_draft):
                 precise_region = Region(
@@ -1583,7 +1725,7 @@ class Runtime:
                 region=precise_region,
             )
         except Exception:
-            return (observed_text, False, False)
+            return (observed_text, False, False, False)
         precise_text = str(precise.text or "")[:2_000]
         if local_navigation_draft:
             combined_text = f"{observed_text}\n{precise_text}"
@@ -1601,6 +1743,7 @@ class Runtime:
                         ),
                     ),
                     False,
+                    False,
                 )
             confirmed = is_confirmed_file_explorer_surface(
                 (
@@ -1612,10 +1755,10 @@ class Runtime:
                 top_band_text=precise_text,
                 verified_same_frame_draft=verified_same_frame_draft,
             )
-            return (combined_text, confirmed, False)
+            return (combined_text, confirmed, False, False)
         if is_confirmed_calculator_surface(precise_text):
-            return (precise_text, False, False)
-        return (observed_text, False, False)
+            return (precise_text, False, False, False)
+        return (observed_text, False, False, False)
 
     @staticmethod
     def _has_matching_local_navigation_draft(
