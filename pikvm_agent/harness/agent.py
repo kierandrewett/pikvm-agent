@@ -1485,7 +1485,6 @@ _NOTEPAD_WORKSPACE_ARTIFACT_RE = re.compile(
 _FOCUS_SAVE_AS_FILENAME_INTENT = (
     "Focus the native Save As File name field."
 )
-_FOCUS_OPEN_FILENAME_INTENT = "Focus the native Open File name field."
 _NOTEPAD_WORKSPACE_BREADCRUMB = (
     "PiKVM-Harness > workspace > codex-50"
 )
@@ -1694,20 +1693,22 @@ def _notepad_file_dialog_controller(
     ):
         actions = [
             {"type": "key", "keys": ["ALT", "N"]},
+            {"type": "key", "keys": ["CTRL", "A"]},
             {
-                "type": "wait_for_stable_screen",
-                "stable_ms": 400,
-                "timeout_ms": 2_000,
+                "type": "type_text",
+                "text": basename,
+                "code": False,
+                "context": "field",
+                "verification": "exact",
             },
         ]
-        intent = _FOCUS_OPEN_FILENAME_INTENT
+        intent = open_filename_intent
         evidence = [
-            "The Open dialog remains visible and its File name field shows "
-            "either a selected filename highlight or a text caret after Alt+N."
+            "The native Open File name field visibly reads exactly "
+            f"`{basename}`."
         ]
     elif (
-        action.intent
-        in {_FOCUS_SAVE_AS_FILENAME_INTENT, _FOCUS_OPEN_FILENAME_INTENT}
+        action.intent == _FOCUS_SAVE_AS_FILENAME_INTENT
         and _pending_action_uses_key_chord(
             action,
             {"AltLeft", "KeyN"},
@@ -1723,11 +1724,7 @@ def _notepad_file_dialog_controller(
                 "verification": "exact",
             },
         ]
-        dialog = (
-            "Save As"
-            if action.intent == _FOCUS_SAVE_AS_FILENAME_INTENT
-            else "Open"
-        )
+        dialog = "Save As"
         intent = _replace_notepad_dialog_filename_intent(
             dialog, basename
         )

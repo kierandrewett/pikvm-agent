@@ -1340,41 +1340,30 @@ def test_notepad_file_dialog_controller_uses_verified_access_key_focus() -> None
         based_on_control_epoch=0,
         idempotency_key="opened-for-reopen",
     )
-    focus_open = _notepad_file_dialog_controller(
+    open_filename = _notepad_file_dialog_controller(
         run,
         opened_for_reopen,
         max_actions=20,
     )
-    assert focus_open is not None
-    assert focus_open.actions[0].keys == ["ALT", "N"]
-
-    focused_open = PendingAction(
-        index=8,
-        intent=focus_open.intent,
-        actions=[
-            item.model_dump(mode="json", exclude_none=True)
-            for item in focus_open.actions
-        ],
-        based_on_world_version=8,
-        based_on_control_epoch=0,
-        idempotency_key="focused-open-name",
-    )
-    open_filename = _notepad_file_dialog_controller(
-        run,
-        focused_open,
-        max_actions=20,
-    )
     assert open_filename is not None
-    assert open_filename.actions[1].text == basename
+    assert [item.type for item in open_filename.actions] == [
+        "key",
+        "key",
+        "type_text",
+    ]
+    assert open_filename.actions[0].keys == ["ALT", "N"]
+    assert open_filename.actions[1].keys == ["CTRL", "A"]
+    assert open_filename.actions[2].text == basename
+    assert open_filename.actions[2].verification == "exact"
 
     named_for_open = PendingAction(
-        index=9,
+        index=8,
         intent=open_filename.intent,
         actions=[
             item.model_dump(mode="json", exclude_none=True)
             for item in open_filename.actions
         ],
-        based_on_world_version=9,
+        based_on_world_version=8,
         based_on_control_epoch=0,
         idempotency_key="named-open-file",
     )
@@ -1389,12 +1378,13 @@ def test_notepad_file_dialog_controller_uses_verified_access_key_focus() -> None
     assert reopen.expects_task_completion is True
 
 
-def test_notepad_open_dialog_uses_the_same_grounded_filename_flow() -> None:
+def test_notepad_open_dialog_atomically_focuses_and_types_filename() -> None:
     run = RunSnapshot(
         run_id="notepad-open-dialog",
         task=(
             "In Notepad, create content. Save it as "
-            "C:\\PiKVM-Harness\\workspace\\codex-50\\code-04.sql."
+            "C:\\PiKVM-Harness\\workspace\\codex-50\\code-04.sql and "
+            "verify it."
         ),
         status=RunStatus.RUNNING,
         plan=PlanDecision(
@@ -1414,14 +1404,26 @@ def test_notepad_open_dialog_uses_the_same_grounded_filename_flow() -> None:
         idempotency_key="opened-native-open",
     )
 
-    focus = _notepad_file_dialog_controller(
+    filename = _notepad_file_dialog_controller(
         run,
         opened,
         max_actions=20,
     )
-    assert focus is not None
-    assert focus.actions[0].keys == ["ALT", "N"]
-    assert "Open dialog" in focus.expected_evidence[0]
+    assert filename is not None
+    assert [item.type for item in filename.actions] == [
+        "key",
+        "key",
+        "type_text",
+    ]
+    assert filename.actions[0].keys == ["ALT", "N"]
+    assert filename.actions[1].keys == ["CTRL", "A"]
+    assert filename.actions[2].text == "code-04.sql"
+    assert filename.actions[2].context == "field"
+    assert filename.actions[2].verification == "exact"
+    assert filename.intent == (
+        "Replace the native Open filename with `code-04.sql`."
+    )
+    assert "visibly reads exactly" in filename.expected_evidence[0]
 
 
 def test_generated_code_recovery_keeps_exact_segment_on_code_transport() -> None:
