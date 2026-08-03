@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "report": "codex-code-entry-code06-failure-inclusive-attempts",
-  "recorded_at": "2026-08-03T02:50:38Z",
+  "recorded_at": "2026-08-03T03:16:06Z",
   "environment": {
     "target": "authorized disposable Windows VNC VM",
     "production_target_contacted": false,
@@ -25,8 +25,8 @@
     ]
   },
   "summary": {
-    "full_task_runs": 5,
-    "failed_runs": 5,
+    "full_task_runs": 6,
+    "failed_runs": 6,
     "invalid_runs": 0,
     "passed_runs": 0,
     "all_failures_retained": true,
@@ -163,6 +163,43 @@
       "campaign_sha256": "667ef18b5b6982572686df6677b66824dd3c0f72a980ecf8d84bfaac4e2f68d6",
       "recording_sha256": "a5f100173f91df570ef1789d61047635bef34e341a98c7440fd430833b851366",
       "poster_sha256": "207bffc410d1c0b458d619347d786854a2ed8550b13b82bcfc3d8c39fad71961"
+    },
+    {
+      "campaign_id": "codex-code-entry-code06-v6-20260803",
+      "manifest_campaign_id": "codex-windows-50",
+      "accepted_status": "failed",
+      "run_id": "b31778ab-a120-444f-bbdc-1f022782e322",
+      "reason": "The compact structural geometry was found live and the target row was visibly correct, but the padded 39-pixel readback region also included the preceding `}, delay);` row. OCR returned `},` and `};`; the receipt classified that exact-once delivery as an ambiguous wrong-region contains match and interrupted before save with no replay or recovery cycle.",
+      "wall_clock_ms": 460224,
+      "provider_wait_ms": 85785,
+      "provider_wait_share": 0.18639836253650396,
+      "action_execution_ms": 370644,
+      "action_execution_share": 0.8053556528994577,
+      "provider_calls": 12,
+      "reasoner_calls": 1,
+      "controller_calls": 1,
+      "verifier_calls": 10,
+      "actions_attempted": 19,
+      "actions_completed": 18,
+      "failed_action_ms": 62247,
+      "failed_input_status": "unverified_wrong_region",
+      "failed_input_requested_characters": 4,
+      "failed_input_issued_characters": 4,
+      "failed_input_observed_characters": 5,
+      "failed_input_readback_rows": [
+        "},",
+        "};"
+      ],
+      "failed_input_delivery_retries": 0,
+      "failed_input_emitted_exactly_once": true,
+      "recovery_cycles_after_failed_input": 0,
+      "hid_inputs_after_failed_input": 0,
+      "quiescence_status": "confirmed",
+      "reboot_ms": 116684,
+      "reboot_transition_observed": true,
+      "campaign_sha256": "b8f3d03a8d6ecd0b76a44e86463b5ef667783f6e1016cee2cf027b4c9f4adff9",
+      "recording_sha256": "56100c1bd1863c6cc6d847e79060a4ebd2886108041aaf8e51374a29bb52306c",
+      "poster_sha256": "32855df7d0260d0658b7372e161eb5b608b2244a2022536e83e013e5c3b1c8cb"
     }
   ],
   "remediations": [
@@ -195,6 +232,11 @@
       "after_attempt": "v5",
       "commit": "2d070848f90a383996cc8cd4a9f60b5b1b4b7412",
       "change": "Localize a unique compact structural editor row from its wider lower status repaint, then move the caret away for exact OCR while preserving independent status proof."
+    },
+    {
+      "after_attempt": "v6",
+      "commit": "3ae373779d0a78fae4e94b972d2f969afe3d17cd",
+      "change": "Split the causal compact delta into vertical pixel bands, discard caret and JPEG noise, and OCR only the lowest substantial editor text band."
     }
   ],
   "invalid_scope_run": {
@@ -212,7 +254,7 @@
   "next_gate": {
     "status": "pending",
     "requirements": [
-      "Prove the compact four-character closing row with caret-stabilized exact OCR and independent status evidence, without replay.",
+      "Prove the compact four-character closing row from the target-only lower pixel band with caret-stabilized exact OCR and independent status evidence, without replay.",
       "Stop model-only recovery promptly when every proposed mutation is forbidden by an unverified input draft.",
       "Save, reopen, and independently verify the complete JavaScript artifact.",
       "Retain recording, quiescence, and a transition-observed reboot."

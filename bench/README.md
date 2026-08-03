@@ -854,7 +854,7 @@ turns. The complete ten-run ledger and supporting diagnostics are
 The canonical campaign digest is `sha256:f0868f7a3474`; its VP9 recording is
 `sha256:fc000d2404d5` and its poster is `sha256:a9c34fd9f657`.
 
-Code-06 is still **pending** after five retained failures. v1 and v2 reached an
+Code-06 is still **pending** after six retained failures. v1 and v2 reached an
 indented four-character closing row after verifying the preceding code, but
 exact OCR returned empty. The retained v2 evaluated frame shows the row was
 actually present, so that attempt is a verifier false negative rather than a
@@ -893,17 +893,36 @@ glyph. It uses the unique compact editor repaint paired with the wider lower
 status repaint only to localize the row, moves the caret away, and still
 requires exact OCR plus independent caret/status evidence. The regression
 proves the four-character fragment is issued once, verified after `Home`, and
-restored with `End`; replay and `Enter` remain forbidden. A live v6 is required
-before Code-06 can pass.
+restored with `End`; replay and `Enter` remain forbidden.
+
+v6 exercised that path live and exposed a narrower geometry fault. Eighteen of
+19 actions completed and the compact structural row was visibly correct. The
+localizer fired, but its padded 39px crop straddled the preceding `}, delay);`
+row; after moving the caret, OCR returned two rows, `},` and `};`. The receipt
+therefore reported `unverified_wrong_region` and interrupted rather than
+accepting a substring, replaying the four issued characters, or starting a
+recovery cycle. The run took 460.224s before reboot. Action/OCR consumed
+370.644s (80.5%), while 12 model calls consumed 85.785s (18.6%); ten calls were
+verifier turns. Quiescence passed, and the mandatory reboot observed a real
+transition and returned ready after 116.684s. The campaign, recording, and
+poster hashes are retained in the ledger.
+
+The post-v6 remediation splits that causal region into vertical changed-pixel
+bands, rejects one-pixel caret/JPEG noise, and sends only the lowest substantial
+text band to exact OCR. It uses no expected text to choose the band. Retained
+frame replay narrows v5's 28px region to 18px and v6's two-line 29px region to
+17px; 283 typing, OCR, burst, and receipt regressions pass. A live v7 must still
+prove the target-only crop, independent status evidence, save, reopen, and
+final verification before Code-06 can pass.
 
 An earlier attempted v4 invocation is explicitly excluded from the Code-06
 denominator: `--stop-after-task code-06` bounded the campaign's end but still
 started at task one. It completed and rebooted after Observe-01 and Observe-02,
 then was stopped at the next task boundary before Observe-03 created a run or
 sent input. The replacement `--only-task code-06` selector filters the manifest
-before adapter preflight. The complete five-run ledger and invalid-scope note
+before adapter preflight. The complete six-run ledger and invalid-scope note
 are [`code-06-attempts.json`](results/2026-08-03/live-vnc/code-06-attempts.json).
-The ledger digest is `sha256:f5c26ed0454f`. Code-06 remains a failing accuracy
+The ledger digest is `sha256:6406513d294a`. Code-06 remains a failing accuracy
 and speed gate; it does not increase the 30/50 campaign pass count.
 
 Failure-inclusive metrics, canonical campaign digests, the 30 accepted task
