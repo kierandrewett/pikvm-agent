@@ -1,0 +1,149 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-08-03T00:50:25+01:00",
+  "source_revisions": {
+    "pikvm_agent_base": "452090aaa70398d591fddecb3ee33c96e520ceac",
+    "tested_worktree_committed_as": "c46d6b858091e67699a79c5ca12d73831b3bd8e1",
+    "pikvm_desktop_agentic": "8418ef41bc06a9d721b9851e05f3262ffe53682c"
+  },
+  "environment": {
+    "kind": "isolated_target_free_loopback",
+    "production_pikvm_touched": false,
+    "remote_target_contacted": false,
+    "computer_adapter_configured": false,
+    "remote_screen_captured": false,
+    "local_ui_screenshot_retained": false
+  },
+  "installed_client_versions": {
+    "codex": "codex-cli 0.144.4",
+    "claude": "2.1.220 (Claude Code)",
+    "opencode": "1.14.44",
+    "gemini": "0.35.3"
+  },
+  "effective_client_audits": [
+    {
+      "client": "codex",
+      "source": "native resolved MCP inventory",
+      "safe": true,
+      "managed_count": 1,
+      "findings": [
+        {
+          "server_name": "pikvm",
+          "classification": "managed"
+        }
+      ],
+      "failures": []
+    },
+    {
+      "client": "claude",
+      "source": "effective user plus project configuration",
+      "safe": true,
+      "managed_count": 1,
+      "findings": [
+        {
+          "server_name": "pikvm",
+          "classification": "managed"
+        }
+      ],
+      "failures": []
+    },
+    {
+      "client": "opencode",
+      "source": "effective user configuration",
+      "safe": true,
+      "managed_count": 1,
+      "findings": [
+        {
+          "server_name": "pikvm",
+          "classification": "managed"
+        }
+      ],
+      "failures": []
+    },
+    {
+      "client": "gemini",
+      "source": "effective user configuration",
+      "safe": false,
+      "managed_count": 0,
+      "findings": [],
+      "failures": [
+        "missing_managed"
+      ]
+    }
+  ],
+  "target_free_chat_acceptance": {
+    "run_id": "209c51d5-5346-45ff-a51c-2f3afa77c783",
+    "origin": "managed",
+    "status": "completed",
+    "prompt": "Reply with exactly: Harness chat is responsive.",
+    "reply": "Harness chat is responsive.",
+    "provider": "claude-account",
+    "model": "opus",
+    "role": "assistant",
+    "provider_attempts": 1,
+    "provider_failures": 0,
+    "computer_actions": 0,
+    "event_count": 10,
+    "server_wall_ms": 8168,
+    "provider_latency_ms": 8141,
+    "non_provider_overhead_ms": 27,
+    "browser_observed_wall_ms": 8558,
+    "visible_progress_observed_by_ms": 332,
+    "visible_progress_copy": "Waiting for a response — opus via claude-account"
+  },
+  "durable_reload_acceptance": {
+    "run_id": "209c51d5-5346-45ff-a51c-2f3afa77c783",
+    "first_inspected_frame_after_reload_ms": 367,
+    "first_frame_task_title_preserved": true,
+    "first_frame_status": "Restoring",
+    "first_frame_composer_visible": false,
+    "first_frame_new_chat_empty_state_visible": false,
+    "settled_conversation_observed_by_ms": 667,
+    "event_count_before_reload": 10,
+    "event_count_after_reload": 10,
+    "provider_attempts_before_reload": 1,
+    "provider_attempts_after_reload": 1,
+    "model_restarted": false
+  },
+  "packaged_ui": {
+    "bytes": 1249972,
+    "chat_first": true,
+    "provider_adapters_listed": 11,
+    "computer_connection_optional": true,
+    "managed_tool_inventory_size": 5,
+    "raw_pikvm_tools_in_managed_inventory": 0
+  },
+  "automated_checks": [
+    {
+      "scope": "client audit, setup, and launcher acceptance",
+      "tests": 123,
+      "passed": 123
+    },
+    {
+      "scope": "frontend unit and integration",
+      "tests": 158,
+      "passed": 158
+    },
+    {
+      "scope": "packaged UI contracts",
+      "tests": 19,
+      "passed": 19
+    },
+    {
+      "scope": "guest text scoring",
+      "tests": 8,
+      "passed": 8
+    },
+    {
+      "scope": "Windows observer bootstrap",
+      "tests": 16,
+      "passed": 16
+    }
+  ],
+  "known_limitations": [
+    "Gemini has no managed registration in the current effective user configuration.",
+    "This target-free acceptance proves chat visibility and persistence, not computer-use accuracy.",
+    "Historical Claude, Codex, and OpenCode PiKVM sessions used low-level tools directly and must not be reclassified as managed runs.",
+    "The provider supplied almost all measured chat latency; this Opus route is responsive in UI feedback but not yet human-speed in completion."
+  ]
+}
