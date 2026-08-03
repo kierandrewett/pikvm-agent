@@ -1195,6 +1195,9 @@ def test_notepad_file_dialog_controller_uses_verified_access_key_focus() -> None
     )
     assert save_as is not None
     assert save_as.actions[0].keys == ["CTRL", "SHIFT", "S"]
+    assert "PiKVM-Harness > workspace > codex-50" in (
+        save_as.expected_evidence[0]
+    )
 
     opened = PendingAction(
         index=3,
@@ -1234,7 +1237,7 @@ def test_notepad_file_dialog_controller_uses_verified_access_key_focus() -> None
     )
     assert filename is not None
     assert [item.type for item in filename.actions] == ["key", "type_text"]
-    assert filename.actions[1].text == artifact_path
+    assert filename.actions[1].text == basename
     assert filename.actions[1].verification == "exact"
 
     named_for_save = PendingAction(
@@ -1274,6 +1277,9 @@ def test_notepad_file_dialog_controller_uses_verified_access_key_focus() -> None
     )
     assert open_dialog is not None
     assert open_dialog.actions[0].keys == ["CTRL", "O"]
+    assert "PiKVM-Harness > workspace > codex-50" in (
+        open_dialog.expected_evidence[0]
+    )
 
     opened_for_reopen = PendingAction(
         index=7,
@@ -1311,7 +1317,7 @@ def test_notepad_file_dialog_controller_uses_verified_access_key_focus() -> None
         max_actions=20,
     )
     assert open_filename is not None
-    assert open_filename.actions[1].text == artifact_path
+    assert open_filename.actions[1].text == basename
 
     named_for_open = PendingAction(
         index=9,

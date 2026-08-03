@@ -1441,6 +1441,9 @@ _FOCUS_SAVE_AS_FILENAME_INTENT = (
     "Focus the native Save As File name field."
 )
 _FOCUS_OPEN_FILENAME_INTENT = "Focus the native Open File name field."
+_NOTEPAD_WORKSPACE_BREADCRUMB = (
+    "PiKVM-Harness > workspace > codex-50"
+)
 
 
 def _replace_notepad_dialog_filename_intent(
@@ -1560,10 +1563,10 @@ def _notepad_file_dialog_controller(
 
     final_segment_complete = _completed_notepad_exact_text(run, action)
     save_filename_intent = _replace_notepad_dialog_filename_intent(
-        "Save As", artifact_path
+        "Save As", basename
     )
     open_filename_intent = _replace_notepad_dialog_filename_intent(
-        "Open", artifact_path
+        "Open", basename
     )
     save_artifact_intent = _save_notepad_artifact_intent(basename)
     expects_task_completion = False
@@ -1579,11 +1582,13 @@ def _notepad_file_dialog_controller(
         ]
         intent = "Open native Save As for the exact Notepad artifact."
         evidence = [
-            "A native Save As dialog is visibly open for the exact document."
+            "A native Save As dialog is visibly open for the exact document "
+            "and its breadcrumb shows the prepared folder "
+            f"`{_NOTEPAD_WORKSPACE_BREADCRUMB}`."
         ]
     elif (
         action.intent == save_filename_intent
-        and _pending_action_exactly_types_field(action, artifact_path)
+        and _pending_action_exactly_types_field(action, basename)
     ):
         actions = [
             {"type": "key", "keys": ["ENTER"]},
@@ -1614,7 +1619,9 @@ def _notepad_file_dialog_controller(
         ]
         intent = "Open the native Open dialog for the verified artifact."
         evidence = [
-            "A native Open dialog is visibly open for the saved document."
+            "A native Open dialog is visibly open for the saved document and "
+            "its breadcrumb shows the prepared folder "
+            f"`{_NOTEPAD_WORKSPACE_BREADCRUMB}`."
         ]
     elif _pending_action_uses_key_chord(
         action,
@@ -1662,7 +1669,7 @@ def _notepad_file_dialog_controller(
             {"type": "key", "keys": ["CTRL", "A"]},
             {
                 "type": "type_text",
-                "text": artifact_path,
+                "text": basename,
                 "code": False,
                 "context": "field",
                 "verification": "exact",
@@ -1674,15 +1681,15 @@ def _notepad_file_dialog_controller(
             else "Open"
         )
         intent = _replace_notepad_dialog_filename_intent(
-            dialog, artifact_path
+            dialog, basename
         )
         evidence = [
             f"The native {dialog} File name field visibly reads exactly "
-            f"`{artifact_path}`."
+            f"`{basename}`."
         ]
     elif (
         action.intent == open_filename_intent
-        and _pending_action_exactly_types_field(action, artifact_path)
+        and _pending_action_exactly_types_field(action, basename)
     ):
         actions = [
             {"type": "key", "keys": ["ENTER"]},
