@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent } from "react";
-import { KeyRoundIcon, PlugZapIcon } from "lucide-react";
+import { PlugZapIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -246,8 +246,7 @@ export function ProviderConnectionDialog({
           </div>
           <DialogTitle>Add a model</DialogTitle>
           <DialogDescription>
-            Connect a provider to the harness. Existing provider aliases cannot
-            be replaced here.
+            Connect a provider. Existing names cannot be replaced.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={(event) => void submit(event)}>
@@ -393,15 +392,9 @@ export function ProviderConnectionDialog({
                 />
               </Field>
             ) : null}
-            <p className="flex items-start gap-2 rounded-lg bg-muted/50 p-3 text-xs leading-relaxed text-muted-foreground">
-              <KeyRoundIcon
-                className="mt-0.5 size-3.5 shrink-0"
-                aria-hidden="true"
-              />
-              Credential values never enter this form. CLI providers keep their
-              own login; API providers reference a server environment variable.
-              Cloud CLI commands are fixed by the harness and cannot be edited
-              here.
+            <p className="rounded-lg bg-muted/50 p-3 text-xs leading-relaxed text-muted-foreground">
+              Credentials stay outside this form. CLIs keep their login; APIs
+              reference environment variables. Cloud login commands are fixed.
             </p>
             <FieldError>{error}</FieldError>
             <Button type="submit" disabled={connecting || !valid}>

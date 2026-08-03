@@ -189,6 +189,45 @@ async def test_normal_chat_reply_and_follow_up_do_not_open_the_computer() -> Non
 
 
 @pytest.mark.asyncio
+async def test_normal_chat_uses_its_own_fast_route_not_computer_reasoning() -> None:
+    store = InMemoryRunStore()
+    chat = ScriptedAssistantProvider(
+        [{"outcome": "reply", "message": "Fast chat route."}]
+    )
+    chat.name = "fast-chat"
+    computer_reasoner = ScriptedAssistantProvider(
+        [{"outcome": "reply", "message": "Wrong route."}]
+    )
+    computer_reasoner.name = "strong-computer-reasoner"
+    pool = ModelPool(
+        providers={
+            chat.name: chat,
+            computer_reasoner.name: computer_reasoner,
+        },
+        routes={
+            "assistant": RoleRoute([chat.name]),
+            "reasoner": RoleRoute([computer_reasoner.name]),
+            "controller": RoleRoute([computer_reasoner.name]),
+            "verifier": RoleRoute([computer_reasoner.name]),
+        },
+    )
+    computer = StubComputerHarness(store)
+    harness = AssistantHarness(
+        models=pool,
+        store=store,
+        computer=computer,  # type: ignore[arg-type]
+    )
+
+    created = await harness.create("Say hello")
+    completed = await harness.continue_run(created.run_id)
+
+    assert completed.conversation[-1].content == "Fast chat route."
+    assert len(chat.requests) == 1
+    assert chat.requests[0].role == "assistant"
+    assert computer_reasoner.requests == []
+
+
+@pytest.mark.asyncio
 async def test_read_only_tool_is_visible_and_old_result_is_not_replayed_next_turn() -> None:
     tools = StubToolBroker(
         [

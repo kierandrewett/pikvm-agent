@@ -192,13 +192,16 @@ class ModelPreferences(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    assistant: ProviderAlias | None = None
     reasoner: ProviderAlias | None = None
     controller: ProviderAlias | None = None
     verifier: ProviderAlias | None = None
 
     @model_validator(mode="after")
     def at_least_one_preference(self) -> "ModelPreferences":
-        if not any((self.reasoner, self.controller, self.verifier)):
+        if not any(
+            (self.assistant, self.reasoner, self.controller, self.verifier)
+        ):
             raise ValueError("model preferences must select at least one role")
         return self
 

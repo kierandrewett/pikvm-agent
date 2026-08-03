@@ -517,19 +517,20 @@ class AssistantHarness:
             f"{json.dumps(context, ensure_ascii=False, sort_keys=True)}"
         )
         request = ModelRequest(
-            role="reasoner",
+            role="assistant",
             prompt=prompt,
             output_schema=_ProviderAssistantDecision.model_json_schema(),
             run_id=run.run_id,
             metadata={"mode": "assistant"},
         )
+        provider_route = self._provider_route(run)
         run.record(
             "model.started",
             role="assistant",
             candidates=self.models.route_names(
-                "reasoner",
+                "assistant",
                 preferred_provider=run.model_provider,
-                provider_route=self._provider_route(run),
+                provider_route=provider_route,
             ),
         )
         await self.store.save(run)
@@ -544,7 +545,7 @@ class AssistantHarness:
                     policy=self.budget_policy,
                 ),
                 preferred_provider=run.model_provider,
-                provider_route=self._provider_route(run),
+                provider_route=provider_route,
             )
         except ModelBudgetExceeded as exc:
             run.status = RunStatus.PAUSED
@@ -704,7 +705,10 @@ class AssistantHarness:
     def _provider_route(run: RunSnapshot) -> list[str] | None:
         if run.model_route is None:
             return None
-        return run.model_route.for_role("reasoner")
+        return (
+            run.model_route.for_role("assistant")
+            or run.model_route.for_role("reasoner")
+        )
 
     @staticmethod
     def _latest_assistant_model_receipt(

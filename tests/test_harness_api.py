@@ -255,13 +255,17 @@ class RoutedStubModels:
             "strong": {
                 "ready": True,
                 "routes": [
+                    {"role": "assistant", "position": 2},
                     {"role": "reasoner", "position": 1},
                     {"role": "verifier", "position": 1},
                 ],
             },
             "fast": {
                 "ready": True,
-                "routes": [{"role": "controller", "position": 1}],
+                "routes": [
+                    {"role": "assistant", "position": 1},
+                    {"role": "controller", "position": 1},
+                ],
             },
             "backup": {
                 "ready": True,
@@ -554,6 +558,7 @@ async def test_operator_can_choose_independent_role_preferences_with_fallback(
                 "task": "Create the quarterly workbook",
                 "auto_start": False,
                 "model_preferences": {
+                    "assistant": "fast",
                     "reasoner": "backup",
                     "controller": "fast",
                     "verifier": "strong",
@@ -589,6 +594,7 @@ async def test_operator_can_choose_independent_role_preferences_with_fallback(
     assert selected.status_code == 200
     assert selected.json()["model_provider"] is None
     assert selected.json()["model_route"] == {
+        "assistant": ["fast", "strong"],
         "reasoner": ["backup", "strong"],
         "controller": ["fast", "backup"],
         "verifier": ["strong", "backup"],

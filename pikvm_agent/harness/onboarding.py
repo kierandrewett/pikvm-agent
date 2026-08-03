@@ -248,6 +248,21 @@ def build_initial_harness_settings(
             "an API model option"
         )
 
+    assistant = _ordered_present(
+        (
+            "model-gateway",
+            "gemini-api",
+            "vertex-gemini",
+            "openai-api",
+            "azure-openai",
+            "gemini-account",
+            "claude-fast",
+            "claude-account",
+            "codex-account",
+            "anthropic-api",
+        ),
+        providers,
+    )
     reasoner = _ordered_present(
         (
             "claude-account",
@@ -322,6 +337,7 @@ def build_initial_harness_settings(
             "providers": providers,
             "assistant_tools": assistant_tools,
             "routes": {
+                "assistant": assistant,
                 "reasoner": reasoner,
                 "controller": controller,
                 "verifier": verifier,

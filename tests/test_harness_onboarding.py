@@ -40,9 +40,10 @@ def test_auto_onboarding_combines_available_oauth_and_selected_api_routes() -> N
     assert settings.routes.controller[0] == "openai-api"
     assert settings.routes.reasoner[0] == "anthropic-api"
     assert settings.routes.verifier[0] == "openai-api"
+    assert settings.routes.assistant[0] == "openai-api"
     assert all(
         set(getattr(settings.routes, role)) == set(settings.providers)
-        for role in ("reasoner", "controller", "verifier")
+        for role in ("assistant", "reasoner", "controller", "verifier")
     )
 
 
@@ -129,6 +130,11 @@ def test_oauth_cli_selection_accepts_combinations_and_preserves_both_alias() -> 
     ]
     assert legacy.providers["claude-fast"].kind == "claude_cli"
     assert legacy.providers["claude-fast"].model == "haiku"
+    assert legacy.routes.assistant == [
+        "claude-fast",
+        "claude-account",
+        "codex-account",
+    ]
     assert legacy.routes.reasoner == [
         "claude-account",
         "claude-fast",

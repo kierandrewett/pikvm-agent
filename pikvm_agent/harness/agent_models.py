@@ -29,7 +29,7 @@ from pikvm_agent.core.windows_launch import (
     is_windows_run_key_action,
 )
 
-ModelRole = Literal["reasoner", "controller", "verifier"]
+ModelRole = Literal["assistant", "reasoner", "controller", "verifier"]
 RunMode = Literal["assistant", "computer"]
 ModelActivityPhase = Literal[
     "queued",
@@ -222,6 +222,11 @@ class RunModelRoute(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    assistant: list[ProviderAlias] | None = Field(
+        default=None,
+        min_length=1,
+        max_length=16,
+    )
     reasoner: list[ProviderAlias] | None = Field(
         default=None,
         min_length=1,
@@ -238,7 +243,7 @@ class RunModelRoute(BaseModel):
         max_length=16,
     )
 
-    @field_validator("reasoner", "controller", "verifier")
+    @field_validator("assistant", "reasoner", "controller", "verifier")
     @classmethod
     def candidates_are_unique(
         cls,
@@ -250,7 +255,9 @@ class RunModelRoute(BaseModel):
 
     @model_validator(mode="after")
     def at_least_one_role_is_selected(self) -> "RunModelRoute":
-        if not any((self.reasoner, self.controller, self.verifier)):
+        if not any(
+            (self.assistant, self.reasoner, self.controller, self.verifier)
+        ):
             raise ValueError("model route must select at least one role")
         return self
 

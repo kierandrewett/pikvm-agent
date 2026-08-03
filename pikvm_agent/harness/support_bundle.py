@@ -152,8 +152,14 @@ def _provider_health(settings: HarnessSettings) -> tuple[
             }
         )
     routes = {
-        role: [aliases[name] for name in getattr(settings.routes, role)]
-        for role in ("reasoner", "controller", "verifier")
+        role: [
+            aliases[name]
+            for name in (
+                getattr(settings.routes, role)
+                or settings.routes.reasoner
+            )
+        ]
+        for role in ("assistant", "reasoner", "controller", "verifier")
     }
     return providers, routes
 

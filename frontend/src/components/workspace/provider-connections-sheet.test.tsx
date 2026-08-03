@@ -334,7 +334,7 @@ describe("ProviderConnectionsSheet", () => {
     await user.click(screen.getByRole("button", { name: "Add model" }));
     expect(
       await screen.findByText(
-        /Credential values never enter this form\./,
+        /Credentials stay outside this form\./,
       ),
     ).not.toBeNull();
     expect(screen.queryByLabelText(/API key value/i)).toBeNull();

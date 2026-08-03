@@ -54,7 +54,12 @@ const STREAM_RETRY_BASE_MS = 500;
 const STREAM_RETRY_MAX_MS = 5_000;
 const LIVE_RECONCILE_MS = 15_000;
 const DEGRADED_RECONCILE_MS = 1_500;
-const MODEL_ROLES: ModelRole[] = ["reasoner", "controller", "verifier"];
+const MODEL_ROLES: ModelRole[] = [
+  "assistant",
+  "reasoner",
+  "controller",
+  "verifier",
+];
 
 export const reconcileIntervalMs = (
   status: LiveUpdateStatus,

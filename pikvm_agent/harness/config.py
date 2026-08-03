@@ -245,6 +245,7 @@ class ProviderSpec(BaseModel):
 class RoleRoutes(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
+    assistant: list[str] | None = Field(default=None, min_length=1)
     reasoner: list[str] = Field(min_length=1)
     controller: list[str] = Field(min_length=1)
     verifier: list[str] = Field(min_length=1)
@@ -393,8 +394,14 @@ class HarnessSettings(BaseModel):
                 + ", ".join(invalid_tool_servers)
             )
         configured = set(self.providers)
-        for role in ("reasoner", "controller", "verifier"):
-            missing = set(getattr(self.routes, role)) - configured
+        roles = ["reasoner", "controller", "verifier"]
+        if self.routes.assistant is not None:
+            roles.insert(0, "assistant")
+        for role in roles:
+            route = getattr(self.routes, role)
+            if route is None:
+                continue
+            missing = set(route) - configured
             if missing:
                 raise ValueError(
                     f"{role} route references unknown providers: "
@@ -403,8 +410,8 @@ class HarnessSettings(BaseModel):
         if self.model_budget.max_cost_usd_per_run is not None:
             routed = {
                 name
-                for role in ("reasoner", "controller", "verifier")
-                for name in getattr(self.routes, role)
+                for role in roles
+                for name in (getattr(self.routes, role) or [])
             }
             unclassified = sorted(
                 name for name in routed if self.providers[name].billing is None
@@ -701,11 +708,18 @@ def ensure_provider_prerequisites(settings: HarnessSettings) -> None:
     """Fail closed unless every role route has at least one ready provider."""
 
     statuses = check_provider_prerequisites(settings)
+    roles = ["reasoner", "controller", "verifier"]
+    if settings.routes.assistant is not None:
+        roles.insert(0, "assistant")
     uncovered_roles = sorted(
         role
-        for role in ("reasoner", "controller", "verifier")
+        for role in roles
         if not any(
-            statuses[name]["ready"] for name in getattr(settings.routes, role)
+            statuses[name]["ready"]
+            for name in (
+                getattr(settings.routes, role)
+                or settings.routes.reasoner
+            )
         )
     )
     if uncovered_roles:
@@ -837,9 +851,17 @@ def build_model_pool(settings: HarnessSettings) -> ModelPool:
     for name in providers:
         metadata[name]["routes"] = []
         metadata[name]["configured_model"] = settings.providers[name].model
-    for role in ("reasoner", "controller", "verifier"):
+    assistant_route = settings.routes.assistant or settings.routes.reasoner
+    metadata_roles = ["reasoner", "controller", "verifier"]
+    if settings.routes.assistant is not None:
+        metadata_roles.insert(0, "assistant")
+    for role in metadata_roles:
         for position, name in enumerate(
-            getattr(settings.routes, role),
+            (
+                assistant_route
+                if role == "assistant"
+                else getattr(settings.routes, role)
+            ),
             start=1,
         ):
             metadata[name]["routes"].append(
@@ -848,6 +870,7 @@ def build_model_pool(settings: HarnessSettings) -> ModelPool:
     return ModelPool(
         providers=providers,
         routes={
+            "assistant": RoleRoute(providers=assistant_route),
             "reasoner": RoleRoute(providers=settings.routes.reasoner),
             "controller": RoleRoute(providers=settings.routes.controller),
             "verifier": RoleRoute(providers=settings.routes.verifier),

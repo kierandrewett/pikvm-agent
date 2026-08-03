@@ -539,8 +539,7 @@ export function ProviderConnectionsSheet({
             Models
           </SheetTitle>
           <SheetDescription>
-            Choose the models for this task and inspect configured account
-            readiness. Provider secret values never enter this UI.
+          Choose models for this task. Secret values never enter the UI.
           </SheetDescription>
           <div className="flex flex-wrap gap-2 pt-2">
             <Badge variant="secondary">

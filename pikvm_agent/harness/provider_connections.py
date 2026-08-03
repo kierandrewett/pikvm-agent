@@ -331,7 +331,12 @@ class ProviderConnectionManager:
             isolated_raw["providers"] = {request.alias: spec}
             isolated_raw["routes"] = {
                 role: [request.alias]
-                for role in ("reasoner", "controller", "verifier")
+                for role in (
+                    "assistant",
+                    "reasoner",
+                    "controller",
+                    "verifier",
+                )
             }
             staged = build_model_pool(
                 HarnessSettings.model_validate(isolated_raw)

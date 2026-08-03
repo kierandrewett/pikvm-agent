@@ -99,7 +99,11 @@ export type ShowcaseCampaign = {
   tasks: ShowcaseTask[];
 };
 
-export type ModelRole = "reasoner" | "controller" | "verifier";
+export type ModelRole =
+  | "assistant"
+  | "reasoner"
+  | "controller"
+  | "verifier";
 
 export type ModelPreferences = Partial<Record<ModelRole, string>>;
 

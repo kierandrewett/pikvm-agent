@@ -297,6 +297,8 @@ class ModelPool:
                 raise ValueError("provider_route cannot be empty")
             return list(provider_route)
         route = self.routes.get(role)
+        if route is None and role == "assistant":
+            route = self.routes.get("reasoner")
         return list(route.providers) if route else []
 
     def adopt_unrouted_provider(
@@ -388,6 +390,8 @@ class ModelPool:
             provider_names = list(provider_route)
         else:
             route = self.routes.get(request.role)
+            if route is None and request.role == "assistant":
+                route = self.routes.get("reasoner")
             if route is None:
                 raise ModelPoolError(
                     f"no provider route for role {request.role}"

@@ -196,6 +196,11 @@ The canonical adapter tiers, authentication ownership, compatibility rules,
 and promotion policy are documented in
 [`docs/PROVIDER_SUPPORT.md`](docs/PROVIDER_SUPPORT.md). A locally ready
 provider is not presented as live-compatible without dated scorecard evidence.
+Normal chat and research use a separate `routes.assistant` fallback chain, so
+a fast OAuth or API model can answer and call general tools without replacing
+the stronger computer reasoner, controller, or verifier. Existing configs that
+do not name the new route keep their previous behavior by inheriting the
+reasoner chain; newly generated configs make the split explicit.
 
 Direct Claude/Codex use of the burst tools bypasses the daemon operator loop and
 hides the action lifecycle inside a coding CLI. The standalone harness adds a

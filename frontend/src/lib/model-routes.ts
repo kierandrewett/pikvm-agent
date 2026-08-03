@@ -13,6 +13,12 @@ export const MODEL_ROLES: ReadonlyArray<{
   description: string;
 }> = [
   {
+    key: "assistant",
+    label: "Chat",
+    shortLabel: "Chat",
+    description: "Answers and uses tools",
+  },
+  {
     key: "reasoner",
     label: "Reasoning",
     shortLabel: "Plan",
@@ -40,8 +46,8 @@ export const providerModelLabel = (
 export const defaultRoleRoute = (
   providers: ProviderMap,
   role: ModelRole,
-) =>
-  Object.entries(providers)
+): string[] => {
+  const configured = Object.entries(providers)
     .flatMap(([name, health]) =>
       (health.routes ?? [])
         .filter(
@@ -56,6 +62,10 @@ export const defaultRoleRoute = (
     )
     .sort((left, right) => left.position - right.position)
     .map(({ name }) => name);
+  return role === "assistant" && configured.length === 0
+    ? defaultRoleRoute(providers, "reasoner")
+    : configured;
+};
 
 export const effectiveRoleRoute = ({
   providers,
@@ -75,6 +85,13 @@ export const effectiveRoleRoute = ({
   if (locked && activeProvider) return [activeProvider];
   if (locked && activeRoute?.[role]?.length) {
     return activeRoute[role]!.filter((name) => providers[name]);
+  }
+  if (
+    locked &&
+    role === "assistant" &&
+    activeRoute?.reasoner?.length
+  ) {
+    return activeRoute.reasoner.filter((name) => providers[name]);
   }
 
   const automatic = defaultRoleRoute(providers, role);
