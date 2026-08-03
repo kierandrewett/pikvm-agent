@@ -1,0 +1,132 @@
+{
+  "schema_version": 1,
+  "campaign_id": "codex-code-entry-code08-v24-20260803",
+  "run_id": "b1035e36-4475-4ad1-b9f6-ffe968f8c397",
+  "source_commit": "349df9a",
+  "accepted_status": "failed",
+  "campaign_reported_status": "failed",
+  "environment": {
+    "production_contacted": false,
+    "endpoint_retained_in_repository": false,
+    "adapter_keymap": "en-gb"
+  },
+  "optimization": {
+    "change": "Atomically focus, select, and exactly type the native Open filename after the Open dialog is independently verified.",
+    "exercised": true,
+    "action_index": 8,
+    "input_sequence": [
+      "ALT+N",
+      "CTRL+A",
+      "type_text exact field"
+    ],
+    "focus_only_verifier_removed": true,
+    "corrective_click_loop_observed": false
+  },
+  "preflight": {
+    "preservation_status": "verified_visible_marker",
+    "claimed_prior_file": true,
+    "prior_path": "C:/PiKVM-Harness/workspace/codex-50/pikvmprior59d2e6c331c741fbafc98aca051b027c.cmd"
+  },
+  "immutable_editor_input": {
+    "rows": 9,
+    "line_breaks": 8,
+    "windows_crlf_bytes": 127,
+    "sha256": "05a8eb6d2b8af34f895038acb1e1186bca3633df2a8b7be979046214e66a6eed",
+    "all_text_segments_emitted_exactly_once": true
+  },
+  "filename_receipt": {
+    "requested": "code-08.cmd",
+    "observed": "code-08.cmd",
+    "status": "verified_exact",
+    "proof_state": "exact_visual_readback",
+    "emitted_exactly_once": true
+  },
+  "current_path_observer": {
+    "transport": "guarded MCP visual matrix",
+    "protocol": "pikvm-observer.v1",
+    "direct_run_id": "direct-3bd4c5f0-34a6-4e20-8067-9adcfa2afea8",
+    "caller_label": "code08-v24-current-observer",
+    "sequence": 2,
+    "pages": 4,
+    "checksum_valid": true,
+    "path": "C:/PiKVM-Harness/workspace/codex-50/code-08.cmd",
+    "file_error": "",
+    "observed_bytes": 127,
+    "observed_sha256": "05a8eb6d2b8af34f895038acb1e1186bca3633df2a8b7be979046214e66a6eed",
+    "exact_match_to_current_run": true,
+    "dangerous_commit_count": 0,
+    "guest_identity_present": true,
+    "input_desktop_present": true
+  },
+  "preserved_prior_observer": {
+    "transport": "guarded MCP visual matrix",
+    "protocol": "pikvm-observer.v1",
+    "direct_run_id": "direct-8d1c8991-4f1d-427d-abfa-4999e66e7290",
+    "caller_label": "code08-v24-prior-observer",
+    "sequence": 2,
+    "pages": 5,
+    "checksum_valid": true,
+    "path": "C:/PiKVM-Harness/workspace/codex-50/pikvmprior59d2e6c331c741fbafc98aca051b027c.cmd",
+    "file_error": "",
+    "observed_bytes": 127,
+    "observed_sha256": "c5e247fcb3f17892938d047673cab4efbc6588140cd5d6b5047c553a8349ced4",
+    "expected_v23_sha256": "c5e247fcb3f17892938d047673cab4efbc6588140cd5d6b5047c553a8349ced4",
+    "exact_match_to_v23": true,
+    "dangerous_commit_count": 0,
+    "guest_identity_present": true,
+    "input_desktop_present": true
+  },
+  "managed_run": {
+    "status": "needs_approval",
+    "actions_attempted": 10,
+    "actions_completed": 9,
+    "provider_calls": 14,
+    "same_run_recoveries": 0,
+    "approvals_requested": 3,
+    "approvals_granted": 2,
+    "approval_scopes": [
+      "bounded_workspace_edit"
+    ],
+    "terminal_approval": {
+      "risk": "unknown",
+      "reason": "bare Enter/Return may commit the focused surface",
+      "approved": false
+    },
+    "quiescence_confirmed": true
+  },
+  "speed_comparison": {
+    "v23_wall_clock_ms": 318782,
+    "v24_wall_clock_ms": 269650,
+    "improvement_ms": 49132,
+    "improvement_percent": 15.41,
+    "v23_provider_calls": 20,
+    "v24_provider_calls": 14,
+    "v23_actions_attempted": 12,
+    "v24_actions_attempted": 10,
+    "under_300_second_target": true
+  },
+  "mandatory_reboot": {
+    "ready": true,
+    "transition_observed": true,
+    "duration_ms": 79511,
+    "ready_frame_sha256": "9602135a99f62ab0dce7a5c384f079d5909f32d9d320debedd954e0837908a6e"
+  },
+  "reset_after_observer": {
+    "ready": true,
+    "transition_observed": true,
+    "duration_ms": 110717,
+    "ready_frame_sha256": "57719ec6ebc1f0a72f578c3c756f89683dbe897cd4c7d2dbe36d494f2fd23dc3"
+  },
+  "campaign_sha256": "93da1644f0f9b7c05eba9fee3dc3abea62bf8a530d373deb3f4e95a83a95b2a2",
+  "recording": {
+    "sha256": "7a5bcc92fcaccc92861222333919b63b20b3985b1e6548cb33c714a0ef05e41e",
+    "codec": "vp9",
+    "width": 2048,
+    "height": 1280,
+    "fps": 2.0,
+    "duration_ms": 318500,
+    "size_bytes": 1444454
+  },
+  "poster_sha256": "795bc21f140e2fad4d659492aeb7239cd4aa01c39d9f8ce471d06c49f105ce7f",
+  "finding": "The bounded Open-filename optimization was exercised and removed the focus-only verification and corrective click loop, reducing managed wall time by 49.132 seconds and model calls from 20 to 14. Current and preserved-prior artifact bytes both matched their independent sources exactly. The run remains a retained failure because the final bare Enter approval was correctly not auto-approved, so the saved file was not reopened and task completion was not claimed."
+}

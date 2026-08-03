@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "report": "codex-code-entry-code08-failure-inclusive-attempts",
-  "recorded_at": "2026-08-03T22:48:28Z",
+  "recorded_at": "2026-08-03T23:27:13Z",
   "environment": {
     "target": "authorized disposable Windows VNC VM",
     "production_target_contacted": false,
@@ -25,17 +25,17 @@
     ]
   },
   "summary": {
-    "recorded_attempts": 23,
-    "valid_full_task_runs": 17,
-    "failed_runs": 15,
+    "recorded_attempts": 24,
+    "valid_full_task_runs": 18,
+    "failed_runs": 16,
     "infrastructure_invalid_runs": 6,
     "passed_runs": 2,
     "canonical_attempt": "v23",
     "all_failures_retained": true,
     "all_recordings_retained": true,
-    "reboots_ready": 22,
+    "reboots_ready": 23,
     "reboots_failed_or_pending": 1,
-    "release_gate": "accuracy passing; speed failing; post-pass speed remediation remains active"
+    "release_gate": "accuracy passing; v24 exercised a sub-300-second speed optimization but retained a policy-stop failure before task completion"
   },
   "attempts": [
     {
@@ -880,6 +880,96 @@
       },
       "poster_sha256": "3f5ffdf44062c88dad834fb7282aadb562880ef8618aeb4e6317e711da401dc3",
       "campaign_sha256": "23ad16dfc6f0d1898f9ae4aaab99198d4e83e0b38f80accf6036d5e448cc4303"
+    },
+    {
+      "campaign_id": "codex-code-entry-code08-v24-20260803",
+      "accepted_status": "failed",
+      "campaign_reported_status": "failed",
+      "run_id": "b1035e36-4475-4ad1-b9f6-ffe968f8c397",
+      "source_commit": "349df9a",
+      "reason": "The bounded Open-filename optimization was exercised: one burst focused the verified native filename field, selected it, and typed the exact basename before an exact visual readback. This removed the focus-only verifier and corrective click loop, cutting managed wall time below 300 seconds. The final bare Enter remained unknown risk and was correctly not auto-approved, so the file was not reopened and completion was not claimed.",
+      "wall_clock_ms": 269650,
+      "task_duration_ms": 451816,
+      "model_active_ms": 125009,
+      "provider_wait_ms": 125951,
+      "provider_serial_equivalent_ms": 125951,
+      "provider_overlap_ms": 0,
+      "action_execution_ms": 139769,
+      "evidence_capture_ms": 1971,
+      "provider_calls": 14,
+      "reasoner_calls": 2,
+      "controller_calls": 2,
+      "verifier_calls": 10,
+      "actions_attempted": 10,
+      "actions_completed": 9,
+      "approval_requests": 3,
+      "approvals_granted": 2,
+      "approval_scopes": [
+        "bounded_workspace_edit"
+      ],
+      "terminal_unapproved_action": {
+        "input": "ENTER",
+        "risk": "unknown",
+        "reason": "bare Enter/Return may commit the focused surface"
+      },
+      "same_run_recoveries": 0,
+      "optimization": {
+        "action_index": 8,
+        "input_sequence": [
+          "ALT+N",
+          "CTRL+A",
+          "type_text exact field"
+        ],
+        "focus_only_verifier_removed": true,
+        "corrective_click_loop_observed": false,
+        "exact_field_readback_preserved": true
+      },
+      "editor_input": {
+        "rows": 9,
+        "windows_crlf_bytes": 127,
+        "sha256": "05a8eb6d2b8af34f895038acb1e1186bca3633df2a8b7be979046214e66a6eed",
+        "all_text_segments_emitted_exactly_once": true
+      },
+      "filename_receipt": {
+        "requested": "code-08.cmd",
+        "status": "verified_exact",
+        "proof_state": "exact_visual_readback",
+        "observed_text": "code-08.cmd",
+        "emitted_exactly_once": true,
+        "open_committed": false
+      },
+      "observer_artifact_comparison": {
+        "transport": "guarded MCP visual matrix",
+        "current_path": "C:/PiKVM-Harness/workspace/codex-50/code-08.cmd",
+        "current_pages": 4,
+        "current_checksum_valid": true,
+        "current_observed_bytes": 127,
+        "current_observed_sha256": "05a8eb6d2b8af34f895038acb1e1186bca3633df2a8b7be979046214e66a6eed",
+        "exact_match_to_current_run": true,
+        "preserved_prior_path": "C:/PiKVM-Harness/workspace/codex-50/pikvmprior59d2e6c331c741fbafc98aca051b027c.cmd",
+        "preserved_prior_pages": 5,
+        "preserved_prior_checksum_valid": true,
+        "preserved_prior_observed_bytes": 127,
+        "preserved_prior_observed_sha256": "c5e247fcb3f17892938d047673cab4efbc6588140cd5d6b5047c553a8349ced4",
+        "exact_match_to_v23": true,
+        "dangerous_commit_count": 0,
+        "comparison_report": "bench/results/2026-08-03/live-vnc/code-08-v24-observer-comparison.json"
+      },
+      "reboot_ms": 79511,
+      "reboot_transition_observed": true,
+      "post_observer_reset_ms": 110717,
+      "post_observer_reset_transition_observed": true,
+      "recording": {
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2.0,
+        "duration_ms": 318500,
+        "size_bytes": 1444454,
+        "sha256": "7a5bcc92fcaccc92861222333919b63b20b3985b1e6548cb33c714a0ef05e41e"
+      },
+      "poster_sha256": "795bc21f140e2fad4d659492aeb7239cd4aa01c39d9f8ce471d06c49f105ce7f",
+      "campaign_sha256": "93da1644f0f9b7c05eba9fee3dc3abea62bf8a530d373deb3f4e95a83a95b2a2"
     }
   ],
   "remediations": [
@@ -994,21 +1084,30 @@
       "after_attempt": "v22",
       "commit": "c8c8129",
       "change": "Ground a safe native filename to the edit row horizontally paired with the File name label, excluding exact-looking autocomplete history from readback localization."
+    },
+    {
+      "after_attempt": "v23",
+      "commit": "349df9a",
+      "change": "After a verified Open dialog, combine Alt+N, Ctrl+A and exact basename typing into one burst while preserving exact field readback before the separate Open commit."
     }
   ],
   "next_gate": {
     "accuracy_status": "passed",
     "accepted_attempt": "v23",
-    "speed_status": "failed",
+    "speed_status": "candidate_pass_failed_task",
     "accepted_wall_clock_ms": 318782,
+    "latest_candidate_wall_clock_ms": 269650,
     "evidence": [
       "The installed observer returned the exact nested artifact path and the 127 bytes emitted by v23.",
       "Observed and immutable current-run CRLF payload hashes are identical.",
       "The filename field produced an exact visual readback receipt despite the open autocomplete history.",
-      "The accepted run and the post-observer cleanup each completed a transition-observed reboot."
+      "The accepted run and the post-observer cleanup each completed a transition-observed reboot.",
+      "v24 exercised the bounded Open-filename burst, reduced provider calls from 20 to 14, and reached 269.650 seconds without weakening exact readback.",
+      "v24 current-run and genuinely preserved-prior bytes independently matched their immutable sources, and both required reboots observed transitions.",
+      "v24 remains failed because the final bare Enter was not contextually authorized; policy held it instead of converting a speed candidate into a false pass."
     ],
     "blocking_infrastructure_state": null,
-    "next_attempt": "No further Code-08 accuracy retry is required; profile and reduce the 20 provider calls, 151.807 seconds of provider wait, and 156.257 seconds of action execution before advancing the speed gate.",
+    "next_attempt": "Preserve the global bare-Enter guard, but ground the final Enter to an exact verified native Open filename and bounded workspace-open intent; then repeat as v25 and accept the speed gate only if the complete task passes with observer proof and mandatory reboots.",
     "next_task_after_speed_gate": "code-09"
   }
 }

@@ -1046,7 +1046,7 @@ actions, completed 26, and requested four bounded-workspace approvals. Worse,
 the model populated two Notepad documents before converging on the exact saved
 payload. The 874-second VP9 recording is 3,842,300 bytes.
 
-Thirteen post-v10 attempts remain visible rather than rewriting history:
+Fourteen post-v10 attempts remain visible rather than rewriting history:
 
 | Attempt | Accuracy status | Managed wall | Provider calls | Result |
 | --- | --- | ---: | ---: | --- |
@@ -1064,6 +1064,7 @@ Thirteen post-v10 attempts remain visible rather than rewriting history:
 | v21 | Failed safely before document input | 81.292s | 4 | Precise broad-window OCR still omitted `File`; the unchanged geometry gate refused the batch |
 | v22 | Failed after exact batch entry | 235.364s | 12 | Same-frame menu fusion allowed all nine rows once; ambiguous Save As filename readback then triggered the unverified-draft guard, and the observer found no committed file |
 | v23 | **Passed** | 318.782s | 20 | The native filename edit produced an exact receipt despite autocomplete history; the observer matched all 127 current-run bytes |
+| v24 | Failed safely after speed candidate | 269.650s | 14 | The combined Open-filename burst removed a verification loop and crossed the sub-300-second target; policy held the final bare Enter, so completion was not claimed |
 
 The v11 recording directly produced the caret-only filename remediation. v13
 exercised it: the first autocomplete-biased readback recovered without
@@ -1252,8 +1253,33 @@ proved the original path absent, so no prior artifact was claimed or expected.
 The independent post-observer reboot also observed a real transition and a
 stable desktop in 82.892s.
 
-The complete 23-attempt ledger includes all six infrastructure-invalid runs,
-fifteen valid-task failures, two accepted runs, campaign/recording hashes,
+v24 tested one bounded speed change from pushed commit `349df9a`: once the
+native Open dialog was independently verified, `Alt+N`, `Ctrl+A`, and exact
+basename typing ran as one burst. The exact filename readback remained a
+separate proof before the Open commit. The optimized path was exercised at
+action 8; it removed the focus-only verifier and corrective click loop seen in
+v23. Managed wall time fell by 49.132s (15.41%) to 269.650s, provider calls
+fell from 20 to 14, and attempted actions fell from 12 to 10. This crosses the
+300-second candidate target without weakening exact-input verification.
+
+It is not an accepted task pass. After exact `code-08.cmd` readback, the final
+bare Enter remained `unknown` risk because it could commit the focused
+surface. The campaign correctly stopped at the non-allowlisted approval rather
+than converting speed into an unsafe or false completion. Nine of ten actions
+completed, and no same-run recovery or duplicate content entry occurred.
+
+The installed observer nevertheless proved the filesystem state independently.
+The current nested artifact was 127 Windows-CRLF bytes with SHA-256
+`05a8eb6d2b8a`, exactly matching v24's immutable input receipt. The genuinely
+preserved prior artifact was also 127 bytes with SHA-256 `c5e247fcb3f1`,
+exactly matching canonical v23. Both checksum-valid captures reported zero
+dangerous commits. The campaign reboot observed a transition in 79.511s; the
+post-observer reset observed another in 110.717s. v23 therefore remains the
+canonical accuracy pass while v24 is retained as a successful speed
+optimization attached to a policy-stop failure.
+
+The complete 24-attempt ledger includes all six infrastructure-invalid runs,
+sixteen valid-task failures, two accepted runs, campaign/recording hashes,
 exact observer proof,
 remediation commits, and every reset state:
 [`code-08-attempts.json`](results/2026-08-03/live-vnc/code-08-attempts.json).
@@ -1275,15 +1301,20 @@ Its digest is `sha256:1e08f3beb8a2`; the v16 current/prior-path comparison is
 [`code-08-v22-observer-comparison.json`](results/2026-08-03/live-vnc/code-08-v22-observer-comparison.json),
 `sha256:98bc88a080de`; and the v23 exact current-run comparison is
 [`code-08-v23-observer-comparison.json`](results/2026-08-03/live-vnc/code-08-v23-observer-comparison.json).
-Its digest is `sha256:e067041bfd7a`; the updated ledger digest is
-`sha256:937a3326efbf`.
+Its digest is `sha256:e067041bfd7a`; the v24 current/prior comparison is
+[`code-08-v24-observer-comparison.json`](results/2026-08-03/live-vnc/code-08-v24-observer-comparison.json),
+`sha256:ea126d6a2124`; and the updated ledger digest is
+`sha256:4f50f8713b1b`.
 The canonical v23 campaign digest is `sha256:23ad16dfc6f0`; its VP9 recording
 is `sha256:c5e7c2671b4d` and its poster is `sha256:3f5ffdf44062`.
-The v10 campaign and media remain retained in the ledger.
+The retained v24 campaign digest is `sha256:93da1644f0f9`; its VP9 recording is
+`sha256:7a5bcc92fcac` and its poster is `sha256:795bc21f140e`. The v10 campaign
+and media remain retained in the ledger.
 
 Failure-inclusive metrics, canonical campaign digests, the 33 accepted task
 IDs, and the VP9 recording/poster hashes are retained in
 [`codex-50-progress.json`](results/2026-07-31/live-vnc/codex-50-progress.json).
+Its updated digest is `sha256:5a04d6d4f1ee`.
 The complete 50-task manifest is
 [`codex-50-tasks.yaml`](codex-50-tasks.yaml).
 
