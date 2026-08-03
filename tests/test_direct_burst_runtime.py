@@ -818,11 +818,15 @@ async def test_confirmed_notepad_allows_bounded_deferred_editor_newlines(
             del image_path, region
             return OCRResult(
                 lines=[
-                    OCRLine(text="Untitled - Notepad", bbox=[20, 20, 180, 45]),
+                    OCRLine(text="Untitl", bbox=[20, 20, 180, 45]),
                     OCRLine(text="File Edit View", bbox=[20, 50, 180, 75]),
                     OCRLine(
                         text="Ln 1, Col 1 0 characters",
                         bbox=[20, 680, 250, 710],
+                    ),
+                    OCRLine(
+                        text="Plain text 100% Windows (CRLF) UTF-8",
+                        bbox=[260, 680, 780, 710],
                     ),
                 ]
             )

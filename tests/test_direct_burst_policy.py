@@ -547,13 +547,31 @@ def test_deferred_exact_rows_allow_bare_enter_only_on_confirmed_notepad() -> Non
         PolicyConfig(),
         observed_surface_text="Microsoft Teams Chat Type a message",
     )
+    titleless_notepad = classify_direct_burst(
+        actions,
+        PolicyConfig(),
+        observed_surface_text=(
+            "Untitl File Edit View Ln 1, Col 1 0 characters "
+            "Plain text 100% Windows (CRLF) UTF-8"
+        ),
+    )
+    partial_chrome = classify_direct_burst(
+        actions,
+        PolicyConfig(),
+        observed_surface_text="Microsoft Teams File Edit View UTF-8",
+    )
 
     assert allowed.status == "allowed"
+    assert titleless_notepad.status == "allowed"
     assert (unknown.status, unknown.category) == (
         "approval_required",
         "unknown",
     )
     assert (communications.status, communications.category) == (
+        "approval_required",
+        "unknown",
+    )
+    assert (partial_chrome.status, partial_chrome.category) == (
         "approval_required",
         "unknown",
     )

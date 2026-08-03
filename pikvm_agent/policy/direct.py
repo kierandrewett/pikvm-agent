@@ -338,13 +338,19 @@ def is_confirmed_notepad_editor_surface(observed_surface_text: str) -> bool:
     """Require independent title and editor-chrome evidence for bare newlines."""
 
     text = " ".join(observed_surface_text.casefold().split())
-    return bool(
-        "notepad" in text
-        and (
-            all(marker in text for marker in ("file", "edit", "view"))
-            or all(marker in text for marker in ("ln ", "col", "characters"))
-        )
+    title_and_chrome = "notepad" in text and (
+        all(marker in text for marker in ("file", "edit", "view"))
+        or all(marker in text for marker in ("ln ", "col", "characters"))
     )
+    # Windows 11's tabbed Notepad can omit the product name entirely. Its
+    # foreground status row still exposes a distinctive, independently OCRed
+    # text-mode signature. Requiring all three tokens avoids treating generic
+    # File/Edit/View menus or communications surfaces as an editor.
+    titleless_text_mode_chrome = all(
+        marker in text
+        for marker in ("plain text", "windows (crlf)", "utf-8")
+    )
+    return title_and_chrome or titleless_text_mode_chrome
 
 
 def needs_local_navigation_surface_grounding(
