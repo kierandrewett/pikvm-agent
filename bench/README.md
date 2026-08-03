@@ -5,6 +5,11 @@ harness. It records passing, failing, invalid, and infrastructure-blocked runs.
 A row is not a product claim unless its environment, upstream revision, model,
 sample size, and evaluator are all shown.
 
+The full discussion-to-product completion ledger is
+[`docs/REQUIREMENT_STATUS.md`](../docs/REQUIREMENT_STATUS.md). This scorecard
+supplies its evidence; it does not turn a partial requirement into a release
+claim.
+
 Last updated: 2026-08-03.
 
 ## Evidence rules
