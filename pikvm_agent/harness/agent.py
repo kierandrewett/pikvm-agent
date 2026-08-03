@@ -1113,13 +1113,17 @@ def _notepad_new_document_controller(
         # that harmless missing-file modal without accepting any commit, and
         # is a no-op when no startup modal exists.
         {"type": "key", "keys": ["Escape"]},
-        {"type": "wait", "ms": 300},
+        # Session restoration can continue several seconds after a blank
+        # foreground document first appears. Let those late windows settle
+        # before creating the task-owned document, otherwise a restored tab
+        # can steal focus after independent verification but before typing.
+        {"type": "wait", "ms": 8_000},
         {"type": "key", "keys": ["ControlLeft", "KeyN"]},
-        {"type": "wait_for_change", "timeout_ms": 3_000},
+        {"type": "wait_for_change", "timeout_ms": 5_000},
         {
             "type": "wait_for_stable_screen",
-            "stable_ms": 400,
-            "timeout_ms": 3_000,
+            "stable_ms": 1_500,
+            "timeout_ms": 8_000,
         },
     ]
     if len(actions) > max_actions:
