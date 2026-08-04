@@ -23,6 +23,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { ProviderLogo } from "@/components/workspace/provider-logo";
 import {
   Select,
   SelectContent,
@@ -287,14 +288,18 @@ function ModelChoice({
 }
 
 /** The stage-by-stage split, folded away because most tasks never need it. */
+const ADD_MODEL = "\u0000add";
+
 function StageSplit({
   providers,
   preferences,
   activeRoute,
   activeProvider,
   locked,
+  modelCatalog,
   onPreferenceChange,
   onResetPreferences,
+  onAddModelForRole,
 }: Pick<
   ProviderConnectionsSheetProps,
   | "providers"
@@ -302,9 +307,10 @@ function StageSplit({
   | "activeRoute"
   | "activeProvider"
   | "locked"
+  | "modelCatalog"
   | "onPreferenceChange"
   | "onResetPreferences"
->) {
+> & { onAddModelForRole?: (role: ModelRole) => void }) {
   const split = unifiedSelection(preferences) === "split";
   const [expanded, setExpanded] = useState(split);
   const open = expanded || split;
@@ -364,6 +370,11 @@ function StageSplit({
                 value: name,
                 label: `${providerModelLabel(name, health)} · ${name}`,
               })),
+              // Setting a stage to a model you have not connected yet used to
+              // mean leaving, adding it, and coming back. This does both.
+              ...(onAddModelForRole
+                ? [{ value: ADD_MODEL, label: "Add a model…" }]
+                : []),
             ];
             const primary = routed[0];
             const fallbacks = routed.slice(1);
@@ -389,12 +400,16 @@ function StageSplit({
                   <Select
                     items={items}
                     value={selected}
-                    onValueChange={(next) =>
+                    onValueChange={(next) => {
+                      if (next === ADD_MODEL) {
+                        onAddModelForRole?.(role.key);
+                        return;
+                      }
                       onPreferenceChange(
                         role.key,
                         !next || next === "auto" ? "" : next,
-                      )
-                    }
+                      );
+                    }}
                     disabled={locked}
                   >
                     <SelectTrigger
@@ -415,7 +430,15 @@ function StageSplit({
                       </SelectGroup>
                     </SelectContent>
                   </Select>
-                  <p className="truncate text-[11px] text-muted-foreground">
+                  <p className="flex items-center gap-1.5 truncate text-[11px] text-muted-foreground">
+                    {primary ? (
+                      <ProviderLogo
+                        kind={providers[primary]?.kind}
+                        name={providerModelLabel(primary, providers[primary])}
+                        catalog={modelCatalog}
+                        className="size-4"
+                      />
+                    ) : null}
                     {primary
                       ? `Runs on ${providerModelLabel(primary, providers[primary])}${
                           fallbacks.length
@@ -501,9 +524,11 @@ function ActingPathWarning({
 function ProviderRow({
   name,
   health,
+  modelCatalog,
 }: {
   name: string;
   health: ProviderHealth;
+  modelCatalog?: ModelCatalog;
 }) {
   const ready = health.ready !== false;
   const coolingDown = Boolean(health.cooldown_until);
@@ -516,16 +541,23 @@ function ProviderRow({
   return (
     <article className="border-t border-border/70 py-4 first:border-t-0">
       <div className="flex items-start gap-3">
+        {/* Ready is the expected state and stays neutral; DESIGN.md reserves
+            green for observed evidence, not for "a thing is connected". */}
         <StatusIcon
           className={
             ready
-              ? "mt-0.5 size-4 shrink-0 text-emerald-300"
+              ? "mt-0.5 size-4 shrink-0 text-muted-foreground"
               : "mt-0.5 size-4 shrink-0 text-amber-300"
           }
           aria-hidden="true"
         />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
+            <ProviderLogo
+              kind={health.kind}
+              name={health.configured_model || name}
+              catalog={modelCatalog}
+            />
             <h4 className="truncate text-sm font-semibold">
               {health.configured_model || name}
             </h4>

@@ -122,7 +122,7 @@ export function ComputerSheet({
             <div className="flex shrink-0 items-center gap-2">
               <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <span
-                  className="size-1.5 rounded-full bg-emerald-400"
+                  className="size-1.5 rounded-full bg-muted-foreground"
                   aria-hidden="true"
                 />
                 {run.status.replaceAll("_", " ")}
