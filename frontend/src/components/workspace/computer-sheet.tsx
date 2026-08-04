@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 import type { RunSnapshot } from "@/types";
 
 type ComputerSheetProps = {
@@ -150,7 +151,18 @@ export function ComputerSheet({
             and the sheet is tall, so a full-height black box put ~600px of hard
             black around a 410px picture and made the capture read as a strip
             floating in a void. Black now sits only behind the picture. */}
-        <div className="flex min-h-0 flex-1 items-center justify-center bg-muted/20">
+        {/* Anchored to the top, not centred: the picture is 16:9 in a sheet
+            three times its height, so centring split 600px of emptiness evenly
+            above and below it and left the capture hanging in the middle of
+            nothing. Sitting under the header, the leftover space collects at the
+            bottom where it reads as the end of the sheet. The states that are
+            not a picture stay centred, since they are short messages. */}
+        <div
+          className={cn(
+            "flex min-h-0 flex-1 justify-center bg-muted/20",
+            hasComputerSession ? "items-start" : "items-center",
+          )}
+        >
           {!hasComputerSession ? (
             <div className="flex max-w-sm flex-col items-center gap-2 px-8 text-center">
               {connectionEnabled ? (
