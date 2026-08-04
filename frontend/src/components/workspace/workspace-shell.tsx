@@ -242,8 +242,12 @@ export function WorkspaceShell() {
   const selectedSummary = workspace.selectedId
     ? workspace.runs.find((run) => run.run_id === workspace.selectedId)
     : undefined;
+  // "New task" everywhere: the button that creates one, the sheet that lists
+  // them, its search field and the list's own fallback title all say task, so a
+  // header reading "New chat" was a second name for the same untitled run, one
+  // click away from the first. Kept in step with ThreadListItemGroups.
   const selectedTaskTitle =
-    workspace.selectedRun?.task || selectedSummary?.task || "New chat";
+    workspace.selectedRun?.task || selectedSummary?.task || "New task";
   const selectedRunPending = Boolean(
     workspace.selectedId &&
       workspace.selectedRun?.run_id !== workspace.selectedId,
