@@ -30,7 +30,7 @@ const ANIMATION_DURATION = 200;
 
 const ReasoningPreviewContext = createContext(false);
 
-const reasoningVariants = cva("aui-reasoning-root mb-4 w-full", {
+const reasoningVariants = cva("aui-reasoning-root mb-3 w-full", {
   variants: {
     variant: {
       outline: "rounded-lg border px-3 py-2",
@@ -38,8 +38,10 @@ const reasoningVariants = cva("aui-reasoning-root mb-4 w-full", {
       muted: "bg-muted/50 rounded-lg px-3 py-2",
     },
   },
+  /* Ghost by default: a border round every thought is a lot of chrome in a
+     400px panel, and the content carries a left rule instead. */
   defaultVariants: {
-    variant: "outline",
+    variant: "ghost",
   },
 });
 
@@ -180,14 +182,14 @@ function ReasoningTrigger({
     <CollapsibleTrigger
       data-slot="reasoning-trigger"
       className={cn(
-        "aui-reasoning-trigger group/trigger text-muted-foreground hover:text-foreground flex max-w-[75%] origin-left items-center gap-2 py-1.5 text-sm transition-[color,scale] active:scale-[0.98]",
+        "aui-reasoning-trigger group/trigger text-muted-foreground hover:text-foreground flex max-w-[75%] origin-left items-center gap-1.5 py-1 text-[12.5px] transition-[color,scale] active:scale-[0.98]",
         className,
       )}
       {...props}
     >
       <BrainIcon
         data-slot="reasoning-trigger-icon"
-        className="aui-reasoning-trigger-icon size-4 shrink-0"
+        className="aui-reasoning-trigger-icon size-3.5 shrink-0"
       />
       <span
         data-slot="reasoning-trigger-label"
@@ -207,7 +209,7 @@ function ReasoningTrigger({
       <ChevronDownIcon
         data-slot="reasoning-trigger-chevron"
         className={cn(
-          "aui-reasoning-trigger-chevron mt-0.5 size-4 shrink-0",
+          "aui-reasoning-trigger-chevron mt-0.5 size-3.5 shrink-0",
           "transition-transform duration-(--animation-duration) ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none",
           "-rotate-90",
           "group-data-open/trigger:rotate-0",
@@ -229,7 +231,7 @@ function ReasoningContent({
     <CollapsibleContent
       data-slot="reasoning-content"
       className={cn(
-        "aui-reasoning-content text-muted-foreground relative overflow-hidden text-sm outline-none",
+        "aui-reasoning-content text-muted-foreground relative overflow-hidden border-l border-border/70 ps-3 text-[12.5px] leading-[1.5] outline-none",
         "group/collapsible-content ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:animate-none",
         "data-closed:animate-collapsible-up",
         "data-open:animate-collapsible-down",
