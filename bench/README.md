@@ -1831,6 +1831,20 @@ file-absence, byte-accuracy, dangerous-commit, or preserved-prior claim. The
 valid model failure and the campaign-selection defect are retained in
 [`code-09-v8-observer-comparison.json`](results/2026-08-04/live-vnc/code-09-v8-observer-comparison.json).
 
+Pushed `fe7807a` then changed the showcase manifest itself to select Spark and
+proved the API expands that preference to Spark first and Terra second for all
+three roles. Recorded v9 exercised the corrected route with 20 successful Spark
+calls, zero provider failures, and zero fallbacks. That removed v8's wasted
+calls but not the task failure: after the same single Notepad-launch action,
+the model repeatedly described the supplied comparison image as unavailable or
+uninspectable and reached the bounded eight-recovery limit before document
+input. It emitted no document content, made no save, quiesced, retained a
+227-second VP9 recording, and completed a 74.443-second transition-observed
+reboot. The installed observer did not run, so the report makes no artifact or
+dangerous-commit claim. This provider-valid image-grounding failure is retained
+in
+[`code-09-v9-observer-comparison.json`](results/2026-08-04/live-vnc/code-09-v9-observer-comparison.json).
+
 The failure-inclusive ledger is
 [`code-09-attempts.json`](results/2026-08-04/live-vnc/code-09-attempts.json).
 The five post-v5 gate probes, exact receipts, native crop geometry, independent
@@ -1852,7 +1866,10 @@ run and its deliberately absent observer claim are retained in
 The provider-valid v8 failure and its deliberately absent observer claim are
 retained in
 [`v8`](results/2026-08-04/live-vnc/code-09-v8-observer-comparison.json).
-The ledger digest is `sha256:2fd5a21eb642`; the exact-line latency probe digest
+The Spark-primary v9 image-grounding failure and its deliberately absent
+observer claim are retained in
+[`v9`](results/2026-08-04/live-vnc/code-09-v9-observer-comparison.json).
+The ledger digest is `sha256:9bc7bcf0f2a2`; the exact-line latency probe digest
 is `sha256:3b6a193ceca7`; the repeated-symbol transport probe digest is
 `sha256:3deb13af355f`; the native-readback probe digest is
 `sha256:ccc6cd47bfdd`; the key-path probe digest is
@@ -1864,7 +1881,8 @@ is `sha256:3b6a193ceca7`; the repeated-symbol transport probe digest is
 `sha256:6ecf8b577405`; the causal Run-field probe report is
 `sha256:01a1347ecb44`; the infrastructure-invalid v7 observer report is
 `sha256:445d2013108b`; the provider-valid v8 observer report is
-`sha256:65dd92566dc1`.
+`sha256:65dd92566dc1`; the Spark-primary v9 observer report is
+`sha256:121518a07e33`.
 The v1 campaign digest is `sha256:45d79fa42371`; its 150.5-second VP9 recording
 is `sha256:326c660001e1` and its poster is `sha256:ef31e95c379d`. The v2
 campaign digest is `sha256:0e7595958008`; its 247.5-second VP9 recording is

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "report": "codex-code-entry-code09-failure-inclusive-attempts",
-  "recorded_at": "2026-08-04T19:39:10Z",
+  "recorded_at": "2026-08-04T19:50:02Z",
   "environment": {
     "target": "authorized disposable Windows VNC VM",
     "production_target_contacted": false,
@@ -29,15 +29,15 @@
     ]
   },
   "summary": {
-    "full_task_runs": 7,
-    "failed_runs": 7,
+    "full_task_runs": 8,
+    "failed_runs": 8,
     "invalid_runs": 1,
     "passed_runs": 0,
     "all_failures_retained": true,
     "all_recordings_retained": true,
     "all_reboots_ready": true,
     "all_reboots_observed_real_transition": true,
-    "release_gate": "blocked after recorded v8: Spark is healthy and completed 18 calls across all roles, but the campaign's codex-fast default forced 18 quota-or-billing fallbacks before those calls. The model completed one Notepad-launch action, then stopped safely because it would not claim readable comparison-image evidence. No document content or save occurred; the run recorded, quiesced, and rebooted."
+    "release_gate": "blocked after recorded v9: the Spark-primary manifest is proven live with 20 successful calls, zero provider failures, and zero fallbacks. The model completed one Notepad-launch action, then exhausted the bounded recovery budget because it treated the supplied comparison image as unavailable or uninspectable. No document content or save occurred; the run recorded, quiesced, and rebooted."
   },
   "attempts": [
     {
@@ -509,6 +509,59 @@
       },
       "poster_sha256": "3dc0ac430efcd5c8b29b9dcaa8231177d3c4e3ac27162f642e70fff72020e864",
       "campaign_sha256": "7c542871ae47ab340b8070b1aa42301b8da99a1b4c1cd8486bb6f1307939c6f2"
+    },
+    {
+      "campaign_id": "codex-code-entry-code09-v9-20260804",
+      "manifest_campaign_id": "codex-windows-50",
+      "accepted_status": "failed",
+      "campaign_reported_status": "failed",
+      "run_id": "142032e8-6753-413f-8b3e-42890b69a788",
+      "source_commit": "fe7807a731ec0c3ac0eabc87b5353ecc0ae67a02",
+      "reason": "The Spark-primary campaign route was exercised with 20 successful structured model calls, zero provider failures, and zero fallbacks. After one completed Notepad-launch action, the model repeatedly declined to verify the post-action screen because it described the comparison image as unavailable or uninspectable. The runner stopped at the bounded eight-recovery limit before document input.",
+      "task_duration_ms": 307005,
+      "preflight_ms": 56408,
+      "wall_clock_ms": 169600,
+      "model_active_ms": 132590,
+      "provider_wait_ms": 133228,
+      "action_execution_ms": 19737,
+      "evidence_capture_ms": 386,
+      "provider_calls": 20,
+      "reasoner_calls": 9,
+      "controller_calls": 9,
+      "verifier_calls": 2,
+      "provider_failures": 0,
+      "provider_fallbacks": 0,
+      "spark_successful_calls": 20,
+      "actions_attempted": 1,
+      "actions_completed": 1,
+      "same_run_recoveries": 8,
+      "approval_requests": 0,
+      "approvals_granted": 0,
+      "document_input_emitted": false,
+      "save_committed": false,
+      "quiescence_status": "confirmed",
+      "reboot_ms": 74443,
+      "reboot_transition_observed": true,
+      "input_transport_strategy_version": "windows-rfb-print-v3",
+      "observer": {
+        "capture_status": "not_run",
+        "causal_execution_proven": false,
+        "current_path_absent": null,
+        "dangerous_commit_count": null,
+        "prior_artifact_claimed": false,
+        "comparison_report": "bench/results/2026-08-04/live-vnc/code-09-v9-observer-comparison.json"
+      },
+      "recording": {
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2.0,
+        "duration_ms": 227000,
+        "size_bytes": 911008,
+        "sha256": "10425b72608ef46d534bbf7bac989055bd84722d71401d916ce3b45326a4624a"
+      },
+      "poster_sha256": "d6d898d834d95f42709a51bf0fe00bdbd7eaedd5c2663292817f5c0315b36cb5",
+      "campaign_sha256": "adbb09d44872696b2f8eb0ae5f462a188ada79d3bbe640f65b57a5aaa2f8bd14"
     }
   ],
   "remediations": [
@@ -666,8 +719,9 @@
       "The fifth maximized probe emitted a distinct eight-character hash once, but the screen and five precise OCR reads consistently contained seven characters. The verifier failed closed with zero retries, the payload was never replayed, and the exact-alternative budget event did not fire. The reset retained a real dark-frame transition and independently reacquired the stable desktop.",
       "Pushed 7ae4f44 reproduced the repeated Windows numeric-Alt loss offline and added a bounded Alt-up reassertion barrier. A fresh maximized live probe then emitted one distinct eight-character repeated-symbol line once, retained both semantic Alt routes under windows-rfb-print-v3, fired the exact-alternative spacing budget once, and independently matched the requested readback hash in 9.222 seconds with zero corrections or retries. Its mandatory reset retained a 0.08-luminance dark-frame transition and reacquired a stable desktop.",
       "Recorded v7 passed the clean-workspace preflight on pushed 84ff3c1, then received quota-or-billing from codex-fast on three reasoner attempts. No model response or task action occurred. The runner failed closed, quiesced, retained the recording, and completed a 74.432-second transition-observed reboot. The installed observer did not run, so no post-run artifact or dangerous-commit claim is made.",
-      "A bounded target-free app-server probe proved the separate gpt-5.3-codex-spark bucket healthy in 5.147 seconds, and pushed 8775fc5 made Spark the configured primary route. Recorded v8 then exposed that the campaign manifest still pinned codex-fast first: 18 quota-or-billing calls each fell through to a successful Spark call. Spark completed 18 calls across all roles and one Notepad-launch action, then failed closed because it would not claim readable comparison-image evidence. No document input or save occurred, no observer claim is made, and the mandatory 77.248-second reboot observed a real transition."
+      "A bounded target-free app-server probe proved the separate gpt-5.3-codex-spark bucket healthy in 5.147 seconds, and pushed 8775fc5 made Spark the configured primary route. Recorded v8 then exposed that the campaign manifest still pinned codex-fast first: 18 quota-or-billing calls each fell through to a successful Spark call. Spark completed 18 calls across all roles and one Notepad-launch action, then failed closed because it would not claim readable comparison-image evidence. No document input or save occurred, no observer claim is made, and the mandatory 77.248-second reboot observed a real transition.",
+      "Pushed fe7807a made the showcase manifest select codex-spark directly, with an offline expansion proving Spark first and Terra second for all three roles. Recorded v9 exercised that route with 20 successful Spark calls, zero failures, and zero fallbacks. It completed the same single Notepad-launch action, then reached the eight-recovery limit because model outputs repeatedly described the comparison image as unavailable or uninspectable. It emitted no document content, made no save, launched no observer, and completed a 74.443-second transition-observed reboot."
     ],
-    "next_attempt": "Make the campaign manifest select codex-spark directly so the exhausted codex-fast alias cannot lead each role, validate the durable expanded route offline, restart only the isolated lab, and run recorded Code-09 v9. Preserve the same exact-input, observer, recording, quiescence, and reboot gates."
+    "next_attempt": "Diagnose the Codex app-server image attachment and Spark model capability path from retained v9 events and a target-free image canary. Implement one bounded causal fix only if the harness is dropping or mislabelling the supplied frame. Do not weaken verification or replay task input; run v10 only after the fix is proven offline and with the smallest safe live image probe."
   }
 }

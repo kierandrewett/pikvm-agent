@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "report": "code-09-v9-observer-comparison",
+  "recorded_at": "2026-08-04T19:50:02Z",
+  "source_commit": "fe7807a731ec0c3ac0eabc87b5353ecc0ae67a02",
+  "accepted_status": "failed",
+  "environment": {
+    "target": "authorized disposable Windows VNC VM",
+    "production_target_contacted": false,
+    "endpoint_retained": false,
+    "keymap": "en-gb",
+    "keyboard_profile": "windows"
+  },
+  "campaign": {
+    "campaign_id": "codex-code-entry-code09-v9-20260804",
+    "manifest_campaign_id": "codex-windows-50",
+    "run_id": "142032e8-6753-413f-8b3e-42890b69a788",
+    "campaign_reported_status": "failed",
+    "reason": "The Spark-primary campaign route was exercised with 20 successful structured model calls, zero provider failures, and zero fallbacks. After one completed Notepad-launch action, the model repeatedly declined to verify the post-action screen because it described the comparison image as unavailable or uninspectable. The runner stopped at the bounded eight-recovery limit before document input.",
+    "model_run_started": true,
+    "model_active_ms": 132590,
+    "provider_attempts": 20,
+    "provider_failures": 0,
+    "provider_fallbacks": 0,
+    "spark_successful_calls": 20,
+    "task_actions_attempted": 1,
+    "task_actions_completed": 1,
+    "document_input_emitted": false,
+    "save_committed": false,
+    "recoveries": 8,
+    "quiescence_status": "confirmed"
+  },
+  "performance": {
+    "managed_wall_clock_ms": 169600,
+    "task_duration_ms": 307005,
+    "provider_wait_ms": 133228,
+    "action_execution_ms": 19737,
+    "evidence_capture_ms": 386,
+    "spark_reasoner_median_ms": 5885.0,
+    "spark_controller_median_ms": 5461.0,
+    "spark_verifier_median_ms": 5781.0
+  },
+  "preflight": {
+    "status": "ready",
+    "workspace_marker_attempts": 1,
+    "visible_fresh_artifact_status": "verified_absent",
+    "ready_frame_sha256": "3cda470a92eaa8fed2c658c7c708ea976fdc10af870bb1b61a42418c801fc8c9"
+  },
+  "observer": {
+    "launched": false,
+    "command_executed": false,
+    "causal_execution_proven": false,
+    "artifact_comparison": "not run",
+    "current_path_absent": null,
+    "current_bytes_match": null,
+    "dangerous_commit_count": null,
+    "prior_artifact_claimed": false,
+    "reason": "The task launched Notepad but emitted no document content and committed no save. The installed observer was not launched, so this report makes no post-run file-absence, byte-accuracy, dangerous-commit, or preserved-prior claim."
+  },
+  "recording": {
+    "codec": "vp9",
+    "width": 2048,
+    "height": 1280,
+    "fps": 2.0,
+    "duration_ms": 227000,
+    "size_bytes": 911008,
+    "sha256": "10425b72608ef46d534bbf7bac989055bd84722d71401d916ce3b45326a4624a",
+    "poster_sha256": "d6d898d834d95f42709a51bf0fe00bdbd7eaedd5c2663292817f5c0315b36cb5",
+    "campaign_sha256": "adbb09d44872696b2f8eb0ae5f462a188ada79d3bbe640f65b57a5aaa2f8bd14"
+  },
+  "mandatory_reboot": {
+    "ready": true,
+    "transition_observed": true,
+    "duration_ms": 74443,
+    "attempt_duration_ms": 69426,
+    "ready_frame_sha256": "ff8a56fa362d9a78f7bb14e4325a953fc63218a53bb2b500727cf51cc059ceb8"
+  },
+  "finding": "Code-09 v9 proves the campaign now uses Spark directly and removes v8's 18 failed fallback calls. The remaining failure is narrower: Spark does not ground the comparison image supplied after the first action. The run failed closed, quiesced, retained its recording, and completed a transition-observed reboot."
+}
