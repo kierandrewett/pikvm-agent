@@ -26,6 +26,21 @@ def _hid_calls(runtime: Runtime) -> list[tuple]:
     ]
 
 
+def _fail_capture_after_first_call(session):
+    original_capture = session.frames.capture
+    calls = 0
+
+    async def fail_final_capture(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return await original_capture(*args, **kwargs)
+        raise RuntimeError("camera unavailable after HID")
+
+    session.frames.capture = fail_final_capture
+    return original_capture
+
+
 _ORIGINAL_BURST_RUNNER = burst_module.run_burst
 
 
@@ -247,6 +262,7 @@ async def _run_overlapping_idempotent_requests(
     monkeypatch,
     *,
     cancel_initial_request: bool,
+    retry_idempotency_key: str | None = None,
 ) -> tuple[dict | None, dict, int]:
     sid = (await runtime.start_session("direct"))["session_id"]
     shot = await runtime.get_session_summary(sid, capture=True)
@@ -293,7 +309,12 @@ async def _run_overlapping_idempotent_requests(
         runtime.run_burst(
             sid,
             [{"type": "key", "keys": ["CTRL", "F"]}],
-            **kwargs,
+            **{
+                **kwargs,
+                "idempotency_key": (
+                    retry_idempotency_key or kwargs["idempotency_key"]
+                ),
+            },
         )
     )
     await asyncio.sleep(0.05)
@@ -369,6 +390,56 @@ async def test_concurrent_and_cancelled_idempotent_retries_join_in_flight_hid(
     assert conflict["status"] == "idempotency_conflict"
     assert completed["status"] == "completed"
     assert execution_count == 1
+
+
+async def test_cancelled_retry_with_new_key_joins_identical_in_flight_hid(
+    runtime: Runtime,
+    monkeypatch,
+) -> None:
+    """A lost response must not let a caller-generated retry repeat HID."""
+
+    first, retry, execution_count = await _run_overlapping_idempotent_requests(
+        runtime,
+        monkeypatch,
+        cancel_initial_request=True,
+        retry_idempotency_key="caller-generated-retry-key",
+    )
+
+    assert first is None
+    assert execution_count == 1
+    assert retry["status"] == "completed"
+    assert retry["idempotent_inflight_replay"] is True
+    assert retry["idempotency_alias_replay"] is True
+
+
+async def test_new_key_can_repeat_a_completed_identical_burst(
+    runtime: Runtime,
+) -> None:
+    """Semantic retry protection must not block a new successful action."""
+
+    sid = (await runtime.start_session("direct"))["session_id"]
+    shot = await runtime.get_session_summary(sid, capture=True)
+    actions = [{"type": "key", "keys": ["CTRL", "F"]}]
+    first = await runtime.run_burst(
+        sid,
+        actions,
+        based_on_world_version=shot["world_version"],
+        based_on_control_epoch=shot["control_epoch"],
+        idempotency_key="first-completed-action",
+    )
+    current = await runtime.get_session_summary(sid, capture=False)
+    second = await runtime.run_burst(
+        sid,
+        actions,
+        based_on_world_version=current["world_version"],
+        based_on_control_epoch=current["control_epoch"],
+        idempotency_key="second-intentional-action",
+    )
+
+    assert first["status"] == "completed"
+    assert second["status"] == "completed"
+    assert "idempotency_alias_replay" not in second
+    assert len(_hid_calls(runtime)) == 2
 
 
 async def test_idempotent_retry_rechecks_after_slow_preflight(
@@ -680,17 +751,7 @@ async def test_post_action_capture_failure_returns_structured_partial_result(
     sid = (await runtime.start_session("direct"))["session_id"]
     shot = await runtime.get_session_summary(sid, capture=True)
     session = runtime._get(sid)
-    original_capture = session.frames.capture
-    calls = 0
-
-    async def fail_final_capture(*args, **kwargs):
-        nonlocal calls
-        calls += 1
-        if calls == 1:
-            return await original_capture(*args, **kwargs)
-        raise RuntimeError("camera unavailable after HID")
-
-    session.frames.capture = fail_final_capture
+    _fail_capture_after_first_call(session)
     result = await runtime.run_burst(
         sid,
         [{"type": "key", "keys": ["KeyA"]}],
@@ -704,6 +765,38 @@ async def test_post_action_capture_failure_returns_structured_partial_result(
     assert result["reason"] == "post_action_evidence_failed"
     assert result["completed_actions"] == 1
     assert "camera unavailable after HID" in result["error"]
+    assert len(_hid_calls(runtime)) == 1
+
+
+async def test_new_key_replays_failed_post_hid_receipt_without_repeating_hid(
+    runtime: Runtime,
+) -> None:
+    """A retry cannot repeat HID when the original response may have been lost."""
+
+    sid = (await runtime.start_session("direct"))["session_id"]
+    shot = await runtime.get_session_summary(sid, capture=True)
+    session = runtime._get(sid)
+    original_capture = _fail_capture_after_first_call(session)
+    first = await runtime.run_burst(
+        sid,
+        [{"type": "key", "keys": ["KeyA"]}],
+        based_on_world_version=shot["world_version"],
+        based_on_control_epoch=shot["control_epoch"],
+        idempotency_key="original-response-lost",
+    )
+    session.frames.capture = original_capture
+    current = await runtime.get_session_summary(sid, capture=False)
+    retry = await runtime.run_burst(
+        sid,
+        [{"type": "key", "keys": ["KeyA"]}],
+        based_on_world_version=current["world_version"],
+        based_on_control_epoch=current["control_epoch"],
+        idempotency_key="caller-generated-retry",
+    )
+
+    assert first["status"] == "failed"
+    assert retry["status"] == "failed"
+    assert retry["idempotency_alias_replay"] is True
     assert len(_hid_calls(runtime)) == 1
 
 

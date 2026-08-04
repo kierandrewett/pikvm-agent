@@ -458,15 +458,22 @@ class SessionRuntime:
     burst_idempotency: dict[str, dict[str, Any]] = field(default_factory=dict)
     # Execution claims are separate from completed response receipts. A client
     # may retry after its request timeout while watched typing is still doing
-    # OCR readback; identical callers must join that task, never start HID again.
+    # OCR readback; identical bursts must join that task even when a caller
+    # regenerated its key after losing the first response.
     burst_inflight: dict[str, dict[str, Any]] = field(default_factory=dict)
-    # Idempotency is checked once before screen grounding and again immediately
-    # before an execution claim is created. Grounding can block behind the
-    # original watched-typing request long enough for it to finish, so the
-    # second check and claim must be atomic per caller key.
-    burst_idempotency_locks: dict[str, asyncio.Lock] = field(
+    burst_semantic_inflight: dict[str, dict[str, Any]] = field(
         default_factory=dict
     )
+    # A non-successful result after HID is an at-most-once brake. A caller that
+    # lost that response must receive the retained receipt instead of repeating
+    # the same uncertain input under a newly generated key.
+    burst_unsafe_semantic_receipts: dict[str, dict[str, Any]] = field(
+        default_factory=dict
+    )
+    # Grounding may await for seconds, so claims are checked again and created
+    # atomically immediately before execution. One short session lock protects
+    # both caller-key and semantic indexes; it is never held while HID runs.
+    burst_claim_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
     # A manual input report or newly detected machine client invalidates model
     # authority established under an earlier control epoch.
     last_human_input_at: float | None = None
@@ -1010,6 +1017,54 @@ class Runtime:
                 "control_epoch": sr.control_epoch,
                 "machine": machine,
             }
+
+        def replay_unsafe_semantic_receipt() -> dict[str, Any] | None:
+            retained = sr.burst_unsafe_semantic_receipts.get(digest)
+            if retained is None:
+                return None
+            base_result = copy.deepcopy(retained["result"])
+            sr.burst_idempotency[key] = {
+                "digest": digest,
+                "status": "completed",
+                "result": copy.deepcopy(base_result),
+            }
+            replay = copy.deepcopy(base_result)
+            replay["idempotency_alias_replay"] = True
+            replay["semantic_replay_reason"] = (
+                "prior_non_successful_post_hid_receipt"
+            )
+            sr.trace.append(
+                "burst_semantic_replay",
+                digest_prefix=digest[:12],
+                retained_status=base_result.get("status"),
+            )
+            return replay
+
+        def finish_execution_claim(
+            inflight: dict[str, Any],
+            result: dict[str, Any],
+            *,
+            retain_unsafe: bool,
+        ) -> None:
+            base_result = copy.deepcopy(result)
+            base_result.pop("idempotent_inflight_replay", None)
+            base_result.pop("idempotency_alias_replay", None)
+            claimed_keys = set(inflight.get("keys") or {key})
+            for claimed_key in claimed_keys:
+                sr.burst_idempotency[claimed_key] = {
+                    "digest": digest,
+                    "status": "completed",
+                    "result": copy.deepcopy(base_result),
+                }
+                if sr.burst_inflight.get(claimed_key) is inflight:
+                    sr.burst_inflight.pop(claimed_key, None)
+            if sr.burst_semantic_inflight.get(digest) is inflight:
+                sr.burst_semantic_inflight.pop(digest, None)
+            if retain_unsafe:
+                sr.burst_unsafe_semantic_receipts[digest] = {
+                    "result": copy.deepcopy(base_result),
+                }
+
         prior = sr.burst_idempotency.get(key) if key else None
         if prior is not None:
             if prior["digest"] != digest:
@@ -1027,6 +1082,9 @@ class Runtime:
                 replay = copy.deepcopy(prior["result"])
                 replay["idempotent_replay"] = True
                 return replay
+        semantic_replay = replay_unsafe_semantic_receipt()
+        if semantic_replay is not None:
+            return semantic_replay
         # FRESHNESS: the screen must still be the one the controller planned against.
         # The resettable benchmark profile can explicitly opt into a target-local
         # check for pointer-only bursts across unrelated animation.
@@ -1285,16 +1343,12 @@ class Runtime:
             if effective_runtime_ms
             else None
         )
-        idempotency_lock = sr.burst_idempotency_locks.setdefault(
-            key,
-            asyncio.Lock(),
-        )
-        async with idempotency_lock:
+        async with sr.burst_claim_lock:
             # A retry may have entered this method while the original request
             # was still typing, then blocked for minutes in frame capture or
             # keyboard-surface grounding. Recheck the completed receipt after
-            # those awaits; otherwise the retry can miss both the original
-            # in-flight claim and its newly cached result and emit HID again.
+            # those awaits; the semantic indexes also catch callers that
+            # regenerated their key after losing the first response.
             prior = sr.burst_idempotency.get(key)
             if prior is not None:
                 if prior["digest"] != digest:
@@ -1315,6 +1369,9 @@ class Runtime:
                     replay = copy.deepcopy(prior["result"])
                     replay["idempotent_replay"] = True
                     return replay
+            semantic_replay = replay_unsafe_semantic_receipt()
+            if semantic_replay is not None:
+                return semantic_replay
             inflight = sr.burst_inflight.get(key)
             if inflight is not None and inflight["digest"] != digest:
                 return {
@@ -1327,7 +1384,15 @@ class Runtime:
                     "control_epoch": sr.control_epoch,
                     "machine": machine,
                 }
+            semantic_inflight = sr.burst_semantic_inflight.get(digest)
+            if inflight is None and semantic_inflight is not None:
+                inflight = semantic_inflight
+                inflight.setdefault("keys", set()).add(key)
+                sr.burst_inflight[key] = inflight
             joined_inflight = inflight is not None
+            idempotency_alias_replay = bool(
+                inflight is not None and inflight.get("owner_key") != key
+            )
             # The watched typer can't read back a synthetic FakeBackend screen,
             # so skip it under the fake (the verify path is unit-tested directly
             # in test_burst.py).
@@ -1367,8 +1432,11 @@ class Runtime:
                 inflight = {
                     "digest": digest,
                     "task": burst_task,
+                    "owner_key": key,
+                    "keys": {key},
                 }
                 sr.burst_inflight[key] = inflight
+                sr.burst_semantic_inflight[digest] = inflight
             else:
                 burst_task = inflight["task"]
         sr.status = "running"
@@ -1384,13 +1452,11 @@ class Runtime:
                 "control_epoch": sr.control_epoch,
                 "machine": machine,
             }
-            sr.burst_idempotency[key] = {
-                "digest": digest,
-                "status": "completed",
-                "result": copy.deepcopy(failed),
-            }
-            if sr.burst_inflight.get(key) is inflight:
-                sr.burst_inflight.pop(key, None)
+            finish_execution_claim(
+                inflight,
+                failed,
+                retain_unsafe=False,
+            )
             return failed
 
         post_settle_applied = False
@@ -1492,6 +1558,8 @@ class Runtime:
         }
         if joined_inflight:
             out["idempotent_inflight_replay"] = True
+        if idempotency_alias_replay:
+            out["idempotency_alias_replay"] = True
         current_other_clients = self._other_client_count()
         if current_other_clients:
             out["human_concurrency"] = {
@@ -1503,14 +1571,13 @@ class Runtime:
                         "image_sha256": final.image_sha256,
                         "screen_hash": final.screen_hash,
                         "width": final.width, "height": final.height})
-        if key:
-            sr.burst_idempotency[key] = {
-                "digest": digest,
-                "status": "completed",
-                "result": copy.deepcopy(out),
-            }
-            if sr.burst_inflight.get(key) is inflight:
-                sr.burst_inflight.pop(key, None)
+        finish_execution_claim(
+            inflight,
+            out,
+            retain_unsafe=(
+                outcome.completed > 0 and effective_status != "completed"
+            ),
+        )
         return out
 
     async def _ground_click_targets(
