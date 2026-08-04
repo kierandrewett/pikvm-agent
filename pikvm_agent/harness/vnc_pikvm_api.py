@@ -297,6 +297,29 @@ def code_to_character(
     return mapping.get((code, shifted))
 
 
+def _windows_vnc_needs_semantic_alt_code(
+    code: str,
+    character: str | None,
+    keymap: str,
+) -> bool:
+    """Identify ISO keys whose RFB keysym does not preserve the intended glyph.
+
+    ``vncdotool`` sends printable keysyms rather than USB scan codes. On the
+    disposable Windows UK guest, sending the UK hash key as the backslash
+    keysym was translated back to ``Shift+3`` and produced ``£``. Deliver the
+    semantic character for the two ISO backslash positions instead; ordinary
+    layout-invariant punctuation keeps the faster physical-key path.
+    """
+
+    if code == "IntlBackslash":
+        return True
+    return (
+        code == "Backslash"
+        and ks.keymap_to_layout(keymap) == "uk"
+        and character in {"#", "~"}
+    )
+
+
 class VncDotoolTransport:
     """Real RFB transport, loaded only by the lab CLI.
 
@@ -617,6 +640,15 @@ class VncDotoolTransport:
                 code,
                 self.keymap,
             )
+            character = (
+                shifted_character
+                if self._shift_pending
+                else code_to_character(
+                    code,
+                    shifted=False,
+                    keymap=self.keymap,
+                )
+            )
             if (
                 down
                 and self.keyboard_profile == "windows"
@@ -637,11 +669,10 @@ class VncDotoolTransport:
                 down
                 and self.keyboard_profile == "windows"
                 and (
-                    code == "IntlBackslash"
-                    or (
-                        code == "Backslash"
-                        and self._shift_pending
-                        and ks.keymap_to_layout(self.keymap) == "uk"
+                    _windows_vnc_needs_semantic_alt_code(
+                        code,
+                        character,
+                        self.keymap,
                     )
                     or (
                         self._shift_pending
@@ -657,15 +688,7 @@ class VncDotoolTransport:
                         client,
                     )
                     self._guest_modifiers_may_be_stale = False
-                character = (
-                    shifted_character
-                    if self._shift_pending
-                    else code_to_character(
-                        code,
-                        shifted=False,
-                        keymap=self.keymap,
-                    )
-                ) or ("\\" if code == "IntlBackslash" else key)
+                character = character or ("\\" if code == "IntlBackslash" else key)
                 self._synthetic_keyups.add(code)
                 await asyncio.to_thread(
                     self._type_windows_alt_code,
@@ -824,11 +847,10 @@ class VncDotoolTransport:
                         if (
                             self.keyboard_profile == "windows"
                             and (
-                                key_info.code == "IntlBackslash"
-                                or (
-                                    key_info.code == "Backslash"
-                                    and char == "~"
-                                    and layout == "uk"
+                                _windows_vnc_needs_semantic_alt_code(
+                                    key_info.code,
+                                    char,
+                                    self.keymap,
                                 )
                                 or (
                                     key_info.shift

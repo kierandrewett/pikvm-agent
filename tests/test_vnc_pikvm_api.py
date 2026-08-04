@@ -428,6 +428,47 @@ async def test_transport_uses_alt_codes_for_uk_symbols_windows_vnc_drops() -> No
     ]
 
 
+async def test_windows_transport_types_uk_hash_semantically_across_wire_paths() -> None:
+    class Client:
+        def __init__(self) -> None:
+            self.calls = []
+
+        def keyDown(self, key) -> None:
+            self.calls.append(("down", key))
+
+        def keyUp(self, key) -> None:
+            self.calls.append(("up", key))
+
+        def keyPress(self, key) -> None:
+            self.calls.append(("press", key))
+
+    transport = VncDotoolTransport(
+        "unused:5900",
+        keymap="en-gb",
+        keyboard_profile="windows",
+    )
+    client = Client()
+    transport._client = client
+
+    await transport.key("Backslash", True)
+    await transport.key("Backslash", False)
+
+    expected = [
+        ("down", "alt"),
+        ("press", "kp0"),
+        ("press", "kp0"),
+        ("press", "kp3"),
+        ("press", "kp5"),
+        ("up", "alt"),
+    ]
+    assert client.calls == expected
+
+    client.calls.clear()
+    await transport.print_text("#")
+
+    assert client.calls == expected
+
+
 async def test_windows_transport_types_unshifted_uk_backslash_as_backslash() -> None:
     class Client:
         def __init__(self) -> None:
