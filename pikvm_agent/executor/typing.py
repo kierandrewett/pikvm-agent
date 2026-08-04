@@ -6018,11 +6018,9 @@ class WatchedTyper:
                         # separate status proof succeeds.
                         break
                     settled_read = self._typed_candidate(
-                        await self._read_field(
+                        await read_field_with_editor_context(
                             current_readback_region(),
-                            intended=text,
-                            precise=precise,
-                            allow_semantic_spacing=allow_semantic_spacing,
+                            text,
                             allow_blind_fallback=(
                                 not defer_blind_editor_readback
                                 or settle_index

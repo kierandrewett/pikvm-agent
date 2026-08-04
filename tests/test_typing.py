@@ -7496,6 +7496,95 @@ async def test_short_editor_defers_blind_ocr_until_video_settles(
     _assert_no_enter(backend)
 
 
+async def test_short_editor_uses_native_primary_on_final_settled_read(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The deferred final read must keep editor-native OCR enabled."""
+
+    async def no_sleep(_seconds: float) -> None:
+        return None
+
+    intended = "# Release 1.0"
+    text_region = Region(x=40, y=74, width=181, height=26)
+    monkeypatch.setattr(asyncio, "sleep", no_sleep)
+    monkeypatch.setattr(
+        typing_module,
+        "locate_changed_bbox",
+        lambda *_args, **_kwargs: text_region,
+    )
+    monkeypatch.setattr(
+        typing_module,
+        "locate_dense_changed_candidates",
+        lambda *_args, **_kwargs: [],
+    )
+    monkeypatch.setattr(
+        typing_module,
+        "locate_dense_changed_bbox",
+        lambda *_args, **_kwargs: None,
+    )
+
+    class NativeResolutionBackend(FakeBackend):
+        def __init__(self) -> None:
+            super().__init__(width=1280, height=720, layout="uk")
+            self.native_crops = 0
+
+        async def screenshot(self, region=None):
+            if region is None:
+                return await super().screenshot()
+            self.native_crops += 1
+            output = io.BytesIO()
+            Image.new("RGB", (290, 42), "navy").save(output, "JPEG")
+            return to_captured_frame(output.getvalue(), 290, 42)
+
+        async def type_text(
+            self,
+            text: str,
+            *,
+            code: bool = False,
+            secret: bool = False,
+        ) -> None:
+            await super().type_text(text, code=code, secret=secret)
+            self.set_screen(text)
+
+    class ResolutionAwareOCR:
+        async def ocr(self, image_path, region=None):
+            return await self.ocr_precise(image_path, region=region)
+
+        async def ocr_precise(self, image_path, region=None):
+            if Image.open(image_path).size == (290, 42):
+                return OCRResult(
+                    lines=[
+                        OCRLine(text="File Edit View", confidence=0.91),
+                        OCRLine(text=intended, confidence=0.99),
+                        OCRLine(
+                            text="Plain text 100% Windows (CRLF) UTF-8",
+                            confidence=0.88,
+                        ),
+                    ],
+                    spacing_evidence="verified",
+                )
+            if region is None:
+                return OCRResult()
+            return OCRResult(
+                lines=[OCRLine(text="Release 1.4", confidence=0.42)],
+                spacing_evidence="verified",
+            )
+
+    backend = NativeResolutionBackend()
+    result = await WatchedTyper(backend, ResolutionAwareOCR()).type_text(
+        intended,
+        code=True,
+        exact=True,
+        context="editor",
+    )
+
+    assert result.status == "verified_exact", result
+    assert result.field_text == intended
+    assert result.emitted_exactly_once is True
+    assert backend.native_crops >= 1
+    _assert_no_enter(backend)
+
+
 async def test_terminal_wrapped_readback_reocrs_the_causal_rows(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
