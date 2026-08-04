@@ -765,8 +765,9 @@ export function ProviderConnectionsSheet({
                 Accounts
               </h3>
               <p className="mt-1 text-[11px] text-muted-foreground">
-                Readiness is a local prerequisite. Tier ≠ live-tested;
-                conformance is the accuracy check.
+                Ready means signed in and usable here, not tested. Tier is what
+                the provider claims. Conformance is the check that actually
+                measures accuracy.
               </p>
               <div className="mt-2">
                 {entries.length ? (
