@@ -1590,9 +1590,15 @@ def precise_readback_candidate_region(
 
     container_midpoint_y = container.height / 2
     intended_is_filename = _SAFE_FILENAME.fullmatch(intended) is not None
+    # Hybrid OCR keeps the non-canonical engine's independent geometry here.
+    # Admit it only for safe filenames and only through the labelled-row gate
+    # below; a fresh crop must still prove the complete value exactly.
+    filename_evidence_lines = (
+        list(result.evidence_lines) if intended_is_filename else []
+    )
     filename_label_regions: list[Region] = []
     if intended_is_filename:
-        for candidate in result.lines:
+        for candidate in [*result.lines, *filename_evidence_lines]:
             label_text = "".join(
                 character.casefold()
                 for character in candidate.text
@@ -1676,11 +1682,27 @@ def precise_readback_candidate_region(
             midpoint_distance,
         )
 
+    localization_lines = list(result.lines)
+    for line in filename_evidence_lines:
+        line_region = ocr_line_region(
+            line,
+            (
+                math.ceil(container.width),
+                math.ceil(container.height),
+            ),
+            pad=0,
+        )
+        if (
+            filename_row_is_labelled(line, line_region)
+            and line not in localization_lines
+        ):
+            localization_lines.append(line)
+
     # Notepad repeats the first document line in its tab title. Prefer a
     # punctuation-complete exact row, then the row nearest the causal crop's
     # centre. A lookalike title may still nominate a crop when it is the only
     # evidence, but it cannot outrank the exact editor row beneath it.
-    for line in sorted(result.lines, key=candidate_order):
+    for line in sorted(localization_lines, key=candidate_order):
         line_region = ocr_line_region(
             line,
             (

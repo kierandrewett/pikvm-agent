@@ -8006,6 +8006,43 @@ async def test_precise_readback_prefers_native_filename_edit_over_history() -> N
     assert typer._refined_readback_region == refined
 
 
+def test_precise_readback_uses_labelled_secondary_filename_evidence() -> None:
+    intended = "code-08.cmd"
+    result = OCRResult(
+        lines=[
+            OCRLine(
+                text=(
+                    "code-08.cmd.pikvm-prior-"
+                    "7800da7479db4393853ad"
+                ),
+                confidence=0.99,
+                bbox=[99, 34, 271, 46],
+            )
+        ],
+        evidence_lines=[
+            OCRLine(
+                text="File game:",
+                confidence=0.9714,
+                bbox=[54, 10, 93, 27],
+            ),
+            OCRLine(
+                text="kode-08.cmd",
+                confidence=0.9918,
+                bbox=[97, 12, 144, 22],
+            ),
+        ],
+    )
+
+    refined = precise_readback_candidate_region(
+        result,
+        intended,
+        Region(x=24, y=325, width=379, height=90),
+        (1280, 800),
+    )
+
+    assert refined == Region(x=119, y=331, width=200, height=24)
+
+
 def test_precise_readback_prefers_exact_editor_row_over_tab_title() -> None:
     intended = "def fizzbuzz(limit):"
     result = OCRResult(
