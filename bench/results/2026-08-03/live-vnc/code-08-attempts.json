@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "report": "codex-code-entry-code08-failure-inclusive-attempts",
-  "recorded_at": "2026-08-04T00:09:29Z",
+  "recorded_at": "2026-08-04T01:07:30Z",
   "environment": {
     "target": "authorized disposable Windows VNC VM",
     "production_target_contacted": false,
@@ -25,17 +25,17 @@
     ]
   },
   "summary": {
-    "recorded_attempts": 25,
-    "valid_full_task_runs": 19,
-    "failed_runs": 17,
-    "infrastructure_invalid_runs": 6,
+    "recorded_attempts": 27,
+    "valid_full_task_runs": 20,
+    "failed_runs": 18,
+    "infrastructure_invalid_runs": 7,
     "passed_runs": 2,
     "canonical_attempt": "v23",
     "all_failures_retained": true,
     "all_recordings_retained": true,
-    "reboots_ready": 24,
+    "reboots_ready": 26,
     "reboots_failed_or_pending": 1,
-    "release_gate": "accuracy passing; v24 remains the sub-300-second speed candidate, while v25 retained a safe Save-filename failure before the Open optimization could be exercised"
+    "release_gate": "accuracy passing; v24 remains the sub-300-second speed candidate, while v27 retained a second safe Save-filename wrong-region failure and independent absent-file proof"
   },
   "attempts": [
     {
@@ -1057,6 +1057,111 @@
       },
       "poster_sha256": "0089be8e364f01b17651128f809d4bf9ca837e51a31cb54e7b3e2fc496dc4609",
       "campaign_sha256": "ee1136737323b5dde9b127b65f20dbc32e807f14448a0521c8c3438f1419cb5c"
+    },
+    {
+      "campaign_id": "codex-code-entry-code08-v26-20260804",
+      "accepted_status": "infrastructure_invalid",
+      "campaign_reported_status": "failed",
+      "run_id": null,
+      "source_commit": "ebc3b62",
+      "reason": "Visible workspace setup displayed the fresh success marker for more than twelve seconds and offline OCR read it cleanly, but the live preflight poll did not accept it before timeout. No model run or task input began. The campaign still completed its mandatory transition-observed reboot.",
+      "task_duration_ms": 130767,
+      "preflight_status": "timed_out_visible_marker",
+      "workspace_marker_visible_in_recording": true,
+      "model_run_started": false,
+      "task_input_sent": false,
+      "quiescence_status": "not_required",
+      "reboot_ms": 84227,
+      "reboot_transition_observed": true,
+      "recording": {
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2.0,
+        "duration_ms": 94500,
+        "size_bytes": 426890,
+        "sha256": "3bce989ec9d5c670d8858e233654e540068f3bfadb37b1ac06b391f468b491f4"
+      },
+      "poster_sha256": null,
+      "campaign_sha256": "65923481b4612549ee4c750001ff885df5d8a20a6fb7bea05a883a6ab66c8689"
+    },
+    {
+      "campaign_id": "codex-code-entry-code08-v27-20260804",
+      "accepted_status": "failed",
+      "campaign_reported_status": "failed",
+      "run_id": "49e43078-1f1b-4bb3-9b0f-a1fae98ce88a",
+      "source_commit": "583d013",
+      "reason": "The retry-hardened workspace preflight succeeded on its first marker attempt and all nine code rows were emitted exactly once. Save As localization again selected autocomplete-history rows instead of the labelled filename edit, so the exact receipt remained unverified_wrong_region and the guard rejected Save before HID. The installed observer independently confirmed the current path remained absent.",
+      "wall_clock_ms": 296556,
+      "task_duration_ms": 447767,
+      "preflight_ms": 59666,
+      "workspace_marker_attempts": 1,
+      "model_active_ms": 186247,
+      "provider_wait_ms": 161698,
+      "provider_serial_equivalent_ms": 187440,
+      "provider_overlap_ms": 25742,
+      "action_execution_ms": 251483,
+      "evidence_capture_ms": 2027,
+      "unclassified_overhead_ms": 749,
+      "provider_calls": 24,
+      "reasoner_calls": 4,
+      "controller_calls": 11,
+      "verifier_calls": 9,
+      "actions_attempted": 10,
+      "actions_completed": 8,
+      "approval_requests": 1,
+      "approvals_granted": 1,
+      "approval_scopes": [
+        "bounded_workspace_edit"
+      ],
+      "same_run_recoveries": 3,
+      "editor_input": {
+        "rows": 9,
+        "windows_crlf_bytes": 127,
+        "sha256": "c5e247fcb3f17892938d047673cab4efbc6588140cd5d6b5047c553a8349ced4",
+        "all_text_segments_emitted_exactly_once": true
+      },
+      "filename_receipt": {
+        "requested": "code-08.cmd",
+        "status": "unverified_wrong_region",
+        "proof_state": "ambiguous_readback",
+        "observed_characters": 136,
+        "edit_distance": 125,
+        "emitted_exactly_once": true,
+        "save_committed": false,
+        "live_refined_region_y": 370,
+        "offline_same_frame_refined_region_y": 348
+      },
+      "guarded_followup": {
+        "commit_attempt_rejected": true,
+        "unsafe_followup_input_sent": false
+      },
+      "observer_artifact_comparison": {
+        "transport": "guarded MCP visual matrix",
+        "current_path": "C:/PiKVM-Harness/workspace/codex-50/code-08.cmd",
+        "current_pages": 3,
+        "current_checksum_valid": true,
+        "current_file_error": "open failed",
+        "current_observed_bytes": 0,
+        "prior_artifact_claimed": false,
+        "dangerous_commit_count": 0,
+        "comparison_report": "bench/results/2026-08-03/live-vnc/code-08-v27-observer-comparison.json"
+      },
+      "reboot_ms": 79311,
+      "reboot_transition_observed": true,
+      "post_observer_reset_ms": 79888,
+      "post_observer_reset_transition_observed": true,
+      "recording": {
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2.0,
+        "duration_ms": 333500,
+        "size_bytes": 1581746,
+        "sha256": "97978516ab3880c7ae977375d946b5d62ee09f3e539e788c3df346b19571b38b"
+      },
+      "poster_sha256": "b9956a68df9f96e1096bb4b1852a7dd080fbedb9cd51b79e820821ea09a4725b",
+      "campaign_sha256": "d69a9c6dfee67407af1965767bb686f38b7e5de8471030b5ef7271271b002bb5"
     }
   ],
   "remediations": [
@@ -1181,6 +1286,16 @@
       "after_attempt": "v24",
       "commit": "faf687b",
       "change": "Preserve the exact Open filename receipt when the verified Alt+N, Ctrl+A, exact-type burst precedes the separate grounded Open commit."
+    },
+    {
+      "after_attempt": "v25",
+      "commit": "ebc3b62",
+      "change": "Use labelled secondary OCR evidence to localize the native filename edit while preserving exact readback as the acceptance gate."
+    },
+    {
+      "after_attempt": "v26",
+      "commit": "583d013",
+      "change": "Retry the complete workspace-marker challenge once with a fresh nonce when the first visible marker is not accepted, without bypassing the readiness gate."
     }
   ],
   "next_gate": {
@@ -1199,10 +1314,13 @@
       "v24 remains failed because the final bare Enter was not contextually authorized; policy held it instead of converting a speed candidate into a false pass.",
       "v25 emitted the complete 127-byte editor draft once, then stopped safely when Save As readback included an autocomplete-history suffix.",
       "The v25 current path remained absent, the genuinely preserved v24 artifact matched exactly, zero dangerous commits were observed, and both required reboots observed transitions.",
-      "The v25 run did not reach Open, so commit faf687b was not exercised live and v24 remains the latest speed candidate."
+      "The v25 run did not reach Open, so commit faf687b was not exercised live and v24 remains the latest speed candidate.",
+      "v26 retained a visible-marker preflight timeout before any model or task input; its complete fresh-nonce retry shipped in 583d013 and the mandatory reboot observed a transition.",
+      "v27 exercised the labelled filename-localization remediation after a one-attempt successful preflight, emitted all 127 editor bytes once, and still failed closed when live OCR selected history at y=370 instead of the labelled row at y=348.",
+      "The v27 observer independently confirmed the current file was absent with zero dangerous commits; no preserved-prior artifact was genuinely claimed, and both required reboots observed transitions."
     ],
     "blocking_infrastructure_state": null,
-    "next_attempt": "Diagnose and bound the Save As wrong-region readback without weakening the unverified-draft guard. Run v26 only after a regression proves the intended path, and accept the speed gate only if the complete task passes with exact observer proof and mandatory reboots.",
+    "next_attempt": "Make filename localization deterministic across live and offline OCR, retaining enough left margin for the first glyph, without weakening exact readback. Run v28 only after a retained-frame regression exercises both the labelled row and the crop margin; accept the speed gate only if the complete task passes with exact observer proof and mandatory reboots.",
     "next_task_after_speed_gate": "code-09"
   }
 }

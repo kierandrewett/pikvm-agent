@@ -1,0 +1,141 @@
+{
+  "schema_version": 1,
+  "campaign_id": "codex-code-entry-code08-v27-20260804",
+  "run_id": "49e43078-1f1b-4bb3-9b0f-a1fae98ce88a",
+  "source_commit": "583d013",
+  "accepted_status": "failed",
+  "campaign_reported_status": "failed",
+  "environment": {
+    "production_contacted": false,
+    "endpoint_retained_in_repository": false,
+    "adapter_keymap": "en-gb"
+  },
+  "preflight": {
+    "duration_ms": 59666,
+    "workspace_marker_attempts": 1,
+    "preservation_status": "verified_absent",
+    "claimed_prior_file": false,
+    "current_path": "C:/PiKVM-Harness/workspace/codex-50/code-08.cmd",
+    "generated_but_unclaimed_prior_path": "C:/PiKVM-Harness/workspace/codex-50/pikvmprior94ceae3c9c0846b3a91956273e7f8fb8.cmd"
+  },
+  "immutable_editor_input": {
+    "rows": 9,
+    "line_breaks": 8,
+    "windows_crlf_bytes": 127,
+    "sha256": "c5e247fcb3f17892938d047673cab4efbc6588140cd5d6b5047c553a8349ced4",
+    "all_text_segments_emitted_exactly_once": true
+  },
+  "filename_receipt": {
+    "requested": "code-08.cmd",
+    "observed_rows": [
+      "code-08.cmd.pikvm-prior-7800da7479db4393853ad",
+      "ode-U8-cmd.-pikvm-pnor-baoy18dbe48349o40/403",
+      "code-08.cmd.ipikym-prior-a815a296e1dd4009a1fe"
+    ],
+    "status": "unverified_wrong_region",
+    "proof_state": "ambiguous_readback",
+    "requested_characters": 11,
+    "observed_characters": 136,
+    "edit_distance": 125,
+    "emitted_exactly_once": true,
+    "save_committed": false,
+    "requested_region": {
+      "x": 37,
+      "y": 340,
+      "width": 379,
+      "height": 90
+    },
+    "live_refined_region": {
+      "x": 137,
+      "y": 370,
+      "width": 200,
+      "height": 27
+    },
+    "offline_same_frame_refined_region": {
+      "x": 142,
+      "y": 348,
+      "width": 200,
+      "height": 26
+    },
+    "finding": "The retained frame visibly contains exact code-08.cmd in the labelled edit row. Live localization selected an autocomplete-history row at y=370; an offline replay of the same frame selected the correct labelled row at y=348, but its tight left crop read ode-08.cmd. The unresolved defect is runtime OCR/localization variability plus insufficient glyph margin, not missing screen pixels."
+  },
+  "guarded_followup": {
+    "commit_attempt_rejected": true,
+    "unsafe_followup_input_sent": false,
+    "reason": "The exact-input receipt remained ambiguous, so the Save commit was forbidden before HID."
+  },
+  "current_path_observer": {
+    "transport": "guarded MCP visual matrix",
+    "protocol": "pikvm-observer.v1",
+    "direct_run_id": "direct-b5876f58-ca29-4a52-a7a7-342291ae15b4",
+    "session_id": "s_a7cd6e1527be",
+    "caller_label": "office-artifact-verifier",
+    "sequence": 3,
+    "pages": 3,
+    "checksum_valid": true,
+    "path": "C:/PiKVM-Harness/workspace/codex-50/code-08.cmd",
+    "file_error": "open failed",
+    "observed_bytes": 0,
+    "observed_sha256": null,
+    "save_committed": false,
+    "dangerous_commit_count": 0,
+    "guest_identity_present": true,
+    "input_desktop_present": true
+  },
+  "preserved_prior_observer": {
+    "claimed": false,
+    "capture_attempted": false,
+    "reason": "Preflight independently verified the current path absent; the generated prior pathname was never claimed as an artifact."
+  },
+  "managed_run": {
+    "status": "aborted_after_time_limit",
+    "wall_clock_ms": 296556,
+    "task_duration_ms": 447767,
+    "model_active_ms": 186247,
+    "provider_wait_ms": 161698,
+    "provider_serial_equivalent_ms": 187440,
+    "provider_overlap_ms": 25742,
+    "action_execution_ms": 251483,
+    "evidence_capture_ms": 2027,
+    "unclassified_overhead_ms": 749,
+    "actions_attempted": 10,
+    "actions_completed": 8,
+    "provider_calls": 24,
+    "reasoner_calls": 4,
+    "controller_calls": 11,
+    "verifier_calls": 9,
+    "same_run_recoveries": 3,
+    "approvals_requested": 1,
+    "approvals_granted": 1,
+    "approval_scopes": [
+      "bounded_workspace_edit"
+    ],
+    "quiescence_confirmed": true
+  },
+  "mandatory_reboot": {
+    "ready": true,
+    "transition_observed": true,
+    "duration_ms": 79311,
+    "attempt_duration_ms": 75099,
+    "ready_frame_sha256": "5aafb28537dc80fffd7573a5457fd4ce9767aa3805a4acb133335c9d63927a11"
+  },
+  "reset_after_observer": {
+    "ready": true,
+    "transition_observed": true,
+    "duration_ms": 79888,
+    "attempt_duration_ms": 75617,
+    "ready_frame_sha256": "e31258f19a9f9a0ec20e144b1fc1b97fccbfe817f20032b007919877f5652d6d"
+  },
+  "campaign_sha256": "d69a9c6dfee67407af1965767bb686f38b7e5de8471030b5ef7271271b002bb5",
+  "recording": {
+    "sha256": "97978516ab3880c7ae977375d946b5d62ee09f3e539e788c3df346b19571b38b",
+    "codec": "vp9",
+    "width": 2048,
+    "height": 1280,
+    "fps": 2.0,
+    "duration_ms": 333500,
+    "size_bytes": 1581746
+  },
+  "poster_sha256": "b9956a68df9f96e1096bb4b1852a7dd080fbedb9cd51b79e820821ea09a4725b",
+  "finding": "v27 exercised the v25 filename-localization remediation on pushed master 583d013. The complete 127-byte editor plan was emitted exactly once, but the live Save As receipt still selected autocomplete history and remained ambiguous. The guard prevented Save, the installed observer independently confirmed the current file was absent with zero dangerous commits, and both required reboots observed transitions. v24 remains the latest sub-300-second candidate and v23 remains the canonical accuracy pass."
+}

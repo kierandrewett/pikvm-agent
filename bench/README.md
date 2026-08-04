@@ -1046,7 +1046,7 @@ actions, completed 26, and requested four bounded-workspace approvals. Worse,
 the model populated two Notepad documents before converging on the exact saved
 payload. The 874-second VP9 recording is 3,842,300 bytes.
 
-Fifteen post-v10 attempts remain visible rather than rewriting history:
+Seventeen post-v10 attempts remain visible rather than rewriting history:
 
 | Attempt | Accuracy status | Managed wall | Provider calls | Result |
 | --- | --- | ---: | ---: | --- |
@@ -1066,6 +1066,8 @@ Fifteen post-v10 attempts remain visible rather than rewriting history:
 | v23 | **Passed** | 318.782s | 20 | The native filename edit produced an exact receipt despite autocomplete history; the observer matched all 127 current-run bytes |
 | v24 | Failed safely after speed candidate | 269.650s | 14 | The combined Open-filename burst removed a verification loop and crossed the sub-300-second target; policy held the final bare Enter, so completion was not claimed |
 | v25 | Failed safely before Open optimization | 222.396s | 12 | All 127 editor bytes were emitted once; ambiguous Save As readback retained its unverified receipt, and the guard rejected replacement and commit follow-ups before HID |
+| v26 | Infrastructure-invalid | No managed run | 0 | The fresh workspace marker remained visible for more than twelve seconds but the live preflight poll timed out; no model or task input began, and reboot completed |
+| v27 | Failed safely after localization remediation | 296.556s | 24 | Retry-hardened preflight passed and all 127 editor bytes were emitted once; runtime OCR still selected Save As history, so the guard rejected Save and the observer confirmed the file absent |
 
 The v11 recording directly produced the caret-only filename remediation. v13
 exercised it: the first autocomplete-biased readback recovered without
@@ -1300,8 +1302,43 @@ commits. The campaign reboot observed a transition in 79.373s; the
 post-observer reset observed another in 76.426s. v25 is a retained task
 failure, and v24 remains the latest speed candidate.
 
-The complete 25-attempt ledger includes all six infrastructure-invalid runs,
-seventeen valid-task failures, two accepted runs, campaign/recording hashes,
+Commit `ebc3b62` then permitted independently labelled secondary OCR evidence
+to localize the native filename edit while leaving exact readback as the
+acceptance oracle. Its retained-frame regression and the 420-test runtime
+suite passed. v26 did not reach that code path: the visible workspace marker
+remained on screen for more than twelve seconds and offline OCR read it
+cleanly, but the live readiness poll timed out before model creation or task
+input. It is retained as infrastructure-invalid. The 94.5-second recording
+and transition-observed 84.227-second reboot remain attached to the attempt.
+
+Commit `583d013` hardened only that setup seam. If a complete workspace-marker
+challenge is not accepted, the runner now retries the whole visible challenge
+once with a fresh nonce; it still cannot bypass the marker gate. The focused
+regressions and 89-test harness/showcase suite passed. v27 exercised the new
+code on pushed `master`; its preflight succeeded on the first marker attempt
+in 59.666s, so the retry itself was not required.
+
+The v27 managed loop reached 296.556s before the campaign cap initiated a safe
+abort. It made 24 provider calls: four reasoner, eleven controller, and nine
+verifier calls. Provider wait was 161.698s and action execution was 251.483s,
+with 25.742s of provider overlap. Eight of ten actions completed across three
+checkpoint resumptions. All nine code rows and the exact 127-byte CRLF plan
+were emitted once.
+
+The Save As result still failed closed. Live OCR refined the 90-pixel dialog
+region to an autocomplete-history row at y=370 and returned 136 ambiguous
+characters; the retained frame visibly contains exact `code-08.cmd` in the
+labelled field. Replaying that same frame offline selected the correct row at
+y=348, but its tight left crop dropped the first glyph. This is an unresolved
+runtime-localization and crop-margin defect, not missing screen pixels. The
+guard rejected Save before HID. A three-page checksum-valid installed-observer
+capture returned `open failed`, zero bytes, and zero dangerous commits for the
+current path. Preflight had proved that path absent, so no preserved-prior file
+was genuinely claimed or read. The campaign reboot observed a transition in
+79.311s and the post-observer reset observed another in 79.888s.
+
+The complete 27-attempt ledger includes all seven infrastructure-invalid runs,
+eighteen valid-task failures, two accepted runs, campaign/recording hashes,
 exact observer proof,
 remediation commits, and every reset state:
 [`code-08-attempts.json`](results/2026-08-03/live-vnc/code-08-attempts.json).
@@ -1327,20 +1364,27 @@ Its digest is `sha256:e067041bfd7a`; the v24 current/prior comparison is
 [`code-08-v24-observer-comparison.json`](results/2026-08-03/live-vnc/code-08-v24-observer-comparison.json),
 `sha256:ea126d6a2124`; the v25 absent-current/exact-prior comparison is
 [`code-08-v25-observer-comparison.json`](results/2026-08-03/live-vnc/code-08-v25-observer-comparison.json),
-`sha256:eb6092057a13`; and the updated ledger digest is
-`sha256:89c5a096f63c`.
+`sha256:eb6092057a13`; the v27 absent-current comparison and retained OCR-region
+diagnosis is
+[`code-08-v27-observer-comparison.json`](results/2026-08-03/live-vnc/code-08-v27-observer-comparison.json),
+`sha256:7b28921aa012`; and the updated ledger digest is
+`sha256:90dd425f747d`.
 The canonical v23 campaign digest is `sha256:23ad16dfc6f0`; its VP9 recording
 is `sha256:c5e7c2671b4d` and its poster is `sha256:3f5ffdf44062`.
 The retained v24 campaign digest is `sha256:93da1644f0f9`; its VP9 recording is
 `sha256:7a5bcc92fcac` and its poster is `sha256:795bc21f140e`. The retained v25
 campaign digest is `sha256:ee1136737323`; its VP9 recording is
-`sha256:75f70b28c75a` and its poster is `sha256:0089be8e364f`. The v10 campaign
+`sha256:75f70b28c75a` and its poster is `sha256:0089be8e364f`. The retained v26
+campaign digest is `sha256:65923481b461`; its VP9 recording is
+`sha256:3bce989ec9d5` and it has no poster because no managed run began. The v27
+campaign digest is `sha256:d69a9c6dfee6`; its VP9 recording is
+`sha256:97978516ab38` and its poster is `sha256:b9956a68df9f`. The v10 campaign
 and media remain retained in the ledger.
 
 Failure-inclusive metrics, canonical campaign digests, the 33 accepted task
 IDs, and the VP9 recording/poster hashes are retained in
 [`codex-50-progress.json`](results/2026-07-31/live-vnc/codex-50-progress.json).
-Its updated digest is `sha256:dd659747ef75`.
+Its updated digest is `sha256:74a641ba4ccd`.
 The complete 50-task manifest is
 [`codex-50-tasks.yaml`](codex-50-tasks.yaml).
 
