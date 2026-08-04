@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   messagesForRun,
+  readableError,
   userFacingCompletionSummary,
 } from "@/lib/run-messages";
 import type { RunSnapshot } from "@/types";
@@ -1693,5 +1694,33 @@ describe("messagesForRun", () => {
         world_version: 10,
       },
     });
+  });
+});
+
+describe("readableError", () => {
+  it("drops the transport boilerplate around an HTTP failure", () => {
+    const raw =
+      "computer refresh failed: Error executing tool pikvm_screenshot: " +
+      "Client error '404 Not Found' for url " +
+      "'http://127.0.0.1:47615/sessions/s_eee340f7c372?capture=true' " +
+      "For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404";
+
+    const out = readableError(raw);
+
+    // What is left says what broke; the MDN page and our own loopback URL do not.
+    expect(out).toBe(
+      "computer refresh failed: Error executing tool pikvm_screenshot: Client error '404 Not Found'",
+    );
+    expect(out).not.toContain("developer.mozilla.org");
+    expect(out).not.toContain("127.0.0.1");
+    expect(out).not.toContain("s_eee340f7c372");
+  });
+
+  it("leaves an ordinary message alone apart from a trailing full stop", () => {
+    expect(readableError("The daemon is not running.")).toBe(
+      "The daemon is not running",
+    );
+    expect(readableError("")).toBe("");
+    expect(readableError(undefined)).toBe("");
   });
 });

@@ -1539,12 +1539,6 @@ const ComputerToolCallImpl: ToolCallMessagePartComponent<
             </section>
           ) : null}
 
-          {failed ? (
-            <p className="mt-2 text-xs text-destructive">
-              This input failed. Diagnostic detail is retained below.
-            </p>
-          ) : null}
-
           {needsApproval ? (
             <Alert variant="caution" className="mt-3">
               <ShieldAlertIcon aria-hidden="true" />

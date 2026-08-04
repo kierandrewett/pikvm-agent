@@ -15,6 +15,24 @@ const safeString = (value: unknown) => (typeof value === "string" ? value : "");
 const safeNumber = (value: unknown) =>
   typeof value === "number" && Number.isFinite(value) ? value : undefined;
 
+/**
+ * Strip transport boilerplate out of an error before anyone reads it.
+ *
+ * httpx renders an HTTP failure as, in full: "Client error '404 Not Found' for
+ * url 'http://127.0.0.1:47615/sessions/s_eee340f7c372?capture=true' For more
+ * information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404".
+ * The MDN link explains what a 404 is, which nobody looking at this panel needs,
+ * and the URL is our own loopback address with a session id in it. Neither says
+ * anything about what went wrong. What survives is the part that does.
+ */
+export const readableError = (value: unknown): string =>
+  safeString(value)
+    .replace(/\s*For more information check:\s*\S+/gi, "")
+    .replace(/\s*for url\s+'[^']*'/gi, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/[.\s]+$/, "");
+
 const eventIdentity = (event: HarnessEvent) =>
   safeString(event.data.call_id) ||
   String(safeNumber(event.data.index) ?? event.sequence);
@@ -367,7 +385,7 @@ const completionMarkdown = (run: RunSnapshot) => {
     return summary || "Completed and checkpointed.";
   }
   if (["failed", "blocked", "rejected", "aborted"].includes(run.status)) {
-    return `Stopped: ${run.error || run.status.replaceAll("_", " ")}.`;
+    return `Stopped: ${readableError(run.error) || run.status.replaceAll("_", " ")}.`;
   }
   if (run.status === "paused") {
     if (run.origin === "direct_mcp") {
@@ -388,7 +406,7 @@ const completionMarkdown = (run: RunSnapshot) => {
       );
     }
     return run.error
-      ? `Paused: ${run.error}. Retry, choose another model, or give a correction.`
+      ? `Paused: ${readableError(run.error)}. Retry, choose another model, or give a correction.`
       : "Paused at a durable checkpoint. You can continue or give a correction.";
   }
   if (run.status === "needs_approval") {
@@ -682,7 +700,7 @@ const assistantToolParts = (
           ? {
               status: "failed",
               error:
-                safeString(outcome.data.error) || "Computer hand-off failed.",
+                readableError(outcome.data.error) || "Computer hand-off failed.",
             }
           : {
               status: completed ? "completed" : "started",
@@ -694,7 +712,7 @@ const assistantToolParts = (
         : failed
           ? {
               status: "failed",
-              error: safeString(outcome.data.error) || "Tool execution failed.",
+              error: readableError(outcome.data.error) || "Tool execution failed.",
             }
           : refused
             ? {
@@ -761,7 +779,7 @@ const assistantStatus = (
     return {
       type: "incomplete",
       reason: run.status === "aborted" ? "cancelled" : "error",
-      error: run.error || (run.status === "paused" ? "Paused" : run.status),
+      error: readableError(run.error) || (run.status === "paused" ? "Paused" : run.status),
     };
   }
   return { type: "complete", reason: "stop" };
