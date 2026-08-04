@@ -2585,6 +2585,7 @@ class WatchedTyper:
         allow_semantic_spacing: bool = False,
         allow_blind_fallback: bool = False,
         allow_native_primary_fallback: bool = False,
+        allow_empty_native_primary_fallback: bool = False,
         preserve_editor_indent_candidate: bool = False,
         extract_structured_exact_row: bool = False,
         minimum_confidence: float = MIN_MISMATCH_OCR_CONFIDENCE,
@@ -2800,7 +2801,10 @@ class WatchedTyper:
                 and allow_blind_fallback
                 and allow_native_primary_fallback
                 and callable(precise_ocr)
-                and bool(result.text)
+                and (
+                    bool(result.text)
+                    or allow_empty_native_primary_fallback
+                )
                 and compute_verdict(intended, result.text, True)
                 != "match"
                 and re.sub(r"\s+", "", result.text)
@@ -4863,9 +4867,20 @@ class WatchedTyper:
                 "allow_semantic_spacing": allow_semantic_spacing,
                 "allow_blind_fallback": allow_blind_fallback,
             }
-            if precise and editor_field and not explicit_region:
+            if (
+                precise
+                and (editor_field or single_line_field)
+                and not explicit_region
+            ):
                 options["extract_structured_exact_row"] = True
                 options["allow_native_primary_fallback"] = True
+            if precise and single_line_field and not explicit_region:
+                # Tiny Windows fields can contain correctly painted text while
+                # the logical-resolution OCR crop is empty. Permit one
+                # lossless, read-only crop only after the caller has grounded
+                # this as a field. The exact intended row must still be unique;
+                # this never retries delivery or authorizes a following key.
+                options["allow_empty_native_primary_fallback"] = True
             if (
                 precise
                 and editor_field

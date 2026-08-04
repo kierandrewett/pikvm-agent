@@ -8080,6 +8080,144 @@ async def test_short_editor_uses_native_primary_on_final_settled_read(
     _assert_no_enter(backend)
 
 
+@pytest.mark.parametrize(
+    ("context", "expected_status", "expected_native_crops"),
+    [
+        ("field", "verified_exact", True),
+        ("", "unverified_ambiguous", False),
+    ],
+)
+async def test_only_grounded_short_field_uses_native_primary_when_ocr_is_empty(
+    monkeypatch: pytest.MonkeyPatch,
+    context: str,
+    expected_status: str,
+    expected_native_crops: bool,
+) -> None:
+    """A grounded one-line field may use a lossless crop without retyping."""
+
+    async def no_sleep(_seconds: float) -> None:
+        return None
+
+    intended = "notepad"
+    text_region = Region(x=47, y=675, width=199, height=30)
+    monkeypatch.setattr(asyncio, "sleep", no_sleep)
+    monkeypatch.setattr(
+        typing_module,
+        "locate_changed_bbox",
+        lambda *_args, **_kwargs: text_region,
+    )
+    monkeypatch.setattr(
+        typing_module,
+        "locate_dense_changed_candidates",
+        lambda *_args, **_kwargs: [],
+    )
+    monkeypatch.setattr(
+        typing_module,
+        "locate_dense_changed_bbox",
+        lambda *_args, **_kwargs: None,
+    )
+
+    class NativeResolutionBackend(FakeBackend):
+        def __init__(self) -> None:
+            super().__init__(width=1280, height=720, layout="uk")
+            self.native_crops = 0
+
+        async def screenshot(self, region=None):
+            if region is None:
+                return await super().screenshot()
+            self.native_crops += 1
+            output = io.BytesIO()
+            Image.new("RGB", (318, 48), "navy").save(output, "JPEG")
+            return to_captured_frame(output.getvalue(), 318, 48)
+
+        async def type_text(
+            self,
+            text: str,
+            *,
+            code: bool = False,
+            secret: bool = False,
+        ) -> None:
+            await super().type_text(text, code=code, secret=secret)
+            self.set_screen(text)
+
+    class ResolutionAwareOCR:
+        async def ocr(self, image_path, region=None):
+            return await self.ocr_precise(image_path, region=region)
+
+        async def ocr_precise(self, image_path, region=None):
+            if Image.open(image_path).size == (318, 48):
+                return OCRResult(
+                    lines=[
+                        OCRLine(text="Open:", confidence=0.96),
+                        OCRLine(text=intended, confidence=0.99),
+                        OCRLine(text="OK", confidence=0.97),
+                    ],
+                    spacing_evidence="verified",
+                )
+            return OCRResult()
+
+    backend = NativeResolutionBackend()
+    result = await WatchedTyper(backend, ResolutionAwareOCR()).type_text(
+        intended,
+        exact=True,
+        context=context,
+    )
+
+    assert result.status == expected_status, result
+    assert result.field_text == (intended if expected_native_crops else "")
+    assert result.emitted_exactly_once is True
+    assert bool(backend.native_crops) is expected_native_crops
+    _assert_no_enter(backend)
+
+
+async def test_empty_native_primary_does_not_promote_ambiguous_exact_rows() -> None:
+    intended = "notepad"
+    region = Region(x=47, y=675, width=199, height=30)
+
+    class NativeCropBackend(FakeBackend):
+        def __init__(self) -> None:
+            super().__init__(width=1280, height=720, layout="uk")
+            self.native_crops = 0
+
+        async def screenshot(self, region=None):
+            if region is None:
+                return await super().screenshot()
+            self.native_crops += 1
+            output = io.BytesIO()
+            Image.new("RGB", (318, 48), "navy").save(output, "JPEG")
+            return to_captured_frame(output.getvalue(), 318, 48)
+
+    class AmbiguousNativeOCR:
+        async def ocr(self, image_path, region=None):
+            return await self.ocr_precise(image_path, region=region)
+
+        async def ocr_precise(self, image_path, region=None):
+            if Image.open(image_path).size == (318, 48):
+                return OCRResult(
+                    lines=[
+                        OCRLine(text=intended, confidence=0.99),
+                        OCRLine(text=intended, confidence=0.99),
+                    ],
+                    spacing_evidence="verified",
+                )
+            return OCRResult()
+
+    backend = NativeCropBackend()
+    observed = await WatchedTyper(backend, AmbiguousNativeOCR())._read_field(
+        region,
+        intended=intended,
+        precise=True,
+        allow_blind_fallback=True,
+        allow_native_primary_fallback=True,
+        allow_empty_native_primary_fallback=True,
+        extract_structured_exact_row=True,
+    )
+
+    assert observed != intended
+    assert backend.native_crops >= 1
+    _assert_no_enter(backend)
+
+
 async def test_terminal_wrapped_readback_reocrs_the_causal_rows(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
