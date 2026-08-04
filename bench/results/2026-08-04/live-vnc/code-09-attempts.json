@@ -34,7 +34,7 @@
     "all_recordings_retained": true,
     "all_reboots_ready": true,
     "all_reboots_observed_real_transition": true,
-    "release_gate": "failing: numeric Alt hash route passes direct probes; recorded v4 was interrupted during blank-field readback before heading input"
+    "release_gate": "failing: numeric Alt hash route passes direct probes, but v4 used the uninstrumented paced websocket HID path and visibly rendered a pound sign"
   },
   "attempts": [
     {
@@ -213,7 +213,7 @@
       "campaign_reported_status": "failed",
       "run_id": "9ed9567c-274d-466a-b0db-cfc93612c5d0",
       "source_commit": "6fbfac8",
-      "reason": "The new route receipt was exercised live and identified windows-rfb-print-v2 with the en-gb Windows profile. The watched typer then spent 90.937 seconds repeatedly grounding the blank Notepad field and returned interrupted before the heading was emitted. The six pre-reboot print receipts contain only setup input; the requested heading hash is absent and no Save action ran.",
+      "reason": "The new route receipt identified windows-rfb-print-v2 with the en-gb Windows profile but covered only HTTP print requests. The short exact heading used the paced websocket HID path, emitted all 13 characters, and visibly rendered '£ Release 1.0'. Exact post-input verification retained the mismatch and was interrupted at the campaign deadline after 90.937 seconds. No Save action ran.",
       "wall_clock_ms": 158074,
       "task_duration_ms": 298183,
       "preflight_ms": 57617,
@@ -232,15 +232,20 @@
       "approval_requests": 0,
       "approvals_granted": 0,
       "route_receipt_fix_exercised": true,
+      "route_receipt_complete_for_heading": false,
       "input_transport": {
         "strategy_version": "windows-rfb-print-v2",
         "keymap": "en-gb",
         "keyboard_profile": "windows",
         "pre_reboot_print_sequence": 6,
         "requested_heading_sha256": "a09f21ee71a9b858aefacb390fbac6f29ce0e0c7523918d4e4bb691c29b4e3db",
-        "requested_heading_present": false
+        "requested_heading_present": false,
+        "receipt_scope": "http_print_requests_only"
       },
-      "heading_input_emitted": false,
+      "heading_input_emitted": true,
+      "failed_input_observed": "£ Release 1.0",
+      "failed_input_status": "failed_symbol_mismatch",
+      "post_action_frame_sha256": "692e3384fdac9aeb0685c543dbdf26bf0617ece2f6511c4e77816013f96fddf4",
       "slowest_action_ms": 90937,
       "quiescence_status": "confirmed",
       "reboot_ms": 78029,
@@ -291,9 +296,9 @@
     "evidence": [
       "v2 proved the v1 false-positive approval is fixed on the live target.",
       "v3 visibly rendered a pound sign, but subsequent rebooted direct probes proved numeric Alt exact and direct semantic RFB wrong.",
-      "v4 retained live route receipts and proved the heading never reached the adapter before blank-field readback returned interrupted.",
+      "v4 proved the HTTP-only route receipt missed the paced websocket HID heading; the post-action frame visibly retained '£ Release 1.0' and a 13-character status.",
       "The observer confirmed the file absent with zero dangerous commits, and all campaign and post-observer reboots observed real transitions."
     ],
-    "next_attempt": "Bound the blank Notepad pre-input grounding loop so a verified 0-character editor does not spend 90 seconds in repeated OCR fallbacks. Preserve exact post-input readback, then run recorded Code-09 v5 only if the fix is exercised."
+    "next_attempt": "Route short exact editor text through the already guest-proven guarded HTTP printer and extend diagnostics so websocket HID routes cannot be mistaken for absent input. Preserve exact post-input readback, then run recorded Code-09 v5 only if the fix is exercised."
   }
 }
