@@ -28,17 +28,29 @@ import {
   type FC,
 } from "react";
 
+/** Below this many tasks the whole list is on screen at once, so a search field
+ *  is a box in the way of a list you can already read, and it takes the tab stop
+ *  straight after New task. */
+const SEARCH_FROM_TASKS = 8;
+
+/** Whether the task list is long enough that searching beats scanning. Takes
+ *  the TOTAL count, never the filtered one: gating on what is left after a
+ *  query would pull the field out from under you as you typed. */
+export const shouldOfferTaskSearch = (taskCount: number) =>
+  taskCount >= SEARCH_FROM_TASKS;
+
 export const ThreadList: FC = () => {
   const [search, setSearch] = useState("");
-  const hasThreads = useAuiState((s) => s.threads.threadIds.length > 0);
+  const taskCount = useAuiState((s) => s.threads.threadIds.length);
+  const showSearch = shouldOfferTaskSearch(taskCount);
 
   return (
     <ThreadListRoot>
       <ThreadListNew />
-      {hasThreads && (
+      {showSearch && (
         <ThreadListSearch value={search} onValueChange={setSearch} />
       )}
-      <ThreadListItems searchQuery={hasThreads ? search : ""} />
+      <ThreadListItems searchQuery={showSearch ? search : ""} />
     </ThreadListRoot>
   );
 };
