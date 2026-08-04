@@ -7917,7 +7917,7 @@ def test_precise_readback_localizes_measured_save_as_filename_noise() -> None:
         (1280, 800),
     )
 
-    assert refined == Region(x=217, y=429, width=200, height=24)
+    assert refined == Region(x=215, y=429, width=200, height=24)
 
 
 async def test_precise_readback_prefers_native_filename_edit_over_history() -> None:
@@ -8040,7 +8040,151 @@ def test_precise_readback_uses_labelled_secondary_filename_evidence() -> None:
         (1280, 800),
     )
 
-    assert refined == Region(x=119, y=331, width=200, height=24)
+    assert refined == Region(x=117, y=331, width=200, height=24)
+
+
+def test_precise_readback_uses_filename_label_when_value_row_is_missing(
+) -> None:
+    intended = "code-08.cmd"
+    result = OCRResult(
+        lines=[
+            OCRLine(
+                text="File game:",
+                confidence=0.9475,
+                bbox=[57, 11, 98, 28],
+            ),
+            OCRLine(
+                text="Save as type:",
+                confidence=0.9727,
+                bbox=[49, 28, 98, 43],
+            ),
+            OCRLine(
+                text=(
+                    "code-08.cmd.pikvm-prior-"
+                    "7800da7479db4393853ad"
+                ),
+                confidence=0.9941,
+                bbox=[102, 36, 275, 49],
+            ),
+        ]
+    )
+
+    refined = precise_readback_candidate_region(
+        result,
+        intended,
+        Region(x=37, y=340, width=379, height=90),
+        (1280, 800),
+    )
+
+    assert refined == Region(x=133, y=349, width=200, height=21)
+
+
+async def test_precise_readback_retains_v27_filename_first_glyph() -> None:
+    intended = "code-08.cmd"
+
+    class MeasuredV27SaveAsOCR:
+        def __init__(self) -> None:
+            self.regions: list[Region | None] = []
+
+        async def ocr_precise(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path
+            self.regions.append(region)
+            if len(self.regions) == 1:
+                return OCRResult(
+                    lines=[
+                        OCRLine(
+                            text="File game:",
+                            confidence=0.9475,
+                            bbox=[57, 11, 98, 28],
+                        ),
+                        OCRLine(
+                            text="kode-08.cmd",
+                            confidence=0.9707,
+                            bbox=[100, 12, 147, 22],
+                        ),
+                        OCRLine(
+                            text="Save as type:",
+                            confidence=0.9727,
+                            bbox=[49, 28, 98, 43],
+                        ),
+                        OCRLine(
+                            text=(
+                                "code-08.cmd.pikvm-prior-"
+                                "7800da7479db4393853ad"
+                            ),
+                            confidence=0.9941,
+                            bbox=[102, 36, 275, 49],
+                        ),
+                    ],
+                    evidence_lines=[
+                        OCRLine(
+                            text="File name: | kode-08.cmd",
+                            confidence=0.6358,
+                            bbox=[62, 14, 146, 26],
+                        ),
+                        OCRLine(
+                            text=(
+                                "code-08.cendpikvm-price-"
+                                "7800d37479db43938530d"
+                            ),
+                            confidence=0.1179,
+                            bbox=[98, 37, 273, 49],
+                        ),
+                    ],
+                )
+            assert region is not None
+            if region.y < 360 and region.x <= 135:
+                return OCRResult(
+                    lines=[
+                        OCRLine(
+                            text=intended,
+                            confidence=0.999,
+                            bbox=[8, 6, 55, 16],
+                        )
+                    ]
+                )
+            if region.y < 360:
+                return OCRResult(
+                    lines=[
+                        OCRLine(
+                            text="ode-08.cmd",
+                            confidence=0.999,
+                            bbox=[0, 6, 47, 16],
+                        )
+                    ]
+                )
+            return OCRResult(
+                lines=[
+                    OCRLine(
+                        text=(
+                            "code-08.cmd.pikvm-prior-"
+                            "7800da7479db4393853ad"
+                        ),
+                        confidence=0.999,
+                        bbox=[2, 6, 190, 16],
+                    )
+                ]
+            )
+
+    ocr = MeasuredV27SaveAsOCR()
+    typer = WatchedTyper(FakeBackend(width=1280, height=800), ocr)
+
+    observed = await typer._read_field(
+        Region(x=37, y=340, width=379, height=90),
+        intended=intended,
+        precise=True,
+    )
+
+    assert observed == intended
+    assert len(ocr.regions) == 2
+    refined = ocr.regions[1]
+    assert refined is not None
+    assert refined.y < 360
+    assert refined.x <= 135
 
 
 def test_precise_readback_prefers_exact_editor_row_over_tab_title() -> None:

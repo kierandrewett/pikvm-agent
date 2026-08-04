@@ -1596,14 +1596,18 @@ def precise_readback_candidate_region(
     filename_evidence_lines = (
         list(result.evidence_lines) if intended_is_filename else []
     )
+
+    def normalized_filename_locator_text(line: OCRLine) -> str:
+        return "".join(
+            character.casefold()
+            for character in line.text
+            if character.isalnum()
+        )
+
     filename_label_regions: list[Region] = []
     if intended_is_filename:
         for candidate in [*result.lines, *filename_evidence_lines]:
-            label_text = "".join(
-                character.casefold()
-                for character in candidate.text
-                if character.isalnum()
-            )
+            label_text = normalized_filename_locator_text(candidate)
             label_region = ocr_line_region(
                 candidate,
                 (
@@ -1625,13 +1629,6 @@ def precise_readback_candidate_region(
     ) -> bool:
         if not intended_is_filename or line_region is None:
             return False
-        normalized = "".join(
-            character.casefold()
-            for character in line.text
-            if character.isalnum()
-        )
-        if normalized.startswith("filename"):
-            return True
         for label in filename_label_regions:
             overlap = max(
                 0.0,
@@ -1682,7 +1679,27 @@ def precise_readback_candidate_region(
             midpoint_distance,
         )
 
-    localization_lines = list(result.lines)
+    localization_lines: list[OCRLine] = []
+    for line in result.lines:
+        line_region = ocr_line_region(
+            line,
+            (
+                math.ceil(container.width),
+                math.ceil(container.height),
+            ),
+            pad=0,
+        )
+        # Once the native File name label is independently visible, never
+        # fall back to an unpaired autocomplete row. If OCR omitted the edit
+        # value entirely, the label-only bounded fallback below re-reads the
+        # field; history cannot nominate itself just because it contains the
+        # intended basename.
+        if (
+            not intended_is_filename
+            or not filename_label_regions
+            or filename_row_is_labelled(line, line_region)
+        ):
+            localization_lines.append(line)
     for line in filename_evidence_lines:
         line_region = ocr_line_region(
             line,
@@ -1694,9 +1711,53 @@ def precise_readback_candidate_region(
         )
         if (
             filename_row_is_labelled(line, line_region)
+            and not normalized_filename_locator_text(line).startswith(
+                "filename"
+            )
             and line not in localization_lines
         ):
             localization_lines.append(line)
+
+    if (
+        intended_is_filename
+        and filename_label_regions
+        and not localization_lines
+    ):
+        label = min(
+            filename_label_regions,
+            key=lambda candidate: (
+                abs(
+                    candidate.y
+                    + candidate.height / 2
+                    - container_midpoint_y
+                ),
+                candidate.x,
+            ),
+        )
+        # A native Save/Open edit begins immediately to the right of its
+        # visible label. This fallback is used only when OCR omitted the value
+        # row; the resulting same-row crop still has to read the entire safe
+        # filename exactly before any follow-up input can be authorized.
+        x = max(
+            0,
+            math.floor(container.x + label.x + label.width - 2),
+        )
+        y = max(0, math.floor(container.y + label.y - 2))
+        container_right = min(
+            screen_width,
+            math.ceil(container.x + container.width),
+        )
+        x2 = min(container_right, x + 200)
+        y2 = min(
+            screen_height,
+            math.ceil(container.y + label.y + label.height + 2),
+        )
+        return Region(
+            x=x,
+            y=y,
+            width=max(1, x2 - x),
+            height=max(1, y2 - y),
+        )
 
     # Notepad repeats the first document line in its tab title. Prefer a
     # punctuation-complete exact row, then the row nearest the causal crop's
@@ -1832,13 +1893,14 @@ def precise_readback_candidate_region(
             if intended.startswith((" ", "\t"))
             else vertical_padding
         )
+        horizontal_padding = 4 if intended_is_filename else 2
         x = max(
             0,
             math.floor(
                 container.x
                 + estimated_start
                 - visible_prefix_width
-                - 2
+                - horizontal_padding
             ),
         )
         y = max(
