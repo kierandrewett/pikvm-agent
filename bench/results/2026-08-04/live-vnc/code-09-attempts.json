@@ -1,0 +1,167 @@
+{
+  "schema_version": 1,
+  "report": "codex-code-entry-code09-failure-inclusive-attempts",
+  "recorded_at": "2026-08-04T03:33:56Z",
+  "environment": {
+    "target": "authorized disposable Windows VNC VM",
+    "production_target_contacted": false,
+    "endpoint_retained": false,
+    "adapter_keymap": "en-gb",
+    "reboot_after_every_test": true
+  },
+  "task": {
+    "task_id": "code-09",
+    "category": "Code entry",
+    "summary": "Write, save, reopen, and verify Markdown release notes in Notepad"
+  },
+  "model_route": {
+    "provider": "codex-fast",
+    "model": "gpt-5.6-terra",
+    "reasoning_effort": "low",
+    "service_tier": "priority",
+    "roles": [
+      "reasoner",
+      "controller",
+      "verifier"
+    ]
+  },
+  "summary": {
+    "full_task_runs": 2,
+    "failed_runs": 2,
+    "invalid_runs": 0,
+    "passed_runs": 0,
+    "all_failures_retained": true,
+    "all_recordings_retained": true,
+    "all_reboots_ready": true,
+    "all_reboots_observed_real_transition": true,
+    "release_gate": "failing: grounded policy fixed; exact UK hash transport still wrong"
+  },
+  "attempts": [
+    {
+      "campaign_id": "codex-code-entry-code09-v1-20260804",
+      "manifest_campaign_id": "codex-windows-50",
+      "accepted_status": "failed",
+      "campaign_reported_status": "failed",
+      "run_id": "a8904e00-77b1-48fa-b309-a0f8337c8599",
+      "source_commit": "054089e",
+      "reason": "The fresh Notepad launch passed, but policy classified the literal heading '# Release 1.0' as communication_send because Release matched the command side-effect expression. The non-allowlisted approval stopped the run before document input.",
+      "wall_clock_ms": 68977,
+      "task_duration_ms": 208735,
+      "preflight_ms": 59122,
+      "model_active_ms": 27548,
+      "provider_wait_ms": 28023,
+      "action_execution_ms": 39919,
+      "evidence_capture_ms": 619,
+      "provider_calls": 4,
+      "reasoner_calls": 1,
+      "controller_calls": 1,
+      "verifier_calls": 2,
+      "actions_attempted": 3,
+      "actions_completed": 2,
+      "approval_requests": 1,
+      "approvals_granted": 0,
+      "document_input_emitted": false,
+      "same_run_recoveries": 0,
+      "quiescence_status": "confirmed",
+      "reboot_ms": 78065,
+      "reboot_transition_observed": true,
+      "post_observer_reset_ms": 83810,
+      "post_observer_reset_transition_observed": true,
+      "observer": {
+        "current_path_absent": true,
+        "dangerous_commit_count": 0,
+        "comparison_report": "bench/results/2026-08-04/live-vnc/code-09-v1-observer-comparison.json"
+      },
+      "recording": {
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2.0,
+        "duration_ms": 150500,
+        "size_bytes": 790532,
+        "sha256": "326c660001e16d06c14cf8994bec706213a6f338dcceacd182aa4dfc712bcf04"
+      },
+      "poster_sha256": "ef31e95c379d04ab9f35bd906d06d7d84c8970c9d0dd35ccee7c024ff227bb59",
+      "campaign_sha256": "45d79fa42371443432c1e3e173276e1d90a65089984a6aafb607fab43c698ff1"
+    },
+    {
+      "campaign_id": "codex-code-entry-code09-v2-20260804",
+      "manifest_campaign_id": "codex-windows-50",
+      "accepted_status": "failed",
+      "campaign_reported_status": "failed",
+      "run_id": "468c1f90-dbda-4b7c-a52b-3bede0a9f5aa",
+      "source_commit": "7679d11",
+      "reason": "The bounded grounded-editor policy fix was exercised live and the heading action passed policy without approval. Exact readback then observed '£ Release' instead of '# Release 1.0'. The sender had issued all 13 requested characters and attempted one correction, after which the unverified-draft guard rejected further mutation. No Save action ran.",
+      "wall_clock_ms": 163944,
+      "task_duration_ms": 342844,
+      "preflight_ms": 67687,
+      "model_active_ms": 75355,
+      "provider_wait_ms": 75690,
+      "action_execution_ms": 84446,
+      "evidence_capture_ms": 583,
+      "provider_calls": 10,
+      "reasoner_calls": 3,
+      "controller_calls": 5,
+      "verifier_calls": 2,
+      "actions_attempted": 3,
+      "actions_completed": 2,
+      "action_recoverable_failures": 1,
+      "same_run_recoveries": 2,
+      "approval_requests": 0,
+      "approvals_granted": 0,
+      "grounded_policy_fix_exercised": true,
+      "failed_input": {
+        "requested_text": "# Release 1.0",
+        "observed_text": "£ Release",
+        "status": "failed_symbol_mismatch",
+        "requested_characters": 13,
+        "issued_characters": 13,
+        "observed_characters": 9,
+        "correction_count": 1,
+        "delivery_retries": 0,
+        "emitted_exactly_once": false
+      },
+      "quiescence_status": "confirmed",
+      "reboot_ms": 107666,
+      "reboot_transition_observed": true,
+      "post_observer_reset_ms": 123961,
+      "post_observer_reset_transition_observed": true,
+      "observer": {
+        "current_path_absent": true,
+        "dangerous_commit_count": 0,
+        "first_capture_infrastructure_failed": true,
+        "successful_capture_attempt": 2,
+        "comparison_report": "bench/results/2026-08-04/live-vnc/code-09-v2-observer-comparison.json"
+      },
+      "recording": {
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2.0,
+        "duration_ms": 247500,
+        "size_bytes": 1150659,
+        "sha256": "3b6a104c7fdda3f0278e6d32e05d288db2a3787ff75a6fe0df8c62f1157ac47b"
+      },
+      "poster_sha256": "e71a6cd6c71fb962857456156b02c5c2db341ad24e9b66b5ec4ead110386e061",
+      "campaign_sha256": "0e7595958008acb73e7c4187a706f7cd904bd5697086b753930d5fe6cce8dbb2"
+    }
+  ],
+  "remediations": [
+    {
+      "after_attempt": "v1",
+      "commit": "7679d11b68f327e35e1c14da324a661332344c1a",
+      "change": "Require independent blank-Notepad geometry and OCR before exempting one inert exact editor text action from command side-effect classification; metadata alone and commit gestures remain gated.",
+      "tests": "275 direct policy, executor, runtime, and phase hardening tests passed"
+    }
+  ],
+  "next_gate": {
+    "status": "failing",
+    "evidence": [
+      "v2 proved the v1 false-positive approval is fixed on the live target.",
+      "The exact receipt proved that the requested Markdown hash rendered as the UK pound sign.",
+      "The unverified-draft guard blocked correction, the observer confirmed the file was absent, and zero dangerous commits occurred.",
+      "Both campaigns and both post-observer resets observed real reboot transitions."
+    ],
+    "next_attempt": "Fix the deterministic UK hash-symbol transport mismatch without weakening exact-input or readback gates, then run recorded Code-09 v3."
+  }
+}

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "report": "codex-50-live-progress",
-  "recorded_at": "2026-08-04T02:32:12Z",
+  "recorded_at": "2026-08-04T03:33:56Z",
   "manifest": "bench/codex-50-tasks.yaml",
   "environment": {
     "target": "authorized disposable Windows VNC VM",
@@ -4076,5 +4076,56 @@
       "campaign_sha256": "1448fe01016def393789b227954e7f24e6a8ea9ad4501a1c3ae156af57e22160"
     },
     "full_ledger": "bench/results/2026-08-03/live-vnc/code-08-attempts.json"
+  },
+  "code_09_attempt_summary": {
+    "recorded_attempts": 2,
+    "valid_full_task_runs": 2,
+    "failed_runs": 2,
+    "infrastructure_invalid_runs": 0,
+    "passed_runs": 0,
+    "canonical_campaign_id": null,
+    "current_state": "v1 failed closed before input on a false-positive communication approval. Pushed commit 7679d11 fixed that policy decision and v2 exercised it live, then exact readback proved that the requested Markdown hash rendered as a UK pound sign. The unverified-draft guard blocked correction, no file was saved, the observer confirmed absence with zero dangerous commits, and every required reboot observed a transition.",
+    "latest_attempt": {
+      "campaign_id": "codex-code-entry-code09-v2-20260804",
+      "accepted_status": "failed",
+      "campaign_reported_status": "failed",
+      "run_id": "468c1f90-dbda-4b7c-a52b-3bede0a9f5aa",
+      "source_commit": "7679d11",
+      "wall_clock_ms": 163944,
+      "task_duration_ms": 342844,
+      "provider_wait_ms": 75690,
+      "action_execution_ms": 84446,
+      "provider_calls": 10,
+      "actions_attempted": 3,
+      "actions_completed": 2,
+      "grounded_policy_fix_exercised": true,
+      "failed_input_requested": "# Release 1.0",
+      "failed_input_observed": "£ Release",
+      "failed_input_status": "failed_symbol_mismatch",
+      "approval_requests": 0,
+      "reboot_ms": 107666,
+      "reboot_transition_observed": true,
+      "post_observer_reset_ms": 123961,
+      "post_observer_reset_transition_observed": true,
+      "observer_comparison": "A checksum-valid three-page installed-observer retry returned open failed for code-09.md and zero dangerous commits; the first helper foreground attempt is separately retained as infrastructure-failed.",
+      "comparison_report": "bench/results/2026-08-04/live-vnc/code-09-v2-observer-comparison.json",
+      "recording": {
+        "sha256": "3b6a104c7fdda3f0278e6d32e05d288db2a3787ff75a6fe0df8c62f1157ac47b",
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2.0,
+        "duration_ms": 247500,
+        "size_bytes": 1150659,
+        "relative_path": "codex-code-entry-code09-v2-20260804/codex-windows-50/code-09/recording.webm"
+      },
+      "poster": {
+        "relative_path": "codex-code-entry-code09-v2-20260804/codex-windows-50/code-09/poster.jpg",
+        "sha256": "e71a6cd6c71fb962857456156b02c5c2db341ad24e9b66b5ec4ead110386e061"
+      },
+      "campaign_sha256": "0e7595958008acb73e7c4187a706f7cd904bd5697086b753930d5fe6cce8dbb2"
+    },
+    "next_gate": "Fix the deterministic UK hash-symbol transport mismatch without weakening exact-input or readback gates, then run recorded Code-09 v3.",
+    "full_ledger": "bench/results/2026-08-04/live-vnc/code-09-attempts.json"
   }
 }

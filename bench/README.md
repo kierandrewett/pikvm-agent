@@ -1453,10 +1453,65 @@ campaign digest is `sha256:1448fe01016d`; its 296.5-second VP9 recording is
 `sha256:dfc9290fa3e3` and its poster is `sha256:2498e2610c6d`. The v10 campaign
 and all intervening media remain retained in the ledger.
 
+Code-09 is **not accepted after v2**. v1 launched a fresh blank Notepad
+document, but policy treated the literal heading `# Release 1.0` as a
+communication send because the word `Release` matched a command side-effect
+expression. The non-allowlisted approval stopped the campaign before document
+input. The installed observer independently returned `open failed` for
+`code-09.md` with zero dangerous commits.
+
+Pushed commit `7679d11` added a bounded exact-editor grounding seam: one inert
+exact text action can avoid the command-text false positive only when title,
+menu, aligned status rows, and the unobscured blank Notepad canvas are proven
+from the same target frame. Editor metadata alone, busy foregrounds, terminal
+text, multi-action drafts, and commit gestures retain their previous gates.
+The exact retained regression failed before the change; 275 policy, executor,
+runtime, and phase-hardening tests passed afterward. The Python similarity scan
+found only the existing intentional family of small surface-grounding
+predicates and did not change the implementation.
+
+| Attempt | Result | Managed wall | Calls | Retained finding |
+| --- | --- | ---: | ---: | --- |
+| v1 | Failed safely before input | 68.977s | 4 | False-positive `communication_send`; no HID document input |
+| v2 | Failed safely after exact input mismatch | 163.944s | 10 | Grounded policy fix exercised; requested `#` rendered as `£`; draft guard blocked correction |
+
+v2 ran on pushed master `7679d11`. The identical `# Release 1.0` action passed
+policy with no approval, proving the v1 remediation was exercised live. Its
+exact receipt then retained a lower transport failure: 13 characters were
+requested, delivered, and issued, but readback observed `£ Release`, reported
+`failed_symbol_mismatch`, and recorded one bounded correction. The
+unverified-draft guard rejected both focus/correction attempts and attempts to
+open a replacement document; no Save action ran. Provider wait was 75.690s,
+action execution was 84.446s, and the grounded heading action itself took
+48.413s, so both the symbol mapping and grounding latency remain release
+failures.
+
+The campaign quiesced before reboot and observed a real boot transition in
+107.666s. The first installed-observer foreground launch did not expose a
+visual matrix and is retained as an infrastructure failure; a slower retry
+produced a checksum-valid three-page capture, returned `open failed` for the
+requested file, and reported zero dangerous commits. The post-observer reboot
+observed another transition in 123.961s. No prior artifact was claimed by
+either run. The next bounded slice is a deterministic UK `#` transport fix,
+followed by recorded Code-09 v3; exact-input, readback, permissions,
+quiescence, observer, recording, and reboot gates remain unchanged.
+
+The failure-inclusive ledger is
+[`code-09-attempts.json`](results/2026-08-04/live-vnc/code-09-attempts.json).
+Independent absence and reset evidence is retained for
+[`v1`](results/2026-08-04/live-vnc/code-09-v1-observer-comparison.json) and
+[`v2`](results/2026-08-04/live-vnc/code-09-v2-observer-comparison.json).
+Their digests are `sha256:97dd7a50726c`, `sha256:9145f099f2db`, and
+`sha256:5e1089ff5537`, respectively.
+The v1 campaign digest is `sha256:45d79fa42371`; its 150.5-second VP9 recording
+is `sha256:326c660001e1` and its poster is `sha256:ef31e95c379d`. The v2
+campaign digest is `sha256:0e7595958008`; its 247.5-second VP9 recording is
+`sha256:3b6a104c7fdd` and its poster is `sha256:e71a6cd6c71f`.
+
 Failure-inclusive metrics, canonical campaign digests, the 33 accepted task
 IDs, and the VP9 recording/poster hashes are retained in
 [`codex-50-progress.json`](results/2026-07-31/live-vnc/codex-50-progress.json).
-Its updated digest is `sha256:1b5579e688ad`.
+Its updated digest is `sha256:83600d9a9ac7`.
 The complete 50-task manifest is
 [`codex-50-tasks.yaml`](codex-50-tasks.yaml).
 

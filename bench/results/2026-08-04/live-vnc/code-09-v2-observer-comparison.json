@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "campaign_id": "codex-code-entry-code09-v2-20260804",
+  "run_id": "468c1f90-dbda-4b7c-a52b-3bede0a9f5aa",
+  "source_commit": "7679d11",
+  "accepted_status": "failed",
+  "campaign_reported_status": "failed",
+  "environment": {
+    "production_contacted": false,
+    "endpoint_retained_in_repository": false,
+    "adapter_keymap": "en-gb"
+  },
+  "preflight": {
+    "preservation_status": "verified_absent",
+    "claimed_prior_file": false
+  },
+  "grounded_policy_remediation": {
+    "commit": "7679d11",
+    "exercised_live": true,
+    "same_action_as_v1": true,
+    "approval_requested": false,
+    "policy_pause": false
+  },
+  "failed_input_receipt": {
+    "requested_text": "# Release 1.0",
+    "requested_characters": 13,
+    "delivery_characters": 13,
+    "issued_characters": 13,
+    "observed_characters": 9,
+    "observed_text": "£ Release",
+    "status": "failed_symbol_mismatch",
+    "verdict": "mismatch",
+    "edit_distance": 5,
+    "correction_count": 1,
+    "delivery_retries": 0,
+    "emitted_characters": 26,
+    "emitted_exactly_once": false,
+    "requested_sha256": "a09f21ee71a9b858aefacb390fbac6f29ce0e0c7523918d4e4bb691c29b4e3db",
+    "delivery_sha256": "a09f21ee71a9b858aefacb390fbac6f29ce0e0c7523918d4e4bb691c29b4e3db",
+    "readback_sha256": "1418c7a5851b040d0b78a036902f2f8fe559101bcffa13fe9a8df7eb9c49fcb0"
+  },
+  "failure": {
+    "category": "uk_hash_symbol_transport_mismatch",
+    "reason": "The exact heading action passed grounded policy, but the UK Windows guest displayed a pound sign where the requested Markdown hash was issued. The unverified-draft guard then rejected correction and new-document actions.",
+    "dangerous_commit_count": 0,
+    "save_committed": false
+  },
+  "current_path_observer": {
+    "transport": "guarded MCP visual matrix",
+    "protocol": "pikvm-observer.v1",
+    "caller_label": "office-artifact-verifier",
+    "attempts": 2,
+    "first_attempt": {
+      "status": "infrastructure_failed",
+      "reason": "observer helper was not foregrounded; visual matrix border was absent"
+    },
+    "successful_attempt_pages": 3,
+    "checksum_valid": true,
+    "path": "C:/PiKVM-Harness/workspace/codex-50/code-09.md",
+    "file_error": "open failed",
+    "file_observed": false,
+    "dangerous_commit_count": 0,
+    "guest_fingerprint_present": true,
+    "input_desktop": "Default"
+  },
+  "preserved_prior_observer": {
+    "claimed": false,
+    "capture_required": false
+  },
+  "campaign_reboot": {
+    "ready": true,
+    "transition_observed": true,
+    "duration_ms": 107666,
+    "ready_frame_sha256": "e54953025e1d30f0596da161ae86de0ecd9b2a389704adfc4d48b813dfefcf4d"
+  },
+  "reset_after_observer": {
+    "ready": true,
+    "transition_observed": true,
+    "duration_ms": 123961,
+    "attempt_duration_ms": 119776,
+    "ready_frame_sha256": "505792aec9afab543d7af356a80152b14b5a32370b8143e1a4c3524dda0bf0b4"
+  },
+  "finding": "v2 exercised the grounded Notepad policy fix and removed the false approval, but exposed a lower transport failure: the requested Markdown hash rendered as the UK pound sign. The exact receipt failed closed, the draft guard prevented corrective mutation, the installed observer confirmed the file was absent with zero dangerous commits, and both required reboots observed transitions."
+}
