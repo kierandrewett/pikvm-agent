@@ -67,6 +67,7 @@ import { RunProvenance } from "@/components/workspace/run-provenance";
 import { UiUpdateBadge } from "@/components/workspace/ui-update-badge";
 import { useHarnessWorkspace } from "@/hooks/use-harness-workspace";
 import { messagesForRun } from "@/lib/run-messages";
+import { cn } from "@/lib/utils";
 
 const ComputerSheet = lazy(async () => {
   const module = await import("@/components/workspace/computer-sheet");
@@ -108,6 +109,26 @@ const WorkspaceToolCall = (props: ToolCallMessagePartProps) =>
   ) : (
     <ToolFallback {...props} />
   );
+
+/**
+ * The console's titlebar buttons, to the pixel: 30px circles, 15px icons, muted
+ * until hovered, with the hover and press backdrops mixed from currentColor so
+ * they follow the theme. This panel sits in the same window as that titlebar, so
+ * a button that is nearly the same reads as a mistake rather than a variation.
+ *
+ * Written as utilities rather than a component-layer class on purpose: the
+ * button's own size and radius come from its cva variants, which live in the
+ * utilities layer and win over anything declared in components.
+ */
+const TITLEBAR_BUTTON = [
+  "size-[30px] shrink-0 rounded-full p-0",
+  "text-muted-foreground transition-colors hover:text-foreground",
+  "hover:bg-[color-mix(in_srgb,currentColor_16%,transparent)]",
+  "active:bg-[color-mix(in_srgb,currentColor_26%,transparent)] active:scale-100",
+  // Important because the button's own [&_svg]:size-4 is the same specificity
+  // and tw-merge does not treat the two arbitrary variants as a conflict.
+  "[&_svg]:size-[15px]!",
+].join(" ");
 
 function RuntimeInstance({
   adapter,
@@ -346,12 +367,15 @@ export function WorkspaceShell() {
               <TooltipIconButton
                 tooltip="Tasks"
                 aria-label="Open tasks"
-                className="md:hidden"
+                className={cn(TITLEBAR_BUTTON, "md:hidden")}
                 onClick={() => setTasksOpen(true)}
               >
                 <MenuIcon />
               </TooltipIconButton>
-              <p className="truncate text-sm font-medium">
+              {/* The console titlebar's own title treatment: small, semibold and
+                  muted, so the run name reads as a window title rather than as
+                  the first line of the conversation. */}
+              <p className="truncate text-[12.5px] font-semibold text-muted-foreground">
                 {selectedTaskTitle}
               </p>
               {/* Only states that change what the user should do next earn a
@@ -396,6 +420,7 @@ export function WorkspaceShell() {
                     <TooltipIconButton
                       tooltip="More"
                       aria-label="More workspace actions"
+                      className={TITLEBAR_BUTTON}
                     >
                       <MoreHorizontalIcon />
                     </TooltipIconButton>
