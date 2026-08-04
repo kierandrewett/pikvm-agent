@@ -46,6 +46,7 @@ from pikvm_agent.executor.typing import (
     locate_changed_bbox,
     locate_dense_changed_bbox,
     locate_dense_changed_candidates,
+    maximized_editor_status_search_region,
     native_primary_readback_region,
     ocr_line_screen_region,
     precise_readback_candidate_region,
@@ -488,6 +489,100 @@ def test_editor_status_search_region_is_bounded_below_causal_row() -> None:
         row,
         (1280, 800),
         container_region=region,
+    )
+
+
+def test_maximized_editor_status_region_uses_grounded_screen_edge() -> None:
+    """A top-of-screen editor row must reach its bottom status bar."""
+
+    intended = "# Release 1.0"
+    row = Region(x=8, y=44, width=200, height=23)
+
+    region = maximized_editor_status_search_region(row, (1280, 800))
+
+    assert region == Region(x=0, y=650, width=512, height=150)
+    status = OCRResult(
+        lines=[
+            OCRLine(
+                text="Ln 1, Col 14 13 characters",
+                confidence=0.94,
+                bbox=[13, 108, 174, 122],
+            )
+        ]
+    )
+    assert editor_status_proves_single_line_payload(
+        status,
+        intended,
+        row,
+        (1280, 800),
+        container_region=region,
+    )
+
+
+async def test_native_status_crop_normalizes_lossless_geometry() -> None:
+    intended = "# Release 1.0"
+    row = Region(x=8, y=44, width=200, height=23)
+    status_region = Region(x=0, y=650, width=512, height=150)
+
+    class NativeStatusBackend(FakeBackend):
+        def __init__(self) -> None:
+            super().__init__(width=1280, height=800)
+            self.requested_regions: list[Region | None] = []
+
+        async def screenshot(
+            self,
+            region: Region | None = None,
+        ):
+            self.requested_regions.append(region)
+            if region is None:
+                return await super().screenshot()
+            width = round(region.width * 1.6)
+            height = round(region.height * 1.6)
+            image = Image.new("RGB", (width, height), "#202020")
+            encoded = io.BytesIO()
+            image.save(encoded, format="PNG")
+            return to_captured_frame(encoded.getvalue(), width, height)
+
+    class NativeStatusOCR:
+        async def ocr_precise(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path
+            assert region == Region(x=0, y=0, width=819, height=240)
+            return OCRResult(
+                lines=[
+                    OCRLine(
+                        text="Ln 1, Col 14 13 characters",
+                        confidence=0.94,
+                        bbox=[21, 173, 278, 195],
+                    )
+                ]
+            )
+
+        async def ocr(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            return await self.ocr_precise(image_path, region)
+
+    backend = NativeStatusBackend()
+    result = await WatchedTyper(backend, NativeStatusOCR())._read_native_screen(
+        status_region
+    )
+
+    assert backend.requested_regions == [status_region]
+    assert result.lines[0].bbox == pytest.approx(
+        [21 * 512 / 819, 108.125, 278 * 512 / 819, 121.875]
+    )
+    assert editor_status_proves_single_line_payload(
+        result,
+        intended,
+        row,
+        (1280, 800),
+        container_region=status_region,
     )
 
 

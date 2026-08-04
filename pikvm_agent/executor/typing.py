@@ -94,6 +94,7 @@ MAX_EDITOR_STATUS_SEARCH_HEIGHT_FRAC = 0.1875
 EDITOR_STATUS_SEARCH_WIDTH_FRAC = 0.40
 EDITOR_STATUS_SEARCH_LEFT_CONTEXT_PX = 256
 EDITOR_STATUS_COMPACT_HEIGHT_PX = 64.0
+MAXIMIZED_EDITOR_BODY_TOP_FRAC = 0.08
 AUTODETECTED_READBACK_MARGIN_X_FRAC = 0.075
 SHORT_FIELD_CONTEXT_ABOVE_PX = 80
 SHORT_FIELD_CONTEXT_BELOW_PX = 24
@@ -762,7 +763,16 @@ def _bounded_editor_status_rows(
     width, height = dims
     if width <= 0 or height <= 0:
         return []
-    max_vertical_gap = height * MAX_EDITOR_STATUS_VERTICAL_GAP_FRAC
+    screen_edge_status = bool(
+        container_region is not None
+        and row_region.y <= height * MAXIMIZED_EDITOR_BODY_TOP_FRAC
+        and container_region.y + container_region.height >= height - 1
+    )
+    max_vertical_gap = (
+        height
+        if screen_edge_status
+        else height * MAX_EDITOR_STATUS_VERTICAL_GAP_FRAC
+    )
     max_horizontal_offset = max(128, width * 0.20)
     candidates: list[tuple[float, float, int, int, int | None]] = []
     # Full-screen recovery can union the causal glyph row with a later caret
@@ -1168,6 +1178,32 @@ def editor_status_search_region(
         width=crop_width,
         height=crop_height,
     )
+
+
+def maximized_editor_status_search_region(
+    row_region: Region,
+    dims: tuple[int, int],
+) -> Region | None:
+    """Return the bottom-edge status band for a top-screen editor body.
+
+    Preserve the ordinary bounded search for restored or stacked windows.
+    Modern maximized Notepad places its body near the screen top and its
+    independent document status at the bottom edge, so that deterministic
+    geometry gets one additional crop. A top-aligned restored window simply
+    produces no matching bottom status and fails closed.
+    """
+
+    width, height = dims
+    if (
+        width <= 0
+        or height <= 0
+        or row_region.y > height * MAXIMIZED_EDITOR_BODY_TOP_FRAC
+    ):
+        return None
+    ordinary = editor_status_search_region(row_region, dims)
+    if ordinary is None:
+        return None
+    return ordinary.model_copy(update={"y": height - ordinary.height})
 
 
 def editor_status_search_subregions(
@@ -3046,21 +3082,17 @@ class WatchedTyper:
             if tmp is not None:
                 tmp.unlink(missing_ok=True)
 
-    async def _read_precise_screen_fallback(
+    async def _read_native_screen_with(
         self,
         region: Region,
+        *,
+        reader_name: str,
+        debug_kind: str,
     ) -> OCRResult:
-        """Read one bounded screen crop with the blind precise OCR lane.
+        """OCR one lossless crop and normalize boxes to screen coordinates."""
 
-        The normal screen reader deliberately stays on the fast local OCR
-        path. Tiny editor status text is the one place where a local miss can
-        leave otherwise exact indentation unverifiable, so callers may
-        explicitly escalate only that geometry-derived crop. The fallback
-        receives the native crop rather than a downscaled full frame.
-        """
-
-        fallback = getattr(self.ocr, "ocr_precise_fallback", None)
-        if not callable(fallback):
+        reader = getattr(self.ocr, reader_name, None)
+        if not callable(reader):
             return OCRResult()
         tmp: Path | None = None
         try:
@@ -3076,7 +3108,7 @@ class WatchedTyper:
             fd.write(frame.data)
             fd.close()
             tmp = Path(fd.name)
-            result = await fallback(
+            result = await reader(
                 tmp,
                 region=Region(
                     x=0,
@@ -3085,19 +3117,85 @@ class WatchedTyper:
                     height=frame.height,
                 ),
             )
+            scale_x = region.width / frame.width
+            scale_y = region.height / frame.height
+
+            def normalize_line(line: OCRLine) -> OCRLine:
+                if line.bbox is None or len(line.bbox) < 4:
+                    return line
+                left, top, right, bottom = line.bbox[:4]
+                return line.model_copy(
+                    update={
+                        "bbox": [
+                            float(left) * scale_x,
+                            float(top) * scale_y,
+                            float(right) * scale_x,
+                            float(bottom) * scale_y,
+                        ],
+                        "raw": {
+                            **dict(line.raw or {}),
+                            "native_crop_geometry_normalized": True,
+                        },
+                    }
+                )
+
+            normalized = result.model_copy(
+                update={
+                    "lines": [normalize_line(line) for line in result.lines],
+                    "evidence_lines": [
+                        normalize_line(line)
+                        for line in result.evidence_lines
+                    ],
+                }
+            )
             DEBUG.event(
-                "typing.screen_readback_fallback",
+                debug_kind,
                 width=frame.width,
                 height=frame.height,
-                observed_characters=len(result.text),
-                line_count=len(result.lines),
+                screen_region=region.model_dump(),
+                observed_characters=len(normalized.text),
+                line_count=len(normalized.lines),
+                **_ocr_candidate_fingerprints(normalized),
             )
-            return result
+            return normalized
         except Exception:
             return OCRResult()
         finally:
             if tmp is not None:
                 tmp.unlink(missing_ok=True)
+
+    async def _read_native_screen(self, region: Region) -> OCRResult:
+        """Precisely OCR one lossless backend crop in screen coordinates.
+
+        Region capture can have more pixels than the downscaled observation
+        frame. The shared native reader normalizes its OCR boxes back into the
+        requested screen crop before any foreground/status geometry uses it.
+        """
+
+        return await self._read_native_screen_with(
+            region,
+            reader_name="ocr_precise",
+            debug_kind="typing.screen_readback_native_primary",
+        )
+
+    async def _read_precise_screen_fallback(
+        self,
+        region: Region,
+    ) -> OCRResult:
+        """Read one bounded screen crop with the blind precise OCR lane.
+
+        The normal screen reader deliberately stays on the fast local OCR
+        path. Tiny editor status text is the one place where a local miss can
+        leave otherwise exact indentation unverifiable, so callers may
+        explicitly escalate only that geometry-derived crop. The fallback
+        receives the native crop rather than a downscaled full frame.
+        """
+
+        return await self._read_native_screen_with(
+            region,
+            reader_name="ocr_precise_fallback",
+            debug_kind="typing.screen_readback_fallback",
+        )
 
     def _locate_ocr_candidate(
         self,
@@ -4576,31 +4674,65 @@ class WatchedTyper:
             predicate: Callable[[OCRResult, Region], bool],
         ) -> tuple[bool, Region | None]:
             assert cur_region is not None
-            status_region = editor_status_search_region(cur_region, dims)
-            if status_region is None:
+            ordinary_region = editor_status_search_region(cur_region, dims)
+            if ordinary_region is None:
                 return False, None
-            bounded_status = await self._read_screen(
-                precise=True,
-                region=status_region,
+            maximized_region = maximized_editor_status_search_region(
+                cur_region,
+                dims,
             )
-            proved = predicate(bounded_status, status_region)
-            if not proved:
-                for compact_region in editor_status_search_subregions(
-                    status_region,
-                    dims,
-                ):
-                    compact_status = await self._read_screen(
-                        precise=True,
-                        region=compact_region,
-                    )
-                    if predicate(compact_status, compact_region):
-                        return True, compact_region
-            if not proved:
-                bounded_status = await self._read_precise_screen_fallback(
-                    status_region,
+            if (
+                maximized_region is not None
+                and maximized_region != ordinary_region
+            ):
+                # The top-screen editor shape should take its lossless
+                # bottom-edge proof before paying for restored-window bands.
+                # If this was only a top-aligned restored window, the missing
+                # bottom status fails closed and ordinary geometry still runs.
+                status_regions = [maximized_region, ordinary_region]
+            else:
+                status_regions = [ordinary_region]
+            for status_region in status_regions:
+                bounded_status = await self._read_screen(
+                    precise=True,
+                    region=status_region,
                 )
                 proved = predicate(bounded_status, status_region)
-            return proved, status_region
+                native_attempted = False
+                if (
+                    not proved
+                    and maximized_region is not None
+                    and status_region == maximized_region
+                ):
+                    native_status = await self._read_native_screen(
+                        status_region
+                    )
+                    native_attempted = True
+                    proved = predicate(native_status, status_region)
+                if not proved:
+                    for compact_region in editor_status_search_subregions(
+                        status_region,
+                        dims,
+                    ):
+                        compact_status = await self._read_screen(
+                            precise=True,
+                            region=compact_region,
+                        )
+                        if predicate(compact_status, compact_region):
+                            return True, compact_region
+                if not proved and not native_attempted:
+                    native_status = await self._read_native_screen(
+                        status_region
+                    )
+                    proved = predicate(native_status, status_region)
+                if not proved:
+                    bounded_status = await self._read_precise_screen_fallback(
+                        status_region,
+                    )
+                    proved = predicate(bounded_status, status_region)
+                if proved:
+                    return True, status_region
+            return False, status_regions[-1]
 
         async def prove_editor_whitespace(
             read_back: str,
