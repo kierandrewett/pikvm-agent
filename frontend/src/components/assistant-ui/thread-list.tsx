@@ -10,6 +10,7 @@ import {
   ThreadListItemPrimitive,
   ThreadListPrimitive,
   useAuiState,
+  useThreadListItem,
 } from "@assistant-ui/react";
 import {
   ArchiveIcon,
@@ -251,6 +252,37 @@ const ThreadListSkeleton: FC = () => {
   );
 };
 
+/** "2m", "3h", "5d" — short enough to sit inline without pushing the title. */
+const relativeTime = (date: Date | undefined) => {
+  if (!date) return "";
+  const seconds = Math.round((Date.now() - date.getTime()) / 1000);
+  if (seconds < 60) return "now";
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours}h`;
+  const days = Math.round(hours / 24);
+  if (days < 7) return `${days}d`;
+  return `${Math.round(days / 7)}w`;
+};
+
+/** When each task last moved, so a list of similar titles is still scannable —
+ *  several of these tasks are called the same thing. */
+const ThreadListItemTime: FC = () => {
+  const lastMessageAt = useThreadListItem((item) => item.lastMessageAt);
+  const label = relativeTime(lastMessageAt);
+  if (!label) return null;
+  return (
+    <span
+      data-slot="aui_thread-list-item-time"
+      className="text-muted-foreground ms-2 shrink-0 text-[11px] tabular-nums group-hover:opacity-0 group-data-active:opacity-0"
+      title={lastMessageAt?.toLocaleString()}
+    >
+      {label}
+    </span>
+  );
+};
+
 export const ThreadListItem: FC = () => {
   return (
     <ThreadListItemPrimitive.Root
@@ -267,6 +299,7 @@ export const ThreadListItem: FC = () => {
         >
           <ThreadListItemPrimitive.Title fallback="New Chat" />
         </span>
+        <ThreadListItemTime />
       </ThreadListItemPrimitive.Trigger>
       <ThreadListItemMore />
     </ThreadListItemPrimitive.Root>
