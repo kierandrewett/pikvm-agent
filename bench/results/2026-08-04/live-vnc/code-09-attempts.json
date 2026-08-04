@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "report": "codex-code-entry-code09-failure-inclusive-attempts",
-  "recorded_at": "2026-08-04T05:22:25Z",
+  "recorded_at": "2026-08-04T10:35:59Z",
   "environment": {
     "target": "authorized disposable Windows VNC VM",
     "production_target_contacted": false,
@@ -34,7 +34,7 @@
     "all_recordings_retained": true,
     "all_reboots_ready": true,
     "all_reboots_observed_real_transition": true,
-    "release_gate": "failing: v5 exercised the guarded HTTP printer and retained the intended numeric Alt hash route, but the live campaign still visibly rendered a pound sign"
+    "release_gate": "failing: v5 rendered the exact heading, but primary exact readback used a downscaled full frame and misread the final zero as four"
   },
   "attempts": [
     {
@@ -213,7 +213,7 @@
       "campaign_reported_status": "failed",
       "run_id": "9ed9567c-274d-466a-b0db-cfc93612c5d0",
       "source_commit": "6fbfac8",
-      "reason": "The new route receipt identified windows-rfb-print-v2 with the en-gb Windows profile but covered only HTTP print requests. The short exact heading used the paced websocket HID path, emitted all 13 characters, and visibly rendered '£ Release 1.0'. Exact post-input verification retained the mismatch and was interrupted at the campaign deadline after 90.937 seconds. No Save action ran.",
+      "reason": "The new route receipt identified windows-rfb-print-v2 with the en-gb Windows profile but covered only HTTP print requests. The short exact heading used the paced websocket HID path and emitted all 13 characters. Native-pixel reanalysis confirms the retained post-action frame shows '# Release 1.0'; the earlier pound-sign classification was a downscaled-glyph misread. Exact post-input verification still failed and was interrupted at the campaign deadline after 90.937 seconds. No Save action ran.",
       "wall_clock_ms": 158074,
       "task_duration_ms": 298183,
       "preflight_ms": 57617,
@@ -243,7 +243,7 @@
         "receipt_scope": "http_print_requests_only"
       },
       "heading_input_emitted": true,
-      "failed_input_observed": "£ Release 1.0",
+      "post_action_frame_observed": "# Release 1.0",
       "failed_input_status": "failed_symbol_mismatch",
       "post_action_frame_sha256": "692e3384fdac9aeb0685c543dbdf26bf0617ece2f6511c4e77816013f96fddf4",
       "slowest_action_ms": 90937,
@@ -277,7 +277,7 @@
       "campaign_reported_status": "failed",
       "run_id": "112257a6-c845-4e55-87fa-db3acf042873",
       "source_commit": "58facf9",
-      "reason": "The short exact heading used the guarded HTTP printer and retained windows_semantic_alt_code for the hash, proving both v4 remediations were exercised. The guest still visibly rendered '£ Release 1.0'. Exact readback stopped the action in 22.333 seconds; bounded recoveries did not rewrite the draft, and the unverified-draft guard blocked a later change-or-execute attempt. No Save action ran.",
+      "reason": "The short exact heading used the guarded HTTP printer and retained windows_semantic_alt_code for the hash, proving both v4 remediations were exercised. Native-pixel reanalysis confirms the guest rendered '# Release 1.0' exactly, while primary OCR on the 1280-wide full frame read '# Release 1.4'. Exact readback stopped the action in 22.333 seconds; bounded recoveries did not rewrite the draft, and the unverified-draft guard blocked a later change-or-execute attempt. No Save action ran.",
       "wall_clock_ms": 220444,
       "task_duration_ms": 360161,
       "preflight_ms": 58954,
@@ -297,7 +297,7 @@
       "approvals_granted": 0,
       "guarded_http_heading_fix_exercised": true,
       "raw_exact_heading_verifier_fix_exercised": true,
-      "guarded_http_heading_fix_effective": false,
+      "guarded_http_heading_fix_effective": true,
       "input_transport": {
         "strategy_version": "windows-rfb-print-v2",
         "keymap": "en-gb",
@@ -312,7 +312,8 @@
         }
       },
       "heading_input_emitted": true,
-      "failed_input_observed": "£ Release 1.0",
+      "post_action_frame_observed": "# Release 1.0",
+      "downscaled_primary_ocr_observed": "# Release 1.4",
       "failed_input_status": "failed_symbol_mismatch",
       "post_action_frame_sha256": "ed9ed7b7c9ff0064a5da5823653acc1b270b2ad1136ef55c1893a63527cf5853",
       "slowest_action_ms": 23488.036,
@@ -361,6 +362,12 @@
       "commit": "58facf9f13c089bc67c5fdcfeb37f78b6985cf97",
       "change": "Route all exact editor text above the precise-locate floor through the guarded printer, distinguish HTTP print and websocket HID diagnostic coverage, and verify a complete raw exact field before stripping a shell-prompt-shaped leading hash.",
       "tests": "389 relevant typing, verification, VNC, MCP, and harness tests passed; 5 focused follow-ups passed"
+    },
+    {
+      "after_attempt": "v5",
+      "commit": "85b8adbb5050ddbf37016c8ce55c4b074df26ecc",
+      "change": "When an auto-located exact editor row has a non-empty glyph mismatch, re-run the same primary OCR provider on one lossless native backend crop; cache that crop for the optional blind fallback and leave spacing-only ambiguity, terminals, explicit regions, and all mutation gates unchanged.",
+      "tests": "221 typing tests passed; 10 focused native-readback, spacing, terminal, and blind-fallback regressions passed; similarity scan reported only existing helper and test families"
     }
   ],
   "next_gate": {
@@ -368,10 +375,11 @@
     "evidence": [
       "v2 proved the v1 false-positive approval is fixed on the live target.",
       "v3 visibly rendered a pound sign, but subsequent rebooted direct probes proved numeric Alt exact and direct semantic RFB wrong.",
-      "v4 proved the HTTP-only route receipt missed the paced websocket HID heading; the post-action frame visibly retained '£ Release 1.0' and a 13-character status.",
-      "v5 exercised the guarded HTTP printer, retained windows_semantic_alt_code for the hash, and still visibly rendered '£ Release 1.0', localizing the remaining defect below route selection.",
+      "Native-pixel reanalysis of v4 proves its post-action frame contains '# Release 1.0'; the earlier pound-sign classification was a visual error on the downscaled frame.",
+      "v5 exercised the guarded HTTP printer and retained windows_semantic_alt_code for the hash. Its native pixels and the known-good probe match '# Release 1.0', while primary OCR on the 1280-wide frame repeatedly read the final zero as four.",
+      "Pushed commit 85b8adb adds one bounded native-resolution primary OCR retry for this exact editor mismatch without changing any mutation or completion gate.",
       "The observer confirmed the file absent with zero dangerous commits, and all campaign and post-observer reboots observed real transitions."
     ],
-    "next_attempt": "Diagnose the guest modifier and numeric-keypad state immediately before the full-campaign Alt-code input, implement one bounded state-reset fix without weakening exact readback, and run recorded Code-09 v6 only if the fix is exercised."
+    "next_attempt": "Restart only the isolated lab services on pushed 85b8adb, exercise the native primary OCR event against the exact heading, and run recorded Code-09 v6 only if that live event returns an exact readback."
   }
 }

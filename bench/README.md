@@ -1475,8 +1475,8 @@ predicates and did not change the implementation.
 | v1 | Failed safely before input | 68.977s | 4 | False-positive `communication_send`; no HID document input |
 | v2 | Failed safely after exact input mismatch | 163.944s | 10 | Grounded policy fix exercised; requested `#` rendered as `£`; draft guard blocked correction |
 | v3 | Failed safely after live transport remediation | 196.603s | 12 | Numeric Alt route exercised on pushed `837935d`; guest still rendered `£`; no Save action |
-| v4 | Failed safely after exact input mismatch | 158.074s | 4 | Short exact heading bypassed HTTP print history, used paced websocket HID, rendered `£`, and hit the deadline during exact readback |
-| v5 | Failed safely after instrumented exact input mismatch | 220.444s | 18 | Guarded HTTP route and numeric Alt receipt exercised; guest still rendered `£`; draft guard blocked later mutation |
+| v4 | Failed safely after exact readback mismatch | 158.074s | 4 | Short exact heading bypassed HTTP print history, used paced websocket HID, rendered exactly, and hit the deadline during faulty OCR readback |
+| v5 | Failed safely after instrumented exact readback mismatch | 220.444s | 18 | Guarded HTTP route and numeric Alt receipt exercised; native pixels are exact, but downscaled OCR read the final `0` as `4` |
 
 v2 ran on pushed master `7679d11`. The identical `# Release 1.0` action passed
 policy with no approval, proving the v1 remediation was exercised live. Its
@@ -1527,9 +1527,11 @@ They identified `windows-rfb-print-v2`, `en-gb`, and the Windows profile, but
 covered only HTTP print requests. The 13-character heading was below the
 non-code editor fast-print threshold and therefore used paced websocket HID,
 which the receipt did not instrument. The retained post-action frame has
-SHA-256 `692e3384fdac`; it visibly shows `£ Release 1.0`, while Notepad's status
-row independently reports 13 characters. The heading was emitted, and its
-absence from HTTP print history was not evidence of absence.
+SHA-256 `692e3384fdac`; native-pixel reanalysis shows `# Release 1.0`, while
+Notepad's status row independently reports 13 characters. The earlier
+pound-sign classification was a visual error on the 1280-wide downscaled
+frame. The heading was emitted, and its absence from HTTP print history was not
+evidence of absence.
 
 The exact post-input verifier correctly retained that glyph mismatch. It spent
 90.937s on bounded readback attempts until the campaign deadline interrupted
@@ -1556,10 +1558,13 @@ v5 exercised both changes live on pushed `58facf9`. Its content-free HTTP
 receipt contains the exact 13-character request hash and the intended routes:
 12 `windows_atomic_printable` characters plus one
 `windows_semantic_alt_code`. The retained 1280×800 post-action frame has SHA-256
-`ed9ed7b7c9ff` and still visibly shows `£ Release 1.0`, with Notepad reporting
-13 characters. This rules out the earlier uninstrumented websocket path and
-localizes the remaining defect below route selection, in guest input state or
-numeric-keypad handling.
+`ed9ed7b7c9ff`. Tight native-pixel comparison against the known-good hash probe
+shows the same compact hash component and the exact text `# Release 1.0`, with
+Notepad reporting 13 characters. The earlier pound-sign classification was
+again a downscaled-glyph visual error. Offline replay reproduced the actual
+failure: local OCR on the 1280-wide field repeatedly canonicalized the final
+zero as four, while the same primary OCR provider on the raw 2048-wide crop
+returned `# Release 1.0`.
 
 Exact readback stopped the first heading action in 22.333s. Five bounded
 recovery turns did not replay the draft, and the unverified-draft guard blocked
@@ -1572,6 +1577,15 @@ observed a transition in 76.506s; the independent post-observer reset observed
 another in 39.306s. No prior artifact was genuinely claimed. Exact readback,
 permissions, quiescence, observer, recording, and reboot gates remain intact.
 
+Pushed commit `85b8adb` adds one bounded retry through that lossless seam. Only
+an auto-located exact editor field with a non-empty glyph mismatch can invoke
+the primary OCR provider on one native backend crop. The crop is cached for the
+optional blind fallback; spacing-only ambiguity, terminals, explicit caller
+regions, mutations, submission, and completion gates retain their prior
+behavior. The focused regression failed before the change. Ten affected tests
+and the complete 221-test typing suite pass; the similarity scan reports only
+the existing helper and test families.
+
 The failure-inclusive ledger is
 [`code-09-attempts.json`](results/2026-08-04/live-vnc/code-09-attempts.json).
 Independent absence and reset evidence is retained for
@@ -1580,11 +1594,11 @@ Independent absence and reset evidence is retained for
 [`v3`](results/2026-08-04/live-vnc/code-09-v3-observer-comparison.json), and
 [`v4`](results/2026-08-04/live-vnc/code-09-v4-observer-comparison.json), and
 [`v5`](results/2026-08-04/live-vnc/code-09-v5-observer-comparison.json).
-The ledger digest is `sha256:d42c30b5e14f`; the key-path probe digest is
+The ledger digest is `sha256:6ed6d4073b88`; the key-path probe digest is
 `sha256:3bd5284b38a1`; the observer-report digests are
 `sha256:9145f099f2db`, `sha256:5e1089ff5537`, and
 `sha256:08db92ad22e7`, `sha256:6f97c9f5412e`, and
-`sha256:bd869578a92e`, respectively.
+`sha256:d54ff1b4c4f9`, respectively.
 The v1 campaign digest is `sha256:45d79fa42371`; its 150.5-second VP9 recording
 is `sha256:326c660001e1` and its poster is `sha256:ef31e95c379d`. The v2
 campaign digest is `sha256:0e7595958008`; its 247.5-second VP9 recording is

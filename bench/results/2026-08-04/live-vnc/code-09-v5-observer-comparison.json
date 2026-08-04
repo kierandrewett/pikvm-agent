@@ -35,20 +35,28 @@
       "windows_atomic_printable": 1
     },
     "receipt_retained_in_campaign": true,
-    "interpretation": "The short exact heading used the guarded HTTP printer and the hash used the intended Windows numeric Alt route. The live glyph failure therefore occurs after route selection, not because the heading bypassed the instrumented transport."
+    "interpretation": "The short exact heading used the guarded HTTP printer and the hash used the intended Windows numeric Alt route. Retained native-pixel comparison later confirmed that this route rendered the requested hash exactly."
   },
   "visual_post_action_evidence": {
     "frame_sha256": "ed9ed7b7c9ff0064a5da5823653acc1b270b2ad1136ef55c1893a63527cf5853",
     "width": 1280,
     "height": 800,
     "notepad_status_characters": 13,
-    "observed_text": "£ Release 1.0",
+    "observed_text": "# Release 1.0",
     "requested_text": "# Release 1.0",
-    "status": "failed_symbol_mismatch"
+    "status": "transport_exact"
+  },
+  "readback_reanalysis": {
+    "downscaled_frame_width": 1280,
+    "downscaled_primary_ocr": "# Release 1.4",
+    "native_frame_width": 2048,
+    "native_primary_ocr": "# Release 1.0",
+    "hash_connected_component_matches_known_good_probe": true,
+    "interpretation": "The 1280-wide primary OCR confused the final low-resolution zero with four. A native-resolution crop and the retained known-good hash probe both resolve the requested heading exactly; the earlier pound-sign visual classification was a downscaled-glyph misread."
   },
   "failure": {
-    "category": "state_dependent_windows_numeric_alt_glyph_mismatch",
-    "reason": "The live campaign exercised the guarded HTTP printer and retained the expected windows_semantic_alt_code route for the hash, but the guest visibly rendered '£ Release 1.0'. Exact readback failed in 22.333 seconds. Five bounded recovery turns ran without rewriting the unverified draft, and the guard blocked the controller when it tried to change or execute that draft. No Save action ran.",
+    "category": "downscaled_primary_ocr_digit_misread",
+    "reason": "The live campaign rendered '# Release 1.0' exactly, but primary exact readback was limited to the 1280-wide full-frame capture and repeatedly canonicalized the final zero as four. Exact readback therefore failed closed in 22.333 seconds. Five bounded recovery turns ran without rewriting the unverified draft, and the guard blocked the controller when it tried to change or execute that draft. No Save action ran.",
     "dangerous_commit_count": 0,
     "save_committed": false
   },
@@ -108,5 +116,5 @@
   },
   "poster_sha256": "4f5194a2d21e18c182abcc8c7c5913a23833c1d77edcfa26cab42eb926ff906d",
   "campaign_sha256": "304176a29a03aa39f2e09725fd02842f26a5b68bb826b8e7024890e9e0b7b911",
-  "finding": "v5 exercised both bounded v4 remediations live: the exact Markdown heading used the guarded HTTP printer, its content-free receipt retained the intended Windows numeric Alt route, and the raw exact-heading verifier no longer stripped the leading hash as a shell prompt. The guest nevertheless rendered a pound sign, so the remaining defect is state-dependent below route selection. Exact readback and the unverified-draft guard failed closed, the installed observer confirmed code-09.md absent with zero dangerous commits, and both required reboots observed transitions."
+  "finding": "v5 exercised both bounded v4 remediations live: the exact Markdown heading used the guarded HTTP printer, its content-free receipt retained the intended Windows numeric Alt route, and the raw exact-heading verifier no longer stripped the leading hash as a shell prompt. Native-pixel reanalysis proves the guest rendered '# Release 1.0' exactly; the remaining failure was primary OCR reading the downscaled final zero as four. Exact readback and the unverified-draft guard failed closed, the installed observer confirmed code-09.md absent with zero dangerous commits, and both required reboots observed transitions."
 }
