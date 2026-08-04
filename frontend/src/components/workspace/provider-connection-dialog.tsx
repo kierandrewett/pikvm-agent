@@ -154,6 +154,92 @@ const suggestAlias = (modelId: string) =>
 
 const CUSTOM_MODEL = "\u0000custom";
 
+/**
+ * What a user actually chooses between. The adapter KIND is an implementation
+ * detail — "OpenRouter" and "a self-hosted vLLM" are both openai_compatible,
+ * but only one of them should make you go and find a base URL. A preset
+ * carries the kind plus everything about that service we already know, and
+ * narrows the model list to the models it can actually serve.
+ */
+type ProviderPreset = {
+  id: string;
+  label: string;
+  hint?: string;
+  kind: ConnectableProviderKind;
+  baseUrl?: string;
+  credentialEnv?: string;
+  /** models.dev provider ids to show; omit to use the kind's default set. */
+  catalogProviderIds?: string[];
+};
+
+const PRESETS: ProviderPreset[] = [
+  {
+    id: "openrouter",
+    label: "OpenRouter",
+    hint: "One key, most models",
+    kind: "openai_compatible",
+    baseUrl: "https://openrouter.ai/api/v1",
+    credentialEnv: "OPENROUTER_API_KEY",
+    catalogProviderIds: ["openrouter"],
+  },
+  {
+    id: "codex_cli",
+    label: "ChatGPT / Codex subscription",
+    hint: "Uses your Codex CLI login",
+    kind: "codex_cli",
+  },
+  {
+    id: "claude_cli",
+    label: "Claude subscription",
+    hint: "Uses your Claude CLI login",
+    kind: "claude_cli",
+  },
+  {
+    id: "gemini_cli",
+    label: "Gemini subscription",
+    hint: "Uses your Gemini CLI login",
+    kind: "gemini_cli",
+  },
+  {
+    id: "openai_responses",
+    label: "OpenAI API key",
+    kind: "openai_responses",
+    catalogProviderIds: ["openai"],
+  },
+  {
+    id: "anthropic_api",
+    label: "Anthropic API key",
+    kind: "anthropic_api",
+  },
+  {
+    id: "gemini_api",
+    label: "Google AI API key",
+    kind: "gemini_api",
+  },
+  {
+    id: "openai_compatible",
+    label: "Other OpenAI-compatible API",
+    hint: "Self-hosted or another gateway",
+    kind: "openai_compatible",
+  },
+  {
+    id: "azure_openai_responses",
+    label: "Azure OpenAI",
+    kind: "azure_openai_responses",
+  },
+  {
+    id: "vertex_gemini",
+    label: "Vertex AI",
+    kind: "vertex_gemini",
+  },
+  {
+    id: "codex_app_server",
+    label: "Codex app-server",
+    hint: "Faster repeated calls on the same login",
+    kind: "codex_app_server",
+  },
+];
+
 const isConnectable = (
   kind: string,
 ): kind is ConnectableProviderKind => kind in SETUP;
@@ -181,9 +267,23 @@ export function ProviderConnectionDialog({
     () => catalog.filter((entry) => isConnectable(entry.kind)),
     [catalog],
   );
-  const initialKind = (adapters[0]?.kind ??
-    "codex_cli") as ConnectableProviderKind;
+  // Only offer presets whose adapter this harness actually ships.
+  const available = useMemo(() => {
+    // Ordered by the harness's own adapter list, so the default pick still
+    // follows what the harness reports first rather than our preset ordering.
+    const rank = new Map(adapters.map((entry, index) => [entry.kind, index]));
+    return PRESETS.filter((preset) => rank.has(preset.kind)).sort(
+      (left, right) =>
+        (rank.get(left.kind) ?? 0) - (rank.get(right.kind) ?? 0),
+    );
+  }, [adapters]);
+  const initialPreset =
+    available[0] ??
+    PRESETS.find((preset) => preset.kind === adapters[0]?.kind) ??
+    PRESETS[0];
+  const initialKind = initialPreset.kind;
   const initialAuth = SETUP[initialKind].auth?.[0];
+  const [presetId, setPresetId] = useState(initialPreset.id);
   const [kind, setKind] = useState<ConnectableProviderKind>(initialKind);
   const [authMode, setAuthMode] =
     useState<ProviderConnectionAuthMode | null>(
@@ -191,9 +291,10 @@ export function ProviderConnectionDialog({
     );
   const [alias, setAlias] = useState("");
   const [model, setModel] = useState("");
-  const [baseUrl, setBaseUrl] = useState("");
+  const [baseUrl, setBaseUrl] = useState(initialPreset.baseUrl ?? "");
   const [credentialEnv, setCredentialEnv] = useState(
-    initialAuth?.credentialEnv ??
+    initialPreset.credentialEnv ??
+      initialAuth?.credentialEnv ??
       SETUP[initialKind].credentialEnv ??
       "",
   );
@@ -203,13 +304,16 @@ export function ProviderConnectionDialog({
   const [error, setError] = useState("");
   const [customModel, setCustomModel] = useState(false);
   const [aliasEdited, setAliasEdited] = useState(false);
+  const preset =
+    available.find((candidate) => candidate.id === presetId) ?? initialPreset;
   const shape = SETUP[kind];
   // Real models this kind of account can run, straight from the models.dev
   // cache. Multiple source providers can feed one kind (openai_compatible
   // draws from OpenAI and OpenRouter), so labels carry the source when needed.
   const catalogModels = useMemo(() => {
     if (!modelCatalog?.available) return [];
-    const providerIds = modelCatalog.kinds[kind] ?? [];
+    const providerIds =
+      preset.catalogProviderIds ?? modelCatalog.kinds[kind] ?? [];
     const seen = new Set<string>();
     const options: Array<{
       model: CatalogModel;
@@ -230,7 +334,7 @@ export function ProviderConnectionDialog({
       }
     }
     return options;
-  }, [modelCatalog, kind]);
+  }, [modelCatalog, kind, preset]);
   const pickedCatalogModel = catalogModels.find(
     (option) => option.model.id === model,
   );
@@ -241,17 +345,22 @@ export function ProviderConnectionDialog({
     authChoice?.credentialEnv || shape.credentialEnv,
   );
 
-  const selectKind = (value: string | null) => {
-    if (!value || !isConnectable(value)) return;
-    const nextShape = SETUP[value];
+  const selectPreset = (value: string | null) => {
+    const next = available.find((candidate) => candidate.id === value);
+    if (!next || !isConnectable(next.kind)) return;
+    const nextShape = SETUP[next.kind];
     const nextAuth = nextShape.auth?.[0];
-    setKind(value);
+    setPresetId(next.id);
+    setKind(next.kind);
     setAuthMode(nextAuth?.value ?? null);
     setCredentialEnv(
-      nextAuth?.credentialEnv ?? nextShape.credentialEnv ?? "",
+      next.credentialEnv ??
+        nextAuth?.credentialEnv ??
+        nextShape.credentialEnv ??
+        "",
     );
     setProfileHomeEnv(nextShape.profileHomeEnv ?? "");
-    setBaseUrl("");
+    setBaseUrl(next.baseUrl ?? "");
     setModel("");
     setCustomModel(false);
     setError("");
@@ -320,35 +429,35 @@ export function ProviderConnectionDialog({
         <form onSubmit={(event) => void submit(event)}>
           <FieldGroup>
             <Field>
-              <FieldLabel htmlFor="provider-adapter">
-                Provider adapter
-              </FieldLabel>
+              <FieldLabel htmlFor="provider-adapter">Provider</FieldLabel>
               <Select
-                value={kind}
-                onValueChange={selectKind}
-                items={adapters.map((entry) => ({
-                  value: entry.kind,
-                  label: `${SETUP[entry.kind as ConnectableProviderKind].label} · ${entry.support_tier}`,
+                value={preset.id}
+                onValueChange={selectPreset}
+                items={available.map((entry) => ({
+                  value: entry.id,
+                  label: entry.label,
                 }))}
               >
                 <SelectTrigger
                   id="provider-adapter"
                   className="w-full"
-                  aria-label="Provider adapter"
+                  aria-label="Provider"
                 >
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent alignItemWithTrigger={false}>
                   <SelectGroup>
-                    {adapters.map((entry) => (
-                      <SelectItem key={entry.kind} value={entry.kind}>
-                        {SETUP[entry.kind as ConnectableProviderKind].label} ·{" "}
-                        {entry.support_tier}
+                    {available.map((entry) => (
+                      <SelectItem key={entry.id} value={entry.id}>
+                        {entry.label}
                       </SelectItem>
                     ))}
                   </SelectGroup>
                 </SelectContent>
               </Select>
+              {preset.hint ? (
+                <FieldDescription>{preset.hint}</FieldDescription>
+              ) : null}
             </Field>
             <div className="grid gap-3 sm:grid-cols-2">
               <Field>

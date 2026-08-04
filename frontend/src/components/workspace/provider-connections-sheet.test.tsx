@@ -412,8 +412,8 @@ describe("ProviderConnectionsSheet", () => {
     expect(screen.queryByLabelText(/API key value/i)).toBeNull();
 
     expect(
-      screen.getByRole("combobox", { name: "Provider adapter" }).textContent,
-    ).toContain("OpenAI Responses API");
+      screen.getByRole("combobox", { name: "Provider" }).textContent,
+    ).toContain("OpenAI API key");
     await user.type(screen.getByLabelText("Provider name"), "openai-work");
     const addDialog = within(screen.getByRole("dialog", { name: "Add a model" }));
     await user.type(addDialog.getByLabelText("Model"), "gpt-5-mini");
