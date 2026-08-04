@@ -338,6 +338,28 @@ def regions_overlap(a: Region, b: Region) -> bool:
     )
 
 
+def is_autolocated_editor_body_region(
+    region: Region,
+    dims: tuple[int, int],
+) -> bool:
+    """Reject only the fixed top-screen chrome of a maximized editor.
+
+    Modern Notepad mirrors the first document row in its tab title.  A
+    full-screen OCR recovery can therefore read the intended text perfectly
+    from the tab strip while proving nothing about the editor body.  Keep this
+    guard deliberately narrow: it applies only to auto-localized editor
+    candidates, and excludes rows wholly inside the top five percent (with a
+    small-pixel floor).  Explicit caller regions and every non-editor surface
+    remain unchanged.
+    """
+
+    _width, height = dims
+    if height <= 0:
+        return True
+    chrome_bottom = max(32.0, height * 0.05)
+    return region.y + region.height > chrome_bottom
+
+
 def is_disjoint_editor_effect(current: Region, candidate: Region) -> bool:
     """Reject a later editor repaint outside the grounded text band."""
 
@@ -3084,6 +3106,7 @@ class WatchedTyper:
         dims: tuple[int, int],
         *,
         precise: bool = False,
+        editor_field: bool = False,
     ) -> Region | None:
         """Ground an OCR line containing the just-typed text."""
         # Word-boundary chunks commonly end in a space. OCR omits that invisible
@@ -3114,7 +3137,13 @@ class WatchedTyper:
             ):
                 continue
             region = ocr_line_region(line, dims)
-            if region is not None:
+            if (
+                region is not None
+                and (
+                    not editor_field
+                    or is_autolocated_editor_body_region(region, dims)
+                )
+            ):
                 return region
         return None
 
@@ -3142,8 +3171,26 @@ class WatchedTyper:
         width, height = dims
         if width <= 0 or height <= 0:
             return None
+        localized_result = result
+        if editor_field:
+            body_lines = [
+                line
+                for line in result.lines
+                if (
+                    (line_region := ocr_line_region(line, dims)) is not None
+                    and is_autolocated_editor_body_region(line_region, dims)
+                )
+            ]
+            ignored_rows = len(result.lines) - len(body_lines)
+            if ignored_rows:
+                DEBUG.event(
+                    "typing.editor_chrome_rows_ignored",
+                    ignored_rows=ignored_rows,
+                    retained_rows=len(body_lines),
+                )
+            localized_result = result.model_copy(update={"lines": body_lines})
         candidate_region = precise_readback_candidate_region(
-            result,
+            localized_result,
             intended,
             Region(x=0, y=0, width=width, height=height),
             dims,
@@ -5856,6 +5903,7 @@ class WatchedTyper:
                             typed_so_far,
                             dims,
                             precise=precise,
+                            editor_field=editor_field,
                         )
                         if ocr_loc is not None:
                             loc = ocr_loc
@@ -6013,6 +6061,7 @@ class WatchedTyper:
                                 typed_so_far,
                                 dims,
                                 precise=precise,
+                                editor_field=editor_field,
                             )
                         )
                         recovered_read = ""

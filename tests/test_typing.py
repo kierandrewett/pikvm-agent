@@ -6481,6 +6481,99 @@ async def test_causal_editor_row_outranks_notepad_tab_title_for_status_proof(
     _assert_no_enter(backend)
 
 
+def test_editor_ocr_localization_ignores_maximized_notepad_tab_title() -> None:
+    intended = "# Release 1.0"
+    result = OCRResult(
+        lines=[
+            OCRLine(
+                text=intended,
+                confidence=0.99,
+                bbox=[482, 1, 671, 23],
+            ),
+            OCRLine(
+                text=intended,
+                confidence=0.99,
+                bbox=[8, 48, 112, 64],
+            ),
+        ]
+    )
+    typer = WatchedTyper(
+        FakeBackend(width=1280, height=800),
+        ScriptedOCR(""),
+    )
+
+    generic = typer._locate_ocr_candidate(
+        result,
+        intended,
+        (1280, 800),
+        precise=True,
+    )
+    editor = typer._locate_ocr_candidate(
+        result,
+        intended,
+        (1280, 800),
+        precise=True,
+        editor_field=True,
+    )
+
+    assert generic is not None and generic.y < 40
+    assert editor is not None and editor.y >= 40
+
+
+async def test_editor_precise_recovery_rereads_body_not_exact_tab_title() -> None:
+    intended = "# Release 1.0"
+    full_screen = OCRResult(
+        lines=[
+            OCRLine(
+                text=intended,
+                confidence=0.99,
+                bbox=[482, 1, 671, 23],
+            ),
+            OCRLine(
+                text="Release 1.O",
+                confidence=0.92,
+                bbox=[8, 48, 112, 64],
+            ),
+        ]
+    )
+
+    class ExactBodyOCR:
+        async def ocr_precise(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path
+            assert region is not None
+            return OCRResult(
+                lines=[OCRLine(text=intended, confidence=0.99)],
+                spacing_evidence="verified",
+            )
+
+        async def ocr(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            return await self.ocr_precise(image_path, region)
+
+    typer = WatchedTyper(
+        FakeBackend(width=1280, height=800),
+        ExactBodyOCR(),
+    )
+    recovered = await typer._recover_precise_ocr_candidate(
+        full_screen,
+        intended,
+        (1280, 800),
+        editor_field=True,
+    )
+
+    assert recovered is not None
+    region, read_back = recovered
+    assert region.y >= 40
+    assert read_back == intended
+
+
 async def test_editor_indentation_is_reproved_after_full_screen_recovery(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
