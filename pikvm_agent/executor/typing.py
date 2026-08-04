@@ -3203,6 +3203,12 @@ class WatchedTyper:
                 intended=intended,
                 precise=True,
                 allow_blind_fallback=True,
+                # A maximized editor row may be legible only in the backend's
+                # lossless crop even after the full-screen OCR has correctly
+                # localized its body. Keep this editor-only and read-only:
+                # the native lane still requires a complete exact canonical
+                # read plus independent spacing proof and never replays HID.
+                allow_native_primary_fallback=editor_field,
             ),
             intended,
             True,

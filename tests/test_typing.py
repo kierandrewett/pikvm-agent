@@ -6574,6 +6574,80 @@ async def test_editor_precise_recovery_rereads_body_not_exact_tab_title() -> Non
     assert read_back == intended
 
 
+async def test_editor_body_recovery_uses_native_crop_after_downscaled_mismatch() -> None:
+    intended = "# Release 1.0"
+    full_screen = OCRResult(
+        lines=[
+            OCRLine(
+                text=intended,
+                confidence=0.99,
+                bbox=[482, 1, 671, 23],
+            ),
+            OCRLine(
+                text="@ Releave 3.0",
+                confidence=0.44,
+                bbox=[8, 48, 112, 64],
+            ),
+        ]
+    )
+
+    class NativeBodyBackend(FakeBackend):
+        def __init__(self) -> None:
+            super().__init__(width=1280, height=800)
+            self.requested_regions: list[Region | None] = []
+
+        async def screenshot(self, region=None):
+            self.requested_regions.append(region)
+            if region is None:
+                return await super().screenshot()
+            output = io.BytesIO()
+            Image.new("RGB", (320, 37), "navy").save(output, "JPEG")
+            return to_captured_frame(output.getvalue(), 320, 37)
+
+    class ResolutionAwareBodyOCR:
+        async def ocr_precise(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del region
+            if Image.open(image_path).size == (320, 37):
+                return OCRResult(
+                    lines=[OCRLine(text=intended, confidence=0.99)],
+                    spacing_evidence="verified",
+                )
+            return OCRResult(
+                lines=[OCRLine(text="@ Releave 3.0", confidence=0.44)],
+                spacing_evidence="uncertain",
+            )
+
+        async def ocr(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            return await self.ocr_precise(image_path, region)
+
+    backend = NativeBodyBackend()
+    recovered = await WatchedTyper(
+        backend,
+        ResolutionAwareBodyOCR(),
+    )._recover_precise_ocr_candidate(
+        full_screen,
+        intended,
+        (1280, 800),
+        editor_field=True,
+    )
+
+    assert recovered is not None
+    region, read_back = recovered
+    assert region.y >= 40
+    assert read_back == intended
+    assert len(backend.requested_regions) == 2
+    assert backend.requested_regions[0] is None
+    assert backend.requested_regions[1] is not None
+
+
 async def test_editor_indentation_is_reproved_after_full_screen_recovery(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
