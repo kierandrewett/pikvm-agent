@@ -4841,6 +4841,223 @@ async def test_post_action_verification_and_next_control_run_in_parallel(
 
 
 @pytest.mark.asyncio
+async def test_filtered_open_dialog_keeps_exact_filename_followup(
+    tmp_path: Path,
+) -> None:
+    before_path = tmp_path / "before.png"
+    after_path = tmp_path / "after.png"
+    Image.new("RGB", (128, 96), "black").save(before_path)
+    Image.new("RGB", (128, 96), "navy").save(after_path)
+
+    class FilteredOpenDialogProvider(ScriptedProvider):
+        async def complete(self, request: ModelRequest) -> ModelResponse:
+            assert request.role == "verifier"
+            self.requests.append(request)
+            return ModelResponse(
+                provider=self.name,
+                model="scripted-v1",
+                data={
+                    "verdict": "failed",
+                    "summary": (
+                        "The Open dialog is in the prepared folder, but "
+                        "code-08.cmd is not visibly listed to reopen."
+                    ),
+                    "evidence": [
+                        "After state visibly shows a native Open dialog with "
+                        "breadcrumb This PC > Windows (C:) > PiKVM-Harness "
+                        "> workspace > codex-50.",
+                        "The visible file list contains no code-08.cmd entry.",
+                    ],
+                    "action_criteria": [
+                        {
+                            "criterion_index": 0,
+                            "satisfied": False,
+                            "evidence": (
+                                "A native Open dialog is visibly open and its "
+                                "breadcrumb shows PiKVM-Harness > workspace > "
+                                "codex-50, but no saved code-08.cmd document is "
+                                "visibly listed."
+                            ),
+                        }
+                    ],
+                },
+            )
+
+    provider = FilteredOpenDialogProvider()
+    computer = FakeComputer()
+    harness = build_harness(provider, computer)
+    run = RunSnapshot(
+        run_id="filtered-native-open",
+        task=(
+            "In Notepad, write a batch file. Save it as "
+            "C:\\PiKVM-Harness\\workspace\\codex-50\\code-08.cmd and "
+            "verify it."
+        ),
+        status=RunStatus.RUNNING,
+        session_id="s_1",
+        observation=ComputerObservation(
+            session_id="s_1",
+            status="completed",
+            frame_id=2,
+            world_version=8,
+            control_epoch=2,
+            image_path=str(after_path),
+        ),
+        plan=PlanDecision(
+            summary="Write and reopen the batch file.",
+            steps=["Save it", "Reopen it"],
+            success_criteria=["The saved batch file reopens."],
+            artifact_content="@echo off",
+            artifact_content_kind="code",
+        ),
+    )
+    saved = PendingAction(
+        index=6,
+        intent="Save the verified Notepad artifact as `code-08.cmd`.",
+        actions=[{"type": "key", "keys": ["ALT", "S"]}],
+        based_on_world_version=7,
+        based_on_control_epoch=2,
+        idempotency_key="saved-code-08",
+    )
+    open_dialog = _notepad_file_dialog_controller(
+        run,
+        saved,
+        max_actions=20,
+    )
+    assert open_dialog is not None
+    opened = PendingAction(
+        index=7,
+        intent=open_dialog.intent,
+        actions=[
+            item.model_dump(mode="json", exclude_none=True)
+            for item in open_dialog.actions
+        ],
+        expected_evidence=open_dialog.expected_evidence,
+        based_on_world_version=7,
+        based_on_control_epoch=2,
+        idempotency_key="opened-filtered-native-open",
+    )
+    before = ComputerObservation(
+        session_id="s_1",
+        status="paused",
+        frame_id=1,
+        world_version=7,
+        control_epoch=2,
+        image_path=str(before_path),
+    )
+
+    await harness._verify_and_prefetch_control(
+        run,
+        action=opened,
+        before=before,
+    )
+
+    assert run.status is RunStatus.RUNNING
+    assert run.last_verification is not None
+    assert run.last_verification.verdict == "verified"
+    followup = harness._prefetched_controllers[run.run_id]
+    assert followup.intent == (
+        "Replace the native Open filename with `code-08.cmd`."
+    )
+    assert [item.type for item in followup.actions] == [
+        "key",
+        "key",
+        "type_text",
+    ]
+    assert followup.actions[2].text == "code-08.cmd"
+    assert followup.actions[2].verification == "exact"
+    assert any(
+        event.kind == "controller.parallel_ready"
+        for event in run.events
+    )
+    assert any(
+        event.kind == "verification.native_open_precondition_normalized"
+        for event in run.events
+    )
+    assert not any(
+        event.kind == "controller.parallel_discarded"
+        for event in run.events
+    )
+
+
+def test_native_open_normalization_rejects_wrong_folder_and_active_commit() -> None:
+    run = RunSnapshot(
+        run_id="native-open-normalization-guards",
+        task=(
+            "Save the file as "
+            "C:\\PiKVM-Harness\\workspace\\codex-50\\code-08.cmd."
+        ),
+        status=RunStatus.RUNNING,
+    )
+    base_action = PendingAction(
+        index=7,
+        intent="Open the native Open dialog for the verified artifact.",
+        actions=[
+            {"type": "key", "keys": ["CTRL", "O"]},
+            {"type": "wait_for_change", "timeout_ms": 3_000},
+            {
+                "type": "wait_for_stable_screen",
+                "stable_ms": 400,
+                "timeout_ms": 3_000,
+            },
+        ],
+        expected_evidence=[
+            "The native Open dialog and exact workspace breadcrumb are visible."
+        ],
+        based_on_world_version=7,
+        based_on_control_epoch=2,
+        idempotency_key="native-open-normalization-guards",
+    )
+
+    def failed_verdict(folder: str) -> VerificationDecision:
+        return VerificationDecision(
+            verdict="failed",
+            summary="code-08.cmd is not visibly listed.",
+            evidence=[
+                "A native Open dialog is visibly open and its breadcrumb shows "
+                f"PiKVM-Harness > workspace > {folder}."
+            ],
+            action_criteria=[
+                {
+                    "criterion_index": 0,
+                    "satisfied": False,
+                    "evidence": (
+                        "A native Open dialog is visibly open and its breadcrumb "
+                        "shows PiKVM-Harness > workspace > "
+                        f"{folder}, but code-08.cmd is not listed."
+                    ),
+                }
+            ],
+        )
+
+    wrong_folder = failed_verdict("codex-51")
+    normalized, reason = AgentHarness._normalized_native_open_dialog_verdict(
+        run,
+        action=base_action,
+        verdict=wrong_folder,
+    )
+    assert normalized is wrong_folder
+    assert reason is None
+
+    active_commit = base_action.model_copy(
+        update={
+            "actions": [
+                *base_action.actions,
+                {"type": "key", "keys": ["ENTER"]},
+            ]
+        }
+    )
+    correct_folder = failed_verdict("codex-50")
+    normalized, reason = AgentHarness._normalized_native_open_dialog_verdict(
+        run,
+        action=active_commit,
+        verdict=correct_folder,
+    )
+    assert normalized is correct_folder
+    assert reason is None
+
+
+@pytest.mark.asyncio
 async def test_stale_parallel_repeat_is_discarded_without_replanning(
     tmp_path: Path,
 ) -> None:

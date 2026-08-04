@@ -1666,9 +1666,11 @@ def _notepad_file_dialog_controller(
         ]
         intent = "Open the native Open dialog for the verified artifact."
         evidence = [
-            "A native Open dialog is visibly open for the saved document and "
-            "its breadcrumb shows the prepared folder "
-            f"`{_NOTEPAD_WORKSPACE_BREADCRUMB}`."
+            "A native Open dialog is visibly open and its breadcrumb shows "
+            "the prepared folder "
+            f"`{_NOTEPAD_WORKSPACE_BREADCRUMB}`. The current file filter does "
+            "not need to list the artifact before the separately verified "
+            "exact-basename step."
         ]
     elif _pending_action_uses_key_chord(
         action,
@@ -3735,6 +3737,13 @@ class AgentHarness:
                 verdict=verdict,
             )
         )
+        verdict, native_open_normalization = (
+            self._normalized_native_open_dialog_verdict(
+                run,
+                action=action,
+                verdict=verdict,
+            )
+        )
         completion_rejection = self._completion_rejection_reason(
             run,
             verdict,
@@ -3788,6 +3797,13 @@ class AgentHarness:
             run.record(
                 "verification.internal_legibility_normalized",
                 reason=legibility_normalization,
+                reported_verdict=reported_verdict,
+                effective_verdict=verdict.verdict,
+            )
+        if native_open_normalization is not None:
+            run.record(
+                "verification.native_open_precondition_normalized",
+                reason=native_open_normalization,
                 reported_verdict=reported_verdict,
                 effective_verdict=verdict.verdict,
             )
@@ -4863,6 +4879,122 @@ class AgentHarness:
             (
                 "all user-relevant legibility criteria were visibly satisfied; "
                 "only an unrequested numeric zoom indicator was unavailable"
+            ),
+        )
+
+    @classmethod
+    def _normalized_native_open_dialog_verdict(
+        cls,
+        run: RunSnapshot,
+        *,
+        action: PendingAction | None,
+        verdict: VerificationDecision,
+    ) -> tuple[VerificationDecision, str | None]:
+        """Accept only the verified navigation precondition for exact reopen.
+
+        A native Open dialog can filter ``.cmd`` and other non-text files out
+        of its list. That absence is not evidence that the saved artifact is
+        missing: the next deterministic action focuses File name, enters the
+        task's exact basename, and requires a separate exact visual receipt.
+        This normalization therefore proves only the inert Ctrl+O navigation
+        step, never the filename, file existence, or the later Open commit.
+        """
+
+        if (
+            action is None
+            or verdict.verdict not in {"failed", "uncertain"}
+            or action.intent
+            != "Open the native Open dialog for the verified artifact."
+            or len(action.expected_evidence) != 1
+            or not _pending_action_uses_key_chord(
+                action,
+                {"ControlLeft", "KeyO"},
+            )
+            or any(
+                item.get("type")
+                not in {
+                    "key",
+                    "wait_for_change",
+                    "wait_for_stable_screen",
+                }
+                for item in action.actions
+            )
+        ):
+            return verdict, None
+        key_actions = [
+            item
+            for item in action.actions
+            if item.get("type") == "key"
+        ]
+        if len(key_actions) != 1:
+            return verdict, None
+        basename = _notepad_workspace_artifact_basename(run)
+        assessment = next(
+            (
+                item
+                for item in verdict.action_criteria
+                if item.criterion_index == 0
+            ),
+            None,
+        )
+        if (
+            basename is None
+            or len(verdict.action_criteria) != 1
+            or assessment is None
+            or not assessment.evidence.strip()
+        ):
+            return verdict, None
+        visible_claim = " ".join(
+            [
+                *verdict.evidence,
+                assessment.evidence,
+            ]
+        ).casefold()
+        summary_claim = " ".join(
+            [
+                verdict.summary,
+                assessment.evidence,
+            ]
+        ).casefold()
+        open_dialog_visible = re.search(
+            r"\bnative\s+open\s+dialog\b.{0,80}"
+            r"\b(?:visibly\s+open|is\s+open|remains\s+open)\b",
+            visible_claim,
+        )
+        exact_breadcrumb_visible = re.search(
+            r"\bbreadcrumb\b.{0,160}\bpikvm-harness\b"
+            r".{0,80}\bworkspace\b.{0,80}\bcodex-50\b",
+            visible_claim,
+        )
+        basename_not_listed = (
+            basename.casefold() in summary_claim
+            and "list" in summary_claim
+            and re.search(
+                r"\b(?:not|no|isn't|cannot|could not|unable)\b",
+                summary_claim,
+            )
+            is not None
+        )
+        if (
+            open_dialog_visible is None
+            or exact_breadcrumb_visible is None
+            or not basename_not_listed
+        ):
+            return verdict, None
+        normalized_assessment = assessment.model_copy(
+            update={"satisfied": True}
+        )
+        return (
+            verdict.model_copy(
+                update={
+                    "verdict": "verified",
+                    "action_criteria": [normalized_assessment],
+                }
+            ),
+            (
+                "the verifier visibly confirmed the inert native Open dialog "
+                "and exact workspace breadcrumb; only the filtered file list "
+                "hid the artifact before the separately verified basename step"
             ),
         )
 
