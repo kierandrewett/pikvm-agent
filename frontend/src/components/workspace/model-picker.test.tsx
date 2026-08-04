@@ -98,8 +98,32 @@ describe("ModelPicker", () => {
     // A unified pick shows as the model's short name, not provider plumbing.
     const trigger = screen.getByRole("combobox", { name: /Model: Opus/ });
     await user.click(trigger);
-    await user.click(screen.getByRole("option", { name: "Auto" }));
+    // Auto names the model it resolves to, so the option reads "Auto <model>".
+    await user.click(screen.getByRole("option", { name: /^Auto\b/ }));
     expect(onResetPreferences).toHaveBeenCalledOnce();
+  });
+
+  it("says which model Auto actually runs", async () => {
+    const user = userEvent.setup();
+    render(
+      <ModelPicker
+        providers={providers}
+        preferences={{}}
+        locked={false}
+        onPreferenceChange={noop}
+        onResetPreferences={noop}
+        onOpenModels={noop}
+      />,
+    );
+
+    // "Auto" alone answered none of the question the control exists for, so
+    // both the trigger and its option carry the resolved model.
+    const trigger = screen.getByRole("combobox", { name: /^Model: Auto — .+/ });
+    expect(trigger.textContent).toMatch(/^Auto./);
+
+    await user.click(trigger);
+    const auto = screen.getByRole("option", { name: /^Auto\s+\S/ });
+    expect(auto.textContent).not.toBe("Auto");
   });
 
   it("shows Split when stages differ and locks during an active run", () => {

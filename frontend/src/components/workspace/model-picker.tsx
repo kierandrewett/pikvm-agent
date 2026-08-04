@@ -76,6 +76,21 @@ export function ModelPicker({
       "auto"
     : unifiedSelection(preferences);
 
+  // "Auto" on its own never said which model would actually run, which is the
+  // one thing someone opens this control to find out. This is the same
+  // resolution the harness performs, so what is shown is what will run.
+  const autoPrimary = effectiveRolePrimary({
+    providers,
+    preferences,
+    activeRoute,
+    activeProvider,
+    locked,
+    role: "assistant",
+  });
+  const autoLabel = autoPrimary
+    ? compactModelLabel(providerModelLabel(autoPrimary, providers[autoPrimary]))
+    : "";
+
   const triggerLabel =
     selection === "auto"
       ? "Auto"
@@ -84,9 +99,10 @@ export function ModelPicker({
         : compactModelLabel(
             providerModelLabel(selection, providers[selection]),
           );
+  const triggerHint = selection === "auto" ? autoLabel : "";
 
   const items = [
-    { value: "auto", label: "Auto" },
+    { value: "auto", label: "Auto", hint: autoLabel },
     ...readyProviders.map(([name, health]) => ({
       value: name,
       label: compactModelLabel(providerModelLabel(name, health)),
@@ -116,7 +132,7 @@ export function ModelPicker({
     <Select items={items} value={selection} onValueChange={choose} disabled={locked}>
       <SelectTrigger
         size="sm"
-        aria-label={`Model: ${triggerLabel}${locked ? " (locked for this run)" : ""}`}
+        aria-label={`Model: ${triggerLabel}${triggerHint ? ` — ${triggerHint}` : ""}${locked ? " (locked for this run)" : ""}`}
         title={
           locked
             ? "This task keeps the model it started with."
@@ -130,7 +146,17 @@ export function ModelPicker({
             aria-hidden="true"
           />
         ) : null}
-        <SelectValue>{triggerLabel}</SelectValue>
+        <SelectValue>
+          {triggerLabel}
+          {triggerHint ? (
+            <>
+              {" "}
+              <span className="font-normal text-muted-foreground">
+                {triggerHint}
+              </span>
+            </>
+          ) : null}
+        </SelectValue>
       </SelectTrigger>
       <SelectContent alignItemWithTrigger={false}>
         <SelectGroup>
@@ -143,6 +169,14 @@ export function ModelPicker({
                 disabled={item.value === "split"}
               >
                 {item.label}
+                {"hint" in item && item.hint ? (
+                  // The space is a real text node on purpose: without it the
+                  // accessible name computes as "AutoOpus".
+                  <>
+                    {" "}
+                    <span className="text-muted-foreground">{item.hint}</span>
+                  </>
+                ) : null}
               </SelectItem>
             ))}
         </SelectGroup>
