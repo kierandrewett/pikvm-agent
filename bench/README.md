@@ -1816,6 +1816,21 @@ transport, causal readback, and bounded exact-line latency remain live-passing.
 The failure and deliberately absent observer claims are retained in
 [`code-09-v7-observer-comparison.json`](results/2026-08-04/live-vnc/code-09-v7-observer-comparison.json).
 
+A bounded target-free app-server probe then proved the separate
+`gpt-5.3-codex-spark` subscription bucket healthy in 5.147 seconds. Pushed
+`8775fc5` configured Spark first, but recorded v8 exposed that the showcase
+manifest still selected the exhausted `codex-fast` alias as each role's
+preference. All 18 doomed Terra calls fell through to successful Spark calls;
+Spark's 18 completed calls had 7.360s reasoner, 5.583s controller, and 5.122s
+verifier medians. After one completed Notepad-launch action, the model stopped
+safely because it would not claim readable comparison-image evidence. It
+emitted no document content and committed no save. The run quiesced, retained a
+254.5-second VP9 recording, and completed a 77.248-second transition-observed
+reboot. The installed observer did not run, so there is no post-run
+file-absence, byte-accuracy, dangerous-commit, or preserved-prior claim. The
+valid model failure and the campaign-selection defect are retained in
+[`code-09-v8-observer-comparison.json`](results/2026-08-04/live-vnc/code-09-v8-observer-comparison.json).
+
 The failure-inclusive ledger is
 [`code-09-attempts.json`](results/2026-08-04/live-vnc/code-09-attempts.json).
 The five post-v5 gate probes, exact receipts, native crop geometry, independent
@@ -1834,7 +1849,10 @@ separately in
 report explicitly makes no artifact comparison claim. The provider-invalid v7
 run and its deliberately absent observer claim are retained in
 [`v7`](results/2026-08-04/live-vnc/code-09-v7-observer-comparison.json).
-The ledger digest is `sha256:9dde18ca6a18`; the exact-line latency probe digest
+The provider-valid v8 failure and its deliberately absent observer claim are
+retained in
+[`v8`](results/2026-08-04/live-vnc/code-09-v8-observer-comparison.json).
+The ledger digest is `sha256:2fd5a21eb642`; the exact-line latency probe digest
 is `sha256:3b6a193ceca7`; the repeated-symbol transport probe digest is
 `sha256:3deb13af355f`; the native-readback probe digest is
 `sha256:ccc6cd47bfdd`; the key-path probe digest is
@@ -1845,7 +1863,8 @@ is `sha256:3b6a193ceca7`; the repeated-symbol transport probe digest is
 `sha256:cc3b0af1de2b`; the v6 idempotency probe report is
 `sha256:6ecf8b577405`; the causal Run-field probe report is
 `sha256:01a1347ecb44`; the infrastructure-invalid v7 observer report is
-`sha256:445d2013108b`.
+`sha256:445d2013108b`; the provider-valid v8 observer report is
+`sha256:65dd92566dc1`.
 The v1 campaign digest is `sha256:45d79fa42371`; its 150.5-second VP9 recording
 is `sha256:326c660001e1` and its poster is `sha256:ef31e95c379d`. The v2
 campaign digest is `sha256:0e7595958008`; its 247.5-second VP9 recording is

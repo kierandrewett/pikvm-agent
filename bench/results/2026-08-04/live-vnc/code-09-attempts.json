@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "report": "codex-code-entry-code09-failure-inclusive-attempts",
-  "recorded_at": "2026-08-04T19:19:42Z",
+  "recorded_at": "2026-08-04T19:39:10Z",
   "environment": {
     "target": "authorized disposable Windows VNC VM",
     "production_target_contacted": false,
@@ -15,8 +15,11 @@
     "summary": "Write, save, reopen, and verify Markdown release notes in Notepad"
   },
   "model_route": {
-    "provider": "codex-fast",
-    "model": "gpt-5.6-terra",
+    "campaign_default_provider": "codex-fast",
+    "configured_primary_provider": "codex-spark",
+    "configured_primary_model": "gpt-5.3-codex-spark",
+    "configured_fallback_provider": "codex-fast",
+    "configured_fallback_model": "gpt-5.6-terra",
     "reasoning_effort": "low",
     "service_tier": "priority",
     "roles": [
@@ -26,15 +29,15 @@
     ]
   },
   "summary": {
-    "full_task_runs": 6,
-    "failed_runs": 6,
+    "full_task_runs": 7,
+    "failed_runs": 7,
     "invalid_runs": 1,
     "passed_runs": 0,
     "all_failures_retained": true,
     "all_recordings_retained": true,
     "all_reboots_ready": true,
     "all_reboots_observed_real_transition": true,
-    "release_gate": "blocked on the Codex provider before task input: transport, causal readback, and bounded exact-line latency all pass live, but recorded v7 received quota-or-billing from codex-fast on three reasoner attempts. The infrastructure-invalid run made zero task actions, failed closed, recorded, quiesced, and rebooted."
+    "release_gate": "blocked after recorded v8: Spark is healthy and completed 18 calls across all roles, but the campaign's codex-fast default forced 18 quota-or-billing fallbacks before those calls. The model completed one Notepad-launch action, then stopped safely because it would not claim readable comparison-image evidence. No document content or save occurred; the run recorded, quiesced, and rebooted."
   },
   "attempts": [
     {
@@ -453,6 +456,59 @@
       },
       "poster_sha256": "fc0ca179e1ec3b2b26fe6dba99917251f09bc8e15cac352ab29d3dcb14c6fac7",
       "campaign_sha256": "77cf81dc7beed28f708a3807b48d21635f0d369b41399c3520e79995e3b64e65"
+    },
+    {
+      "campaign_id": "codex-code-entry-code09-v8-20260804",
+      "manifest_campaign_id": "codex-windows-50",
+      "accepted_status": "failed",
+      "campaign_reported_status": "failed",
+      "run_id": "f4d577a8-9319-4144-8be8-970815ae1bc2",
+      "source_commit": "8775fc529d24a00c796ecb9c9f3c6ae1a4840b82",
+      "reason": "The clean-workspace preflight passed and Codex Spark completed 18 structured model calls across reasoner, controller, and verifier. The campaign manifest still selected codex-fast first, so every successful Spark call followed one quota-or-billing fallback. After one completed Notepad-launch action, repeated planning and verification stopped safely because the model would not claim readable comparison-image evidence. No document content or save occurred.",
+      "task_duration_ms": 347701,
+      "preflight_ms": 56574,
+      "wall_clock_ms": 207346,
+      "model_active_ms": 117520,
+      "provider_wait_ms": 176406,
+      "action_execution_ms": 18794,
+      "evidence_capture_ms": 424,
+      "provider_calls": 36,
+      "reasoner_calls": 16,
+      "controller_calls": 16,
+      "verifier_calls": 4,
+      "provider_failures": 18,
+      "provider_fallbacks": 18,
+      "spark_successful_calls": 18,
+      "actions_attempted": 1,
+      "actions_completed": 1,
+      "same_run_recoveries": 7,
+      "approval_requests": 0,
+      "approvals_granted": 0,
+      "document_input_emitted": false,
+      "save_committed": false,
+      "quiescence_status": "confirmed",
+      "reboot_ms": 77248,
+      "reboot_transition_observed": true,
+      "input_transport_strategy_version": "windows-rfb-print-v3",
+      "observer": {
+        "capture_status": "not_run",
+        "causal_execution_proven": false,
+        "current_path_absent": null,
+        "dangerous_commit_count": null,
+        "prior_artifact_claimed": false,
+        "comparison_report": "bench/results/2026-08-04/live-vnc/code-09-v8-observer-comparison.json"
+      },
+      "recording": {
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2.0,
+        "duration_ms": 254500,
+        "size_bytes": 945272,
+        "sha256": "6d7d4908e6ff4085c1a6d7c41b5cb44dd30b20d4b3efaf65414a51969bd79d03"
+      },
+      "poster_sha256": "3dc0ac430efcd5c8b29b9dcaa8231177d3c4e3ac27162f642e70fff72020e864",
+      "campaign_sha256": "7c542871ae47ab340b8070b1aa42301b8da99a1b4c1cd8486bb6f1307939c6f2"
     }
   ],
   "remediations": [
@@ -609,8 +665,9 @@
       "The maximized exact pass also exposed an independent permission-classification defect: inert local Notepad heading text was labelled communication_send before visible editor context was applied. The approval was granted only against the independently visible blank local editor and existing explicit lab authorization; communication approval policy was not weakened.",
       "The fifth maximized probe emitted a distinct eight-character hash once, but the screen and five precise OCR reads consistently contained seven characters. The verifier failed closed with zero retries, the payload was never replayed, and the exact-alternative budget event did not fire. The reset retained a real dark-frame transition and independently reacquired the stable desktop.",
       "Pushed 7ae4f44 reproduced the repeated Windows numeric-Alt loss offline and added a bounded Alt-up reassertion barrier. A fresh maximized live probe then emitted one distinct eight-character repeated-symbol line once, retained both semantic Alt routes under windows-rfb-print-v3, fired the exact-alternative spacing budget once, and independently matched the requested readback hash in 9.222 seconds with zero corrections or retries. Its mandatory reset retained a 0.08-luminance dark-frame transition and reacquired a stable desktop.",
-      "Recorded v7 passed the clean-workspace preflight on pushed 84ff3c1, then received quota-or-billing from codex-fast on three reasoner attempts. No model response or task action occurred. The runner failed closed, quiesced, retained the recording, and completed a 74.432-second transition-observed reboot. The installed observer did not run, so no post-run artifact or dangerous-commit claim is made."
+      "Recorded v7 passed the clean-workspace preflight on pushed 84ff3c1, then received quota-or-billing from codex-fast on three reasoner attempts. No model response or task action occurred. The runner failed closed, quiesced, retained the recording, and completed a 74.432-second transition-observed reboot. The installed observer did not run, so no post-run artifact or dangerous-commit claim is made.",
+      "A bounded target-free app-server probe proved the separate gpt-5.3-codex-spark bucket healthy in 5.147 seconds, and pushed 8775fc5 made Spark the configured primary route. Recorded v8 then exposed that the campaign manifest still pinned codex-fast first: 18 quota-or-billing calls each fell through to a successful Spark call. Spark completed 18 calls across all roles and one Notepad-launch action, then failed closed because it would not claim readable comparison-image evidence. No document input or save occurred, no observer claim is made, and the mandatory 77.248-second reboot observed a real transition."
     ],
-    "next_attempt": "Restore a healthy Codex app-server quota or select an explicitly configured approved provider route, then run recorded Code-09 v8. Do not treat v7 as model accuracy or speed evidence, and preserve the same observer and reboot gates."
+    "next_attempt": "Make the campaign manifest select codex-spark directly so the exhausted codex-fast alias cannot lead each role, validate the durable expanded route offline, restart only the isolated lab, and run recorded Code-09 v9. Preserve the same exact-input, observer, recording, quiescence, and reboot gates."
   }
 }

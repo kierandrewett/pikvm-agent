@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "report": "code-09-v8-observer-comparison",
+  "recorded_at": "2026-08-04T19:39:10Z",
+  "source_commit": "8775fc529d24a00c796ecb9c9f3c6ae1a4840b82",
+  "accepted_status": "failed",
+  "environment": {
+    "target": "authorized disposable Windows VNC VM",
+    "production_target_contacted": false,
+    "endpoint_retained": false,
+    "keymap": "en-gb",
+    "keyboard_profile": "windows"
+  },
+  "campaign": {
+    "campaign_id": "codex-code-entry-code09-v8-20260804",
+    "manifest_campaign_id": "codex-windows-50",
+    "run_id": "f4d577a8-9319-4144-8be8-970815ae1bc2",
+    "campaign_reported_status": "failed",
+    "reason": "The clean-workspace preflight passed and Codex Spark completed 18 structured model calls, but the campaign manifest still selected the exhausted codex-fast alias first. Every successful Spark call therefore followed one quota-or-billing fallback. After one completed Notepad-launch action, repeated planning and verification stopped safely because the model would not claim readable comparison-image evidence.",
+    "model_run_started": true,
+    "model_active_ms": 117520,
+    "provider_attempts": 36,
+    "provider_failures": 18,
+    "provider_fallbacks": 18,
+    "spark_successful_calls": 18,
+    "task_actions_attempted": 1,
+    "task_actions_completed": 1,
+    "document_input_emitted": false,
+    "save_committed": false,
+    "recoveries": 7,
+    "quiescence_status": "confirmed"
+  },
+  "performance": {
+    "managed_wall_clock_ms": 207346,
+    "task_duration_ms": 347701,
+    "provider_wait_ms": 176406,
+    "action_execution_ms": 18794,
+    "evidence_capture_ms": 424,
+    "spark_reasoner_median_ms": 7359.5,
+    "spark_controller_median_ms": 5583.0,
+    "spark_verifier_median_ms": 5121.5
+  },
+  "preflight": {
+    "status": "ready",
+    "workspace_marker_attempts": 1,
+    "visible_fresh_artifact_status": "verified_absent",
+    "ready_frame_sha256": "a8d94abac9efef4cdcf4f76385192df1b2c9cdec9c6eb646fe546e545f72ef53"
+  },
+  "observer": {
+    "launched": false,
+    "command_executed": false,
+    "causal_execution_proven": false,
+    "artifact_comparison": "not run",
+    "current_path_absent": null,
+    "current_bytes_match": null,
+    "dangerous_commit_count": null,
+    "prior_artifact_claimed": false,
+    "reason": "The task launched Notepad but emitted no document content and committed no save. The installed observer was not launched, so this report makes no post-run file-absence, byte-accuracy, dangerous-commit, or preserved-prior claim."
+  },
+  "recording": {
+    "codec": "vp9",
+    "width": 2048,
+    "height": 1280,
+    "fps": 2.0,
+    "duration_ms": 254500,
+    "size_bytes": 945272,
+    "sha256": "6d7d4908e6ff4085c1a6d7c41b5cb44dd30b20d4b3efaf65414a51969bd79d03",
+    "poster_sha256": "3dc0ac430efcd5c8b29b9dcaa8231177d3c4e3ac27162f642e70fff72020e864",
+    "campaign_sha256": "7c542871ae47ab340b8070b1aa42301b8da99a1b4c1cd8486bb6f1307939c6f2"
+  },
+  "mandatory_reboot": {
+    "ready": true,
+    "transition_observed": true,
+    "duration_ms": 77248,
+    "attempt_duration_ms": 72238,
+    "ready_frame_sha256": "120e2adb2d30cbdc6afe2b80b20cfdfe9c1aa878b2ac4997428a40f0f19c9979"
+  },
+  "finding": "Code-09 v8 proves the separate Spark subscription bucket is usable for all three computer-use roles, but it also exposes a campaign-selection defect and a model evidence-grounding failure. The run failed closed, quiesced, retained its recording, and completed a transition-observed reboot."
+}
