@@ -183,13 +183,19 @@ const defaultComponents = memoizeMarkdownComponents({
     />
   ),
   table: ({ className, ...props }) => (
-    <table
-      className={cn(
-        "aui-md-table my-3 w-full border-separate border-spacing-0 overflow-y-auto",
-        className,
-      )}
-      {...props}
-    />
+    // A table cannot be its own scroll container — overflow on the element does
+    // nothing without display:block — so a wide one was simply clipped in a
+    // narrow panel, with no way to reach the cut-off columns. The wrapper
+    // scrolls instead, and min-w-full keeps a narrow table full width.
+    <div className="aui-md-table-scroll my-3 w-full overflow-x-auto">
+      <table
+        className={cn(
+          "aui-md-table min-w-full border-separate border-spacing-0",
+          className,
+        )}
+        {...props}
+      />
+    </div>
   ),
   th: ({ className, ...props }) => (
     <th
