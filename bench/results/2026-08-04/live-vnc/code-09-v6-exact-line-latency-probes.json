@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "report": "code-09-v6-exact-line-latency-probes",
+  "recorded_at": "2026-08-04T17:57:15Z",
+  "environment": {
+    "target": "authorized disposable Windows VNC VM",
+    "production_target_contacted": false,
+    "endpoint_retained": false,
+    "keymap": "en-gb",
+    "keyboard_profile": "windows"
+  },
+  "baseline": {
+    "source": "retained Code-09 v6 action 17",
+    "requested_characters": 8,
+    "action_duration_ms": 26550.4,
+    "screenshot_count": 35,
+    "screenshot_duration_ms": 7185.4,
+    "exact_field_read_count": 5,
+    "status_proof_count": 3,
+    "result": "exact glyphs were observed on every field read, but spacing remained unproven"
+  },
+  "probes": [
+    {
+      "sequence": 1,
+      "source_commit": "96a0461f4b0745857255fbf70b1bfbbdbed9bc9f",
+      "session_id": "s_d82de2266eee",
+      "requested_characters": 8,
+      "requested_sha256": "c717aa8ff50ddd54ebe26536254affc632c5d7b3fcaaa859a639bd87c352f1cd",
+      "receipt_status": "verified_exact",
+      "receipt_verdict": "match",
+      "proof_state": "exact_visual_readback",
+      "focus_evidence": "read_back_verified",
+      "exact_readback_sha256_match": true,
+      "emitted_exactly_once": true,
+      "correction_count": 0,
+      "delivery_retries": 0,
+      "client_elapsed_ms": 30490.0,
+      "action_duration_ms": 28541.4,
+      "screenshot_count": 23,
+      "screenshot_duration_ms": 7247.6,
+      "exact_field_read_count": 5,
+      "native_primary_read_count": 10,
+      "spacing_budget_event_count": 0,
+      "optimization_exercised": false,
+      "optimization_effective": false,
+      "diagnosis": "The exact requested glyph hash was present as a generic OCR alternative while the canonical candidate remained a mismatch. The budget flag inspected only canonical text, so the generic three-settle schedule still ran.",
+      "save_committed": false,
+      "observer_launched": false,
+      "artifact_comparison": "not run",
+      "current_path_absent": null,
+      "dangerous_commit_count": null,
+      "prior_artifact_claimed": false,
+      "mandatory_reboot": {
+        "ready": true,
+        "transition_observed": true,
+        "duration_ms": 102688,
+        "attempt_duration_ms": 97256,
+        "ready_frame_sha256": "c28ec4eb86f444e5bfd2b3e231a27b3daec232cebef002f49b99c81fd9dbcff8",
+        "ready_frame_luminance": 35.38,
+        "samples": 4
+      }
+    }
+  ],
+  "finding": {
+    "latency_optimization_live_gate": "failing",
+    "reason": "The first probe verified exact input safely but did not exercise the bounded settle schedule and was slower than the retained matching-class baseline.",
+    "next_attempt": "Recognize an exact generic OCR alternative only as evidence to bound redundant rereads, never as verification; retain all later status and full-screen gates, then exercise once after offline validation."
+  }
+}

@@ -1728,6 +1728,26 @@ exact-line verification latency is the only remaining prerequisite before
 recorded Code-09 v7. All failed and successful probes are retained in
 [`code-09-v6-causal-run-readback-probes.json`](results/2026-08-04/live-vnc/code-09-v6-causal-run-readback-probes.json).
 
+Pushed `96a0461` then bounded one source of repeated exact-line latency without
+accepting weaker evidence: when the canonical complete glyph row matches but
+calibrated spacing is the only missing proof, it schedules one delayed reread
+instead of all three generic late-pixel settles. All later status and
+full-screen gates remain authoritative, and uncertain input still fails closed.
+Five focused spacing/prefix regressions, all 240 typing tests, and 228 adjacent
+runtime tests pass.
+
+Its first live probe is retained as a failed optimization exercise. One inert,
+unsaved eight-character line was emitted exactly once and eventually verified
+against the requested SHA-256 with zero corrections or delivery retries, but
+the new budget event never fired: the exact glyph hash was present only as a
+generic OCR alternative while the canonical candidate was wrong. The action
+took 28.541s, versus 26.550s for the retained matching-class v6 action. No save
+or observer ran, no artifact or dangerous-commit claim is made, and the
+mandatory 102.688s reboot observed a real transition. The next bounded slice
+may use that exact alternative only to stop redundant rereads; it may not use
+it to verify text. Evidence is in
+[`code-09-v6-exact-line-latency-probes.json`](results/2026-08-04/live-vnc/code-09-v6-exact-line-latency-probes.json).
+
 The failure-inclusive ledger is
 [`code-09-attempts.json`](results/2026-08-04/live-vnc/code-09-attempts.json).
 The five post-v5 gate probes, exact receipts, native crop geometry, independent
