@@ -1453,7 +1453,7 @@ campaign digest is `sha256:1448fe01016d`; its 296.5-second VP9 recording is
 `sha256:dfc9290fa3e3` and its poster is `sha256:2498e2610c6d`. The v10 campaign
 and all intervening media remain retained in the ledger.
 
-Code-09 is **not accepted after v4**. v1 launched a fresh blank Notepad
+Code-09 is **not accepted after v5**. v1 launched a fresh blank Notepad
 document, but policy treated the literal heading `# Release 1.0` as a
 communication send because the word `Release` matched a command side-effect
 expression. The non-allowlisted approval stopped the campaign before document
@@ -1476,6 +1476,7 @@ predicates and did not change the implementation.
 | v2 | Failed safely after exact input mismatch | 163.944s | 10 | Grounded policy fix exercised; requested `#` rendered as `£`; draft guard blocked correction |
 | v3 | Failed safely after live transport remediation | 196.603s | 12 | Numeric Alt route exercised on pushed `837935d`; guest still rendered `£`; no Save action |
 | v4 | Failed safely after exact input mismatch | 158.074s | 4 | Short exact heading bypassed HTTP print history, used paced websocket HID, rendered `£`, and hit the deadline during exact readback |
+| v5 | Failed safely after instrumented exact input mismatch | 220.444s | 18 | Guarded HTTP route and numeric Alt receipt exercised; guest still rendered `£`; draft guard blocked later mutation |
 
 v2 ran on pushed master `7679d11`. The identical `# Release 1.0` action passed
 policy with no approval, proving the v1 remediation was exercised live. Its
@@ -1543,17 +1544,47 @@ already guest-proven guarded HTTP printer and make websocket HID route coverage
 explicit. Exact post-input readback, permissions, quiescence, observer,
 recording, and reboot gates remain unchanged.
 
+Pushed commit `58facf9` implemented that bounded slice. All exact editor text
+above the precise-locate floor now uses the guarded printer, diagnostics name
+HTTP print versus websocket HID coverage explicitly, and a complete raw exact
+field is checked before a leading Markdown hash can be mistaken for a shell
+prompt. The full relevant regression passed 389 tests, the focused follow-up
+passed five, and the similarity scan found only existing intentional helper
+families.
+
+v5 exercised both changes live on pushed `58facf9`. Its content-free HTTP
+receipt contains the exact 13-character request hash and the intended routes:
+12 `windows_atomic_printable` characters plus one
+`windows_semantic_alt_code`. The retained 1280×800 post-action frame has SHA-256
+`ed9ed7b7c9ff` and still visibly shows `£ Release 1.0`, with Notepad reporting
+13 characters. This rules out the earlier uninstrumented websocket path and
+localizes the remaining defect below route selection, in guest input state or
+numeric-keypad handling.
+
+Exact readback stopped the first heading action in 22.333s. Five bounded
+recovery turns did not replay the draft, and the unverified-draft guard blocked
+the controller when it later tried to change or execute it. No Save action ran.
+Managed wall was 220.444s: provider wait consumed 150.504s across 18 serial
+calls and action execution consumed 62.171s. The installed observer again
+returned `open failed` for `code-09.md`, a present guest fingerprint, the
+`Default` input desktop, and zero dangerous commits. The campaign reboot
+observed a transition in 76.506s; the independent post-observer reset observed
+another in 39.306s. No prior artifact was genuinely claimed. Exact readback,
+permissions, quiescence, observer, recording, and reboot gates remain intact.
+
 The failure-inclusive ledger is
 [`code-09-attempts.json`](results/2026-08-04/live-vnc/code-09-attempts.json).
 Independent absence and reset evidence is retained for
 [`v1`](results/2026-08-04/live-vnc/code-09-v1-observer-comparison.json),
 [`v2`](results/2026-08-04/live-vnc/code-09-v2-observer-comparison.json),
 [`v3`](results/2026-08-04/live-vnc/code-09-v3-observer-comparison.json), and
-[`v4`](results/2026-08-04/live-vnc/code-09-v4-observer-comparison.json).
-The ledger digest is `sha256:8f41f3641cfd`; the key-path probe digest is
+[`v4`](results/2026-08-04/live-vnc/code-09-v4-observer-comparison.json), and
+[`v5`](results/2026-08-04/live-vnc/code-09-v5-observer-comparison.json).
+The ledger digest is `sha256:d42c30b5e14f`; the key-path probe digest is
 `sha256:3bd5284b38a1`; the observer-report digests are
 `sha256:9145f099f2db`, `sha256:5e1089ff5537`, and
-`sha256:08db92ad22e7`, and `sha256:6f97c9f5412e`, respectively.
+`sha256:08db92ad22e7`, `sha256:6f97c9f5412e`, and
+`sha256:bd869578a92e`, respectively.
 The v1 campaign digest is `sha256:45d79fa42371`; its 150.5-second VP9 recording
 is `sha256:326c660001e1` and its poster is `sha256:ef31e95c379d`. The v2
 campaign digest is `sha256:0e7595958008`; its 247.5-second VP9 recording is
@@ -1562,11 +1593,13 @@ The v3 campaign digest is `sha256:19fccab31227`; its 251-second VP9 recording
 is `sha256:9dd1413d5fe8` and its poster is `sha256:12dfc21b0999`.
 The v4 campaign digest is `sha256:c9a4730aec9b`; its 222.5-second VP9 recording
 is `sha256:cace9a958615` and its poster is `sha256:241740ad9fd1`.
+The v5 campaign digest is `sha256:304176a29a03`; its 262-second VP9 recording
+is `sha256:bf04fd6cd397` and its poster is `sha256:4f5194a2d21e`.
 
 Failure-inclusive metrics, canonical campaign digests, the 33 accepted task
 IDs, and the VP9 recording/poster hashes are retained in
 [`codex-50-progress.json`](results/2026-07-31/live-vnc/codex-50-progress.json).
-Its updated digest is `sha256:7a1873f7f75b`.
+Its updated digest is `sha256:3b9ca96fe273`.
 The complete 50-task manifest is
 [`codex-50-tasks.yaml`](codex-50-tasks.yaml).
 

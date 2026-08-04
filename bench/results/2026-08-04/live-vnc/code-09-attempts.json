@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "report": "codex-code-entry-code09-failure-inclusive-attempts",
-  "recorded_at": "2026-08-04T04:43:22Z",
+  "recorded_at": "2026-08-04T05:22:25Z",
   "environment": {
     "target": "authorized disposable Windows VNC VM",
     "production_target_contacted": false,
@@ -26,15 +26,15 @@
     ]
   },
   "summary": {
-    "full_task_runs": 4,
-    "failed_runs": 4,
+    "full_task_runs": 5,
+    "failed_runs": 5,
     "invalid_runs": 0,
     "passed_runs": 0,
     "all_failures_retained": true,
     "all_recordings_retained": true,
     "all_reboots_ready": true,
     "all_reboots_observed_real_transition": true,
-    "release_gate": "failing: numeric Alt hash route passes direct probes, but v4 used the uninstrumented paced websocket HID path and visibly rendered a pound sign"
+    "release_gate": "failing: v5 exercised the guarded HTTP printer and retained the intended numeric Alt hash route, but the live campaign still visibly rendered a pound sign"
   },
   "attempts": [
     {
@@ -269,6 +269,72 @@
       },
       "poster_sha256": "241740ad9fd107fe8057a0d22ab35eed059638d568a2af69f0815c27656426f5",
       "campaign_sha256": "c9a4730aec9b1745dd69b69bcf1129faf2ac2c556760e982899c1eacf4b8c958"
+    },
+    {
+      "campaign_id": "codex-code-entry-code09-v5-20260804",
+      "manifest_campaign_id": "codex-windows-50",
+      "accepted_status": "failed",
+      "campaign_reported_status": "failed",
+      "run_id": "112257a6-c845-4e55-87fa-db3acf042873",
+      "source_commit": "58facf9",
+      "reason": "The short exact heading used the guarded HTTP printer and retained windows_semantic_alt_code for the hash, proving both v4 remediations were exercised. The guest still visibly rendered '£ Release 1.0'. Exact readback stopped the action in 22.333 seconds; bounded recoveries did not rewrite the draft, and the unverified-draft guard blocked a later change-or-execute attempt. No Save action ran.",
+      "wall_clock_ms": 220444,
+      "task_duration_ms": 360161,
+      "preflight_ms": 58954,
+      "model_active_ms": 150004,
+      "provider_wait_ms": 150504,
+      "action_execution_ms": 62171,
+      "evidence_capture_ms": 600,
+      "provider_calls": 18,
+      "reasoner_calls": 5,
+      "controller_calls": 11,
+      "verifier_calls": 2,
+      "actions_attempted": 3,
+      "actions_completed": 2,
+      "action_recoverable_failures": 0,
+      "same_run_recoveries": 5,
+      "approval_requests": 0,
+      "approvals_granted": 0,
+      "guarded_http_heading_fix_exercised": true,
+      "raw_exact_heading_verifier_fix_exercised": true,
+      "guarded_http_heading_fix_effective": false,
+      "input_transport": {
+        "strategy_version": "windows-rfb-print-v2",
+        "keymap": "en-gb",
+        "keyboard_profile": "windows",
+        "pre_reboot_print_sequence": 7,
+        "requested_heading_sha256": "a09f21ee71a9b858aefacb390fbac6f29ce0e0c7523918d4e4bb691c29b4e3db",
+        "requested_heading_present": true,
+        "receipt_scope": "http_print_requests",
+        "routes": {
+          "windows_atomic_printable": 12,
+          "windows_semantic_alt_code": 1
+        }
+      },
+      "heading_input_emitted": true,
+      "failed_input_observed": "£ Release 1.0",
+      "failed_input_status": "failed_symbol_mismatch",
+      "post_action_frame_sha256": "ed9ed7b7c9ff0064a5da5823653acc1b270b2ad1136ef55c1893a63527cf5853",
+      "slowest_action_ms": 23488.036,
+      "quiescence_status": "confirmed",
+      "reboot_ms": 76506,
+      "reboot_transition_observed": true,
+      "post_observer_reset_ms": 39306,
+      "post_observer_reset_transition_observed": true,
+      "observer": {
+        "current_path_absent": true,
+        "dangerous_commit_count": 0,
+        "successful_capture_attempt": 1,
+        "comparison_report": "bench/results/2026-08-04/live-vnc/code-09-v5-observer-comparison.json"
+      },
+      "recording": {
+        "codec": "vp9",
+        "duration_ms": 262000,
+        "size_bytes": 1192871,
+        "sha256": "bf04fd6cd3977a11ee180ac57e3ba266085c92fc324ae769938a39c2dfc5831e"
+      },
+      "poster_sha256": "4f5194a2d21e18c182abcc8c7c5913a23833c1d77edcfa26cab42eb926ff906d",
+      "campaign_sha256": "304176a29a03aa39f2e09725fd02842f26a5b68bb826b8e7024890e9e0b7b911"
     }
   ],
   "remediations": [
@@ -289,6 +355,12 @@
       "commit": "6fbfac80a87694c22b42b02dd3159203a4a60439",
       "change": "Expose a bounded content-free VNC print history with strategy version, keymap/profile, request hash, character count, and actual route counters; retain it in every recorded campaign before quiescence and reboot.",
       "tests": "162 direct VNC, PiKVM, burst, and showcase-runner tests passed"
+    },
+    {
+      "after_attempt": "v4",
+      "commit": "58facf9f13c089bc67c5fdcfeb37f78b6985cf97",
+      "change": "Route all exact editor text above the precise-locate floor through the guarded printer, distinguish HTTP print and websocket HID diagnostic coverage, and verify a complete raw exact field before stripping a shell-prompt-shaped leading hash.",
+      "tests": "389 relevant typing, verification, VNC, MCP, and harness tests passed; 5 focused follow-ups passed"
     }
   ],
   "next_gate": {
@@ -297,8 +369,9 @@
       "v2 proved the v1 false-positive approval is fixed on the live target.",
       "v3 visibly rendered a pound sign, but subsequent rebooted direct probes proved numeric Alt exact and direct semantic RFB wrong.",
       "v4 proved the HTTP-only route receipt missed the paced websocket HID heading; the post-action frame visibly retained '£ Release 1.0' and a 13-character status.",
+      "v5 exercised the guarded HTTP printer, retained windows_semantic_alt_code for the hash, and still visibly rendered '£ Release 1.0', localizing the remaining defect below route selection.",
       "The observer confirmed the file absent with zero dangerous commits, and all campaign and post-observer reboots observed real transitions."
     ],
-    "next_attempt": "Route short exact editor text through the already guest-proven guarded HTTP printer and extend diagnostics so websocket HID routes cannot be mistaken for absent input. Preserve exact post-input readback, then run recorded Code-09 v5 only if the fix is exercised."
+    "next_attempt": "Diagnose the guest modifier and numeric-keypad state immediately before the full-campaign Alt-code input, implement one bounded state-reset fix without weakening exact readback, and run recorded Code-09 v6 only if the fix is exercised."
   }
 }

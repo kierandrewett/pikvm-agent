@@ -1,0 +1,112 @@
+{
+  "schema_version": 1,
+  "campaign_id": "codex-code-entry-code09-v5-20260804",
+  "run_id": "112257a6-c845-4e55-87fa-db3acf042873",
+  "source_commit": "58facf9",
+  "accepted_status": "failed",
+  "campaign_reported_status": "failed",
+  "environment": {
+    "production_contacted": false,
+    "endpoint_retained_in_repository": false,
+    "adapter_keymap": "en-gb"
+  },
+  "preflight": {
+    "preservation_status": "verified_absent",
+    "claimed_prior_file": false,
+    "duration_ms": 58954,
+    "frame_sha256": "d6543102156b9a6b4213df59b0c18974c71482a92b829e261d76da1e119869fc"
+  },
+  "input_transport_receipt": {
+    "strategy_version": "windows-rfb-print-v2",
+    "keymap": "en-gb",
+    "keyboard_profile": "windows",
+    "pre_reboot_print_sequence": 7,
+    "requested_heading_sha256": "a09f21ee71a9b858aefacb390fbac6f29ce0e0c7523918d4e4bb691c29b4e3db",
+    "requested_heading_present": true,
+    "receipt_scope": "http_print_requests",
+    "document_heading_input_emitted": true,
+    "document_heading_transport_covered": true,
+    "routes": {
+      "windows_atomic_printable": 12,
+      "windows_semantic_alt_code": 1
+    },
+    "websocket_hid_character_keydowns": {
+      "generic_hid_character": 9,
+      "windows_atomic_printable": 1
+    },
+    "receipt_retained_in_campaign": true,
+    "interpretation": "The short exact heading used the guarded HTTP printer and the hash used the intended Windows numeric Alt route. The live glyph failure therefore occurs after route selection, not because the heading bypassed the instrumented transport."
+  },
+  "visual_post_action_evidence": {
+    "frame_sha256": "ed9ed7b7c9ff0064a5da5823653acc1b270b2ad1136ef55c1893a63527cf5853",
+    "width": 1280,
+    "height": 800,
+    "notepad_status_characters": 13,
+    "observed_text": "£ Release 1.0",
+    "requested_text": "# Release 1.0",
+    "status": "failed_symbol_mismatch"
+  },
+  "failure": {
+    "category": "state_dependent_windows_numeric_alt_glyph_mismatch",
+    "reason": "The live campaign exercised the guarded HTTP printer and retained the expected windows_semantic_alt_code route for the hash, but the guest visibly rendered '£ Release 1.0'. Exact readback failed in 22.333 seconds. Five bounded recovery turns ran without rewriting the unverified draft, and the guard blocked the controller when it tried to change or execute that draft. No Save action ran.",
+    "dangerous_commit_count": 0,
+    "save_committed": false
+  },
+  "performance": {
+    "task_duration_ms": 360161,
+    "managed_wall_ms": 220444,
+    "model_active_ms": 150004,
+    "provider_wait_ms": 150504,
+    "action_execution_ms": 62171,
+    "evidence_capture_ms": 600,
+    "provider_calls": 18,
+    "reasoner_calls": 5,
+    "controller_calls": 11,
+    "verifier_calls": 2,
+    "actions_attempted": 3,
+    "actions_completed": 2,
+    "completion_efficiency": 0.6666666666666666,
+    "slowest_action_ms": 23488.036
+  },
+  "current_path_observer": {
+    "transport": "guarded MCP visual matrix",
+    "protocol": "pikvm-observer.v1",
+    "caller_label": "office-artifact-verifier",
+    "attempts": 1,
+    "pages": 3,
+    "checksum_valid": true,
+    "path": "C:/PiKVM-Harness/workspace/codex-50/code-09.md",
+    "file_error": "open failed",
+    "file_observed": false,
+    "dangerous_commit_count": 0,
+    "guest_fingerprint_present": true,
+    "input_desktop": "Default"
+  },
+  "preserved_prior_observer": {
+    "claimed": false,
+    "capture_required": false
+  },
+  "campaign_reboot": {
+    "ready": true,
+    "transition_observed": true,
+    "duration_ms": 76506,
+    "attempt_duration_ms": 70800,
+    "ready_frame_sha256": "4f78c43da5cc21d7d2a7667589ab9abaadbc0436ad572b5046da20eb92bbae7a"
+  },
+  "reset_after_observer": {
+    "ready": true,
+    "transition_observed": true,
+    "duration_ms": 39306,
+    "attempt_duration_ms": 35117,
+    "ready_frame_sha256": "83a7924ce32c9aa58bdad8b4a1ed7d4b87e0a2195655c26c407f3294841d6886"
+  },
+  "recording": {
+    "codec": "vp9",
+    "duration_ms": 262000,
+    "size_bytes": 1192871,
+    "sha256": "bf04fd6cd3977a11ee180ac57e3ba266085c92fc324ae769938a39c2dfc5831e"
+  },
+  "poster_sha256": "4f5194a2d21e18c182abcc8c7c5913a23833c1d77edcfa26cab42eb926ff906d",
+  "campaign_sha256": "304176a29a03aa39f2e09725fd02842f26a5b68bb826b8e7024890e9e0b7b911",
+  "finding": "v5 exercised both bounded v4 remediations live: the exact Markdown heading used the guarded HTTP printer, its content-free receipt retained the intended Windows numeric Alt route, and the raw exact-heading verifier no longer stripped the leading hash as a shell prompt. The guest nevertheless rendered a pound sign, so the remaining defect is state-dependent below route selection. Exact readback and the unverified-draft guard failed closed, the installed observer confirmed code-09.md absent with zero dangerous commits, and both required reboots observed transitions."
+}
