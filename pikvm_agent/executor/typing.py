@@ -3079,15 +3079,27 @@ class WatchedTyper:
                         # evidence. A terminal command whose argv contains no
                         # quoting or shell syntax is the sole exception because
                         # repeated token separators are semantically identical.
+                        # A matching generic alternative may only bound this
+                        # retry count; it is never returned as verified text.
                         self._last_read_exact_unverified_spacing = bool(
                             "\n" not in intended
                             and "\r" not in intended
-                            and compute_verdict(
-                                intended,
-                                result.text,
-                                True,
+                            and any(
+                                compute_verdict(
+                                    intended,
+                                    candidate,
+                                    True,
+                                )
+                                == "match"
+                                for candidate in (
+                                    result.text,
+                                    *(
+                                        alternative.text
+                                        for alternative in result.alternatives
+                                        if alternative.evidence_kind == "generic"
+                                    ),
+                                )
                             )
-                            == "match"
                         )
                         return ""
             if (

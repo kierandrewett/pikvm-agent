@@ -7511,6 +7511,56 @@ async def test_exact_unverified_spacing_uses_one_bounded_settled_reread() -> Non
     _assert_no_enter(backend)
 
 
+async def test_exact_alternative_with_unverified_spacing_uses_one_settled_reread() -> None:
+    """An exact generic alternative may bound retries, but cannot verify text."""
+
+    intended = "## Fixed"
+
+    class ExactAlternativeUncalibratedOCR:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        async def ocr(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            del image_path, region
+            self.calls += 1
+            return OCRResult(
+                lines=[OCRLine(text="## F1xed", confidence=0.99)],
+                alternatives=[
+                    OCRCandidate(
+                        text=intended,
+                        mean_confidence=0.83,
+                        evidence_kind="generic",
+                    )
+                ],
+                spacing_evidence="uncertain",
+            )
+
+        async def ocr_precise(
+            self,
+            image_path: Path,
+            region: Region | None = None,
+        ) -> OCRResult:
+            return await self.ocr(image_path, region)
+
+    backend = FakeBackend()
+    ocr = ExactAlternativeUncalibratedOCR()
+    result = await WatchedTyper(backend, ocr).type_text(
+        intended,
+        region=Region(x=10, y=10, width=500, height=50),
+        exact=True,
+        context="editor",
+    )
+
+    assert result.status == "unverified_ambiguous"
+    assert result.emitted_exactly_once is True
+    assert ocr.calls == 3
+    _assert_no_enter(backend)
+
+
 async def test_simple_terminal_argv_accepts_only_safe_whitespace_normalization() -> None:
     class UncertainSpacingOCR:
         async def ocr(
