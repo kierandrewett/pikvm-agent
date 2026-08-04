@@ -431,11 +431,13 @@ async def test_transport_uses_alt_codes_for_uk_symbols_windows_vnc_drops() -> No
         ("press", "kp2"),
         ("press", "kp4"),
         ("up", "alt"),
+        ("up", "alt"),
         ("down", "alt"),
         ("press", "kp0"),
         ("press", "kp1"),
         ("press", "kp2"),
         ("press", "kp6"),
+        ("up", "alt"),
         ("up", "alt"),
     ]
 
@@ -472,6 +474,7 @@ async def test_windows_transport_types_uk_hash_semantically_across_wire_paths() 
         ("press", "kp3"),
         ("press", "kp5"),
         ("up", "alt"),
+        ("up", "alt"),
     ]
     assert client.calls == expected
 
@@ -479,6 +482,58 @@ async def test_windows_transport_types_uk_hash_semantically_across_wire_paths() 
     await transport.print_text("#")
 
     assert client.calls == expected
+
+
+async def test_windows_transport_reasserts_alt_up_between_repeated_symbols(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class Client:
+        def __init__(self) -> None:
+            self.calls = []
+
+        def keyDown(self, key) -> None:
+            self.calls.append(("down", key))
+
+        def keyUp(self, key) -> None:
+            self.calls.append(("up", key))
+
+        def keyPress(self, key) -> None:
+            self.calls.append(("press", key))
+
+    sleeps: list[float] = []
+    monkeypatch.setattr(vnc_pikvm_api.time, "sleep", sleeps.append)
+    transport = VncDotoolTransport(
+        "unused:5900",
+        keymap="en-gb",
+        keyboard_profile="windows",
+    )
+    client = Client()
+    transport._client = client
+
+    for _ in range(2):
+        await transport.key("Backslash", True)
+        await transport.key("Backslash", False)
+
+    one_hash = [
+        ("down", "alt"),
+        ("press", "kp0"),
+        ("press", "kp0"),
+        ("press", "kp3"),
+        ("press", "kp5"),
+        ("up", "alt"),
+        ("up", "alt"),
+    ]
+    assert client.calls == one_hash * 2
+    assert sleeps == [
+        0.075,
+        0.035,
+        0.035,
+        0.035,
+        0.035,
+        0.075,
+        0.100,
+        0.075,
+    ] * 2
 
 
 async def test_windows_transport_reports_the_exercised_print_strategy() -> None:
@@ -505,7 +560,7 @@ async def test_windows_transport_reports_the_exercised_print_strategy() -> None:
     await transport.print_text("# Release 1.0")
 
     diagnostics = transport.input_transport_diagnostics()
-    assert diagnostics["strategy_version"] == "windows-rfb-print-v2"
+    assert diagnostics["strategy_version"] == "windows-rfb-print-v3"
     assert diagnostics["keymap"] == "en-gb"
     assert diagnostics["keyboard_profile"] == "windows"
     assert diagnostics["print_sequence"] == 1
@@ -591,6 +646,7 @@ async def test_windows_transport_types_unshifted_uk_backslash_as_backslash() -> 
         ("press", "kp9"),
         ("press", "kp2"),
         ("up", "alt"),
+        ("up", "alt"),
     ]
 
 
@@ -633,17 +689,20 @@ async def test_windows_transport_prints_invariant_punctuation_physically() -> No
         ("press", "kp2"),
         ("press", "kp4"),
         ("up", "alt"),
+        ("up", "alt"),
         ("down", "alt"),
         ("press", "kp0"),
         ("press", "kp0"),
         ("press", "kp9"),
         ("press", "kp2"),
         ("up", "alt"),
+        ("up", "alt"),
         ("down", "alt"),
         ("press", "kp0"),
         ("press", "kp1"),
         ("press", "kp2"),
         ("press", "kp6"),
+        ("up", "alt"),
         ("up", "alt"),
     ]
 
@@ -713,8 +772,18 @@ def test_windows_alt_code_waits_for_guest_to_commit_character(
         ("press", "kp3"),
         ("press", "kp4"),
         ("up", "alt"),
+        ("up", "alt"),
     ]
-    assert sleeps == [0.075, 0.035, 0.035, 0.035, 0.035, 0.075, 0.100]
+    assert sleeps == [
+        0.075,
+        0.035,
+        0.035,
+        0.035,
+        0.035,
+        0.075,
+        0.100,
+        0.075,
+    ]
 
 
 async def test_windows_transport_prints_cp1252_unicode_with_alt_codes() -> None:
@@ -748,17 +817,20 @@ async def test_windows_transport_prints_cp1252_unicode_with_alt_codes() -> None:
         ("press", "kp5"),
         ("press", "kp1"),
         ("up", "alt"),
+        ("up", "alt"),
         ("down", "alt"),
         ("press", "kp0"),
         ("press", "kp1"),
         ("press", "kp4"),
         ("press", "kp7"),
         ("up", "alt"),
+        ("up", "alt"),
         ("down", "alt"),
         ("press", "kp0"),
         ("press", "kp1"),
         ("press", "kp4"),
         ("press", "kp8"),
+        ("up", "alt"),
         ("up", "alt"),
     ]
 

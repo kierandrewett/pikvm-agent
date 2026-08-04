@@ -1823,7 +1823,7 @@ tasks:
         async def input_transport_diagnostics(self) -> dict[str, object]:
             lifecycle.append("transport_diagnostics")
             return {
-                "strategy_version": "windows-rfb-print-v2",
+                "strategy_version": "windows-rfb-print-v3",
                 "print_sequence": 7,
             }
 
@@ -1887,7 +1887,7 @@ tasks:
     assert task["quiescence"]["run_status"] == "completed"
     assert task["reboot"]["status"] == "ready"
     assert task["input_transport"] == {
-        "strategy_version": "windows-rfb-print-v2",
+        "strategy_version": "windows-rfb-print-v3",
         "print_sequence": 7,
     }
 

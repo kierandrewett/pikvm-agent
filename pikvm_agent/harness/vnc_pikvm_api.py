@@ -401,7 +401,7 @@ class VncDotoolTransport:
         """
 
         return {
-            "strategy_version": "windows-rfb-print-v2",
+            "strategy_version": "windows-rfb-print-v3",
             "keymap": self.keymap,
             "keyboard_profile": self.keyboard_profile,
             "coverage": {
@@ -548,6 +548,14 @@ class VncDotoolTransport:
             # this post-release dwell the first following printable key can be
             # swallowed while the guest is still resolving the Alt sequence.
             time.sleep(0.100)
+            # One release event plus the dwell was still insufficient for two
+            # consecutive UK hash characters on the disposable Windows guest:
+            # RFB acknowledged both sequences, but the first composed glyph was
+            # absent. Reassert only Alt-up after the commit window, then leave a
+            # short barrier before another character. This cannot duplicate a
+            # glyph and does not release an unrelated held chord modifier.
+            client.keyUp("alt")
+            time.sleep(0.075)
 
     @staticmethod
     def _type_windows_physical_shifted_key(
