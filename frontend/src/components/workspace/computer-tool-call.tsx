@@ -1458,7 +1458,7 @@ const ComputerToolCallImpl: ToolCallMessagePartComponent<
         "computer-action-step group/computer-tool relative",
       )}
     >
-      <CollapsibleTrigger className="group/trigger grid min-h-12 w-full grid-cols-[1.75rem_minmax(0,1fr)_auto_auto] items-center gap-x-2 py-1 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
+      <CollapsibleTrigger className="group/trigger grid min-h-9 w-full grid-cols-[1.5rem_minmax(0,1fr)_auto_auto] items-center gap-x-2 py-0.5 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
         <span className="relative flex w-7 shrink-0 items-center justify-center">
           <span
             className={cn(
@@ -1484,7 +1484,7 @@ const ComputerToolCallImpl: ToolCallMessagePartComponent<
             revision={receipt.evidenceRevision}
             environment={environment}
           />
-          <span className="min-w-0 truncate text-sm font-medium">
+          <span className="min-w-0 truncate text-[13px] font-medium">
             {visibleTitle}
           </span>
           {showToolName ? (

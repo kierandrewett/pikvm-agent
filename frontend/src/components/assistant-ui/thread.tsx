@@ -131,7 +131,7 @@ const ThreadRoot: FC<{ isEmpty: boolean; readOnly: boolean }> = ({
     <ThreadPrimitive.Root
       className="aui-root aui-thread-root bg-background @container flex h-full flex-col"
       style={{
-        ["--thread-max-width" as string]: "44rem",
+        ["--thread-max-width" as string]: "38rem",
         ["--composer-bg" as string]:
           "color-mix(in oklab, var(--color-muted) 30%, var(--color-background))",
         ["--composer-radius" as string]: "0.875rem",
@@ -145,7 +145,7 @@ const ThreadRoot: FC<{ isEmpty: boolean; readOnly: boolean }> = ({
       >
         <div
           className={cn(
-            "mx-auto flex w-full max-w-(--thread-max-width) flex-1 flex-col px-4 pt-4",
+            "mx-auto flex w-full max-w-(--thread-max-width) flex-1 flex-col px-3 pt-3",
             isEmpty && "justify-center",
           )}
         >
@@ -155,7 +155,7 @@ const ThreadRoot: FC<{ isEmpty: boolean; readOnly: boolean }> = ({
 
           <div
             data-slot="aui_message-group"
-            className="mb-14 flex flex-col gap-y-6 empty:hidden"
+            className="mb-8 flex flex-col gap-y-3.5 empty:hidden"
           >
             <ThreadPrimitive.Messages>
               {() => <ThreadMessage />}
@@ -228,11 +228,11 @@ const ThreadScrollToBottom: FC = () => {
 
 const ThreadWelcome: FC = () => {
   return (
-    <div className="aui-thread-welcome-root mb-6 flex flex-col items-center px-4 text-center">
-      <h1 className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-1 animate-in fill-mode-both text-2xl font-semibold duration-200">
+    <div className="aui-thread-welcome-root mb-5 flex flex-col items-center px-3 text-center">
+      <h1 className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-1 animate-in fill-mode-both text-lg font-semibold duration-200">
         How can I help?
       </h1>
-      <p className="text-muted-foreground mt-2 max-w-md text-sm">
+      <p className="text-muted-foreground mt-1.5 max-w-xs text-[13px] leading-[1.5]">
         Ask a question, do some research, or describe something you want done on
         the connected computer.
       </p>
@@ -283,7 +283,7 @@ const Composer: FC = () => {
         <ComposerAttachments />
         <ComposerPrimitive.Input
           placeholder="Message PiKVM Agent"
-          className="aui-composer-input caret-primary placeholder:text-muted-foreground/80 max-h-32 min-h-10 w-full resize-none bg-transparent px-2.5 py-1 text-base outline-none"
+          className="aui-composer-input caret-primary placeholder:text-muted-foreground/80 max-h-32 min-h-9 w-full resize-none bg-transparent px-2 py-1 text-[13.5px] leading-[1.5] outline-none"
           rows={1}
           autoFocus
           enterKeyHint="send"
@@ -468,7 +468,7 @@ const AssistantMessage: FC = () => {
     >
       <div
         data-slot="aui_assistant-message-content"
-        className="text-foreground px-2 text-[15px] leading-6 wrap-break-word"
+        className="text-foreground px-2 text-[13.5px] leading-[1.55] wrap-break-word"
       >
         <MessagePrimitive.GroupedParts
           groupBy={groupPartByType({
@@ -587,13 +587,13 @@ const UserMessage: FC = () => {
   return (
     <MessagePrimitive.Root
       data-slot="aui_user-message-root"
-      className="fade-in slide-in-from-bottom-1 animate-in grid auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] content-start gap-y-2 px-2 duration-150 [contain-intrinsic-size:auto_200px] [content-visibility:auto] [&:where(>*)]:col-start-2"
+      className="fade-in slide-in-from-bottom-1 animate-in grid auto-rows-auto grid-cols-[minmax(24px,1fr)_auto] content-start gap-y-1.5 px-2 duration-150 [contain-intrinsic-size:auto_200px] [content-visibility:auto] [&:where(>*)]:col-start-2"
       data-role="user"
     >
       <UserMessageAttachments />
 
       <div className="aui-user-message-content-wrapper relative col-start-2 min-w-0">
-        <div className="aui-user-message-content peer bg-muted text-foreground rounded-xl px-4 py-2 wrap-break-word empty:hidden">
+        <div className="aui-user-message-content peer bg-muted text-foreground rounded-lg px-3 py-1.5 text-[13.5px] leading-[1.5] wrap-break-word empty:hidden">
           <MessagePrimitive.Parts />
         </div>
         <div className="aui-user-action-bar-wrapper absolute start-0 top-1/2 -translate-x-full -translate-y-1/2 pe-2 peer-empty:hidden rtl:translate-x-full">
