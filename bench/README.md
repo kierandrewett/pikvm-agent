@@ -1803,6 +1803,19 @@ Recorded Code-09 v7 is now permitted. Content-free transport and live receipts
 are retained in
 [`code-09-v6-repeated-symbol-transport-probe.json`](results/2026-08-04/live-vnc/code-09-v6-repeated-symbol-transport-probe.json).
 
+Recorded v7 then passed its clean-workspace preflight on pushed `84ff3c1`, but
+Codex app-server returned `quota-or-billing` on all three reasoner attempts.
+The model produced no response and the runner attempted zero task actions. It
+stopped after the identical paused error repeated twice, quiesced the managed
+run, retained a 99-second VP9 recording, and completed a 74.432-second reboot
+with a real transition. The attempt is infrastructure-invalid rather than task
+accuracy or speed evidence. The installed observer did not run, so there is no
+post-run file-absence, byte-accuracy, dangerous-commit, or preserved-prior
+claim. The next recorded attempt is blocked on a healthy approved model route;
+transport, causal readback, and bounded exact-line latency remain live-passing.
+The failure and deliberately absent observer claims are retained in
+[`code-09-v7-observer-comparison.json`](results/2026-08-04/live-vnc/code-09-v7-observer-comparison.json).
+
 The failure-inclusive ledger is
 [`code-09-attempts.json`](results/2026-08-04/live-vnc/code-09-attempts.json).
 The five post-v5 gate probes, exact receipts, native crop geometry, independent
@@ -1818,8 +1831,10 @@ Independent absence and reset evidence is retained for
 failed v6 observer launch, campaign metrics, and second reset are retained
 separately in
 [`v6`](results/2026-08-04/live-vnc/code-09-v6-observer-comparison.json); that
-report explicitly makes no artifact comparison claim.
-The ledger digest is `sha256:ac35f2dab717`; the exact-line latency probe digest
+report explicitly makes no artifact comparison claim. The provider-invalid v7
+run and its deliberately absent observer claim are retained in
+[`v7`](results/2026-08-04/live-vnc/code-09-v7-observer-comparison.json).
+The ledger digest is `sha256:9dde18ca6a18`; the exact-line latency probe digest
 is `sha256:3b6a193ceca7`; the repeated-symbol transport probe digest is
 `sha256:3deb13af355f`; the native-readback probe digest is
 `sha256:ccc6cd47bfdd`; the key-path probe digest is
@@ -1829,7 +1844,8 @@ is `sha256:3b6a193ceca7`; the repeated-symbol transport probe digest is
 `sha256:d54ff1b4c4f9`; the failed v6 capture report is
 `sha256:cc3b0af1de2b`; the v6 idempotency probe report is
 `sha256:6ecf8b577405`; the causal Run-field probe report is
-`sha256:01a1347ecb44`.
+`sha256:01a1347ecb44`; the infrastructure-invalid v7 observer report is
+`sha256:445d2013108b`.
 The v1 campaign digest is `sha256:45d79fa42371`; its 150.5-second VP9 recording
 is `sha256:326c660001e1` and its poster is `sha256:ef31e95c379d`. The v2
 campaign digest is `sha256:0e7595958008`; its 247.5-second VP9 recording is

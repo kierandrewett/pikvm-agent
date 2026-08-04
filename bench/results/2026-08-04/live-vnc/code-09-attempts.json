@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "report": "codex-code-entry-code09-failure-inclusive-attempts",
-  "recorded_at": "2026-08-04T18:34:00Z",
+  "recorded_at": "2026-08-04T19:19:42Z",
   "environment": {
     "target": "authorized disposable Windows VNC VM",
     "production_target_contacted": false,
@@ -28,13 +28,13 @@
   "summary": {
     "full_task_runs": 6,
     "failed_runs": 6,
-    "invalid_runs": 0,
+    "invalid_runs": 1,
     "passed_runs": 0,
     "all_failures_retained": true,
     "all_recordings_retained": true,
     "all_reboots_ready": true,
     "all_reboots_observed_real_transition": true,
-    "release_gate": "ready for recorded v7: pushed 8d7fcc1 live-proved at-most-once HID after a lost response, pushed 90a6903 live-proved causal Run-field exact readback, and pushed 7ae4f44 live-proved consecutive repeated-symbol delivery while the bounded exact-line settle budget fired once and completed in 9.222 seconds. No independent v6 current-file claim is made."
+    "release_gate": "blocked on the Codex provider before task input: transport, causal readback, and bounded exact-line latency all pass live, but recorded v7 received quota-or-billing from codex-fast on three reasoner attempts. The infrastructure-invalid run made zero task actions, failed closed, recorded, quiesced, and rebooted."
   },
   "attempts": [
     {
@@ -403,6 +403,56 @@
       },
       "poster_sha256": "8a9f1a744648ab6c57c0477d602cf90cb9de6cb4e53b72b2e00c01b393768694",
       "campaign_sha256": "6c2320385705eda4d05fb1980e9be89e8f76dc6f9f1f1d04c758aa41e9fb8ee2"
+    },
+    {
+      "campaign_id": "codex-code-entry-code09-v7-20260804",
+      "manifest_campaign_id": "codex-windows-50",
+      "accepted_status": "infrastructure_invalid",
+      "campaign_reported_status": "failed",
+      "run_id": "d63aaa6a-ef55-497a-b407-3ceac0ea0ee3",
+      "source_commit": "84ff3c1ae9f4496efaed3c74691879a4eadaf60f",
+      "reason": "The clean-workspace preflight passed, but codex-fast returned quota-or-billing on all three reasoner attempts before a model response or task action. The runner stopped after the identical paused error repeated twice, quiesced the managed run, retained the recording, and completed the mandatory reboot. This is infrastructure-invalid rather than a task-accuracy or task-speed result.",
+      "task_duration_ms": 148045,
+      "preflight_ms": 55825,
+      "wall_clock_ms": 12907,
+      "model_active_ms": 0,
+      "provider_wait_ms": 10099,
+      "provider_calls": 3,
+      "reasoner_calls": 3,
+      "controller_calls": 0,
+      "verifier_calls": 0,
+      "provider_failures": 3,
+      "provider_failure_class": "quota-or-billing",
+      "actions_attempted": 0,
+      "actions_completed": 0,
+      "same_run_recoveries": 2,
+      "approval_requests": 0,
+      "approvals_granted": 0,
+      "task_input_sent": false,
+      "save_committed": false,
+      "quiescence_status": "confirmed",
+      "reboot_ms": 74432,
+      "reboot_transition_observed": true,
+      "input_transport_strategy_version": "windows-rfb-print-v3",
+      "observer": {
+        "capture_status": "not_run",
+        "causal_execution_proven": false,
+        "current_path_absent": null,
+        "dangerous_commit_count": null,
+        "prior_artifact_claimed": false,
+        "comparison_report": "bench/results/2026-08-04/live-vnc/code-09-v7-observer-comparison.json"
+      },
+      "recording": {
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2.0,
+        "duration_ms": 99000,
+        "size_bytes": 473946,
+        "sha256": "aaa545747aac0f15bb1b3d3f2b5503ee93c5d6ccc49c32e5a60e760ed529afe1"
+      },
+      "poster_sha256": "fc0ca179e1ec3b2b26fe6dba99917251f09bc8e15cac352ab29d3dcb14c6fac7",
+      "campaign_sha256": "77cf81dc7beed28f708a3807b48d21635f0d369b41399c3520e79995e3b64e65"
     }
   ],
   "remediations": [
@@ -535,7 +585,7 @@
   "exact_line_latency_probes": "bench/results/2026-08-04/live-vnc/code-09-v6-exact-line-latency-probes.json",
   "repeated_symbol_transport_probe": "bench/results/2026-08-04/live-vnc/code-09-v6-repeated-symbol-transport-probe.json",
   "next_gate": {
-    "status": "passing",
+    "status": "blocked",
     "evidence": [
       "v2 proved the v1 false-positive approval is fixed on the live target.",
       "v3 visibly rendered a pound sign, but subsequent rebooted direct probes proved numeric Alt exact and direct semantic RFB wrong.",
@@ -558,8 +608,9 @@
       "Pushed d2ff741 allows an exact generic alternative to select that bounded schedule without accepting it as verification. Two later exact probes completed in 7.850 and 12.300 seconds, 70.4 and 53.7 percent below baseline, but both used earlier proof paths and did not fire the budget event. A distinct intervening line failed closed on restored-window focus after one emission and was not retried. Every probe saved nothing, launched no observer, and rebooted after a real transition.",
       "The maximized exact pass also exposed an independent permission-classification defect: inert local Notepad heading text was labelled communication_send before visible editor context was applied. The approval was granted only against the independently visible blank local editor and existing explicit lab authorization; communication approval policy was not weakened.",
       "The fifth maximized probe emitted a distinct eight-character hash once, but the screen and five precise OCR reads consistently contained seven characters. The verifier failed closed with zero retries, the payload was never replayed, and the exact-alternative budget event did not fire. The reset retained a real dark-frame transition and independently reacquired the stable desktop.",
-      "Pushed 7ae4f44 reproduced the repeated Windows numeric-Alt loss offline and added a bounded Alt-up reassertion barrier. A fresh maximized live probe then emitted one distinct eight-character repeated-symbol line once, retained both semantic Alt routes under windows-rfb-print-v3, fired the exact-alternative spacing budget once, and independently matched the requested readback hash in 9.222 seconds with zero corrections or retries. Its mandatory reset retained a 0.08-luminance dark-frame transition and reacquired a stable desktop."
+      "Pushed 7ae4f44 reproduced the repeated Windows numeric-Alt loss offline and added a bounded Alt-up reassertion barrier. A fresh maximized live probe then emitted one distinct eight-character repeated-symbol line once, retained both semantic Alt routes under windows-rfb-print-v3, fired the exact-alternative spacing budget once, and independently matched the requested readback hash in 9.222 seconds with zero corrections or retries. Its mandatory reset retained a 0.08-luminance dark-frame transition and reacquired a stable desktop.",
+      "Recorded v7 passed the clean-workspace preflight on pushed 84ff3c1, then received quota-or-billing from codex-fast on three reasoner attempts. No model response or task action occurred. The runner failed closed, quiesced, retained the recording, and completed a 74.432-second transition-observed reboot. The installed observer did not run, so no post-run artifact or dangerous-commit claim is made."
     ],
-    "next_attempt": "The repeated-symbol transport and exact-line latency gates now pass live. Run recorded Code-09 v7 on pushed master, compare artifacts only after causally proven observer execution, retain every result, and reboot afterward."
+    "next_attempt": "Restore a healthy Codex app-server quota or select an explicitly configured approved provider route, then run recorded Code-09 v8. Do not treat v7 as model accuracy or speed evidence, and preserve the same observer and reboot gates."
   }
 }

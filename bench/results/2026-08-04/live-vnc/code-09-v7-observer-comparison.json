@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "report": "code-09-v7-observer-comparison",
+  "recorded_at": "2026-08-04T19:19:42Z",
+  "source_commit": "84ff3c1ae9f4496efaed3c74691879a4eadaf60f",
+  "accepted_status": "infrastructure_invalid",
+  "environment": {
+    "target": "authorized disposable Windows VNC VM",
+    "production_target_contacted": false,
+    "endpoint_retained": false,
+    "keymap": "en-gb",
+    "keyboard_profile": "windows"
+  },
+  "campaign": {
+    "campaign_id": "codex-code-entry-code09-v7-20260804",
+    "manifest_campaign_id": "codex-windows-50",
+    "run_id": "d63aaa6a-ef55-497a-b407-3ceac0ea0ee3",
+    "campaign_reported_status": "failed",
+    "reason": "The clean-workspace preflight passed, but all three reasoner attempts failed with codex-fast quota-or-billing before any model response or task action.",
+    "model_run_started": false,
+    "model_active_ms": 0,
+    "provider_attempts": 3,
+    "provider_failures": 3,
+    "task_actions_attempted": 0,
+    "task_actions_completed": 0,
+    "recoveries": 2,
+    "quiescence_status": "confirmed"
+  },
+  "preflight": {
+    "status": "ready",
+    "workspace_marker_attempts": 1,
+    "visible_fresh_artifact_status": "verified_absent",
+    "ready_frame_sha256": "fc0ca179e1ec3b2b26fe6dba99917251f09bc8e15cac352ab29d3dcb14c6fac7"
+  },
+  "observer": {
+    "launched": false,
+    "command_executed": false,
+    "causal_execution_proven": false,
+    "artifact_comparison": "not run",
+    "current_path_absent": null,
+    "current_bytes_match": null,
+    "dangerous_commit_count": null,
+    "prior_artifact_claimed": false,
+    "reason": "No task input or save occurred. The installed observer was not launched, so this report makes no post-run file-absence, byte-accuracy, dangerous-commit, or preserved-prior claim."
+  },
+  "recording": {
+    "codec": "vp9",
+    "width": 2048,
+    "height": 1280,
+    "fps": 2.0,
+    "duration_ms": 99000,
+    "size_bytes": 473946,
+    "sha256": "aaa545747aac0f15bb1b3d3f2b5503ee93c5d6ccc49c32e5a60e760ed529afe1",
+    "poster_sha256": "fc0ca179e1ec3b2b26fe6dba99917251f09bc8e15cac352ab29d3dcb14c6fac7",
+    "campaign_sha256": "77cf81dc7beed28f708a3807b48d21635f0d369b41399c3520e79995e3b64e65"
+  },
+  "mandatory_reboot": {
+    "ready": true,
+    "transition_observed": true,
+    "duration_ms": 74432,
+    "attempt_duration_ms": 70349,
+    "ready_frame_sha256": "0d2d7a336a3dd3be6e71a7646bbddca8ea9d292185081ecb162ffd698685a82c"
+  },
+  "finding": "Code-09 v7 is infrastructure-invalid rather than a task-accuracy or task-speed result: the provider failed before model input and before any task action. The run failed closed, quiesced, retained a 99-second recording, and completed a transition-observed reboot."
+}
