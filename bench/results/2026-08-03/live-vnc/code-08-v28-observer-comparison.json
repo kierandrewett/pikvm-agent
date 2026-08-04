@@ -1,0 +1,149 @@
+{
+  "schema_version": 1,
+  "campaign_id": "codex-code-entry-code08-v28-20260804",
+  "run_id": "7873cdc9-2f1b-423a-a584-997ddfd2db5e",
+  "source_commit": "482a60f",
+  "accepted_status": "failed",
+  "campaign_reported_status": "failed",
+  "environment": {
+    "production_contacted": false,
+    "endpoint_retained_in_repository": false,
+    "adapter_keymap": "en-gb"
+  },
+  "optimization": {
+    "change": "Prefer the filename value horizontally paired with the independently visible File name label, use that label as a bounded field anchor when OCR omits the value, and retain four pixels of filename-only left glyph margin.",
+    "retained_v27_frame_before": {
+      "refined_region": {
+        "x": 142,
+        "y": 348,
+        "width": 200,
+        "height": 26
+      },
+      "readback": "ode-08.cmd"
+    },
+    "retained_v27_frame_after": {
+      "refined_region": {
+        "x": 133,
+        "y": 346,
+        "width": 200,
+        "height": 24
+      },
+      "readback": "code-08.cmd"
+    },
+    "exercised_live": true,
+    "live_action_index": 5,
+    "live_action_latency_ms": 19603
+  },
+  "preflight": {
+    "duration_ms": 60996,
+    "workspace_marker_attempts": 1,
+    "preservation_status": "verified_absent",
+    "claimed_prior_file": false,
+    "current_path": "C:/PiKVM-Harness/workspace/codex-50/code-08.cmd",
+    "generated_but_unclaimed_prior_path": "C:/PiKVM-Harness/workspace/codex-50/pikvmprior579a308076484c4d8412927f05602da2.cmd"
+  },
+  "immutable_editor_input": {
+    "rows": 9,
+    "line_breaks": 8,
+    "windows_crlf_bytes": 127,
+    "sha256": "c5e247fcb3f17892938d047673cab4efbc6588140cd5d6b5047c553a8349ced4",
+    "all_text_segments_emitted_exactly_once": true
+  },
+  "filename_receipt": {
+    "requested": "code-08.cmd",
+    "observed": "code-08.cmd",
+    "status": "verified_exact",
+    "proof_state": "exact_visual_readback",
+    "requested_characters": 11,
+    "observed_characters": 11,
+    "edit_distance": 0,
+    "correction_count": 0,
+    "delivery_retries": 0,
+    "emitted_exactly_once": true,
+    "readback_frame_sha256": "36e65883933bafe96b03c61fa489277df1602eda96d04faf0307207ecd542673",
+    "save_committed": true
+  },
+  "current_path_observer": {
+    "transport": "guarded MCP visual matrix",
+    "protocol": "pikvm-observer.v1",
+    "direct_run_id": "direct-530e0b5f-98a4-40d4-a0f6-18d43ef188e4",
+    "session_id": "s_b283292ffc76",
+    "caller_label": "office-artifact-verifier",
+    "sequence": 2,
+    "pages": 4,
+    "checksum_valid": true,
+    "path": "C:/PiKVM-Harness/workspace/codex-50/code-08.cmd",
+    "file_error": "",
+    "observed_bytes": 127,
+    "observed_sha256": "c5e247fcb3f17892938d047673cab4efbc6588140cd5d6b5047c553a8349ced4",
+    "exact_match_to_current_run": true,
+    "dangerous_commit_count": 0,
+    "guest_identity_present": true,
+    "input_desktop_present": true
+  },
+  "preserved_prior_observer": {
+    "claimed": false,
+    "capture_attempted": false,
+    "reason": "Preflight independently verified the current path absent; the generated prior pathname was never claimed as an artifact."
+  },
+  "managed_run": {
+    "status": "aborted_after_time_limit",
+    "wall_clock_ms": 296767,
+    "task_duration_ms": 453543,
+    "model_active_ms": 157185,
+    "provider_wait_ms": 140962,
+    "provider_serial_equivalent_ms": 158249,
+    "provider_overlap_ms": 17287,
+    "action_execution_ms": 145444,
+    "evidence_capture_ms": 2436,
+    "unclassified_overhead_ms": 7615,
+    "actions_attempted": 11,
+    "actions_completed": 11,
+    "completion_efficiency": 1.0,
+    "provider_calls": 20,
+    "reasoner_calls": 3,
+    "controller_calls": 6,
+    "verifier_calls": 11,
+    "same_run_recoveries": 2,
+    "approvals_requested": 3,
+    "approvals_granted": 3,
+    "approval_scopes": [
+      "bounded_workspace_edit"
+    ],
+    "quiescence_confirmed": true
+  },
+  "remaining_failure": {
+    "action_index": 7,
+    "verifier_summary": "The Open dialog is in the prepared folder, but code-08.cmd is not visibly listed to reopen.",
+    "deterministic_followup_prepared": "Replace the native Open filename with code-08.cmd.",
+    "deterministic_followup_discarded": true,
+    "model_recovery": "The model cancelled Open, inspected Save As again, and exhausted the campaign limit.",
+    "observer_finding": "The later installed-observer read proves the exact file existed at the requested path. The Open verifier therefore treated a filtered or non-listed file view as evidence of absence and discarded the prepared exact-filename followup."
+  },
+  "mandatory_reboot": {
+    "ready": true,
+    "transition_observed": true,
+    "duration_ms": 80784,
+    "attempt_duration_ms": 76299,
+    "ready_frame_sha256": "9f0b572420f86d6fed5d66104e5f29794554b0deae143a7bf44788934e4790a7"
+  },
+  "reset_after_observer": {
+    "ready": true,
+    "transition_observed": true,
+    "duration_ms": 78637,
+    "attempt_duration_ms": 73288,
+    "ready_frame_sha256": "9a3d584f9a7cc162c9078c9d6d715f5f99e4f8c07ef649508948fbd16c155dd7"
+  },
+  "campaign_sha256": "2486d40ce4fbc6ab641a0008ff2b049fcea5e6e78cad57ccb0c7067bace64479",
+  "recording": {
+    "sha256": "0e0a0bac5a8b2b613bff037542a40b8ef3c50034386bb642d90e19e3f595318c",
+    "codec": "vp9",
+    "width": 2048,
+    "height": 1280,
+    "fps": 2.0,
+    "duration_ms": 335000,
+    "size_bytes": 1625717
+  },
+  "poster_sha256": "c48176dcc319b5346adedd925ea93714a7b9f176c8750445f6ca7b1ac158d6ba",
+  "finding": "v28 exercised the filename localization and crop-margin remediation live. The Save As basename produced an exact 11-character receipt with zero corrections or retries, Save committed, and the installed observer exactly matched all 127 current-run bytes with zero dangerous commits. The task still failed at the 300-second cap because the Open verifier required the .cmd file to be visibly listed, discarded the already-prepared exact-filename followup, and sent the model into a cancel-and-reinspect loop. Both required reboots observed transitions."
+}

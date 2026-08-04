@@ -1046,7 +1046,7 @@ actions, completed 26, and requested four bounded-workspace approvals. Worse,
 the model populated two Notepad documents before converging on the exact saved
 payload. The 874-second VP9 recording is 3,842,300 bytes.
 
-Seventeen post-v10 attempts remain visible rather than rewriting history:
+Eighteen post-v10 attempts remain visible rather than rewriting history:
 
 | Attempt | Accuracy status | Managed wall | Provider calls | Result |
 | --- | --- | ---: | ---: | --- |
@@ -1068,6 +1068,7 @@ Seventeen post-v10 attempts remain visible rather than rewriting history:
 | v25 | Failed safely before Open optimization | 222.396s | 12 | All 127 editor bytes were emitted once; ambiguous Save As readback retained its unverified receipt, and the guard rejected replacement and commit follow-ups before HID |
 | v26 | Infrastructure-invalid | No managed run | 0 | The fresh workspace marker remained visible for more than twelve seconds but the live preflight poll timed out; no model or task input began, and reboot completed |
 | v27 | Failed safely after localization remediation | 296.556s | 24 | Retry-hardened preflight passed and all 127 editor bytes were emitted once; runtime OCR still selected Save As history, so the guard rejected Save and the observer confirmed the file absent |
+| v28 | Failed after exact saved artifact | 296.767s | 20 | The filename fix produced exact `code-08.cmd`, Save committed, and the observer matched all 127 bytes; the Open verifier then discarded a safe prepared filename followup because the filtered file list did not visibly show `.cmd` files |
 
 The v11 recording directly produced the caret-only filename remediation. v13
 exercised it: the first autocomplete-biased readback recovered without
@@ -1325,11 +1326,11 @@ with 25.742s of provider overlap. Eight of ten actions completed across three
 checkpoint resumptions. All nine code rows and the exact 127-byte CRLF plan
 were emitted once.
 
-The Save As result still failed closed. Live OCR refined the 90-pixel dialog
+The v27 Save As result failed closed. Live OCR refined the 90-pixel dialog
 region to an autocomplete-history row at y=370 and returned 136 ambiguous
 characters; the retained frame visibly contains exact `code-08.cmd` in the
 labelled field. Replaying that same frame offline selected the correct row at
-y=348, but its tight left crop dropped the first glyph. This is an unresolved
+y=348, but its tight left crop dropped the first glyph. This was a
 runtime-localization and crop-margin defect, not missing screen pixels. The
 guard rejected Save before HID. A three-page checksum-valid installed-observer
 capture returned `open failed`, zero bytes, and zero dangerous commits for the
@@ -1337,8 +1338,37 @@ current path. Preflight had proved that path absent, so no preserved-prior file
 was genuinely claimed or read. The campaign reboot observed a transition in
 79.311s and the post-observer reset observed another in 79.888s.
 
-The complete 27-attempt ledger includes all seven infrastructure-invalid runs,
-eighteen valid-task failures, two accepted runs, campaign/recording hashes,
+Commit `482a60f` fixes that exact retained frame without weakening the receipt
+gate. When an independent `File name` label exists, only a value row paired
+with that label may nominate the field; if OCR omits the value, the label is a
+bounded same-row anchor. Safe filenames receive four pixels of horizontal
+glyph margin. The retained v27 frame changed from `142,348 -> ode-08.cmd` to
+`133,346 -> code-08.cmd`. Five focused regressions, the 219-test typing suite,
+and the 58-test direct-burst suite passed.
+
+v28 exercised the fix live on pushed `master`. The native Save As filename
+receipt returned exact `code-08.cmd` in 19.603s with edit distance zero, no
+correction, and no delivery retry. Save committed. All nine code rows and eight
+line breaks were still emitted exactly once. The installed observer then read
+exactly 127 Windows-CRLF bytes from the requested path; their SHA-256,
+`c5e247fcb3f17892938d047673cab4efbc6588140cd5d6b5047c553a8349ced4`,
+matches the immutable editor plan. The capture reported zero dangerous
+commits, and both the campaign reboot and post-observer reset observed a
+transition.
+
+The run remains failed. Its managed loop reached 296.767s and the complete
+task lifecycle reached 453.543s. It made 20 provider calls, spent 140.962s
+waiting on providers and 145.444s executing actions, and completed all 11
+attempted actions. The next failure is later and narrower: the native Open
+dialog had the correct breadcrumb and an exact-filename followup was already
+prepared, but the verifier required `code-08.cmd` to be visibly listed. It
+discarded the safe followup when the filtered file list did not show `.cmd`,
+then the model cancelled Open and re-inspected Save As until the campaign cap.
+The later observer proves the file existed, so a non-listed filtered view was
+incorrectly treated as file absence.
+
+The complete 28-attempt ledger includes all seven infrastructure-invalid runs,
+nineteen valid-task failures, two accepted runs, campaign/recording hashes,
 exact observer proof,
 remediation commits, and every reset state:
 [`code-08-attempts.json`](results/2026-08-03/live-vnc/code-08-attempts.json).
@@ -1367,8 +1397,10 @@ Its digest is `sha256:e067041bfd7a`; the v24 current/prior comparison is
 `sha256:eb6092057a13`; the v27 absent-current comparison and retained OCR-region
 diagnosis is
 [`code-08-v27-observer-comparison.json`](results/2026-08-03/live-vnc/code-08-v27-observer-comparison.json),
-`sha256:7b28921aa012`; and the updated ledger digest is
-`sha256:90dd425f747d`.
+`sha256:7b28921aa012`; and the v28 exact current-run comparison is
+[`code-08-v28-observer-comparison.json`](results/2026-08-03/live-vnc/code-08-v28-observer-comparison.json).
+Its digest is `sha256:d5b5939d916a`; the updated ledger digest is
+`sha256:5830e28f787f`.
 The canonical v23 campaign digest is `sha256:23ad16dfc6f0`; its VP9 recording
 is `sha256:c5e7c2671b4d` and its poster is `sha256:3f5ffdf44062`.
 The retained v24 campaign digest is `sha256:93da1644f0f9`; its VP9 recording is
@@ -1378,13 +1410,15 @@ campaign digest is `sha256:ee1136737323`; its VP9 recording is
 campaign digest is `sha256:65923481b461`; its VP9 recording is
 `sha256:3bce989ec9d5` and it has no poster because no managed run began. The v27
 campaign digest is `sha256:d69a9c6dfee6`; its VP9 recording is
-`sha256:97978516ab38` and its poster is `sha256:b9956a68df9f`. The v10 campaign
+`sha256:97978516ab38` and its poster is `sha256:b9956a68df9f`. The v28 campaign
+digest is `sha256:2486d40ce4fb`; its VP9 recording is
+`sha256:0e0a0bac5a8b` and its poster is `sha256:c48176dcc319`. The v10 campaign
 and media remain retained in the ledger.
 
 Failure-inclusive metrics, canonical campaign digests, the 33 accepted task
 IDs, and the VP9 recording/poster hashes are retained in
 [`codex-50-progress.json`](results/2026-07-31/live-vnc/codex-50-progress.json).
-Its updated digest is `sha256:74a641ba4ccd`.
+Its updated digest is `sha256:44af1346a30d`.
 The complete 50-task manifest is
 [`codex-50-tasks.yaml`](codex-50-tasks.yaml).
 
