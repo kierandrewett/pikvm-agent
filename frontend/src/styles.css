@@ -51,7 +51,7 @@
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
+  --radius: 0.5rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.205 0 0);
@@ -141,47 +141,57 @@ body,
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --evidence: oklch(0.79 0.13 151);
-  --evidence-foreground: oklch(0.88 0.08 151);
-  --evidence-soft: oklch(0.28 0.06 151);
-  --caution: oklch(0.8 0.13 82);
-  --caution-foreground: oklch(0.88 0.09 82);
-  --caution-soft: oklch(0.29 0.055 75);
-  --info: oklch(0.76 0.13 255);
-  --info-foreground: oklch(0.88 0.07 255);
-  --info-soft: oklch(0.28 0.06 255);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  /* The PiKVM console's palette, value for value (pikvm-desktop-agentic
+     src/views/console.css). The agent panel is rendered INSIDE the console
+     window, so anything else reads as a second app bolted on. The previous
+     values were stock shadcn neutral grey with a near-white primary — no brand
+     colour anywhere, which is what made it look bland next to the console. */
+  --background: #0a0a0c;
+  --foreground: #ededf1;
+  --card: #121216;
+  --card-foreground: #ededf1;
+  --popover: #16161c;
+  --popover-foreground: #ededf1;
+  /* The console blue now carries primary actions and selection, instead of a
+     white button that belongs to no product. */
+  --primary: #5b8cff;
+  --primary-foreground: #ffffff;
+  --secondary: #1a1a20;
+  --secondary-foreground: #ededf1;
+  --muted: #1a1a20;
+  --muted-foreground: #8a8a95;
+  --accent: #23232b;
+  --accent-foreground: #ededf1;
+  --destructive: #f25555;
+  /* Semantic trio matched to the console's --ok / --warn / --danger. */
+  --evidence: #46c773;
+  --evidence-foreground: #9fe3ba;
+  --evidence-soft: #14301f;
+  --caution: #e0a52b;
+  --caution-foreground: #f0cd86;
+  --caution-soft: #33280f;
+  --info: #5b8cff;
+  --info-foreground: #b3c8ff;
+  --info-soft: #16203a;
+  --border: #26262e;
+  --input: #26262e;
+  --ring: #5b8cff;
+  --chart-1: #5b8cff;
+  --chart-2: #8a8a95;
+  --chart-3: #46c773;
+  --chart-4: #e0a52b;
+  --chart-5: #f25555;
+  /* The rail is a shade off the conversation, as in the console. */
+  --sidebar: #0e0e12;
+  --sidebar-foreground: #ededf1;
+  --sidebar-primary: #5b8cff;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #1a1a20;
+  --sidebar-accent-foreground: #ededf1;
+  --sidebar-border: #26262e;
+  --sidebar-ring: #5b8cff;
 }
+
 
 @layer base {
   * {
@@ -189,6 +199,9 @@ body,
   }
   body {
     @apply bg-background text-foreground antialiased;
+    /* A tool panel docked beside a remote desktop wants VS Code's density,
+       not a consumer chat app's. Everything below is sized in rem off this. */
+    font-size: 13px;
   }
   html {
     @apply font-sans;
@@ -211,7 +224,7 @@ body,
 
 @layer components {
   .workspace-shell {
-    @apply grid h-dvh min-h-0 grid-cols-1 overflow-hidden bg-sidebar md:grid-cols-[15rem_minmax(0,1fr)];
+    @apply grid h-dvh min-h-0 grid-cols-1 overflow-hidden bg-sidebar md:grid-cols-[13.5rem_minmax(0,1fr)];
   }
 
   .workspace-rail {
@@ -219,11 +232,11 @@ body,
   }
 
   .workspace-header {
-    @apply flex h-14 items-center justify-between gap-3 border-b px-3 sm:px-4;
+    @apply flex h-10 items-center justify-between gap-2 border-b px-2 sm:px-3;
   }
 
   .workspace-thread {
-    @apply relative flex h-[calc(100dvh-3.5rem)] min-h-0 flex-col overflow-hidden;
+    @apply relative flex h-[calc(100dvh-2.5rem)] min-h-0 flex-col overflow-hidden;
   }
 
   .aui-md {

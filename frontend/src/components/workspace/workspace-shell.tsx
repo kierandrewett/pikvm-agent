@@ -319,12 +319,15 @@ export function WorkspaceShell() {
     >
       <div className="workspace-shell">
         <aside className="workspace-rail">
-          <div className="flex h-14 items-center gap-2 px-3">
-            <div className="flex size-7 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <SparklesIcon className="size-4" aria-hidden="true" />
-            </div>
-            <span className="font-heading text-sm font-semibold">
-              PiKVM Agent
+          {/* A compact rail header, VS Code style: a section label rather than
+              a brand block. The window title already says what this is. */}
+          <div className="flex h-10 items-center gap-2 px-3">
+            <SparklesIcon
+              className="size-3.5 text-muted-foreground"
+              aria-hidden="true"
+            />
+            <span className="text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
+              Sessions
             </span>
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-3">
