@@ -93,7 +93,7 @@ def test_public_showcase_manifest_contains_fifty_distinct_codex_tasks() -> None:
         Path(__file__).parents[1] / "bench" / "codex-50-tasks.yaml"
     )
 
-    assert manifest.provider == "codex-fast"
+    assert manifest.provider == "codex-spark"
     assert len(manifest.tasks) == 50
     assert len({task.task_id for task in manifest.tasks}) == 50
     assert {
@@ -1913,13 +1913,19 @@ async def test_showcase_creates_a_computer_run_without_assistant_routing() -> No
             operator_token="b" * 32,
             operator_origin="http://harness",
         )
-        task = load_showcase_manifest(
+        manifest = load_showcase_manifest(
             Path(__file__).parents[1] / "bench" / "codex-50-tasks.yaml"
-        ).tasks[0]
-        await harness.create(task, "codex-fast")
+        )
+        task = manifest.tasks[0]
+        await harness.create(task, manifest.provider)
 
     body = json.loads(requests[0].content)
     assert body["mode"] == "computer"
+    assert body["model_preferences"] == {
+        "reasoner": "codex-spark",
+        "controller": "codex-spark",
+        "verifier": "codex-spark",
+    }
     assert body["task"].endswith(f"Task:\n{task.prompt}")
 
 
