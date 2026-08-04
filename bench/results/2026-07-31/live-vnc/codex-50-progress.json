@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "report": "codex-50-live-progress",
-  "recorded_at": "2026-08-04T03:33:56Z",
+  "recorded_at": "2026-08-04T04:09:20Z",
   "manifest": "bench/codex-50-tasks.yaml",
   "environment": {
     "target": "authorized disposable Windows VNC VM",
@@ -4078,54 +4078,55 @@
     "full_ledger": "bench/results/2026-08-03/live-vnc/code-08-attempts.json"
   },
   "code_09_attempt_summary": {
-    "recorded_attempts": 2,
-    "valid_full_task_runs": 2,
-    "failed_runs": 2,
+    "recorded_attempts": 3,
+    "valid_full_task_runs": 3,
+    "failed_runs": 3,
     "infrastructure_invalid_runs": 0,
     "passed_runs": 0,
     "canonical_campaign_id": null,
-    "current_state": "v1 failed closed before input on a false-positive communication approval. Pushed commit 7679d11 fixed that policy decision and v2 exercised it live, then exact readback proved that the requested Markdown hash rendered as a UK pound sign. The unverified-draft guard blocked correction, no file was saved, the observer confirmed absence with zero dangerous commits, and every required reboot observed a transition.",
+    "current_state": "v1 failed closed before input on a false-positive communication approval. Pushed commit 7679d11 fixed that policy decision and v2 exposed the UK hash transport mismatch. Pushed commit 837935d routed the same action through the Windows numeric Alt path; v3 exercised it live but still visibly rendered a pound sign. Exact readback and the unverified-draft guard failed closed, no file was saved, the observer confirmed absence with zero dangerous commits, and every required reboot observed a transition.",
     "latest_attempt": {
-      "campaign_id": "codex-code-entry-code09-v2-20260804",
+      "campaign_id": "codex-code-entry-code09-v3-20260804",
       "accepted_status": "failed",
       "campaign_reported_status": "failed",
-      "run_id": "468c1f90-dbda-4b7c-a52b-3bede0a9f5aa",
-      "source_commit": "7679d11",
-      "wall_clock_ms": 163944,
-      "task_duration_ms": 342844,
-      "provider_wait_ms": 75690,
-      "action_execution_ms": 84446,
-      "provider_calls": 10,
+      "run_id": "ab7a61ce-5973-48d5-bef3-b560da1b6410",
+      "source_commit": "837935d",
+      "wall_clock_ms": 196603,
+      "task_duration_ms": 339105,
+      "provider_wait_ms": 102161,
+      "action_execution_ms": 88239,
+      "provider_calls": 12,
       "actions_attempted": 3,
       "actions_completed": 2,
-      "grounded_policy_fix_exercised": true,
+      "semantic_alt_code_fix_exercised": true,
+      "semantic_alt_code_fix_effective": false,
       "failed_input_requested": "# Release 1.0",
-      "failed_input_observed": "£ Release",
+      "failed_input_observed": "£ Release 1.0",
       "failed_input_status": "failed_symbol_mismatch",
       "approval_requests": 0,
-      "reboot_ms": 107666,
+      "reboot_ms": 79006,
       "reboot_transition_observed": true,
-      "post_observer_reset_ms": 123961,
+      "post_observer_reset_ms": 81650,
       "post_observer_reset_transition_observed": true,
       "observer_comparison": "A checksum-valid three-page installed-observer retry returned open failed for code-09.md and zero dangerous commits; the first helper foreground attempt is separately retained as infrastructure-failed.",
-      "comparison_report": "bench/results/2026-08-04/live-vnc/code-09-v2-observer-comparison.json",
+      "comparison_report": "bench/results/2026-08-04/live-vnc/code-09-v3-observer-comparison.json",
       "recording": {
-        "sha256": "3b6a104c7fdda3f0278e6d32e05d288db2a3787ff75a6fe0df8c62f1157ac47b",
+        "sha256": "9dd1413d5fe83f4fe3a6f813495cd1ab4f71055e37a49e30dd2feacb0bacfb7d",
         "codec": "vp9",
         "width": 2048,
         "height": 1280,
         "fps": 2.0,
-        "duration_ms": 247500,
-        "size_bytes": 1150659,
-        "relative_path": "codex-code-entry-code09-v2-20260804/codex-windows-50/code-09/recording.webm"
+        "duration_ms": 251000,
+        "size_bytes": 943476,
+        "relative_path": "codex-code-entry-code09-v3-20260804/codex-windows-50/code-09/recording.webm"
       },
       "poster": {
-        "relative_path": "codex-code-entry-code09-v2-20260804/codex-windows-50/code-09/poster.jpg",
-        "sha256": "e71a6cd6c71fb962857456156b02c5c2db341ad24e9b66b5ec4ead110386e061"
+        "relative_path": "codex-code-entry-code09-v3-20260804/codex-windows-50/code-09/poster.jpg",
+        "sha256": "12dfc21b09994df465ccf937568263444b0eb3b4b0a9756cd3899ed3d93c90e5"
       },
-      "campaign_sha256": "0e7595958008acb73e7c4187a706f7cd904bd5697086b753930d5fe6cce8dbb2"
+      "campaign_sha256": "19fccab3122768b2def6fc48fe93af654087a1fefdd3ff7783ed85ecf92709e0"
     },
-    "next_gate": "Fix the deterministic UK hash-symbol transport mismatch without weakening exact-input or readback gates, then run recorded Code-09 v3.",
+    "next_gate": "Prove a direct semantic '#' keysym with a bounded, rebooted lab micro-test, implement only the guest-proven path, then run recorded Code-09 v4 without weakening exact-input or readback gates.",
     "full_ledger": "bench/results/2026-08-04/live-vnc/code-09-attempts.json"
   }
 }

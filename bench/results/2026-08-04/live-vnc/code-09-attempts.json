@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "report": "codex-code-entry-code09-failure-inclusive-attempts",
-  "recorded_at": "2026-08-04T03:33:56Z",
+  "recorded_at": "2026-08-04T04:09:20Z",
   "environment": {
     "target": "authorized disposable Windows VNC VM",
     "production_target_contacted": false,
@@ -26,15 +26,15 @@
     ]
   },
   "summary": {
-    "full_task_runs": 2,
-    "failed_runs": 2,
+    "full_task_runs": 3,
+    "failed_runs": 3,
     "invalid_runs": 0,
     "passed_runs": 0,
     "all_failures_retained": true,
     "all_recordings_retained": true,
     "all_reboots_ready": true,
     "all_reboots_observed_real_transition": true,
-    "release_gate": "failing: grounded policy fixed; exact UK hash transport still wrong"
+    "release_gate": "failing: grounded policy fixed; physical UK and Windows numeric Alt hash routes both render the wrong glyph"
   },
   "attempts": [
     {
@@ -144,6 +144,67 @@
       },
       "poster_sha256": "e71a6cd6c71fb962857456156b02c5c2db341ad24e9b66b5ec4ead110386e061",
       "campaign_sha256": "0e7595958008acb73e7c4187a706f7cd904bd5697086b753930d5fe6cce8dbb2"
+    },
+    {
+      "campaign_id": "codex-code-entry-code09-v3-20260804",
+      "manifest_campaign_id": "codex-windows-50",
+      "accepted_status": "failed",
+      "campaign_reported_status": "failed",
+      "run_id": "ab7a61ce-5973-48d5-bef3-b560da1b6410",
+      "source_commit": "837935d",
+      "reason": "The bounded Windows semantic Alt-code transport fix was exercised live for the same '# Release 1.0' action, but the guest still visibly rendered '£ Release 1.0'. Exact readback failed, one bounded correction shortened the observed text to eight characters, and the unverified-draft guard rejected further mutation. No Save action ran.",
+      "wall_clock_ms": 196603,
+      "task_duration_ms": 339105,
+      "preflight_ms": 59658,
+      "model_active_ms": 101854,
+      "provider_wait_ms": 102161,
+      "action_execution_ms": 88239,
+      "evidence_capture_ms": 587,
+      "provider_calls": 12,
+      "reasoner_calls": 4,
+      "controller_calls": 6,
+      "verifier_calls": 2,
+      "actions_attempted": 3,
+      "actions_completed": 2,
+      "action_recoverable_failures": 1,
+      "same_run_recoveries": 3,
+      "approval_requests": 0,
+      "approvals_granted": 0,
+      "semantic_alt_code_fix_exercised": true,
+      "semantic_alt_code_fix_effective": false,
+      "failed_input": {
+        "requested_text": "# Release 1.0",
+        "visibly_rendered_initial_text": "£ Release 1.0",
+        "status": "failed_symbol_mismatch",
+        "requested_characters": 13,
+        "initial_observed_characters": 13,
+        "post_correction_observed_characters": 8,
+        "correction_count": 1,
+        "delivery_retries": 0
+      },
+      "quiescence_status": "confirmed",
+      "reboot_ms": 79006,
+      "reboot_transition_observed": true,
+      "post_observer_reset_ms": 81650,
+      "post_observer_reset_transition_observed": true,
+      "observer": {
+        "current_path_absent": true,
+        "dangerous_commit_count": 0,
+        "first_capture_infrastructure_failed": true,
+        "successful_capture_attempt": 2,
+        "comparison_report": "bench/results/2026-08-04/live-vnc/code-09-v3-observer-comparison.json"
+      },
+      "recording": {
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2.0,
+        "duration_ms": 251000,
+        "size_bytes": 943476,
+        "sha256": "9dd1413d5fe83f4fe3a6f813495cd1ab4f71055e37a49e30dd2feacb0bacfb7d"
+      },
+      "poster_sha256": "12dfc21b09994df465ccf937568263444b0eb3b4b0a9756cd3899ed3d93c90e5",
+      "campaign_sha256": "19fccab3122768b2def6fc48fe93af654087a1fefdd3ff7783ed85ecf92709e0"
     }
   ],
   "remediations": [
@@ -152,16 +213,22 @@
       "commit": "7679d11b68f327e35e1c14da324a661332344c1a",
       "change": "Require independent blank-Notepad geometry and OCR before exempting one inert exact editor text action from command side-effect classification; metadata alone and commit gestures remain gated.",
       "tests": "275 direct policy, executor, runtime, and phase hardening tests passed"
+    },
+    {
+      "after_attempt": "v2",
+      "commit": "837935dc0d24fcbdb9d7b7aa73f387eab0618e57",
+      "change": "Route UK hash, tilde, and ISO-backslash semantic positions through the Windows numeric Alt path on both VNC print and key wire surfaces.",
+      "tests": "324 direct VNC, PiKVM, burst, and typing tests passed; the focused two-path regression passed"
     }
   ],
   "next_gate": {
     "status": "failing",
     "evidence": [
       "v2 proved the v1 false-positive approval is fixed on the live target.",
-      "The exact receipt proved that the requested Markdown hash rendered as the UK pound sign.",
+      "v3 exercised pushed commit 837935d on the same heading, but the Windows numeric Alt route still rendered a UK pound sign.",
       "The unverified-draft guard blocked correction, the observer confirmed the file was absent, and zero dangerous commits occurred.",
-      "Both campaigns and both post-observer resets observed real reboot transitions."
+      "All three campaigns and all three post-observer resets observed real reboot transitions."
     ],
-    "next_attempt": "Fix the deterministic UK hash-symbol transport mismatch without weakening exact-input or readback gates, then run recorded Code-09 v3."
+    "next_attempt": "Run a bounded, rebooted lab micro-test of direct semantic '#' keysym delivery versus the failed numeric Alt path. Implement only a guest-proven route, then run recorded Code-09 v4 without weakening exact-input or readback gates."
   }
 }

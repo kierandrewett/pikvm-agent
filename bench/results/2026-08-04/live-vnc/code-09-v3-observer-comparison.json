@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "campaign_id": "codex-code-entry-code09-v3-20260804",
+  "run_id": "ab7a61ce-5973-48d5-bef3-b560da1b6410",
+  "source_commit": "837935d",
+  "accepted_status": "failed",
+  "campaign_reported_status": "failed",
+  "environment": {
+    "production_contacted": false,
+    "endpoint_retained_in_repository": false,
+    "adapter_keymap": "en-gb"
+  },
+  "preflight": {
+    "preservation_status": "verified_absent",
+    "claimed_prior_file": false
+  },
+  "semantic_alt_code_remediation": {
+    "commit": "837935d",
+    "exercised_live": true,
+    "same_action_as_v2": true,
+    "approval_requested": false,
+    "requested_text": "# Release 1.0",
+    "visibly_rendered_initial_text": "£ Release 1.0",
+    "effective_on_guest": false
+  },
+  "failed_input_receipt": {
+    "requested_text": "# Release 1.0",
+    "requested_characters": 13,
+    "initial_observed_characters": 13,
+    "post_correction_observed_characters": 8,
+    "status": "failed_symbol_mismatch",
+    "verdict": "mismatch",
+    "correction_count": 1,
+    "delivery_retries": 0
+  },
+  "failure": {
+    "category": "windows_vnc_numeric_alt_code_ineffective",
+    "reason": "The bounded semantic Alt-code route was selected by the live en-gb Windows adapter, but the guest still visibly rendered a pound sign for the requested Markdown hash. Exact readback failed closed and the unverified-draft guard rejected further mutation.",
+    "dangerous_commit_count": 0,
+    "save_committed": false
+  },
+  "current_path_observer": {
+    "transport": "guarded MCP visual matrix",
+    "protocol": "pikvm-observer.v1",
+    "caller_label": "office-artifact-verifier",
+    "attempts": 2,
+    "first_attempt": {
+      "status": "infrastructure_failed",
+      "reason": "observer helper was not foregrounded; visual matrix border was absent"
+    },
+    "successful_attempt_pages": 3,
+    "checksum_valid": true,
+    "path": "C:/PiKVM-Harness/workspace/codex-50/code-09.md",
+    "file_error": "open failed",
+    "file_observed": false,
+    "dangerous_commit_count": 0,
+    "guest_fingerprint_present": true,
+    "input_desktop": "Default"
+  },
+  "preserved_prior_observer": {
+    "claimed": false,
+    "capture_required": false
+  },
+  "campaign_reboot": {
+    "ready": true,
+    "transition_observed": true,
+    "duration_ms": 79006,
+    "attempt_duration_ms": 74831,
+    "ready_frame_sha256": "9b896bbd5a84d2ddf29f48a557b26d3299756c5ce2e8b1471f8250b395c2da68"
+  },
+  "reset_after_observer": {
+    "ready": true,
+    "transition_observed": true,
+    "duration_ms": 81650,
+    "attempt_duration_ms": 75522,
+    "ready_frame_sha256": "67e3cccc0a448e81e2fb3fd639f8e16273addd4e019c3d85e14232c46cfd3c36"
+  },
+  "finding": "v3 exercised the bounded semantic Alt-code transport fix but proved it ineffective on the live Windows VNC guest: the requested hash still rendered as a pound sign. Exact readback and the draft guard failed closed, the installed observer confirmed that code-09.md was absent with zero dangerous commits, and both required reboots observed transitions."
+}
