@@ -1748,6 +1748,27 @@ may use that exact alternative only to stop redundant rereads; it may not use
 it to verify text. Evidence is in
 [`code-09-v6-exact-line-latency-probes.json`](results/2026-08-04/live-vnc/code-09-v6-exact-line-latency-probes.json).
 
+Pushed `d2ff741` adds exactly that non-verifying alternative check. The new red
+regression proves a matching generic alternative reduces five OCR reads to
+three while the result still remains `unverified_ambiguous`; all 241 typing
+tests and 228 adjacent runtime tests pass. Three further reboot-isolated live
+probes are retained. One exact eight-character line completed in 7.850s, 70.4%
+below the v6 matching-class action, but through an earlier proof path. A second
+distinct line failed closed after one emission when restored overlapping
+Notepad windows defeated focus localization; it was not retried. A maximized
+fresh-editor probe then verified one exact 13-character hash in 12.300s, 53.7%
+below baseline, but through canonical/native proof. Neither fast pass exercised
+the exact-alternative budget event, so Code-09 v7 remains gated. Every probe
+saved nothing, launched no observer, made no artifact claim, and completed an
+observed reboot.
+
+The maximized probe also exposed a separate safety-classification defect: inert
+local Notepad text containing a release heading was labelled
+`communication_send` before visible editor context was applied. It was approved
+only because the fresh maximized local editor was independently visible and the
+user had explicitly authorized lab typing. The false positive is retained; it
+is not counted as evidence that communication approvals should be weakened.
+
 The failure-inclusive ledger is
 [`code-09-attempts.json`](results/2026-08-04/live-vnc/code-09-attempts.json).
 The five post-v5 gate probes, exact receipts, native crop geometry, independent
