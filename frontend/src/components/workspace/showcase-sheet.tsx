@@ -252,8 +252,15 @@ export function ShowcaseSheet({
               </Badge>
             ) : null}
           </div>
+          {/* This is the sheet's accessible description, so it is the sentence a
+              screen reader hears on open. It named one specific campaign, which
+              was announced whatever was loaded — including when nothing is, and
+              the visible body says there is no campaign yet. The title above is
+              already the campaign's own when there is one. */}
           <SheetDescription className="sr-only">
-            Live and recorded evidence for the 50-task Codex Windows campaign.
+            {campaign
+              ? `Live and recorded evidence for this campaign: ${campaign.completed} of ${campaign.total} tasks done, ${campaign.passed} passed.`
+              : "Live and recorded evidence from task campaigns. No campaign has been recorded yet."}
           </SheetDescription>
           {campaign ? (
             <div className="showcase-summary" aria-label="Campaign progress">
