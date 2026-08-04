@@ -1410,6 +1410,13 @@ const ComputerToolCallImpl: ToolCallMessagePartComponent<
         ? "Double-click target"
         : "Click target"
       : summary.title;
+  // The title is usually just the tool name with its underscores swapped for
+  // spaces, and printing both put the same words twice in a panel already short
+  // of width. Keep the identifier only where the title is a different string,
+  // such as "Click target", where it is the only thing naming the tool that ran.
+  const showToolName =
+    visibleTitle.trim().replaceAll(" ", "_").toLowerCase() !==
+    toolName.trim().toLowerCase();
   const showPrimaryInput =
     checkpointed || needsApproval || failed || needsReview;
   const hasInputDisclosure =
@@ -1480,9 +1487,11 @@ const ComputerToolCallImpl: ToolCallMessagePartComponent<
           <span className="min-w-0 truncate text-sm font-medium">
             {visibleTitle}
           </span>
-          <code className="hidden shrink-0 font-mono text-[10px] text-muted-foreground sm:inline">
-            {toolName}
-          </code>
+          {showToolName ? (
+            <code className="hidden shrink-0 font-mono text-[10px] text-muted-foreground sm:inline">
+              {toolName}
+            </code>
+          ) : null}
           {durationLabel(visibleDuration) ? (
             <span className="hidden shrink-0 font-mono text-[10px] tabular-nums text-muted-foreground sm:inline">
               {durationLabel(visibleDuration)}

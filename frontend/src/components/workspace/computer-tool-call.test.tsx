@@ -187,6 +187,23 @@ describe("ComputerToolCall", () => {
     ).toBeNull();
   });
 
+  it("does not print the tool name twice when the title is already that name", () => {
+    render(
+      <ComputerToolCall
+        {...baseProps}
+        toolName="computer_start_task"
+        args={{ task: "look at the screen" }}
+        argsText='{"task":"look at the screen"}'
+      />,
+    );
+
+    // The row's title is the tool name with its underscores swapped for spaces,
+    // so the mono identifier beside it only repeated the same three words.
+    const row = screen.getByText("computer start task");
+    expect(row).not.toBeNull();
+    expect(screen.queryByText("computer_start_task")).toBeNull();
+  });
+
   it("keeps audit and raw MCP arguments behind separate disclosures", async () => {
     const user = userEvent.setup();
     render(<ComputerToolCall {...baseProps} />);
