@@ -13,11 +13,13 @@ system is compiled into this module.
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import io
 import re
 import shutil
 import tempfile
 import time
+from collections import deque
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -134,6 +136,16 @@ def create_vnc_pikvm_app(
 
     @app.get("/api/info")
     async def info() -> dict[str, Any]:
+        transport_diagnostics = getattr(
+            vnc,
+            "input_transport_diagnostics",
+            None,
+        )
+        input_transport = (
+            transport_diagnostics()
+            if callable(transport_diagnostics)
+            else None
+        )
         return {
             "ok": True,
             "result": {
@@ -143,6 +155,7 @@ def create_vnc_pikvm_app(
                         "enabled": True,
                         "atomic_shifted_print": True,
                         "keymap": keymap,
+                        "input_transport": input_transport,
                     }
                 },
             },
@@ -366,6 +379,32 @@ class VncDotoolTransport:
         self._guest_modifiers_may_be_stale = False
         self._cached_frame: bytes | None = None
         self._frame_cached_at = 0.0
+        self._print_sequence = 0
+        self._print_history: deque[dict[str, Any]] = deque(maxlen=64)
+
+    def input_transport_diagnostics(self) -> dict[str, Any]:
+        """Return content-free proof of the RFB print routes exercised.
+
+        Request hashes and route counters expose whether a running adapter
+        actually selected the expected transport implementation without
+        retaining task text or trusting the guest's OCR as implementation
+        identity. The bounded history is diagnostic evidence only; exact
+        screen and artifact verification remain authoritative.
+        """
+
+        return {
+            "strategy_version": "windows-rfb-print-v2",
+            "keymap": self.keymap,
+            "keyboard_profile": self.keyboard_profile,
+            "print_sequence": self._print_sequence,
+            "print_history": [
+                {
+                    **entry,
+                    "routes": dict(entry["routes"]),
+                }
+                for entry in self._print_history
+            ],
+        }
 
     async def connect(self) -> None:
         if self._client is not None:
@@ -813,14 +852,20 @@ class VncDotoolTransport:
                     client,
                 )
                 self._guest_modifiers_may_be_stale = False
+            routes: dict[str, int] = {}
+
+            def record_route(route: str) -> None:
+                routes[route] = routes.get(route, 0) + 1
 
             def type_all() -> None:
                 for char in text:
                     key_info = ks.key_for(char, layout)
                     if key_info is None:
                         if self.keyboard_profile == "windows":
+                            record_route("windows_alt_fallback")
                             self._type_windows_alt_code(client, char)
                         else:
+                            record_route("generic_semantic_printable")
                             client.keyPress(char)
                     else:
                         key = code_to_vnc_key(key_info.code)
@@ -838,30 +883,38 @@ class VncDotoolTransport:
                                 "en-us",
                             )
                         ):
+                            record_route("windows_physical_shifted")
                             self._type_windows_physical_shifted_key(
                                 client,
                                 key,
                             )
                             time.sleep(0.020)
                             continue
-                        if (
+                        semantic_alt_code = (
+                            self.keyboard_profile == "windows"
+                            and _windows_vnc_needs_semantic_alt_code(
+                                key_info.code,
+                                char,
+                                self.keymap,
+                            )
+                        )
+                        shifted_alt_code = (
                             self.keyboard_profile == "windows"
                             and (
-                                _windows_vnc_needs_semantic_alt_code(
+                                key_info.shift
+                                and re.fullmatch(
+                                    r"Key[A-Z]",
                                     key_info.code,
-                                    char,
-                                    self.keymap,
                                 )
-                                or (
-                                    key_info.shift
-                                    and re.fullmatch(
-                                        r"Key[A-Z]",
-                                        key_info.code,
-                                    )
-                                    is None
-                                )
+                                is None
                             )
-                        ):
+                        )
+                        if semantic_alt_code or shifted_alt_code:
+                            record_route(
+                                "windows_semantic_alt_code"
+                                if semantic_alt_code
+                                else "windows_shifted_alt_code"
+                            )
                             self._type_windows_alt_code(client, char)
                             time.sleep(0.020)
                             continue
@@ -883,8 +936,14 @@ class VncDotoolTransport:
                             # Otherwise the supposedly faster path can report
                             # every character as issued while a Windows RFB
                             # guest silently drops an entire row.
+                            record_route("windows_atomic_printable")
                             self._tap_windows_printable_key(client, key)
                             continue
+                        record_route(
+                            "generic_shifted_printable"
+                            if key_info.shift
+                            else "generic_printable"
+                        )
                         try:
                             client.keyDown(key)
                             try:
@@ -908,6 +967,17 @@ class VncDotoolTransport:
                     )
 
             await asyncio.to_thread(type_all)
+            self._print_sequence += 1
+            self._print_history.append(
+                {
+                    "sequence": self._print_sequence,
+                    "characters": len(text),
+                    "text_sha256": hashlib.sha256(
+                        text.encode("utf-8")
+                    ).hexdigest(),
+                    "routes": dict(sorted(routes.items())),
+                }
+            )
 
     async def ocr(self, *, left: int, top: int, right: int, bottom: int) -> str:
         if shutil.which("tesseract") is None:

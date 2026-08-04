@@ -1820,6 +1820,13 @@ tasks:
         async def show_desktop(self) -> None:
             return None
 
+        async def input_transport_diagnostics(self) -> dict[str, object]:
+            lifecycle.append("transport_diagnostics")
+            return {
+                "strategy_version": "windows-rfb-print-v2",
+                "print_sequence": 7,
+            }
+
         async def reboot_and_wait(
             self,
             **_kwargs: object,
@@ -1874,11 +1881,15 @@ tasks:
     )
 
     task = result["tasks"][0]
-    assert lifecycle == ["abort", "reboot"]
+    assert lifecycle == ["transport_diagnostics", "abort", "reboot"]
     assert task["status"] == "passed"
     assert task["quiescence"]["status"] == "confirmed"
     assert task["quiescence"]["run_status"] == "completed"
     assert task["reboot"]["status"] == "ready"
+    assert task["input_transport"] == {
+        "strategy_version": "windows-rfb-print-v2",
+        "print_sequence": 7,
+    }
 
 
 @pytest.mark.asyncio

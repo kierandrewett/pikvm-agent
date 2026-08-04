@@ -696,6 +696,20 @@ class VncAdapter:
         response.raise_for_status()
         return response.content
 
+    async def input_transport_diagnostics(self) -> dict[str, Any]:
+        response = await self.client.get(f"{self.base_url}/api/info")
+        response.raise_for_status()
+        payload = response.json()
+        return dict(
+            (
+                ((payload.get("result") or {}).get("extras") or {}).get(
+                    "vnc_lab"
+                )
+                or {}
+            ).get("input_transport")
+            or {}
+        )
+
     async def wait_until_ready(
         self,
         *,
@@ -1735,6 +1749,19 @@ async def _run_showcase_campaign_locked(
                         run_error = "task exceeded the campaign time limit"
                     await recorder.capture_poster()
                     record["performance"] = await harness.performance(run_id)
+                    diagnostics = getattr(
+                        adapter,
+                        "input_transport_diagnostics",
+                        None,
+                    )
+                    if callable(diagnostics):
+                        try:
+                            record["input_transport"] = await diagnostics()
+                        except Exception as exc:  # noqa: BLE001
+                            record["input_transport"] = {
+                                "status": "unavailable",
+                                "error": f"{type(exc).__name__}: {exc}",
+                            }
                     if run_status != "completed" and run_error is None:
                         run_error = str(run.get("error") or run_status)
                     record["task_error"] = run_error

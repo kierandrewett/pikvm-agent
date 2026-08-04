@@ -78,6 +78,12 @@ class FakeVncTransport:
     async def print_text(self, text: str) -> None:
         self.calls.append(("print_text", text))
 
+    def input_transport_diagnostics(self) -> dict[str, object]:
+        return {
+            "strategy_version": "fake-rfb-print-v1",
+            "print_sequence": 0,
+        }
+
     async def ocr(self, *, left: int, top: int, right: int, bottom: int) -> str:
         self.calls.append(("ocr", (left, top, right, bottom)))
         return "observer target"
@@ -95,6 +101,12 @@ async def test_http_snapshot_print_and_ocr_match_pikvm_contract() -> None:
             is True
         )
         assert info.json()["result"]["extras"]["vnc_lab"]["keymap"] == "en-gb"
+        assert info.json()["result"]["extras"]["vnc_lab"][
+            "input_transport"
+        ] == {
+            "strategy_version": "fake-rfb-print-v1",
+            "print_sequence": 0,
+        }
 
         snap = await client.get("/api/streamer/snapshot")
         assert snap.status_code == 200
@@ -467,6 +479,49 @@ async def test_windows_transport_types_uk_hash_semantically_across_wire_paths() 
     await transport.print_text("#")
 
     assert client.calls == expected
+
+
+async def test_windows_transport_reports_the_exercised_print_strategy() -> None:
+    class Client:
+        def __init__(self) -> None:
+            self.calls = []
+
+        def keyDown(self, key) -> None:
+            self.calls.append(("down", key))
+
+        def keyUp(self, key) -> None:
+            self.calls.append(("up", key))
+
+        def keyPress(self, key) -> None:
+            self.calls.append(("press", key))
+
+    transport = VncDotoolTransport(
+        "unused:5900",
+        keymap="en-gb",
+        keyboard_profile="windows",
+    )
+    transport._client = Client()
+
+    await transport.print_text("# Release 1.0")
+
+    diagnostics = transport.input_transport_diagnostics()
+    assert diagnostics["strategy_version"] == "windows-rfb-print-v2"
+    assert diagnostics["keymap"] == "en-gb"
+    assert diagnostics["keyboard_profile"] == "windows"
+    assert diagnostics["print_sequence"] == 1
+    assert diagnostics["print_history"] == [
+        {
+            "sequence": 1,
+            "characters": 13,
+            "text_sha256": (
+                "a09f21ee71a9b858aefacb390fbac6f29ce0e0c7523918d4e4bb691c29b4e3db"
+            ),
+            "routes": {
+                "windows_atomic_printable": 12,
+                "windows_semantic_alt_code": 1,
+            },
+        }
+    ]
 
 
 async def test_windows_transport_types_unshifted_uk_backslash_as_backslash() -> None:
