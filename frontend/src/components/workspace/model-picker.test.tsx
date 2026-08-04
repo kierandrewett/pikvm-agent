@@ -22,81 +22,116 @@ const providers: ProviderMap = {
   },
 };
 
+const noop = () => undefined;
+
 afterEach(cleanup);
 
 describe("ModelPicker", () => {
-  it("shows the effective planning, acting, and checking models at send time", async () => {
+  it("defaults to Auto and applies a picked model to every stage", async () => {
     const user = userEvent.setup();
-    const onOpenModels = vi.fn();
+    const onPreferenceChange = vi.fn();
     render(
       <ModelPicker
         providers={providers}
         preferences={{}}
         locked={false}
+        onPreferenceChange={onPreferenceChange}
+        onResetPreferences={noop}
+        onOpenModels={noop}
+      />,
+    );
+
+    const trigger = screen.getByRole("combobox", { name: /Model: Auto/ });
+    await user.click(trigger);
+    await user.click(screen.getByRole("option", { name: "Opus" }));
+
+    // One pick fans out to every stage — the sheet reads back this exact state.
+    expect(onPreferenceChange).toHaveBeenCalledTimes(4);
+    expect(onPreferenceChange).toHaveBeenCalledWith(
+      "controller",
+      "strong-reasoner",
+    );
+  });
+
+  it("routes Configure models… to the full sheet without changing the pick", async () => {
+    const user = userEvent.setup();
+    const onOpenModels = vi.fn();
+    const onPreferenceChange = vi.fn();
+    render(
+      <ModelPicker
+        providers={providers}
+        preferences={{}}
+        locked={false}
+        onPreferenceChange={onPreferenceChange}
+        onResetPreferences={noop}
         onOpenModels={onOpenModels}
       />,
     );
 
-    const button = screen.getByRole("button", {
-      name: /reasoning: opus.*acting: gpt-fast.*checking: opus/i,
-    });
-    expect(button.textContent).toContain("Opus + gpt-fast");
-    await user.click(button);
+    await user.click(screen.getByRole("combobox", { name: /Model: Auto/ }));
+    await user.click(
+      screen.getByRole("option", { name: /Configure models…/ }),
+    );
     expect(onOpenModels).toHaveBeenCalledOnce();
+    expect(onPreferenceChange).not.toHaveBeenCalled();
   });
 
-  it("marks a snapshotted run route as locked", () => {
+  it("hands the choice back to the harness when Auto is picked", async () => {
+    const user = userEvent.setup();
+    const onResetPreferences = vi.fn();
     render(
       <ModelPicker
         providers={providers}
-        preferences={{ controller: "strong-reasoner" }}
-        activeRoute={{
-          reasoner: ["strong-reasoner"],
-          controller: ["fast-controller", "strong-reasoner"],
-          verifier: ["strong-reasoner"],
+        preferences={{
+          assistant: "strong-reasoner",
+          reasoner: "strong-reasoner",
+          controller: "strong-reasoner",
+          verifier: "strong-reasoner",
         }}
-        locked
-        onOpenModels={() => undefined}
+        locked={false}
+        onPreferenceChange={noop}
+        onResetPreferences={onResetPreferences}
+        onOpenModels={noop}
       />,
     );
 
-    const button = screen.getByRole("button", {
-      name: /acting: gpt-fast/i,
-    });
-    expect(button.getAttribute("title")).toContain("Locked for this run");
-    expect(button.textContent).toContain("Opus + gpt-fast");
+    // A unified pick shows as the model's short name, not provider plumbing.
+    const trigger = screen.getByRole("combobox", { name: /Model: Opus/ });
+    await user.click(trigger);
+    await user.click(screen.getByRole("option", { name: "Auto" }));
+    expect(onResetPreferences).toHaveBeenCalledOnce();
   });
 
-  it("keeps a three-model route compact while preserving role detail", () => {
-    render(
+  it("shows Split when stages differ and locks during an active run", () => {
+    const { rerender } = render(
       <ModelPicker
-        providers={{
-          planner: {
-            configured_model: "opus",
-            ready: true,
-            routes: [{ role: "reasoner", position: 1 }],
-          },
-          actor: {
-            configured_model: "gpt-fast",
-            ready: true,
-            routes: [{ role: "controller", position: 1 }],
-          },
-          checker: {
-            configured_model: "haiku",
-            ready: true,
-            routes: [{ role: "verifier", position: 1 }],
-          },
-        }}
-        preferences={{}}
+        providers={providers}
+        preferences={{ controller: "fast-controller" }}
         locked={false}
-        onOpenModels={() => undefined}
+        onPreferenceChange={noop}
+        onResetPreferences={noop}
+        onOpenModels={noop}
       />,
     );
+    expect(
+      screen.getByRole("combobox", { name: /Model: Split/ }),
+    ).not.toBeNull();
 
-    const button = screen.getByRole("button", {
-      name: /reasoning: opus.*acting: gpt-fast.*checking: haiku/i,
+    rerender(
+      <ModelPicker
+        providers={providers}
+        preferences={{}}
+        activeRoute={{ controller: ["fast-controller"] }}
+        activeProvider="fast-controller"
+        locked
+        onPreferenceChange={noop}
+        onResetPreferences={noop}
+        onOpenModels={noop}
+      />,
+    );
+    const locked = screen.getByRole("combobox", {
+      name: /Model: gpt-fast \(locked for this run\)/,
     });
-    expect(button.textContent).toContain("Opus + 2 more");
-    expect(button.getAttribute("title")).toContain("Checking: haiku");
+    expect(locked.hasAttribute("disabled")).toBe(true);
   });
 });

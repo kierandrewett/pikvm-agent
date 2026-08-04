@@ -301,6 +301,8 @@ export function WorkspaceShell() {
           activeRoute={workspace.selectedRun?.model_route}
           activeProvider={workspace.selectedRun?.model_provider}
           locked={workspace.routeLocked}
+          onPreferenceChange={workspace.setModelPreference}
+          onResetPreferences={workspace.resetModelPreferences}
           onOpenModels={() => setModelsOpen(true)}
         />
       ) : null}

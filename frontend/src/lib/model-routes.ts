@@ -109,3 +109,14 @@ export const effectiveRoleRoute = ({
 export const effectiveRolePrimary = (
   options: Parameters<typeof effectiveRoleRoute>[0],
 ) => effectiveRoleRoute(options)[0];
+
+/** Which single answer describes the preferences: the harness picks ("auto"),
+ *  one provider runs every stage (its name), or the stages are split. Shared by
+ *  the composer's inline picker and the Models sheet so they can never disagree. */
+export const unifiedSelection = (preferences: ModelPreferences) => {
+  const values = MODEL_ROLES.map((role) => preferences[role.key]);
+  if (values.every((value) => !value)) return "auto";
+  const [first] = values;
+  if (first && values.every((value) => value === first)) return first;
+  return "split";
+};
