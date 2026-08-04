@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "report": "codex-50-live-progress",
-  "recorded_at": "2026-08-04T13:42:26Z",
+  "recorded_at": "2026-08-04T15:14:05Z",
   "manifest": "bench/codex-50-tasks.yaml",
   "environment": {
     "target": "authorized disposable Windows VNC VM",
@@ -3451,10 +3451,10 @@
     "full_ledger": "bench/results/2026-08-02/live-vnc/code-03-attempts.json"
   },
   "verdict": {
-    "accuracy": "The campaign is 33/50. All ten Text entry tasks and the first eight Code entry tasks pass. Code-08 v29 is canonical: installed-observer captures matched both the exact 127-byte current-run CRLF plan and the genuinely preserved 127-byte prior artifact with zero dangerous commits. Code-09 remains gated after five bounded post-v5 readback probes; its latest live probe excluded mirrored Notepad tab chrome and reached the real editor body, but could not yet prove exact spacing. All 29 Code-08 attempts and all five Code-09 task attempts remain retained.",
-    "speed": "Code-08 now passes the product target. v29 completed in 241.303 seconds across 12 model calls, 77.479 seconds faster than the prior complete v23 pass and 28.347 seconds faster than the incomplete v24 speed candidate.",
-    "dominant_cost": "On v29, action execution consumed 140.685 seconds (58.3% of managed wall) and provider wait consumed 97.198 seconds (40.3%) across 12 calls. No provider overlap, recovery cycle, fallback, or schema repair was needed.",
-    "next": "Resolve the retained Code-09 editor-body spacing mismatch with content-free exact-provider evidence, then run recorded v6 only after a live body read returns exact; preserve exact-input, permission, quiescence, installed-observer, recording, and reboot gates."
+    "accuracy": "The campaign is 33/50. All ten Text entry tasks and the first eight Code entry tasks pass. Code-08 v29 remains canonical with exact current and genuinely preserved prior observer bytes. Code-09 v6 exercised the maximized-editor native readback fix and completed 18 actions with zero recoveries or provider failures, but timed out before Save As. Its post-run observer launch failed closed after stale Run-field readback and a missing client response caused one accidental replay; no current-file observer claim is made. All 29 Code-08 attempts and all six Code-09 task attempts remain retained.",
+    "speed": "Code-08 v29 still passes the product target at 241.303 seconds. Code-09 v6 failed its 300-second target at 292.012 seconds of managed model/action time before completion; the full task record including preflight and reboot lasted 440.893 seconds.",
+    "dominant_cost": "On Code-09 v6, guarded action execution consumed 191.727 seconds (65.7% of managed wall) and provider wait consumed 95.974 seconds (32.9%) across 12 calls. Ten serial verifier calls and 10.517-second median action latency dominated; there were zero provider failures, fallbacks, schema repairs, or recovery cycles.",
+    "next": "Fix causal Run-field receipts and missing-response idempotency before relying on observer launch evidence, then make one bounded latency optimization that reduces repeated exact-line verification without weakening exact input, permissions, quiescence, installed-observer, recording, or reboot gates."
   },
   "code_04_acceptance": {
     "task": "Write, save, reopen, and visually verify a grouped customer-value SQL query in Notepad",
@@ -4078,40 +4078,39 @@
     "full_ledger": "bench/results/2026-08-03/live-vnc/code-08-attempts.json"
   },
   "code_09_attempt_summary": {
-    "recorded_attempts": 5,
-    "valid_full_task_runs": 5,
-    "failed_runs": 5,
+    "recorded_attempts": 6,
+    "valid_full_task_runs": 6,
+    "failed_runs": 6,
     "infrastructure_invalid_runs": 0,
     "passed_runs": 0,
     "canonical_campaign_id": null,
-    "current_state": "v1 failed closed before input on a false-positive communication approval. Pushed commit 7679d11 fixed that policy decision; v2 and v3 exposed an ambiguous hash transport/readback mismatch. Rebooted direct probes then proved the Windows numeric Alt route renders '#' exactly while direct semantic RFB '#' renders '3'. v4 exposed incomplete route evidence because the short exact heading used paced websocket HID. Pushed commit 58facf9 routed the heading through guarded HTTP, made route coverage explicit, and preserved a complete raw Markdown heading before shell-prompt stripping. Native-pixel reanalysis proves retained v4/v5 frames show '# Release 1.0'. Post-v5 commits retained native exact rows, kept native OCR on the final settle, bounded the crop to the causal editor row, and retried once across the caret phase. Offline configured-provider replay selected the exact canonical heading, and pushed d7bd484 retained content-free selector fingerprints. Two further live probes exposed overlapping-window ambiguity and then five false matches from the maximized Notepad tab title. Pushed b3a2696 excluded top-screen editor chrome; its live retest exercised the guard, ignored eight chrome rows on each of four recoveries, and selected the editor body at y=44. The body retained 13 characters but remained a low-confidence same-length spacing mismatch. All five post-v5 probes emitted the exact heading SHA once with zero corrections or retries and rebooted through visible transitions. Recorded v6 remains gated. The installed observer confirmed code-09.md absent with zero dangerous commits; no prior artifact was claimed.",
+    "current_state": "v1-v5 failed closed while successively isolating policy, UK hash transport, receipt scope, downscaled OCR, tab-title localization, native editor-body OCR, and maximized status-edge evidence. Pushed 82cb017 returned the exact 13-character heading hash twice from the native body at 0.9143 confidence, and pushed d85dd65 added a bounded native bottom-status-edge proof. A live exact-heading gate passed with zero corrections or retries, so recorded v6 ran. v6 completed 18 actions with zero recoveries or provider failures and exact native heading hashes, but exceeded the 300-second SLA before Save As. Action execution consumed 191.727 seconds and provider wait consumed 95.974 seconds. It quiesced, recorded, and rebooted after a visible transition. The post-run installed-observer launch then failed independently: guarded Run-field readback returned stale or empty evidence, a completed Enter receipt did not match the later frame, and a missing client response caused one accidental replay of the direct observer command. The command was cancelled without execution and a second 77.479-second reboot observed a real transition. No prior artifact was claimed, and no v6 current-file observer result is asserted.",
     "latest_attempt": {
-      "campaign_id": "codex-code-entry-code09-v5-20260804",
+      "campaign_id": "codex-code-entry-code09-v6-20260804",
       "accepted_status": "failed",
       "campaign_reported_status": "failed",
-      "run_id": "112257a6-c845-4e55-87fa-db3acf042873",
-      "source_commit": "58facf9",
-      "wall_clock_ms": 220444,
-      "task_duration_ms": 360161,
-      "preflight_ms": 58954,
-      "model_active_ms": 150004,
-      "provider_wait_ms": 150504,
-      "action_execution_ms": 62171,
-      "evidence_capture_ms": 600,
-      "provider_calls": 18,
-      "actions_attempted": 3,
-      "actions_completed": 2,
+      "run_id": "5a327953-45cd-423a-8bdf-7744ff5ac499",
+      "source_commit": "d85dd6579c2de0c4764b4084c09ec8d35d32a24a",
+      "wall_clock_ms": 292012,
+      "task_duration_ms": 440893,
+      "preflight_ms": 57226,
+      "model_active_ms": 94929,
+      "provider_wait_ms": 95974,
+      "action_execution_ms": 191727,
+      "evidence_capture_ms": 2605,
+      "provider_calls": 12,
+      "actions_attempted": 19,
+      "actions_completed": 18,
       "action_recoverable_failures": 0,
-      "same_run_recoveries": 5,
-      "guarded_http_heading_fix_exercised": true,
-      "raw_exact_heading_verifier_fix_exercised": true,
-      "guarded_http_heading_fix_effective": true,
+      "same_run_recoveries": 0,
+      "maximized_editor_native_readback_fix_exercised": true,
+      "maximized_editor_native_readback_fix_effective": true,
       "heading_input_emitted": true,
       "input_transport": {
         "strategy_version": "windows-rfb-print-v2",
         "keymap": "en-gb",
         "keyboard_profile": "windows",
-        "pre_reboot_print_sequence": 7,
+        "pre_reboot_print_sequence": 21,
         "requested_heading_sha256": "a09f21ee71a9b858aefacb390fbac6f29ce0e0c7523918d4e4bb691c29b4e3db",
         "requested_heading_present": true,
         "receipt_scope": "http_print_requests",
@@ -4120,33 +4119,33 @@
           "windows_semantic_alt_code": 1
         }
       },
-      "post_action_frame_observed": "# Release 1.0",
-      "downscaled_primary_ocr_observed": "# Release 1.4",
-      "failed_input_status": "failed_symbol_mismatch",
-      "post_action_frame_sha256": "ed9ed7b7c9ff0064a5da5823653acc1b270b2ad1136ef55c1893a63527cf5853",
-      "slowest_action_ms": 23488.036,
+      "heading_native_readback_sha256": "a09f21ee71a9b858aefacb390fbac6f29ce0e0c7523918d4e4bb691c29b4e3db",
+      "heading_native_readback_verdict": "match",
+      "failed_input_status": null,
+      "task_error": "task exceeded the campaign time limit",
+      "slowest_action_ms": 37797.53,
       "approval_requests": 0,
-      "reboot_ms": 76506,
+      "reboot_ms": 77358,
       "reboot_transition_observed": true,
-      "post_observer_reset_ms": 39306,
+      "post_observer_reset_ms": 77479,
       "post_observer_reset_transition_observed": true,
-      "observer_comparison": "A checksum-valid three-page installed-observer capture returned open failed for code-09.md and zero dangerous commits.",
-      "comparison_report": "bench/results/2026-08-04/live-vnc/code-09-v5-observer-comparison.json",
+      "observer_comparison": "Capture failed before the observer executable was launched; no current-file or dangerous-commit result is asserted.",
+      "comparison_report": "bench/results/2026-08-04/live-vnc/code-09-v6-observer-comparison.json",
       "recording": {
-        "sha256": "bf04fd6cd3977a11ee180ac57e3ba266085c92fc324ae769938a39c2dfc5831e",
+        "sha256": "20675156e855a84632b12325ebff49c972040509684d6fd13ecf3d7ae63fa0fa",
         "codec": "vp9",
-        "duration_ms": 262000,
-        "size_bytes": 1192871,
-        "relative_path": "codex-code-entry-code09-v5-20260804/codex-windows-50/code-09/recording.webm"
+        "duration_ms": 356000,
+        "size_bytes": 1572351,
+        "relative_path": "codex-code-entry-code09-v6-20260804/codex-windows-50/code-09/recording.webm"
       },
       "poster": {
-        "relative_path": "codex-code-entry-code09-v5-20260804/codex-windows-50/code-09/poster.jpg",
-        "sha256": "4f5194a2d21e18c182abcc8c7c5913a23833c1d77edcfa26cab42eb926ff906d"
+        "relative_path": "codex-code-entry-code09-v6-20260804/codex-windows-50/code-09/poster.jpg",
+        "sha256": "8a9f1a744648ab6c57c0477d602cf90cb9de6cb4e53b72b2e00c01b393768694"
       },
-      "campaign_sha256": "304176a29a03aa39f2e09725fd02842f26a5b68bb826b8e7024890e9e0b7b911"
+      "campaign_sha256": "6c2320385705eda4d05fb1980e9be89e8f76dc6f9f1f1d04c758aa41e9fb8ee2"
     },
     "diagnostic_probes": "bench/results/2026-08-04/live-vnc/code-09-native-readback-probes.json",
-    "next_gate": "Replay the retained y=44 editor-body crop through the exact spacing-evidence path and retain content-free candidate and spacing fingerprints; implement one bounded body-spacing fix and run recorded Code-09 v6 only after a live body read returns exact.",
+    "next_gate": "Fix causal Run-field receipts and missing-response idempotency before relying on observer launch evidence, then reduce repeated exact-line verification latency in one bounded slice and run recorded Code-09 v7 only after both changes are exercised live.",
     "full_ledger": "bench/results/2026-08-04/live-vnc/code-09-attempts.json"
   }
 }

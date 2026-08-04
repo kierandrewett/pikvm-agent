@@ -1,0 +1,137 @@
+{
+  "schema_version": 1,
+  "campaign_id": "codex-code-entry-code09-v6-20260804",
+  "run_id": "5a327953-45cd-423a-8bdf-7744ff5ac499",
+  "source_commit": "d85dd6579c2de0c4764b4084c09ec8d35d32a24a",
+  "accepted_status": "failed",
+  "campaign_reported_status": "failed",
+  "environment": {
+    "production_contacted": false,
+    "endpoint_retained_in_repository": false,
+    "adapter_keymap": "en-gb",
+    "keyboard_profile": "windows"
+  },
+  "preflight": {
+    "preservation_status": "verified_absent",
+    "claimed_prior_file": false,
+    "duration_ms": 57226,
+    "frame_sha256": "1e535c1fc784ace23b7eb2bc9456cac99d58886b8385af635f99714478b1614c"
+  },
+  "task": {
+    "error": "task exceeded the campaign time limit",
+    "save_committed": false,
+    "approval_requests": 0,
+    "recoveries": 0,
+    "quiescence_status": "confirmed",
+    "quiesced_run_status": "aborted",
+    "actions_attempted": 19,
+    "actions_completed": 18,
+    "completion_efficiency": 0.9473684210526315
+  },
+  "heading_readback": {
+    "requested_characters": 13,
+    "requested_sha256": "a09f21ee71a9b858aefacb390fbac6f29ce0e0c7523918d4e4bb691c29b4e3db",
+    "native_retry_verdict": "match",
+    "native_retry_selected_sha256": "a09f21ee71a9b858aefacb390fbac6f29ce0e0c7523918d4e4bb691c29b4e3db",
+    "native_retry_mean_confidence": 0.9448,
+    "later_native_verdict": "match",
+    "later_native_selected_sha256": "a09f21ee71a9b858aefacb390fbac6f29ce0e0c7523918d4e4bb691c29b4e3db",
+    "later_native_mean_confidence": 0.9072,
+    "input_replayed": false
+  },
+  "performance": {
+    "managed_wall_ms": 292012,
+    "task_duration_ms": 440893,
+    "model_active_ms": 94929,
+    "provider_wait_ms": 95974,
+    "action_execution_ms": 191727,
+    "evidence_capture_ms": 2605,
+    "unclassified_overhead_ms": 1531,
+    "provider_calls": 12,
+    "reasoner_calls": 1,
+    "controller_calls": 1,
+    "verifier_calls": 10,
+    "provider_wait_share": 0.32866457542840705,
+    "action_execution_share": 0.6565723326438639,
+    "median_action_ms": 10516.959,
+    "p95_action_ms": 29176.132999999987,
+    "slowest_action_ms": 37797.53,
+    "provider_failures": 0,
+    "provider_fallbacks": 0,
+    "schema_repairs": 0
+  },
+  "current_path_observer": {
+    "status": "capture_failed",
+    "path": "C:/PiKVM-Harness/workspace/codex-50/code-09.md",
+    "file_observed": false,
+    "file_absence_independently_proved": false,
+    "dangerous_commit_count": null,
+    "reason": "The installed observer was not executed. Guarded Run-field readback returned empty or stale evidence after acknowledged exact input, a later fresh frame exposed concatenated unverified input, and a missing client response caused the direct observer command to be submitted twice. The dialog was cancelled without executing the command.",
+    "setup_failures": [
+      {
+        "session_id": "s_cca0fd91dae3",
+        "requested_characters": 10,
+        "emitted_exactly_once": true,
+        "receipt_status": "unverified_ambiguous",
+        "receipt_observed_characters": 0,
+        "post_action_frame_sha256": "31bc3190b2783790abf6798083b9f91a93c7a92efbf84510d185e1edbc59d765"
+      },
+      {
+        "session_id": "s_6c1e9b3991cb",
+        "requested_characters": 3,
+        "emitted_exactly_once": true,
+        "receipt_status": "unverified_ambiguous",
+        "receipt_observed_characters": 0,
+        "later_frame_sha256": "7687487cdcecc6d171943e13d94abacbd3d091ad45772afa5cac5c6e9b727441"
+      },
+      {
+        "session_id": "s_bb1c9a72ec35",
+        "receipt_status": "completed",
+        "claimed_action": "press Enter once",
+        "later_frame_sha256": "837bc61abd1ba8d2382d8363498443440a39ca45b33d07db538f0212b0c99ae3",
+        "later_frame_finding": "The Run dialog remained visible and contained the concatenated prior inputs."
+      },
+      {
+        "session_id": "s_6e4900bd0be8",
+        "initial_frame_sha256": "7ff681468a81135a79310d9ba680b1ee4a08caff226ff5f3a208e67f652a455f",
+        "later_frame_sha256": "53d32e667530d248e7a81c8a804900d0605cdc8218393fa9baaf532c96a4ee8c",
+        "trace_statuses": [
+          "completed",
+          "unverified",
+          "unverified"
+        ],
+        "failure": "The same direct observer command was submitted twice after the first client call returned no body. Enter was never sent for that command."
+      }
+    ]
+  },
+  "preserved_prior_observer": {
+    "claimed": false,
+    "capture_required": false
+  },
+  "campaign_reboot": {
+    "ready": true,
+    "transition_observed": true,
+    "duration_ms": 77358,
+    "attempt_duration_ms": 72348,
+    "ready_frame_sha256": "ffeea8add1afbce1296238a8dfd4608f1ce88a746ac4ca2233ca8e2d8eda5e36"
+  },
+  "reset_after_failed_observer_setup": {
+    "ready": true,
+    "transition_observed": true,
+    "duration_ms": 77479,
+    "attempt_duration_ms": 72084,
+    "ready_frame_sha256": "0ead0524fcf45da44cf9baaf4146e08339f1a0408015dde373cbf124f1052d38"
+  },
+  "recording": {
+    "codec": "vp9",
+    "width": 2048,
+    "height": 1280,
+    "fps": 2.0,
+    "duration_ms": 356000,
+    "size_bytes": 1572351,
+    "sha256": "20675156e855a84632b12325ebff49c972040509684d6fd13ecf3d7ae63fa0fa"
+  },
+  "poster_sha256": "8a9f1a744648ab6c57c0477d602cf90cb9de6cb4e53b72b2e00c01b393768694",
+  "campaign_sha256": "6c2320385705eda4d05fb1980e9be89e8f76dc6f9f1f1d04c758aa41e9fb8ee2",
+  "finding": "The maximized-editor readback remediation was effective enough for the recorded model to enter 18 actions with zero recoveries or provider failures, including exact native heading hashes. The run still missed the 300-second SLA because guarded action execution consumed 191.727 seconds and provider wait consumed 95.974 seconds. It failed closed before Save As, quiesced, recorded, and rebooted. Post-run observer proof is intentionally not claimed: its guarded launcher setup exposed stale readback, a false completed Enter receipt, and an accidental replay after a missing client response. The command was cancelled and the VM reset through a second observed reboot."
+}

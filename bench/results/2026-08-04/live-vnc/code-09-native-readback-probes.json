@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "report": "code-09-native-readback-gate-probes",
-  "recorded_at": "2026-08-04T13:42:26Z",
+  "recorded_at": "2026-08-04T15:14:05Z",
   "environment": {
     "target": "authorized disposable Windows VNC VM",
     "production_target_contacted": false,
@@ -271,6 +271,115 @@
         "duration_ms": 79218,
         "ready_frame_sha256": "f6024ccea05c5e7e007aa76eb319b14edbbe8f3ad16d26bd541972cdd34671be"
       }
+    },
+    {
+      "probe_id": "maximized-editor-native-body-v1",
+      "accepted_status": "failed_safely",
+      "source_commit": "82cb01730325f8f9cc8600fb6b1f3690dcc03670",
+      "session_id": "s_51b4b793cffe",
+      "setup_failures": [],
+      "receipt": {
+        "requested_characters": 13,
+        "issued_characters": 13,
+        "correction_count": 0,
+        "delivery_retries": 0,
+        "emitted_exactly_once": true,
+        "requested_sha256": "a09f21ee71a9b858aefacb390fbac6f29ce0e0c7523918d4e4bb691c29b4e3db",
+        "emitted_sha256": "a09f21ee71a9b858aefacb390fbac6f29ce0e0c7523918d4e4bb691c29b4e3db"
+      },
+      "native_body_readback": {
+        "body_region": {
+          "x": 8,
+          "y": 44,
+          "width": 200,
+          "height": 23
+        },
+        "reads": 2,
+        "observed_characters": 13,
+        "selected_sha256": "a09f21ee71a9b858aefacb390fbac6f29ce0e0c7523918d4e4bb691c29b4e3db",
+        "verdict": "match",
+        "mean_confidence": 0.9143
+      },
+      "status_edge_readback": {
+        "proved": false,
+        "incorrect_region": {
+          "x": 0,
+          "y": 317,
+          "width": 512,
+          "height": 150
+        },
+        "failure": "The exact native body proof was followed by a downscaled mid-screen status crop rather than the maximized editor's bottom status edge."
+      },
+      "full_campaign_launched": false,
+      "full_campaign_gate": "blocked because the downstream status invariant did not prove the exact body spacing",
+      "file_saved": false,
+      "reboot": {
+        "ready": true,
+        "transition_observed": true,
+        "initial_sla_ready": false,
+        "initial_sla_ms": 180000,
+        "extended_ready_frame_sha256": null,
+        "evidence": "The reset observed a real transition but remained on the Windows Welcome screen beyond the 180-second readiness SLA; a bounded extended read-only watch later reached the stable desktop."
+      }
+    },
+    {
+      "probe_id": "maximized-editor-bottom-status-edge-v1",
+      "accepted_status": "passed_gate",
+      "source_commit": "d85dd6579c2de0c4764b4084c09ec8d35d32a24a",
+      "session_id": "s_9fd5a9ae196f",
+      "setup_failures": [
+        "The first setup preflight used unsupported ARROWUP and was rejected before input. A fresh burst used META+UP and completed all five setup actions."
+      ],
+      "blank_surface_frame_sha256": "b85fdd30cf72ba095f3b6acd91ac35e3122737049ac5166253c417696bbab638",
+      "receipt": {
+        "status": "verified_exact",
+        "requested_characters": 13,
+        "delivery_characters": 13,
+        "observed_characters": 13,
+        "correction_count": 0,
+        "delivery_retries": 0,
+        "emitted_exactly_once": true,
+        "requested_sha256": "a09f21ee71a9b858aefacb390fbac6f29ce0e0c7523918d4e4bb691c29b4e3db",
+        "delivery_sha256": "a09f21ee71a9b858aefacb390fbac6f29ce0e0c7523918d4e4bb691c29b4e3db",
+        "emitted_sha256": "a09f21ee71a9b858aefacb390fbac6f29ce0e0c7523918d4e4bb691c29b4e3db",
+        "readback_frame_sha256": "3de30ce3c784d020b709b74de76d141c1ea77f2ac24e30855792e4fb4efb45c7",
+        "proof_state": "exact_visual_readback"
+      },
+      "read_only_edge_proof": {
+        "new_branch_exercised": true,
+        "input_sent": false,
+        "primed_full_frame_size": {
+          "width": 1280,
+          "height": 800
+        },
+        "body_region": {
+          "x": 8,
+          "y": 44,
+          "width": 200,
+          "height": 23
+        },
+        "status_region": {
+          "x": 0,
+          "y": 650,
+          "width": 512,
+          "height": 150
+        },
+        "proved": true,
+        "observed_characters": 62,
+        "line_count": 6,
+        "canonical_sha256": "66bbe141f0315091b7ee4541b608a27403d15fa0c5e205ccee796e3747e45b62",
+        "mean_confidence": 0.5439
+      },
+      "full_campaign_launched": true,
+      "full_campaign_gate": "passed because the exact action and a separate read-only invocation exercised the new native bottom-status-edge path",
+      "file_saved": false,
+      "reboot": {
+        "ready": true,
+        "transition_observed": true,
+        "duration_ms": 77248,
+        "attempt_duration_ms": 73142,
+        "ready_frame_sha256": "2fde1e1a4cbf9d92c5149e03f6821da9898a0061d8589fb67de27a1ef1dd5b86"
+      }
     }
   ],
   "installed_observer": {
@@ -293,5 +402,5 @@
       "evidence": "The observer window transitioned to a fresh stable Windows desktop; the client PTY dropped the completed helper result before retaining its duration."
     }
   },
-  "finding": "Offline configured-provider replay selected the exact canonical heading hash while retaining a lowercase alternative hash, so candidate hashing was added without retaining recognized text. The first two new live probes did not reach that native selector: overlapping Notepad windows caused a focus-localization failure, then a maximized probe localized five matching reads to Notepad's mirrored tab title at y=1 rather than the body. Pushed b3a2696 added a bounded editor-only top-chrome guard; all 228 typing tests passed, and the live retest exercised it by ignoring eight chrome rows on each of four recoveries and selecting the body at y=44. That body read remained a low-confidence same-length spacing mismatch, so the input was not replayed, no file was saved, and Code-09 v6 remained gated. Every probe reboot observed a real transition. The next slice must diagnose exact spacing evidence on the retained body crop without weakening input, permission, observer, quiescence, or completion gates."
+  "finding": "Offline configured-provider replay selected the exact canonical heading hash while retaining a lowercase alternative hash, so candidate hashing was added without retaining recognized text. Overlapping Notepad windows and mirrored tab-title rows were then excluded. Pushed 82cb017 moved the real editor body through a lossless native crop; its live probe returned the exact heading hash twice at 0.9143 confidence, but the downstream status invariant sampled y=317 instead of the bottom edge. Pushed d85dd65 bounded a shared native bottom-status-edge proof to top-screen maximized editors. A live exact heading action passed with zero corrections or retries, and a separate input-free invocation proved the new y=650 edge path before a 77.248-second reboot. That gate allowed recorded Code-09 v6 to run. The prior installed-observer absence capture remains valid only for the earlier probes; v6's independent observer launch failed separately and is retained in code-09-v6-observer-comparison.json."
 }

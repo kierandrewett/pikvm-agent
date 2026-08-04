@@ -1453,8 +1453,9 @@ campaign digest is `sha256:1448fe01016d`; its 296.5-second VP9 recording is
 `sha256:dfc9290fa3e3` and its poster is `sha256:2498e2610c6d`. The v10 campaign
 and all intervening media remain retained in the ledger.
 
-Code-09 is **not accepted; recorded v6 remains gated after five post-v5 bounded
-readback probes**. v1 launched a fresh blank Notepad
+Code-09 is **not accepted; recorded v6 exercised the native maximized-editor
+fix but failed the 300-second SLA before Save As, and its independent observer
+launch failed closed**. v1 launched a fresh blank Notepad
 document, but policy treated the literal heading `# Release 1.0` as a
 communication send because the word `Release` matched a command side-effect
 expression. The non-allowlisted approval stopped the campaign before document
@@ -1478,6 +1479,7 @@ predicates and did not change the implementation.
 | v3 | Failed safely after live transport remediation | 196.603s | 12 | Numeric Alt route exercised on pushed `837935d`; guest still rendered `£`; no Save action |
 | v4 | Failed safely after exact readback mismatch | 158.074s | 4 | Short exact heading bypassed HTTP print history, used paced websocket HID, rendered exactly, and hit the deadline during faulty OCR readback |
 | v5 | Failed safely after instrumented exact readback mismatch | 220.444s | 18 | Guarded HTTP route and numeric Alt receipt exercised; native pixels are exact, but downscaled OCR read the final `0` as `4` |
+| v6 | Failed safely on speed | 292.012s | 12 | Native heading readback matched; 18 actions completed with zero recoveries, but repeated guarded action execution exhausted the SLA before Save As |
 
 v2 ran on pushed master `7679d11`. The identical `# Release 1.0` action passed
 policy with no approval, proving the v1 remediation was exercised live. Its
@@ -1632,13 +1634,49 @@ Pushed `b3a2696` added a bounded editor-only guard against that chrome. Three
 focused regressions and all 228 typing tests passed; compile, diff, and
 similarity checks were clean apart from existing duplicate families. The live
 retest exercised the guard: it ignored eight top-chrome rows on each of four
-recoveries and selected the actual body at y=44. The body retained 13
-characters but returned a low-confidence same-length spacing mismatch. The
-exact request SHA was emitted once with zero corrections or retries, was not
-replayed, and no file was saved. All three new probe reboots observed a real
-transition. The next slice must diagnose exact spacing evidence on that
-retained body crop; input, permission, quiescence, observer, and completion
-gates remain unchanged.
+recoveries and selected the actual body at y=44. The retained downscaled crop
+was not a spacing-only result: it contained the glyph-corrupted
+`@ Releave 3.0` at low confidence. The exact request SHA was emitted once with
+zero corrections or retries, was not replayed, and no file was saved. All
+three new probe reboots observed a real transition.
+
+Pushed `82cb017` then moved that maximized editor body through one lossless
+native crop. Its live probe returned the exact 13-character heading SHA twice
+at 0.9143 confidence, but the downstream invariant still sampled a y=317
+mid-screen band instead of Notepad's bottom status edge. The input was not
+replayed and no Save action ran. Its reset observed a real transition but
+missed the 180-second ready SLA on the Welcome screen; a bounded extended
+read-only watch eventually reached the stable desktop, and the SLA failure is
+retained.
+
+Pushed `d85dd65` bounded the bottom-edge proof to a top-screen maximized editor
+and routed both ordinary and edge status crops through the same normalized
+native-capture helper. All 231 typing tests passed; compile, diff, and
+similarity checks were clean apart from existing families. A live exact
+heading action passed with 13/13 requested, delivered, emitted, and observed
+characters, zero corrections or retries, and exact SHA equality. A separate
+input-free invocation exercised the new y=650 status-edge branch before a
+77.248-second transition-observed reboot. That gate allowed recorded v6.
+
+v6 completed 18 of 19 attempted actions with zero recoveries, provider
+failures, fallbacks, or schema repairs. The heading matched through the native
+retry at 0.9448 confidence and through a later native read at 0.9072. It still
+failed closed before Save As when the 300-second campaign limit expired:
+guarded action execution consumed 191.727s (65.7% of managed wall), provider
+wait consumed 95.974s (32.9%) across 12 calls, median action latency was
+10.517s, and p95 was 29.176s. Quiescence, recording, and the 77.358-second
+campaign reboot all passed.
+
+The post-run observer result is deliberately not guessed. Guarded Run-field
+readback first reported zero observed characters even though a later fresh
+frame exposed the text. A distinct three-character attempt was appended while
+its own receipt also reported empty; a later Enter receipt claimed completion
+although the Run dialog remained visible with concatenated input. Finally, a
+missing client response caused the direct observer command to be submitted
+twice. The command was cancelled without execution, so v6 has no independent
+current-file or dangerous-commit claim. A second reset completed in 77.479s
+with a real boot transition. This receipt/client-timeout defect is now a
+release blocker alongside the latency failure.
 
 The failure-inclusive ledger is
 [`code-09-attempts.json`](results/2026-08-04/live-vnc/code-09-attempts.json).
@@ -1651,13 +1689,18 @@ Independent absence and reset evidence is retained for
 [`v2`](results/2026-08-04/live-vnc/code-09-v2-observer-comparison.json),
 [`v3`](results/2026-08-04/live-vnc/code-09-v3-observer-comparison.json), and
 [`v4`](results/2026-08-04/live-vnc/code-09-v4-observer-comparison.json), and
-[`v5`](results/2026-08-04/live-vnc/code-09-v5-observer-comparison.json).
-The ledger digest is `sha256:ba7c5093b72b`; the native-readback probe digest is
-`sha256:f2d88dedbb2b`; the key-path probe digest is
+[`v5`](results/2026-08-04/live-vnc/code-09-v5-observer-comparison.json). The
+failed v6 observer launch, campaign metrics, and second reset are retained
+separately in
+[`v6`](results/2026-08-04/live-vnc/code-09-v6-observer-comparison.json); that
+report explicitly makes no artifact comparison claim.
+The ledger digest is `sha256:0db7ebbeb4ce`; the native-readback probe digest is
+`sha256:ccc6cd47bfdd`; the key-path probe digest is
 `sha256:3bd5284b38a1`; the observer-report digests are
 `sha256:9145f099f2db`, `sha256:5e1089ff5537`, and
 `sha256:08db92ad22e7`, `sha256:6f97c9f5412e`, and
-`sha256:d54ff1b4c4f9`, respectively.
+`sha256:d54ff1b4c4f9`; the failed v6 capture report is
+`sha256:cc3b0af1de2b`.
 The v1 campaign digest is `sha256:45d79fa42371`; its 150.5-second VP9 recording
 is `sha256:326c660001e1` and its poster is `sha256:ef31e95c379d`. The v2
 campaign digest is `sha256:0e7595958008`; its 247.5-second VP9 recording is
@@ -1668,11 +1711,13 @@ The v4 campaign digest is `sha256:c9a4730aec9b`; its 222.5-second VP9 recording
 is `sha256:cace9a958615` and its poster is `sha256:241740ad9fd1`.
 The v5 campaign digest is `sha256:304176a29a03`; its 262-second VP9 recording
 is `sha256:bf04fd6cd397` and its poster is `sha256:4f5194a2d21e`.
+The v6 campaign digest is `sha256:6c2320385705`; its 356-second VP9 recording
+is `sha256:20675156e855` and its poster is `sha256:8a9f1a744648`.
 
 Failure-inclusive metrics, canonical campaign digests, the 33 accepted task
 IDs, and the VP9 recording/poster hashes are retained in
 [`codex-50-progress.json`](results/2026-07-31/live-vnc/codex-50-progress.json).
-Its updated digest is `sha256:f9416b034e9a`.
+Its updated digest is `sha256:5e1903d70293`.
 The complete 50-task manifest is
 [`codex-50-tasks.yaml`](codex-50-tasks.yaml).
 

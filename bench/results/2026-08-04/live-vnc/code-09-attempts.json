@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "report": "codex-code-entry-code09-failure-inclusive-attempts",
-  "recorded_at": "2026-08-04T13:42:26Z",
+  "recorded_at": "2026-08-04T15:14:05Z",
   "environment": {
     "target": "authorized disposable Windows VNC VM",
     "production_target_contacted": false,
@@ -26,15 +26,15 @@
     ]
   },
   "summary": {
-    "full_task_runs": 5,
-    "failed_runs": 5,
+    "full_task_runs": 6,
+    "failed_runs": 6,
     "invalid_runs": 0,
     "passed_runs": 0,
     "all_failures_retained": true,
     "all_recordings_retained": true,
     "all_reboots_ready": true,
     "all_reboots_observed_real_transition": true,
-    "release_gate": "failing: five post-v5 bounded probes now isolate exact readback to the maximized editor body; the tab-title guard was exercised live, but the body still returned a low-confidence same-length spacing mismatch, so recorded v6 remains gated"
+    "release_gate": "failing: recorded v6 exercised the maximized-editor native readback fix and entered 18 actions with zero recoveries, but exceeded the 300-second SLA before Save As; its post-run observer launch then exposed stale Run-field readback, a false completed Enter receipt, and an accidental replay after a missing client response, so no independent current-file claim is made"
   },
   "attempts": [
     {
@@ -336,6 +336,73 @@
       },
       "poster_sha256": "4f5194a2d21e18c182abcc8c7c5913a23833c1d77edcfa26cab42eb926ff906d",
       "campaign_sha256": "304176a29a03aa39f2e09725fd02842f26a5b68bb826b8e7024890e9e0b7b911"
+    },
+    {
+      "campaign_id": "codex-code-entry-code09-v6-20260804",
+      "manifest_campaign_id": "codex-windows-50",
+      "accepted_status": "failed",
+      "campaign_reported_status": "failed",
+      "run_id": "5a327953-45cd-423a-8bdf-7744ff5ac499",
+      "source_commit": "d85dd6579c2de0c4764b4084c09ec8d35d32a24a",
+      "reason": "The maximized-editor native readback remediation was exercised live. The exact 13-character heading hash matched on the native retry and later native reads, and the model completed 18 actions with zero recoveries or provider failures. The run still exceeded the 300-second campaign SLA before Save As: guarded action execution consumed 191.727 seconds and provider wait consumed 95.974 seconds. It failed closed, quiesced, recorded, and rebooted.",
+      "wall_clock_ms": 292012,
+      "task_duration_ms": 440893,
+      "preflight_ms": 57226,
+      "model_active_ms": 94929,
+      "provider_wait_ms": 95974,
+      "action_execution_ms": 191727,
+      "evidence_capture_ms": 2605,
+      "provider_calls": 12,
+      "reasoner_calls": 1,
+      "controller_calls": 1,
+      "verifier_calls": 10,
+      "actions_attempted": 19,
+      "actions_completed": 18,
+      "action_recoverable_failures": 0,
+      "same_run_recoveries": 0,
+      "approval_requests": 0,
+      "approvals_granted": 0,
+      "maximized_editor_native_readback_fix_exercised": true,
+      "maximized_editor_native_readback_fix_effective": true,
+      "heading_input_emitted": true,
+      "heading_native_readback": {
+        "requested_characters": 13,
+        "requested_sha256": "a09f21ee71a9b858aefacb390fbac6f29ce0e0c7523918d4e4bb691c29b4e3db",
+        "retry_verdict": "match",
+        "retry_mean_confidence": 0.9448,
+        "later_verdict": "match",
+        "later_mean_confidence": 0.9072
+      },
+      "save_committed": false,
+      "failed_input_status": null,
+      "task_error": "task exceeded the campaign time limit",
+      "slowest_action_ms": 37797.53,
+      "median_action_ms": 10516.959,
+      "p95_action_ms": 29176.132999999987,
+      "quiescence_status": "confirmed",
+      "reboot_ms": 77358,
+      "reboot_transition_observed": true,
+      "post_observer_reset_ms": 77479,
+      "post_observer_reset_transition_observed": true,
+      "observer": {
+        "capture_status": "failed",
+        "current_path_absent": null,
+        "dangerous_commit_count": null,
+        "command_executed": false,
+        "reason": "Guarded observer setup returned stale or empty Run-field readback, later exposed concatenated unverified input, and replayed the direct observer command after the first client response was lost. The command was cancelled without execution.",
+        "comparison_report": "bench/results/2026-08-04/live-vnc/code-09-v6-observer-comparison.json"
+      },
+      "recording": {
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2.0,
+        "duration_ms": 356000,
+        "size_bytes": 1572351,
+        "sha256": "20675156e855a84632b12325ebff49c972040509684d6fd13ecf3d7ae63fa0fa"
+      },
+      "poster_sha256": "8a9f1a744648ab6c57c0477d602cf90cb9de6cb4e53b72b2e00c01b393768694",
+      "campaign_sha256": "6c2320385705eda4d05fb1980e9be89e8f76dc6f9f1f1d04c758aa41e9fb8ee2"
     }
   ],
   "remediations": [
@@ -404,6 +471,18 @@
       "commit": "b3a26960743172f3e5d5e7e292d26c029a6ae496",
       "change": "For an auto-located editor field only, exclude top-screen maximized editor chrome from precise OCR recovery so a tab title mirroring the first document row cannot prove the editor body.",
       "tests": "228 typing tests passed; 3 focused editor-localization regressions passed; compile and diff checks were clean; similarity scan reported only existing duplicate families"
+    },
+    {
+      "after_attempt": "v5-editor-body-probe",
+      "commit": "82cb01730325f8f9cc8600fb6b1f3690dcc03670",
+      "change": "Use one lossless native crop for maximized editor-body recovery instead of relying on the downscaled body row.",
+      "tests": "230 typing tests passed before push"
+    },
+    {
+      "after_attempt": "v5-status-edge-probe",
+      "commit": "d85dd6579c2de0c4764b4084c09ec8d35d32a24a",
+      "change": "For a top-screen maximized editor body only, verify the independently grounded bottom-screen Notepad status edge through the shared native-crop OCR path.",
+      "tests": "231 typing tests passed; compile and diff checks were clean; similarity scan reported only existing duplicate families"
     }
   ],
   "diagnostic_probes": "bench/results/2026-08-04/live-vnc/code-09-native-readback-probes.json",
@@ -420,8 +499,12 @@
       "Offline configured-provider replay selected the exact canonical heading while also retaining a lowercase alternative, so pushed d7bd484 added content-free candidate and selector fingerprints without retaining recognized text.",
       "A subsequent overlapping-window probe failed focus localization, and a maximized-window probe then revealed five apparent matches came from Notepad's mirrored tab title at y=1 rather than the document body.",
       "Pushed b3a2696 excluded maximized editor chrome for auto-located editor recovery. The live retest exercised the guard, ignored eight chrome rows on each of four recoveries, and selected the editor body at y=44; that body retained 13 characters but returned a low-confidence spacing mismatch.",
-      "All five heading probes emitted the exact 13-character SHA once with zero corrections or delivery retries. No new file was saved; the installed observer's prior independent capture confirmed code-09.md absent with zero dangerous commits, no prior artifact was claimed, and every probe reset visibly returned to a fresh desktop."
+      "All five pre-v6 heading probes emitted the exact 13-character SHA once with zero corrections or delivery retries. No new file was saved; the installed observer's prior independent capture confirmed code-09.md absent with zero dangerous commits, no prior artifact was claimed, and every probe reset visibly returned to a fresh desktop.",
+      "Pushed 82cb017 moved maximized editor-body recovery to a native crop. Its live probe matched the exact heading hash twice at 0.9143 confidence but still sampled the wrong status band.",
+      "Pushed d85dd65 added a bounded native bottom-status-edge proof. A live exact-heading action passed with zero corrections or retries, and a separate read-only call exercised the new edge path before a 77.248-second reboot.",
+      "Recorded v6 then completed 18 actions with zero recoveries or provider failures and exact native heading hashes, but exceeded the 300-second SLA before Save As. Action execution was 65.7 percent of managed wall and provider wait was 32.9 percent.",
+      "The v6 observer capture is unavailable by design rather than guessed: guarded launcher readback returned empty or stale evidence, a later frame exposed concatenated unverified text, and a missing client response caused one accidental direct-command replay. The command was cancelled and the VM reset through a 77.479-second observed reboot."
     ],
-    "next_attempt": "Replay the retained y=44 editor-body crop through the exact spacing-evidence path and retain content-free candidate and spacing fingerprints. Implement one bounded body-spacing fix, prove its native event live, and run recorded Code-09 v6 only after the body read returns exact."
+    "next_attempt": "Fix the causal Run-field receipt/client-timeout defect before relying on observer launch evidence, then make one bounded latency optimization that reduces repeated exact-line verification without weakening exact input, permissions, quiescence, observer, recording, or reboot gates. Run recorded Code-09 v7 only after both fixes are exercised live."
   }
 }
