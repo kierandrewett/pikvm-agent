@@ -8218,6 +8218,85 @@ async def test_empty_native_primary_does_not_promote_ambiguous_exact_rows() -> N
     _assert_no_enter(backend)
 
 
+async def test_short_field_prefers_compact_text_above_larger_control_effect(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Run-like fields must not localize to the enabled button below them."""
+
+    async def no_sleep(_seconds: float) -> None:
+        return None
+
+    intended = "xyz"
+    before = Image.new("RGB", (1280, 720), "#202020")
+    after = before.copy()
+    draw = ImageDraw.Draw(after)
+    draw.rectangle((40, 600, 47, 605), fill="white")
+    draw.rectangle((68, 650, 143, 682), outline="white", width=2)
+    before_output = io.BytesIO()
+    after_output = io.BytesIO()
+    before.save(before_output, "JPEG", quality=95)
+    after.save(after_output, "JPEG", quality=95)
+    monkeypatch.setattr(asyncio, "sleep", no_sleep)
+    monkeypatch.setattr(
+        typing_module,
+        "locate_changed_bbox",
+        lambda *_args, **_kwargs: None,
+    )
+
+    class RunLikeBackend(FakeBackend):
+        def __init__(self) -> None:
+            super().__init__(width=1280, height=720, layout="uk")
+            self.set_frame_bytes(before_output.getvalue())
+            self.native_regions: list[Region] = []
+
+        async def screenshot(self, region=None):
+            if region is None:
+                return await super().screenshot()
+            self.native_regions.append(region)
+            output = io.BytesIO()
+            if region.y < 630:
+                Image.new("RGB", (318, 48), "navy").save(output, "JPEG")
+                return to_captured_frame(output.getvalue(), 318, 48)
+            Image.new("RGB", (200, 60), "maroon").save(output, "JPEG")
+            return to_captured_frame(output.getvalue(), 200, 60)
+
+        async def type_text(
+            self,
+            text: str,
+            *,
+            code: bool = False,
+            secret: bool = False,
+        ) -> None:
+            await super().type_text(text, code=code, secret=secret)
+            self.set_frame_bytes(after_output.getvalue())
+
+    class ResolutionAwareOCR:
+        async def ocr(self, image_path, region=None):
+            return await self.ocr_precise(image_path, region=region)
+
+        async def ocr_precise(self, image_path, region=None):
+            if Image.open(image_path).size == (318, 48):
+                return OCRResult(
+                    lines=[OCRLine(text=intended, confidence=0.99)],
+                    spacing_evidence="verified",
+                )
+            return OCRResult()
+
+    backend = RunLikeBackend()
+    result = await WatchedTyper(backend, ResolutionAwareOCR()).type_text(
+        intended,
+        exact=True,
+        context="field",
+    )
+
+    assert result.status == "verified_exact", result
+    assert result.field_text == intended
+    assert result.emitted_exactly_once is True
+    assert backend.native_regions
+    assert backend.native_regions[0].y < 630
+    _assert_no_enter(backend)
+
+
 async def test_terminal_wrapped_readback_reocrs_the_causal_rows(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

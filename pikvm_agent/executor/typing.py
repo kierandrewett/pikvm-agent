@@ -4046,7 +4046,7 @@ class WatchedTyper:
                 not precise
                 or (total > 20 and not bounded_editor_code)
                 or explicit_region
-                or single_line_field
+                or (single_line_field and coarse_region is not None)
                 or before_frame is None
                 or after_frame is None
             ):
@@ -4056,7 +4056,9 @@ class WatchedTyper:
                 before_frame.data,
                 after_frame.data,
                 dims,
-                allow_compact=structural_code_glyph,
+                allow_compact=(
+                    structural_code_glyph or single_line_field
+                ),
             )
             if not candidates:
                 return None
@@ -4069,7 +4071,11 @@ class WatchedTyper:
                         and regions_overlap(coarse_region, indexed[1])
                     )
                     else 1,
-                    indexed[0],
+                    (
+                        indexed[1].y
+                        if single_line_field
+                        else indexed[0]
+                    ),
                 ),
             )
             checked = 0
@@ -4107,10 +4113,11 @@ class WatchedTyper:
                             )
                             for alternative in ocr_result.alternatives
                         )
-                    )
+                )
 
                 for _index, candidate in ordered[:4]:
                     checked += 1
+                    used_native_primary = False
                     # Dense candidates are already padded around only the
                     # pixels changed by this exact emission. Expanding them
                     # with the generic field margin can pull in editor borders,
@@ -4134,6 +4141,41 @@ class WatchedTyper:
                         region=candidate_readback_region,
                     )
                     spacing_verified = has_spacing_proof(result)
+                    if (
+                        single_line_field
+                        and compute_verdict(
+                            intended_snapshot,
+                            result.text,
+                            True,
+                        )
+                        != "match"
+                    ):
+                        # A tiny field delta can be smaller than the enabled
+                        # button repaint below it. Evaluate compact candidates
+                        # in screen order and re-read each from one lossless
+                        # backend crop. This remains causal geometry: expected
+                        # text may verify a candidate but never selects it, and
+                        # no HID is replayed when every crop is ambiguous.
+                        native_read = await self._read_field(
+                            candidate_readback_region,
+                            intended=intended_snapshot,
+                            precise=True,
+                            allow_blind_fallback=True,
+                            allow_native_primary_fallback=True,
+                            allow_empty_native_primary_fallback=True,
+                            extract_structured_exact_row=True,
+                        )
+                        if (
+                            compute_verdict(
+                                intended_snapshot,
+                                native_read,
+                                True,
+                            )
+                            == "match"
+                        ):
+                            result = self._last_field_ocr_result
+                            spacing_verified = has_spacing_proof(result)
+                            used_native_primary = True
                     if (
                         not spacing_verified
                         and any(
@@ -4419,12 +4461,16 @@ class WatchedTyper:
                         ),
                     )
                     self._last_read_semantic_spacing = spacing_verified
-                    frame_sha256 = str(after_frame.sha256 or "").lower()
-                    self._last_readback_frame_sha256 = (
-                        frame_sha256
-                        if re.fullmatch(r"[0-9a-f]{64}", frame_sha256)
-                        else hashlib.sha256(after_frame.data).hexdigest()
-                    )
+                    if not used_native_primary:
+                        frame_sha256 = str(after_frame.sha256 or "").lower()
+                        self._last_readback_frame_sha256 = (
+                            frame_sha256
+                            if re.fullmatch(
+                                r"[0-9a-f]{64}",
+                                frame_sha256,
+                            )
+                            else hashlib.sha256(after_frame.data).hexdigest()
+                        )
                     # This OCR is already grounded to the before/after pixel
                     # delta from the current at-most-once emission. A unique
                     # exact row, confidence gate, and independently verified
