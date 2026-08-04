@@ -1055,23 +1055,32 @@ class VncAdapter:
         path = str(CAMPAIGN_WORKSPACE)
         visible_path = path.replace("\\", "/")
         prepared: list[dict[str, str]] = []
+        workspace_marker_attempts = 0
         await self.show_desktop()
         await self._type_run_command(
             f"cmd /d /c mkdir {visible_path} 2>nul"
         )
         if fresh_artifacts:
-            workspace_token = uuid.uuid4().hex
-            workspace_marker = (
-                f"PIKVMWORKSPACE{_ocr_marker_token(workspace_token)}"
-            )
-            await self._type_run_command(
-                f"cmd /d /k cd /d {visible_path} "
-                f"&& echo {workspace_marker}"
-            )
-            if not await self._wait_for_ocr_marker(
-                workspace_marker,
-                timeout_s=12,
-            ):
+            # A recorded VNC run produced a complete visible marker while the
+            # first nonce challenge still failed closed. Retry the entire
+            # open/type/submit/readback challenge once with a fresh nonce; do
+            # not accept the earlier marker or bypass the OCR proof.
+            for attempt in range(1, 3):
+                workspace_token = uuid.uuid4().hex
+                workspace_marker = (
+                    f"PIKVMWORKSPACE{_ocr_marker_token(workspace_token)}"
+                )
+                workspace_marker_attempts = attempt
+                await self._type_run_command(
+                    f"cmd /d /k cd /d {visible_path} "
+                    f"&& echo {workspace_marker}"
+                )
+                if await self._wait_for_ocr_marker(
+                    workspace_marker,
+                    timeout_s=12,
+                ):
+                    break
+            else:
                 raise TimeoutError(
                     "campaign workspace did not produce a visible success "
                     "marker"
@@ -1126,6 +1135,7 @@ class VncAdapter:
             **ready,
             "path": path,
             "method": "visible_windows_run_segmented",
+            "workspace_marker_attempts": workspace_marker_attempts,
             "fresh_artifacts": prepared,
         }
 

@@ -944,6 +944,79 @@ async def test_campaign_workspace_preflight_uses_segmented_visible_commands(
 
 
 @pytest.mark.asyncio
+async def test_campaign_workspace_preflight_retries_a_rejected_marker(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    sent: list[dict[str, object]] = []
+    printed: list[str] = []
+    marker_checks: list[str] = []
+    uuid_values = iter(("a" * 32, "b" * 32, "c" * 32))
+    monkeypatch.setattr(
+        showcase_runner,
+        "websocket_connect",
+        _socket_factory(sent),
+    )
+    monkeypatch.setattr(
+        showcase_runner.uuid,
+        "uuid4",
+        lambda: type("Uuid", (), {"hex": next(uuid_values)})(),
+    )
+    async with httpx.AsyncClient(
+        transport=httpx.MockTransport(_snapshot_handler(printed))
+    ) as client:
+        adapter = VncAdapter(client, "http://127.0.0.1:48002")
+
+        async def visible_transition(**_kwargs: object) -> bool:
+            return True
+
+        async def marker_visible(marker: str, **_kwargs: object) -> bool:
+            marker_checks.append(marker)
+            if marker.startswith("PIKVMWORKSPACE"):
+                return len(marker_checks) == 2
+            return marker.startswith("PIKVMABSENT")
+
+        async def ready(**_kwargs: object) -> dict[str, object]:
+            return {
+                "ready": True,
+                "frame_sha256": "f" * 64,
+            }
+
+        adapter._wait_for_run_dialog = (  # type: ignore[method-assign]
+            visible_transition
+        )
+        adapter._wait_for_ocr_marker = (  # type: ignore[method-assign]
+            marker_visible
+        )
+        adapter.wait_until_ready = ready  # type: ignore[method-assign]
+
+        result = await adapter.ensure_campaign_workspace(
+            [
+                (
+                    r"C:\PiKVM-Harness\workspace\codex-50"
+                    r"\code-08.cmd"
+                )
+            ]
+        )
+
+    assert result["workspace_marker_attempts"] == 2
+    assert marker_checks[:2] == [
+        "PIKVMWORKSPACELLLLLLLLLLLL",
+        "PIKVMWORKSPACEMMMMMMMMMMMM",
+    ]
+    assert printed[:3] == [
+        "cmd /d /c mkdir C:/PiKVM-Harness/workspace/codex-50 2>nul",
+        (
+            "cmd /d /k cd /d C:/PiKVM-Harness/workspace/codex-50 "
+            "&& echo PIKVMWORKSPACELLLLLLLLLLLL"
+        ),
+        (
+            "cmd /d /k cd /d C:/PiKVM-Harness/workspace/codex-50 "
+            "&& echo PIKVMWORKSPACEMMMMMMMMMMMM"
+        ),
+    ]
+
+
+@pytest.mark.asyncio
 async def test_campaign_workspace_preflight_preserves_a_prior_task_artifact(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
