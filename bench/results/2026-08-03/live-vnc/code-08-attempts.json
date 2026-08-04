@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "report": "codex-code-entry-code08-failure-inclusive-attempts",
-  "recorded_at": "2026-08-03T23:27:13Z",
+  "recorded_at": "2026-08-04T00:09:29Z",
   "environment": {
     "target": "authorized disposable Windows VNC VM",
     "production_target_contacted": false,
@@ -25,17 +25,17 @@
     ]
   },
   "summary": {
-    "recorded_attempts": 24,
-    "valid_full_task_runs": 18,
-    "failed_runs": 16,
+    "recorded_attempts": 25,
+    "valid_full_task_runs": 19,
+    "failed_runs": 17,
     "infrastructure_invalid_runs": 6,
     "passed_runs": 2,
     "canonical_attempt": "v23",
     "all_failures_retained": true,
     "all_recordings_retained": true,
-    "reboots_ready": 23,
+    "reboots_ready": 24,
     "reboots_failed_or_pending": 1,
-    "release_gate": "accuracy passing; v24 exercised a sub-300-second speed optimization but retained a policy-stop failure before task completion"
+    "release_gate": "accuracy passing; v24 remains the sub-300-second speed candidate, while v25 retained a safe Save-filename failure before the Open optimization could be exercised"
   },
   "attempts": [
     {
@@ -970,6 +970,93 @@
       },
       "poster_sha256": "795bc21f140e2fad4d659492aeb7239cd4aa01c39d9f8ce471d06c49f105ce7f",
       "campaign_sha256": "93da1644f0f9b7c05eba9fee3dc3abea62bf8a530d373deb3f4e95a83a95b2a2"
+    },
+    {
+      "campaign_id": "codex-code-entry-code08-v25-20260804",
+      "accepted_status": "failed",
+      "campaign_reported_status": "failed",
+      "run_id": "471afa61-2343-4cac-b0e6-7c67d1cdcc19",
+      "source_commit": "faf687b",
+      "reason": "All nine code rows were emitted exactly once, but Save As basename readback included an autocomplete-history suffix and remained unverified_wrong_region. A focus-only recovery visibly found code-08.cmd; it could not overwrite the ambiguous input receipt. The guard rejected both the replacement draft and the later click commit before HID. The current path remained absent, while the installed observer exactly matched the genuinely preserved v24 artifact.",
+      "wall_clock_ms": 222396,
+      "task_duration_ms": 406555,
+      "preflight_ms": 97816,
+      "model_active_ms": 94190,
+      "provider_wait_ms": 89542,
+      "provider_serial_equivalent_ms": 95033,
+      "provider_overlap_ms": 5491,
+      "action_execution_ms": 129216,
+      "evidence_capture_ms": 1525,
+      "unclassified_overhead_ms": 1875,
+      "provider_calls": 12,
+      "reasoner_calls": 2,
+      "controller_calls": 4,
+      "verifier_calls": 6,
+      "actions_attempted": 7,
+      "actions_completed": 6,
+      "approval_requests": 1,
+      "approvals_granted": 1,
+      "approval_scopes": [
+        "bounded_workspace_edit"
+      ],
+      "same_run_recoveries": 1,
+      "optimization": {
+        "commit": "faf687b",
+        "intended_path": "Retain the exact Open filename receipt across the verified Alt+N, Ctrl+A, exact-type burst.",
+        "exercised": false,
+        "reason": "The run stopped in the earlier Save As filename flow before Open."
+      },
+      "editor_input": {
+        "rows": 9,
+        "windows_crlf_bytes": 127,
+        "sha256": "c5e247fcb3f17892938d047673cab4efbc6588140cd5d6b5047c553a8349ced4",
+        "all_text_segments_emitted_exactly_once": true
+      },
+      "filename_receipt": {
+        "requested": "code-08.cmd",
+        "status": "unverified_wrong_region",
+        "proof_state": "ambiguous_readback",
+        "observed_text": "code-08.cmd.pikvm-prior-7800da7479db4393853ad",
+        "emitted_exactly_once": true,
+        "save_committed": false
+      },
+      "guarded_followup": {
+        "focus_recovery_completed": true,
+        "replacement_draft_rejected": true,
+        "commit_attempt_rejected": true,
+        "unsafe_followup_input_sent": false
+      },
+      "observer_artifact_comparison": {
+        "transport": "guarded MCP visual matrix",
+        "current_path": "C:/PiKVM-Harness/workspace/codex-50/code-08.cmd",
+        "current_pages": 3,
+        "current_checksum_valid": true,
+        "current_file_error": "open failed",
+        "current_observed_bytes": 0,
+        "preserved_prior_path": "C:/PiKVM-Harness/workspace/codex-50/pikvmpriore99bbc939f8b4147a06b74457f3d316a.cmd",
+        "preserved_prior_pages": 5,
+        "preserved_prior_checksum_valid": true,
+        "preserved_prior_observed_bytes": 127,
+        "preserved_prior_observed_sha256": "05a8eb6d2b8af34f895038acb1e1186bca3633df2a8b7be979046214e66a6eed",
+        "exact_match_to_v24": true,
+        "dangerous_commit_count": 0,
+        "comparison_report": "bench/results/2026-08-03/live-vnc/code-08-v25-observer-comparison.json"
+      },
+      "reboot_ms": 79373,
+      "reboot_transition_observed": true,
+      "post_observer_reset_ms": 76426,
+      "post_observer_reset_transition_observed": true,
+      "recording": {
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2.0,
+        "duration_ms": 270500,
+        "size_bytes": 1504367,
+        "sha256": "75f70b28c75aa6d7907c19c79efa22f464d09206095f08a6ef5c3a712b964836"
+      },
+      "poster_sha256": "0089be8e364f01b17651128f809d4bf9ca837e51a31cb54e7b3e2fc496dc4609",
+      "campaign_sha256": "ee1136737323b5dde9b127b65f20dbc32e807f14448a0521c8c3438f1419cb5c"
     }
   ],
   "remediations": [
@@ -1089,6 +1176,11 @@
       "after_attempt": "v23",
       "commit": "349df9a",
       "change": "After a verified Open dialog, combine Alt+N, Ctrl+A and exact basename typing into one burst while preserving exact field readback before the separate Open commit."
+    },
+    {
+      "after_attempt": "v24",
+      "commit": "faf687b",
+      "change": "Preserve the exact Open filename receipt when the verified Alt+N, Ctrl+A, exact-type burst precedes the separate grounded Open commit."
     }
   ],
   "next_gate": {
@@ -1104,10 +1196,13 @@
       "The accepted run and the post-observer cleanup each completed a transition-observed reboot.",
       "v24 exercised the bounded Open-filename burst, reduced provider calls from 20 to 14, and reached 269.650 seconds without weakening exact readback.",
       "v24 current-run and genuinely preserved-prior bytes independently matched their immutable sources, and both required reboots observed transitions.",
-      "v24 remains failed because the final bare Enter was not contextually authorized; policy held it instead of converting a speed candidate into a false pass."
+      "v24 remains failed because the final bare Enter was not contextually authorized; policy held it instead of converting a speed candidate into a false pass.",
+      "v25 emitted the complete 127-byte editor draft once, then stopped safely when Save As readback included an autocomplete-history suffix.",
+      "The v25 current path remained absent, the genuinely preserved v24 artifact matched exactly, zero dangerous commits were observed, and both required reboots observed transitions.",
+      "The v25 run did not reach Open, so commit faf687b was not exercised live and v24 remains the latest speed candidate."
     ],
     "blocking_infrastructure_state": null,
-    "next_attempt": "Preserve the global bare-Enter guard, but ground the final Enter to an exact verified native Open filename and bounded workspace-open intent; then repeat as v25 and accept the speed gate only if the complete task passes with observer proof and mandatory reboots.",
+    "next_attempt": "Diagnose and bound the Save As wrong-region readback without weakening the unverified-draft guard. Run v26 only after a regression proves the intended path, and accept the speed gate only if the complete task passes with exact observer proof and mandatory reboots.",
     "next_task_after_speed_gate": "code-09"
   }
 }

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "report": "codex-50-live-progress",
-  "recorded_at": "2026-08-03T22:48:28Z",
+  "recorded_at": "2026-08-04T00:09:29Z",
   "manifest": "bench/codex-50-tasks.yaml",
   "environment": {
     "target": "authorized disposable Windows VNC VM",
@@ -275,11 +275,11 @@
       "campaign_sha256": "ead7dadee0df70bab3f13b4f48f5babc810347d43a313c56df8e88e5610189cd"
     },
     {
-      "campaign_id": "codex-code-entry-code08-v10-20260803",
+      "campaign_id": "codex-code-entry-code08-v23-20260803",
       "tasks": [
         "code-08"
       ],
-      "campaign_sha256": "9dbc7c98e97adf5224a5ed14239c04bfb2e1366e10dbbe37b38951281ffcc27f"
+      "campaign_sha256": "23ad16dfc6f0d1898f9ae4aaab99198d4e83e0b38f80accf6036d5e448cc4303"
     }
   ],
   "calc_09_acceptance": {
@@ -3451,10 +3451,10 @@
     "full_ledger": "bench/results/2026-08-02/live-vnc/code-03-attempts.json"
   },
   "verdict": {
-    "accuracy": "The campaign is 33/50. All ten Text entry tasks and the first eight Code entry tasks pass. Code-08 v10 remains canonical. The self-verifying preflight is now live: v19-v21 safely exposed three foreground-Notepad OCR misses before document input, and v22 executed all nine rows once before the unverified-draft guard blocked an ambiguous Save As filename. All 22 attempts, including six infrastructure-invalid runs and fifteen valid-task failures, remain in the ledger.",
-    "speed": "Failing product target: accepted code-08 v10 took 869.893 seconds for the managed run and 1079.054 seconds from task preflight through the reset-ready gate. It populated two Notepad documents and made 66 provider calls before converging, materially slower than a competent human.",
-    "dominant_cost": "Code-08 v10 spent 719.647 seconds in action execution and 476.667 seconds waiting on the critical provider path, with 336.204 seconds of overlap. Thirty-three verifier turns, 24 controller turns, nine reasoner turns, and repeated Save/Open loops dominate the avoidable cost.",
-    "next": "Run code-08 v23 only after grounding the native Save As filename field to its selected edit control so autocomplete cannot produce a wrong-region receipt. Preserve exact observer comparison, bounded workspace approval, fresh-artifact preparation, quiescence, mandatory reboot, recording, and all failures before advancing to code-09."
+    "accuracy": "The campaign is 33/50. All ten Text entry tasks and the first eight Code entry tasks pass. Code-08 v23 is canonical: its installed-observer bytes matched the exact 127-byte current-run CRLF plan, and both required reboots observed transitions. All 25 attempts remain retained, including six infrastructure-invalid runs and seventeen valid-task failures.",
+    "speed": "Failing product target: canonical code-08 v23 took 318.782 seconds. v24 reached 269.650 seconds and 14 provider calls, but remained a safe policy-stop failure. v25 stopped earlier at Save As in 222.396 seconds; it did not complete the task or exercise the Open optimization.",
+    "dominant_cost": "On v25, action execution consumed 129.216 seconds (58.1% of managed wall) and provider wait consumed 89.542 seconds (40.3%) across 12 calls. The 55.192-second exact Save filename readback and its guarded recovery dominated the failed attempt.",
+    "next": "Diagnose the Save As wrong-region readback without weakening exact-input or unverified-draft guards. Run code-08 v26 only after a bounded regression proves the intended path, retaining observer comparison, approvals, quiescence, recording, and both mandatory resets."
   },
   "code_04_acceptance": {
     "task": "Write, save, reopen, and visually verify a grouped customer-value SQL query in Notepad",
@@ -3992,51 +3992,56 @@
     "campaign_sha256": "23ad16dfc6f0d1898f9ae4aaab99198d4e83e0b38f80accf6036d5e448cc4303"
   },
   "code_08_attempt_summary": {
-    "recorded_attempts": 24,
-    "valid_full_task_runs": 18,
-    "failed_runs": 16,
+    "recorded_attempts": 25,
+    "valid_full_task_runs": 19,
+    "failed_runs": 17,
     "infrastructure_invalid_runs": 6,
     "passed_runs": 2,
     "canonical_campaign_id": "codex-code-entry-code08-v23-20260803",
-    "post_pass_speed_attempts": 14,
-    "post_pass_state": "v11-v22 remain retained with every repeated Save-field, keymap, OCR, content-contract, preflight and policy failure. v23 remains the canonical accuracy pass. v24 exercised the bounded Open-filename burst, matched both current and genuinely preserved-prior bytes through the installed observer, cut managed wall to 269.650 seconds and provider calls to 14, but correctly stopped at the final non-allowlisted bare Enter; it is a speed candidate, not an accepted pass.",
+    "post_pass_speed_attempts": 15,
+    "post_pass_state": "v11-v22 remain retained with every repeated Save-field, keymap, OCR, content-contract, preflight and policy failure. v23 remains the canonical accuracy pass. v24 remains the 269.650-second speed candidate. v25 emitted its complete 127-byte editor draft exactly once, then failed closed on an ambiguous Save As receipt before the Open provenance fix could be exercised; the current path was absent and the genuinely preserved v24 bytes matched exactly.",
     "latest_post_pass_attempt": {
-      "campaign_id": "codex-code-entry-code08-v24-20260803",
+      "campaign_id": "codex-code-entry-code08-v25-20260804",
       "accepted_status": "failed",
       "campaign_reported_status": "failed",
-      "run_id": "b1035e36-4475-4ad1-b9f6-ffe968f8c397",
-      "source_commit": "349df9a",
-      "wall_clock_ms": 269650,
-      "task_duration_ms": 451816,
-      "provider_calls": 14,
-      "actions_attempted": 10,
-      "actions_completed": 9,
-      "action_execution_ms": 139769,
-      "completion_gate_rejections": 0,
+      "run_id": "471afa61-2343-4cac-b0e6-7c67d1cdcc19",
+      "source_commit": "faf687b",
+      "wall_clock_ms": 222396,
+      "task_duration_ms": 406555,
+      "model_active_ms": 94190,
+      "provider_wait_ms": 89542,
+      "provider_serial_equivalent_ms": 95033,
+      "provider_overlap_ms": 5491,
+      "provider_calls": 12,
+      "actions_attempted": 7,
+      "actions_completed": 6,
+      "action_execution_ms": 129216,
+      "unverified_followup_rejections": 2,
       "autonomous_resumes": 0,
-      "non_allowlisted_approvals": 1,
-      "terminal_policy_hold": "bare Enter/Return may commit the focused surface",
-      "reboot_ms": 79511,
+      "non_allowlisted_approvals": 0,
+      "open_provenance_optimization_exercised": false,
+      "terminal_policy_hold": "controller tried to change or execute an unverified input draft",
+      "reboot_ms": 79373,
       "reboot_transition_observed": true,
-      "post_observer_reset_ms": 110717,
+      "post_observer_reset_ms": 76426,
       "post_observer_reset_transition_observed": true,
-      "observer_comparison": "The current four-page capture exactly matched v24's 127-byte immutable receipt, while the preserved-prior five-page capture exactly matched canonical v23; both reported zero dangerous commits",
-      "comparison_report": "bench/results/2026-08-03/live-vnc/code-08-v24-observer-comparison.json",
+      "observer_comparison": "The current three-page capture returned open failed, while the genuinely preserved-prior five-page capture exactly matched v24's 127-byte artifact; both reported zero dangerous commits",
+      "comparison_report": "bench/results/2026-08-03/live-vnc/code-08-v25-observer-comparison.json",
       "recording": {
-        "sha256": "7a5bcc92fcaccc92861222333919b63b20b3985b1e6548cb33c714a0ef05e41e",
+        "sha256": "75f70b28c75aa6d7907c19c79efa22f464d09206095f08a6ef5c3a712b964836",
         "codec": "vp9",
         "width": 2048,
         "height": 1280,
         "fps": 2.0,
-        "duration_ms": 318500,
-        "size_bytes": 1444454,
-        "relative_path": "codex-code-entry-code08-v24-20260803/codex-windows-50/code-08/recording.webm"
+        "duration_ms": 270500,
+        "size_bytes": 1504367,
+        "relative_path": "codex-code-entry-code08-v25-20260804/codex-windows-50/code-08/recording.webm"
       },
       "poster": {
-        "relative_path": "codex-code-entry-code08-v24-20260803/codex-windows-50/code-08/poster.jpg",
-        "sha256": "795bc21f140e2fad4d659492aeb7239cd4aa01c39d9f8ce471d06c49f105ce7f"
+        "relative_path": "codex-code-entry-code08-v25-20260804/codex-windows-50/code-08/poster.jpg",
+        "sha256": "0089be8e364f01b17651128f809d4bf9ca837e51a31cb54e7b3e2fc496dc4609"
       },
-      "campaign_sha256": "93da1644f0f9b7c05eba9fee3dc3abea62bf8a530d373deb3f4e95a83a95b2a2"
+      "campaign_sha256": "ee1136737323b5dde9b127b65f20dbc32e807f14448a0521c8c3438f1419cb5c"
     },
     "full_ledger": "bench/results/2026-08-03/live-vnc/code-08-attempts.json"
   }
