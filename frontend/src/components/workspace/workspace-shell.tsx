@@ -20,9 +20,9 @@ import {
   GalleryVerticalEndIcon,
   LogOutIcon,
   MenuIcon,
+  MonitorIcon,
   MoreHorizontalIcon,
   SparklesIcon,
-  WrenchIcon,
 } from "lucide-react";
 import { Thread } from "@/components/assistant-ui/thread";
 import { ThreadList } from "@/components/assistant-ui/thread-list";
@@ -47,7 +47,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { AuthDialog } from "@/components/workspace/auth-dialog";
 import { ComputerToolEnvironmentProvider } from "@/components/workspace/computer-tool-environment";
-import { ComputerConnectionButton } from "@/components/workspace/computer-connection-button";
 import {
   DeferredComputerToolCall as ComputerToolCall,
   DeferredWorkspaceToolGroup as WorkspaceToolGroup,
@@ -294,10 +293,6 @@ export function WorkspaceShell() {
     adapters: { threadList },
     unstable_capabilities: { copy: true },
   };
-  const toolServerEntries = Object.entries(workspace.toolServers);
-  const offlineToolServers = toolServerEntries.filter(
-    ([, status]) => !status.ready,
-  ).length;
 
   const ComposerToolbar = () => (
     <div className="flex min-w-0 items-center gap-1">
@@ -316,37 +311,6 @@ export function WorkspaceShell() {
     </div>
   );
 
-  /* The slim row under the composer, VS Code style: where the work will happen
-   * and what it can reach. These used to crowd the composer itself, where they
-   * competed with the one control that matters before sending — the model. */
-  const StatusRow = () => (
-    <div className="flex items-center gap-1 border-t border-border/60 px-2 py-1">
-      <ComputerConnectionButton
-        enabled={workspace.computerControlEnabled}
-        mcpServerName={workspace.computerConnection.mcpServerName}
-        machineName={workspace.computerConnection.machineName}
-        onOpen={() => setComputerOpen(true)}
-      />
-      {workspace.tools.length > 0 || toolServerEntries.length > 0 ? (
-        <span
-          className="ml-auto shrink-0 px-1.5 text-[11px] text-muted-foreground"
-          title={[
-            ...workspace.tools.map((tool) => tool.name),
-            ...toolServerEntries
-              .filter(([, status]) => !status.ready)
-              .map(([name, status]) => `${name}: ${status.error || "offline"}`),
-          ].join("\n")}
-        >
-          <WrenchIcon
-            className="mr-1 inline size-3 align-[-1px]"
-            aria-hidden="true"
-          />
-          {workspace.tools.length} tools
-          {offlineToolServers > 0 ? ` · ${offlineToolServers} offline` : ""}
-        </span>
-      ) : null}
-    </div>
-  );
 
   return (
     <WorkspaceRuntimeBoundary
@@ -441,6 +405,13 @@ export function WorkspaceShell() {
                   ) : null}
                   <DropdownMenuItem
                     disabled={!workspace.connected}
+                    onClick={() => setComputerOpen(true)}
+                  >
+                    <MonitorIcon aria-hidden="true" />
+                    Computer
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    disabled={!workspace.connected}
                     onClick={() => setShowcaseOpen(true)}
                   >
                     <GalleryVerticalEndIcon aria-hidden="true" />
@@ -502,7 +473,6 @@ export function WorkspaceShell() {
                         ToolGroup: WorkspaceToolGroup,
                       }}
                     />
-                    <StatusRow />
                   </div>
                 </ComputerToolEnvironmentProvider>
               </>
