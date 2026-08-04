@@ -50,6 +50,7 @@ from pikvm_agent.harness.provider_connections import (
     ProviderConnectionResult,
 )
 from pikvm_agent.harness.provider_support import public_provider_catalog
+from pikvm_agent.harness.model_catalog import ModelCatalogService
 from pikvm_agent.harness.redaction import redact_secrets
 from pikvm_agent.harness.showcase import ShowcaseRepository
 
@@ -481,6 +482,7 @@ def create_harness_app(
     computer_name: str = "Managed computer",
     showcase_dir: Path | None = None,
     ui_dir: Path | None = None,
+    model_catalog: ModelCatalogService | None = None,
     lifespan: Callable[[FastAPI], AbstractAsyncContextManager[None]] | None = None,
 ) -> FastAPI:
     """Create the local operator API.
@@ -930,6 +932,15 @@ def create_harness_app(
     @app.get("/api/provider-catalog")
     async def provider_catalog() -> list[dict[str, object]]:
         return public_provider_catalog()
+
+    @app.get("/api/model-catalog")
+    async def model_catalog_snapshot() -> dict[str, object]:
+        # Public model metadata (names, costs, limits, logos) keyed to our
+        # provider kinds, cached from models.dev. Absent service or a harness
+        # that has never been online degrades to an honest empty catalog.
+        if model_catalog is None:
+            return {"available": False, "providers": {}, "kinds": {}}
+        return await model_catalog.snapshot()
 
     @app.get("/api/direct/health")
     async def direct_health() -> dict[str, str]:

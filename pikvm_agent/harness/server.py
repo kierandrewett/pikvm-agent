@@ -18,6 +18,7 @@ from pikvm_agent.harness.agent_models import HarnessConfig
 from pikvm_agent.harness.agent_store import SqliteRunStore
 from pikvm_agent.harness.assistant import AssistantHarness
 from pikvm_agent.harness.api import create_harness_app
+from pikvm_agent.harness.model_catalog import ModelCatalogService
 from pikvm_agent.harness.config import (
     HarnessSettings,
     build_model_budget_policy,
@@ -168,6 +169,9 @@ def build_harness_app(
         managed_mcp_name=settings.managed_mcp_name,
         computer_name=settings.computer_name,
         showcase_dir=settings.artifact_dir / "showcases",
+        model_catalog=ModelCatalogService(
+            cache_path=settings.state_path.parent / "models-dev-cache.json",
+        ),
         lifespan=lifespan,
     )
     app.state.harness = harness
