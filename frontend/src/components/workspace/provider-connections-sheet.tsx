@@ -667,6 +667,9 @@ export function ProviderConnectionsSheet({
   onConnectProvider,
 }: ProviderConnectionsSheetProps) {
   const [connectionOpen, setConnectionOpen] = useState(false);
+  // Which stage asked for the model, so connecting one can route it there
+  // instead of leaving the user to come back and pick it manually.
+  const [pendingRole, setPendingRole] = useState<ModelRole | null>(null);
   const entries = Object.entries(providers);
   const readyCount = entries.filter(
     ([, health]) => health.ready !== false,
@@ -722,6 +725,14 @@ export function ProviderConnectionsSheet({
             <StageSplit
               providers={providers}
               modelCatalog={modelCatalog}
+              onAddModelForRole={
+                onConnectProvider
+                  ? (role) => {
+                      setPendingRole(role);
+                      setConnectionOpen(true);
+                    }
+                  : undefined
+              }
               preferences={preferences}
               activeRoute={activeRoute}
               activeProvider={activeProvider}
@@ -760,11 +771,24 @@ export function ProviderConnectionsSheet({
           <Suspense fallback={null}>
             <ProviderConnectionDialog
               open
-              onOpenChange={setConnectionOpen}
+              onOpenChange={(next) => {
+                setConnectionOpen(next);
+                if (!next) setPendingRole(null);
+              }}
               catalog={catalog}
               modelCatalog={modelCatalog}
               connecting={connectingProvider}
-              onConnect={onConnectProvider}
+              onConnect={async (input) => {
+                const result = await onConnectProvider(input);
+                // The point of asking from a stage row is that the stage ends up
+                // using it; making the user reopen the sheet and pick would be
+                // the same two-step dance this was meant to remove.
+                if (pendingRole && result?.provider) {
+                  onPreferenceChange(pendingRole, result.provider);
+                }
+                setPendingRole(null);
+                return result;
+              }}
             />
           </Suspense>
         ) : null}

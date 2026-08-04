@@ -497,3 +497,56 @@ describe("ProviderConnectionsSheet", () => {
     });
   });
 });
+
+describe("adding a model from a stage", () => {
+  it("offers Add a model… on each stage and routes the new account to it", async () => {
+    const user = userEvent.setup();
+    const onPreferenceChange = vi.fn();
+    const onConnectProvider = vi.fn().mockResolvedValue({
+      provider: "openai-work",
+      configured_model: "gpt-5-mini",
+      kind: "openai_responses",
+      ready: true,
+      credential_owner: "harness_environment",
+      configured_not_routed: true,
+      secret_received: false,
+    });
+
+    render(
+      <ProviderConnectionsSheet
+        open
+        onOpenChange={() => undefined}
+        providers={providers}
+        catalog={catalog}
+        preferences={{}}
+        locked={false}
+        onPreferenceChange={onPreferenceChange}
+        onResetPreferences={() => undefined}
+        onConnectProvider={onConnectProvider}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Split by stage" }));
+    await user.click(screen.getByRole("combobox", { name: "Acting model" }));
+    // The option only renders when the sheet actually passes the hook down —
+    // it was declared and consumed but never passed, so it never appeared.
+    await user.click(screen.getByRole("option", { name: "Add a model…" }));
+
+    const dialog = await screen.findByRole("dialog", { name: "Add a model" });
+    expect(dialog).not.toBeNull();
+
+    await user.type(
+      within(dialog).getByLabelText("Provider name"),
+      "openai-work",
+    );
+    await user.type(within(dialog).getByLabelText("Model"), "gpt-5-mini");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Add model" }),
+    );
+
+    // Connecting from a stage row must leave that stage using the new account,
+    // not drop the user back to pick it themselves.
+    expect(onConnectProvider).toHaveBeenCalled();
+    expect(onPreferenceChange).toHaveBeenCalledWith("controller", "openai-work");
+  });
+});
