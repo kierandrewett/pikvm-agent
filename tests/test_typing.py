@@ -52,6 +52,7 @@ from pikvm_agent.executor.typing import (
     precise_readback_candidate_region,
     readback_region,
     regions_overlap,
+    short_field_candidate_above_control_effect,
     standalone_i_autocorrect_navigation,
     standalone_i_autocorrect_suffix_length,
     structural_editor_readback_band,
@@ -220,6 +221,38 @@ def test_structural_editor_row_rejects_ambiguous_causal_rows() -> None:
             Region(x=80, y=181, width=28, height=28),
             Region(x=78, y=214, width=30, height=25),
         ],
+        (1280, 800),
+    ) is None
+
+
+def test_short_field_candidate_recovers_unique_row_above_control_effect() -> None:
+    field = Region(x=40, y=674, width=40, height=36)
+    enabled_button = Region(x=68, y=727, width=76, height=34)
+
+    assert short_field_candidate_above_control_effect(
+        [field, enabled_button],
+        (1280, 800),
+    ) == field
+
+
+def test_short_field_candidate_rejects_ambiguous_upper_rows() -> None:
+    enabled_button = Region(x=68, y=727, width=76, height=34)
+
+    assert short_field_candidate_above_control_effect(
+        [
+            Region(x=40, y=674, width=40, height=36),
+            Region(x=86, y=680, width=30, height=30),
+            enabled_button,
+        ],
+        (1280, 800),
+    ) is None
+
+
+def test_short_field_candidate_requires_a_wider_lower_effect() -> None:
+    field = Region(x=40, y=674, width=40, height=36)
+
+    assert short_field_candidate_above_control_effect(
+        [field, Region(x=68, y=727, width=54, height=34)],
         (1280, 800),
     ) is None
 
@@ -8297,10 +8330,10 @@ async def test_short_field_prefers_compact_text_above_larger_control_effect(
     _assert_no_enter(backend)
 
 
-async def test_short_field_uses_border_artifact_only_to_localize_before_blur(
+async def test_short_field_uses_compact_geometry_only_to_localize_before_blur(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A fused field border may locate text but cannot verify it directly."""
+    """Noisy focused OCR may locate a field but cannot verify it directly."""
 
     async def no_sleep(_seconds: float) -> None:
         return None
@@ -8361,7 +8394,7 @@ async def test_short_field_uses_border_artifact_only_to_localize_before_blur(
 
         async def ocr_precise(self, image_path, region=None):
             if Image.open(image_path).size == (318, 48):
-                text = intended if backend.blurred else f"| {intended}"
+                text = intended if backend.blurred else "field\nnoise"
                 return OCRResult(
                     lines=[OCRLine(text=text, confidence=0.99)],
                     spacing_evidence="verified",

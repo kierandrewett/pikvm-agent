@@ -414,6 +414,24 @@ def editor_row_candidate_above_disjoint_effect(
     return max(rows, key=lambda candidate: candidate.y + candidate.height)
 
 
+def _unique_upper_candidate_with_lower_effect(
+    candidates: list[Region],
+    pair_matches: Callable[[Region, Region], bool],
+) -> Region | None:
+    """Return one upper candidate accepted by a caller-specific lower effect."""
+
+    upper_indices: set[int] = set()
+    for upper_index, upper in enumerate(candidates):
+        for effect_index, effect in enumerate(candidates):
+            if effect_index == upper_index or not pair_matches(upper, effect):
+                continue
+            upper_indices.add(upper_index)
+            break
+    if len(upper_indices) != 1:
+        return None
+    return candidates[upper_indices.pop()]
+
+
 def structural_editor_row_above_status_effect(
     candidates: list[Region],
     dims: tuple[int, int],
@@ -433,27 +451,25 @@ def structural_editor_row_above_status_effect(
         return None
     maximum_gap = height * MAX_EDITOR_STATUS_VERTICAL_GAP_FRAC
     maximum_offset = max(128.0, width * 0.20)
-    row_indices: set[int] = set()
-    for row_index, row in enumerate(candidates):
+
+    def paired_with_status_effect(row: Region, effect: Region) -> bool:
         row_bottom = row.y + row.height
         row_center_x = row.x + row.width / 2
-        for effect_index, effect in enumerate(candidates):
-            if effect_index == row_index or row_bottom > effect.y:
-                continue
-            vertical_gap = effect.y - row_bottom
-            effect_center_x = effect.x + effect.width / 2
-            if (
-                vertical_gap < max(row.height, effect.height)
-                or vertical_gap > maximum_gap
-                or abs(effect_center_x - row_center_x) > maximum_offset
-                or effect.width < row.width + DENSE_MIN_WIDTH
-            ):
-                continue
-            row_indices.add(row_index)
-            break
-    if len(row_indices) != 1:
-        return None
-    return candidates[row_indices.pop()]
+        if row_bottom > effect.y:
+            return False
+        vertical_gap = effect.y - row_bottom
+        effect_center_x = effect.x + effect.width / 2
+        return not (
+            vertical_gap < max(row.height, effect.height)
+            or vertical_gap > maximum_gap
+            or abs(effect_center_x - row_center_x) > maximum_offset
+            or effect.width < row.width + DENSE_MIN_WIDTH
+        )
+
+    return _unique_upper_candidate_with_lower_effect(
+        candidates,
+        paired_with_status_effect,
+    )
 
 
 def structural_editor_readback_band(
@@ -663,30 +679,45 @@ def native_primary_readback_region(
     )
 
 
-def bounded_field_frame_artifact(observed: str, intended: str) -> bool:
-    """Whether one compact field read is exact except for its visual frame.
+def short_field_candidate_above_control_effect(
+    candidates: list[Region],
+    dims: tuple[int, int],
+) -> Region | None:
+    """Return one compact causal field delta above a wider control repaint.
 
-    Windows can paint the left textbox border into the same tiny native OCR
-    crop as a short value, producing e.g. ``| abc``.  This classification is
-    deliberately localization-only: it cannot verify, correct, or replay the
-    payload.  The caller must still blur the caret and obtain an independent
-    exact read from the unchanged field.
+    Windows Run repaints its enabled OK button more strongly than a three-
+    character field and tight OCR may fuse the textbox border into gibberish.
+    Use only the before/after geometry to recover a unique compact upper row.
+    This never verifies text: the unchanged field still needs a reversible
+    blur followed by an independent exact read.
     """
 
-    if (
-        not intended
-        or intended != intended.strip()
-        or any(character.isspace() for character in intended)
-        or "\n" in observed
-        or "\r" in observed
-    ):
-        return False
-    return observed.strip() in {
-        f"|{intended}",
-        f"| {intended}",
-        f"{intended}|",
-        f"{intended} |",
-    }
+    width, height = dims
+    if width <= 0 or height <= 0 or len(candidates) < 2:
+        return None
+    maximum_gap = max(48.0, height * 0.12)
+    maximum_offset = max(96.0, width * 0.10)
+
+    def paired_with_control_effect(field: Region, effect: Region) -> bool:
+        if field.width > 64 or field.height > 48:
+            return False
+        field_bottom = field.y + field.height
+        field_center_x = field.x + field.width / 2
+        if field_bottom > effect.y:
+            return False
+        vertical_gap = effect.y - field_bottom
+        effect_center_x = effect.x + effect.width / 2
+        return not (
+            vertical_gap > maximum_gap
+            or abs(effect_center_x - field_center_x) > maximum_offset
+            or effect.width < max(64.0, field.width * 1.5)
+            or effect.height > 64
+        )
+
+    return _unique_upper_candidate_with_lower_effect(
+        candidates,
+        paired_with_control_effect,
+    )
 
 
 def visible_editor_indent_candidate(
@@ -4107,7 +4138,6 @@ class WatchedTyper:
                 ),
             )
             checked = 0
-            unverified_field_regions: list[Region] = []
             tmp: Path | None = None
             try:
                 fd = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
@@ -4205,16 +4235,6 @@ class WatchedTyper:
                             result = self._last_field_ocr_result
                             spacing_verified = has_spacing_proof(result)
                             used_native_primary = True
-                        elif bounded_field_frame_artifact(
-                            native_read,
-                            intended_snapshot,
-                        ):
-                            # This crop still grounds the causal textbox row,
-                            # but its visible border is not part of the field
-                            # value. Retain only the location so the ordinary
-                            # reversible blur-read can verify the unchanged
-                            # payload without emitting it again.
-                            unverified_field_regions.append(candidate)
                     if (
                         not spacing_verified
                         and any(
@@ -4534,13 +4554,18 @@ class WatchedTyper:
                         region=matched_region.model_dump(),
                     )
                     return matched_region
-                if (
-                    single_line_field
-                    and len(unverified_field_regions) == 1
-                ):
-                    localized_region = unverified_field_regions[0]
+                geometric_field = (
+                    short_field_candidate_above_control_effect(
+                        candidates,
+                        dims,
+                    )
+                    if single_line_field
+                    else None
+                )
+                if geometric_field is not None:
+                    localized_region = geometric_field
                     DEBUG.event(
-                        "typing.causal_field_frame_localized",
+                        "typing.causal_short_field_localized",
                         intended_characters=len(intended_snapshot),
                         verified=False,
                         region=localized_region.model_dump(),
