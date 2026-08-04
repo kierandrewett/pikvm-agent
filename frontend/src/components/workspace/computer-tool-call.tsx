@@ -749,6 +749,26 @@ function TypingReadback({
   );
 }
 
+/**
+ * Whether ActionExactInput would render anything for this action.
+ *
+ * It mirrors that component's four branches exactly and is used as its only
+ * early return, so the answer here and what the component draws cannot drift.
+ * ComputerInputSequence needs to know BEFORE rendering, because an item with no
+ * heading, no detail and no exact input still draws its icon column and leaves
+ * a marker floating on an empty row.
+ */
+const hasExactInput = (action: JsonRecord) => {
+  const kind = actionName(action);
+  if (kind === "spreadsheet_grid") {
+    const rows = spreadsheetRows(action);
+    return rows.length > 0 && (rows[0]?.length ?? 0) > 0;
+  }
+  if (kind.includes("type")) return !!text(action.text);
+  if (isKeyboardAction(kind)) return keyValues(action).length > 0;
+  return !!pointerDetail(action);
+};
+
 function ActionExactInput({
   action,
   environment,
@@ -761,6 +781,7 @@ function ActionExactInput({
   actionIndex: number;
 }) {
   const kind = actionName(action);
+  if (!hasExactInput(action)) return null;
   if (kind === "spreadsheet_grid") {
     const rows = spreadsheetRows(action);
     const columns = rows[0]?.length ?? 0;
@@ -890,11 +911,29 @@ export function ComputerInputSequence({
   actions,
   environment = {},
   inputReceipts = [],
+  headingAlreadyShown = "",
 }: {
   actions: readonly JsonRecord[];
   environment?: ComputerToolEnvironment;
   inputReceipts?: readonly InputReceipt[];
+  /** Title of the row this list sits under. An item whose kind is that same
+   *  title says nothing new, so it only earns its place if it has a detail or
+   *  an exact input to show. */
+  headingAlreadyShown?: string;
 }) {
+  const same = (a: string, b: string) =>
+    a.trim().toLowerCase() === b.trim().toLowerCase();
+  /* An action that repeats the heading, adds no detail and has no exact input
+   * renders as a bare icon on an empty row — worse than the repetition it was
+   * meant to remove. When every action is like that the list is pure echo, so
+   * there is nothing to draw. */
+  const silent = (action: JsonRecord) =>
+    !!headingAlreadyShown &&
+    same(actionKindLabel(action), headingAlreadyShown) &&
+    same(actionLabel(action), actionKindLabel(action)) &&
+    !hasExactInput(action);
+  if (actions.length && actions.every(silent)) return null;
+
   return (
     <ol className="mt-2" aria-label="Exact computer input sequence">
       {actions.map((action, index) => {
@@ -1535,11 +1574,12 @@ const ComputerToolCallImpl: ToolCallMessagePartComponent<
           />
 
           {showPrimaryInput ? (
-            <section className="mt-3" aria-label="Exact input">
+            <section className="mt-3 empty:hidden" aria-label="Exact input">
               <ComputerInputSequence
                 actions={summary.actions}
                 environment={environment}
                 inputReceipts={receipt.inputReceipts}
+                headingAlreadyShown={visibleTitle}
               />
             </section>
           ) : null}

@@ -1084,3 +1084,28 @@ describe("computer tool routing", () => {
     expect(belongsToComputerActivity("web_search")).toBe(false);
   });
 });
+
+describe("ComputerInputSequence", () => {
+  it("still shows a click's exact input under a matching heading", () => {
+    render(
+      <ComputerInputSequence
+        actions={[{ type: "click", x: 638, y: 410, button: "left" }]}
+        headingAlreadyShown="Click"
+      />,
+    );
+    // The heading matches, but there IS an exact input, so the row stays.
+    expect(screen.getByLabelText("Exact computer input sequence")).not.toBeNull();
+  });
+
+  it("draws nothing when every action would only echo the heading", () => {
+    const { container } = render(
+      <ComputerInputSequence
+        actions={[{ type: "computer start task" }]}
+        headingAlreadyShown="computer start task"
+      />,
+    );
+    // Otherwise the item renders its icon column with no text beside it — a
+    // marker floating on an empty row.
+    expect(container.firstChild).toBeNull();
+  });
+});
