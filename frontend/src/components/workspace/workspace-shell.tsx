@@ -22,6 +22,9 @@ import {
   MenuIcon,
   MonitorIcon,
   MoreHorizontalIcon,
+  PanelLeftIcon,
+  PanelRightIcon,
+  PictureInPicture2Icon,
   SparklesIcon,
 } from "lucide-react";
 import { Thread } from "@/components/assistant-ui/thread";
@@ -66,6 +69,7 @@ import {
 import { RunProvenance } from "@/components/workspace/run-provenance";
 import { UiUpdateBadge } from "@/components/workspace/ui-update-badge";
 import { useHarnessWorkspace } from "@/hooks/use-harness-workspace";
+import { usePanelPlacement } from "@/hooks/use-panel-placement";
 import { messagesForRun } from "@/lib/run-messages";
 import { cn } from "@/lib/utils";
 
@@ -225,6 +229,7 @@ function TaskRestoreState({
 
 export function WorkspaceShell() {
   const workspace = useHarnessWorkspace();
+  const panel = usePanelPlacement();
   const [computerOpen, setComputerOpen] = useState(false);
   const [modelsOpen, setModelsOpen] = useState(false);
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
@@ -414,6 +419,52 @@ export function WorkspaceShell() {
                 here is occasional; the frequent controls live by the composer,
                 where the work happens. */}
             <div className="flex shrink-0 items-center gap-1">
+              {/* Where this panel sits is a fact about the panel, so the controls
+                  live in its own header rather than in the console's overflow
+                  menu, which belongs to the other half of the window. Absent
+                  outside the desktop app, where there is no panel to place. */}
+              {panel.available && panel.placement && !panel.placement.detached ? (
+                <TooltipIconButton
+                  tooltip={
+                    panel.placement.side === "right"
+                      ? "Move to the left"
+                      : "Move to the right"
+                  }
+                  aria-label={
+                    panel.placement.side === "right"
+                      ? "Move the conversation to the left side"
+                      : "Move the conversation to the right side"
+                  }
+                  className={TITLEBAR_BUTTON}
+                  onClick={() =>
+                    panel.setSide(
+                      panel.placement?.side === "right" ? "left" : "right",
+                    )
+                  }
+                >
+                  {panel.placement.side === "right" ? (
+                    <PanelLeftIcon />
+                  ) : (
+                    <PanelRightIcon />
+                  )}
+                </TooltipIconButton>
+              ) : null}
+              {panel.available && panel.placement ? (
+                <TooltipIconButton
+                  tooltip={
+                    panel.placement.detached ? "Put back" : "Open in its own window"
+                  }
+                  aria-label={
+                    panel.placement.detached
+                      ? "Bring the conversation back into the console window"
+                      : "Open the conversation in its own window"
+                  }
+                  className={TITLEBAR_BUTTON}
+                  onClick={panel.toggleDetached}
+                >
+                  <PictureInPicture2Icon />
+                </TooltipIconButton>
+              ) : null}
               <DropdownMenu>
                 <DropdownMenuTrigger
                   render={
