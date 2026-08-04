@@ -149,7 +149,16 @@ export function ModelPicker({
           ) : null}
         </SelectValue>
       </SelectTrigger>
-      <SelectContent alignItemWithTrigger={false}>
+      {/* This trigger is a compact chip in the composer, so the shared Select
+          defaults work against it: align="center" hung the popup 20px to the
+          left of the control it belongs to, and w-(--anchor-width) pinned it to
+          the trigger's width, which clipped "Configure models…". Full-width
+          selects still want both, so fix it here rather than in the primitive. */}
+      <SelectContent
+        align="start"
+        alignItemWithTrigger={false}
+        className="w-auto min-w-(--anchor-width)"
+      >
         <SelectGroup>
           {items
             .filter((item) => item.value !== "manage")
