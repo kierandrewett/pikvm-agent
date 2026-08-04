@@ -385,7 +385,17 @@ const completionMarkdown = (run: RunSnapshot) => {
     return summary || "Completed and checkpointed.";
   }
   if (["failed", "blocked", "rejected", "aborted"].includes(run.status)) {
-    return `Stopped: ${readableError(run.error) || run.status.replaceAll("_", " ")}.`;
+    /* A failed message already renders its own error box, built from the same
+     * run.error, so a "Stopped: <error>." line directly above it is the same
+     * sentence twice — which is exactly how it looked on screen. Say nothing
+     * here and let the box carry it. An abort is reported as cancelled rather
+     * than as an error, so it keeps its line. */
+    if (run.status === "aborted") {
+      return `Stopped: ${readableError(run.error) || "cancelled"}.`;
+    }
+    return readableError(run.error)
+      ? ""
+      : `Stopped: ${run.status.replaceAll("_", " ")}.`;
   }
   if (run.status === "paused") {
     if (run.origin === "direct_mcp") {

@@ -915,7 +915,7 @@ export function ComputerInputSequence({
             </span>
             <div className="min-w-0">
               <div className="flex min-w-0 items-baseline gap-2">
-                <p className="truncate text-sm font-medium">
+                <p className="truncate text-[13px] font-medium">
                   {actionKindLabel(action)}
                 </p>
                 {actions.length > 1 ? (
@@ -924,7 +924,12 @@ export function ComputerInputSequence({
                   </span>
                 ) : null}
               </div>
-              {actionName(action).includes("type") ? null : (
+              {/* The detail line repeats the title whenever an action has no
+                  richer description than its own kind — a start-task row read
+                  "computer start task" twice, once bold and once muted. */}
+              {actionName(action).includes("type") ||
+              actionLabel(action).trim().toLowerCase() ===
+                actionKindLabel(action).trim().toLowerCase() ? null : (
                 <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
                   {actionLabel(action)}
                 </p>

@@ -912,6 +912,9 @@ describe("messagesForRun", () => {
       reason: "error",
       error: "computer open failed: target unavailable",
     });
+    // The error is already carried twice — by the message status above and by
+    // the failed tool call below — so no prose is added restating it a third
+    // time, which is what put the same sentence on screen twice.
     expect(assistant?.content).toEqual([
       expect.objectContaining({
         type: "tool-call",
@@ -920,10 +923,6 @@ describe("messagesForRun", () => {
           status: "failed",
           error: "computer open failed: target unavailable",
         },
-      }),
-      expect.objectContaining({
-        type: "text",
-        text: "Stopped: computer open failed: target unavailable.",
       }),
     ]);
   });
@@ -1722,5 +1721,35 @@ describe("readableError", () => {
     );
     expect(readableError("")).toBe("");
     expect(readableError(undefined)).toBe("");
+  });
+});
+
+describe("a failed run does not state its error twice", () => {
+  it("leaves the error to the message's own error box", () => {
+    const messages = messagesForRun(
+      run({ status: "failed", error: "computer refresh failed: 404" }),
+    );
+    const last = messages[messages.length - 1];
+    const text = (Array.isArray(last?.content) ? last.content : [])
+      .filter((p): p is { type: "text"; text: string } => p.type === "text")
+      .map((p) => p.text)
+      .join(" ");
+
+    // The box already says it; the prose above it should not repeat it.
+    expect(text).not.toContain("computer refresh failed");
+    expect(last?.status).toMatchObject({
+      type: "incomplete",
+      error: "computer refresh failed: 404",
+    });
+  });
+
+  it("still says something when there is no error to show", () => {
+    const messages = messagesForRun(run({ status: "blocked", error: "" }));
+    const last = messages[messages.length - 1];
+    const text = (Array.isArray(last?.content) ? last.content : [])
+      .filter((p): p is { type: "text"; text: string } => p.type === "text")
+      .map((p) => p.text)
+      .join(" ");
+    expect(text).toContain("Stopped: blocked.");
   });
 });
