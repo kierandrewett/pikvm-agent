@@ -85,7 +85,7 @@ describe("RunActivity", () => {
     expect(screen.getByRole("status")).toHaveTextContent("strong-provider");
   });
 
-  it("says when the request is waiting on the selected model", () => {
+  it("says what the model is doing, not that a request is in flight", () => {
     render(
       <RunActivity
         working
@@ -101,8 +101,12 @@ describe("RunActivity", () => {
     );
 
     const status = screen.getByRole("status");
-    expect(status).toHaveTextContent("Waiting for a response");
+    // "Waiting for a response" is true of every request and says nothing about
+    // the work; the role does.
+    expect(status).toHaveTextContent("Planning the task");
+    expect(status).not.toHaveTextContent("Waiting for a response");
     expect(status).toHaveTextContent("opus");
+    // The elapsed counter is held back so quick turns never flash a timer.
     expect(status).not.toHaveTextContent(/\d+s/);
   });
 

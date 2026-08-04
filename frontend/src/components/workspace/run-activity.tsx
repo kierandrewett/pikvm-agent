@@ -1,4 +1,5 @@
 import { LoaderCircleIcon } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import type { RunSnapshot } from "@/types";
 
 type ActiveActivity = RunSnapshot["active_activity"];
@@ -29,7 +30,14 @@ export const activityPresentation = (activity: ActiveActivity) => {
             : activity?.phase === "failover"
               ? "Switching models"
               : "";
-  const label = phaseLabel || roleLabel;
+  // The role says what work is happening; the phase mostly says "a request is
+  // in flight", which is true of every request and tells the user nothing. Only
+  // the phases that mean something unusual are allowed to take the headline.
+  const notablePhase =
+    activity?.phase === "failover" ||
+    activity?.phase === "schema_repair" ||
+    activity?.phase === "validating";
+  const label = notablePhase ? phaseLabel : roleLabel;
   const model =
     activity?.kind === "model" && activity.model?.trim()
       ? activity.model.trim()
@@ -47,6 +55,27 @@ export const activityPresentation = (activity: ActiveActivity) => {
   };
 };
 
+/** Seconds since this stage began, so a long wait reads as slow rather than
+ *  frozen. Held back for a few seconds so quick turns never show a timer. */
+function useElapsed(active: boolean, resetKey: string) {
+  const [seconds, setSeconds] = useState(0);
+  const startedAt = useRef(0);
+  useEffect(() => {
+    if (!active) {
+      setSeconds(0);
+      return;
+    }
+    startedAt.current = Date.now();
+    setSeconds(0);
+    const timer = setInterval(
+      () => setSeconds(Math.round((Date.now() - startedAt.current) / 1000)),
+      1000,
+    );
+    return () => clearInterval(timer);
+  }, [active, resetKey]);
+  return seconds;
+}
+
 export function RunActivity({
   activity,
   working,
@@ -54,8 +83,14 @@ export function RunActivity({
   activity?: ActiveActivity;
   working: boolean;
 }) {
-  if (!working || activity?.kind === "tool") return null;
   const presentation = activityPresentation(activity);
+  // Keyed on the label so moving between stages restarts the count rather than
+  // showing one ever-growing number for the whole run.
+  const elapsed = useElapsed(
+    working && activity?.kind !== "tool",
+    presentation.label,
+  );
+  if (!working || activity?.kind === "tool") return null;
 
   return (
     <div
@@ -77,6 +112,13 @@ export function RunActivity({
           aria-label={`Active model ${presentation.route}`}
         >
           {presentation.route}
+        </span>
+      ) : null}
+      {elapsed >= 3 ? (
+        <span className="text-xs tabular-nums text-muted-foreground">
+          {elapsed < 60
+            ? `${elapsed}s`
+            : `${Math.floor(elapsed / 60)}m ${elapsed % 60}s`}
         </span>
       ) : null}
     </div>
