@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "report": "code-09-native-readback-gate-probes",
-  "recorded_at": "2026-08-04T12:29:47Z",
+  "recorded_at": "2026-08-04T13:42:26Z",
   "environment": {
     "target": "authorized disposable Windows VNC VM",
     "production_target_contacted": false,
@@ -141,6 +141,136 @@
         "duration_ms": 83784,
         "ready_frame_sha256": "6649473b06417d8d531c13c56b91fb7e53575df6d0c2c38cb17dc962fcd94011"
       }
+    },
+    {
+      "probe_id": "overlapping-editor-localization-v1",
+      "accepted_status": "failed_safely",
+      "source_commit": "d7bd4845fea0e6036811300654d874ab55497bc5",
+      "session_id": "s_ea7c4b41647a",
+      "setup_failures": [
+        "The atomic Notepad launch again lost the leading note and opened a local pad-not-found dialog. The dialog was dismissed only after an explicit approval; no test text had been emitted.",
+        "Notepad restored overlapping prior windows. A fresh blank foreground tab was established, but causal localization mixed the foreground body with background editor content."
+      ],
+      "blank_surface_frame_sha256": "9c3cc2247bcd58f9c8155657fad9436aef0152e62298b2defbaa17986e224d57",
+      "receipt": {
+        "status": "failed_focus_lost",
+        "requested_characters": 13,
+        "issued_characters": 13,
+        "observed_characters": 0,
+        "correction_count": 0,
+        "delivery_retries": 0,
+        "emitted_exactly_once": true,
+        "requested_sha256": "a09f21ee71a9b858aefacb390fbac6f29ce0e0c7523918d4e4bb691c29b4e3db",
+        "emitted_sha256": "a09f21ee71a9b858aefacb390fbac6f29ce0e0c7523918d4e4bb691c29b4e3db",
+        "readback_frame_sha256": "08526b10df23d8ed0b75172bfec5731c37b42d043eb913dd487d8076143b1532"
+      },
+      "localization": {
+        "maximized_editor": false,
+        "native_diagnostic_reached": false,
+        "failure": "foreground and background Notepad rows were not independently separable"
+      },
+      "full_campaign_launched": false,
+      "full_campaign_gate": "blocked because exact body readback was not established",
+      "file_saved": false,
+      "reboot": {
+        "ready": true,
+        "transition_observed": true,
+        "duration_ms": 85816,
+        "ready_frame_sha256": "78df134004adb42832403414b743429e348f7c759a119b42e8333b1251302edb"
+      }
+    },
+    {
+      "probe_id": "maximized-tab-title-localization-v1",
+      "accepted_status": "failed_safely",
+      "source_commit": "d7bd4845fea0e6036811300654d874ab55497bc5",
+      "session_id": "s_16caae5977bf",
+      "setup_failures": [
+        "The first launch again lost the leading note and opened pad-not-found. A separated Run-dialog retry visibly contained exact notepad, but its field verifier returned unverified_ambiguous; the independent frame grounded the separate launch commit.",
+        "Notepad restored prior tabs. The probe maximized the foreground window, created a fresh blank tab, and verified 0 characters at 70 percent zoom before test input."
+      ],
+      "blank_surface_frame_sha256": "92110d0cbc862fa0523e4e2e8607ff03692713ea98c3adeb09e679c9bfd8c973",
+      "receipt": {
+        "status": "unverified_ambiguous",
+        "requested_characters": 13,
+        "issued_characters": 13,
+        "observed_characters": 0,
+        "correction_count": 0,
+        "delivery_retries": 0,
+        "emitted_exactly_once": true,
+        "requested_sha256": "a09f21ee71a9b858aefacb390fbac6f29ce0e0c7523918d4e4bb691c29b4e3db",
+        "emitted_sha256": "a09f21ee71a9b858aefacb390fbac6f29ce0e0c7523918d4e4bb691c29b4e3db",
+        "readback_frame_sha256": "eca9571d2e7aa165d8d6a230fa26777fb5b43550973911d97c254016f4312230"
+      },
+      "localization": {
+        "maximized_editor": true,
+        "selected_region": {
+          "x": 482,
+          "y": 1,
+          "width": 189,
+          "height": 23
+        },
+        "selected_surface": "Notepad tab title mirroring the first document row",
+        "repeated_match_reads": 5,
+        "native_diagnostic_reached": false
+      },
+      "full_campaign_launched": false,
+      "full_campaign_gate": "blocked because matching tab-title OCR did not prove the editor body",
+      "file_saved": false,
+      "reboot": {
+        "ready": true,
+        "transition_observed": true,
+        "duration_ms": 78315,
+        "ready_frame_sha256": "895c5eb1bd471438d42bc895b66dbd06b900720a772d088e8ab9ce877041d9e2"
+      }
+    },
+    {
+      "probe_id": "maximized-editor-body-guard-v1",
+      "accepted_status": "failed_safely",
+      "source_commit": "b3a26960743172f3e5d5e7e292d26c029a6ae496",
+      "session_id": "s_079544dde719",
+      "setup_failures": [
+        "Win+R did not open the Run dialog on its first isolated action, so no text was sent. A separately verified Start search was used instead.",
+        "Start search visibly contained exact notepad and showed Notepad as Best match, but the setup field verifier reported failed_keyboard_layout. The text was not replayed; the independent frame grounded the separate launch commit."
+      ],
+      "blank_surface_frame_sha256": "9e74dcadab9342087ae17aac5531142461cba7b6b16fe6333c6c075238117763",
+      "receipt": {
+        "status": "failed_focus_lost",
+        "requested_characters": 13,
+        "issued_characters": 13,
+        "observed_characters": 0,
+        "correction_count": 0,
+        "delivery_retries": 0,
+        "emitted_exactly_once": true,
+        "requested_sha256": "a09f21ee71a9b858aefacb390fbac6f29ce0e0c7523918d4e4bb691c29b4e3db",
+        "emitted_sha256": "a09f21ee71a9b858aefacb390fbac6f29ce0e0c7523918d4e4bb691c29b4e3db",
+        "readback_frame_sha256": "a198c4bb8a8f7ce088a4feb9795b50d8ea53296ef8c862affba38c3fe5fd1e2f"
+      },
+      "localization": {
+        "maximized_editor": true,
+        "top_chrome_rows_ignored_per_recovery": 8,
+        "top_chrome_recoveries": 4,
+        "body_region": {
+          "x": 8,
+          "y": 44,
+          "width": 200,
+          "height": 23
+        },
+        "body_observed_characters": 13,
+        "body_mean_confidence": 0.3981,
+        "body_verdict": "mismatch",
+        "native_diagnostic_reached": false,
+        "guard_exercised": true,
+        "guard_effective": true
+      },
+      "full_campaign_launched": false,
+      "full_campaign_gate": "blocked because the body crop retained a low-confidence spacing mismatch rather than exact proof",
+      "file_saved": false,
+      "reboot": {
+        "ready": true,
+        "transition_observed": true,
+        "duration_ms": 79218,
+        "ready_frame_sha256": "f6024ccea05c5e7e007aa76eb319b14edbbe8f3ad16d26bd541972cdd34671be"
+      }
     }
   ],
   "installed_observer": {
@@ -163,5 +293,5 @@
       "evidence": "The observer window transitioned to a fresh stable Windows desktop; the client PTY dropped the completed helper result before retaining its duration."
     }
   },
-  "finding": "The crop-bound remediation is effective: both probes excluded unrelated desktop text and produced one bounded native editor row. The exact HID request was emitted once with zero corrections or retries, and independent OCR read the resulting native crop exactly in every tested page-segmentation mode. The internal exact verifier nevertheless selected a same-length mismatch on the first native crop and again after a fresh opposite-caret-phase capture. Code-09 v6 therefore remained gated and was not launched. The next bounded diagnosis must retain content-free candidate hashes/counts or replay the retained crop through the exact provider selection path; it must not change input, permission, observer, quiescence, or completion gates."
+  "finding": "Offline configured-provider replay selected the exact canonical heading hash while retaining a lowercase alternative hash, so candidate hashing was added without retaining recognized text. The first two new live probes did not reach that native selector: overlapping Notepad windows caused a focus-localization failure, then a maximized probe localized five matching reads to Notepad's mirrored tab title at y=1 rather than the body. Pushed b3a2696 added a bounded editor-only top-chrome guard; all 228 typing tests passed, and the live retest exercised it by ignoring eight chrome rows on each of four recoveries and selecting the body at y=44. That body read remained a low-confidence same-length spacing mismatch, so the input was not replayed, no file was saved, and Code-09 v6 remained gated. Every probe reboot observed a real transition. The next slice must diagnose exact spacing evidence on the retained body crop without weakening input, permission, observer, quiescence, or completion gates."
 }

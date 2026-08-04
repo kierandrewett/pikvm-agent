@@ -1453,7 +1453,7 @@ campaign digest is `sha256:1448fe01016d`; its 296.5-second VP9 recording is
 `sha256:dfc9290fa3e3` and its poster is `sha256:2498e2610c6d`. The v10 campaign
 and all intervening media remain retained in the ledger.
 
-Code-09 is **not accepted; recorded v6 remains gated after two post-v5 native
+Code-09 is **not accepted; recorded v6 remains gated after five post-v5 bounded
 readback probes**. v1 launched a fresh blank Notepad
 document, but policy treated the literal heading `# Release 1.0` as a
 communication send because the word `Release` matched a command side-effect
@@ -1617,14 +1617,32 @@ observer then returned three checksum-valid pages for the exact Code-09 path:
 desktop, and zero dangerous commits. No prior artifact was claimed. Every test
 was followed by a visible transition back to a fresh Windows desktop; the
 second heading reset was retained at 83.784s with ready-frame SHA-256
-`6649473b0641`. The next slice must diagnose the configured provider's
-candidate selection/preprocessing with content-free hashes or replay of the
-retained crop; input, permission, quiescence, observer, and completion gates
-remain unchanged.
+`6649473b0641`.
+
+Pushed `d7bd484` then added content-free native candidate diagnostics: image
+and candidate hashes, counts, confidence buckets, and selector fingerprints,
+without retaining recognized text. Offline configured-provider replay selected
+the exact canonical heading while also retaining a lowercase alternative. Two
+new live probes did not reach that selector. The first restored overlapping
+Notepad windows and failed focus localization; the second maximized the editor
+and revealed that five apparent matches were the tab title mirroring the first
+document row at y=1, not evidence from the editor body.
+
+Pushed `b3a2696` added a bounded editor-only guard against that chrome. Three
+focused regressions and all 228 typing tests passed; compile, diff, and
+similarity checks were clean apart from existing duplicate families. The live
+retest exercised the guard: it ignored eight top-chrome rows on each of four
+recoveries and selected the actual body at y=44. The body retained 13
+characters but returned a low-confidence same-length spacing mismatch. The
+exact request SHA was emitted once with zero corrections or retries, was not
+replayed, and no file was saved. All three new probe reboots observed a real
+transition. The next slice must diagnose exact spacing evidence on that
+retained body crop; input, permission, quiescence, observer, and completion
+gates remain unchanged.
 
 The failure-inclusive ledger is
 [`code-09-attempts.json`](results/2026-08-04/live-vnc/code-09-attempts.json).
-The two post-v5 gate probes, exact receipts, native crop geometry, independent
+The five post-v5 gate probes, exact receipts, native crop geometry, independent
 OCR comparisons, setup failures, observer absence proof, and resets are
 retained in
 [`code-09-native-readback-probes.json`](results/2026-08-04/live-vnc/code-09-native-readback-probes.json).
@@ -1634,8 +1652,8 @@ Independent absence and reset evidence is retained for
 [`v3`](results/2026-08-04/live-vnc/code-09-v3-observer-comparison.json), and
 [`v4`](results/2026-08-04/live-vnc/code-09-v4-observer-comparison.json), and
 [`v5`](results/2026-08-04/live-vnc/code-09-v5-observer-comparison.json).
-The ledger digest is `sha256:466323228659`; the native-readback probe digest is
-`sha256:5b390ccc784c`; the key-path probe digest is
+The ledger digest is `sha256:ba7c5093b72b`; the native-readback probe digest is
+`sha256:f2d88dedbb2b`; the key-path probe digest is
 `sha256:3bd5284b38a1`; the observer-report digests are
 `sha256:9145f099f2db`, `sha256:5e1089ff5537`, and
 `sha256:08db92ad22e7`, `sha256:6f97c9f5412e`, and
@@ -1654,7 +1672,7 @@ is `sha256:bf04fd6cd397` and its poster is `sha256:4f5194a2d21e`.
 Failure-inclusive metrics, canonical campaign digests, the 33 accepted task
 IDs, and the VP9 recording/poster hashes are retained in
 [`codex-50-progress.json`](results/2026-07-31/live-vnc/codex-50-progress.json).
-Its updated digest is `sha256:a7db9f6a3d99`.
+Its updated digest is `sha256:f9416b034e9a`.
 The complete 50-task manifest is
 [`codex-50-tasks.yaml`](codex-50-tasks.yaml).
 

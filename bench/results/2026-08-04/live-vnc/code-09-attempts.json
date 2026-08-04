@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "report": "codex-code-entry-code09-failure-inclusive-attempts",
-  "recorded_at": "2026-08-04T12:29:47Z",
+  "recorded_at": "2026-08-04T13:42:26Z",
   "environment": {
     "target": "authorized disposable Windows VNC VM",
     "production_target_contacted": false,
@@ -34,7 +34,7 @@
     "all_recordings_retained": true,
     "all_reboots_ready": true,
     "all_reboots_observed_real_transition": true,
-    "release_gate": "failing: two post-v5 native-resolution probes rendered and independently read the exact heading, but the internal exact provider selected same-length mismatches; recorded v6 remains gated"
+    "release_gate": "failing: five post-v5 bounded probes now isolate exact readback to the maximized editor body; the tab-title guard was exercised live, but the body still returned a low-confidence same-length spacing mismatch, so recorded v6 remains gated"
   },
   "attempts": [
     {
@@ -392,6 +392,18 @@
       "commit": "7482209400d95f0940f16976b5e29a3e727b0f05",
       "change": "After one bounded native exact mismatch, take one fresh native crop across the caret blink phase and accept only a complete exact retry; never replay input.",
       "tests": "225 typing tests passed; 4 focused native-primary regressions passed; compile, diff, and similarity checks were clean"
+    },
+    {
+      "after_attempt": "v5-native-provider-replay",
+      "commit": "d7bd4845fea0e6036811300654d874ab55497bc5",
+      "change": "Retain content-free configured-provider diagnostics for native exact readback: image and candidate hashes, candidate counts, confidence buckets, and selector fingerprints without recognized text.",
+      "tests": "226 typing tests passed; compile and diff checks were clean; similarity scan reported only existing duplicate families"
+    },
+    {
+      "after_attempt": "v5-editor-localization-probe",
+      "commit": "b3a26960743172f3e5d5e7e292d26c029a6ae496",
+      "change": "For an auto-located editor field only, exclude top-screen maximized editor chrome from precise OCR recovery so a tab title mirroring the first document row cannot prove the editor body.",
+      "tests": "228 typing tests passed; 3 focused editor-localization regressions passed; compile and diff checks were clean; similarity scan reported only existing duplicate families"
     }
   ],
   "diagnostic_probes": "bench/results/2026-08-04/live-vnc/code-09-native-readback-probes.json",
@@ -405,8 +417,11 @@
       "Pushed commits 960cd6a and 6946bda retained the exact native row and kept native OCR enabled on the final settled read.",
       "Pushed commit fb9fb12 bounded the native crop to the causal editor row and excluded unrelated desktop text; the live probe exercised that geometry but the internal exact provider still selected a same-length mismatch.",
       "Pushed commit 7482209 added one fresh native capture across the caret blink phase. The live retry was exercised and remained a same-length mismatch, while independent OCR read the retained native crop exactly under PSM 6, 7, 11, and 12.",
-      "Both heading probes emitted the exact 13-character SHA once with zero corrections or delivery retries. The installed observer independently confirmed code-09.md absent with zero dangerous commits, no prior artifact was claimed, and all resets visibly returned to a fresh desktop."
+      "Offline configured-provider replay selected the exact canonical heading while also retaining a lowercase alternative, so pushed d7bd484 added content-free candidate and selector fingerprints without retaining recognized text.",
+      "A subsequent overlapping-window probe failed focus localization, and a maximized-window probe then revealed five apparent matches came from Notepad's mirrored tab title at y=1 rather than the document body.",
+      "Pushed b3a2696 excluded maximized editor chrome for auto-located editor recovery. The live retest exercised the guard, ignored eight chrome rows on each of four recoveries, and selected the editor body at y=44; that body retained 13 characters but returned a low-confidence spacing mismatch.",
+      "All five heading probes emitted the exact 13-character SHA once with zero corrections or delivery retries. No new file was saved; the installed observer's prior independent capture confirmed code-09.md absent with zero dangerous commits, no prior artifact was claimed, and every probe reset visibly returned to a fresh desktop."
     ],
-    "next_attempt": "Replay the retained native crop through the configured exact provider selection path and retain content-free candidate hashes/counts to identify why the internal canonical read differs from independent Tesseract. Implement one bounded selection/preprocessing fix, prove its native event live, and run recorded Code-09 v6 only after that event returns exact."
+    "next_attempt": "Replay the retained y=44 editor-body crop through the exact spacing-evidence path and retain content-free candidate and spacing fingerprints. Implement one bounded body-spacing fix, prove its native event live, and run recorded Code-09 v6 only after the body read returns exact."
   }
 }

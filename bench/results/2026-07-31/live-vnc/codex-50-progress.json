@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "report": "codex-50-live-progress",
-  "recorded_at": "2026-08-04T04:09:20Z",
+  "recorded_at": "2026-08-04T13:42:26Z",
   "manifest": "bench/codex-50-tasks.yaml",
   "environment": {
     "target": "authorized disposable Windows VNC VM",
@@ -3451,10 +3451,10 @@
     "full_ledger": "bench/results/2026-08-02/live-vnc/code-03-attempts.json"
   },
   "verdict": {
-    "accuracy": "The campaign is 33/50. All ten Text entry tasks and the first eight Code entry tasks pass. Code-08 v29 is canonical: installed-observer captures matched both the exact 127-byte current-run CRLF plan and the genuinely preserved 127-byte prior artifact with zero dangerous commits. All 29 attempts remain retained, including seven infrastructure-invalid runs and nineteen valid-task failures.",
+    "accuracy": "The campaign is 33/50. All ten Text entry tasks and the first eight Code entry tasks pass. Code-08 v29 is canonical: installed-observer captures matched both the exact 127-byte current-run CRLF plan and the genuinely preserved 127-byte prior artifact with zero dangerous commits. Code-09 remains gated after five bounded post-v5 readback probes; its latest live probe excluded mirrored Notepad tab chrome and reached the real editor body, but could not yet prove exact spacing. All 29 Code-08 attempts and all five Code-09 task attempts remain retained.",
     "speed": "Code-08 now passes the product target. v29 completed in 241.303 seconds across 12 model calls, 77.479 seconds faster than the prior complete v23 pass and 28.347 seconds faster than the incomplete v24 speed candidate.",
     "dominant_cost": "On v29, action execution consumed 140.685 seconds (58.3% of managed wall) and provider wait consumed 97.198 seconds (40.3%) across 12 calls. No provider overlap, recovery cycle, fallback, or schema repair was needed.",
-    "next": "Advance the recorded disposable-lab loop to code-09 while preserving exact-input, permission, quiescence, installed-observer, recording, and reboot gates."
+    "next": "Resolve the retained Code-09 editor-body spacing mismatch with content-free exact-provider evidence, then run recorded v6 only after a live body read returns exact; preserve exact-input, permission, quiescence, installed-observer, recording, and reboot gates."
   },
   "code_04_acceptance": {
     "task": "Write, save, reopen, and visually verify a grouped customer-value SQL query in Notepad",
@@ -4084,7 +4084,7 @@
     "infrastructure_invalid_runs": 0,
     "passed_runs": 0,
     "canonical_campaign_id": null,
-    "current_state": "v1 failed closed before input on a false-positive communication approval. Pushed commit 7679d11 fixed that policy decision; v2 and v3 exposed an ambiguous hash transport/readback mismatch. Rebooted direct probes then proved the Windows numeric Alt route renders '#' exactly while direct semantic RFB '#' renders '3'. v4 exposed incomplete route evidence because the short exact heading used paced websocket HID. Pushed commit 58facf9 routed the heading through guarded HTTP, made route coverage explicit, and preserved a complete raw Markdown heading before shell-prompt stripping. Native-pixel reanalysis proves retained v4/v5 frames show '# Release 1.0'. Post-v5 commits retained native exact rows, kept native OCR on the final settle, bounded the crop to the causal editor row, and retried once across the caret phase. Both live gate probes emitted the exact heading SHA once with zero corrections or retries, but the internal provider selected same-length mismatches while independent native OCR was exact under PSM 6, 7, 11, and 12. Recorded v6 remains gated. The installed observer confirmed code-09.md absent with zero dangerous commits; no prior artifact was claimed and every reset returned to a fresh desktop.",
+    "current_state": "v1 failed closed before input on a false-positive communication approval. Pushed commit 7679d11 fixed that policy decision; v2 and v3 exposed an ambiguous hash transport/readback mismatch. Rebooted direct probes then proved the Windows numeric Alt route renders '#' exactly while direct semantic RFB '#' renders '3'. v4 exposed incomplete route evidence because the short exact heading used paced websocket HID. Pushed commit 58facf9 routed the heading through guarded HTTP, made route coverage explicit, and preserved a complete raw Markdown heading before shell-prompt stripping. Native-pixel reanalysis proves retained v4/v5 frames show '# Release 1.0'. Post-v5 commits retained native exact rows, kept native OCR on the final settle, bounded the crop to the causal editor row, and retried once across the caret phase. Offline configured-provider replay selected the exact canonical heading, and pushed d7bd484 retained content-free selector fingerprints. Two further live probes exposed overlapping-window ambiguity and then five false matches from the maximized Notepad tab title. Pushed b3a2696 excluded top-screen editor chrome; its live retest exercised the guard, ignored eight chrome rows on each of four recoveries, and selected the editor body at y=44. The body retained 13 characters but remained a low-confidence same-length spacing mismatch. All five post-v5 probes emitted the exact heading SHA once with zero corrections or retries and rebooted through visible transitions. Recorded v6 remains gated. The installed observer confirmed code-09.md absent with zero dangerous commits; no prior artifact was claimed.",
     "latest_attempt": {
       "campaign_id": "codex-code-entry-code09-v5-20260804",
       "accepted_status": "failed",
@@ -4146,7 +4146,7 @@
       "campaign_sha256": "304176a29a03aa39f2e09725fd02842f26a5b68bb826b8e7024890e9e0b7b911"
     },
     "diagnostic_probes": "bench/results/2026-08-04/live-vnc/code-09-native-readback-probes.json",
-    "next_gate": "Replay the retained native crop through the configured exact provider selection path and retain content-free candidate hashes/counts; implement one bounded selection/preprocessing fix and run recorded Code-09 v6 only after a live native event returns exact.",
+    "next_gate": "Replay the retained y=44 editor-body crop through the exact spacing-evidence path and retain content-free candidate and spacing fingerprints; implement one bounded body-spacing fix and run recorded Code-09 v6 only after a live body read returns exact.",
     "full_ledger": "bench/results/2026-08-04/live-vnc/code-09-attempts.json"
   }
 }
