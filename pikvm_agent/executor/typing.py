@@ -663,6 +663,32 @@ def native_primary_readback_region(
     )
 
 
+def bounded_field_frame_artifact(observed: str, intended: str) -> bool:
+    """Whether one compact field read is exact except for its visual frame.
+
+    Windows can paint the left textbox border into the same tiny native OCR
+    crop as a short value, producing e.g. ``| abc``.  This classification is
+    deliberately localization-only: it cannot verify, correct, or replay the
+    payload.  The caller must still blur the caret and obtain an independent
+    exact read from the unchanged field.
+    """
+
+    if (
+        not intended
+        or intended != intended.strip()
+        or any(character.isspace() for character in intended)
+        or "\n" in observed
+        or "\r" in observed
+    ):
+        return False
+    return observed.strip() in {
+        f"|{intended}",
+        f"| {intended}",
+        f"{intended}|",
+        f"{intended} |",
+    }
+
+
 def visible_editor_indent_candidate(
     result: OCRResult,
     intended: str,
@@ -3972,6 +3998,7 @@ class WatchedTyper:
         delivery_retries = 0
         last_read = ""
         verified_clean = False
+        causal_short_field_localized = False
         causal_partial_delivery = ""
         local_replacement_failure: tuple[VerificationStatus, str] | None = None
         bounded_editor_code = bool(
@@ -4041,6 +4068,7 @@ class WatchedTyper:
         ) -> Region | None:
             """Choose among causal line deltas only by exact cropped OCR."""
 
+            nonlocal causal_short_field_localized
             nonlocal last_read, verified_clean
             if (
                 not precise
@@ -4079,6 +4107,7 @@ class WatchedTyper:
                 ),
             )
             checked = 0
+            unverified_field_regions: list[Region] = []
             tmp: Path | None = None
             try:
                 fd = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
@@ -4176,6 +4205,16 @@ class WatchedTyper:
                             result = self._last_field_ocr_result
                             spacing_verified = has_spacing_proof(result)
                             used_native_primary = True
+                        elif bounded_field_frame_artifact(
+                            native_read,
+                            intended_snapshot,
+                        ):
+                            # This crop still grounds the causal textbox row,
+                            # but its visible border is not part of the field
+                            # value. Retain only the location so the ordinary
+                            # reversible blur-read can verify the unchanged
+                            # payload without emitting it again.
+                            unverified_field_regions.append(candidate)
                     if (
                         not spacing_verified
                         and any(
@@ -4495,6 +4534,27 @@ class WatchedTyper:
                         region=matched_region.model_dump(),
                     )
                     return matched_region
+                if (
+                    single_line_field
+                    and len(unverified_field_regions) == 1
+                ):
+                    localized_region = unverified_field_regions[0]
+                    DEBUG.event(
+                        "typing.causal_field_frame_localized",
+                        intended_characters=len(intended_snapshot),
+                        verified=False,
+                        region=localized_region.model_dump(),
+                    )
+                    DEBUG.event(
+                        "typing.dense_candidate_scan",
+                        candidate_count=len(candidates),
+                        checked=checked,
+                        matched=True,
+                        verified=False,
+                        region=localized_region.model_dump(),
+                    )
+                    causal_short_field_localized = True
+                    return localized_region
                 DEBUG.event(
                     "typing.dense_candidate_scan",
                     candidate_count=len(candidates),
@@ -4976,7 +5036,12 @@ class WatchedTyper:
                         and (
                             (
                                 not explicit_region
-                                and PRECISE_LOCATE_MIN_CHARS <= total <= 20
+                                and (
+                                    PRECISE_LOCATE_MIN_CHARS
+                                    <= total
+                                    <= 20
+                                    or causal_short_field_localized
+                                )
                             )
                             or total > 20
                         )
@@ -6079,6 +6144,8 @@ class WatchedTyper:
             locate_min_chars = (
                 1
                 if structural_code_glyph
+                else 3
+                if causal_short_field_localized
                 else PRECISE_LOCATE_MIN_CHARS
                 if precise
                 else LOCATE_MIN_CHARS
