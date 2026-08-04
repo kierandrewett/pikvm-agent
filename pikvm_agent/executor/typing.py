@@ -2538,6 +2538,7 @@ class WatchedTyper:
         self._last_grid_frame: CapturedFrame | None = None
         self._last_read_screen_frame: CapturedFrame | None = None
         self._last_field_ocr_result = OCRResult()
+        self._last_read_exact_unverified_spacing = False
         self._refined_readback_region: Region | None = None
         self._refined_readback_intended = ""
         self._causal_exact_spacing_region: Region | None = None
@@ -2652,6 +2653,7 @@ class WatchedTyper:
         (tesseract) crops the saved frame by region, while live PiKVM OCR reads
         that region on the live screen — never the whole frame. ``""`` on failure."""
         self._last_read_semantic_spacing = False
+        self._last_read_exact_unverified_spacing = False
         self._last_field_ocr_result = OCRResult()
         try:
             frame = await self.backend.screenshot()
@@ -3077,6 +3079,16 @@ class WatchedTyper:
                         # evidence. A terminal command whose argv contains no
                         # quoting or shell syntax is the sole exception because
                         # repeated token separators are semantically identical.
+                        self._last_read_exact_unverified_spacing = bool(
+                            "\n" not in intended
+                            and "\r" not in intended
+                            and compute_verdict(
+                                intended,
+                                result.text,
+                                True,
+                            )
+                            == "match"
+                        )
                         return ""
             if (
                 confidences
@@ -6479,9 +6491,28 @@ class WatchedTyper:
                 # grow the auto-located crop if late pixels appear, and accept
                 # only exact/semantically safe evidence. This never emits more
                 # HID, and Enter remains the caller's separate action.
-                for settle_index, settle_s in enumerate(
-                    _PRECISE_READBACK_SETTLES_S
-                ):
+                spacing_only_settle = bool(
+                    self._last_read_exact_unverified_spacing
+                )
+                precise_settles = (
+                    _PRECISE_READBACK_SETTLES_S[:1]
+                    if spacing_only_settle
+                    else _PRECISE_READBACK_SETTLES_S
+                )
+                if spacing_only_settle:
+                    # The complete glyph row is already exact; only calibrated
+                    # spacing remains unresolved. One fresh delayed read can
+                    # acquire that proof, but repeating the same exact glyph
+                    # observation three times cannot manufacture it. Keep the
+                    # later status/full-screen gates unchanged and fail closed
+                    # if none independently proves spacing.
+                    DEBUG.event(
+                        "typing.exact_spacing_settle_budget",
+                        intended_characters=len(text),
+                        ordinary_reads=len(_PRECISE_READBACK_SETTLES_S),
+                        scheduled_reads=len(precise_settles),
+                    )
+                for settle_index, settle_s in enumerate(precise_settles):
                     await asyncio.sleep(settle_s)
                     if not explicit_region:
                         settled_grid = await self._grid()
@@ -6524,7 +6555,7 @@ class WatchedTyper:
                             allow_blind_fallback=(
                                 not defer_blind_editor_readback
                                 or settle_index
-                                == len(_PRECISE_READBACK_SETTLES_S) - 1
+                                == len(precise_settles) - 1
                             ),
                         ),
                         text,
