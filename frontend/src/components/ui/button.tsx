@@ -8,7 +8,12 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/80",
+        // White on the raw accent blue is 3.16:1, under the 4.5:1 AA needs at
+        // button text sizes. The fill is deepened just enough to pass (~4.9:1)
+        // and stays the same colour; --primary is left alone for accents,
+        // rings and selection, which sit on dark surfaces already.
+        default:
+          "bg-[color-mix(in_srgb,var(--primary)_78%,#000)] text-primary-foreground hover:bg-[color-mix(in_srgb,var(--primary)_88%,#000)]",
         outline:
           "border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
         secondary:
