@@ -189,6 +189,52 @@ MISSING_GLYPH_REPLACEMENT_FAILED_SUMMARY = (
 )
 
 
+def _ocr_candidate_fingerprints(result: OCRResult) -> dict[str, Any]:
+    """Describe an OCR selection without retaining any recognized text."""
+
+    primary_confidences = [
+        float(line.confidence)
+        for line in result.lines
+        if line.confidence is not None
+    ]
+    candidates: list[dict[str, Any]] = [
+        {
+            "source": "canonical",
+            "characters": len(result.text),
+            "sha256": hashlib.sha256(result.text.encode("utf-8")).hexdigest(),
+            "mean_confidence": (
+                round(
+                    sum(primary_confidences) / len(primary_confidences),
+                    4,
+                )
+                if primary_confidences
+                else None
+            ),
+        }
+    ]
+    candidates.extend(
+        {
+            "source": f"alternative_{index}",
+            "characters": len(candidate.text),
+            "sha256": hashlib.sha256(
+                candidate.text.encode("utf-8")
+            ).hexdigest(),
+            "mean_confidence": (
+                round(float(candidate.mean_confidence), 4)
+                if candidate.mean_confidence is not None
+                else None
+            ),
+            "evidence_kind": candidate.evidence_kind,
+        }
+        for index, candidate in enumerate(result.alternatives, start=1)
+    )
+    return {
+        "provider_canonical_sha256": candidates[0]["sha256"],
+        "candidate_count": len(candidates),
+        "candidate_fingerprints": candidates,
+    }
+
+
 def is_structural_code_fragment(text: str) -> bool:
     """Recognize one short punctuation-only closing fragment.
 
@@ -2561,6 +2607,7 @@ class WatchedTyper:
                 "typing.field_readback_native_crop",
                 width=native_frame.width,
                 height=native_frame.height,
+                image_sha256=hashlib.sha256(native_frame.data).hexdigest(),
                 screen_region=screen_region.model_dump(),
             )
             return native_tmp, native_local_region
@@ -2727,11 +2774,15 @@ class WatchedTyper:
                             "typing.field_readback_native_primary",
                             observed_characters=len(result.text),
                             line_count=len(result.lines),
+                            selected_sha256=hashlib.sha256(
+                                result.text.encode("utf-8")
+                            ).hexdigest(),
                             verdict=compute_verdict(
                                 intended,
                                 result.text,
                                 True,
                             ),
+                            **_ocr_candidate_fingerprints(native_result),
                         )
                         if compute_verdict(
                             intended,
@@ -2775,7 +2826,13 @@ class WatchedTyper:
                                         retry_result.text
                                     ),
                                     line_count=len(retry_result.lines),
+                                    selected_sha256=hashlib.sha256(
+                                        retry_result.text.encode("utf-8")
+                                    ).hexdigest(),
                                     verdict=retry_verdict,
+                                    **_ocr_candidate_fingerprints(
+                                        retry_result
+                                    ),
                                 )
                                 if retry_verdict == "match":
                                     result = retry_result

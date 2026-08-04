@@ -3206,6 +3206,99 @@ async def test_native_primary_retries_one_caret_phase_without_retyping(
     assert delays == [typing_module.NATIVE_PRIMARY_CARET_RETRY_DELAY_S]
 
 
+async def test_native_primary_debug_event_fingerprints_candidates_without_text(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    intended = "# Release 1.0"
+    mismatch = "# release 1.0"
+    region = Region(x=40, y=74, width=181, height=26)
+    events: list[tuple[str, dict[str, object]]] = []
+    native_bytes = io.BytesIO()
+    Image.new("RGB", (290, 42), "navy").save(native_bytes, "JPEG")
+    native_data = native_bytes.getvalue()
+
+    monkeypatch.setattr(
+        typing_module.DEBUG,
+        "event",
+        lambda kind, **fields: events.append((kind, fields)),
+    )
+
+    class NativeCropBackend(FakeBackend):
+        async def screenshot(self, region=None):
+            if region is None:
+                return await super().screenshot()
+            return to_captured_frame(native_data, 290, 42)
+
+    class CandidateOCR:
+        async def ocr(self, image_path, region=None):
+            return await self.ocr_precise(image_path, region=region)
+
+        async def ocr_precise(self, image_path, region=None):
+            if Image.open(image_path).size == (290, 42):
+                return OCRResult(
+                    lines=[OCRLine(text=mismatch, confidence=0.93)],
+                    alternatives=[
+                        OCRCandidate(
+                            text=intended,
+                            mean_confidence=0.91,
+                        )
+                    ],
+                    spacing_evidence="uncertain",
+                )
+            return OCRResult(
+                lines=[OCRLine(text="# Release 1.4", confidence=0.99)],
+                spacing_evidence="verified",
+            )
+
+    observed = await WatchedTyper(NativeCropBackend(), CandidateOCR())._read_field(
+        region,
+        intended=intended,
+        precise=True,
+        allow_blind_fallback=True,
+        allow_native_primary_fallback=True,
+        extract_structured_exact_row=True,
+    )
+
+    assert observed == ""
+    crop_event = next(
+        fields
+        for kind, fields in events
+        if kind == "typing.field_readback_native_crop"
+    )
+    assert crop_event["image_sha256"] == hashlib.sha256(native_data).hexdigest()
+    primary_event = next(
+        fields
+        for kind, fields in events
+        if kind == "typing.field_readback_native_primary"
+    )
+    assert primary_event["provider_canonical_sha256"] == hashlib.sha256(
+        mismatch.encode()
+    ).hexdigest()
+    assert primary_event["selected_sha256"] == primary_event[
+        "provider_canonical_sha256"
+    ]
+    assert primary_event["candidate_count"] == 2
+    assert primary_event["candidate_fingerprints"] == [
+        {
+            "source": "canonical",
+            "characters": len(mismatch),
+            "sha256": hashlib.sha256(mismatch.encode()).hexdigest(),
+            "mean_confidence": 0.93,
+        },
+        {
+            "source": "alternative_1",
+            "characters": len(intended),
+            "sha256": hashlib.sha256(intended.encode()).hexdigest(),
+            "mean_confidence": 0.91,
+            "evidence_kind": "generic",
+        },
+    ]
+    assert all(
+        intended not in str(fields) and mismatch not in str(fields)
+        for _kind, fields in events
+    )
+
+
 @pytest.mark.parametrize(
     ("blurred_read", "expected_status"),
     [
