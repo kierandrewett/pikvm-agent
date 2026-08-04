@@ -810,6 +810,69 @@ async def test_grounded_calculator_expression_does_not_need_send_approval(
     ]
 
 
+async def test_grounded_notepad_allows_exact_release_heading(
+    runtime: Runtime,
+) -> None:
+    """Regress the exact Code-09 v1 false-positive approval payload."""
+
+    class NotepadOCR:
+        async def ocr(self, image_path, region=None):
+            del image_path, region
+            return OCRResult(
+                lines=[
+                    OCRLine(text="Untitled - Notepad", bbox=[20, 20, 180, 45]),
+                    OCRLine(text="File Edit View", bbox=[20, 50, 180, 75]),
+                    OCRLine(
+                        text="Ln 1, Col 1 0 characters",
+                        bbox=[20, 620, 250, 650],
+                    ),
+                    OCRLine(
+                        text="Plain text 100% Windows (CRLF) UTF-8",
+                        bbox=[700, 620, 1_000, 650],
+                    ),
+                ]
+            )
+
+    blank_editor = Image.new("RGB", (1280, 720), (245, 245, 245))
+    blank_editor_bytes = io.BytesIO()
+    blank_editor.save(blank_editor_bytes, "JPEG", quality=90)
+    runtime.backend.set_frame_bytes(blank_editor_bytes.getvalue())
+    runtime._screen_parser.ocr = NotepadOCR()
+    sid = (await runtime.start_session("direct"))["session_id"]
+    shot = await runtime.get_session_summary(sid, capture=True)
+    actions = [
+        {
+            "type": "type_text",
+            "text": "# Release 1.0",
+            "code": False,
+            "secret": False,
+            "context": "editor",
+            "verification": "exact",
+        },
+        {
+            "type": "wait_for_stable_screen",
+            "stable_ms": 400,
+            "timeout_ms": 3_000,
+        },
+    ]
+
+    result = await runtime.run_burst(
+        sid,
+        actions,
+        based_on_world_version=shot["world_version"],
+        based_on_control_epoch=shot["control_epoch"],
+        idempotency_key="grounded-notepad-release-heading",
+    )
+
+    assert result["status"] == "completed"
+    assert _hid_calls(runtime) == [
+        (
+            "type_text",
+            {"text": "# Release 1.0", "code": False, "secret": False},
+        )
+    ]
+
+
 async def test_confirmed_notepad_allows_bounded_deferred_editor_newlines(
     runtime: Runtime,
 ) -> None:

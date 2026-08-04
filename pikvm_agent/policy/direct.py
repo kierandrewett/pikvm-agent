@@ -334,6 +334,34 @@ def needs_deferred_exact_editor_surface_grounding(
     )
 
 
+def needs_exact_editor_surface_grounding(actions: list[dict]) -> bool:
+    """Identify inert exact editor text that resembles a side-effect command.
+
+    Model-supplied editor metadata is not sufficient to relax communication
+    policy. This predicate only asks the runtime to obtain independent Notepad
+    surface proof for one exact text action plus passive waits; commit gestures
+    and multi-action drafts keep their existing policy paths.
+    """
+
+    active = [
+        action
+        for action in actions
+        if action.get("type")
+        not in {"wait", "wait_for_change", "wait_for_stable_screen"}
+    ]
+    if len(active) != 1:
+        return False
+    action = active[0]
+    if (
+        action.get("type") != "type_text"
+        or str(action.get("context") or "").casefold() != "editor"
+        or str(action.get("verification") or "").casefold() != "exact"
+    ):
+        return False
+    text = str(action.get("text") or "")
+    return bool(text and classify_command(text) == "side_effect")
+
+
 def is_confirmed_notepad_editor_surface(observed_surface_text: str) -> bool:
     """Require independent title and editor-chrome evidence for bare newlines."""
 
@@ -1018,6 +1046,7 @@ def classify_direct_burst(
     *,
     observed_surface_text: str = "",
     verified_deferred_editor_surface: bool = False,
+    verified_local_editor_surface: bool = False,
     verified_local_navigation_commit: bool = False,
     verified_local_file_save_commit: bool = False,
 ) -> DirectBurstVerdict:
@@ -1043,6 +1072,10 @@ def classify_direct_burst(
             verified_deferred_editor_surface
             or is_confirmed_notepad_editor_surface(observed_surface_text)
         )
+    )
+    verified_exact_editor_text = (
+        needs_exact_editor_surface_grounding(actions)
+        and verified_local_editor_surface
     )
     verified_safe_error_dismissal = (
         is_confirmed_safe_windows_error_dismissal(
@@ -1267,9 +1300,10 @@ def classify_direct_burst(
             candidates.append(
                 ("terminal_mutating", "high", "dangerous command text requires human review")
             )
-        elif command_risk == "side_effect" and not _is_structured_markup_editor_literal(
-            action,
-            text,
+        elif (
+            command_risk == "side_effect"
+            and not verified_exact_editor_text
+            and not _is_structured_markup_editor_literal(action, text)
         ):
             candidates.append(
                 ("communication_send", "medium", "side-effecting command requires human review")

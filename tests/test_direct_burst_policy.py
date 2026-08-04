@@ -71,6 +71,34 @@ def test_editor_metadata_cannot_exempt_an_actual_communication_instruction() -> 
     )
 
 
+def test_release_heading_needs_independent_editor_grounding() -> None:
+    actions = [
+        {
+            "type": "type_text",
+            "text": "# Release 1.0",
+            "context": "editor",
+            "code": False,
+            "verification": "exact",
+        },
+        {
+            "type": "wait_for_stable_screen",
+            "stable_ms": 400,
+            "timeout_ms": 3_000,
+        },
+    ]
+    verdict = _classify(actions)
+
+    assert (verdict.status, verdict.category) == (
+        "approval_required",
+        "communication_send",
+    )
+    assert classify_direct_burst(
+        actions,
+        PolicyConfig(),
+        verified_local_editor_surface=True,
+    ).status == "allowed"
+
+
 def test_spreadsheet_grid_requires_one_local_file_edit_approval() -> None:
     verdict = _classify(
         [

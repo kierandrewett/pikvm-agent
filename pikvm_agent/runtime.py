@@ -54,6 +54,7 @@ from pikvm_agent.policy.direct import (
     is_safe_local_navigation_target,
     needs_calculator_surface_grounding,
     needs_deferred_exact_editor_surface_grounding,
+    needs_exact_editor_surface_grounding,
     needs_local_file_overwrite_surface_grounding,
     needs_local_navigation_surface_grounding,
     needs_safe_windows_error_dismissal_surface_grounding,
@@ -1169,7 +1170,7 @@ class Runtime:
             observed_surface_text,
             verified_local_navigation_surface,
             verified_local_file_save_surface,
-            verified_deferred_editor_surface,
+            verified_local_editor_surface,
         ) = await self._ground_keyboard_surface(
             grounded_actions,
             frame,
@@ -1187,8 +1188,9 @@ class Runtime:
             self.config.policy,
             observed_surface_text=observed_surface_text,
             verified_deferred_editor_surface=(
-                verified_deferred_editor_surface
+                verified_local_editor_surface
             ),
+            verified_local_editor_surface=verified_local_editor_surface,
             verified_local_navigation_commit=(
                 matching_local_navigation_draft
                 and verified_local_navigation_surface
@@ -1579,6 +1581,7 @@ class Runtime:
 
         calculator = needs_calculator_surface_grounding(actions)
         deferred_editor = needs_deferred_exact_editor_surface_grounding(actions)
+        exact_editor = needs_exact_editor_surface_grounding(actions)
         safe_error_dismissal = (
             not local_navigation_draft
             and needs_safe_windows_error_dismissal_surface_grounding(actions)
@@ -1590,6 +1593,7 @@ class Runtime:
         if (
             not calculator
             and not deferred_editor
+            and not exact_editor
             and not local_navigation_draft
             and not safe_error_dismissal
             and not local_file_overwrite
@@ -1603,7 +1607,7 @@ class Runtime:
         except Exception:
             return ("", False, False, False)
         observed_text = str(observed.text or "")[:2_000]
-        if deferred_editor:
+        if deferred_editor or exact_editor:
             confirmed = _is_confirmed_blank_titleless_notepad_editor(
                 observed,
                 Path(frame.image_path),
