@@ -45,6 +45,7 @@ import {
   effectiveRoleRoute,
   MODEL_ROLES,
   providerModelLabel,
+  unifiedSelection,
 } from "@/lib/model-routes";
 import type {
   ModelCatalog,
@@ -156,16 +157,6 @@ const conformanceEvidence = (health: ProviderHealth) =>
 const canRunRole = (health: ProviderHealth, role: ModelRole) =>
   health.ready !== false &&
   (role === "assistant" || health.computer_screen_input !== false);
-
-/** Which single answer describes the current preferences: the harness picks
- *  ("auto"), one provider does everything (its name), or stages are split. */
-const unifiedSelection = (preferences: ModelPreferences) => {
-  const values = MODEL_ROLES.map((role) => preferences[role.key]);
-  if (values.every((value) => !value)) return "auto";
-  const [first] = values;
-  if (first && values.every((value) => value === first)) return first;
-  return "split";
-};
 
 /**
  * The one control most people need: pick a model, it runs every stage.
