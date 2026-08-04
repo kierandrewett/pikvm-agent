@@ -146,7 +146,11 @@ export function ComputerSheet({
             </div>
           ) : null}
         </SheetHeader>
-        <div className="flex min-h-0 flex-1 items-center justify-center bg-black">
+        {/* The surround is the panel's own colour, not black: the frame is 16:9
+            and the sheet is tall, so a full-height black box put ~600px of hard
+            black around a 410px picture and made the capture read as a strip
+            floating in a void. Black now sits only behind the picture. */}
+        <div className="flex min-h-0 flex-1 items-center justify-center bg-muted/20">
           {!hasComputerSession ? (
             <div className="flex max-w-sm flex-col items-center gap-2 px-8 text-center">
               {connectionEnabled ? (
@@ -171,7 +175,9 @@ export function ComputerSheet({
             <img
               src={frameUrl}
               alt="Current remote computer screen"
-              className="block size-full object-contain"
+              // h-auto so the element matches the picture instead of the
+              // container; max-h-full keeps a tall frame inside the sheet.
+              className="block h-auto max-h-full w-full bg-black object-contain"
             />
           ) : (
             <div className="flex size-full min-h-80 items-center justify-center p-8">
