@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "report": "codex-code-entry-code09-failure-inclusive-attempts",
-  "recorded_at": "2026-08-04T17:33:51Z",
+  "recorded_at": "2026-08-04T18:34:00Z",
   "environment": {
     "target": "authorized disposable Windows VNC VM",
     "production_target_contacted": false,
@@ -513,6 +513,13 @@
       "tests": "The new red regression passes with three reads while remaining unverified; 241 typing tests and 228 adjacent runtime tests passed; compile and diff checks passed; the targeted similarity scan reported only existing broad helper families",
       "live_result": "Two exact single-emission passes completed in 7.850 and 12.300 seconds, 70.4 and 53.7 percent below the retained v6 matching-class baseline, but both completed through earlier canonical or native proof and did not exercise the alternative budget event. A distinct intervening line failed closed on overlapping-window focus after one emission and was not retried. All three probes rebooted after real transitions. The maximized pass also exposed a false-positive communication_send approval on inert visible Notepad text.",
       "live_evidence": "bench/results/2026-08-04/live-vnc/code-09-v6-exact-line-latency-probes.json"
+    },
+    {
+      "after_attempt": "v6-exact-line-latency-probe-5",
+      "commit": "d2ff7410b527e3fa963fd1581bb4cb3ff9bc0f20",
+      "change": "No source change; this maximized fresh-editor probe targeted the exact-generic-alternative budget path with a new inert repeated-symbol line.",
+      "live_result": "The eight-character request was emitted once, but five precise reads consistently observed seven visible characters. The action failed closed after 23.524 seconds with zero corrections or retries and was not replayed. No save or observer ran. An instrumented reset observed a 0.08-luminance dark-frame transition after 3.522 seconds and independently reacquired a stable desktop after reconnect.",
+      "live_evidence": "bench/results/2026-08-04/live-vnc/code-09-v6-exact-line-latency-probes.json"
     }
   ],
   "diagnostic_probes": "bench/results/2026-08-04/live-vnc/code-09-native-readback-probes.json",
@@ -539,8 +546,9 @@
       "Two further glyph-varying Run-field probes retained exact single emissions and visible values but failed closed when focused OCR stayed ambiguous. Pushed 90a6903 replaced the glyph-specific border artifact with geometry-only localization. Its live probe emitted one fresh three-character hash once, selected one compact field above one wider control repaint, blurred with Tab once, independently reread the exact hash, and completed in 5.296 seconds with zero corrections or retries. No Enter or command execution occurred, and its mandatory 80.821-second reboot observed a real transition.",
       "Pushed 96a0461 bounded the generic late-pixel reread schedule when the canonical glyph row already matches but spacing remains unproven. Its first live probe safely verified one exact eight-character unsaved line with zero corrections or retries, but did not exercise the optimization: the exact glyph hash was a generic OCR alternative while the canonical candidate was wrong. The 28.541-second action remained slower than the matching-class v6 baseline, and the mandatory 102.688-second reboot observed a real transition.",
       "Pushed d2ff741 allows an exact generic alternative to select that bounded schedule without accepting it as verification. Two later exact probes completed in 7.850 and 12.300 seconds, 70.4 and 53.7 percent below baseline, but both used earlier proof paths and did not fire the budget event. A distinct intervening line failed closed on restored-window focus after one emission and was not retried. Every probe saved nothing, launched no observer, and rebooted after a real transition.",
-      "The maximized exact pass also exposed an independent permission-classification defect: inert local Notepad heading text was labelled communication_send before visible editor context was applied. The approval was granted only against the independently visible blank local editor and existing explicit lab authorization; communication approval policy was not weakened."
+      "The maximized exact pass also exposed an independent permission-classification defect: inert local Notepad heading text was labelled communication_send before visible editor context was applied. The approval was granted only against the independently visible blank local editor and existing explicit lab authorization; communication approval policy was not weakened.",
+      "The fifth maximized probe emitted a distinct eight-character hash once, but the screen and five precise OCR reads consistently contained seven characters. The verifier failed closed with zero retries, the payload was never replayed, and the exact-alternative budget event did not fire. The reset retained a real dark-frame transition and independently reacquired the stable desktop."
     ],
-    "next_attempt": "Use one distinct OCR-ambiguous inert line in a maximized fresh editor to exercise the exact-generic-alternative budget event. Never retry the failed probe text. Reboot and run recorded Code-09 v7 only if the exact receipt passes and that branch fires."
+    "next_attempt": "Reproduce and repair the retained repeated-symbol transport loss offline before another live exact-line probe. Never retry either failed payload. Reboot and run recorded Code-09 v7 only after a new exact single-emission receipt both exercises the exact-alternative budget branch and passes."
   }
 }

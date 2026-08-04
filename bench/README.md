@@ -1769,6 +1769,18 @@ only because the fresh maximized local editor was independently visible and the
 user had explicitly authorized lab typing. The false positive is retained; it
 is not counted as evidence that communication approvals should be weakened.
 
+A fifth maximized fresh-editor probe did not exercise the latency branch and is
+retained as a new transport failure instead. One distinct eight-character hash
+was emitted once with zero corrections or delivery retries, but the screen and
+five precise OCR reads consistently contained only seven characters at 0.9142
+to 0.9325 confidence. The verifier failed closed after 23.524s and the exact
+payload was not replayed. No Save, Enter, observer launch, artifact comparison,
+or dangerous-commit claim followed. The reset retained a 0.08-luminance dark
+frame 3.522s after submission and independently reacquired a stable desktop
+after the VNC reconnect. Code-09 v7 remains gated: the repeated-symbol
+transport loss must be reproduced and fixed offline, then a new exact
+single-emission live probe must actually fire the bounded alternative event.
+
 The failure-inclusive ledger is
 [`code-09-attempts.json`](results/2026-08-04/live-vnc/code-09-attempts.json).
 The five post-v5 gate probes, exact receipts, native crop geometry, independent
@@ -1785,7 +1797,8 @@ failed v6 observer launch, campaign metrics, and second reset are retained
 separately in
 [`v6`](results/2026-08-04/live-vnc/code-09-v6-observer-comparison.json); that
 report explicitly makes no artifact comparison claim.
-The ledger digest is `sha256:7315561dc608`; the native-readback probe digest is
+The ledger digest is `sha256:01e10f93d757`; the exact-line latency probe digest
+is `sha256:190a6d59280d`; the native-readback probe digest is
 `sha256:ccc6cd47bfdd`; the key-path probe digest is
 `sha256:3bd5284b38a1`; the observer-report digests are
 `sha256:9145f099f2db`, `sha256:5e1089ff5537`, and
