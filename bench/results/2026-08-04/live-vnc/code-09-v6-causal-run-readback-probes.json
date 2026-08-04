@@ -1,0 +1,148 @@
+{
+  "schema_version": 1,
+  "report": "code-09-v6-causal-run-readback-probes",
+  "recorded_at": "2026-08-04T17:33:51Z",
+  "source_commit": "90a6903405b1d68bc50586643dc42ec21a78ce3d",
+  "environment": {
+    "target": "authorized disposable Windows VNC VM",
+    "production_target_contacted": false,
+    "endpoint_retained": false,
+    "keymap": "en-gb",
+    "keyboard_profile": "windows"
+  },
+  "diagnosis": {
+    "failure": "Focused OCR of a three-character Windows Run field changed shape with the glyphs and could remain empty or ambiguous even though the fresh frame visibly contained the exact input.",
+    "red_regression": "test_short_field_uses_compact_geometry_only_to_localize_before_blur",
+    "root_cause": "A glyph-specific border-artifact classifier tried to derive localization from unstable focused OCR. The causal before/after geometry was stable: one compact changed field row appeared immediately above a wider enabled-control repaint.",
+    "fix": {
+      "commit": "90a6903405b1d68bc50586643dc42ec21a78ce3d",
+      "change": "Use only one unambiguous compact-field-above-control pair to localize the Run field, then require a reversible Tab blur and a separate exact read of the unchanged field before verification.",
+      "geometry_can_verify_text": false,
+      "exact_blurred_read_required": true,
+      "input_replay_added": false,
+      "exact_input_gate_weakened": false,
+      "permission_gate_weakened": false,
+      "quiescence_gate_weakened": false,
+      "observer_gate_weakened": false,
+      "reboot_gate_weakened": false
+    }
+  },
+  "validation": {
+    "geometry_and_blur_regressions": "6 passed",
+    "full_typing_suite": "239 passed in 99.57s",
+    "adjacent_runtime_suite": "228 passed in 31.86s with one existing Starlette/httpx deprecation warning",
+    "compile": "passed",
+    "diff_check": "passed",
+    "similarity_scan": "The repository scan found the new geometry loop duplicated the existing editor upper-row/lower-effect selection shape. That selection was extracted once while retaining separate field and editor predicates; the focused rescan reports only existing broad helper families.",
+    "ruff": "not run because ruff is not installed in the project virtual environment"
+  },
+  "live_probes": [
+    {
+      "sequence": 1,
+      "source_commit": "34c82058a1ec8eb9c123b2b3b26dc411212e7d7b",
+      "session_id": "s_03ddf8d61bc3",
+      "requested_characters": 3,
+      "type_status": "unverified",
+      "focused_ocr_result": "ambiguous",
+      "causal_geometry_present": true,
+      "geometry_localization_implemented": false,
+      "input_emitted_once": true,
+      "input_replayed": false,
+      "enter_sent": false,
+      "command_executed": false,
+      "final_frame_sha256": "9bc12d847bbcbad60e448dfc8ae9c23cfea410a0f2f7844fb895404820e776f1",
+      "independent_visual_check": "The fresh retained frame visibly contained the requested three-character value once, but OCR did not provide an exact causal receipt.",
+      "mandatory_reboot": {
+        "ready": true,
+        "transition_observed": true,
+        "duration_ms": 85102
+      }
+    },
+    {
+      "sequence": 2,
+      "source_commit": "713bc8b41229e49aafefee06085c28568d0ea011",
+      "session_id": "s_d71336e6c4e3",
+      "requested_characters": 3,
+      "type_status": "unverified",
+      "focused_ocr_result": "ambiguous with glyph-dependent canonical and alternative candidates",
+      "causal_geometry_present": true,
+      "geometry_localization_implemented": false,
+      "input_emitted_once": true,
+      "input_replayed": false,
+      "enter_sent": false,
+      "command_executed": false,
+      "final_frame_sha256": "916aa744d3caa8aada13bd8964305bdc3e33ec6ff068e71de25e7195b193e596",
+      "independent_visual_check": "The fresh retained frame visibly contained the requested three-character value once, but the glyph-specific border classifier did not generalize.",
+      "mandatory_reboot": {
+        "ready": true,
+        "transition_observed": true,
+        "duration_ms": 78904,
+        "attempt_duration_ms": 73476,
+        "ready_frame_sha256": "4ee1dcf23b95332cf877de1f75d7a80cc09a3c9598768931e655eb6349f2443e",
+        "ready_frame_luminance": 35.38,
+        "samples": 4
+      }
+    },
+    {
+      "sequence": 3,
+      "source_commit": "90a6903405b1d68bc50586643dc42ec21a78ce3d",
+      "session_id": "s_a6fead332d5e",
+      "requested_characters": 3,
+      "type_status": "completed",
+      "receipt_status": "verified_exact",
+      "receipt_verdict": "match",
+      "proof_state": "exact_visual_readback",
+      "focus_evidence": "read_back_verified",
+      "geometry_event": "typing.causal_short_field_localized",
+      "geometry_verified_text": false,
+      "geometry_region": {
+        "x": 40.0,
+        "y": 674.0,
+        "width": 34.0,
+        "height": 38.0
+      },
+      "candidate_count": 2,
+      "candidate_scan_matched": true,
+      "blur_started": true,
+      "blur_completed": true,
+      "blur_readback_available": true,
+      "blurred_readback_verdict": "match",
+      "blurred_readback_mean_confidence": 0.7126,
+      "action_duration_ms": 5295.8,
+      "correction_count": 0,
+      "delivery_retries": 0,
+      "requested_sha256": "fadfef49b40bf551a279f820bd863ac96aebcbf39b4431dff4f0d5cb62dd5303",
+      "delivery_sha256": "fadfef49b40bf551a279f820bd863ac96aebcbf39b4431dff4f0d5cb62dd5303",
+      "emitted_sha256": "fadfef49b40bf551a279f820bd863ac96aebcbf39b4431dff4f0d5cb62dd5303",
+      "readback_sha256": "fadfef49b40bf551a279f820bd863ac96aebcbf39b4431dff4f0d5cb62dd5303",
+      "exact_readback_sha256_match": true,
+      "emitted_characters": 3,
+      "emitted_exactly_once": true,
+      "readback_frame_sha256": "7ef5ff68e8bfa6ef11c2b65c25e645bb425e9f916f88f30916bb47a0375fffc2",
+      "input_replayed": false,
+      "enter_sent": false,
+      "command_executed": false,
+      "observer_launched": false,
+      "artifact_comparison": "not run",
+      "current_path_absent": null,
+      "dangerous_commit_count": null,
+      "prior_artifact_claimed": false,
+      "mandatory_reboot": {
+        "ready": true,
+        "transition_observed": true,
+        "duration_ms": 80821,
+        "attempt_duration_ms": 75298,
+        "ready_frame_sha256": "bfc9d500a650b686511fe8e857674925b532d928a158cb5bc3bc6a0307df03cc",
+        "ready_frame_luminance": 35.38,
+        "samples": 4
+      }
+    }
+  ],
+  "finding": {
+    "causal_run_field_readback_fix_exercised_live": true,
+    "causal_run_field_readback_fix_effective": true,
+    "duplicate_hid_observed": false,
+    "release_gate": "Causal Run-field exact readback is now passing on the smallest safe live probe. Repeated exact-line verification latency remains the only prerequisite before recorded Code-09 v7.",
+    "next_attempt": "Reduce repeated exact-line verification latency in one bounded slice, exercise it live without weakening exact input or safety gates, reboot, and only then run recorded Code-09 v7."
+  }
+}

@@ -1697,12 +1697,36 @@ check showed one visible glyph, not two. Exact Run-field OCR still returned an
 empty ambiguous readback, so the action correctly remained unverified and was
 not retried again. No Enter was sent, no command or observer executable ran,
 and no artifact or dangerous-commit claim is made. The mandatory reset then
-observed a real boot transition in 106.742s. The remaining gates are causal
-Run-field OCR/readback and one bounded reduction in repeated exact-line
-verification latency; recorded Code-09 v7 remains blocked until both are
-exercised live. The content-free hashes, receipt flags, safety assertions, and
-reboot evidence are retained in
+observed a real boot transition in 106.742s. At that point the remaining gates
+were causal Run-field OCR/readback and one bounded reduction in repeated
+exact-line verification latency. The content-free hashes, receipt flags,
+safety assertions, and reboot evidence are retained in
 [`code-09-v6-idempotency-probe.json`](results/2026-08-04/live-vnc/code-09-v6-idempotency-probe.json).
+
+Pushed `90a6903` now closes the causal Run-field readback gate. Two retained
+three-character probes on earlier slices each emitted once and visibly landed,
+but failed closed because focused OCR varied with the glyphs. The fix uses no
+recognized text to choose the field: it requires one compact causal delta above
+one wider enabled-control repaint, uses that geometry only to localize, moves
+focus with one reversible Tab, and still requires an independent exact read of
+the unchanged field. Ambiguous geometry returns no candidate. The red
+integration regression, five focused geometry/ambiguity checks, all 239 typing
+tests, and 228 adjacent runtime tests pass. Compilation and diff checks pass;
+Ruff is not installed. The similarity scan prompted extraction of the shared
+upper-row/lower-effect selector while retaining separate field and editor
+predicates.
+
+The smallest safe live retest exercised the pushed path. One fresh
+three-character request was emitted exactly once; the causal scan found two
+candidates and selected the unique compact field without verifying its text;
+the blur reread then matched the requested, delivered, emitted, and observed
+SHA-256. The action completed in 5.296s with zero corrections or retries. No
+Enter, command, or observer executable ran, and no artifact or
+dangerous-commit claim is made. Its mandatory reset observed a real boot
+transition in 80.821s. Causal Run-field readback is therefore passing; repeated
+exact-line verification latency is the only remaining prerequisite before
+recorded Code-09 v7. All failed and successful probes are retained in
+[`code-09-v6-causal-run-readback-probes.json`](results/2026-08-04/live-vnc/code-09-v6-causal-run-readback-probes.json).
 
 The failure-inclusive ledger is
 [`code-09-attempts.json`](results/2026-08-04/live-vnc/code-09-attempts.json).
@@ -1720,14 +1744,15 @@ failed v6 observer launch, campaign metrics, and second reset are retained
 separately in
 [`v6`](results/2026-08-04/live-vnc/code-09-v6-observer-comparison.json); that
 report explicitly makes no artifact comparison claim.
-The ledger digest is `sha256:425304bab9f7`; the native-readback probe digest is
+The ledger digest is `sha256:7315561dc608`; the native-readback probe digest is
 `sha256:ccc6cd47bfdd`; the key-path probe digest is
 `sha256:3bd5284b38a1`; the observer-report digests are
 `sha256:9145f099f2db`, `sha256:5e1089ff5537`, and
 `sha256:08db92ad22e7`, `sha256:6f97c9f5412e`, and
 `sha256:d54ff1b4c4f9`; the failed v6 capture report is
 `sha256:cc3b0af1de2b`; the v6 idempotency probe report is
-`sha256:6ecf8b577405`.
+`sha256:6ecf8b577405`; the causal Run-field probe report is
+`sha256:01a1347ecb44`.
 The v1 campaign digest is `sha256:45d79fa42371`; its 150.5-second VP9 recording
 is `sha256:326c660001e1` and its poster is `sha256:ef31e95c379d`. The v2
 campaign digest is `sha256:0e7595958008`; its 247.5-second VP9 recording is
