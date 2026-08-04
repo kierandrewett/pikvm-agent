@@ -48,6 +48,7 @@ import {
 import { AuthDialog } from "@/components/workspace/auth-dialog";
 import { ComputerToolEnvironmentProvider } from "@/components/workspace/computer-tool-environment";
 import {
+  belongsToComputerActivity,
   DeferredComputerToolCall as ComputerToolCall,
   DeferredWorkspaceToolGroup as WorkspaceToolGroup,
 } from "@/components/workspace/deferred-computer-tools";
@@ -97,8 +98,12 @@ const useDeferredMount = (open: boolean) => {
   return mounted || open;
 };
 
+/* The assistant calls `computer_*`; `pikvm_*` is the raw MCP the harness drives
+ * underneath and never appears in a turn. Matching on the pikvm_ prefix alone
+ * meant EVERY computer tool call the user actually sees fell through to the
+ * bare "Used tool: …" fallback, with the rich rendering never once used. */
 const WorkspaceToolCall = (props: ToolCallMessagePartProps) =>
-  props.toolName.startsWith("pikvm_") ? (
+  belongsToComputerActivity(props.toolName) ? (
     <ComputerToolCall {...props} />
   ) : (
     <ToolFallback {...props} />

@@ -1044,3 +1044,26 @@ describe("ComputerActionReceipt", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
+
+describe("computer tool routing", () => {
+  it("routes the tools the assistant actually calls to the rich renderer", async () => {
+    const { belongsToComputerActivity } = await import(
+      "./deferred-computer-tools"
+    );
+    // These are what appear in a turn; matching only pikvm_ sent every one of
+    // them to the bare "Used tool: …" fallback.
+    for (const name of [
+      "computer_start_task",
+      "computer_status",
+      "computer_continue",
+      "computer_pause",
+      "computer_abort",
+    ]) {
+      expect(belongsToComputerActivity(name)).toBe(true);
+    }
+    // The raw MCP the harness drives underneath still qualifies.
+    expect(belongsToComputerActivity("pikvm_click")).toBe(true);
+    // Anything else keeps the generic fallback.
+    expect(belongsToComputerActivity("web_search")).toBe(false);
+  });
+});

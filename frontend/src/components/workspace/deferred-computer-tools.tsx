@@ -22,7 +22,10 @@ const MANAGED_COMPUTER_TOOLS = new Set([
   "computer_abort",
 ]);
 
-const belongsToComputerActivity = (toolName: string) =>
+/** Tools that get the rich computer rendering rather than the bare fallback.
+ *  `computer_*` are what the ASSISTANT calls and therefore what appears in a
+ *  turn; `pikvm_*` are the raw MCP calls the harness drives underneath. */
+export const belongsToComputerActivity = (toolName: string) =>
   toolName.startsWith("pikvm_") || MANAGED_COMPUTER_TOOLS.has(toolName);
 
 const LazyComputerToolCall = lazy(async () => {
