@@ -1,6 +1,15 @@
 # Live disposable-computer campaign. The selected VNC target is supplied only
 # to `pikvm-agent lab up --vnc` at runtime and never belongs in this file.
 providers:
+  codex-spark:
+    kind: "codex_app_server"
+    model: "gpt-5.3-codex-spark"
+    reasoning_effort: "low"
+    service_tier: "priority"
+    timeout_s: 90
+    failure_cooldown_s: 0
+    billing:
+      mode: "subscription"
   codex-fast:
     kind: "codex_app_server"
     model: "gpt-5.6-terra"
@@ -12,9 +21,9 @@ providers:
       mode: "subscription"
 
 routes:
-  reasoner: ["codex-fast"]
-  controller: ["codex-fast"]
-  verifier: ["codex-fast"]
+  reasoner: ["codex-spark", "codex-fast"]
+  controller: ["codex-spark", "codex-fast"]
+  verifier: ["codex-spark", "codex-fast"]
 
 model_budget:
   max_provider_attempts_per_run: 500

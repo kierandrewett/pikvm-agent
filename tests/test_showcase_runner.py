@@ -107,7 +107,7 @@ def test_public_showcase_manifest_contains_fifty_distinct_codex_tasks() -> None:
     } == {task.category for task in manifest.tasks}
 
 
-def test_live_showcase_config_locks_every_role_to_codex_fast() -> None:
+def test_live_showcase_config_prefers_spark_with_terra_fallback() -> None:
     config = yaml.safe_load(
         (
             Path(__file__).parents[1]
@@ -117,13 +117,16 @@ def test_live_showcase_config_locks_every_role_to_codex_fast() -> None:
         ).read_text(encoding="utf-8")
     )
 
+    assert config["providers"]["codex-spark"]["model"] == (
+        "gpt-5.3-codex-spark"
+    )
+    assert config["providers"]["codex-spark"]["reasoning_effort"] == "low"
+    assert config["providers"]["codex-spark"]["service_tier"] == "priority"
     assert config["providers"]["codex-fast"]["model"] == "gpt-5.6-terra"
-    assert config["providers"]["codex-fast"]["reasoning_effort"] == "low"
-    assert config["providers"]["codex-fast"]["service_tier"] == "priority"
     assert config["routes"] == {
-        "reasoner": ["codex-fast"],
-        "controller": ["codex-fast"],
-        "verifier": ["codex-fast"],
+        "reasoner": ["codex-spark", "codex-fast"],
+        "controller": ["codex-spark", "codex-fast"],
+        "verifier": ["codex-spark", "codex-fast"],
     }
 
 
