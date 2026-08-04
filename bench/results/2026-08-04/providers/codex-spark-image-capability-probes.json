@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "report": "codex-spark-image-capability-probes",
+  "recorded_at": "2026-08-04T19:58:44Z",
+  "source_commit": "b9bb7b51bec769ad2d9b03a41ab1b14a828fb85f",
+  "computer_target_contacted": false,
+  "provider": {
+    "kind": "codex_app_server",
+    "model": "gpt-5.3-codex-spark",
+    "reasoning_effort": "low",
+    "service_tier": "priority"
+  },
+  "catalog": {
+    "provider_id": "openai",
+    "image_input_advertised": true,
+    "finding": "The local model catalog advertises image input, but three independent target-free live probes did not recover image content."
+  },
+  "probes": [
+    {
+      "name": "native-local-image",
+      "transport": "Codex app-server localImage with an absolute PNG path and original detail",
+      "expected_text": "SPARK-CANARY-4827",
+      "expected_border_color": "blue",
+      "schema_valid": true,
+      "exact": false,
+      "model_reported_image_available": false,
+      "latency_ms": 5242
+    },
+    {
+      "name": "inline-data-url-image",
+      "transport": "Codex app-server image with an inline PNG data URL and original detail",
+      "expected_text": "DATA-URL-CANARY-7391",
+      "expected_border_color": "blue",
+      "schema_valid": true,
+      "exact": false,
+      "model_reported_image_available": false,
+      "latency_ms": 5892
+    },
+    {
+      "name": "standard-provider-conformance",
+      "transport": "Harness deterministic synthetic blind-screen suite",
+      "cases": 1,
+      "schema_valid": 1,
+      "exact": 0,
+      "exact_accuracy": 0.0,
+      "calls_failed": 0,
+      "median_latency_ms": 4696,
+      "computer_target_contacted": false
+    }
+  ],
+  "diagnosis": {
+    "local_file_exists_and_is_valid": true,
+    "local_image_protocol_matches_generated_app_server_schema": true,
+    "inline_image_protocol_matches_generated_app_server_schema": true,
+    "harness_dropped_image": false,
+    "harness_mislabeled_model_capability": true,
+    "finding": "Spark is responsive and schema-valid but is not empirically usable as a screen-grounded computer reasoner, controller, or verifier through this app-server route."
+  },
+  "remediation": {
+    "provider_flag": "computer_screen_input=false",
+    "computer_routes": "codex-fast only",
+    "assistant_route": "codex-spark then codex-fast",
+    "safety_effect": "Configuration validation now rejects a provider explicitly marked without screen input from reasoner, controller, or verifier routes while still allowing normal assistant use.",
+    "verification_weakened": false
+  },
+  "release_gate": {
+    "computer_use": "blocked until a live vision-capable provider is available",
+    "normal_chat": "Spark remains available",
+    "next_provider_availability": "The current Codex general subscription bucket was observed exhausted; no reset credit was consumed."
+  }
+}

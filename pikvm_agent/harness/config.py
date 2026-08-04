@@ -107,6 +107,7 @@ class ProviderSpec(BaseModel):
 
     kind: ProviderKind
     model: str
+    computer_screen_input: bool = True
     argv: list[str] = Field(default_factory=list)
     executable: str | None = None
     profile_home_env: str | None = None
@@ -407,6 +408,17 @@ class HarnessSettings(BaseModel):
                     f"{role} route references unknown providers: "
                     + ", ".join(sorted(missing))
                 )
+            if role != "assistant":
+                without_screen_input = sorted(
+                    name
+                    for name in route
+                    if not self.providers[name].computer_screen_input
+                )
+                if without_screen_input:
+                    raise ValueError(
+                        f"{role} route requires computer screen input: "
+                        + ", ".join(without_screen_input)
+                    )
         if self.model_budget.max_cost_usd_per_run is not None:
             routed = {
                 name
@@ -632,6 +644,11 @@ def check_provider_prerequisites(
             **support.readiness_metadata(auth_metadata["auth_mode"]),
             **auth_metadata,
         }
+        if not spec.computer_screen_input:
+            status["computer_screen_input"] = False
+            status["pixel_input"] = (
+                "Unavailable for managed computer roles"
+            )
         if spec.kind in {"azure_openai_responses", "vertex_gemini"}:
             if spec.auth_mode == "bearer_command":
                 executable = spec.credential_argv[0]

@@ -207,6 +207,62 @@ describe("ProviderConnectionsSheet", () => {
 
   });
 
+  it("keeps chat-only models out of computer roles", async () => {
+    const user = userEvent.setup();
+    const onPreferenceChange = vi.fn();
+    const providersWithChatOnly = {
+      ...providers,
+      "spark-chat": {
+        kind: "codex_app_server",
+        configured_model: "gpt-5.3-codex-spark",
+        ready: true,
+        computer_screen_input: false,
+        routes: [{ role: "assistant", position: 1 }],
+      },
+    } as ProviderMap;
+
+    render(
+      <ProviderConnectionsSheet
+        open
+        onOpenChange={() => undefined}
+        providers={providersWithChatOnly}
+        catalog={catalog}
+        preferences={{}}
+        locked={false}
+        onPreferenceChange={onPreferenceChange}
+        onResetPreferences={() => undefined}
+      />,
+    );
+
+    expect(screen.getByText("Chat only")).not.toBeNull();
+
+    await user.click(
+      screen.getByRole("combobox", { name: "Model for this task" }),
+    );
+    expect(
+      screen.queryByRole("option", {
+        name: "gpt-5.3-codex-spark · spark-chat",
+      }),
+    ).toBeNull();
+    await user.keyboard("{Escape}");
+
+    await user.click(screen.getByRole("button", { name: "Split by stage" }));
+    await user.click(screen.getByRole("combobox", { name: "Chat model" }));
+    expect(
+      screen.getByRole("option", {
+        name: "gpt-5.3-codex-spark · spark-chat",
+      }),
+    ).not.toBeNull();
+    await user.keyboard("{Escape}");
+
+    await user.click(screen.getByRole("combobox", { name: "Acting model" }));
+    expect(
+      screen.queryByRole("option", {
+        name: "gpt-5.3-codex-spark · spark-chat",
+      }),
+    ).toBeNull();
+  });
+
   it("hands the choice back to the harness when Automatic is picked", async () => {
     const user = userEvent.setup();
     const onResetPreferences = vi.fn();
@@ -227,7 +283,7 @@ describe("ProviderConnectionsSheet", () => {
       screen.getByRole("combobox", { name: "Model for this task" }),
     );
     await user.click(
-      screen.getByRole("option", { name: /Automatic — harness picks/ }),
+      screen.getByRole("option", { name: /Automatic — routes each stage/ }),
     );
     expect(onResetPreferences).toHaveBeenCalled();
   });

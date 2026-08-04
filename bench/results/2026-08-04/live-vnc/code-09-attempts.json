@@ -16,10 +16,10 @@
   },
   "model_route": {
     "campaign_default_provider": "codex-fast",
-    "configured_primary_provider": "codex-spark",
-    "configured_primary_model": "gpt-5.3-codex-spark",
-    "configured_fallback_provider": "codex-fast",
-    "configured_fallback_model": "gpt-5.6-terra",
+    "configured_computer_provider": "codex-fast",
+    "configured_computer_model": "gpt-5.6-terra",
+    "configured_assistant_primary_provider": "codex-spark",
+    "configured_assistant_primary_model": "gpt-5.3-codex-spark",
     "reasoning_effort": "low",
     "service_tier": "priority",
     "roles": [
@@ -37,7 +37,7 @@
     "all_recordings_retained": true,
     "all_reboots_ready": true,
     "all_reboots_observed_real_transition": true,
-    "release_gate": "blocked after recorded v9: the Spark-primary manifest is proven live with 20 successful calls, zero provider failures, and zero fallbacks. The model completed one Notepad-launch action, then exhausted the bounded recovery budget because it treated the supplied comparison image as unavailable or uninspectable. No document content or save occurred; the run recorded, quiesced, and rebooted."
+    "release_gate": "blocked on a vision-capable provider. Recorded v9 proved Spark-primary routing with 20 successful calls and zero fallbacks, but three target-free image probes then proved the model cannot inspect either native local images or inline image data through this route. Spark is now explicitly excluded from computer roles while remaining available for normal assistant chat; the exhausted Terra route is the only configured computer provider."
   },
   "attempts": [
     {
@@ -693,6 +693,7 @@
   "causal_run_readback_probes": "bench/results/2026-08-04/live-vnc/code-09-v6-causal-run-readback-probes.json",
   "exact_line_latency_probes": "bench/results/2026-08-04/live-vnc/code-09-v6-exact-line-latency-probes.json",
   "repeated_symbol_transport_probe": "bench/results/2026-08-04/live-vnc/code-09-v6-repeated-symbol-transport-probe.json",
+  "spark_image_capability_probes": "bench/results/2026-08-04/providers/codex-spark-image-capability-probes.json",
   "next_gate": {
     "status": "blocked",
     "evidence": [
@@ -720,8 +721,9 @@
       "Pushed 7ae4f44 reproduced the repeated Windows numeric-Alt loss offline and added a bounded Alt-up reassertion barrier. A fresh maximized live probe then emitted one distinct eight-character repeated-symbol line once, retained both semantic Alt routes under windows-rfb-print-v3, fired the exact-alternative spacing budget once, and independently matched the requested readback hash in 9.222 seconds with zero corrections or retries. Its mandatory reset retained a 0.08-luminance dark-frame transition and reacquired a stable desktop.",
       "Recorded v7 passed the clean-workspace preflight on pushed 84ff3c1, then received quota-or-billing from codex-fast on three reasoner attempts. No model response or task action occurred. The runner failed closed, quiesced, retained the recording, and completed a 74.432-second transition-observed reboot. The installed observer did not run, so no post-run artifact or dangerous-commit claim is made.",
       "A bounded target-free app-server probe proved the separate gpt-5.3-codex-spark bucket healthy in 5.147 seconds, and pushed 8775fc5 made Spark the configured primary route. Recorded v8 then exposed that the campaign manifest still pinned codex-fast first: 18 quota-or-billing calls each fell through to a successful Spark call. Spark completed 18 calls across all roles and one Notepad-launch action, then failed closed because it would not claim readable comparison-image evidence. No document input or save occurred, no observer claim is made, and the mandatory 77.248-second reboot observed a real transition.",
-      "Pushed fe7807a made the showcase manifest select codex-spark directly, with an offline expansion proving Spark first and Terra second for all three roles. Recorded v9 exercised that route with 20 successful Spark calls, zero failures, and zero fallbacks. It completed the same single Notepad-launch action, then reached the eight-recovery limit because model outputs repeatedly described the comparison image as unavailable or uninspectable. It emitted no document content, made no save, launched no observer, and completed a 74.443-second transition-observed reboot."
+      "Pushed fe7807a made the showcase manifest select codex-spark directly, with an offline expansion proving Spark first and Terra second for all three roles. Recorded v9 exercised that route with 20 successful Spark calls, zero failures, and zero fallbacks. It completed the same single Notepad-launch action, then reached the eight-recovery limit because model outputs repeatedly described the comparison image as unavailable or uninspectable. It emitted no document content, made no save, launched no observer, and completed a 74.443-second transition-observed reboot.",
+      "Three target-free image probes isolated the remaining failure outside the VM: native localImage and inline data-URL canaries both returned schema-valid refusals saying no image was available, and the standard synthetic provider-conformance case scored 0/1 exact in 4.696 seconds. The generated app-server schema accepts both transports and the harness attached valid images, so the empirical model capability contradicts the catalog's image-input claim. The provider is now marked computer_screen_input=false and validation rejects it from computer roles without removing it from normal assistant chat."
     ],
-    "next_attempt": "Diagnose the Codex app-server image attachment and Spark model capability path from retained v9 events and a target-free image canary. Implement one bounded causal fix only if the harness is dropping or mislabelling the supplied frame. Do not weaken verification or replay task input; run v10 only after the fix is proven offline and with the smallest safe live image probe."
+    "next_attempt": "Do not run Code-09 v10 on Spark. Resume recorded computer testing only when codex-fast becomes available again or another explicitly configured provider passes the target-free image conformance gate. Keep Spark on the assistant route only and do not consume a Codex reset credit."
   }
 }

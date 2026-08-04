@@ -237,6 +237,10 @@ class CreateRunBody(BaseModel):
         return self
 
 
+class ComputerScreenInputUnavailableError(ValueError):
+    """A selected provider cannot inspect frames for a managed role."""
+
+
 def _expanded_model_route(
     preferences: ModelPreferences,
     provider_health: dict[str, dict[str, object]],
@@ -251,9 +255,19 @@ def _expanded_model_route(
             raise KeyError(selected)
         if not provider_health[selected].get("ready", True):
             raise RuntimeError(selected)
+        if (
+            role != "assistant"
+            and provider_health[selected].get("computer_screen_input") is False
+        ):
+            raise ComputerScreenInputUnavailableError(selected)
         default_candidates: list[tuple[int, str]] = []
         for name, health in provider_health.items():
             if not health.get("ready", True):
+                continue
+            if (
+                role != "assistant"
+                and health.get("computer_screen_input") is False
+            ):
                 continue
             routes = health.get("routes")
             if not isinstance(routes, list):
@@ -1012,6 +1026,17 @@ def create_harness_app(
                     409,
                     f"model provider is not ready: {body.model_provider}",
                 )
+            if (
+                provider_health[body.model_provider].get(
+                    "computer_screen_input"
+                )
+                is False
+            ):
+                raise HTTPException(
+                    409,
+                    "model provider cannot inspect the computer screen: "
+                    f"{body.model_provider}",
+                )
         model_route: RunModelRoute | None = None
         if body.model_preferences is not None:
             try:
@@ -1028,6 +1053,12 @@ def create_harness_app(
                 raise HTTPException(
                     409,
                     f"model provider is not ready: {exc.args[0]}",
+                ) from exc
+            except ComputerScreenInputUnavailableError as exc:
+                raise HTTPException(
+                    409,
+                    "model provider cannot inspect the computer screen: "
+                    f"{exc.args[0]}",
                 ) from exc
         create_options: dict[str, Any] = {}
         if body.source_client or body.client_request_id:

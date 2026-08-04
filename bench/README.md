@@ -1845,6 +1845,22 @@ dangerous-commit claim. This provider-valid image-grounding failure is retained
 in
 [`code-09-v9-observer-comparison.json`](results/2026-08-04/live-vnc/code-09-v9-observer-comparison.json).
 
+Three target-free follow-ups isolated that failure outside the VM. A native
+app-server `localImage` canary and an inline data-URL canary both returned valid
+JSON but explicitly reported that no image was available; the standard
+deterministic provider-conformance case likewise scored 0/1 exact in 4.696
+seconds with no computer contact. The generated Codex app-server protocol
+accepts both transports and the local model catalog advertises image input, so
+the live capability contradicts the catalog rather than indicating a dropped
+harness attachment. The provider configuration now records
+`computer_screen_input: false`; validation rejects such a model from reasoner,
+controller, or verifier routes while still allowing it on the normal assistant
+route. Spark remains useful for chat, but Code-09 v10 is blocked until Terra's
+vision-capable route is available or another provider passes the same
+target-free gate. No reset credit was consumed. The content-free capability
+evidence is retained in
+[`codex-spark-image-capability-probes.json`](results/2026-08-04/providers/codex-spark-image-capability-probes.json).
+
 The failure-inclusive ledger is
 [`code-09-attempts.json`](results/2026-08-04/live-vnc/code-09-attempts.json).
 The five post-v5 gate probes, exact receipts, native crop geometry, independent
@@ -1869,7 +1885,7 @@ retained in
 The Spark-primary v9 image-grounding failure and its deliberately absent
 observer claim are retained in
 [`v9`](results/2026-08-04/live-vnc/code-09-v9-observer-comparison.json).
-The ledger digest is `sha256:9bc7bcf0f2a2`; the exact-line latency probe digest
+The ledger digest is `sha256:cbf8e96e1515`; the exact-line latency probe digest
 is `sha256:3b6a193ceca7`; the repeated-symbol transport probe digest is
 `sha256:3deb13af355f`; the native-readback probe digest is
 `sha256:ccc6cd47bfdd`; the key-path probe digest is
@@ -1882,7 +1898,8 @@ is `sha256:3b6a193ceca7`; the repeated-symbol transport probe digest is
 `sha256:01a1347ecb44`; the infrastructure-invalid v7 observer report is
 `sha256:445d2013108b`; the provider-valid v8 observer report is
 `sha256:65dd92566dc1`; the Spark-primary v9 observer report is
-`sha256:121518a07e33`.
+`sha256:121518a07e33`; the Spark image-capability report is
+`sha256:b27cebc74f42`.
 The v1 campaign digest is `sha256:45d79fa42371`; its 150.5-second VP9 recording
 is `sha256:326c660001e1` and its poster is `sha256:ef31e95c379d`. The v2
 campaign digest is `sha256:0e7595958008`; its 247.5-second VP9 recording is

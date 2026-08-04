@@ -208,6 +208,7 @@ export type ProviderHealth = {
   billing_mode?: string;
   interface?: string;
   pixel_input?: string;
+  computer_screen_input?: boolean;
   structured_output?: string;
   ready?: boolean;
   support_tier?: string;

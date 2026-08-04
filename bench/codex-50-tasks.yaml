@@ -1,7 +1,7 @@
 schema_version: 1
 campaign_id: codex-windows-50
 title: 50 real Codex tasks on a clean Windows VM
-provider: codex-spark
+provider: codex-fast
 tasks:
   - task_id: observe-01
     title: Describe the clean desktop

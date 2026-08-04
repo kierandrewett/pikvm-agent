@@ -64,6 +64,66 @@ def test_codex_app_server_factory_uses_low_effort_persistent_oauth(
     assert status["structured_output"] == "Strict JSON Schema"
 
 
+def test_provider_without_screen_input_is_refused_for_computer_roles() -> None:
+    with pytest.raises(
+        ValueError,
+        match="reasoner route requires computer screen input: text-only",
+    ):
+        HarnessSettings(
+            providers={
+                "text-only": {
+                    "kind": "codex_app_server",
+                    "model": "text-only-model",
+                    "computer_screen_input": False,
+                },
+                "vision": {
+                    "kind": "codex_app_server",
+                    "model": "vision-model",
+                },
+            },
+            routes={
+                "assistant": ["text-only", "vision"],
+                "reasoner": ["text-only", "vision"],
+                "controller": ["vision"],
+                "verifier": ["vision"],
+            },
+        )
+
+
+def test_provider_without_screen_input_remains_available_to_assistant(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "pikvm_agent.harness.config.shutil.which",
+        lambda value: "/usr/bin/codex" if value == "codex" else None,
+    )
+    settings = HarnessSettings(
+        providers={
+            "text-only": {
+                "kind": "codex_app_server",
+                "model": "text-only-model",
+                "computer_screen_input": False,
+            },
+            "vision": {
+                "kind": "codex_app_server",
+                "model": "vision-model",
+            },
+        },
+        routes={
+            "assistant": ["text-only", "vision"],
+            "reasoner": ["vision"],
+            "controller": ["vision"],
+            "verifier": ["vision"],
+        },
+    )
+
+    status = check_provider_prerequisites(settings)["text-only"]
+
+    assert status["ready"] is True
+    assert status["computer_screen_input"] is False
+    assert status["pixel_input"] == "Unavailable for managed computer roles"
+
+
 def test_gemini_cli_factory_requires_and_reports_a_dedicated_profile(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

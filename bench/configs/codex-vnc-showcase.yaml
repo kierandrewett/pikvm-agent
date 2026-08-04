@@ -4,6 +4,7 @@ providers:
   codex-spark:
     kind: "codex_app_server"
     model: "gpt-5.3-codex-spark"
+    computer_screen_input: false
     reasoning_effort: "low"
     service_tier: "priority"
     timeout_s: 90
@@ -21,9 +22,10 @@ providers:
       mode: "subscription"
 
 routes:
-  reasoner: ["codex-spark", "codex-fast"]
-  controller: ["codex-spark", "codex-fast"]
-  verifier: ["codex-spark", "codex-fast"]
+  assistant: ["codex-spark", "codex-fast"]
+  reasoner: ["codex-fast"]
+  controller: ["codex-fast"]
+  verifier: ["codex-fast"]
 
 model_budget:
   max_provider_attempts_per_run: 500

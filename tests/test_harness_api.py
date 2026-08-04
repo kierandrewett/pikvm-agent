@@ -279,6 +279,11 @@ class RoutedStubModels:
                 "ready": False,
                 "routes": [{"role": "controller", "position": 3}],
             },
+            "chat-only": {
+                "ready": True,
+                "computer_screen_input": False,
+                "routes": [{"role": "assistant", "position": 3}],
+            },
         }
 
 
@@ -581,6 +586,22 @@ async def test_operator_can_choose_independent_role_preferences_with_fallback(
                 "model_preferences": {"controller": "offline"},
             },
         )
+        chat_only_controller = await client.post(
+            "/api/runs",
+            json={
+                "task": "Use a text-only controller",
+                "auto_start": False,
+                "model_preferences": {"controller": "chat-only"},
+            },
+        )
+        chat_only_unified = await client.post(
+            "/api/runs",
+            json={
+                "task": "Use one text-only model for every stage",
+                "auto_start": False,
+                "model_provider": "chat-only",
+            },
+        )
         conflicting = await client.post(
             "/api/runs",
             json={
@@ -594,7 +615,7 @@ async def test_operator_can_choose_independent_role_preferences_with_fallback(
     assert selected.status_code == 200
     assert selected.json()["model_provider"] is None
     assert selected.json()["model_route"] == {
-        "assistant": ["fast", "strong"],
+        "assistant": ["fast", "strong", "chat-only"],
         "reasoner": ["backup", "strong"],
         "controller": ["fast", "backup"],
         "verifier": ["strong", "backup"],
@@ -606,6 +627,14 @@ async def test_operator_can_choose_independent_role_preferences_with_fallback(
     assert "unknown model provider" in unknown.json()["detail"]
     assert offline.status_code == 409
     assert "model provider is not ready" in offline.json()["detail"]
+    assert chat_only_controller.status_code == 409
+    assert "cannot inspect the computer screen" in chat_only_controller.json()[
+        "detail"
+    ]
+    assert chat_only_unified.status_code == 409
+    assert "cannot inspect the computer screen" in chat_only_unified.json()[
+        "detail"
+    ]
     assert conflicting.status_code == 422
 
 

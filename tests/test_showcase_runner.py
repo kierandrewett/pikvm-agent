@@ -93,7 +93,7 @@ def test_public_showcase_manifest_contains_fifty_distinct_codex_tasks() -> None:
         Path(__file__).parents[1] / "bench" / "codex-50-tasks.yaml"
     )
 
-    assert manifest.provider == "codex-spark"
+    assert manifest.provider == "codex-fast"
     assert len(manifest.tasks) == 50
     assert len({task.task_id for task in manifest.tasks}) == 50
     assert {
@@ -107,7 +107,7 @@ def test_public_showcase_manifest_contains_fifty_distinct_codex_tasks() -> None:
     } == {task.category for task in manifest.tasks}
 
 
-def test_live_showcase_config_prefers_spark_with_terra_fallback() -> None:
+def test_live_showcase_config_reserves_spark_for_non_computer_tasks() -> None:
     config = yaml.safe_load(
         (
             Path(__file__).parents[1]
@@ -122,11 +122,13 @@ def test_live_showcase_config_prefers_spark_with_terra_fallback() -> None:
     )
     assert config["providers"]["codex-spark"]["reasoning_effort"] == "low"
     assert config["providers"]["codex-spark"]["service_tier"] == "priority"
+    assert config["providers"]["codex-spark"]["computer_screen_input"] is False
     assert config["providers"]["codex-fast"]["model"] == "gpt-5.6-terra"
     assert config["routes"] == {
-        "reasoner": ["codex-spark", "codex-fast"],
-        "controller": ["codex-spark", "codex-fast"],
-        "verifier": ["codex-spark", "codex-fast"],
+        "assistant": ["codex-spark", "codex-fast"],
+        "reasoner": ["codex-fast"],
+        "controller": ["codex-fast"],
+        "verifier": ["codex-fast"],
     }
 
 
@@ -1922,9 +1924,9 @@ async def test_showcase_creates_a_computer_run_without_assistant_routing() -> No
     body = json.loads(requests[0].content)
     assert body["mode"] == "computer"
     assert body["model_preferences"] == {
-        "reasoner": "codex-spark",
-        "controller": "codex-spark",
-        "verifier": "codex-spark",
+        "reasoner": "codex-fast",
+        "controller": "codex-fast",
+        "verifier": "codex-fast",
     }
     assert body["task"].endswith(f"Task:\n{task.prompt}")
 

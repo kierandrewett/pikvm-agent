@@ -152,6 +152,10 @@ const conformanceEvidence = (health: ProviderHealth) =>
     .filter(Boolean)
     .join(" · ");
 
+const canRunRole = (health: ProviderHealth, role: ModelRole) =>
+  health.ready !== false &&
+  (role === "assistant" || health.computer_screen_input !== false);
+
 /** Which single answer describes the current preferences: the harness picks
  *  ("auto"), one provider does everything (its name), or stages are split. */
 const unifiedSelection = (preferences: ModelPreferences) => {
@@ -186,8 +190,10 @@ function ModelChoice({
   | "onPreferenceChange"
   | "onResetPreferences"
 >) {
-  const readyProviders = Object.entries(providers).filter(
-    ([, health]) => health.ready !== false,
+  // The unified picker assigns the model to computer-use stages too, so a
+  // chat-only provider is intentionally available only in the stage split.
+  const readyProviders = Object.entries(providers).filter(([, health]) =>
+    canRunRole(health, "controller"),
   );
   const selection = locked
     ? activeProvider ||
@@ -206,8 +212,8 @@ function ModelChoice({
   // answers the question instead of hiding it.
   const autoPrimary = defaultRoleRoute(providers, "assistant")[0];
   const autoLabel = autoPrimary
-    ? `Automatic — harness picks (now ${providerModelLabel(autoPrimary, providers[autoPrimary])})`
-    : "Automatic — harness picks";
+    ? `Automatic — routes each stage (chat: ${providerModelLabel(autoPrimary, providers[autoPrimary])})`
+    : "Automatic — routes each stage";
 
   const items = [
     { value: "auto", label: autoLabel },
@@ -314,9 +320,6 @@ function StageSplit({
   const split = unifiedSelection(preferences) === "split";
   const [expanded, setExpanded] = useState(split);
   const open = expanded || split;
-  const readyProviders = Object.entries(providers).filter(
-    ([, health]) => health.ready !== false,
-  );
   const customized = Object.keys(preferences).length > 0;
 
   return (
@@ -353,6 +356,9 @@ function StageSplit({
         </p>
         <FieldGroup className="mt-3 gap-0 border-y border-border/70">
           {MODEL_ROLES.map((role) => {
+            const readyProviders = Object.entries(providers).filter(
+              ([, health]) => canRunRole(health, role.key),
+            );
             const routed = effectiveRoleRoute({
               providers,
               preferences,
@@ -564,6 +570,9 @@ function ProviderRow({
             <Badge variant={ready ? "secondary" : "outline"}>
               {coolingDown ? "Cooling down" : ready ? "Ready" : "Setup needed"}
             </Badge>
+            {health.computer_screen_input === false ? (
+              <Badge variant="outline">Chat only</Badge>
+            ) : null}
           </div>
           <p className="mt-1 truncate text-xs text-muted-foreground">
             {name} · {signInLabel(health.credential_owner)}
@@ -596,6 +605,14 @@ function ProviderRow({
               <div>
                 <dt className="text-muted-foreground">Accuracy evidence</dt>
                 <dd className="font-medium">{conformanceEvidence(health)}</dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground">Computer use</dt>
+                <dd className="font-medium">
+                  {health.computer_screen_input === false
+                    ? "Screen input unavailable"
+                    : "Screen input available"}
+                </dd>
               </div>
             </dl>
           </details>
@@ -685,7 +702,7 @@ export function ProviderConnectionsSheet({
           </SheetTitle>
           <SheetDescription>
             Pick what runs your task. Keys and sign-ins stay on the harness
-            host — secrets never enter this page.
+            host — secret values never enter this UI.
           </SheetDescription>
           <div className="flex flex-wrap gap-2 pt-2">
             <Badge variant="secondary">
@@ -747,6 +764,10 @@ export function ProviderConnectionsSheet({
               >
                 Accounts
               </h3>
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Readiness is a local prerequisite. Tier ≠ live-tested;
+                conformance is the accuracy check.
+              </p>
               <div className="mt-2">
                 {entries.length ? (
                   entries.map(([name, health]) => (
