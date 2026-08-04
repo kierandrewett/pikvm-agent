@@ -196,6 +196,13 @@ body,
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    /* assistant-ui's thread viewport sets overflow-y: scroll rather than auto so
+       text does not shift sideways as messages stream in. That reserves a real
+       system scrollbar, and left alone Chromium paints a 15px light GTK bar with
+       arrow buttons down the edge of a dark panel docked next to the console.
+       Keep the reserved gutter, lose the system look. */
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--muted-foreground) 35%, transparent) transparent;
   }
   body {
     @apply bg-background text-foreground antialiased;
