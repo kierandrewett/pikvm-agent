@@ -46,6 +46,7 @@ from pikvm_agent.executor.typing import (
     locate_changed_bbox,
     locate_dense_changed_bbox,
     locate_dense_changed_candidates,
+    native_primary_readback_region,
     ocr_line_screen_region,
     precise_readback_candidate_region,
     readback_region,
@@ -150,6 +151,19 @@ def test_ocr_line_screen_region_translates_from_the_actual_crop() -> None:
     )
 
     assert translated == Region(x=59, y=101, width=64, height=16)
+
+
+def test_native_primary_readback_clamps_edge_touching_refinement_to_causal_row() -> None:
+    """An OCR refinement must not pull unrelated desktop text into native OCR."""
+
+    causal_row = Region(x=40, y=74, width=53, height=45)
+    noisy_refinement = Region(x=0, y=74, width=246, height=45)
+
+    assert native_primary_readback_region(
+        causal_row,
+        noisy_refinement,
+        (1280, 800),
+    ) == Region(x=17, y=74, width=99, height=45)
 
 
 def test_editor_field_region_excludes_disjoint_status_bar_repaint() -> None:
@@ -3064,6 +3078,66 @@ async def test_primary_exact_readback_recaptures_native_field_crop() -> None:
     assert backend.requested_regions == [None, region]
     assert ocr.image_sizes == [(1280, 800), (290, 42)]
     assert ocr.regions == [region, Region(x=0, y=0, width=290, height=42)]
+
+
+async def test_native_primary_crop_excludes_edge_text_from_noisy_refinement(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    intended = "# Release 1.0"
+    causal_row = Region(x=40, y=74, width=53, height=45)
+    noisy_refinement = Region(x=0, y=74, width=246, height=45)
+    expected_native_region = Region(x=17, y=74, width=99, height=45)
+    monkeypatch.setattr(
+        typing_module,
+        "precise_readback_candidate_region",
+        lambda *_args, **_kwargs: noisy_refinement,
+    )
+
+    class NativeCropBackend(FakeBackend):
+        def __init__(self) -> None:
+            super().__init__(width=1280, height=800, layout="uk")
+            self.requested_regions: list[Region | None] = []
+
+        async def screenshot(self, region=None):
+            self.requested_regions.append(region)
+            if region is None:
+                return await super().screenshot()
+            width = round(region.width * 1.6)
+            height = round(region.height * 1.6)
+            output = io.BytesIO()
+            Image.new("RGB", (width, height), "navy").save(output, "JPEG")
+            return to_captured_frame(output.getvalue(), width, height)
+
+    class EdgeSensitiveOCR:
+        async def ocr(self, image_path, region=None):
+            return await self.ocr_precise(image_path, region=region)
+
+        async def ocr_precise(self, image_path, region=None):
+            if Image.open(image_path).size == (158, 72):
+                return OCRResult(
+                    lines=[OCRLine(text=intended, confidence=0.99)],
+                    spacing_evidence="verified",
+                )
+            return OCRResult(
+                lines=[
+                    OCRLine(text="Microsoft Edge", confidence=0.96),
+                    OCRLine(text="# Release 1.4", confidence=0.67),
+                ],
+                spacing_evidence="verified",
+            )
+
+    backend = NativeCropBackend()
+    observed = await WatchedTyper(backend, EdgeSensitiveOCR())._read_field(
+        causal_row,
+        intended=intended,
+        precise=True,
+        allow_blind_fallback=True,
+        allow_native_primary_fallback=True,
+        extract_structured_exact_row=True,
+    )
+
+    assert observed == intended
+    assert backend.requested_regions == [None, expected_native_region]
 
 
 @pytest.mark.parametrize(

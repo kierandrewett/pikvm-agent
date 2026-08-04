@@ -550,6 +550,49 @@ def unique_exact_structured_ocr_row(
     return candidates[0] if len(candidates) == 1 else None
 
 
+def native_primary_readback_region(
+    causal_region: Region,
+    refined_region: Region | None,
+    dims: tuple[int, int],
+) -> Region:
+    """Keep a native OCR retry grounded in the causal editor row.
+
+    A noisy low-resolution OCR pass can expand a short editor row all the way
+    to a screen edge.  Capturing that refinement at native resolution then
+    admits unrelated desktop labels beside a non-maximized editor.  Preserve
+    the refinement normally, but when only it touches a horizontal screen edge
+    clamp its horizontal context to half a causal-row height on either side.
+    The vertical band remains unchanged, and this geometry never verifies text.
+    """
+
+    if refined_region is None:
+        return causal_region
+    screen_width, _screen_height = dims
+    if screen_width <= 0:
+        return refined_region
+    refined_right = refined_region.x + refined_region.width
+    causal_right = causal_region.x + causal_region.width
+    refinement_touches_edge = (
+        refined_region.x <= 0 or refined_right >= screen_width
+    )
+    causal_touches_edge = (
+        causal_region.x <= 0 or causal_right >= screen_width
+    )
+    if not refinement_touches_edge or causal_touches_edge:
+        return refined_region
+    margin = max(12, math.ceil(causal_region.height / 2))
+    x = max(refined_region.x, causal_region.x - margin)
+    x2 = min(refined_right, causal_right + margin)
+    if x2 <= x:
+        return causal_region
+    return Region(
+        x=x,
+        y=refined_region.y,
+        width=x2 - x,
+        height=refined_region.height,
+    )
+
+
 def visible_editor_indent_candidate(
     result: OCRResult,
     intended: str,
@@ -2654,7 +2697,13 @@ class WatchedTyper:
                     preserve=preserve_editor_indent_candidate,
                 )
             ):
-                native = await native_crop(refined_region or region)
+                native = await native_crop(
+                    native_primary_readback_region(
+                        region,
+                        refined_region,
+                        self._dims(),
+                    )
+                )
                 if native is not None:
                     native_path, native_region = native
                     try:
