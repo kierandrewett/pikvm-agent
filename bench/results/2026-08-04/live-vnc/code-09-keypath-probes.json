@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "report": "code-09-uk-hash-keypath-probes",
+  "recorded_at": "2026-08-04T04:43:22Z",
+  "environment": {
+    "target": "authorized disposable Windows VNC VM",
+    "production_target_contacted": false,
+    "endpoint_retained": false,
+    "adapter_keymap": "en-gb",
+    "keyboard_profile": "windows",
+    "reboot_after_every_test": true
+  },
+  "probes": [
+    {
+      "probe_id": "hash-route-v1",
+      "accepted_status": "infrastructure_invalid",
+      "reason": "Notepad session restoration reused a nonblank multi-window state, so the mixed OCR was not accepted as keyboard evidence.",
+      "document_input_accepted_as_evidence": false,
+      "reboot": {
+        "ready": true,
+        "transition_observed": true,
+        "duration_ms": 81712,
+        "attempt_duration_ms": 77423,
+        "ready_frame_sha256": "6946bda5eb90c9ccdf62575fc507c5a24b35e26923c7a271e8ef41a44dfffbf4"
+      }
+    },
+    {
+      "probe_id": "hash-route-v2",
+      "accepted_status": "diagnostic_pass",
+      "blank_surface": {
+        "verified": true,
+        "evidence": "Foreground Untitled Notepad visibly showed Ln 1, Col 1 and 0 characters.",
+        "frame_sha256": "56158e144eb29eb0487d47953ec0d64856c59b1a12483d054b88ff51808def00"
+      },
+      "numeric_alt_route": {
+        "requested": "ALT=#",
+        "observed": "ALT=#",
+        "exact": true
+      },
+      "direct_semantic_keysym": {
+        "requested_suffix": "#",
+        "observed_line": "SEM=3",
+        "exact": false,
+        "finding": "A direct '#' RFB keysym is interpreted as the unshifted digit 3 on this Windows UK guest."
+      },
+      "result_frame_sha256": "3f2c587d0a5c01ac4f9edc53f5699617af77b63a76b8558df232a2ea6d34a1566",
+      "file_saved": false,
+      "reboot": {
+        "ready": true,
+        "transition_observed": true,
+        "duration_ms": 77651,
+        "attempt_duration_ms": 73488,
+        "ready_frame_sha256": "634e38641d2ca1fd8f79618baaf0dd0e2ed5f2f3556e9172d574ef02deca32fa"
+      }
+    },
+    {
+      "probe_id": "hash-first-character-v1",
+      "accepted_status": "diagnostic_pass",
+      "blank_surface": {
+        "verified": true,
+        "evidence": "A stable foreground Untitled Notepad tab visibly showed Ln 1, Col 1 and 0 characters before input.",
+        "frame_sha256": "bf9fa79e8a6b5aca27ddc52e45b00d868192975a71796b4e675160b6ebce2111"
+      },
+      "request": {
+        "text": "# Release 1.0",
+        "characters": 13,
+        "sha256": "a09f21ee71a9b858aefacb390fbac6f29ce0e0c7523918d4e4bb691c29b4e3db",
+        "position": "first document input"
+      },
+      "observed": {
+        "text": "# Release 1.0",
+        "characters": 13,
+        "exact": true,
+        "frame_sha256": "17918833021c86f5bcfe0cf1b657765d28754d4f7606ea36ce052a89f31a4692"
+      },
+      "file_saved": false,
+      "reboot": {
+        "ready": true,
+        "transition_observed": true,
+        "duration_ms": 80252,
+        "attempt_duration_ms": 74248,
+        "ready_frame_sha256": "619933a46805ff2a7dd687204de423d750af76591a37b9ac0ce960e957a788e7"
+      }
+    }
+  ],
+  "finding": "The direct semantic RFB keysym is not a valid replacement because it visibly produced 3. The existing Windows numeric Alt route produced an exact hash both after an ASCII prefix and as the first character of the exact campaign heading. The remaining campaign uncertainty required route receipts from the live adapter, not another key mapping change."
+}

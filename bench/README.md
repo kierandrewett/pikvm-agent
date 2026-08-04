@@ -1453,7 +1453,7 @@ campaign digest is `sha256:1448fe01016d`; its 296.5-second VP9 recording is
 `sha256:dfc9290fa3e3` and its poster is `sha256:2498e2610c6d`. The v10 campaign
 and all intervening media remain retained in the ledger.
 
-Code-09 is **not accepted after v3**. v1 launched a fresh blank Notepad
+Code-09 is **not accepted after v4**. v1 launched a fresh blank Notepad
 document, but policy treated the literal heading `# Release 1.0` as a
 communication send because the word `Release` matched a command side-effect
 expression. The non-allowlisted approval stopped the campaign before document
@@ -1475,6 +1475,7 @@ predicates and did not change the implementation.
 | v1 | Failed safely before input | 68.977s | 4 | False-positive `communication_send`; no HID document input |
 | v2 | Failed safely after exact input mismatch | 163.944s | 10 | Grounded policy fix exercised; requested `#` rendered as `£`; draft guard blocked correction |
 | v3 | Failed safely after live transport remediation | 196.603s | 12 | Numeric Alt route exercised on pushed `837935d`; guest still rendered `£`; no Save action |
+| v4 | Failed safely before heading input | 158.074s | 4 | Route receipt proved the heading was absent; blank-field grounding returned interrupted after 90.937s |
 
 v2 ran on pushed master `7679d11`. The identical `# Release 1.0` action passed
 policy with no approval, proving the v1 remediation was exercised live. Its
@@ -1490,13 +1491,12 @@ failures.
 Pushed commit `837935d` then routed the UK hash, tilde, and ISO-backslash
 semantic positions through the existing Windows numeric Alt path on both VNC
 print and key surfaces. Two regressions failed before the change; 324 direct
-VNC, PiKVM, burst, and typing tests passed afterward. v3 exercised that exact
-route on the live en-gb guest for the same 13-character heading, but the frame
-still visibly showed `£ Release 1.0`. The first exact readback retained all 13
+VNC, PiKVM, burst, and typing tests passed afterward. v3 visibly showed
+`£ Release 1.0`, but the campaign did not retain the adapter's actual per-glyph
+route, so that frame alone could not distinguish transport from stale or
+incorrect readback evidence. The first exact readback retained all 13
 characters as a mismatch; one bounded correction left eight observed
-characters, and the draft guard stopped further mutation. This disproves the
-numeric Alt route as a live fix rather than hiding the failure behind request
-hashes or OCR.
+characters, and the draft guard stopped further mutation.
 
 v3 spent 102.161s waiting for 12 provider calls and 88.239s executing three
 attempted actions, for a 196.603s managed wall clock. It quiesced before reboot
@@ -1504,32 +1504,61 @@ and observed a real boot transition in 79.006s. The first observer foreground
 launch is retained as an infrastructure failure; a slower retry returned a
 checksum-valid three-page `open failed` capture for `code-09.md` and zero
 dangerous commits. The post-observer reset observed another transition in
-81.650s. No prior artifact was genuinely claimed. The next bounded slice is a
-rebooted micro-test comparing direct semantic `#` keysym delivery with the
-failed numeric Alt path; another full campaign will run only after the guest
-proves the replacement route. Exact-input, readback, permissions, quiescence,
-observer, recording, and reboot gates remain unchanged.
+81.650s. No prior artifact was genuinely claimed.
+
+Three rebooted, file-free key-path probes resolved that ambiguity. On a visibly
+blank Untitled Notepad canvas, the numeric Alt route rendered `ALT=#` exactly,
+while direct semantic RFB `#` rendered `SEM=3`. A separate exact first-input
+replay rendered `# Release 1.0` exactly. The direct semantic route is therefore
+rejected; the existing numeric Alt route remains the guest-proven path. The
+probe evidence, invalid restored-window attempt, every reboot transition, and
+all frame hashes are retained in
+[`code-09-keypath-probes.json`](results/2026-08-04/live-vnc/code-09-keypath-probes.json).
+
+Pushed commit `6fbfac8` added bounded, content-free VNC print receipts: strategy
+version, keymap/profile, request sequence, character count, SHA-256, and actual
+route counters. The showcase runner captures the receipt before quiescence and
+reboot; it retains no task text. Two exact regressions failed before the change
+and 162 direct VNC, PiKVM, burst, and showcase-runner tests passed afterward.
+
+v4 exercised those receipts on pushed `6fbfac8`. They identified
+`windows-rfb-print-v2`, `en-gb`, and the Windows profile. Six setup/preflight
+requests reached the adapter, but the SHA-256 of `# Release 1.0` was absent.
+The watched typer spent 90.937s repeatedly grounding the already verified blank
+Notepad field and returned interrupted before emitting the heading. Provider
+wait was 27.416s, action execution was 129.632s, and managed wall was 158.074s.
+No Save action ran. The installed observer independently returned `open failed`
+for `code-09.md` with zero dangerous commits. The campaign reboot observed a
+transition in 78.029s and the post-observer reset observed another in 74.439s.
+No prior artifact was genuinely claimed. The next bounded slice will prevent a
+verified zero-character Notepad field from spending 90 seconds in pre-input OCR
+fallbacks while preserving exact post-input readback. Exact-input, permissions,
+quiescence, observer, recording, and reboot gates remain unchanged.
 
 The failure-inclusive ledger is
 [`code-09-attempts.json`](results/2026-08-04/live-vnc/code-09-attempts.json).
 Independent absence and reset evidence is retained for
 [`v1`](results/2026-08-04/live-vnc/code-09-v1-observer-comparison.json),
-[`v2`](results/2026-08-04/live-vnc/code-09-v2-observer-comparison.json), and
-[`v3`](results/2026-08-04/live-vnc/code-09-v3-observer-comparison.json).
-The ledger digest is `sha256:ec41dd928a2e`; the observer-report digests are
+[`v2`](results/2026-08-04/live-vnc/code-09-v2-observer-comparison.json),
+[`v3`](results/2026-08-04/live-vnc/code-09-v3-observer-comparison.json), and
+[`v4`](results/2026-08-04/live-vnc/code-09-v4-observer-comparison.json).
+The ledger digest is `sha256:003a918f6d7a`; the key-path probe digest is
+`sha256:3bd5284b38a1`; the observer-report digests are
 `sha256:9145f099f2db`, `sha256:5e1089ff5537`, and
-`sha256:08db92ad22e7`, respectively.
+`sha256:08db92ad22e7`, and `sha256:20f526ef55f1`, respectively.
 The v1 campaign digest is `sha256:45d79fa42371`; its 150.5-second VP9 recording
 is `sha256:326c660001e1` and its poster is `sha256:ef31e95c379d`. The v2
 campaign digest is `sha256:0e7595958008`; its 247.5-second VP9 recording is
 `sha256:3b6a104c7fdd` and its poster is `sha256:e71a6cd6c71f`.
 The v3 campaign digest is `sha256:19fccab31227`; its 251-second VP9 recording
 is `sha256:9dd1413d5fe8` and its poster is `sha256:12dfc21b0999`.
+The v4 campaign digest is `sha256:c9a4730aec9b`; its 222.5-second VP9 recording
+is `sha256:cace9a958615` and its poster is `sha256:241740ad9fd1`.
 
 Failure-inclusive metrics, canonical campaign digests, the 33 accepted task
 IDs, and the VP9 recording/poster hashes are retained in
 [`codex-50-progress.json`](results/2026-07-31/live-vnc/codex-50-progress.json).
-Its updated digest is `sha256:83600d9a9ac7`.
+Its updated digest is `sha256:8185481fd401`.
 The complete 50-task manifest is
 [`codex-50-tasks.yaml`](codex-50-tasks.yaml).
 
