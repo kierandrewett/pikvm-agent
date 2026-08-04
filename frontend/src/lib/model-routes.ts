@@ -43,6 +43,24 @@ export const providerModelLabel = (
   health: ProviderHealth | undefined,
 ) => health?.configured_model || health?.last_model || name;
 
+/**
+ * Short, familiar names for the model a provider runs. "account-default" is a
+ * real configured value meaning "whatever this account defaults to", which
+ * names nothing to a reader, so it resolves to the product name instead. Shared
+ * by the composer's picker and the Models sheet: the same account appearing as
+ * "Codex" in one and "account-default" in the other, one click apart, is the
+ * kind of thing that makes the whole control feel untrustworthy.
+ */
+const FAMILIAR_MODEL_ALIASES: Record<string, string> = {
+  opus: "Opus",
+  sonnet: "Sonnet",
+  haiku: "Haiku",
+  "account-default": "Codex",
+};
+
+export const compactModelLabel = (model: string) =>
+  FAMILIAR_MODEL_ALIASES[model.toLowerCase()] || model;
+
 export const defaultRoleRoute = (
   providers: ProviderMap,
   role: ModelRole,

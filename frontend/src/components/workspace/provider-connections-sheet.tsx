@@ -40,6 +40,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import {
+  compactModelLabel,
   defaultRoleRoute,
   effectiveRoleRoute,
   MODEL_ROLES,
@@ -212,7 +213,7 @@ function ModelChoice({
   // answers the question instead of hiding it.
   const autoPrimary = defaultRoleRoute(providers, "assistant")[0];
   const autoLabel = autoPrimary
-    ? `Automatic — routes each stage (chat: ${providerModelLabel(autoPrimary, providers[autoPrimary])})`
+    ? `Automatic — routes each stage (chat: ${compactModelLabel(providerModelLabel(autoPrimary, providers[autoPrimary]))})`
     : "Automatic — routes each stage";
 
   const items = [
@@ -565,7 +566,7 @@ function ProviderRow({
               catalog={modelCatalog}
             />
             <h4 className="truncate text-sm font-semibold">
-              {health.configured_model || name}
+              {compactModelLabel(health.configured_model || name)}
             </h4>
             <Badge variant={ready ? "secondary" : "outline"}>
               {coolingDown ? "Cooling down" : ready ? "Ready" : "Setup needed"}
@@ -602,6 +603,18 @@ function ProviderRow({
                     : ""}
                 </dd>
               </div>
+              {health.configured_model &&
+              compactModelLabel(health.configured_model) !==
+                health.configured_model ? (
+                // The heading shows a familiar name in place of a value like
+                // "account-default", so keep the literal one reachable here
+                // rather than losing it: this sheet is where you come to find
+                // out what is actually configured.
+                <div>
+                  <dt className="text-muted-foreground">Configured model</dt>
+                  <dd className="font-medium">{health.configured_model}</dd>
+                </div>
+              ) : null}
               <div>
                 <dt className="text-muted-foreground">Accuracy evidence</dt>
                 <dd className="font-medium">{conformanceEvidence(health)}</dd>

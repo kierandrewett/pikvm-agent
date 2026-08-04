@@ -9,6 +9,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  compactModelLabel,
   effectiveRolePrimary,
   providerModelLabel,
   unifiedSelection,
@@ -32,16 +33,6 @@ type ModelPickerProps = {
   onOpenModels: () => void;
 };
 
-/** Short, familiar names for the trigger — the composer is tight on space. */
-const compactModelLabel = (model: string) => {
-  const familiarAliases: Record<string, string> = {
-    opus: "Opus",
-    sonnet: "Sonnet",
-    haiku: "Haiku",
-    "account-default": "Codex",
-  };
-  return familiarAliases[model.toLowerCase()] || model;
-};
 
 /**
  * The model control, Copilot-style: a small dropdown that lives IN the

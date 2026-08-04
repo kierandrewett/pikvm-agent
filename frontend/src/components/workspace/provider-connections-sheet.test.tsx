@@ -137,6 +137,50 @@ describe("ProviderConnectionsSheet", () => {
     expect(body).not.toContain("do-not-render");
   });
 
+  it("names an account-default the same way the composer picker does", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProviderConnectionsSheet
+        open
+        onOpenChange={() => undefined}
+        providers={
+          {
+            "codex-account": {
+              kind: "codex_cli",
+              configured_model: "account-default",
+              ready: true,
+              credential_owner: "provider_cli",
+              routes: [{ role: "assistant", position: 1 }],
+              calls: 0,
+              successes: 0,
+              failures: 0,
+            },
+          } as unknown as ProviderMap
+        }
+        catalog={catalog}
+        preferences={{}}
+        locked={false}
+        onPreferenceChange={() => undefined}
+        onResetPreferences={() => undefined}
+      />,
+    );
+
+    // "account-default" named nothing, and the picker one click away called the
+    // same account "Codex".
+    expect(
+      screen.getByRole("heading", { level: 4, name: "Codex" }),
+    ).not.toBeNull();
+
+    // The literal value is still reachable behind Details, since this sheet is
+    // where you come to find out what is actually configured. (A closed
+    // <details> hides its content visually, but jsdom still queries it, so this
+    // asserts placement rather than the disclosure itself.)
+    await user.click(screen.getByText("Details"));
+    const details = screen.getByText("Configured model").closest("details");
+    expect(details).not.toBeNull();
+    expect(within(details!).getByText("account-default")).not.toBeNull();
+  });
+
   it("gives safe setup guidance and exposes the adapter catalog progressively", () => {
     render(
       <ProviderConnectionsSheet
