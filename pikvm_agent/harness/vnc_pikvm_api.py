@@ -381,21 +381,33 @@ class VncDotoolTransport:
         self._frame_cached_at = 0.0
         self._print_sequence = 0
         self._print_history: deque[dict[str, Any]] = deque(maxlen=64)
+        self._hid_character_sequence = 0
+        self._hid_route_counts: dict[str, int] = {}
+
+    def _record_hid_character_route(self, route: str) -> None:
+        self._hid_character_sequence += 1
+        self._hid_route_counts[route] = (
+            self._hid_route_counts.get(route, 0) + 1
+        )
 
     def input_transport_diagnostics(self) -> dict[str, Any]:
-        """Return content-free proof of the RFB print routes exercised.
+        """Return content-free proof of the RFB input routes exercised.
 
-        Request hashes and route counters expose whether a running adapter
-        actually selected the expected transport implementation without
-        retaining task text or trusting the guest's OCR as implementation
-        identity. The bounded history is diagnostic evidence only; exact
-        screen and artifact verification remain authoritative.
+        HTTP request hashes plus print and websocket-HID route counters expose
+        which transport implementation a running adapter actually selected
+        without retaining task text or trusting guest OCR as implementation
+        identity. The bounded history is diagnostic evidence only; exact screen
+        and artifact verification remain authoritative.
         """
 
         return {
             "strategy_version": "windows-rfb-print-v2",
             "keymap": self.keymap,
             "keyboard_profile": self.keyboard_profile,
+            "coverage": {
+                "print_history": "http_print_requests",
+                "hid_route_counts": "websocket_hid_character_keydowns",
+            },
             "print_sequence": self._print_sequence,
             "print_history": [
                 {
@@ -404,6 +416,8 @@ class VncDotoolTransport:
                 }
                 for entry in self._print_history
             ],
+            "hid_character_sequence": self._hid_character_sequence,
+            "hid_route_counts": dict(sorted(self._hid_route_counts.items())),
         }
 
     async def connect(self) -> None:
@@ -697,6 +711,9 @@ class VncDotoolTransport:
                 and shifted_character
                 == shifted_code_to_character(code, "en-us")
             ):
+                self._record_hid_character_route(
+                    "windows_physical_shifted"
+                )
                 self._synthetic_keyups.add(code)
                 await asyncio.to_thread(
                     self._type_windows_physical_shifted_key,
@@ -704,22 +721,20 @@ class VncDotoolTransport:
                     code_to_vnc_key(code),
                 )
                 return
+            semantic_alt_code = _windows_vnc_needs_semantic_alt_code(
+                code,
+                character,
+                self.keymap,
+            )
+            shifted_alt_code = (
+                self._shift_pending
+                and re.fullmatch(r"Key[A-Z]", code) is None
+                and shifted_code_to_character(code, self.keymap) is not None
+            )
             if (
                 down
                 and self.keyboard_profile == "windows"
-                and (
-                    _windows_vnc_needs_semantic_alt_code(
-                        code,
-                        character,
-                        self.keymap,
-                    )
-                    or (
-                        self._shift_pending
-                        and re.fullmatch(r"Key[A-Z]", code) is None
-                        and shifted_code_to_character(code, self.keymap)
-                        is not None
-                    )
-                )
+                and (semantic_alt_code or shifted_alt_code)
             ):
                 if self._guest_modifiers_may_be_stale:
                     await asyncio.to_thread(
@@ -728,6 +743,11 @@ class VncDotoolTransport:
                     )
                     self._guest_modifiers_may_be_stale = False
                 character = character or ("\\" if code == "IntlBackslash" else key)
+                self._record_hid_character_route(
+                    "windows_semantic_alt_code"
+                    if semantic_alt_code
+                    else "windows_shifted_alt_code"
+                )
                 self._synthetic_keyups.add(code)
                 await asyncio.to_thread(
                     self._type_windows_alt_code,
@@ -754,6 +774,9 @@ class VncDotoolTransport:
                         client,
                     )
                     self._guest_modifiers_may_be_stale = False
+                self._record_hid_character_route(
+                    "windows_atomic_printable"
+                )
                 self._synthetic_keyups.add(code)
                 await asyncio.to_thread(
                     self._tap_windows_printable_key,
@@ -773,6 +796,9 @@ class VncDotoolTransport:
                 and not self._shift_sent
                 and semantic_shift is not None
             ):
+                self._record_hid_character_route(
+                    "generic_semantic_shifted"
+                )
                 semantic = semantic_shift
                 self._semantic_shift_keys[code] = semantic
                 await asyncio.to_thread(client.keyDown, semantic)
@@ -802,6 +828,8 @@ class VncDotoolTransport:
                 return
 
             method = client.keyDown if down else client.keyUp
+            if down and character is not None:
+                self._record_hid_character_route("generic_hid_character")
             await asyncio.to_thread(method, key)
 
     async def mouse_move(self, x: int, y: int) -> None:

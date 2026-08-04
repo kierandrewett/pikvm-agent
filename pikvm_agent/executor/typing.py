@@ -3456,7 +3456,7 @@ class WatchedTyper:
             and _SIMPLE_TERMINAL_ARGV.fullmatch(delivery_text) is not None
         )
 
-        # FAST TRANSPORT: long prose, exact editor code, and exact simple
+        # FAST TRANSPORT: long prose, exact editor text, and exact simple
         # terminal argv can use the server-side keymap printer, while remaining
         # chunked, interruptible, visually read back, and never auto-submitted.
         # Exact terminal text is restricted to the no-metacharacter grammar
@@ -3484,12 +3484,10 @@ class WatchedTyper:
         guarded_editor_print = (
             precise
             and context.casefold() == "editor"
-            and total
-            >= (
-                PRECISE_LOCATE_MIN_CHARS
-                if code
-                else FAST_EDITOR_PRINT_MIN
-            )
+            # Short exact headings can begin with layout-sensitive punctuation.
+            # Keep them on the same guarded, keymap-aware printer as code rows;
+            # exact visual readback still gates every later action.
+            and total >= PRECISE_LOCATE_MIN_CHARS
             and bool(
                 getattr(
                     self.backend,

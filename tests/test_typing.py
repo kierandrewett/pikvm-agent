@@ -2278,6 +2278,41 @@ async def test_short_exact_editor_text_uses_guarded_fast_print() -> None:
     _assert_no_enter(backend)
 
 
+async def test_exact_editor_heading_uses_guarded_fast_print() -> None:
+    """Short exact headings must not fall back to layout-sensitive HID."""
+
+    backend = FakeBackend()
+    backend.guarded_exact_print = True  # type: ignore[attr-defined]
+    heading = "# Release 1.0"
+    assert len(heading) < typing_module.FAST_EDITOR_PRINT_MIN
+    orig_print = backend.print_text
+
+    async def printing(text: str) -> None:
+        await orig_print(text)
+        backend.set_screen(heading)
+
+    backend.print_text = printing  # type: ignore[method-assign]
+    result = await WatchedTyper(
+        backend,
+        ScriptedOCR(heading),
+    ).type_text(
+        heading,
+        exact=True,
+        context="editor",
+    )
+
+    assert result.used_fast_path is True
+    assert result.status == "verified_exact", result
+    assert result.emitted_exactly_once is True
+    assert [
+        kwargs["text"]
+        for method, kwargs in backend.calls
+        if method == "print_text"
+    ] == [heading]
+    assert not any(method == "type_text" for method, _ in backend.calls)
+    _assert_no_enter(backend)
+
+
 async def test_exact_editor_code_uses_guarded_fast_print() -> None:
     """Bounded code rows use the backend's reliable at-most-once printer."""
 

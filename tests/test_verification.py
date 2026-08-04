@@ -49,6 +49,13 @@ def test_e4_userhost_prompt_stripped() -> None:
     assert res.verified is True
 
 
+def test_exact_markdown_heading_is_not_stripped_as_shell_prompt() -> None:
+    heading = "# Release 1.0"
+
+    assert compute_verdict(heading, heading, precise=True) == "match"
+    assert verify_text(heading, heading, code=True).status == "verified_exact"
+
+
 # --------------------------------------------------------------------------- #
 # E5 — truncated read-back: a prefix-only read is unverified, NOT a retype.
 # --------------------------------------------------------------------------- #

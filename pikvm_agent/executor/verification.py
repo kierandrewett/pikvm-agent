@@ -290,9 +290,16 @@ def compute_verdict(intended: str, read_back: str, precise: bool = False) -> Ver
     if not read_back:
         return "unverified"
     ni = norm(intended, precise)
-    nr = norm(strip_prompt(read_back), precise)
     if has_whitespace_only_difference(intended, read_back):
         return "unverified"
+    raw_nr = norm(read_back, precise)
+    # A literal Markdown heading can begin with the same ``# `` shape as a
+    # root-shell prompt. Prefer a complete whole-field match before applying
+    # the read-back-only prompt heuristic; actual captured prompts still fall
+    # through to the stripped comparison below.
+    if ni == raw_nr:
+        return "match"
+    nr = norm(strip_prompt(read_back), precise)
     if ni == nr:
         return "match"
     if precise and looks_like_trailing_caret(ni, nr):

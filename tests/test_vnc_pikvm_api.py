@@ -524,6 +524,41 @@ async def test_windows_transport_reports_the_exercised_print_strategy() -> None:
     ]
 
 
+async def test_windows_transport_reports_websocket_hid_route_scope() -> None:
+    class Client:
+        def keyDown(self, _key) -> None:
+            return None
+
+        def keyUp(self, _key) -> None:
+            return None
+
+        def keyPress(self, _key) -> None:
+            return None
+
+    transport = VncDotoolTransport(
+        "unused:5900",
+        keymap="en-gb",
+        keyboard_profile="windows",
+    )
+    transport._client = Client()
+
+    await transport.key("Backslash", True)
+    await transport.key("Backslash", False)
+    await transport.key("KeyR", True)
+    await transport.key("KeyR", False)
+
+    diagnostics = transport.input_transport_diagnostics()
+    assert diagnostics["coverage"] == {
+        "print_history": "http_print_requests",
+        "hid_route_counts": "websocket_hid_character_keydowns",
+    }
+    assert diagnostics["hid_character_sequence"] == 2
+    assert diagnostics["hid_route_counts"] == {
+        "windows_atomic_printable": 1,
+        "windows_semantic_alt_code": 1,
+    }
+
+
 async def test_windows_transport_types_unshifted_uk_backslash_as_backslash() -> None:
     class Client:
         def __init__(self) -> None:
