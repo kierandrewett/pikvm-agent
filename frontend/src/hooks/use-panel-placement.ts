@@ -20,6 +20,7 @@ interface PanelBridge {
     setSide(side: "left" | "right"): void;
     toggleDetached(): void;
     onPlacement(cb: (placement: PanelPlacement) => void): () => void;
+    onTheme?(cb: (theme: "dark" | "light") => void): () => void;
 }
 
 const bridge = (): PanelBridge | undefined =>
@@ -42,4 +43,22 @@ export function usePanelPlacement() {
         setSide: (side: "left" | "right") => bridge()?.setSide(side),
         toggleDetached: () => bridge()?.toggleDetached(),
     };
+}
+
+/**
+ * Follow the console's theme.
+ *
+ * This panel is a child view of the console window, and its markup hardcodes
+ * `class="dark"`. Switching the console to light therefore left half of one
+ * window in the wrong theme. Outside the desktop app there is no console to
+ * follow, so the hardcoded class stands and this does nothing.
+ */
+export function useConsoleTheme() {
+    useEffect(() => {
+        const api = bridge();
+        if (!api?.onTheme) return;
+        return api.onTheme((theme) => {
+            document.documentElement.classList.toggle("dark", theme !== "light");
+        });
+    }, []);
 }

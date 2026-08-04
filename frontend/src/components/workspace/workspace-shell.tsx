@@ -69,7 +69,7 @@ import {
 import { RunProvenance } from "@/components/workspace/run-provenance";
 import { UiUpdateBadge } from "@/components/workspace/ui-update-badge";
 import { useHarnessWorkspace } from "@/hooks/use-harness-workspace";
-import { usePanelPlacement } from "@/hooks/use-panel-placement";
+import { useConsoleTheme, usePanelPlacement } from "@/hooks/use-panel-placement";
 import { messagesForRun } from "@/lib/run-messages";
 import { cn } from "@/lib/utils";
 
@@ -230,6 +230,7 @@ function TaskRestoreState({
 export function WorkspaceShell() {
   const workspace = useHarnessWorkspace();
   const panel = usePanelPlacement();
+  useConsoleTheme();
   const [computerOpen, setComputerOpen] = useState(false);
   const [modelsOpen, setModelsOpen] = useState(false);
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
