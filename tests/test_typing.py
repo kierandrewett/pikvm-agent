@@ -3140,6 +3140,72 @@ async def test_native_primary_crop_excludes_edge_text_from_noisy_refinement(
     assert backend.requested_regions == [None, expected_native_region]
 
 
+async def test_native_primary_retries_one_caret_phase_without_retyping(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    intended = "# Release 1.0"
+    region = Region(x=40, y=74, width=181, height=26)
+    delays: list[float] = []
+
+    async def record_sleep(seconds: float) -> None:
+        delays.append(seconds)
+
+    monkeypatch.setattr(asyncio, "sleep", record_sleep)
+
+    class CaretPhaseBackend(FakeBackend):
+        def __init__(self) -> None:
+            super().__init__(width=1280, height=800, layout="uk")
+            self.requested_regions: list[Region | None] = []
+
+        async def screenshot(self, region=None):
+            self.requested_regions.append(region)
+            if region is None:
+                return await super().screenshot()
+            output = io.BytesIO()
+            Image.new("RGB", (290, 42), "navy").save(output, "JPEG")
+            return to_captured_frame(output.getvalue(), 290, 42)
+
+    class CaretPhaseOCR:
+        def __init__(self) -> None:
+            self.native_reads = 0
+
+        async def ocr(self, image_path, region=None):
+            return await self.ocr_precise(image_path, region=region)
+
+        async def ocr_precise(self, image_path, region=None):
+            if Image.open(image_path).size == (290, 42):
+                self.native_reads += 1
+                observed = (
+                    "# Release 1.|"
+                    if self.native_reads == 1
+                    else intended
+                )
+                return OCRResult(
+                    lines=[OCRLine(text=observed, confidence=0.99)],
+                    spacing_evidence="verified",
+                )
+            return OCRResult(
+                lines=[OCRLine(text="# Release 1.4", confidence=0.99)],
+                spacing_evidence="verified",
+            )
+
+    backend = CaretPhaseBackend()
+    ocr = CaretPhaseOCR()
+    observed = await WatchedTyper(backend, ocr)._read_field(
+        region,
+        intended=intended,
+        precise=True,
+        allow_blind_fallback=True,
+        allow_native_primary_fallback=True,
+        extract_structured_exact_row=True,
+    )
+
+    assert observed == intended
+    assert ocr.native_reads == 2
+    assert backend.requested_regions == [None, region, region]
+    assert delays == [typing_module.NATIVE_PRIMARY_CARET_RETRY_DELAY_S]
+
+
 @pytest.mark.parametrize(
     ("blurred_read", "expected_status"),
     [

@@ -85,6 +85,7 @@ FAST_EDITOR_PRINT_MIN = 32  # verified editor focus can use the same guarded pri
 MIN_MISMATCH_OCR_CONFIDENCE = 0.78
 MIN_GROUNDED_EXACT_OCR_CONFIDENCE = 0.55
 MIN_ONE_EDIT_RECHECK_CONFIDENCE = 0.90
+NATIVE_PRIMARY_CARET_RETRY_DELAY_S = 0.55
 MAX_AUTODETECTED_FIELD_HEIGHT = 80
 MAX_AUTODETECTED_FIELD_HEIGHT_FRAC = 0.15
 MAX_PROSE_EDGE_CONTEXT_CHARS = 96
@@ -2509,10 +2510,18 @@ class WatchedTyper:
 
         async def native_crop(
             screen_region: Region,
+            *,
+            refresh: bool = False,
         ) -> tuple[Path, Region] | None:
             """Capture one lossless backend crop for the final exact re-read."""
 
             nonlocal native_capture_region, native_local_region, native_tmp
+            if refresh:
+                if native_tmp is not None:
+                    native_tmp.unlink(missing_ok=True)
+                native_tmp = None
+                native_capture_region = None
+                native_local_region = None
             if (
                 native_tmp is not None
                 and native_capture_region == screen_region
@@ -2697,13 +2706,12 @@ class WatchedTyper:
                     preserve=preserve_editor_indent_candidate,
                 )
             ):
-                native = await native_crop(
-                    native_primary_readback_region(
-                        region,
-                        refined_region,
-                        self._dims(),
-                    )
+                native_screen_region = native_primary_readback_region(
+                    region,
+                    refined_region,
+                    self._dims(),
                 )
+                native = await native_crop(native_screen_region)
                 if native is not None:
                     native_path, native_region = native
                     try:
@@ -2725,6 +2733,52 @@ class WatchedTyper:
                                 True,
                             ),
                         )
+                        if compute_verdict(
+                            intended,
+                            result.text,
+                            True,
+                        ) != "match":
+                            # A terminal caret can overlap the final glyph in
+                            # one otherwise exact native crop. Sample the
+                            # opposite blink phase once, then accept only a
+                            # complete exact read. This remains read-only and
+                            # never replays the typed payload.
+                            await asyncio.sleep(
+                                NATIVE_PRIMARY_CARET_RETRY_DELAY_S
+                            )
+                            retry_native = await native_crop(
+                                native_screen_region,
+                                refresh=True,
+                            )
+                            retry_result = OCRResult()
+                            if retry_native is not None:
+                                retry_path, retry_region = retry_native
+                                try:
+                                    retry_result = await precise_ocr(
+                                        retry_path,
+                                        region=retry_region,
+                                    )
+                                except Exception:
+                                    retry_result = OCRResult()
+                            if retry_result.text:
+                                retry_result = retain_unique_exact_row(
+                                    retry_result
+                                )
+                                retry_verdict = compute_verdict(
+                                    intended,
+                                    retry_result.text,
+                                    True,
+                                )
+                                DEBUG.event(
+                                    "typing.field_readback_native_primary_retry",
+                                    observed_characters=len(
+                                        retry_result.text
+                                    ),
+                                    line_count=len(retry_result.lines),
+                                    verdict=retry_verdict,
+                                )
+                                if retry_verdict == "match":
+                                    result = retry_result
             if (
                 precise
                 and intended
