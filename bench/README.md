@@ -1678,6 +1678,32 @@ current-file or dangerous-commit claim. A second reset completed in 77.479s
 with a real boot transition. This receipt/client-timeout defect is now a
 release blocker alongside the latency failure.
 
+Pushed `8d7fcc1` closes the duplicate-HID half of that blocker. Two focused
+regressions first reproduced both unsafe paths: a regenerated-key retry issued
+the same in-flight semantic action twice, and a retry after a non-successful
+post-HID receipt could issue HID again. The runtime now joins identical
+in-flight work by session and semantic digest, and replays retained unsafe
+post-HID receipts across regenerated keys; a genuinely new successful logical
+action remains repeatable. The focused pair, 62 direct runtime tests, and 14
+adjacent runtime tests pass. The similarity scan prompted extraction of the
+copied test fixture and found no new production duplicate family.
+
+The smallest safe live probe deliberately dropped the first response after one
+harmless character was requested in an empty Run field, then retried the same
+semantic action with a new key. The retry reported both in-flight and alias
+replay, requested/delivered/emitted the same one-character hash exactly once,
+and recorded zero corrections or delivery retries. An independent fresh-frame
+check showed one visible glyph, not two. Exact Run-field OCR still returned an
+empty ambiguous readback, so the action correctly remained unverified and was
+not retried again. No Enter was sent, no command or observer executable ran,
+and no artifact or dangerous-commit claim is made. The mandatory reset then
+observed a real boot transition in 106.742s. The remaining gates are causal
+Run-field OCR/readback and one bounded reduction in repeated exact-line
+verification latency; recorded Code-09 v7 remains blocked until both are
+exercised live. The content-free hashes, receipt flags, safety assertions, and
+reboot evidence are retained in
+[`code-09-v6-idempotency-probe.json`](results/2026-08-04/live-vnc/code-09-v6-idempotency-probe.json).
+
 The failure-inclusive ledger is
 [`code-09-attempts.json`](results/2026-08-04/live-vnc/code-09-attempts.json).
 The five post-v5 gate probes, exact receipts, native crop geometry, independent
@@ -1694,13 +1720,14 @@ failed v6 observer launch, campaign metrics, and second reset are retained
 separately in
 [`v6`](results/2026-08-04/live-vnc/code-09-v6-observer-comparison.json); that
 report explicitly makes no artifact comparison claim.
-The ledger digest is `sha256:0db7ebbeb4ce`; the native-readback probe digest is
+The ledger digest is `sha256:425304bab9f7`; the native-readback probe digest is
 `sha256:ccc6cd47bfdd`; the key-path probe digest is
 `sha256:3bd5284b38a1`; the observer-report digests are
 `sha256:9145f099f2db`, `sha256:5e1089ff5537`, and
 `sha256:08db92ad22e7`, `sha256:6f97c9f5412e`, and
 `sha256:d54ff1b4c4f9`; the failed v6 capture report is
-`sha256:cc3b0af1de2b`.
+`sha256:cc3b0af1de2b`; the v6 idempotency probe report is
+`sha256:6ecf8b577405`.
 The v1 campaign digest is `sha256:45d79fa42371`; its 150.5-second VP9 recording
 is `sha256:326c660001e1` and its poster is `sha256:ef31e95c379d`. The v2
 campaign digest is `sha256:0e7595958008`; its 247.5-second VP9 recording is
@@ -1717,7 +1744,7 @@ is `sha256:20675156e855` and its poster is `sha256:8a9f1a744648`.
 Failure-inclusive metrics, canonical campaign digests, the 33 accepted task
 IDs, and the VP9 recording/poster hashes are retained in
 [`codex-50-progress.json`](results/2026-07-31/live-vnc/codex-50-progress.json).
-Its updated digest is `sha256:5e1903d70293`.
+Its updated digest is `sha256:7450d399ff27`.
 The complete 50-task manifest is
 [`codex-50-tasks.yaml`](codex-50-tasks.yaml).
 

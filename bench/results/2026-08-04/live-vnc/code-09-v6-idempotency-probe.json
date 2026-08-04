@@ -1,0 +1,98 @@
+{
+  "schema_version": 1,
+  "report": "code-09-v6-idempotency-probe",
+  "recorded_at": "2026-08-04T15:52:41Z",
+  "source_commit": "8d7fcc11bab5161b26629b37045da9f91716942c",
+  "environment": {
+    "target": "authorized disposable Windows VNC VM",
+    "production_target_contacted": false,
+    "endpoint_retained": false,
+    "keymap": "en-gb",
+    "keyboard_profile": "windows"
+  },
+  "offline_reproduction": {
+    "failure": "A caller retry with a regenerated idempotency key could issue the same in-flight semantic HID action a second time after the first HTTP response was lost.",
+    "red_regressions": [
+      {
+        "test": "test_cancelled_retry_with_new_key_joins_identical_in_flight_hid",
+        "observed_before_fix": "two HID calls for one semantic action"
+      },
+      {
+        "test": "test_new_key_replays_failed_post_hid_receipt_without_repeating_hid",
+        "observed_before_fix": "a regenerated-key retry repeated HID after a completed non-successful post-HID receipt"
+      }
+    ],
+    "root_cause": "Burst ownership and receipts were indexed by caller idempotency key only; the existing semantic action digest did not join a different-key in-flight action or retain its unsafe post-HID outcome.",
+    "fix": {
+      "commit": "8d7fcc11bab5161b26629b37045da9f91716942c",
+      "change": "Join identical in-flight burst work by session and semantic action digest, and replay a retained non-successful post-HID receipt for a regenerated-key retry without issuing HID again.",
+      "successful_new_logical_actions_remain_repeatable": true,
+      "exact_input_gate_weakened": false,
+      "permission_gate_weakened": false,
+      "quiescence_gate_weakened": false,
+      "observer_gate_weakened": false,
+      "reboot_gate_weakened": false
+    }
+  },
+  "validation": {
+    "focused_regressions": "2 passed",
+    "direct_runtime": "62 passed in 31.13s",
+    "adjacent_runtime": "14 passed with one existing Starlette/httpx deprecation warning",
+    "compileall": "passed",
+    "diff_check": "passed",
+    "similarity_scan": "passed; the copied post-HID failure fixture was extracted and no new production duplicate family was introduced",
+    "ruff": "not run because ruff is not installed in the project virtual environment"
+  },
+  "live_probe": {
+    "kind": "smallest safe lost-response alias probe",
+    "task_scope": "one harmless character in the Windows Run field",
+    "session_id": "s_9d2dd3ef06ea",
+    "first_response_intentionally_dropped_after_ms": 200,
+    "retry_started_after_ms": 1500,
+    "retry_used_regenerated_key": true,
+    "retry_status": "unverified",
+    "retry_reason": "type_unverified",
+    "idempotent_inflight_replay": true,
+    "idempotency_alias_replay": true,
+    "emitted_exactly_once": true,
+    "requested_characters": 1,
+    "delivered_characters": 1,
+    "emitted_characters": 1,
+    "correction_count": 0,
+    "delivery_retries": 0,
+    "requested_sha256": "8e35c2cd3bf6641bdb0e2050b76932cbb2e6034a0ddacc1d9bea82a6ba57f7cf",
+    "delivery_sha256": "8e35c2cd3bf6641bdb0e2050b76932cbb2e6034a0ddacc1d9bea82a6ba57f7cf",
+    "emitted_sha256": "8e35c2cd3bf6641bdb0e2050b76932cbb2e6034a0ddacc1d9bea82a6ba57f7cf",
+    "readback_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "receipt_status": "unverified_ambiguous",
+    "receipt_proof_state": "issued_only",
+    "focus_evidence": "read_back_unverified",
+    "initial_frame_sha256": "096185ec77b1596296051de9d117564a97c0c07ead5caa4415ad98f3a798c82b",
+    "run_dialog_frame_sha256": "c215595461d8dad8ce10eed6644e3e40a5d3f41a1485307b44c03daacad039ff",
+    "final_frame_sha256": "8f70db0136f20a0ece02fc34d85b5b666d3d8c179659c8c834d9efed8b21658d",
+    "independent_visual_check": "The fresh final frame showed exactly one visible glyph matching the requested one-character action, not two.",
+    "ocr_result": "The exact Run-field readback remained empty and ambiguous despite the visible glyph; this is retained as the next causal receipt defect.",
+    "enter_sent": false,
+    "command_executed": false,
+    "observer_launched": false,
+    "artifact_comparison": "not run",
+    "current_path_absent": null,
+    "dangerous_commit_count": null,
+    "prior_artifact_claimed": false
+  },
+  "mandatory_reboot": {
+    "ready": true,
+    "transition_observed": true,
+    "duration_ms": 106742,
+    "attempt_duration_ms": 101107,
+    "ready_frame_sha256": "0e146b8526553789a5715837c09da1bebacf866addc89102367cd761d221a7af",
+    "ready_frame_luminance": 35.38,
+    "samples": 4
+  },
+  "finding": {
+    "idempotency_fix_exercised_live": true,
+    "duplicate_hid_observed": false,
+    "release_gate": "The regenerated-key lost-response retry is now at-most-once for the exercised in-flight semantic action. Causal Run-field OCR/readback and repeated exact-line verification latency remain failing gates.",
+    "next_attempt": "Fix the causal Run-field receipt without replaying input, then make one bounded repeated exact-line verification latency reduction. Run recorded Code-09 v7 only after both changes are exercised live."
+  }
+}

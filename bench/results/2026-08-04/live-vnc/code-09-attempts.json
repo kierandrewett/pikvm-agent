@@ -34,7 +34,7 @@
     "all_recordings_retained": true,
     "all_reboots_ready": true,
     "all_reboots_observed_real_transition": true,
-    "release_gate": "failing: recorded v6 exercised the maximized-editor native readback fix and entered 18 actions with zero recoveries, but exceeded the 300-second SLA before Save As; its post-run observer launch then exposed stale Run-field readback, a false completed Enter receipt, and an accidental replay after a missing client response, so no independent current-file claim is made"
+    "release_gate": "failing: recorded v6 exceeded the 300-second SLA before Save As; pushed 8d7fcc1 live-proved at-most-once HID for a regenerated-key lost-response retry, but causal Run-field OCR/readback remains ambiguous, so no independent current-file claim is made"
   },
   "attempts": [
     {
@@ -483,6 +483,13 @@
       "commit": "d85dd6579c2de0c4764b4084c09ec8d35d32a24a",
       "change": "For a top-screen maximized editor body only, verify the independently grounded bottom-screen Notepad status edge through the shared native-crop OCR path.",
       "tests": "231 typing tests passed; compile and diff checks were clean; similarity scan reported only existing duplicate families"
+    },
+    {
+      "after_attempt": "v6-observer-idempotency-probe",
+      "commit": "8d7fcc11bab5161b26629b37045da9f91716942c",
+      "change": "Join identical in-flight burst work by session and semantic action digest, and replay retained non-successful post-HID receipts for regenerated-key retries without issuing HID again; successful new logical actions remain repeatable.",
+      "tests": "Two red regressions passed after the fix; 62 direct runtime and 14 adjacent runtime tests passed; compile, diff, and similarity checks were clean",
+      "live_evidence": "bench/results/2026-08-04/live-vnc/code-09-v6-idempotency-probe.json"
     }
   ],
   "diagnostic_probes": "bench/results/2026-08-04/live-vnc/code-09-native-readback-probes.json",
@@ -503,8 +510,9 @@
       "Pushed 82cb017 moved maximized editor-body recovery to a native crop. Its live probe matched the exact heading hash twice at 0.9143 confidence but still sampled the wrong status band.",
       "Pushed d85dd65 added a bounded native bottom-status-edge proof. A live exact-heading action passed with zero corrections or retries, and a separate read-only call exercised the new edge path before a 77.248-second reboot.",
       "Recorded v6 then completed 18 actions with zero recoveries or provider failures and exact native heading hashes, but exceeded the 300-second SLA before Save As. Action execution was 65.7 percent of managed wall and provider wait was 32.9 percent.",
-      "The v6 observer capture is unavailable by design rather than guessed: guarded launcher readback returned empty or stale evidence, a later frame exposed concatenated unverified text, and a missing client response caused one accidental direct-command replay. The command was cancelled and the VM reset through a 77.479-second observed reboot."
+      "The v6 observer capture is unavailable by design rather than guessed: guarded launcher readback returned empty or stale evidence, a later frame exposed concatenated unverified text, and a missing client response caused one accidental direct-command replay. The command was cancelled and the VM reset through a 77.479-second observed reboot.",
+      "Pushed 8d7fcc1 reproduced the regenerated-key replay offline, joined identical in-flight semantic work, and retained unsafe post-HID receipts. A live dropped-response probe exercised the alias path: one requested character was emitted exactly once, the regenerated-key retry returned both idempotent replay flags, a fresh frame showed one visible glyph, and no Enter or command execution occurred. Exact Run-field OCR remained empty and ambiguous. The mandatory reset observed a real transition in 106.742 seconds."
     ],
-    "next_attempt": "Fix the causal Run-field receipt/client-timeout defect before relying on observer launch evidence, then make one bounded latency optimization that reduces repeated exact-line verification without weakening exact input, permissions, quiescence, observer, recording, or reboot gates. Run recorded Code-09 v7 only after both fixes are exercised live."
+    "next_attempt": "Fix the remaining causal Run-field OCR/readback defect without replaying input, then make one bounded latency optimization that reduces repeated exact-line verification without weakening exact input, permissions, quiescence, observer, recording, or reboot gates. Run recorded Code-09 v7 only after both changes are exercised live."
   }
 }
