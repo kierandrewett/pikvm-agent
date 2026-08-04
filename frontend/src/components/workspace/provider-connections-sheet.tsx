@@ -1,18 +1,21 @@
 import {
   BotIcon,
   CheckCircle2Icon,
-  CircleDashedIcon,
+  ChevronRightIcon,
   GaugeIcon,
   LockKeyholeIcon,
-  NetworkIcon,
   PlusIcon,
   RotateCcwIcon,
-  ShieldCheckIcon,
   TriangleAlertIcon,
 } from "lucide-react";
 import { lazy, Suspense, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import {
   Field,
   FieldDescription,
@@ -36,6 +39,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import {
+  defaultRoleRoute,
   effectiveRoleRoute,
   MODEL_ROLES,
   providerModelLabel,
@@ -74,29 +78,28 @@ type ProviderConnectionsSheetProps = {
   ) => Promise<ProviderConnectionResult>;
 };
 
-const ROUTE_ROLES = MODEL_ROLES;
-
 const titleCase = (value: string) =>
   value
     .replaceAll("_", " ")
     .replace(/\b\w/g, (character) => character.toUpperCase());
 
 const latencyLabel = (milliseconds: number | null | undefined) => {
-  if (milliseconds == null) return "No latency yet";
+  if (milliseconds == null) return "no latency yet";
   if (milliseconds < 1_000) return `${milliseconds} ms`;
   const seconds = milliseconds / 1_000;
   return `${seconds.toFixed(seconds < 100 ? 1 : 0)} s`;
 };
 
 const FAST_ACTION_PATH_MEDIAN_MS = 5_000;
-const SECRET_SETUP_NOTE =
-  "Provider setup stays local; secret values never enter this UI.";
 
-const authOwnerLabel = (owner: string | undefined) => {
-  if (owner === "provider_cli") return "Provider-owned sign-in";
-  if (owner === "harness_environment") return "Harness environment";
+/* Plain sentences for the two facts a user needs about sign-in: how this account
+ * authenticates, and what to do when it is not ready. Secrets and paths never
+ * appear here — readiness_error stays server-side by design. */
+const signInLabel = (owner: string | undefined) => {
+  if (owner === "provider_cli") return "Signed in with the provider's CLI";
+  if (owner === "harness_environment") return "API key on the harness host";
   if (owner === "external_bridge") return "External bridge";
-  return "Authentication owner unclassified";
+  return "Local harness setup";
 };
 
 const setupGuidance = (owner: string | undefined) => {
@@ -146,7 +149,23 @@ const conformanceEvidence = (health: ProviderHealth) =>
     .filter(Boolean)
     .join(" · ");
 
-function TaskRoute({
+/** Which single answer describes the current preferences: the harness picks
+ *  ("auto"), one provider does everything (its name), or stages are split. */
+const unifiedSelection = (preferences: ModelPreferences) => {
+  const values = MODEL_ROLES.map((role) => preferences[role.key]);
+  if (values.every((value) => !value)) return "auto";
+  const [first] = values;
+  if (first && values.every((value) => value === first)) return first;
+  return "split";
+};
+
+/**
+ * The one control most people need: pick a model, it runs every stage.
+ * "Automatic" hands the choice back to the harness route. The stage-by-stage
+ * split lives in the advanced section below and shows up here only as a
+ * read-only "Split by stage" state.
+ */
+function ModelChoice({
   providers,
   preferences,
   activeRoute,
@@ -167,7 +186,269 @@ function TaskRoute({
   const readyProviders = Object.entries(providers).filter(
     ([, health]) => health.ready !== false,
   );
+  const selection = locked
+    ? activeProvider ||
+      effectiveRoleRoute({
+        providers,
+        preferences,
+        activeRoute,
+        activeProvider,
+        locked,
+        role: "assistant",
+      })[0] ||
+      "auto"
+    : unifiedSelection(preferences);
+
+  // What "Automatic" actually resolves to right now, so the default option
+  // answers the question instead of hiding it.
+  const autoPrimary = defaultRoleRoute(providers, "assistant")[0];
+  const autoLabel = autoPrimary
+    ? `Automatic — harness picks (now ${providerModelLabel(autoPrimary, providers[autoPrimary])})`
+    : "Automatic — harness picks";
+
+  const items = [
+    { value: "auto", label: autoLabel },
+    ...readyProviders.map(([name, health]) => ({
+      value: name,
+      label: `${providerModelLabel(name, health)} · ${name}`,
+    })),
+    ...(selection === "split"
+      ? [{ value: "split", label: "Split by stage (set below)" }]
+      : []),
+  ];
+
+  const choose = (next: string | null) => {
+    if (!next || next === "split") return;
+    if (next === "auto") {
+      onResetPreferences();
+      return;
+    }
+    // One model for everything: point every stage at it. The advanced section
+    // reads back exactly this state, so the two views can never disagree.
+    for (const role of MODEL_ROLES) onPreferenceChange(role.key, next);
+  };
+
+  return (
+    <section aria-labelledby="model-choice-title">
+      <div className="flex flex-wrap items-center gap-2">
+        <h3 id="model-choice-title" className="text-sm font-semibold">
+          Model
+        </h3>
+        {locked ? (
+          <Badge variant="outline">
+            <LockKeyholeIcon data-icon="inline-start" aria-hidden="true" />
+            Locked for this run
+          </Badge>
+        ) : null}
+      </div>
+      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+        {locked
+          ? "This task keeps the models it started with. Start a new task to change them."
+          : "Runs the whole task. Applies when you send the next task."}
+      </p>
+      <div className="mt-3">
+        <Select
+          items={items}
+          value={selection}
+          onValueChange={choose}
+          disabled={locked}
+        >
+          <SelectTrigger
+            size="sm"
+            aria-label="Model for this task"
+            className="w-full"
+          >
+            <SelectValue placeholder="Choose a model" />
+          </SelectTrigger>
+          <SelectContent alignItemWithTrigger={false} align="end">
+            <SelectGroup>
+              {items.map((item) => (
+                <SelectItem
+                  key={item.value}
+                  value={item.value}
+                  disabled={item.value === "split"}
+                >
+                  {item.label}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+        {readyProviders.length === 0 ? (
+          <p className="mt-2 text-xs leading-relaxed text-caution-foreground">
+            No model is ready yet. Fix an account below or add one.
+          </p>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
+/** The stage-by-stage split, folded away because most tasks never need it. */
+function StageSplit({
+  providers,
+  preferences,
+  activeRoute,
+  activeProvider,
+  locked,
+  onPreferenceChange,
+  onResetPreferences,
+}: Pick<
+  ProviderConnectionsSheetProps,
+  | "providers"
+  | "preferences"
+  | "activeRoute"
+  | "activeProvider"
+  | "locked"
+  | "onPreferenceChange"
+  | "onResetPreferences"
+>) {
+  const split = unifiedSelection(preferences) === "split";
+  const [expanded, setExpanded] = useState(split);
+  const open = expanded || split;
+  const readyProviders = Object.entries(providers).filter(
+    ([, health]) => health.ready !== false,
+  );
   const customized = Object.keys(preferences).length > 0;
+
+  return (
+    <Collapsible open={open} onOpenChange={setExpanded}>
+      <div className="flex items-center gap-2">
+        <CollapsibleTrigger
+          className="group/split flex items-center gap-1.5 text-sm font-semibold outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+          aria-label="Split by stage"
+        >
+          <ChevronRightIcon
+            className="size-4 text-muted-foreground transition-transform group-data-[panel-open]/split:rotate-90"
+            aria-hidden="true"
+          />
+          Split by stage
+        </CollapsibleTrigger>
+        <span className="text-xs text-muted-foreground">advanced</span>
+        {!locked && customized ? (
+          <Button
+            type="button"
+            size="xs"
+            variant="ghost"
+            className="ml-auto"
+            onClick={onResetPreferences}
+          >
+            <RotateCcwIcon data-icon="inline-start" aria-hidden="true" />
+            Back to automatic
+          </Button>
+        ) : null}
+      </div>
+      <CollapsibleContent>
+        <p className="mt-2 max-w-lg text-xs leading-relaxed text-muted-foreground">
+          A task runs in stages. Each can use a different model — a fast one
+          for acting on the computer, a stronger one for planning.
+        </p>
+        <FieldGroup className="mt-3 gap-0 border-y border-border/70">
+          {MODEL_ROLES.map((role) => {
+            const routed = effectiveRoleRoute({
+              providers,
+              preferences,
+              activeRoute,
+              activeProvider,
+              locked,
+              role: role.key,
+            });
+            const selected = locked
+              ? routed[0] || "auto"
+              : preferences[role.key] || "auto";
+            const items = [
+              { value: "auto", label: "Automatic" },
+              ...readyProviders.map(([name, health]) => ({
+                value: name,
+                label: `${providerModelLabel(name, health)} · ${name}`,
+              })),
+            ];
+            const primary = routed[0];
+            const fallbacks = routed.slice(1);
+            return (
+              <Field
+                key={role.key}
+                orientation="responsive"
+                data-disabled={locked || undefined}
+                className="border-b border-border/60 py-3 last:border-b-0"
+              >
+                <div className="w-full @md/field-group:w-28">
+                  <FieldLabel
+                    htmlFor={`model-route-${role.key}`}
+                    className="text-xs"
+                  >
+                    {role.label}
+                  </FieldLabel>
+                  <FieldDescription className="mt-0.5 text-[11px]">
+                    {role.description}
+                  </FieldDescription>
+                </div>
+                <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                  <Select
+                    items={items}
+                    value={selected}
+                    onValueChange={(next) =>
+                      onPreferenceChange(
+                        role.key,
+                        !next || next === "auto" ? "" : next,
+                      )
+                    }
+                    disabled={locked}
+                  >
+                    <SelectTrigger
+                      id={`model-route-${role.key}`}
+                      size="sm"
+                      aria-label={`${role.label} model`}
+                      className="w-full"
+                    >
+                      <SelectValue placeholder="Choose model" />
+                    </SelectTrigger>
+                    <SelectContent alignItemWithTrigger={false} align="end">
+                      <SelectGroup>
+                        {items.map((item) => (
+                          <SelectItem key={item.value} value={item.value}>
+                            {item.label}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                  <p className="truncate text-[11px] text-muted-foreground">
+                    {primary
+                      ? `Runs on ${providerModelLabel(primary, providers[primary])}${
+                          fallbacks.length
+                            ? `, falls back to ${fallbacks
+                                .map((name) =>
+                                  providerModelLabel(name, providers[name]),
+                                )
+                                .join(", ")}`
+                            : ""
+                        }`
+                      : "No ready model for this stage"}
+                  </p>
+                </div>
+              </Field>
+            );
+          })}
+        </FieldGroup>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
+
+/** The one warning worth interrupting with: the model that clicks and types is
+ *  measured inaccurate or slow. Rendered outside the advanced fold so it is
+ *  seen even by people who never open it. */
+function ActingPathWarning({
+  providers,
+  preferences,
+  activeRoute,
+  activeProvider,
+  locked,
+}: Pick<
+  ProviderConnectionsSheetProps,
+  "providers" | "preferences" | "activeRoute" | "activeProvider" | "locked"
+>) {
   const actingPrimary = effectiveRoleRoute({
     providers,
     preferences,
@@ -176,9 +457,7 @@ function TaskRoute({
     locked,
     role: "controller",
   })[0];
-  const actingHealth = actingPrimary
-    ? providers[actingPrimary]
-    : undefined;
+  const actingHealth = actingPrimary ? providers[actingPrimary] : undefined;
   const actingMeasured =
     actingHealth?.conformance_calls_attempted != null &&
     actingHealth.conformance_calls_attempted >= 3 &&
@@ -186,173 +465,34 @@ function TaskRoute({
   const actingAccurate =
     actingMeasured &&
     actingHealth?.conformance_status === "passed" &&
-    actingHealth.conformance_exact ===
-      actingHealth.conformance_calls_attempted;
-  const inexactActingPrimary = actingMeasured && !actingAccurate;
-  const slowActingPrimary =
+    actingHealth.conformance_exact === actingHealth.conformance_calls_attempted;
+  const inexact = actingMeasured && !actingAccurate;
+  const slow =
     actingAccurate &&
     actingHealth?.conformance_median_latency_ms != null &&
-    actingHealth.conformance_median_latency_ms >
-      FAST_ACTION_PATH_MEDIAN_MS;
+    actingHealth.conformance_median_latency_ms > FAST_ACTION_PATH_MEDIAN_MS;
 
+  if (!(inexact || slow) || !actingPrimary || !actingHealth) return null;
   return (
-    <section aria-labelledby="task-route-title">
-      <div className="flex items-start gap-2">
-        <NetworkIcon
-          className="mt-0.5 size-4 text-muted-foreground"
-          aria-hidden="true"
-        />
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 id="task-route-title" className="text-sm font-semibold">
-              Task route
-            </h3>
-            {locked ? (
-              <Badge variant="outline">
-                <LockKeyholeIcon data-icon="inline-start" aria-hidden="true" />
-                Locked for this run
-              </Badge>
-            ) : customized ? (
-              <Badge variant="secondary">Custom primaries</Badge>
-            ) : (
-              <Badge variant="outline">Automatic</Badge>
-            )}
-          </div>
-          <p className="mt-1 max-w-lg text-xs leading-relaxed text-muted-foreground">
-            Choose who plans, acts on the computer, and checks the result.
-            Fallbacks remain available if a primary model cannot respond.
-          </p>
-        </div>
-        {!locked && customized ? (
-          <Button
-            type="button"
-            size="xs"
-            variant="ghost"
-            onClick={onResetPreferences}
-          >
-            <RotateCcwIcon data-icon="inline-start" aria-hidden="true" />
-            Reset
-          </Button>
-        ) : null}
-      </div>
-      <FieldGroup className="mt-4 gap-0 border-y border-border/70">
-        {ROUTE_ROLES.map((role) => {
-          const routed = effectiveRoleRoute({
-            providers,
-            preferences,
-            activeRoute,
-            activeProvider,
-            locked,
-            role: role.key,
-          });
-          const selected = locked
-            ? routed[0] || "auto"
-            : preferences[role.key] || "auto";
-          const items = [
-            {
-              value: "auto",
-              label: "Automatic route",
-            },
-            ...readyProviders.map(([name, health]) => ({
-              value: name,
-              label: `${providerModelLabel(name, health)} · ${name}`,
-            })),
-          ];
-          return (
-            <Field
-              key={role.key}
-              orientation="responsive"
-              data-disabled={locked || undefined}
-              className="border-b border-border/60 py-3 last:border-b-0"
-            >
-              <div className="w-full @md/field-group:w-28">
-                <FieldLabel
-                  htmlFor={`model-route-${role.key}`}
-                  className="text-xs"
-                >
-                  {role.label}
-                </FieldLabel>
-                <FieldDescription className="mt-0.5 text-[11px]">
-                  {role.description}
-                </FieldDescription>
-              </div>
-              <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                <Select
-                  items={items}
-                  value={selected}
-                  onValueChange={(next) =>
-                    onPreferenceChange(
-                      role.key,
-                      !next || next === "auto" ? "" : next,
-                    )
-                  }
-                  disabled={locked}
-                >
-                  <SelectTrigger
-                    id={`model-route-${role.key}`}
-                    size="sm"
-                    aria-label={`${role.label} model`}
-                    className="w-full"
-                  >
-                    <SelectValue placeholder="Choose model" />
-                  </SelectTrigger>
-                  <SelectContent alignItemWithTrigger={false} align="end">
-                    <SelectGroup>
-                      {items.map((item) => (
-                        <SelectItem key={item.value} value={item.value}>
-                          {item.label}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-                <p className="truncate text-[11px] text-muted-foreground">
-                  {routed.length
-                    ? routed
-                        .map(
-                          (name, index) =>
-                            `${index ? `fallback ${index}` : "primary"}: ${providerModelLabel(name, providers[name])}`,
-                        )
-                        .join(" → ")
-                    : "No ready provider configured"}
-                </p>
-              </div>
-            </Field>
-          );
-        })}
-      </FieldGroup>
-      {(inexactActingPrimary || slowActingPrimary) &&
-      actingPrimary &&
-      actingHealth ? (
-        <p className="mt-3 flex items-start gap-2 text-[11px] leading-relaxed text-caution-foreground">
-          <GaugeIcon
-            className="mt-0.5 size-3.5 shrink-0"
-            aria-hidden="true"
-          />
-          {inexactActingPrimary ? (
-            <span>
-              Acting path is not exact:{" "}
-              {providerModelLabel(actingPrimary, actingHealth)} scored{" "}
-              {actingHealth.conformance_exact}/
-              {actingHealth.conformance_calls_attempted} in blind-screen
-              conformance. Keep it out of the primary route until it passes.
-            </span>
-          ) : (
-            <span>
-              Acting path is accurate but slow:{" "}
-              {providerModelLabel(actingPrimary, actingHealth)} measured{" "}
-              {latencyLabel(actingHealth.conformance_median_latency_ms)} median.
-              Use a sub-5 s API model as the primary controller.
-            </span>
-          )}
-        </p>
-      ) : null}
-      <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
-        {locked
-          ? "This route was snapshotted when the task was sent. Start a new task to change it."
-          : "The effective route is snapshotted when a new task is sent; changing it never rewrites an active run."}
-      </p>
-    </section>
+    <p className="flex items-start gap-2 text-[11px] leading-relaxed text-caution-foreground">
+      <GaugeIcon className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+      {inexact ? (
+        <span>
+          {providerModelLabel(actingPrimary, actingHealth)} missed accuracy
+          checks ({actingHealth.conformance_exact}/
+          {actingHealth.conformance_calls_attempted} exact), so its clicks can
+          land in the wrong place. Pick a different model for Acting until it
+          passes.
+        </span>
+      ) : (
+        <span>
+          {providerModelLabel(actingPrimary, actingHealth)} is accurate but
+          slow at acting (
+          {latencyLabel(actingHealth.conformance_median_latency_ms)} per step).
+          A faster model under Acting will feel much snappier.
+        </span>
+      )}
+    </p>
   );
 }
 
@@ -366,19 +506,10 @@ function ProviderRow({
   const ready = health.ready !== false;
   const coolingDown = Boolean(health.cooldown_until);
   const StatusIcon = ready ? CheckCircle2Icon : TriangleAlertIcon;
-  const routeLabels = (health.routes ?? [])
-    .slice()
-    .sort((left, right) => (left.position ?? 99) - (right.position ?? 99))
-    .map((route) => {
-      const role = ROUTE_ROLES.find(
-        (candidate) => candidate.key === route.role,
-      );
-      return `${role?.label || titleCase(route.role || "route")} ${
-        route.position === 1
-          ? "primary"
-          : `fallback ${Math.max(1, (route.position ?? 2) - 1)}`
-      }`;
-    });
+  const activity =
+    (health.calls ?? 0) > 0
+      ? `${health.successes ?? 0}/${health.calls} calls ok · ${latencyLabel(health.last_latency_ms)} last`
+      : "Not used yet";
 
   return (
     <article className="border-t border-border/70 py-4 first:border-t-0">
@@ -399,62 +530,48 @@ function ProviderRow({
             <Badge variant={ready ? "secondary" : "outline"}>
               {coolingDown ? "Cooling down" : ready ? "Ready" : "Setup needed"}
             </Badge>
-            {health.support_tier ? (
-              <Badge variant="outline">{titleCase(health.support_tier)}</Badge>
-            ) : null}
           </div>
           <p className="mt-1 truncate text-xs text-muted-foreground">
-            {name} · {titleCase(health.kind || "provider")}
+            {name} · {signInLabel(health.credential_owner)}
           </p>
-
-          <dl className="mt-3 grid gap-x-4 gap-y-3 sm:grid-cols-2">
-            <div>
-              <dt className="text-[10px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
-                Authentication
-              </dt>
-              <dd className="mt-1 text-xs font-medium">
-                {authOwnerLabel(health.credential_owner)}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-[10px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
-                Route
-              </dt>
-              <dd className="mt-1 text-xs font-medium">
-                {routeLabels.join(" · ") || "Configured, not in auto route"}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-[10px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
-                Activity
-              </dt>
-              <dd className="mt-1 text-xs font-medium">
-                {health.successes ?? 0}/{health.calls ?? 0} successful ·{" "}
-                {latencyLabel(health.last_latency_ms)}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-[10px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
-                Evidence
-              </dt>
-              <dd className="mt-1 text-xs font-medium">
-                {conformanceEvidence(health)}
-              </dd>
-            </div>
-          </dl>
-
-          {!ready ? (
-            <p className="mt-3 border-l-2 border-amber-400/60 pl-3 text-xs leading-relaxed text-amber-100/80">
+          {ready ? (
+            <p className="mt-1 text-xs text-muted-foreground">{activity}</p>
+          ) : (
+            <p className="mt-2 border-l-2 border-amber-400/60 pl-3 text-xs leading-relaxed text-amber-100/80">
               {setupGuidance(health.credential_owner)}
             </p>
-          ) : null}
+          )}
+          <details className="group/evidence mt-2">
+            <summary className="cursor-pointer list-none text-[11px] font-medium text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/60">
+              <ChevronRightIcon
+                className="mr-1 inline size-3 transition-transform group-open/evidence:rotate-90"
+                aria-hidden="true"
+              />
+              Details
+            </summary>
+            <dl className="mt-2 grid gap-x-4 gap-y-2 text-[11px] sm:grid-cols-2">
+              <div>
+                <dt className="text-muted-foreground">Kind</dt>
+                <dd className="font-medium">
+                  {titleCase(health.kind || "provider")}
+                  {health.support_tier
+                    ? ` · ${titleCase(health.support_tier)}`
+                    : ""}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground">Accuracy evidence</dt>
+                <dd className="font-medium">{conformanceEvidence(health)}</dd>
+              </div>
+            </dl>
+          </details>
         </div>
       </div>
     </article>
   );
 }
 
-function AvailableAdapters({
+function ConnectableProviders({
   catalog,
   providers,
 }: {
@@ -470,19 +587,15 @@ function AvailableAdapters({
   return (
     <details className="group/adapters border-t border-border/70 pt-4">
       <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-semibold outline-none focus-visible:ring-2 focus-visible:ring-ring/60">
-        <CircleDashedIcon
-          className="size-4 text-muted-foreground"
+        <ChevronRightIcon
+          className="size-4 text-muted-foreground transition-transform group-open/adapters:rotate-90"
           aria-hidden="true"
         />
-        Available adapters
+        Providers you can connect
         <span className="ml-auto text-xs font-normal text-muted-foreground">
           {catalog.length} supported
         </span>
       </summary>
-      <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-        Support tier describes the maintained adapter, not live account
-        readiness.
-      </p>
       <div className="mt-3 divide-y divide-border/60">
         {catalog.map((entry) => (
           <div key={entry.kind} className="py-3">
@@ -490,20 +603,12 @@ function AvailableAdapters({
               <p className="text-xs font-medium">{titleCase(entry.kind)}</p>
               <Badge variant="outline">{titleCase(entry.support_tier)}</Badge>
               {configuredKinds.has(entry.kind) ? (
-                <Badge variant="secondary">Configured</Badge>
+                <Badge variant="secondary">Connected</Badge>
               ) : null}
             </div>
-            <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
-              {entry.interface} · {entry.pixel_input} ·{" "}
-              {entry.structured_output}
-            </p>
             <p className="mt-1 text-[11px] text-muted-foreground">
-              {entry.auth
-                .map(
-                  (auth) =>
-                    `${authModeLabel(auth.mode)} · ${authOwnerLabel(auth.credential_owner)}`,
-                )
-                .join(" / ")}
+              Sign in:{" "}
+              {entry.auth.map((auth) => authModeLabel(auth.mode)).join(" or ")}
             </p>
           </div>
         ))}
@@ -541,15 +646,12 @@ export function ProviderConnectionsSheet({
             Models
           </SheetTitle>
           <SheetDescription>
-            Choose models for this task. {SECRET_SETUP_NOTE}
+            Pick what runs your task. Keys and sign-ins stay on the harness
+            host — secrets never enter this page.
           </SheetDescription>
           <div className="flex flex-wrap gap-2 pt-2">
             <Badge variant="secondary">
               {readyCount}/{entries.length} ready
-            </Badge>
-            <Badge variant="outline">
-              <ShieldCheckIcon data-icon="inline-start" aria-hidden="true" />
-              Harness-owned policy
             </Badge>
             {onConnectProvider ? (
               <Button
@@ -566,7 +668,7 @@ export function ProviderConnectionsSheet({
         </SheetHeader>
         <ScrollArea className="min-h-0 flex-1 px-4 pb-4">
           <div className="flex flex-col gap-6">
-            <TaskRoute
+            <ModelChoice
               providers={providers}
               preferences={preferences}
               activeRoute={activeRoute}
@@ -575,17 +677,29 @@ export function ProviderConnectionsSheet({
               onPreferenceChange={onPreferenceChange}
               onResetPreferences={onResetPreferences}
             />
-            <section aria-labelledby="configured-providers-title">
+            <ActingPathWarning
+              providers={providers}
+              preferences={preferences}
+              activeRoute={activeRoute}
+              activeProvider={activeProvider}
+              locked={locked}
+            />
+            <StageSplit
+              providers={providers}
+              preferences={preferences}
+              activeRoute={activeRoute}
+              activeProvider={activeProvider}
+              locked={locked}
+              onPreferenceChange={onPreferenceChange}
+              onResetPreferences={onResetPreferences}
+            />
+            <section aria-labelledby="configured-accounts-title">
               <h3
-                id="configured-providers-title"
+                id="configured-accounts-title"
                 className="text-sm font-semibold"
               >
-                Configured accounts
+                Accounts
               </h3>
-              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                Readiness is a local prerequisite check. Tier ≠ live-tested
-                readiness; conformance evidence is reported separately.
-              </p>
               <div className="mt-2">
                 {entries.length ? (
                   entries.map(([name, health]) => (
@@ -593,17 +707,12 @@ export function ProviderConnectionsSheet({
                   ))
                 ) : (
                   <p className="border-t border-border/70 py-6 text-sm text-muted-foreground">
-                    No model providers are configured.
+                    No model accounts yet. Add one to get started.
                   </p>
                 )}
               </div>
             </section>
-            <AvailableAdapters catalog={catalog} providers={providers} />
-            <p className="border-t border-border/70 pt-4 text-xs leading-relaxed text-muted-foreground">
-              Connections are configured on the local harness host. This view
-              reports ownership and readiness without reading, copying, or
-              storing provider secrets.
-            </p>
+            <ConnectableProviders catalog={catalog} providers={providers} />
           </div>
         </ScrollArea>
         {onConnectProvider && connectionOpen ? (

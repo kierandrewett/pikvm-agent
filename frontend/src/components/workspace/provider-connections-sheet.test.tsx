@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ProviderCatalogEntry, ProviderMap } from "@/types";
@@ -97,7 +97,8 @@ const azureCatalog: ProviderCatalogEntry = {
 afterEach(cleanup);
 
 describe("ProviderConnectionsSheet", () => {
-  it("shows the multi-model route and credential ownership without secrets", () => {
+  it("shows the stage split and sign-in ownership without secrets", async () => {
+    const user = userEvent.setup();
     render(
       <ProviderConnectionsSheet
         open
@@ -111,18 +112,17 @@ describe("ProviderConnectionsSheet", () => {
       />,
     );
 
-    const route = screen.getByLabelText("Task route");
-    expect(within(route).getByText("Reasoning")).not.toBeNull();
-    expect(within(route).getByText("Acting")).not.toBeNull();
-    expect(within(route).getByText("Checking")).not.toBeNull();
-    expect(route.textContent).toContain("opus");
-    expect(route.textContent).toContain("primary");
-    expect(route.textContent).toContain("No ready provider configured");
+    // The stage split is folded until asked for — most tasks never need it.
+    await user.click(screen.getByRole("button", { name: "Split by stage" }));
+    expect(screen.getByText("Reasoning")).not.toBeNull();
+    expect(screen.getByText("Acting")).not.toBeNull();
+    expect(screen.getByText("Checking")).not.toBeNull();
+    expect(screen.getAllByText(/Runs on opus/).length).toBeGreaterThan(0);
+    expect(screen.getByText("No ready model for this stage")).not.toBeNull();
 
-    expect(screen.getByText("Provider-owned sign-in")).not.toBeNull();
-    expect(screen.getAllByText("Harness environment").length).toBeGreaterThan(
-      0,
-    );
+    expect(
+      screen.getByText(/Signed in with the provider's CLI/),
+    ).not.toBeNull();
     expect(
       screen.getByText(
         "Conformance passed · 3/3 exact · median 15.7 s · p95 16.5 s",
@@ -158,13 +158,78 @@ describe("ProviderConnectionsSheet", () => {
         "Add the credential to the harness environment, then restart or refresh.",
       ),
     ).not.toBeNull();
-    expect(screen.getByText("Available adapters")).not.toBeNull();
+    expect(screen.getByText("Providers you can connect")).not.toBeNull();
     expect(screen.getByText("2 supported")).not.toBeNull();
-    expect(screen.getByText(/Claude print mode/)).not.toBeNull();
-    expect(
-      screen.getByText(/CLI sign-in · Provider-owned sign-in/),
-    ).not.toBeNull();
-    expect(screen.getByText(/API key · Harness environment/)).not.toBeNull();
+    expect(screen.getByText(/Sign in: CLI sign-in/)).not.toBeNull();
+    expect(screen.getByText(/Sign in: API key/)).not.toBeNull();
+  });
+
+  it("applies one model to every stage from the single picker", async () => {
+    const user = userEvent.setup();
+    const onPreferenceChange = vi.fn();
+    const onResetPreferences = vi.fn();
+    const readyProviders = {
+      ...providers,
+      "fast-controller": {
+        ...providers["fast-controller"],
+        ready: true,
+      },
+    } as ProviderMap;
+
+    render(
+      <ProviderConnectionsSheet
+        open
+        onOpenChange={() => undefined}
+        providers={readyProviders}
+        catalog={catalog}
+        preferences={{}}
+        locked={false}
+        onPreferenceChange={onPreferenceChange}
+        onResetPreferences={onResetPreferences}
+      />,
+    );
+
+    await user.click(
+      screen.getByRole("combobox", { name: "Model for this task" }),
+    );
+    await user.click(
+      screen.getByRole("option", { name: "gpt-fast · fast-controller" }),
+    );
+
+    // One pick fans out to every stage, so the simple and advanced views agree.
+    expect(onPreferenceChange).toHaveBeenCalledTimes(4);
+    for (const role of ["assistant", "reasoner", "controller", "verifier"]) {
+      expect(onPreferenceChange).toHaveBeenCalledWith(
+        role,
+        "fast-controller",
+      );
+    }
+
+  });
+
+  it("hands the choice back to the harness when Automatic is picked", async () => {
+    const user = userEvent.setup();
+    const onResetPreferences = vi.fn();
+    render(
+      <ProviderConnectionsSheet
+        open
+        onOpenChange={() => undefined}
+        providers={providers}
+        catalog={catalog}
+        preferences={{ assistant: "claude-account" }}
+        locked={false}
+        onPreferenceChange={() => undefined}
+        onResetPreferences={onResetPreferences}
+      />,
+    );
+
+    await user.click(
+      screen.getByRole("combobox", { name: "Model for this task" }),
+    );
+    await user.click(
+      screen.getByRole("option", { name: /Automatic — harness picks/ }),
+    );
+    expect(onResetPreferences).toHaveBeenCalled();
   });
 
   it("edits each computer-use role independently", async () => {
@@ -191,7 +256,7 @@ describe("ProviderConnectionsSheet", () => {
       />,
     );
 
-    expect(screen.getByText("Custom primaries")).not.toBeNull();
+    // A single-stage preference means the split is live, so it opens itself.
     await user.click(screen.getByRole("combobox", { name: "Acting model" }));
     await user.click(
       screen.getByRole("option", {
@@ -230,7 +295,7 @@ describe("ProviderConnectionsSheet", () => {
 
     expect(
       screen.getByText(
-        "Acting path is accurate but slow: opus measured 15.7 s median. Use a sub-5 s API model as the primary controller.",
+        "opus is accurate but slow at acting (15.7 s per step). A faster model under Acting will feel much snappier.",
       ),
     ).not.toBeNull();
   });
@@ -261,12 +326,13 @@ describe("ProviderConnectionsSheet", () => {
 
     expect(
       screen.getByText(
-        "Acting path is not exact: gpt-fast scored 4/5 in blind-screen conformance. Keep it out of the primary route until it passes.",
+        "gpt-fast missed accuracy checks (4/5 exact), so its clicks can land in the wrong place. Pick a different model for Acting until it passes.",
       ),
     ).not.toBeNull();
   });
 
-  it("shows and disables the durable route while a run is active", () => {
+  it("shows and disables the durable route while a run is active", async () => {
+    const user = userEvent.setup();
     render(
       <ProviderConnectionsSheet
         open
@@ -294,15 +360,21 @@ describe("ProviderConnectionsSheet", () => {
     expect(screen.getByText("Locked for this run")).not.toBeNull();
     expect(
       screen.getByText(
-        "This route was snapshotted when the task was sent. Start a new task to change it.",
+        "This task keeps the models it started with. Start a new task to change them.",
       ),
     ).not.toBeNull();
+    expect(
+      screen
+        .getByRole("combobox", { name: "Model for this task" })
+        .hasAttribute("disabled"),
+    ).toBe(true);
+    await user.click(screen.getByRole("button", { name: "Split by stage" }));
     expect(
       screen
         .getByRole("combobox", { name: "Acting model" })
         .hasAttribute("disabled"),
     ).toBe(true);
-    expect(screen.getByText(/fallback 1: opus/)).not.toBeNull();
+    expect(screen.getByText(/falls back to opus/)).not.toBeNull();
   });
 
   it("adds a provider through a secret-reference-only form", async () => {
