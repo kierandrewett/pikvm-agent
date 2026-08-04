@@ -315,3 +315,39 @@ export type AssistantToolServerMap = Record<
     error?: string | null;
   }
 >;
+
+/** Public model metadata from the harness's models.dev cache (secret-free). */
+export type CatalogModel = {
+  id: string;
+  name: string;
+  family?: string | null;
+  reasoning: boolean;
+  image_input: boolean;
+  context?: number | null;
+  output_limit?: number | null;
+  cost_input?: number | null;
+  cost_output?: number | null;
+  release_date?: string | null;
+};
+
+export type ModelCatalogProvider = {
+  id: string;
+  name: string;
+  logo_url: string;
+  models: CatalogModel[];
+};
+
+export type ModelCatalog = {
+  available: boolean;
+  fetched_at?: number | null;
+  /** models.dev provider id → provider entry with its usable models. */
+  providers: Record<string, ModelCatalogProvider>;
+  /** Our adapter kind → the models.dev provider ids whose models it can run. */
+  kinds: Record<string, string[]>;
+};
+
+export const EMPTY_MODEL_CATALOG: ModelCatalog = {
+  available: false,
+  providers: {},
+  kinds: {},
+};

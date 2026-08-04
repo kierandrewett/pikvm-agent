@@ -26,7 +26,9 @@ import {
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import type {
+  CatalogModel,
   ConnectableProviderKind,
+  ModelCatalog,
   ProviderCatalogEntry,
   ProviderConnectionAuthMode,
   ProviderConnectionInput,
@@ -122,6 +124,36 @@ const SETUP: Record<ConnectableProviderKind, SetupShape> = {
   },
 };
 
+/** "500K ctx · $5/M in · $25/M out" — the facts that separate similar models. */
+const modelDetail = (model: CatalogModel) => {
+  const parts: string[] = [];
+  if (typeof model.context === "number" && model.context > 0) {
+    parts.push(
+      model.context >= 1000
+        ? `${Math.round(model.context / 1000)}K ctx`
+        : `${model.context} ctx`,
+    );
+  }
+  if (typeof model.cost_input === "number") {
+    parts.push(`$${model.cost_input}/M in`);
+  }
+  if (typeof model.cost_output === "number") {
+    parts.push(`$${model.cost_output}/M out`);
+  }
+  if (!model.image_input) parts.push("no image input");
+  return parts.join(" · ");
+};
+
+/** A provider name the harness will accept, suggested from the picked model. */
+const suggestAlias = (modelId: string) =>
+  modelId
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48);
+
+const CUSTOM_MODEL = "\u0000custom";
+
 const isConnectable = (
   kind: string,
 ): kind is ConnectableProviderKind => kind in SETUP;
@@ -130,6 +162,7 @@ type ProviderConnectionDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   catalog: ProviderCatalogEntry[];
+  modelCatalog?: ModelCatalog;
   connecting?: boolean;
   onConnect: (
     input: ProviderConnectionInput,
@@ -140,6 +173,7 @@ export function ProviderConnectionDialog({
   open,
   onOpenChange,
   catalog,
+  modelCatalog,
   connecting = false,
   onConnect,
 }: ProviderConnectionDialogProps) {
@@ -167,7 +201,39 @@ export function ProviderConnectionDialog({
     SETUP[initialKind].profileHomeEnv ?? "",
   );
   const [error, setError] = useState("");
+  const [customModel, setCustomModel] = useState(false);
+  const [aliasEdited, setAliasEdited] = useState(false);
   const shape = SETUP[kind];
+  // Real models this kind of account can run, straight from the models.dev
+  // cache. Multiple source providers can feed one kind (openai_compatible
+  // draws from OpenAI and OpenRouter), so labels carry the source when needed.
+  const catalogModels = useMemo(() => {
+    if (!modelCatalog?.available) return [];
+    const providerIds = modelCatalog.kinds[kind] ?? [];
+    const seen = new Set<string>();
+    const options: Array<{
+      model: CatalogModel;
+      providerName: string;
+      multiSource: boolean;
+    }> = [];
+    for (const providerId of providerIds) {
+      const provider = modelCatalog.providers[providerId];
+      if (!provider) continue;
+      for (const model of provider.models) {
+        if (seen.has(model.id)) continue;
+        seen.add(model.id);
+        options.push({
+          model,
+          providerName: provider.name,
+          multiSource: providerIds.length > 1,
+        });
+      }
+    }
+    return options;
+  }, [modelCatalog, kind]);
+  const pickedCatalogModel = catalogModels.find(
+    (option) => option.model.id === model,
+  );
   const authChoice = shape.auth?.find(
     (choice) => choice.value === authMode,
   );
@@ -186,6 +252,8 @@ export function ProviderConnectionDialog({
     );
     setProfileHomeEnv(nextShape.profileHomeEnv ?? "");
     setBaseUrl("");
+    setModel("");
+    setCustomModel(false);
     setError("");
   };
 
@@ -288,7 +356,10 @@ export function ProviderConnectionDialog({
                 <Input
                   id="provider-alias"
                   value={alias}
-                  onChange={(event) => setAlias(event.target.value)}
+                  onChange={(event) => {
+                    setAlias(event.target.value);
+                    setAliasEdited(event.target.value.trim().length > 0);
+                  }}
                   placeholder="work-openai"
                   autoComplete="off"
                   spellCheck={false}
@@ -296,15 +367,91 @@ export function ProviderConnectionDialog({
                 <FieldDescription>Unique in this harness.</FieldDescription>
               </Field>
               <Field>
-                <FieldLabel htmlFor="provider-model">Model ID</FieldLabel>
-                <Input
-                  id="provider-model"
-                  value={model}
-                  onChange={(event) => setModel(event.target.value)}
-                  placeholder="Provider model ID"
-                  autoComplete="off"
-                  spellCheck={false}
-                />
+                <FieldLabel htmlFor="provider-model">Model</FieldLabel>
+                {catalogModels.length > 0 && !customModel ? (
+                  <>
+                    <Select
+                      value={pickedCatalogModel ? model : null}
+                      onValueChange={(value) => {
+                        if (!value) return;
+                        if (value === CUSTOM_MODEL) {
+                          setCustomModel(true);
+                          setModel("");
+                          return;
+                        }
+                        setModel(value);
+                        if (!aliasEdited) setAlias(suggestAlias(value));
+                      }}
+                      items={[
+                        ...catalogModels.map((option) => ({
+                          value: option.model.id,
+                          label: option.multiSource
+                            ? `${option.model.name} · ${option.providerName}`
+                            : option.model.name,
+                        })),
+                        { value: CUSTOM_MODEL, label: "Custom model ID…" },
+                      ]}
+                    >
+                      <SelectTrigger
+                        id="provider-model"
+                        className="w-full"
+                        aria-label="Model"
+                      >
+                        <SelectValue placeholder="Choose a model" />
+                      </SelectTrigger>
+                      <SelectContent alignItemWithTrigger={false}>
+                        <SelectGroup>
+                          {catalogModels.map((option) => (
+                            <SelectItem
+                              key={option.model.id}
+                              value={option.model.id}
+                            >
+                              {option.multiSource
+                                ? `${option.model.name} · ${option.providerName}`
+                                : option.model.name}
+                            </SelectItem>
+                          ))}
+                          <SelectItem value={CUSTOM_MODEL}>
+                            Custom model ID…
+                          </SelectItem>
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                    {pickedCatalogModel ? (
+                      <FieldDescription>
+                        {modelDetail(pickedCatalogModel.model) ||
+                          pickedCatalogModel.model.id}
+                      </FieldDescription>
+                    ) : null}
+                  </>
+                ) : (
+                  <>
+                    <Input
+                      id="provider-model"
+                      value={model}
+                      onChange={(event) => {
+                        setModel(event.target.value);
+                        if (!aliasEdited && event.target.value) {
+                          setAlias(suggestAlias(event.target.value));
+                        }
+                      }}
+                      placeholder="Provider model ID"
+                      autoComplete="off"
+                      spellCheck={false}
+                    />
+                    {catalogModels.length > 0 ? (
+                      <FieldDescription>
+                        <button
+                          type="button"
+                          className="underline underline-offset-2"
+                          onClick={() => setCustomModel(false)}
+                        >
+                          Back to the model list
+                        </button>
+                      </FieldDescription>
+                    ) : null}
+                  </>
+                )}
               </Field>
             </div>
             {shape.baseUrl !== "none" ? (

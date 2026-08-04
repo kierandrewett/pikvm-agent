@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { EMPTY_MODEL_CATALOG } from "@/types";
 import type {
   AppendMessage,
   RespondToToolApprovalOptions,
@@ -32,6 +33,7 @@ import type {
   ModelPreferences,
   ModelRole,
   ProviderCatalogEntry,
+  ModelCatalog,
   ProviderConnectionInput,
   ProviderConnectionResult,
   ProviderMap,
@@ -81,6 +83,20 @@ export const loadProviderCatalog = async (accessToken: string) => {
     );
   } catch (cause) {
     if (cause instanceof HarnessApiError && cause.status === 404) return [];
+    throw cause;
+  }
+};
+
+export const loadModelCatalog = async (
+  accessToken: string,
+): Promise<ModelCatalog> => {
+  try {
+    return await harnessJson<ModelCatalog>(accessToken, "/api/model-catalog");
+  } catch (cause) {
+    // Older harnesses have no catalog endpoint; the UI degrades to free-text.
+    if (cause instanceof HarnessApiError && cause.status === 404) {
+      return EMPTY_MODEL_CATALOG;
+    }
     throw cause;
   }
 };
@@ -196,6 +212,9 @@ export function useHarnessWorkspace() {
   const [toolServers, setToolServers] = useState<AssistantToolServerMap>({});
   const [computerConnection, setComputerConnection] =
     useState<ComputerConnection>(() => defaultComputerConnection(true));
+  const [modelCatalog, setModelCatalog] = useState<ModelCatalog>(
+    EMPTY_MODEL_CATALOG,
+  );
   const [providerCatalog, setProviderCatalog] = useState<
     ProviderCatalogEntry[]
   >([]);
@@ -335,6 +354,7 @@ export function useHarnessWorkspace() {
           nextToolServers,
           nextComputerControlEnabled,
           nextComputerConnection,
+          nextModelCatalog,
         ] = await Promise.all([
           harnessJson<RunSummary[]>(accessToken, "/api/runs"),
           harnessJson<ProviderMap>(accessToken, "/api/providers"),
@@ -343,6 +363,9 @@ export function useHarnessWorkspace() {
           loadAssistantToolServers(accessToken),
           loadHarnessHealth(accessToken),
           loadComputerConnection(accessToken),
+          // Near-static (server caches models.dev for a day) — fetched on
+          // connect only, never on the live reconcile poll.
+          loadModelCatalog(accessToken),
         ]);
         if (!mounted.current) return;
         setToken(accessToken);
@@ -350,6 +373,7 @@ export function useHarnessWorkspace() {
         setRuns(nextRuns);
         setProviders(nextProviders);
         setProviderCatalog(nextCatalog);
+        setModelCatalog(nextModelCatalog);
         setTools(nextTools);
         setToolServers(nextToolServers);
         setComputerConnection(
@@ -788,6 +812,7 @@ export function useHarnessWorkspace() {
       computerControlEnabled: computerConnection.enabled,
       computerConnection,
       providerCatalog,
+      modelCatalog,
       connectingProvider,
       modelPreferences,
       routeLocked,
@@ -821,6 +846,7 @@ export function useHarnessWorkspace() {
       toolServers,
       computerConnection,
       providerCatalog,
+      modelCatalog,
       connectingProvider,
       modelPreferences,
       routeLocked,

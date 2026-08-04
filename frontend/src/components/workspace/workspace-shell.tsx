@@ -549,6 +549,7 @@ export function WorkspaceShell() {
             onOpenChange={setModelsOpen}
             providers={workspace.providers}
             catalog={workspace.providerCatalog}
+            modelCatalog={workspace.modelCatalog}
             preferences={workspace.modelPreferences}
             activeRoute={workspace.selectedRun?.model_route}
             activeProvider={workspace.selectedRun?.model_provider}

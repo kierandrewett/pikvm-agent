@@ -45,6 +45,7 @@ import {
   providerModelLabel,
 } from "@/lib/model-routes";
 import type {
+  ModelCatalog,
   ModelPreferences,
   ModelRole,
   ProviderCatalogEntry,
@@ -66,6 +67,7 @@ type ProviderConnectionsSheetProps = {
   onOpenChange: (open: boolean) => void;
   providers: ProviderMap;
   catalog: ProviderCatalogEntry[];
+  modelCatalog?: ModelCatalog;
   preferences: ModelPreferences;
   activeRoute?: RunModelRoute | null;
   activeProvider?: string | null;
@@ -622,6 +624,7 @@ export function ProviderConnectionsSheet({
   onOpenChange,
   providers,
   catalog,
+  modelCatalog,
   preferences,
   activeRoute,
   activeProvider,
@@ -721,6 +724,7 @@ export function ProviderConnectionsSheet({
               open
               onOpenChange={setConnectionOpen}
               catalog={catalog}
+              modelCatalog={modelCatalog}
               connecting={connectingProvider}
               onConnect={onConnectProvider}
             />

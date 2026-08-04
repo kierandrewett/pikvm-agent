@@ -77,6 +77,11 @@ describe("useHarnessWorkspace authentication boundary", () => {
           return Promise.resolve(jsonResponse(freshRun));
         }
         if (url.includes("/stream?")) return new Promise<Response>(() => {});
+        if (url === "/api/model-catalog") {
+          return Promise.resolve(
+            jsonResponse({ available: false, providers: {}, kinds: {} }),
+          );
+        }
         if (
           url === "/api/providers" ||
           url === "/api/provider-catalog" ||
@@ -186,6 +191,11 @@ describe("useHarnessWorkspace authentication boundary", () => {
           return Promise.resolve(jsonResponse(externalRun));
         }
         if (url.includes("/stream?")) return new Promise<Response>(() => {});
+        if (url === "/api/model-catalog") {
+          return Promise.resolve(
+            jsonResponse({ available: false, providers: {}, kinds: {} }),
+          );
+        }
         if (
           url === "/api/providers" ||
           url === "/api/provider-catalog" ||
@@ -275,6 +285,11 @@ describe("useHarnessWorkspace authentication boundary", () => {
         if (url === "/api/runs/first-run") return firstDetail;
         if (url === "/api/runs/second-run") return secondDetail;
         if (url.includes("/stream?")) return new Promise<Response>(() => {});
+        if (url === "/api/model-catalog") {
+          return Promise.resolve(
+            jsonResponse({ available: false, providers: {}, kinds: {} }),
+          );
+        }
         if (
           url === "/api/providers" ||
           url === "/api/provider-catalog" ||
@@ -379,6 +394,11 @@ describe("useHarnessWorkspace authentication boundary", () => {
           return Promise.resolve(jsonResponse(secondRun));
         }
         if (url.includes("/stream?")) return new Promise<Response>(() => {});
+        if (url === "/api/model-catalog") {
+          return Promise.resolve(
+            jsonResponse({ available: false, providers: {}, kinds: {} }),
+          );
+        }
         if (
           url === "/api/providers" ||
           url === "/api/provider-catalog" ||
@@ -452,6 +472,11 @@ describe("useHarnessWorkspace authentication boundary", () => {
         if (url === "/api/runs/durable-run") {
           return Promise.resolve(
             jsonResponse({ detail: "Run is temporarily unavailable." }, 404),
+          );
+        }
+        if (url === "/api/model-catalog") {
+          return Promise.resolve(
+            jsonResponse({ available: false, providers: {}, kinds: {} }),
           );
         }
         if (
@@ -528,6 +553,11 @@ describe("useHarnessWorkspace authentication boundary", () => {
                 event_cursor: 1,
               },
             ]),
+          );
+        }
+        if (url === "/api/model-catalog") {
+          return Promise.resolve(
+            jsonResponse({ available: false, providers: {}, kinds: {} }),
           );
         }
         if (
@@ -626,6 +656,11 @@ describe("useHarnessWorkspace authentication boundary", () => {
         if (url === "/api/runs/live-run") {
           detailReads += 1;
           return Promise.resolve(jsonResponse(initialRun));
+        }
+        if (url === "/api/model-catalog") {
+          return Promise.resolve(
+            jsonResponse({ available: false, providers: {}, kinds: {} }),
+          );
         }
         if (
           url === "/api/providers" ||

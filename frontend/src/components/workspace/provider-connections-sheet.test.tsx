@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ProviderCatalogEntry, ProviderMap } from "@/types";
@@ -415,7 +415,8 @@ describe("ProviderConnectionsSheet", () => {
       screen.getByRole("combobox", { name: "Provider adapter" }).textContent,
     ).toContain("OpenAI Responses API");
     await user.type(screen.getByLabelText("Provider name"), "openai-work");
-    await user.type(screen.getByLabelText("Model ID"), "gpt-5-mini");
+    const addDialog = within(screen.getByRole("dialog", { name: "Add a model" }));
+    await user.type(addDialog.getByLabelText("Model"), "gpt-5-mini");
     expect(
       (screen.getByLabelText(
         "Credential environment variable",
@@ -476,7 +477,9 @@ describe("ProviderConnectionsSheet", () => {
 
     await user.type(screen.getByLabelText("Provider name"), "azure-work");
     await user.type(
-      screen.getByLabelText("Model ID"),
+      within(screen.getByRole("dialog", { name: "Add a model" })).getByLabelText(
+        "Model",
+      ),
       "controller-deployment",
     );
     await user.type(
