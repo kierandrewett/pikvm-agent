@@ -63,7 +63,9 @@ def test_public_catalog_maps_kinds_and_filters_models() -> None:
     }
     provider = catalog["providers"]["anthropic"]
     assert provider["name"] == "Anthropic"
-    assert provider["logo_url"].endswith("/logos/anthropic.svg")
+    # Harness-relative, not models.dev: the UI's CSP is `img-src 'self'`, so a
+    # remote URL would be blocked before a request was ever made.
+    assert provider["logo_url"] == "/api/model-catalog/logo/anthropic"
     ids = [model["id"] for model in provider["models"]]
     # Newest first, and the tool-less model is excluded: a model that cannot
     # call tools cannot act on the computer, so listing it invites a broken pick.
@@ -112,6 +114,54 @@ def test_snapshot_survives_network_failure_via_disk_cache(tmp_path: Path) -> Non
     snapshot = asyncio.run(service.snapshot())
     assert snapshot["available"] is True
     assert "anthropic" in snapshot["providers"]
+
+
+def test_logo_is_only_fetched_for_providers_in_the_catalog(tmp_path: Path) -> None:
+    asked: list[str] = []
+
+    class FakeResponse:
+        content = b"<svg xmlns='http://www.w3.org/2000/svg'></svg>"
+
+        def raise_for_status(self) -> None:
+            return None
+
+    class FakeClient:
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            return None
+
+        async def __aenter__(self) -> "FakeClient":
+            return self
+
+        async def __aexit__(self, *args: Any) -> None:
+            return None
+
+        async def get(self, url: str) -> FakeResponse:
+            asked.append(url)
+            return FakeResponse()
+
+    import pikvm_agent.harness.model_catalog as module
+
+    original = module.httpx.AsyncClient
+    module.httpx.AsyncClient = FakeClient  # type: ignore[assignment]
+    try:
+        service = ModelCatalogService(
+            cache_path=tmp_path / "cache.json",
+            fetch=lambda: _immediate(RAW),
+        )
+        assert asyncio.run(service.logo("anthropic")) is not None
+        # Cached: a second read must not hit the network again.
+        assert asyncio.run(service.logo("anthropic")) is not None
+        assert len(asked) == 1
+        # An id absent from the catalog is never fetched, so this cannot be
+        # pointed at an arbitrary URL by a caller.
+        assert asyncio.run(service.logo("not-a-provider")) is None
+        assert len(asked) == 1
+    finally:
+        module.httpx.AsyncClient = original  # type: ignore[assignment]
+
+
+async def _immediate(value: Mapping[str, Any]) -> Mapping[str, Any]:
+    return value
 
 
 def test_snapshot_degrades_honestly_when_never_fetched(tmp_path: Path) -> None:

@@ -27,9 +27,14 @@ from typing import Any, Awaitable, Callable, Mapping
 import httpx
 
 MODELS_DEV_URL = "https://models.dev/api.json"
-LOGO_URL_TEMPLATE = "https://models.dev/logos/{provider_id}.svg"
+MODELS_DEV_LOGO_URL = "https://models.dev/logos/{provider_id}.svg"
+# The UI must load logos from the harness, not from models.dev: its CSP is
+# `img-src 'self' blob:`, so a remote URL is blocked before a request is made.
+# Proxying keeps that policy intact and keeps the page from talking to anyone.
+LOGO_PATH_TEMPLATE = "/api/model-catalog/logo/{provider_id}"
 CACHE_TTL_S = 24 * 3600
 FETCH_TIMEOUT_S = 15
+MAX_LOGO_BYTES = 256 * 1024
 
 # Our provider kinds -> the models.dev provider ids whose model lists apply.
 # A CLI subscription and the matching API kind draw from the same menu; the
@@ -119,7 +124,7 @@ def public_catalog(
         providers[pid] = {
             "id": pid,
             "name": entry.get("name") or pid,
-            "logo_url": LOGO_URL_TEMPLATE.format(provider_id=pid),
+            "logo_url": LOGO_PATH_TEMPLATE.format(provider_id=pid),
             "models": models[:max_models_per_provider],
         }
     return {"providers": providers, "kinds": kind_map}
@@ -151,6 +156,7 @@ class ModelCatalogService:
     _raw: Mapping[str, Any] | None = field(default=None, init=False)
     _fetched_at: float = field(default=0.0, init=False)
     _last_error: str | None = field(default=None, init=False)
+    _logos: dict[str, bytes | None] = field(default_factory=dict, init=False)
 
     def _load_disk(self) -> None:
         if self._raw is not None:
@@ -189,6 +195,35 @@ class ModelCatalogService:
         self._fetched_at = time.time()
         self._last_error = None
         self._store_disk()
+
+    async def logo(self, provider_id: str) -> bytes | None:
+        """The provider's SVG, fetched once and kept in memory.
+
+        Only ids present in the cached catalog are fetched, so this cannot be
+        pointed at an arbitrary URL by a caller.
+        """
+
+        if provider_id in self._logos:
+            return self._logos[provider_id]
+        await self.refresh_if_stale()
+        if self._raw is None or provider_id not in self._raw:
+            return None
+        try:
+            async with httpx.AsyncClient(timeout=FETCH_TIMEOUT_S) as client:
+                response = await client.get(
+                    MODELS_DEV_LOGO_URL.format(provider_id=provider_id)
+                )
+                response.raise_for_status()
+                body = response.content
+        except Exception:  # noqa: BLE001 - a missing logo is not an error
+            self._logos[provider_id] = None
+            return None
+        if len(body) > MAX_LOGO_BYTES or b"<svg" not in body[:512].lower():
+            # Not an SVG, or implausibly large for one.
+            self._logos[provider_id] = None
+            return None
+        self._logos[provider_id] = body
+        return body
 
     async def snapshot(self) -> dict[str, Any]:
         """The API response: available catalog or an honest 'not available'."""

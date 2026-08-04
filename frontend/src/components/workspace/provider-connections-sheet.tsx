@@ -721,6 +721,7 @@ export function ProviderConnectionsSheet({
             />
             <StageSplit
               providers={providers}
+              modelCatalog={modelCatalog}
               preferences={preferences}
               activeRoute={activeRoute}
               activeProvider={activeProvider}
@@ -738,7 +739,12 @@ export function ProviderConnectionsSheet({
               <div className="mt-2">
                 {entries.length ? (
                   entries.map(([name, health]) => (
-                    <ProviderRow key={name} name={name} health={health} />
+                    <ProviderRow
+                      key={name}
+                      name={name}
+                      health={health}
+                      modelCatalog={modelCatalog}
+                    />
                   ))
                 ) : (
                   <p className="border-t border-border/70 py-6 text-sm text-muted-foreground">

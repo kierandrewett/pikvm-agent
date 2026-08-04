@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 import secrets
 from collections.abc import AsyncIterator, Callable
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
@@ -932,6 +933,21 @@ def create_harness_app(
     @app.get("/api/provider-catalog")
     async def provider_catalog() -> list[dict[str, object]]:
         return public_provider_catalog()
+
+    @app.get("/api/model-catalog/logo/{provider_id}")
+    async def model_catalog_logo(provider_id: str) -> Response:
+        # Served from the harness so the UI's `img-src 'self'` policy holds and
+        # the page never reaches out to models.dev itself.
+        if model_catalog is None or not re.fullmatch(r"[a-z0-9][a-z0-9._-]{0,39}", provider_id):
+            raise HTTPException(404, "unknown provider logo")
+        body = await model_catalog.logo(provider_id)
+        if body is None:
+            raise HTTPException(404, "unknown provider logo")
+        return Response(
+            content=body,
+            media_type="image/svg+xml",
+            headers={"Cache-Control": "public, max-age=86400"},
+        )
 
     @app.get("/api/model-catalog")
     async def model_catalog_snapshot() -> dict[str, object]:
