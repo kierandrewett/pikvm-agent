@@ -1453,7 +1453,8 @@ campaign digest is `sha256:1448fe01016d`; its 296.5-second VP9 recording is
 `sha256:dfc9290fa3e3` and its poster is `sha256:2498e2610c6d`. The v10 campaign
 and all intervening media remain retained in the ledger.
 
-Code-09 is **not accepted after v5**. v1 launched a fresh blank Notepad
+Code-09 is **not accepted; recorded v6 remains gated after two post-v5 native
+readback probes**. v1 launched a fresh blank Notepad
 document, but policy treated the literal heading `# Release 1.0` as a
 communication send because the word `Release` matched a command side-effect
 expression. The non-allowlisted approval stopped the campaign before document
@@ -1586,15 +1587,55 @@ behavior. The focused regression failed before the change. Ten affected tests
 and the complete 221-test typing suite pass; the similarity scan reports only
 the existing helper and test families.
 
+Four subsequent bounded slices exercised and narrowed that seam without
+weakening it. `960cd6a` retains one independently grounded complete exact row
+from structured native OCR; `6946bda` keeps the native path enabled on the
+final settled read; `fb9fb12` clamps an edge-touching refinement to horizontal
+context around the causal editor row; and `7482209` takes one fresh native
+capture across the caret blink phase after an exact mismatch. The latest slice
+adds no HID replay and accepts only a complete exact second read. Its four
+focused regressions and all 225 typing tests pass; compile, diff, and similarity
+checks are clean apart from the repository's existing duplicate families.
+
+Both live gate probes still failed safely. On `fb9fb12`, the exact 13-character
+SHA was emitted once with zero corrections or delivery retries. The native crop
+was bounded to `309x35` pixels and excluded the unrelated Edge desktop label,
+but the internal primary event returned a same-length mismatch. Independent
+Tesseract reads of that retained crop returned `# Release 1.0` exactly under
+PSM 6, 7, and 11. On pushed `7482209`, the first bounded `320x38` native read
+and the fresh 550ms retry both returned same-length mismatches; independent
+reads of the resulting crop were exact under PSM 6, 7, 11, and 12. HID again
+emitted the exact request SHA once with zero corrections or retries. The retry
+was therefore exercised but not effective, so Code-09 v6 was not launched.
+
+The failure ledger also retains two setup faults rather than hiding them: the
+first probe's atomic Run launch lost the leading `n` in `notepad` and was
+repaired before Enter, while the second probe's first harmless launch approval
+used the wrong response field and was rejected before HID. The installed
+observer then returned three checksum-valid pages for the exact Code-09 path:
+`open failed`, zero bytes, a present guest fingerprint on the `Default` input
+desktop, and zero dangerous commits. No prior artifact was claimed. Every test
+was followed by a visible transition back to a fresh Windows desktop; the
+second heading reset was retained at 83.784s with ready-frame SHA-256
+`6649473b0641`. The next slice must diagnose the configured provider's
+candidate selection/preprocessing with content-free hashes or replay of the
+retained crop; input, permission, quiescence, observer, and completion gates
+remain unchanged.
+
 The failure-inclusive ledger is
 [`code-09-attempts.json`](results/2026-08-04/live-vnc/code-09-attempts.json).
+The two post-v5 gate probes, exact receipts, native crop geometry, independent
+OCR comparisons, setup failures, observer absence proof, and resets are
+retained in
+[`code-09-native-readback-probes.json`](results/2026-08-04/live-vnc/code-09-native-readback-probes.json).
 Independent absence and reset evidence is retained for
 [`v1`](results/2026-08-04/live-vnc/code-09-v1-observer-comparison.json),
 [`v2`](results/2026-08-04/live-vnc/code-09-v2-observer-comparison.json),
 [`v3`](results/2026-08-04/live-vnc/code-09-v3-observer-comparison.json), and
 [`v4`](results/2026-08-04/live-vnc/code-09-v4-observer-comparison.json), and
 [`v5`](results/2026-08-04/live-vnc/code-09-v5-observer-comparison.json).
-The ledger digest is `sha256:6ed6d4073b88`; the key-path probe digest is
+The ledger digest is `sha256:466323228659`; the native-readback probe digest is
+`sha256:5b390ccc784c`; the key-path probe digest is
 `sha256:3bd5284b38a1`; the observer-report digests are
 `sha256:9145f099f2db`, `sha256:5e1089ff5537`, and
 `sha256:08db92ad22e7`, `sha256:6f97c9f5412e`, and
@@ -1613,7 +1654,7 @@ is `sha256:bf04fd6cd397` and its poster is `sha256:4f5194a2d21e`.
 Failure-inclusive metrics, canonical campaign digests, the 33 accepted task
 IDs, and the VP9 recording/poster hashes are retained in
 [`codex-50-progress.json`](results/2026-07-31/live-vnc/codex-50-progress.json).
-Its updated digest is `sha256:3b9ca96fe273`.
+Its updated digest is `sha256:a7db9f6a3d99`.
 The complete 50-task manifest is
 [`codex-50-tasks.yaml`](codex-50-tasks.yaml).
 

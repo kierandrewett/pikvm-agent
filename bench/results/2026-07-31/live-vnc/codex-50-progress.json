@@ -4084,7 +4084,7 @@
     "infrastructure_invalid_runs": 0,
     "passed_runs": 0,
     "canonical_campaign_id": null,
-    "current_state": "v1 failed closed before input on a false-positive communication approval. Pushed commit 7679d11 fixed that policy decision; v2 and v3 exposed an ambiguous hash transport/readback mismatch. Rebooted direct probes then proved the Windows numeric Alt route renders '#' exactly while direct semantic RFB '#' renders '3'. v4 exposed incomplete route evidence because the short exact heading used paced websocket HID. Pushed commit 58facf9 routed the heading through guarded HTTP, made route coverage explicit, and preserved a complete raw Markdown heading before shell-prompt stripping. Native-pixel reanalysis now proves both retained v4/v5 post-action frames show '# Release 1.0'; the earlier pound-sign classification was a downscaled-glyph visual error. v5 primary OCR instead misread the final low-resolution zero as four and exact readback failed closed. Pushed commit 85b8adb adds one bounded native-resolution primary OCR retry for auto-located editor glyph mismatches. No file was saved, the observer confirmed absence with zero dangerous commits, and every required reboot observed a transition.",
+    "current_state": "v1 failed closed before input on a false-positive communication approval. Pushed commit 7679d11 fixed that policy decision; v2 and v3 exposed an ambiguous hash transport/readback mismatch. Rebooted direct probes then proved the Windows numeric Alt route renders '#' exactly while direct semantic RFB '#' renders '3'. v4 exposed incomplete route evidence because the short exact heading used paced websocket HID. Pushed commit 58facf9 routed the heading through guarded HTTP, made route coverage explicit, and preserved a complete raw Markdown heading before shell-prompt stripping. Native-pixel reanalysis proves retained v4/v5 frames show '# Release 1.0'. Post-v5 commits retained native exact rows, kept native OCR on the final settle, bounded the crop to the causal editor row, and retried once across the caret phase. Both live gate probes emitted the exact heading SHA once with zero corrections or retries, but the internal provider selected same-length mismatches while independent native OCR was exact under PSM 6, 7, 11, and 12. Recorded v6 remains gated. The installed observer confirmed code-09.md absent with zero dangerous commits; no prior artifact was claimed and every reset returned to a fresh desktop.",
     "latest_attempt": {
       "campaign_id": "codex-code-entry-code09-v5-20260804",
       "accepted_status": "failed",
@@ -4145,7 +4145,8 @@
       },
       "campaign_sha256": "304176a29a03aa39f2e09725fd02842f26a5b68bb826b8e7024890e9e0b7b911"
     },
-    "next_gate": "Restart only the isolated lab services on pushed 85b8adb, exercise the native primary OCR event against the exact heading, and run recorded Code-09 v6 only if that live event returns an exact readback.",
+    "diagnostic_probes": "bench/results/2026-08-04/live-vnc/code-09-native-readback-probes.json",
+    "next_gate": "Replay the retained native crop through the configured exact provider selection path and retain content-free candidate hashes/counts; implement one bounded selection/preprocessing fix and run recorded Code-09 v6 only after a live native event returns exact.",
     "full_ledger": "bench/results/2026-08-04/live-vnc/code-09-attempts.json"
   }
 }

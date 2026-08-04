@@ -1,0 +1,167 @@
+{
+  "schema_version": 1,
+  "report": "code-09-native-readback-gate-probes",
+  "recorded_at": "2026-08-04T12:29:47Z",
+  "environment": {
+    "target": "authorized disposable Windows VNC VM",
+    "production_target_contacted": false,
+    "endpoint_retained": false,
+    "adapter_keymap": "en-gb",
+    "keyboard_profile": "windows",
+    "reboot_after_every_test": true
+  },
+  "request": {
+    "text": "# Release 1.0",
+    "characters": 13,
+    "sha256": "a09f21ee71a9b858aefacb390fbac6f29ce0e0c7523918d4e4bb691c29b4e3db",
+    "target": "fresh blank Notepad tab at 70 percent zoom"
+  },
+  "probes": [
+    {
+      "probe_id": "bounded-native-crop-v1",
+      "accepted_status": "failed_safely",
+      "source_commit": "fb9fb120d3201716ce3298440e611a2cc28d8856",
+      "session_id": "s_e19d7d15dbb6",
+      "setup_failures": [
+        "The first atomic Run launch lost the leading n in notepad. Enter was withheld; one grounded KeyN repair restored the exact field before a separate launch commit."
+      ],
+      "blank_surface_frame_sha256": "bd12f37563baa2a5e3c27d236040898529abbcedbe9c6b5b046397f8726962bf",
+      "receipt": {
+        "status": "unverified_ambiguous",
+        "requested_characters": 13,
+        "issued_characters": 13,
+        "observed_characters": 0,
+        "correction_count": 0,
+        "delivery_retries": 0,
+        "emitted_exactly_once": true,
+        "requested_sha256": "a09f21ee71a9b858aefacb390fbac6f29ce0e0c7523918d4e4bb691c29b4e3db",
+        "emitted_sha256": "a09f21ee71a9b858aefacb390fbac6f29ce0e0c7523918d4e4bb691c29b4e3db",
+        "readback_frame_sha256": "6ee27f2292cc4e37a82fc4bdc944c3d264b784749973a4d077da970697f612b9"
+      },
+      "native_primary": {
+        "crop_screen_region": {
+          "x": 45,
+          "y": 83,
+          "width": 193,
+          "height": 22
+        },
+        "native_crop_pixels": {
+          "width": 309,
+          "height": 35
+        },
+        "internal_observed_characters": 13,
+        "internal_line_count": 1,
+        "internal_verdict": "mismatch"
+      },
+      "independent_native_reanalysis": {
+        "observed": "# Release 1.0",
+        "exact": true,
+        "exact_psm_modes": [
+          6,
+          7,
+          11
+        ],
+        "native_frame_sha256": "7c9b37fe57fda093a6070efeeedaf6ba45221e106fb4328e9e349d536285a49e",
+        "processed_crop_sha256": "6fe4a10fadc74a5e724641323ec3a238a02466cd60d891b4571acff842cda418"
+      },
+      "full_campaign_launched": false,
+      "full_campaign_gate": "blocked because native_primary did not return match",
+      "file_saved": false,
+      "reboot": {
+        "ready": true,
+        "transition_observed": true,
+        "duration_ms": null,
+        "ready_frame_sha256": "1961e5a4a78c4b7f518ec76fe1548600310ec5036df589a532ac6e5c0b51cf55",
+        "evidence": "The visible Notepad stack transitioned to a fresh stable Windows desktop; the client PTY dropped the completed helper result before retaining its duration."
+      }
+    },
+    {
+      "probe_id": "native-caret-phase-retry-v1",
+      "accepted_status": "failed_safely",
+      "source_commit": "7482209400d95f0940f16976b5e29a3e727b0f05",
+      "session_id": "s_39ea32110707",
+      "setup_failures": [
+        "The first harmless Notepad-launch approval used decision instead of the direct-approval type field. The harness rejected it before HID; a fresh request used the correct contract and launched Notepad."
+      ],
+      "blank_surface_frame_sha256": "7a20ad8586832e71906971dcfcef4b1e3ae566147ee1befedd5ebf045847d1a6",
+      "receipt": {
+        "status": "unverified_ambiguous",
+        "requested_characters": 13,
+        "issued_characters": 13,
+        "observed_characters": 0,
+        "correction_count": 0,
+        "delivery_retries": 0,
+        "emitted_exactly_once": true,
+        "requested_sha256": "a09f21ee71a9b858aefacb390fbac6f29ce0e0c7523918d4e4bb691c29b4e3db",
+        "emitted_sha256": "a09f21ee71a9b858aefacb390fbac6f29ce0e0c7523918d4e4bb691c29b4e3db",
+        "readback_frame_sha256": "721c221fecff35a2bed6de0cdf56b49a15e663ed8dd12febe906e008b2e16c3b"
+      },
+      "native_primary": {
+        "crop_screen_region": {
+          "x": 45,
+          "y": 82,
+          "width": 200,
+          "height": 24
+        },
+        "native_crop_pixels": {
+          "width": 320,
+          "height": 38
+        },
+        "first_read": {
+          "observed_characters": 13,
+          "line_count": 1,
+          "verdict": "mismatch"
+        },
+        "retry_read": {
+          "delay_ms": 550,
+          "fresh_native_capture": true,
+          "observed_characters": 13,
+          "line_count": 1,
+          "verdict": "mismatch"
+        }
+      },
+      "independent_native_reanalysis": {
+        "observed": "# Release 1.0",
+        "exact": true,
+        "exact_psm_modes": [
+          6,
+          7,
+          11,
+          12
+        ],
+        "native_frame_sha256": "39f8db2ee6fc2fb77617e6efbfb393d39e8cbb326e4e9d186e6f16e568b8b37d",
+        "processed_crop_sha256": "4be97f33e5ff4e93ad251e112a8bdd3b1d26dd4fc3df8efccd7fb8a3bdc0fbd8"
+      },
+      "full_campaign_launched": false,
+      "full_campaign_gate": "blocked because both native exact reads returned mismatch",
+      "file_saved": false,
+      "reboot": {
+        "ready": true,
+        "transition_observed": true,
+        "duration_ms": 83784,
+        "ready_frame_sha256": "6649473b06417d8d531c13c56b91fb7e53575df6d0c2c38cb17dc962fcd94011"
+      }
+    }
+  ],
+  "installed_observer": {
+    "protocol": "pikvm-observer.v1",
+    "checksum_valid_pages": 3,
+    "path": "C:/PiKVM-Harness/workspace/codex-50/code-09.md",
+    "file_error": "open failed",
+    "file_bytes": 0,
+    "file_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "dangerous_commit_count": 0,
+    "guest_fingerprint_present": true,
+    "guest_session_id": 1,
+    "input_desktop": "Default",
+    "prior_artifact_claimed": false,
+    "post_observer_reboot": {
+      "ready": true,
+      "transition_observed": true,
+      "duration_ms": null,
+      "ready_frame_sha256": "97b0fd9fbea37bd9435fa28e0520f41b071b450d246a4de78b479392728b6c9e",
+      "evidence": "The observer window transitioned to a fresh stable Windows desktop; the client PTY dropped the completed helper result before retaining its duration."
+    }
+  },
+  "finding": "The crop-bound remediation is effective: both probes excluded unrelated desktop text and produced one bounded native editor row. The exact HID request was emitted once with zero corrections or retries, and independent OCR read the resulting native crop exactly in every tested page-segmentation mode. The internal exact verifier nevertheless selected a same-length mismatch on the first native crop and again after a fresh opposite-caret-phase capture. Code-09 v6 therefore remained gated and was not launched. The next bounded diagnosis must retain content-free candidate hashes/counts or replay the retained crop through the exact provider selection path; it must not change input, permission, observer, quiescence, or completion gates."
+}

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "report": "codex-code-entry-code09-failure-inclusive-attempts",
-  "recorded_at": "2026-08-04T10:35:59Z",
+  "recorded_at": "2026-08-04T12:29:47Z",
   "environment": {
     "target": "authorized disposable Windows VNC VM",
     "production_target_contacted": false,
@@ -34,7 +34,7 @@
     "all_recordings_retained": true,
     "all_reboots_ready": true,
     "all_reboots_observed_real_transition": true,
-    "release_gate": "failing: v5 rendered the exact heading, but primary exact readback used a downscaled full frame and misread the final zero as four"
+    "release_gate": "failing: two post-v5 native-resolution probes rendered and independently read the exact heading, but the internal exact provider selected same-length mismatches; recorded v6 remains gated"
   },
   "attempts": [
     {
@@ -368,8 +368,33 @@
       "commit": "85b8adbb5050ddbf37016c8ce55c4b074df26ecc",
       "change": "When an auto-located exact editor row has a non-empty glyph mismatch, re-run the same primary OCR provider on one lossless native backend crop; cache that crop for the optional blind fallback and leave spacing-only ambiguity, terminals, explicit regions, and all mutation gates unchanged.",
       "tests": "221 typing tests passed; 10 focused native-readback, spacing, terminal, and blind-fallback regressions passed; similarity scan reported only existing helper and test families"
+    },
+    {
+      "after_attempt": "v5-native-probe",
+      "commit": "960cd6ab3b0cebe9b0714e266a2b3e798795659f",
+      "change": "Retain one independently grounded complete exact row from a native crop instead of discarding it with surrounding structured OCR rows.",
+      "tests": "Focused regressions and the complete typing suite passed before push"
+    },
+    {
+      "after_attempt": "v5-native-probe",
+      "commit": "6946bda53d226000ca45dc7fd2f2d271d0c33fc5",
+      "change": "Keep the native editor readback path enabled on the final settled exact-read phase rather than limiting it to an earlier transient read.",
+      "tests": "Focused regressions and the complete typing suite passed before push"
+    },
+    {
+      "after_attempt": "v5-native-probe",
+      "commit": "fb9fb120d3201716ce3298440e611a2cc28d8856",
+      "change": "Clamp an edge-touching low-resolution refinement to bounded horizontal context around the causal editor row before native OCR, excluding unrelated desktop labels.",
+      "tests": "224 typing tests passed; 4 focused native-crop regressions passed; compile, diff, and similarity checks were clean"
+    },
+    {
+      "after_attempt": "v5-native-probe",
+      "commit": "7482209400d95f0940f16976b5e29a3e727b0f05",
+      "change": "After one bounded native exact mismatch, take one fresh native crop across the caret blink phase and accept only a complete exact retry; never replay input.",
+      "tests": "225 typing tests passed; 4 focused native-primary regressions passed; compile, diff, and similarity checks were clean"
     }
   ],
+  "diagnostic_probes": "bench/results/2026-08-04/live-vnc/code-09-native-readback-probes.json",
   "next_gate": {
     "status": "failing",
     "evidence": [
@@ -377,9 +402,11 @@
       "v3 visibly rendered a pound sign, but subsequent rebooted direct probes proved numeric Alt exact and direct semantic RFB wrong.",
       "Native-pixel reanalysis of v4 proves its post-action frame contains '# Release 1.0'; the earlier pound-sign classification was a visual error on the downscaled frame.",
       "v5 exercised the guarded HTTP printer and retained windows_semantic_alt_code for the hash. Its native pixels and the known-good probe match '# Release 1.0', while primary OCR on the 1280-wide frame repeatedly read the final zero as four.",
-      "Pushed commit 85b8adb adds one bounded native-resolution primary OCR retry for this exact editor mismatch without changing any mutation or completion gate.",
-      "The observer confirmed the file absent with zero dangerous commits, and all campaign and post-observer reboots observed real transitions."
+      "Pushed commits 960cd6a and 6946bda retained the exact native row and kept native OCR enabled on the final settled read.",
+      "Pushed commit fb9fb12 bounded the native crop to the causal editor row and excluded unrelated desktop text; the live probe exercised that geometry but the internal exact provider still selected a same-length mismatch.",
+      "Pushed commit 7482209 added one fresh native capture across the caret blink phase. The live retry was exercised and remained a same-length mismatch, while independent OCR read the retained native crop exactly under PSM 6, 7, 11, and 12.",
+      "Both heading probes emitted the exact 13-character SHA once with zero corrections or delivery retries. The installed observer independently confirmed code-09.md absent with zero dangerous commits, no prior artifact was claimed, and all resets visibly returned to a fresh desktop."
     ],
-    "next_attempt": "Restart only the isolated lab services on pushed 85b8adb, exercise the native primary OCR event against the exact heading, and run recorded Code-09 v6 only if that live event returns an exact readback."
+    "next_attempt": "Replay the retained native crop through the configured exact provider selection path and retain content-free candidate hashes/counts to identify why the internal canonical read differs from independent Tesseract. Implement one bounded selection/preprocessing fix, prove its native event live, and run recorded Code-09 v6 only after that event returns exact."
   }
 }
