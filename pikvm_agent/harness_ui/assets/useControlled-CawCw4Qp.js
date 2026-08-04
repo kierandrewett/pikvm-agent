@@ -1,1 +1,0 @@
-import{K as e,mt as t,vt as n}from"./button-Dytpe0A3.js";var r=e(`Check`,[[`path`,{d:`M20 6 9 17l-5-5`,key:`1gmf2c`}]]),i=e(`ChevronDown`,[[`path`,{d:`m6 9 6 6 6-6`,key:`qrunsl`}]]),a=n(t(),1);function o({controlled:e,default:t,name:n,state:r=`value`}){let{current:i}=a.useRef(e!==void 0),[o,s]=a.useState(t);return[i?e:o,a.useCallback(e=>{i||s(e)},[])]}export{i as n,r,o as t};

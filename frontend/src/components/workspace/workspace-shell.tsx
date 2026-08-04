@@ -20,7 +20,7 @@ import {
   GalleryVerticalEndIcon,
   LogOutIcon,
   MenuIcon,
-  MonitorIcon,
+  MoreHorizontalIcon,
   SparklesIcon,
   WrenchIcon,
 } from "lucide-react";
@@ -38,6 +38,13 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { AuthDialog } from "@/components/workspace/auth-dialog";
 import { ComputerToolEnvironmentProvider } from "@/components/workspace/computer-tool-environment";
 import { ComputerConnectionButton } from "@/components/workspace/computer-connection-button";
@@ -306,6 +313,14 @@ export function WorkspaceShell() {
           onOpenModels={() => setModelsOpen(true)}
         />
       ) : null}
+    </div>
+  );
+
+  /* The slim row under the composer, VS Code style: where the work will happen
+   * and what it can reach. These used to crowd the composer itself, where they
+   * competed with the one control that matters before sending — the model. */
+  const StatusRow = () => (
+    <div className="flex items-center gap-1 border-t border-border/60 px-2 py-1">
       <ComputerConnectionButton
         enabled={workspace.computerControlEnabled}
         mcpServerName={workspace.computerConnection.mcpServerName}
@@ -313,9 +328,8 @@ export function WorkspaceShell() {
         onOpen={() => setComputerOpen(true)}
       />
       {workspace.tools.length > 0 || toolServerEntries.length > 0 ? (
-        <Badge
-          variant="outline"
-          className="hidden sm:inline-flex"
+        <span
+          className="ml-auto shrink-0 px-1.5 text-[11px] text-muted-foreground"
           title={[
             ...workspace.tools.map((tool) => tool.name),
             ...toolServerEntries
@@ -323,12 +337,13 @@ export function WorkspaceShell() {
               .map(([name, status]) => `${name}: ${status.error || "offline"}`),
           ].join("\n")}
         >
-          <WrenchIcon data-icon="inline-start" aria-hidden="true" />
+          <WrenchIcon
+            className="mr-1 inline size-3 align-[-1px]"
+            aria-hidden="true"
+          />
           {workspace.tools.length} tools
-          {offlineToolServers > 0
-            ? ` · ${offlineToolServers} offline`
-            : ""}
-        </Badge>
+          {offlineToolServers > 0 ? ` · ${offlineToolServers} offline` : ""}
+        </span>
       ) : null}
     </div>
   );
@@ -367,6 +382,11 @@ export function WorkspaceShell() {
               <p className="truncate text-sm font-medium">
                 {selectedTaskTitle}
               </p>
+              {/* Only states that change what the user should do next earn a
+                  place beside the title. A healthy live connection is the
+                  expected case and says nothing, so it stays silent; the badge
+                  appears when the stream degrades. Provenance and the UI-update
+                  prompt are rare, and keep their own conditional badges. */}
               {workspace.selectedRun?.origin === "direct_mcp" ? (
                 <>
                   <RunControlModeBadge origin={workspace.selectedRun.origin} />
@@ -386,70 +406,64 @@ export function WorkspaceShell() {
                         ? "Restoring"
                         : "Task unavailable"}
                     </Badge>
-                  ) : (
-                    <LiveUpdateBadge
-                      status={
-                        workspace.selectedRun
-                          ? workspace.liveUpdateStatus
-                          : "idle"
-                      }
-                    />
-                  )}
+                  ) : workspace.selectedRun &&
+                    workspace.liveUpdateStatus !== "live" ? (
+                    <LiveUpdateBadge status={workspace.liveUpdateStatus} />
+                  ) : null}
                   <UiUpdateBadge />
                 </>
               ) : null}
             </div>
+            {/* One overflow menu rather than a row of five icons. Everything
+                here is occasional; the frequent controls live by the composer,
+                where the work happens. */}
             <div className="flex shrink-0 items-center gap-1">
-              {managedControl ? (
-                <TooltipIconButton
-                  tooltip="Models"
-                  aria-label="Open model connections"
-                  onClick={() => setModelsOpen(true)}
-                  disabled={!workspace.connected}
-                >
-                  <BotIcon />
-                </TooltipIconButton>
-              ) : null}
-              <TooltipIconButton
-                tooltip={
-                  workspace.computerControlEnabled
-                    ? "Computer"
-                    : "Computer connection details"
-                }
-                aria-label={
-                  workspace.computerControlEnabled
-                    ? "Open computer view"
-                    : "Open computer connection details"
-                }
-                onClick={() => setComputerOpen(true)}
-                disabled={!workspace.connected}
-              >
-                <MonitorIcon />
-              </TooltipIconButton>
-              <TooltipIconButton
-                tooltip="Recorded proof"
-                aria-label="Open recorded task proof"
-                onClick={() => setShowcaseOpen(true)}
-                disabled={!workspace.connected}
-              >
-                <GalleryVerticalEndIcon />
-              </TooltipIconButton>
-              <TooltipIconButton
-                tooltip="Diagnostics"
-                aria-label="Open diagnostics"
-                onClick={() => setDiagnosticsOpen(true)}
-                disabled={!workspace.selectedRun}
-              >
-                <ActivityIcon />
-              </TooltipIconButton>
-              <TooltipIconButton
-                tooltip="Disconnect"
-                aria-label="Disconnect workspace"
-                onClick={workspace.disconnect}
-                disabled={!workspace.connected}
-              >
-                <LogOutIcon />
-              </TooltipIconButton>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <TooltipIconButton
+                      tooltip="More"
+                      aria-label="More workspace actions"
+                    >
+                      <MoreHorizontalIcon />
+                    </TooltipIconButton>
+                  }
+                />
+                <DropdownMenuContent>
+                  {managedControl ? (
+                    <DropdownMenuItem
+                      disabled={!workspace.connected}
+                      onClick={() => setModelsOpen(true)}
+                    >
+                      <BotIcon aria-hidden="true" />
+                      Models
+                    </DropdownMenuItem>
+                  ) : null}
+                  <DropdownMenuItem
+                    disabled={!workspace.connected}
+                    onClick={() => setShowcaseOpen(true)}
+                  >
+                    <GalleryVerticalEndIcon aria-hidden="true" />
+                    Recorded proof
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    disabled={!workspace.selectedRun}
+                    onClick={() => setDiagnosticsOpen(true)}
+                  >
+                    <ActivityIcon aria-hidden="true" />
+                    Diagnostics
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    variant="destructive"
+                    disabled={!workspace.connected}
+                    onClick={workspace.disconnect}
+                  >
+                    <LogOutIcon aria-hidden="true" />
+                    Disconnect
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </header>
 
@@ -474,7 +488,7 @@ export function WorkspaceShell() {
                   />
                 ) : null}
                 <ComputerToolEnvironmentProvider value={computerEnvironment}>
-                  <div className="min-h-0 flex-1">
+                  <div className="flex min-h-0 flex-1 flex-col">
                     <Thread
                       readOnly={!managedControl}
                       activity={workspace.selectedRun?.active_activity}
@@ -488,6 +502,7 @@ export function WorkspaceShell() {
                         ToolGroup: WorkspaceToolGroup,
                       }}
                     />
+                    <StatusRow />
                   </div>
                 </ComputerToolEnvironmentProvider>
               </>
