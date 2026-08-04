@@ -1,0 +1,106 @@
+{
+  "schema_version": 1,
+  "report": "code-09-v6-repeated-symbol-transport-probe",
+  "recorded_at": "2026-08-04T19:10:45Z",
+  "source_commit": "7ae4f44dd67394f0370515774c3b89f6b353c253",
+  "environment": {
+    "target": "authorized disposable Windows VNC VM",
+    "production_target_contacted": false,
+    "endpoint_retained": false,
+    "keymap": "en-gb",
+    "keyboard_profile": "windows"
+  },
+  "diagnosis": {
+    "retained_failure": "The fifth latency probe acknowledged two consecutive Windows numeric-Alt hash sequences but rendered only one hash in the guest. Five exact reads consistently observed seven of eight requested characters, so the verifier failed closed and did not replay the payload.",
+    "red_regression": "test_windows_transport_reasserts_alt_up_between_repeated_symbols",
+    "root_cause": "The VNC route acknowledged both numeric-Alt sequences, but Windows had not reliably committed the first Alt state before the second sequence started.",
+    "fix": {
+      "commit": "7ae4f44dd67394f0370515774c3b89f6b353c253",
+      "strategy_version": "windows-rfb-print-v3",
+      "change": "After the ordinary numeric-Alt release and commit window, reassert only Alt-up and wait one bounded 75 ms barrier before the next character.",
+      "can_duplicate_a_glyph": false,
+      "releases_unrelated_modifiers": false,
+      "input_replay_added": false,
+      "exact_input_gate_weakened": false,
+      "permission_gate_weakened": false,
+      "quiescence_gate_weakened": false,
+      "observer_gate_weakened": false,
+      "reboot_gate_weakened": false
+    }
+  },
+  "validation": {
+    "vnc_and_lease_tests": "33 passed",
+    "typing_tests": "241 passed in bounded node-id batches",
+    "direct_runtime_tests": "62 passed in bounded batches",
+    "showcase_runner_tests": "57 passed in bounded batches",
+    "compile": "passed",
+    "diff_check": "passed",
+    "similarity_scan": "The targeted Python scan found only existing test-fixture families and no new production duplicate seam."
+  },
+  "live_probe": {
+    "session_id": "s_44a2cef45c2c",
+    "fresh_maximized_blank_editor_independently_visible": true,
+    "requested_characters": 8,
+    "requested_sha256": "52e6d39cc26fa001bd2213e40fa845d07dca77143fb2330a3201d0ac6890b45d",
+    "delivery_sha256": "52e6d39cc26fa001bd2213e40fa845d07dca77143fb2330a3201d0ac6890b45d",
+    "emitted_sha256": "52e6d39cc26fa001bd2213e40fa845d07dca77143fb2330a3201d0ac6890b45d",
+    "readback_sha256": "52e6d39cc26fa001bd2213e40fa845d07dca77143fb2330a3201d0ac6890b45d",
+    "receipt_status": "verified_exact",
+    "receipt_verdict": "match",
+    "proof_state": "exact_visual_readback",
+    "focus_evidence": "read_back_verified",
+    "requested_characters_observed": 8,
+    "exact_readback_sha256_match": true,
+    "emitted_exactly_once": true,
+    "correction_count": 0,
+    "delivery_retries": 0,
+    "edit_distance": 0,
+    "client_elapsed_ms": 11838,
+    "action_duration_ms": 9222.4,
+    "screenshot_count": 15,
+    "screenshot_duration_ms": 3665.1,
+    "exact_field_read_count": 3,
+    "dense_candidate_scan_count": 2,
+    "exact_spacing_settle_budget_event_count": 1,
+    "readback_frame_sha256": "48d1ec6b0dfa053c8b0671cda917d4bfa28703b9a8db8b1de0050aa7b0542dfe",
+    "transport": {
+      "strategy_version": "windows-rfb-print-v3",
+      "http_print_request_delta": 0,
+      "websocket_hid_character_delta": 8,
+      "route_deltas": {
+        "generic_hid_character": 0,
+        "generic_semantic_shifted": 1,
+        "windows_atomic_printable": 5,
+        "windows_semantic_alt_code": 2
+      },
+      "consecutive_repeated_symbol_routes_proven": 2
+    },
+    "test_payload_enter_sent": false,
+    "save_committed": false,
+    "observer_launched": false,
+    "artifact_comparison": "not run",
+    "current_path_absent": null,
+    "dangerous_commit_count": null,
+    "prior_artifact_claimed": false,
+    "mandatory_reboot": {
+      "ready": true,
+      "transition_observed": true,
+      "transition_kind": "dark_frame",
+      "transition_observed_after_ms": 8808,
+      "transition_frame_sha256": "6c2ecacb54d942b8725982f3a924618e468031db7b1fec4a8fbdd8f70c2b6b9b",
+      "transition_luminance": 0.08,
+      "ready_frame_sha256": "df07222e8fb7d0e0c28b027462f4a570b969d171c4190024f8335bb1ed2908ad",
+      "ready_frame_luminance": 35.37,
+      "ready_samples": 38,
+      "receipt_note": "The instrumented reset retained the dark-frame transition; readiness was independently reacquired after the VNC reconnect."
+    }
+  },
+  "finding": {
+    "repeated_symbol_transport_fix_exercised_live": true,
+    "repeated_symbol_transport_fix_effective": true,
+    "latency_budget_branch_exercised_live": true,
+    "latency_budget_branch_effective": true,
+    "release_gate": "The transport-v3 repeated-symbol fix and the bounded exact-spacing settle budget both passed in one reboot-isolated exact single-emission live probe. Recorded Code-09 v7 is now permitted.",
+    "next_attempt": "Run recorded Code-09 v7 on pushed master, preserve every outcome, independently compare artifacts only after causally proven observer execution, and reboot after the test."
+  }
+}

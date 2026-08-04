@@ -34,7 +34,7 @@
     "all_recordings_retained": true,
     "all_reboots_ready": true,
     "all_reboots_observed_real_transition": true,
-    "release_gate": "failing on speed: recorded v6 exceeded the 300-second SLA before Save As; pushed 8d7fcc1 live-proved at-most-once HID for a regenerated-key lost-response retry, and pushed 90a6903 live-proved causal Run-field exact readback after one geometry-only localization and reversible blur. No independent current-file claim is made."
+    "release_gate": "ready for recorded v7: pushed 8d7fcc1 live-proved at-most-once HID after a lost response, pushed 90a6903 live-proved causal Run-field exact readback, and pushed 7ae4f44 live-proved consecutive repeated-symbol delivery while the bounded exact-line settle budget fired once and completed in 9.222 seconds. No independent v6 current-file claim is made."
   },
   "attempts": [
     {
@@ -520,12 +520,22 @@
       "change": "No source change; this maximized fresh-editor probe targeted the exact-generic-alternative budget path with a new inert repeated-symbol line.",
       "live_result": "The eight-character request was emitted once, but five precise reads consistently observed seven visible characters. The action failed closed after 23.524 seconds with zero corrections or retries and was not replayed. No save or observer ran. An instrumented reset observed a 0.08-luminance dark-frame transition after 3.522 seconds and independently reacquired a stable desktop after reconnect.",
       "live_evidence": "bench/results/2026-08-04/live-vnc/code-09-v6-exact-line-latency-probes.json"
+    },
+    {
+      "after_attempt": "v6-repeated-symbol-transport-and-latency-probe",
+      "commit": "7ae4f44dd67394f0370515774c3b89f6b353c253",
+      "change": "Reassert only Alt-up and wait one bounded barrier after each Windows numeric-Alt sequence so consecutive semantic symbols cannot share stale Alt state; the transport receipt is versioned windows-rfb-print-v3.",
+      "tests": "The red repeated-symbol regression passes; 33 VNC and lease tests, 241 typing tests, 62 direct-runtime tests, and 57 showcase-runner tests passed in bounded batches; compile and diff checks passed; the targeted similarity scan found no new production duplicate seam.",
+      "live_result": "One fresh maximized repeated-symbol line was emitted exactly once and matched its requested SHA-256 with zero corrections or retries. Transport v3 recorded two semantic Alt routes, the exact-alternative settle budget fired once, and the action completed in 9.222 seconds, 65.26 percent below the retained v6 matching-class baseline. No test-payload Enter, Save, observer, artifact comparison, or dangerous-commit claim followed. The mandatory reset retained a dark-frame transition and stable-desktop reacquisition.",
+      "live_evidence": "bench/results/2026-08-04/live-vnc/code-09-v6-repeated-symbol-transport-probe.json"
     }
   ],
   "diagnostic_probes": "bench/results/2026-08-04/live-vnc/code-09-native-readback-probes.json",
   "causal_run_readback_probes": "bench/results/2026-08-04/live-vnc/code-09-v6-causal-run-readback-probes.json",
+  "exact_line_latency_probes": "bench/results/2026-08-04/live-vnc/code-09-v6-exact-line-latency-probes.json",
+  "repeated_symbol_transport_probe": "bench/results/2026-08-04/live-vnc/code-09-v6-repeated-symbol-transport-probe.json",
   "next_gate": {
-    "status": "failing",
+    "status": "passing",
     "evidence": [
       "v2 proved the v1 false-positive approval is fixed on the live target.",
       "v3 visibly rendered a pound sign, but subsequent rebooted direct probes proved numeric Alt exact and direct semantic RFB wrong.",
@@ -547,8 +557,9 @@
       "Pushed 96a0461 bounded the generic late-pixel reread schedule when the canonical glyph row already matches but spacing remains unproven. Its first live probe safely verified one exact eight-character unsaved line with zero corrections or retries, but did not exercise the optimization: the exact glyph hash was a generic OCR alternative while the canonical candidate was wrong. The 28.541-second action remained slower than the matching-class v6 baseline, and the mandatory 102.688-second reboot observed a real transition.",
       "Pushed d2ff741 allows an exact generic alternative to select that bounded schedule without accepting it as verification. Two later exact probes completed in 7.850 and 12.300 seconds, 70.4 and 53.7 percent below baseline, but both used earlier proof paths and did not fire the budget event. A distinct intervening line failed closed on restored-window focus after one emission and was not retried. Every probe saved nothing, launched no observer, and rebooted after a real transition.",
       "The maximized exact pass also exposed an independent permission-classification defect: inert local Notepad heading text was labelled communication_send before visible editor context was applied. The approval was granted only against the independently visible blank local editor and existing explicit lab authorization; communication approval policy was not weakened.",
-      "The fifth maximized probe emitted a distinct eight-character hash once, but the screen and five precise OCR reads consistently contained seven characters. The verifier failed closed with zero retries, the payload was never replayed, and the exact-alternative budget event did not fire. The reset retained a real dark-frame transition and independently reacquired the stable desktop."
+      "The fifth maximized probe emitted a distinct eight-character hash once, but the screen and five precise OCR reads consistently contained seven characters. The verifier failed closed with zero retries, the payload was never replayed, and the exact-alternative budget event did not fire. The reset retained a real dark-frame transition and independently reacquired the stable desktop.",
+      "Pushed 7ae4f44 reproduced the repeated Windows numeric-Alt loss offline and added a bounded Alt-up reassertion barrier. A fresh maximized live probe then emitted one distinct eight-character repeated-symbol line once, retained both semantic Alt routes under windows-rfb-print-v3, fired the exact-alternative spacing budget once, and independently matched the requested readback hash in 9.222 seconds with zero corrections or retries. Its mandatory reset retained a 0.08-luminance dark-frame transition and reacquired a stable desktop."
     ],
-    "next_attempt": "Reproduce and repair the retained repeated-symbol transport loss offline before another live exact-line probe. Never retry either failed payload. Reboot and run recorded Code-09 v7 only after a new exact single-emission receipt both exercises the exact-alternative budget branch and passes."
+    "next_attempt": "The repeated-symbol transport and exact-line latency gates now pass live. Run recorded Code-09 v7 on pushed master, compare artifacts only after causally proven observer execution, retain every result, and reboot afterward."
   }
 }

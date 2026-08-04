@@ -1777,9 +1777,31 @@ to 0.9325 confidence. The verifier failed closed after 23.524s and the exact
 payload was not replayed. No Save, Enter, observer launch, artifact comparison,
 or dangerous-commit claim followed. The reset retained a 0.08-luminance dark
 frame 3.522s after submission and independently reacquired a stable desktop
-after the VNC reconnect. Code-09 v7 remains gated: the repeated-symbol
-transport loss must be reproduced and fixed offline, then a new exact
-single-emission live probe must actually fire the bounded alternative event.
+after the VNC reconnect.
+
+Pushed `7ae4f44` reproduced that loss offline: the VNC route acknowledged both
+consecutive Windows numeric-Alt sequences, but Windows had not reliably
+committed the first Alt state before the second sequence started. Transport v3
+now reasserts only Alt-up after the ordinary release and commit window, then
+waits one bounded 75ms barrier. It cannot duplicate a glyph, does not release
+other chord modifiers, and does not replay input. The red repeated-symbol
+regression, 33 VNC/lease tests, all 241 typing tests, 62 direct-runtime tests,
+57 showcase-runner tests, compilation, and diff checks pass. The targeted
+similarity scan found no new production duplicate seam.
+
+The reboot-isolated live exercise closed both remaining v7 gates in one fresh
+maximized editor. One distinct eight-character repeated-symbol line was emitted
+exactly once and matched the requested SHA-256 with zero corrections or retries.
+Transport diagnostics retained `windows-rfb-print-v3`, an eight-character HID
+delta, and two `windows_semantic_alt_code` routes. The exact-alternative spacing
+budget fired once, an authoritative later read still matched, and the action
+completed in 9.222s—65.26% below the retained matching-class v6 baseline. No
+test-payload Enter, Save, observer, artifact comparison, file-absence claim, or
+dangerous-commit claim followed. The mandatory reset retained a 0.08-luminance
+dark-frame transition after 8.808s and independently reacquired a stable desktop.
+Recorded Code-09 v7 is now permitted. Content-free transport and live receipts
+are retained in
+[`code-09-v6-repeated-symbol-transport-probe.json`](results/2026-08-04/live-vnc/code-09-v6-repeated-symbol-transport-probe.json).
 
 The failure-inclusive ledger is
 [`code-09-attempts.json`](results/2026-08-04/live-vnc/code-09-attempts.json).
@@ -1797,8 +1819,9 @@ failed v6 observer launch, campaign metrics, and second reset are retained
 separately in
 [`v6`](results/2026-08-04/live-vnc/code-09-v6-observer-comparison.json); that
 report explicitly makes no artifact comparison claim.
-The ledger digest is `sha256:01e10f93d757`; the exact-line latency probe digest
-is `sha256:190a6d59280d`; the native-readback probe digest is
+The ledger digest is `sha256:ac35f2dab717`; the exact-line latency probe digest
+is `sha256:3b6a193ceca7`; the repeated-symbol transport probe digest is
+`sha256:3deb13af355f`; the native-readback probe digest is
 `sha256:ccc6cd47bfdd`; the key-path probe digest is
 `sha256:3bd5284b38a1`; the observer-report digests are
 `sha256:9145f099f2db`, `sha256:5e1089ff5537`, and
