@@ -2513,6 +2513,27 @@ class WatchedTyper:
             )
             return native_tmp, native_local_region
 
+        def retain_unique_exact_row(candidate: OCRResult) -> OCRResult:
+            if not extract_structured_exact_row or not intended:
+                return candidate
+            structured_row = unique_exact_structured_ocr_row(
+                candidate,
+                intended,
+            )
+            if structured_row is None and preserve_editor_indent_candidate:
+                structured_row = unique_exact_structured_ocr_row(
+                    candidate,
+                    intended.lstrip(" \t"),
+                )
+            if structured_row is None:
+                return candidate
+            return OCRResult(
+                lines=[structured_row],
+                evidence_lines=candidate.evidence_lines,
+                alternatives=candidate.alternatives,
+                spacing_evidence=candidate.spacing_evidence,
+            )
+
         try:
             requested_region = region
             refined_region: Region | None = None
@@ -2644,7 +2665,7 @@ class WatchedTyper:
                     except Exception:
                         native_result = OCRResult()
                     if native_result.text:
-                        result = native_result
+                        result = retain_unique_exact_row(native_result)
                         DEBUG.event(
                             "typing.field_readback_native_primary",
                             observed_characters=len(result.text),
@@ -2691,35 +2712,7 @@ class WatchedTyper:
                     except Exception:
                         blind_result = OCRResult()
                     if blind_result.text:
-                        structured_row = (
-                            unique_exact_structured_ocr_row(
-                                blind_result,
-                                intended,
-                            )
-                            if extract_structured_exact_row
-                            else None
-                        )
-                        if (
-                            structured_row is None
-                            and extract_structured_exact_row
-                            and preserve_editor_indent_candidate
-                        ):
-                            structured_row = unique_exact_structured_ocr_row(
-                                blind_result,
-                                intended.lstrip(" \t"),
-                            )
-                        result = (
-                            OCRResult(
-                                lines=[structured_row],
-                                evidence_lines=blind_result.evidence_lines,
-                                alternatives=blind_result.alternatives,
-                                spacing_evidence=(
-                                    blind_result.spacing_evidence
-                                ),
-                            )
-                            if structured_row is not None
-                            else blind_result
-                        )
+                        result = retain_unique_exact_row(blind_result)
                         DEBUG.event(
                             "typing.field_readback_fallback",
                             provider="blind_model_consensus",

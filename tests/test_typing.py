@@ -3031,9 +3031,20 @@ async def test_primary_exact_readback_recaptures_native_field_crop() -> None:
             image_size = Image.open(image_path).size
             self.image_sizes.append(image_size)
             self.regions.append(region)
-            observed = intended if image_size == (290, 42) else "# Release 1.4"
+            if image_size == (290, 42):
+                return OCRResult(
+                    lines=[
+                        OCRLine(text="File Edit View", confidence=0.91),
+                        OCRLine(text=intended, confidence=0.99),
+                        OCRLine(
+                            text="Plain text 100% Windows (CRLF) UTF-8",
+                            confidence=0.88,
+                        ),
+                    ],
+                    spacing_evidence="verified",
+                )
             return OCRResult(
-                lines=[OCRLine(text=observed, confidence=0.99)],
+                lines=[OCRLine(text="# Release 1.4", confidence=0.99)],
                 spacing_evidence="verified",
             )
 
@@ -3046,6 +3057,7 @@ async def test_primary_exact_readback_recaptures_native_field_crop() -> None:
         precise=True,
         allow_blind_fallback=True,
         allow_native_primary_fallback=True,
+        extract_structured_exact_row=True,
     )
 
     assert observed == intended
