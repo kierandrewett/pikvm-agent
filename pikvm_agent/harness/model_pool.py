@@ -52,6 +52,7 @@ ModelEventSink = Callable[[str, dict[str, object]], Awaitable[None]]
 class ProviderHealth:
     kind: str = "unknown"
     configured_model: str | None = None
+    computer_screen_input: bool = True
     billing_mode: str = "unclassified"
     interface: str = "Unknown interface"
     pixel_input: str = "Unknown pixel input"
@@ -211,6 +212,12 @@ class ModelPool:
                     str(metadata[name]["configured_model"])
                     if metadata.get(name, {}).get("configured_model")
                     else None
+                ),
+                computer_screen_input=bool(
+                    metadata.get(name, {}).get(
+                        "computer_screen_input",
+                        True,
+                    )
                 ),
                 billing_mode=str(
                     metadata.get(name, {}).get("billing_mode")

@@ -118,10 +118,15 @@ def test_provider_without_screen_input_remains_available_to_assistant(
     )
 
     status = check_provider_prerequisites(settings)["text-only"]
+    pool_status = build_model_pool(settings).health()["text-only"]
 
     assert status["ready"] is True
     assert status["computer_screen_input"] is False
     assert status["pixel_input"] == "Unavailable for managed computer roles"
+    assert pool_status["computer_screen_input"] is False
+    assert pool_status["pixel_input"] == (
+        "Unavailable for managed computer roles"
+    )
 
 
 def test_gemini_cli_factory_requires_and_reports_a_dedicated_profile(
