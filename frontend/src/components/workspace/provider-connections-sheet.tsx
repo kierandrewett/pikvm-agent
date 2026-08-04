@@ -579,7 +579,12 @@ function ProviderRow({
               <Badge variant="outline">Chat only</Badge>
             ) : null}
           </div>
-          <p className="mt-1 truncate text-xs text-muted-foreground">
+          {/* Wraps rather than truncates: at 400px the ellipsis fell inside
+              "Signed in with the provider's CLI", so the account name survived
+              and how it authenticates did not — and nothing else on the row
+              says it. Two short lines are better than one with the answer cut
+              off. */}
+          <p className="mt-1 text-xs leading-snug text-muted-foreground">
             {name} · {signInLabel(health.credential_owner)}
           </p>
           {ready ? (
