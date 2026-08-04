@@ -1,4 +1,4 @@
-import { ActivityIcon } from "lucide-react";
+import { ActivityIcon, ChevronRightIcon } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -54,11 +54,19 @@ export function DiagnosticsSheet({
             {visibleEvents.map((event) => (
                 <details
                   key={event.sequence}
-                  className="rounded-lg border bg-card px-3 py-2 text-sm"
+                  className="group/event rounded-lg border bg-card px-3 py-2 text-sm"
                 >
-                  <summary className="cursor-pointer list-none">
+                  {/* list-none removes the default triangle, and nothing replaced
+                      it — so every row carried a JSON payload with no sign it
+                      could be opened. The whole sheet read as a flat list of
+                      names, which is not what anyone opens diagnostics for. */}
+                  <summary className="flex cursor-pointer list-none items-center gap-1.5">
+                    <ChevronRightIcon
+                      className="size-3.5 shrink-0 text-muted-foreground transition-transform group-open/event:rotate-90"
+                      aria-hidden="true"
+                    />
                     <span className="font-medium">{event.kind}</span>
-                    <span className="ml-2 text-xs text-muted-foreground">
+                    <span className="text-xs text-muted-foreground">
                       #{event.sequence}
                     </span>
                   </summary>
