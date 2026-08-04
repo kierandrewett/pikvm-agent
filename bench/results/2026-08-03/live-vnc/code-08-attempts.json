@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "report": "codex-code-entry-code08-failure-inclusive-attempts",
-  "recorded_at": "2026-08-04T01:53:25Z",
+  "recorded_at": "2026-08-04T02:32:12Z",
   "environment": {
     "target": "authorized disposable Windows VNC VM",
     "production_target_contacted": false,
@@ -25,17 +25,17 @@
     ]
   },
   "summary": {
-    "recorded_attempts": 28,
-    "valid_full_task_runs": 21,
+    "recorded_attempts": 29,
+    "valid_full_task_runs": 22,
     "failed_runs": 19,
     "infrastructure_invalid_runs": 7,
-    "passed_runs": 2,
-    "canonical_attempt": "v23",
+    "passed_runs": 3,
+    "canonical_attempt": "v29",
     "all_failures_retained": true,
     "all_recordings_retained": true,
-    "reboots_ready": 27,
+    "reboots_ready": 28,
     "reboots_failed_or_pending": 1,
-    "release_gate": "accuracy passing; v24 remains the sub-300-second speed candidate, while v28 fixed Save-filename localization live and retained exact current bytes but timed out after the Open verifier discarded a safe prepared filename followup"
+    "release_gate": "passing: v29 completed in 241.303 seconds with exact current-run and genuinely preserved-prior observer bytes, zero dangerous commits, and both required reboot transitions"
   },
   "attempts": [
     {
@@ -1253,6 +1253,112 @@
       },
       "poster_sha256": "c48176dcc319b5346adedd925ea93714a7b9f176c8750445f6ca7b1ac158d6ba",
       "campaign_sha256": "2486d40ce4fbc6ab641a0008ff2b049fcea5e6e78cad57ccb0c7067bace64479"
+    },
+    {
+      "campaign_id": "codex-code-entry-code08-v29-20260804",
+      "accepted_status": "passed",
+      "campaign_reported_status": "passed",
+      "run_id": "596fef67-5e55-4436-b1cc-6b4a3a254201",
+      "source_commit": "cec12a3",
+      "reason": "The filtered native Open evidence contract was exercised live. Save and Open each retained an exact code-08.cmd receipt, the grounded Open commit completed, and all 10 actions completed without a recovery loop. Independent installed-observer captures exactly matched both the 127-byte current-run artifact and the genuinely preserved 127-byte prior artifact with zero dangerous commits.",
+      "wall_clock_ms": 241303,
+      "task_duration_ms": 422788,
+      "preflight_ms": 97791,
+      "workspace_marker_attempts": 1,
+      "model_active_ms": 96557,
+      "provider_wait_ms": 97198,
+      "provider_serial_equivalent_ms": 97198,
+      "provider_overlap_ms": 0,
+      "action_execution_ms": 140685,
+      "evidence_capture_ms": 2239,
+      "unclassified_overhead_ms": 1000,
+      "provider_calls": 12,
+      "reasoner_calls": 1,
+      "controller_calls": 1,
+      "verifier_calls": 10,
+      "provider_failures": 0,
+      "provider_fallbacks": 0,
+      "provider_schema_repairs": 0,
+      "actions_attempted": 10,
+      "actions_completed": 10,
+      "completion_efficiency": 1.0,
+      "approval_requests": 2,
+      "approvals_granted": 2,
+      "approval_scopes": [
+        "bounded_workspace_edit"
+      ],
+      "same_run_recoveries": 0,
+      "optimization": {
+        "commit": "cec12a3",
+        "retained_v28_regression_failed_before_fix_seconds": 0.77,
+        "retained_v28_regression_passed_after_fix_seconds": 0.19,
+        "exercised_live": true,
+        "live_open_navigation_verdict": "verified",
+        "fallback_normalizer_needed_live": false
+      },
+      "editor_input": {
+        "rows": 9,
+        "windows_crlf_bytes": 127,
+        "sha256": "c5e247fcb3f17892938d047673cab4efbc6588140cd5d6b5047c553a8349ced4",
+        "all_text_segments_emitted_exactly_once": true
+      },
+      "save_filename_receipt": {
+        "requested": "code-08.cmd",
+        "observed_text": "code-08.cmd",
+        "status": "verified_exact",
+        "proof_state": "exact_visual_readback",
+        "edit_distance": 0,
+        "correction_count": 0,
+        "delivery_retries": 0,
+        "emitted_exactly_once": true,
+        "save_committed": true
+      },
+      "open_filename_receipt": {
+        "requested": "code-08.cmd",
+        "observed_text": "code-08.cmd",
+        "status": "verified_exact",
+        "proof_state": "exact_visual_readback",
+        "edit_distance": 0,
+        "correction_count": 0,
+        "delivery_retries": 0,
+        "emitted_exactly_once": true,
+        "grounded_open_committed": true
+      },
+      "observer_artifact_comparison": {
+        "transport": "guarded MCP visual matrix",
+        "current_path": "C:/PiKVM-Harness/workspace/codex-50/code-08.cmd",
+        "current_pages": 4,
+        "current_checksum_valid": true,
+        "current_observed_bytes": 127,
+        "current_observed_sha256": "c5e247fcb3f17892938d047673cab4efbc6588140cd5d6b5047c553a8349ced4",
+        "exact_match_to_current_run": true,
+        "prior_artifact_claimed": true,
+        "prior_path": "C:/PiKVM-Harness/workspace/codex-50/pikvmpriore5ac64ebb7d7412e9e2d990209671c95.cmd",
+        "prior_pages": 4,
+        "prior_checksum_valid": true,
+        "prior_observed_bytes": 127,
+        "prior_observed_sha256": "c5e247fcb3f17892938d047673cab4efbc6588140cd5d6b5047c553a8349ced4",
+        "exact_match_to_preserved_v28": true,
+        "dangerous_commit_count": 0,
+        "comparison_report": "bench/results/2026-08-03/live-vnc/code-08-v29-observer-comparison.json"
+      },
+      "quiescence_status": "confirmed",
+      "quiescence_attempts": 1,
+      "reboot_ms": 78929,
+      "reboot_transition_observed": true,
+      "post_observer_reset_ms": 79083,
+      "post_observer_reset_transition_observed": true,
+      "recording": {
+        "codec": "vp9",
+        "width": 2048,
+        "height": 1280,
+        "fps": 2.0,
+        "duration_ms": 296500,
+        "size_bytes": 1494825,
+        "sha256": "dfc9290fa3e302364745819a7a6ff282bc563a51ea87bc776f4b4c36ce127af8"
+      },
+      "poster_sha256": "2498e2610c6d4c9f5d37441e3e29b18a864b727674180b60283766185cb17a76",
+      "campaign_sha256": "1448fe01016def393789b227954e7f24e6a8ea9ad4501a1c3ae156af57e22160"
     }
   ],
   "remediations": [
@@ -1392,14 +1498,19 @@
       "after_attempt": "v27",
       "commit": "482a60f",
       "change": "Prefer the safe filename value paired with the visible File name label, use that label as a bounded same-row fallback when OCR omits the value, and retain enough left glyph margin for exact reread."
+    },
+    {
+      "after_attempt": "v28",
+      "commit": "cec12a3",
+      "change": "Accept the independently visible native Open dialog and exact codex-50 breadcrumb as the navigation precondition even when the active file filter hides .cmd files, while preserving separate exact filename reread and grounded Open commit gates."
     }
   ],
   "next_gate": {
     "accuracy_status": "passed",
-    "accepted_attempt": "v23",
-    "speed_status": "candidate_pass_failed_task",
-    "accepted_wall_clock_ms": 318782,
-    "latest_candidate_wall_clock_ms": 269650,
+    "accepted_attempt": "v29",
+    "speed_status": "passed",
+    "accepted_wall_clock_ms": 241303,
+    "latest_candidate_wall_clock_ms": 241303,
     "evidence": [
       "The installed observer returned the exact nested artifact path and the 127 bytes emitted by v23.",
       "Observed and immutable current-run CRLF payload hashes are identical.",
@@ -1416,10 +1527,13 @@
       "The v27 observer independently confirmed the current file was absent with zero dangerous commits; no preserved-prior artifact was genuinely claimed, and both required reboots observed transitions.",
       "v28 exercised commit 482a60f live: the Save basename verified exact in 19.603 seconds with zero corrections or retries, Save committed, and all eleven attempted actions completed.",
       "The v28 observer exactly matched all 127 current-run bytes with zero dangerous commits; no prior artifact was claimed, and both required reboots observed transitions.",
-      "v28 still failed at 296.767 seconds because the Open verifier treated a non-listed .cmd under the visible file view as absence, discarded the prepared exact-filename followup, and initiated a cancel-and-reinspect model loop even though the observer later proved the file existed."
+      "v28 still failed at 296.767 seconds because the Open verifier treated a non-listed .cmd under the visible file view as absence, discarded the prepared exact-filename followup, and initiated a cancel-and-reinspect model loop even though the observer later proved the file existed.",
+      "v29 exercised commit cec12a3 live: the filtered native Open dialog and exact codex-50 breadcrumb verified, the prepared exact-filename followup ran, and the separate Open filename receipt and grounded commit both passed.",
+      "v29 completed all 10 actions without recovery in 241.303 seconds across 12 model calls, beating the prior complete v23 pass by 77.479 seconds and the incomplete v24 speed candidate by 28.347 seconds.",
+      "The installed observer independently matched the exact 127-byte current-run artifact and the genuinely preserved 127-byte prior artifact with zero dangerous commits; both required reboots observed transitions."
     ],
     "blocking_infrastructure_state": null,
-    "next_attempt": "Bound Open-dialog verification to the independently visible native dialog and exact workspace breadcrumb, allowing the already-prepared Alt+N, Ctrl+A, exact-basename followup even when the current file filter does not list .cmd files. Preserve the separate exact field readback and grounded Open commit. Run v29 only after a regression proves the filtered-list case, and accept the speed gate only if the complete task passes with exact observer proof and mandatory reboots.",
+    "next_attempt": "Code-08 accuracy, safety, and sub-300-second speed gates are complete. Advance the recorded disposable-lab loop to code-09 without weakening exact-input, permission, quiescence, observer, recording, or reboot gates.",
     "next_task_after_speed_gate": "code-09"
   }
 }

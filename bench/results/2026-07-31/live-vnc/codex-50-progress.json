@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "report": "codex-50-live-progress",
-  "recorded_at": "2026-08-04T01:53:25Z",
+  "recorded_at": "2026-08-04T02:32:12Z",
   "manifest": "bench/codex-50-tasks.yaml",
   "environment": {
     "target": "authorized disposable Windows VNC VM",
@@ -275,11 +275,11 @@
       "campaign_sha256": "ead7dadee0df70bab3f13b4f48f5babc810347d43a313c56df8e88e5610189cd"
     },
     {
-      "campaign_id": "codex-code-entry-code08-v23-20260803",
+      "campaign_id": "codex-code-entry-code08-v29-20260804",
       "tasks": [
         "code-08"
       ],
-      "campaign_sha256": "23ad16dfc6f0d1898f9ae4aaab99198d4e83e0b38f80accf6036d5e448cc4303"
+      "campaign_sha256": "1448fe01016def393789b227954e7f24e6a8ea9ad4501a1c3ae156af57e22160"
     }
   ],
   "calc_09_acceptance": {
@@ -3451,10 +3451,10 @@
     "full_ledger": "bench/results/2026-08-02/live-vnc/code-03-attempts.json"
   },
   "verdict": {
-    "accuracy": "The campaign is 33/50. All ten Text entry tasks and the first eight Code entry tasks pass. Code-08 v23 is canonical: its installed-observer bytes matched the exact 127-byte current-run CRLF plan, and both required reboots observed transitions. All 25 attempts remain retained, including six infrastructure-invalid runs and seventeen valid-task failures.",
-    "speed": "Failing product target: canonical code-08 v23 took 318.782 seconds. v24 reached 269.650 seconds and 14 provider calls, but remained a safe policy-stop failure. v25 stopped earlier at Save As in 222.396 seconds; it did not complete the task or exercise the Open optimization.",
-    "dominant_cost": "On v25, action execution consumed 129.216 seconds (58.1% of managed wall) and provider wait consumed 89.542 seconds (40.3%) across 12 calls. The 55.192-second exact Save filename readback and its guarded recovery dominated the failed attempt.",
-    "next": "Diagnose the Save As wrong-region readback without weakening exact-input or unverified-draft guards. Run code-08 v26 only after a bounded regression proves the intended path, retaining observer comparison, approvals, quiescence, recording, and both mandatory resets."
+    "accuracy": "The campaign is 33/50. All ten Text entry tasks and the first eight Code entry tasks pass. Code-08 v29 is canonical: installed-observer captures matched both the exact 127-byte current-run CRLF plan and the genuinely preserved 127-byte prior artifact with zero dangerous commits. All 29 attempts remain retained, including seven infrastructure-invalid runs and nineteen valid-task failures.",
+    "speed": "Code-08 now passes the product target. v29 completed in 241.303 seconds across 12 model calls, 77.479 seconds faster than the prior complete v23 pass and 28.347 seconds faster than the incomplete v24 speed candidate.",
+    "dominant_cost": "On v29, action execution consumed 140.685 seconds (58.3% of managed wall) and provider wait consumed 97.198 seconds (40.3%) across 12 calls. No provider overlap, recovery cycle, fallback, or schema repair was needed.",
+    "next": "Advance the recorded disposable-lab loop to code-09 while preserving exact-input, permission, quiescence, installed-observer, recording, and reboot gates."
   },
   "code_04_acceptance": {
     "task": "Write, save, reopen, and visually verify a grouped customer-value SQL query in Notepad",
@@ -3932,27 +3932,29 @@
   "code_08_acceptance": {
     "task": "Write, save, reopen, and verify a Windows batch health check in Notepad",
     "result": "passed",
-    "run_id": "740f53b9-c757-4338-a3da-afe266d01a0c",
-    "reason": "v23 supersedes the retained v10 pass. The selected native filename edit produced an exact visual readback despite an open autocomplete history, all 12 actions completed, and the installed observer returned the exact 127 Windows-CRLF bytes emitted by this run. Accuracy passes with zero dangerous commits, but the 318.782-second managed loop still fails the speed objective.",
-    "wall_clock_ms": 318782,
-    "task_duration_ms": 470337,
-    "preflight_ms": 60087,
-    "model_active_ms": 165567,
-    "provider_wait_ms": 151807,
-    "provider_serial_equivalent_ms": 166413,
-    "provider_overlap_ms": 14606,
-    "action_execution_ms": 156257,
-    "evidence_capture_ms": 3015,
-    "provider_calls": 20,
-    "reasoner_calls": 3,
-    "controller_calls": 5,
-    "verifier_calls": 12,
-    "actions_attempted": 12,
-    "actions_completed": 12,
+    "run_id": "596fef67-5e55-4436-b1cc-6b4a3a254201",
+    "source_commit": "cec12a3",
+    "reason": "v29 supersedes the retained v23 accuracy pass. The filtered native Open dialog and exact workspace breadcrumb verified without treating a hidden .cmd listing as file absence; Save and Open each retained an exact basename receipt, the grounded Open commit completed, and all 10 actions completed without recovery. Independent observer captures exactly matched the current and genuinely preserved prior artifacts. Accuracy, safety, and the sub-300-second speed gate all pass.",
+    "wall_clock_ms": 241303,
+    "task_duration_ms": 422788,
+    "preflight_ms": 97791,
+    "model_active_ms": 96557,
+    "provider_wait_ms": 97198,
+    "provider_serial_equivalent_ms": 97198,
+    "provider_overlap_ms": 0,
+    "action_execution_ms": 140685,
+    "evidence_capture_ms": 2239,
+    "unclassified_overhead_ms": 1000,
+    "provider_calls": 12,
+    "reasoner_calls": 1,
+    "controller_calls": 1,
+    "verifier_calls": 10,
+    "actions_attempted": 10,
+    "actions_completed": 10,
     "completion_efficiency": 1.0,
     "document_payload_batches": 1,
     "accepted_saved_payload_action_index": 2,
-    "same_run_recoveries": 2,
+    "same_run_recoveries": 0,
     "approval_count": 2,
     "approval_scopes": [
       "bounded_workspace_edit"
@@ -3960,101 +3962,118 @@
     "observer_exact_artifact_proof": {
       "transport": "guarded MCP visual matrix",
       "protocol": "pikvm-observer.v1",
-      "path": "C:/PiKVM-Harness/workspace/codex-50/code-08.cmd",
-      "expected_bytes": 127,
-      "observed_bytes": 127,
       "newline_normalization": "Windows CRLF",
       "expected_sha256": "c5e247fcb3f17892938d047673cab4efbc6588140cd5d6b5047c553a8349ced4",
-      "observed_sha256": "c5e247fcb3f17892938d047673cab4efbc6588140cd5d6b5047c553a8349ced4",
-      "exact_match": true,
-      "pages": 4,
+      "current": {
+        "path": "C:/PiKVM-Harness/workspace/codex-50/code-08.cmd",
+        "expected_bytes": 127,
+        "observed_bytes": 127,
+        "observed_sha256": "c5e247fcb3f17892938d047673cab4efbc6588140cd5d6b5047c553a8349ced4",
+        "exact_match": true,
+        "pages": 4
+      },
+      "preserved_prior": {
+        "path": "C:/PiKVM-Harness/workspace/codex-50/pikvmpriore5ac64ebb7d7412e9e2d990209671c95.cmd",
+        "expected_bytes": 127,
+        "observed_bytes": 127,
+        "observed_sha256": "c5e247fcb3f17892938d047673cab4efbc6588140cd5d6b5047c553a8349ced4",
+        "exact_match": true,
+        "pages": 4
+      },
       "dangerous_commit_count": 0,
-      "comparison_report": "bench/results/2026-08-03/live-vnc/code-08-v23-observer-comparison.json"
+      "comparison_report": "bench/results/2026-08-03/live-vnc/code-08-v29-observer-comparison.json"
     },
-    "reboot_ms": 85620,
+    "reboot_ms": 78929,
     "reboot_transition_observed": true,
-    "post_observer_reset_ms": 82892,
+    "post_observer_reset_ms": 79083,
     "post_observer_reset_transition_observed": true,
     "recording": {
-      "sha256": "c5e7c2671b4dfc02d20e7b879144bfcc7e2c138ea12a453cba7807494f1b21fb",
+      "sha256": "dfc9290fa3e302364745819a7a6ff282bc563a51ea87bc776f4b4c36ce127af8",
       "codec": "vp9",
       "width": 2048,
       "height": 1280,
       "fps": 2.0,
-      "duration_ms": 353000,
-      "size_bytes": 2117327,
-      "relative_path": "codex-code-entry-code08-v23-20260803/codex-windows-50/code-08/recording.webm"
+      "duration_ms": 296500,
+      "size_bytes": 1494825,
+      "relative_path": "codex-code-entry-code08-v29-20260804/codex-windows-50/code-08/recording.webm"
     },
     "poster": {
-      "relative_path": "codex-code-entry-code08-v23-20260803/codex-windows-50/code-08/poster.jpg",
-      "sha256": "3f5ffdf44062c88dad834fb7282aadb562880ef8618aeb4e6317e711da401dc3"
+      "relative_path": "codex-code-entry-code08-v29-20260804/codex-windows-50/code-08/poster.jpg",
+      "sha256": "2498e2610c6d4c9f5d37441e3e29b18a864b727674180b60283766185cb17a76"
     },
-    "campaign_sha256": "23ad16dfc6f0d1898f9ae4aaab99198d4e83e0b38f80accf6036d5e448cc4303"
+    "campaign_sha256": "1448fe01016def393789b227954e7f24e6a8ea9ad4501a1c3ae156af57e22160"
   },
   "code_08_attempt_summary": {
-    "recorded_attempts": 28,
-    "valid_full_task_runs": 21,
+    "recorded_attempts": 29,
+    "valid_full_task_runs": 22,
     "failed_runs": 19,
     "infrastructure_invalid_runs": 7,
-    "passed_runs": 2,
-    "canonical_campaign_id": "codex-code-entry-code08-v23-20260803",
-    "post_pass_speed_attempts": 18,
-    "post_pass_state": "v11-v22 remain retained with every repeated Save-field, keymap, OCR, content-contract, preflight and policy failure. v23 remains the canonical accuracy pass and v24 the 269.650-second speed candidate. v26 was infrastructure-invalid before model input when live preflight missed a visible workspace marker. v27 exposed the deterministic filename-localization defect. v28 exercised its fix live: Save committed with an exact code-08.cmd receipt and the installed observer matched all 127 current-run bytes, but the task still timed out after the Open verifier discarded a safe prepared exact-filename followup because the filtered file list did not visibly show .cmd files.",
+    "passed_runs": 3,
+    "canonical_campaign_id": "codex-code-entry-code08-v29-20260804",
+    "post_pass_speed_attempts": 19,
+    "post_pass_state": "v11-v28 remain retained with every repeated Save-field, keymap, OCR, content-contract, preflight, policy, localization, and filtered-list failure. v29 exercised the bounded native Open evidence fix live, retained separate exact Save and Open basename receipts, completed without recovery in 241.303 seconds, and independently matched both current and genuinely preserved-prior 127-byte artifacts. Code-08 accuracy, safety, and speed gates now pass.",
     "latest_post_pass_attempt": {
-      "campaign_id": "codex-code-entry-code08-v28-20260804",
-      "accepted_status": "failed",
-      "campaign_reported_status": "failed",
-      "run_id": "7873cdc9-2f1b-423a-a584-997ddfd2db5e",
-      "source_commit": "482a60f",
-      "wall_clock_ms": 296767,
-      "task_duration_ms": 453543,
-      "model_active_ms": 157185,
-      "provider_wait_ms": 140962,
-      "provider_serial_equivalent_ms": 158249,
-      "provider_overlap_ms": 17287,
-      "provider_calls": 20,
-      "actions_attempted": 11,
-      "actions_completed": 11,
-      "action_execution_ms": 145444,
-      "evidence_capture_ms": 2436,
-      "unclassified_overhead_ms": 7615,
-      "same_run_recoveries": 2,
-      "approval_requests": 3,
+      "campaign_id": "codex-code-entry-code08-v29-20260804",
+      "accepted_status": "passed",
+      "campaign_reported_status": "passed",
+      "run_id": "596fef67-5e55-4436-b1cc-6b4a3a254201",
+      "source_commit": "cec12a3",
+      "wall_clock_ms": 241303,
+      "task_duration_ms": 422788,
+      "model_active_ms": 96557,
+      "provider_wait_ms": 97198,
+      "provider_serial_equivalent_ms": 97198,
+      "provider_overlap_ms": 0,
+      "provider_calls": 12,
+      "actions_attempted": 10,
+      "actions_completed": 10,
+      "action_execution_ms": 140685,
+      "evidence_capture_ms": 2239,
+      "unclassified_overhead_ms": 1000,
+      "same_run_recoveries": 0,
+      "approval_requests": 2,
       "approval_scopes": [
         "bounded_workspace_edit"
       ],
-      "filename_localization_remediation_exercised": true,
-      "filename_receipt": {
+      "filtered_open_remediation_exercised": true,
+      "save_filename_receipt": {
+        "requested": "code-08.cmd",
+        "observed": "code-08.cmd",
+        "status": "verified_exact",
+        "edit_distance": 0,
+        "correction_count": 0,
+        "delivery_retries": 0
+      },
+      "open_filename_receipt": {
         "requested": "code-08.cmd",
         "observed": "code-08.cmd",
         "status": "verified_exact",
         "edit_distance": 0,
         "correction_count": 0,
         "delivery_retries": 0,
-        "save_committed": true
+        "grounded_open_committed": true
       },
-      "remaining_failure": "The Open verifier treated a filtered or non-listed .cmd view as file absence and discarded the already-prepared exact-filename followup; the later observer proved the file existed.",
-      "reboot_ms": 80784,
+      "reboot_ms": 78929,
       "reboot_transition_observed": true,
-      "post_observer_reset_ms": 78637,
+      "post_observer_reset_ms": 79083,
       "post_observer_reset_transition_observed": true,
-      "observer_comparison": "The current four-page checksum-valid capture returned exactly 127 bytes with the current-run SHA-256 and zero dangerous commits; preflight had verified the path absent, so no preserved-prior artifact was genuinely claimed or read",
-      "comparison_report": "bench/results/2026-08-03/live-vnc/code-08-v28-observer-comparison.json",
+      "observer_comparison": "Separate four-page checksum-valid captures returned exactly 127 current bytes and 127 genuinely preserved-prior bytes with the immutable SHA-256 and zero dangerous commits.",
+      "comparison_report": "bench/results/2026-08-03/live-vnc/code-08-v29-observer-comparison.json",
       "recording": {
-        "sha256": "0e0a0bac5a8b2b613bff037542a40b8ef3c50034386bb642d90e19e3f595318c",
+        "sha256": "dfc9290fa3e302364745819a7a6ff282bc563a51ea87bc776f4b4c36ce127af8",
         "codec": "vp9",
         "width": 2048,
         "height": 1280,
         "fps": 2.0,
-        "duration_ms": 335000,
-        "size_bytes": 1625717,
-        "relative_path": "codex-code-entry-code08-v28-20260804/codex-windows-50/code-08/recording.webm"
+        "duration_ms": 296500,
+        "size_bytes": 1494825,
+        "relative_path": "codex-code-entry-code08-v29-20260804/codex-windows-50/code-08/recording.webm"
       },
       "poster": {
-        "relative_path": "codex-code-entry-code08-v28-20260804/codex-windows-50/code-08/poster.jpg",
-        "sha256": "c48176dcc319b5346adedd925ea93714a7b9f176c8750445f6ca7b1ac158d6ba"
+        "relative_path": "codex-code-entry-code08-v29-20260804/codex-windows-50/code-08/poster.jpg",
+        "sha256": "2498e2610c6d4c9f5d37441e3e29b18a864b727674180b60283766185cb17a76"
       },
-      "campaign_sha256": "2486d40ce4fbc6ab641a0008ff2b049fcea5e6e78cad57ccb0c7067bace64479"
+      "campaign_sha256": "1448fe01016def393789b227954e7f24e6a8ea9ad4501a1c3ae156af57e22160"
     },
     "full_ledger": "bench/results/2026-08-03/live-vnc/code-08-attempts.json"
   }

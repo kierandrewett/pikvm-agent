@@ -1018,10 +1018,11 @@ The authenticated first-party proof panel selected v2 as the current attempt
 and served its 1,646,548-byte recording as `video/webm`; the retained v1
 failure remains separately addressable rather than being overwritten.
 
-Code-08 is **accepted at v23** for accuracy. v10 remains the first retained
-pass after nine valid-task failures and one infrastructure-invalid preflight
-attempt; v23 now supersedes it with a faster, independently exact run. Earlier
-iterations
+Code-08 is **accepted at v29** for accuracy, safety, and speed. v10 remains the
+first retained pass after nine valid-task failures and one
+infrastructure-invalid preflight attempt; v23 superseded it as the faster
+independently exact accuracy pass, and v29 now supersedes v23 with the first
+complete sub-300-second result. Earlier iterations
 reduced the task from slow row-by-row entry to one nine-row deferred-exact
 batch, grounded titleless Windows 11 Notepad from bounded OCR and pixels, and
 replaced repeated full-path dialog entry with a visible workspace breadcrumb
@@ -1046,7 +1047,7 @@ actions, completed 26, and requested four bounded-workspace approvals. Worse,
 the model populated two Notepad documents before converging on the exact saved
 payload. The 874-second VP9 recording is 3,842,300 bytes.
 
-Eighteen post-v10 attempts remain visible rather than rewriting history:
+Nineteen post-v10 attempts remain visible rather than rewriting history:
 
 | Attempt | Accuracy status | Managed wall | Provider calls | Result |
 | --- | --- | ---: | ---: | --- |
@@ -1069,6 +1070,7 @@ Eighteen post-v10 attempts remain visible rather than rewriting history:
 | v26 | Infrastructure-invalid | No managed run | 0 | The fresh workspace marker remained visible for more than twelve seconds but the live preflight poll timed out; no model or task input began, and reboot completed |
 | v27 | Failed safely after localization remediation | 296.556s | 24 | Retry-hardened preflight passed and all 127 editor bytes were emitted once; runtime OCR still selected Save As history, so the guard rejected Save and the observer confirmed the file absent |
 | v28 | Failed after exact saved artifact | 296.767s | 20 | The filename fix produced exact `code-08.cmd`, Save committed, and the observer matched all 127 bytes; the Open verifier then discarded a safe prepared filename followup because the filtered file list did not visibly show `.cmd` files |
+| v29 | **Passed** | 241.303s | 12 | The filtered native Open evidence fix ran live; exact Save and Open receipts, 10/10 actions, exact current/prior observer bytes, zero recoveries, and both reboot transitions passed |
 
 The v11 recording directly produced the caret-only filename remediation. v13
 exercised it: the first autocomplete-biased readback recovered without
@@ -1367,8 +1369,39 @@ then the model cancelled Open and re-inspected Save As until the campaign cap.
 The later observer proves the file existed, so a non-listed filtered view was
 incorrectly treated as file absence.
 
-The complete 28-attempt ledger includes all seven infrastructure-invalid runs,
-nineteen valid-task failures, two accepted runs, campaign/recording hashes,
+Commit `cec12a3` narrows that verifier contract without treating a hidden list
+entry as file proof. A native Open dialog at the exact prepared
+`PiKVM-Harness > workspace > codex-50` breadcrumb is sufficient only for the
+inert navigation precondition. The already-prepared `Alt+N`, `Ctrl+A`, exact
+basename followup may then run; its exact visual readback and the later
+grounded Open commit remain separate gates. The exact v28 verifier payload
+failed the new regression in 0.77s before the fix and passed in 0.19s after it.
+Wrong-folder and action-containing-Enter guards also passed. The full 206-test
+harness file and the combined 279-test harness/showcase/public-benchmark suite
+passed; compile checks and the similarity baseline were clean.
+
+v29 exercised the corrected evidence contract live on pushed `master`. The
+filtered native Open dialog and exact breadcrumb verified normally, so the
+strict fallback normalizer was not needed. The prepared filename action then
+read back exact `code-08.cmd` with zero corrections or retries, and the
+separate grounded Enter reopened the file. Save had its own exact basename
+receipt. All 10 actions completed, no recovery cycle ran, quiescence passed in
+one attempt, and the two approvals remained scoped to
+`bounded_workspace_edit`.
+
+The managed run completed in 241.303s across 12 model calls: one reasoner, one
+controller, and ten verifiers. Provider wait was 97.198s, action execution was
+140.685s, and evidence capture was 2.239s. This is 77.479s faster than the
+prior complete v23 pass and 28.347s faster than the incomplete v24 speed
+candidate. The installed observer independently read both the current file
+and the genuinely preserved prior file. Each capture returned the exact 127
+Windows-CRLF bytes with SHA-256 `c5e247fcb3f1`, and both reported zero
+dangerous commits. The campaign reboot observed a transition in 78.929s; the
+post-observer reset observed another in 79.083s. Code-08 therefore passes the
+accuracy, safety, and speed release gates, and the loop advances to Code-09.
+
+The complete 29-attempt ledger includes all seven infrastructure-invalid runs,
+nineteen valid-task failures, three accepted runs, campaign/recording hashes,
 exact observer proof,
 remediation commits, and every reset state:
 [`code-08-attempts.json`](results/2026-08-03/live-vnc/code-08-attempts.json).
@@ -1399,8 +1432,11 @@ diagnosis is
 [`code-08-v27-observer-comparison.json`](results/2026-08-03/live-vnc/code-08-v27-observer-comparison.json),
 `sha256:7b28921aa012`; and the v28 exact current-run comparison is
 [`code-08-v28-observer-comparison.json`](results/2026-08-03/live-vnc/code-08-v28-observer-comparison.json).
-Its digest is `sha256:d5b5939d916a`; the updated ledger digest is
-`sha256:5830e28f787f`.
+Its digest is `sha256:d5b5939d916a`; and the v29 exact current/prior comparison
+is
+[`code-08-v29-observer-comparison.json`](results/2026-08-03/live-vnc/code-08-v29-observer-comparison.json),
+`sha256:4f2fa6ec6ed4`. The updated ledger digest is
+`sha256:fa2c84a1445f`.
 The canonical v23 campaign digest is `sha256:23ad16dfc6f0`; its VP9 recording
 is `sha256:c5e7c2671b4d` and its poster is `sha256:3f5ffdf44062`.
 The retained v24 campaign digest is `sha256:93da1644f0f9`; its VP9 recording is
@@ -1412,13 +1448,15 @@ campaign digest is `sha256:65923481b461`; its VP9 recording is
 campaign digest is `sha256:d69a9c6dfee6`; its VP9 recording is
 `sha256:97978516ab38` and its poster is `sha256:b9956a68df9f`. The v28 campaign
 digest is `sha256:2486d40ce4fb`; its VP9 recording is
-`sha256:0e0a0bac5a8b` and its poster is `sha256:c48176dcc319`. The v10 campaign
-and media remain retained in the ledger.
+`sha256:0e0a0bac5a8b` and its poster is `sha256:c48176dcc319`. The canonical v29
+campaign digest is `sha256:1448fe01016d`; its 296.5-second VP9 recording is
+`sha256:dfc9290fa3e3` and its poster is `sha256:2498e2610c6d`. The v10 campaign
+and all intervening media remain retained in the ledger.
 
 Failure-inclusive metrics, canonical campaign digests, the 33 accepted task
 IDs, and the VP9 recording/poster hashes are retained in
 [`codex-50-progress.json`](results/2026-07-31/live-vnc/codex-50-progress.json).
-Its updated digest is `sha256:44af1346a30d`.
+Its updated digest is `sha256:1b5579e688ad`.
 The complete 50-task manifest is
 [`codex-50-tasks.yaml`](codex-50-tasks.yaml).
 
