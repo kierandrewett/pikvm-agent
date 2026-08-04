@@ -327,7 +327,7 @@ describe("ProviderConnectionsSheet", () => {
       screen.getByRole("combobox", { name: "Model for this task" }),
     );
     await user.click(
-      screen.getByRole("option", { name: /Automatic — routes each stage/ }),
+      screen.getByRole("option", { name: /^Automatic\b/ }),
     );
     expect(onResetPreferences).toHaveBeenCalled();
   });

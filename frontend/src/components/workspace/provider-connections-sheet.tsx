@@ -212,9 +212,13 @@ function ModelChoice({
   // What "Automatic" actually resolves to right now, so the default option
   // answers the question instead of hiding it.
   const autoPrimary = defaultRoleRoute(providers, "assistant")[0];
+  // Short on purpose: the panel now opens at 400px, and the old
+  // "Automatic — routes each stage (chat: Opus)" was truncated mid-word by the
+  // select, cutting off the model — the one thing the label exists to say. What
+  // it routes is already explained by the field's own description above it.
   const autoLabel = autoPrimary
-    ? `Automatic — routes each stage (chat: ${compactModelLabel(providerModelLabel(autoPrimary, providers[autoPrimary]))})`
-    : "Automatic — routes each stage";
+    ? `Automatic · ${compactModelLabel(providerModelLabel(autoPrimary, providers[autoPrimary]))}`
+    : "Automatic";
 
   const items = [
     { value: "auto", label: autoLabel },
