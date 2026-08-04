@@ -18,48 +18,56 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  color-scheme: dark;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --evidence: oklch(0.55 0.13 151);
-  --evidence-foreground: oklch(0.29 0.08 151);
-  --evidence-soft: oklch(0.95 0.035 151);
-  --caution: oklch(0.66 0.13 82);
-  --caution-foreground: oklch(0.32 0.07 75);
-  --caution-soft: oklch(0.95 0.04 82);
-  --info: oklch(0.56 0.15 255);
-  --info-foreground: oklch(0.29 0.08 255);
-  --info-soft: oklch(0.95 0.035 255);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  /* The console's LIGHT palette, value for value (pikvm-desktop-agentic
+     src/views/console.css [data-theme="light"]), exactly as .dark mirrors its
+     dark one. This block used to be stock shadcn neutral — a pure white page
+     against the console's #eef0f4 — which only showed once the panel started
+     following the console's theme at all. */
+  color-scheme: light;
+  --background: #eef0f4;
+  --foreground: #17171c;
+  --card: #ffffff;
+  --card-foreground: #17171c;
+  --popover: #ffffff;
+  --popover-foreground: #17171c;
+  --primary: #3b6ef0;
+  --primary-foreground: #ffffff;
+  --secondary: #f1f2f6;
+  --secondary-foreground: #17171c;
+  --muted: #f1f2f6;
+  --muted-foreground: #666672;
+  --accent: #e6e7ee;
+  --accent-foreground: #17171c;
+  /* The console's own light danger (#d6453f) reads 3.85:1 on this background,
+     under the 4.5 small text needs; darkened until it clears on both the page
+     and the card. */
+  --destructive: #bd332d;
+  --evidence: #2faa5b;
+  --evidence-foreground: #1c6a39;
+  --evidence-soft: #e4f6eb;
+  --caution: #b9831a;
+  --caution-foreground: #7a5610;
+  --caution-soft: #fbf1dd;
+  --info: #3b6ef0;
+  --info-foreground: #24479c;
+  --info-soft: #e6edfd;
+  --border: #dcdde4;
+  --input: #dcdde4;
+  --ring: #3b6ef0;
+  --chart-1: #3b6ef0;
+  --chart-2: #666672;
+  --chart-3: #2faa5b;
+  --chart-4: #b9831a;
+  --chart-5: #d6453f;
   --radius: 0.5rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar: #e8eaf0;
+  --sidebar-foreground: #17171c;
+  --sidebar-primary: #3b6ef0;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f1f2f6;
+  --sidebar-accent-foreground: #17171c;
+  --sidebar-border: #dcdde4;
+  --sidebar-ring: #3b6ef0;
 }
 
 html,
