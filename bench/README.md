@@ -1860,6 +1860,10 @@ vision-capable route is available or another provider passes the same
 target-free gate. No reset credit was consumed. The content-free capability
 evidence is retained in
 [`codex-spark-image-capability-probes.json`](results/2026-08-04/providers/codex-spark-image-capability-probes.json).
+Pushed `0f6fa00` was then exercised through a clean isolated-lab restart: the
+live provider API exposed Spark as chat-only and Terra as screen-capable, and a
+Spark controller override failed closed with HTTP 409 before run creation or
+computer input. A read-only target snapshot remained healthy throughout.
 
 The failure-inclusive ledger is
 [`code-09-attempts.json`](results/2026-08-04/live-vnc/code-09-attempts.json).
@@ -1885,7 +1889,7 @@ retained in
 The Spark-primary v9 image-grounding failure and its deliberately absent
 observer claim are retained in
 [`v9`](results/2026-08-04/live-vnc/code-09-v9-observer-comparison.json).
-The ledger digest is `sha256:cbf8e96e1515`; the exact-line latency probe digest
+The ledger digest is `sha256:45ccce68140f`; the exact-line latency probe digest
 is `sha256:3b6a193ceca7`; the repeated-symbol transport probe digest is
 `sha256:3deb13af355f`; the native-readback probe digest is
 `sha256:ccc6cd47bfdd`; the key-path probe digest is
@@ -1899,7 +1903,7 @@ is `sha256:3b6a193ceca7`; the repeated-symbol transport probe digest is
 `sha256:445d2013108b`; the provider-valid v8 observer report is
 `sha256:65dd92566dc1`; the Spark-primary v9 observer report is
 `sha256:121518a07e33`; the Spark image-capability report is
-`sha256:b27cebc74f42`.
+`sha256:8ac61ac6fd2d`.
 The v1 campaign digest is `sha256:45d79fa42371`; its 150.5-second VP9 recording
 is `sha256:326c660001e1` and its poster is `sha256:ef31e95c379d`. The v2
 campaign digest is `sha256:0e7595958008`; its 247.5-second VP9 recording is

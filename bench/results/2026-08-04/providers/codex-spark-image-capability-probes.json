@@ -57,11 +57,39 @@
     "finding": "Spark is responsive and schema-valid but is not empirically usable as a screen-grounded computer reasoner, controller, or verifier through this app-server route."
   },
   "remediation": {
+    "route_guard_commit": "68b1b0fb09f71f5a8542fd3f1661b64eb1fd39c9",
+    "health_propagation_commit": "0f6fa0030cefafe766a68849e02526e6c10eb941",
     "provider_flag": "computer_screen_input=false",
     "computer_routes": "codex-fast only",
     "assistant_route": "codex-spark then codex-fast",
     "safety_effect": "Configuration validation now rejects a provider explicitly marked without screen input from reasoner, controller, or verifier routes while still allowing normal assistant use.",
     "verification_weakened": false
+  },
+  "runtime_verification": {
+    "recorded_at": "2026-08-04T20:18:43Z",
+    "source_commit": "0f6fa0030cefafe766a68849e02526e6c10eb941",
+    "isolated_lab_only": true,
+    "computer_input_emitted": false,
+    "snapshot_http_status": 200,
+    "snapshot_bytes": 237633,
+    "providers": {
+      "codex-spark": {
+        "ready": true,
+        "computer_screen_input": false,
+        "routes": ["assistant"]
+      },
+      "codex-fast": {
+        "ready": true,
+        "computer_screen_input": true,
+        "routes": ["assistant", "reasoner", "controller", "verifier"]
+      }
+    },
+    "rejected_override": {
+      "role": "controller",
+      "provider": "codex-spark",
+      "http_status": 409,
+      "run_created": false
+    }
   },
   "release_gate": {
     "computer_use": "blocked until a live vision-capable provider is available",
