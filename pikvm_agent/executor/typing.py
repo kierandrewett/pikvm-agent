@@ -2436,6 +2436,7 @@ class WatchedTyper:
         precise: bool = False,
         allow_semantic_spacing: bool = False,
         allow_blind_fallback: bool = False,
+        allow_native_primary_fallback: bool = False,
         preserve_editor_indent_candidate: bool = False,
         extract_structured_exact_row: bool = False,
         minimum_confidence: float = MIN_MISMATCH_OCR_CONFIDENCE,
@@ -2459,6 +2460,59 @@ class WatchedTyper:
             else hashlib.sha256(frame.data).hexdigest()
         )
         tmp: Path | None = None
+        native_tmp: Path | None = None
+        native_capture_region: Region | None = None
+        native_local_region: Region | None = None
+
+        async def native_crop(
+            screen_region: Region,
+        ) -> tuple[Path, Region] | None:
+            """Capture one lossless backend crop for the final exact re-read."""
+
+            nonlocal native_capture_region, native_local_region, native_tmp
+            if (
+                native_tmp is not None
+                and native_capture_region == screen_region
+                and native_local_region is not None
+            ):
+                return native_tmp, native_local_region
+            try:
+                native_frame = await self.backend.screenshot(
+                    region=screen_region,
+                )
+            except Exception:
+                return None
+            if (
+                not native_frame
+                or not native_frame.data
+                or native_frame.width <= 0
+                or native_frame.height <= 0
+            ):
+                return None
+            if native_tmp is not None:
+                native_tmp.unlink(missing_ok=True)
+            native_file = tempfile.NamedTemporaryFile(
+                suffix=".png",
+                delete=False,
+            )
+            native_file.write(native_frame.data)
+            native_file.close()
+            native_tmp = Path(native_file.name)
+            native_capture_region = screen_region
+            native_local_region = Region(
+                x=0,
+                y=0,
+                width=native_frame.width,
+                height=native_frame.height,
+            )
+            DEBUG.event(
+                "typing.field_readback_native_crop",
+                width=native_frame.width,
+                height=native_frame.height,
+                screen_region=screen_region.model_dump(),
+            )
+            return native_tmp, native_local_region
+
         try:
             requested_region = region
             refined_region: Region | None = None
@@ -2566,6 +2620,45 @@ class WatchedTyper:
                 precise
                 and intended
                 and allow_blind_fallback
+                and allow_native_primary_fallback
+                and callable(precise_ocr)
+                and bool(result.text)
+                and compute_verdict(intended, result.text, True)
+                != "match"
+                and re.sub(r"\s+", "", result.text)
+                != re.sub(r"\s+", "", intended)
+                and not visible_editor_indent_candidate(
+                    result,
+                    intended,
+                    preserve=preserve_editor_indent_candidate,
+                )
+            ):
+                native = await native_crop(refined_region or region)
+                if native is not None:
+                    native_path, native_region = native
+                    try:
+                        native_result = await precise_ocr(
+                            native_path,
+                            region=native_region,
+                        )
+                    except Exception:
+                        native_result = OCRResult()
+                    if native_result.text:
+                        result = native_result
+                        DEBUG.event(
+                            "typing.field_readback_native_primary",
+                            observed_characters=len(result.text),
+                            line_count=len(result.lines),
+                            verdict=compute_verdict(
+                                intended,
+                                result.text,
+                                True,
+                            ),
+                        )
+            if (
+                precise
+                and intended
+                and allow_blind_fallback
                 and compute_verdict(intended, result.text, True)
                 != "match"
                 and not visible_editor_indent_candidate(
@@ -2580,47 +2673,23 @@ class WatchedTyper:
                     None,
                 )
                 if callable(blind_precise_ocr):
-                    blind_region = refined_region or region
                     blind_path = tmp
-                    native_tmp: Path | None = None
-                    try:
-                        native_frame = await self.backend.screenshot(
-                            region=blind_region,
+                    blind_region = refined_region or region
+                    native = await native_crop(blind_region)
+                    if native is not None:
+                        blind_path, blind_region = native
+                        DEBUG.event(
+                            "typing.field_readback_native_fallback",
+                            width=blind_region.width,
+                            height=blind_region.height,
                         )
-                        if (
-                            native_frame
-                            and native_frame.data
-                            and native_frame.width > 0
-                            and native_frame.height > 0
-                        ):
-                            native_file = tempfile.NamedTemporaryFile(
-                                suffix=".png",
-                                delete=False,
-                            )
-                            native_file.write(native_frame.data)
-                            native_file.close()
-                            native_tmp = Path(native_file.name)
-                            blind_path = native_tmp
-                            blind_region = Region(
-                                x=0,
-                                y=0,
-                                width=native_frame.width,
-                                height=native_frame.height,
-                            )
-                            DEBUG.event(
-                                "typing.field_readback_native_fallback",
-                                width=native_frame.width,
-                                height=native_frame.height,
-                            )
+                    try:
                         blind_result = await blind_precise_ocr(
                             blind_path,
                             region=blind_region,
                         )
                     except Exception:
                         blind_result = OCRResult()
-                    finally:
-                        if native_tmp is not None:
-                            native_tmp.unlink(missing_ok=True)
                     if blind_result.text:
                         structured_row = (
                             unique_exact_structured_ocr_row(
@@ -2762,6 +2831,8 @@ class WatchedTyper:
         finally:
             if tmp is not None:
                 tmp.unlink(missing_ok=True)
+            if native_tmp is not None:
+                native_tmp.unlink(missing_ok=True)
 
     async def _read_screen(
         self,
@@ -4456,6 +4527,7 @@ class WatchedTyper:
             }
             if precise and editor_field and not explicit_region:
                 options["extract_structured_exact_row"] = True
+                options["allow_native_primary_fallback"] = True
             if (
                 precise
                 and editor_field

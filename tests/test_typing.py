@@ -3002,6 +3002,58 @@ async def test_blind_exact_fallback_recaptures_native_field_crop() -> None:
     assert ocr.blind_region == Region(x=0, y=0, width=832, height=72)
 
 
+async def test_primary_exact_readback_recaptures_native_field_crop() -> None:
+    intended = "# Release 1.0"
+    region = Region(x=40, y=74, width=181, height=26)
+
+    class NativeCropBackend(FakeBackend):
+        def __init__(self) -> None:
+            super().__init__(width=1280, height=800, layout="uk")
+            self.requested_regions: list[Region | None] = []
+
+        async def screenshot(self, region=None):
+            self.requested_regions.append(region)
+            if region is None:
+                return await super().screenshot()
+            output = io.BytesIO()
+            Image.new("RGB", (290, 42), "navy").save(output, "JPEG")
+            return to_captured_frame(output.getvalue(), 290, 42)
+
+    class ResolutionAwareOCR:
+        def __init__(self) -> None:
+            self.image_sizes: list[tuple[int, int]] = []
+            self.regions: list[Region | None] = []
+
+        async def ocr(self, image_path, region=None):
+            return await self.ocr_precise(image_path, region=region)
+
+        async def ocr_precise(self, image_path, region=None):
+            image_size = Image.open(image_path).size
+            self.image_sizes.append(image_size)
+            self.regions.append(region)
+            observed = intended if image_size == (290, 42) else "# Release 1.4"
+            return OCRResult(
+                lines=[OCRLine(text=observed, confidence=0.99)],
+                spacing_evidence="verified",
+            )
+
+    backend = NativeCropBackend()
+    ocr = ResolutionAwareOCR()
+
+    observed = await WatchedTyper(backend, ocr)._read_field(
+        region,
+        intended=intended,
+        precise=True,
+        allow_blind_fallback=True,
+        allow_native_primary_fallback=True,
+    )
+
+    assert observed == intended
+    assert backend.requested_regions == [None, region]
+    assert ocr.image_sizes == [(1280, 800), (290, 42)]
+    assert ocr.regions == [region, Region(x=0, y=0, width=290, height=42)]
+
+
 @pytest.mark.parametrize(
     ("blurred_read", "expected_status"),
     [
