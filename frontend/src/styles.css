@@ -386,20 +386,36 @@ body,
     content: counter(computer-action, decimal-leading-zero);
   }
 
+  /* Reduced motion, by default rather than by list.
+   *
+   * This used to name the specific things to calm — the action steps, the run
+   * activity spinner, the showcase rows. Everything named obeyed and everything
+   * else carried on: measured against the running panel with the preference
+   * emulated, six animations were still running, including the fade-and-slide
+   * every message part and the action bar enter on. Those come from the
+   * animation library rather than from this file, so they were never going to
+   * appear in a list maintained here.
+   *
+   * Inverted: everything stops, and the exceptions are named instead. There is
+   * one, and it earns it — a spinner frozen mid-turn does not read as "motion
+   * respected", it reads as "hung", which is the opposite of informative. It
+   * keeps turning; it just stops being the only thing moving. */
   @media (prefers-reduced-motion: reduce) {
-    .computer-action-step,
-    .computer-action-marker {
-      transition: none;
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-delay: 0ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      transition-delay: 0ms !important;
+      scroll-behavior: auto !important;
     }
 
-    .aui-run-activity svg {
-      animation: none;
-    }
-
-    .showcase-task-row,
-    .showcase-sheet [class*="animate-"] {
-      animation: none;
-      transition: none;
+    /* Progress is the exception: still turning, so it still says "working". */
+    .animate-spin {
+      animation-duration: 1.2s !important;
+      animation-iteration-count: infinite !important;
     }
   }
 
