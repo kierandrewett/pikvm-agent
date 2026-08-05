@@ -548,6 +548,10 @@ function ProviderRow({
       ? `${health.successes ?? 0}/${health.calls} calls ok · ${latencyLabel(health.last_latency_ms)} last`
       : "Not used yet";
 
+  /* Shared by the heading and the disclosure below it, so the name a screen
+     reader announces for "Details" cannot drift from the account it opens. */
+  const accountLabel = compactModelLabel(health.configured_model || name);
+
   return (
     <article className="border-t border-border/70 py-4 first:border-t-0">
       <div className="flex items-start gap-3">
@@ -568,9 +572,7 @@ function ProviderRow({
               name={health.configured_model || name}
               catalog={modelCatalog}
             />
-            <h4 className="truncate text-sm font-semibold">
-              {compactModelLabel(health.configured_model || name)}
-            </h4>
+            <h4 className="truncate text-sm font-semibold">{accountLabel}</h4>
             <Badge variant={ready ? "secondary" : "outline"}>
               {coolingDown ? "Cooling down" : ready ? "Ready" : "Setup needed"}
             </Badge>
@@ -594,7 +596,16 @@ function ProviderRow({
             </p>
           )}
           <details className="group/evidence mt-2">
-            <summary className="cursor-pointer list-none text-[11px] font-medium text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/60">
+            {/* Named by account. Every account renders one of these, so a
+                screen reader listing the controls got "Details, Details,
+                Details" with nothing to say which one opens what — the row
+                above answers it visually, and that ordering is exactly what a
+                control list throws away. The visible word is kept inside the
+                name, so what is said still matches what is written. */}
+            <summary
+              aria-label={`Details for ${accountLabel}`}
+              className="cursor-pointer list-none text-[11px] font-medium text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+            >
               <ChevronRightIcon
                 className="mr-1 inline size-3 transition-transform group-open/evidence:rotate-90"
                 aria-hidden="true"
