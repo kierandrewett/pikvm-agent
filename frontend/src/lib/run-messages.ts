@@ -24,11 +24,32 @@ const safeNumber = (value: unknown) =>
  * The MDN link explains what a 404 is, which nobody looking at this panel needs,
  * and the URL is our own loopback address with a session id in it. Neither says
  * anything about what went wrong. What survives is the part that does.
+ *
+ * Each layer the failure passes through then adds its own prefix on the way up,
+ * so what reaches the panel reads "computer refresh failed: Error executing tool
+ * pikvm_screenshot: Client error '404 Not Found'" — three restatements of "it
+ * broke" in front of the one fact that matters. The layers are named after our
+ * own internals, and the surrounding UI already says which tool ran and that it
+ * failed, so they are dropped and the tool name and status are kept.
+ *
+ * Anything we do not recognise is passed through untouched: an unfamiliar error
+ * losing its wording is worse than an unfamiliar error being verbose.
  */
 export const readableError = (value: unknown): string =>
   safeString(value)
     .replace(/\s*For more information check:\s*\S+/gi, "")
     .replace(/\s*for url\s+'[^']*'/gi, "")
+    /* "<our own stage> failed: " — but ONLY when another layer follows it.
+       "Authentication failed: invalid token" is one layer and says something;
+       dropping its prefix would lose the half that matters. */
+    .replace(
+      /^[a-z][a-z0-9 _-]*failed:\s*(?=.*(?:\bError executing tool\b|\bfailed:))/i,
+      "",
+    )
+    // The tool name is worth keeping; the phrase wrapped around it is not.
+    .replace(/\bError executing tool\s+/gi, "")
+    // httpx's own framing of a status it already names in full.
+    .replace(/\b(?:Client|Server) error\s+'([^']*)'/gi, "$1")
     .replace(/\s+/g, " ")
     .trim()
     .replace(/[.\s]+$/, "");

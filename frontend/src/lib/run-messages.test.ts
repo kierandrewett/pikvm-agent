@@ -1707,12 +1707,29 @@ describe("readableError", () => {
     const out = readableError(raw);
 
     // What is left says what broke; the MDN page and our own loopback URL do not.
-    expect(out).toBe(
-      "computer refresh failed: Error executing tool pikvm_screenshot: Client error '404 Not Found'",
-    );
+    // The layer prefixes go too: the panel already shows the tool and that it
+    // failed, so all they added was two more ways to say "it broke".
+    expect(out).toBe("pikvm_screenshot: 404 Not Found");
     expect(out).not.toContain("developer.mozilla.org");
     expect(out).not.toContain("127.0.0.1");
     expect(out).not.toContain("s_eee340f7c372");
+  });
+
+  it("keeps a prefix that is the only thing said", () => {
+    // Nesting is what makes a prefix redundant. On its own it carries the half
+    // of the message that names what was being attempted.
+    expect(readableError("Authentication failed: invalid token")).toBe(
+      "Authentication failed: invalid token",
+    );
+    expect(readableError("computer refresh failed: 404")).toBe(
+      "computer refresh failed: 404",
+    );
+  });
+
+  it("unwraps httpx's framing of a status it already spells out", () => {
+    expect(readableError("Server error '500 Internal Server Error'")).toBe(
+      "500 Internal Server Error",
+    );
   });
 
   it("leaves an ordinary message alone apart from a trailing full stop", () => {
