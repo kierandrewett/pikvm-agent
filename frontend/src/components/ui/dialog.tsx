@@ -50,10 +50,17 @@ function DialogContent({
   return (
     <DialogPortal>
       <DialogOverlay />
+      {/* max-h and overflow-y matter as much as max-w here. Centred with
+          -translate-y-1/2, a dialog taller than the viewport grows off BOTH
+          edges at once: the add-a-model form is 712px, and in a 480px-tall
+          panel its top sat at -116 and its submit button at 548, below the
+          fold, with nothing scrollable anywhere up the tree. The detached
+          conversation window can be dragged down to 400px, so that is
+          reachable rather than theoretical. */}
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         className={cn(
-          "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] max-h-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
           className
         )}
         {...props}
