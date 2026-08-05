@@ -1,4 +1,5 @@
 import { ActivityIcon, ChevronRightIcon } from "lucide-react";
+import { Fragment } from "react";
 import {
   Sheet,
   SheetContent,
@@ -65,8 +66,33 @@ export function DiagnosticsSheet({
                       className="size-3.5 shrink-0 text-muted-foreground transition-transform group-open/event:rotate-90"
                       aria-hidden="true"
                     />
-                    <span className="font-medium">{event.kind}</span>
-                    <span className="text-xs text-muted-foreground">
+                    {/* The name wraps rather than truncates, and the sequence
+                        cannot be squeezed out.
+
+                        In a 300px sheet a name like
+                        assistant.computer_handoff_started overflowed its row by
+                        38px: the tail of the name was cut and the #NN went off
+                        the edge entirely. Ellipsis would have been worse than
+                        wrapping — these identifiers differ at the END
+                        (handoff_started vs handoff_failed), so truncating them
+                        makes distinct events look identical in the one list
+                        you read to tell them apart. */}
+                    <span className="min-w-0 break-words font-medium">
+                      {/* An event kind is one unbroken token, so the browser has
+                          nowhere to wrap it and breaks mid-word — leaving
+                          "assistant.computer_requeste" above a lone "d". <wbr>
+                          after each separator offers the breaks the name
+                          already implies, and unlike a zero-width space it adds
+                          nothing to the text when the name is copied out to
+                          grep for. */}
+                      {event.kind.split(/(?<=[._])/).map((part, index) => (
+                        <Fragment key={index}>
+                          {part}
+                          <wbr />
+                        </Fragment>
+                      ))}
+                    </span>
+                    <span className="shrink-0 text-xs text-muted-foreground">
                       #{event.sequence}
                     </span>
                   </summary>
