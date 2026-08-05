@@ -41,6 +41,7 @@ import {
   useAuiState,
 } from "@assistant-ui/react";
 import {
+  AlertCircleIcon,
   ArrowDownIcon,
   ArrowUpIcon,
   CheckIcon,
@@ -380,11 +381,28 @@ const ComposerAction: FC = () => {
   );
 };
 
+/**
+ * A failure the run could not recover from.
+ *
+ * This used to be a saturated red slab: a full-strength border, a red wash and
+ * red body text, which shouted at a message that is usually one short line. The
+ * colour now sits on the icon, where it marks the state without making the text
+ * harder to read than ordinary prose.
+ *
+ * It also used to `line-clamp-2`, so anything longer than two lines was simply
+ * unreadable with no way to see the rest. Errors are short now that the layer
+ * prefixes are gone, but a long one scrolls inside the box rather than being cut
+ * off or pushing the composer off screen.
+ */
 const MessageError: FC = () => {
   return (
     <MessagePrimitive.Error>
-      <ErrorPrimitive.Root className="aui-message-error-root border-destructive bg-destructive/10 text-destructive dark:bg-destructive/5 mt-2 rounded-md border p-3 text-sm dark:text-red-200">
-        <ErrorPrimitive.Message className="aui-message-error-message line-clamp-2" />
+      <ErrorPrimitive.Root className="aui-message-error-root border-destructive/25 bg-destructive/5 text-foreground mt-2 flex items-start gap-2 rounded-md border px-2.5 py-2 text-[13px] leading-[1.5]">
+        <AlertCircleIcon
+          className="text-destructive mt-[3px] size-3.5 shrink-0"
+          aria-hidden="true"
+        />
+        <ErrorPrimitive.Message className="aui-message-error-message max-h-24 overflow-y-auto break-words" />
       </ErrorPrimitive.Root>
     </MessagePrimitive.Error>
   );
