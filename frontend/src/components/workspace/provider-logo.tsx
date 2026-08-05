@@ -55,11 +55,16 @@ export function ProviderLogo({
   }
   return (
     <span className={shell} aria-hidden="true">
+      {/* models.dev serves these marks as flat BLACK artwork — every logo the
+          catalog returns is pure black with no colour in it at all, which on a
+          dark surface rendered them as empty grey squares. Inverting in dark
+          mode paints them light instead. A coloured mark would come out wrong
+          here, so this holds only while they stay monochrome. */}
       <img
         src={url}
         alt=""
         loading="lazy"
-        className="size-4 object-contain"
+        className="size-4 object-contain dark:invert"
         onError={() => setFailed(true)}
       />
     </span>
