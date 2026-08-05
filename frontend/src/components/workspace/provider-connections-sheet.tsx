@@ -380,6 +380,15 @@ function StageSplit({
             ];
             const primary = routed[0];
             const fallbacks = routed.slice(1);
+            const routeCaption = primary
+              ? `Runs on ${providerModelLabel(primary, providers[primary])}${
+                  fallbacks.length
+                    ? `, falls back to ${fallbacks
+                        .map((name) => providerModelLabel(name, providers[name]))
+                        .join(", ")}`
+                    : ""
+                }`
+              : "No ready model for this stage";
             return (
               <Field
                 key={role.key}
@@ -432,7 +441,14 @@ function StageSplit({
                       </SelectGroup>
                     </SelectContent>
                   </Select>
-                  <p className="flex items-center gap-1.5 truncate text-[11px] text-muted-foreground">
+                  {/* truncate belongs on the TEXT, not on this row.
+                      text-overflow only applies to a block's own inline
+                      content, so on a flex container it does nothing for the
+                      flex items inside it: the caption was clipped mid-word
+                      with no ellipsis at all, reading "account-defau" as though
+                      the string simply ended there. The title carries the whole
+                      thing for when it is cut. */}
+                  <p className="flex min-w-0 items-center gap-1.5 text-[11px] text-muted-foreground">
                     {primary ? (
                       <ProviderLogo
                         kind={providers[primary]?.kind}
@@ -441,17 +457,9 @@ function StageSplit({
                         className="size-4"
                       />
                     ) : null}
-                    {primary
-                      ? `Runs on ${providerModelLabel(primary, providers[primary])}${
-                          fallbacks.length
-                            ? `, falls back to ${fallbacks
-                                .map((name) =>
-                                  providerModelLabel(name, providers[name]),
-                                )
-                                .join(", ")}`
-                            : ""
-                        }`
-                      : "No ready model for this stage"}
+                    <span className="truncate" title={routeCaption}>
+                      {routeCaption}
+                    </span>
                   </p>
                 </div>
               </Field>
