@@ -147,6 +147,11 @@ def harness_serve(
         "--listen",
         help="Bind this host:port for this run instead of the config's.",
     ),
+    uds: str = typer.Option(
+        "",
+        "--uds",
+        help="Listen on this unix socket instead of a host:port.",
+    ),
 ) -> None:
     """Run the authenticated local chat workspace and control API."""
     import uvicorn
@@ -157,23 +162,72 @@ def harness_serve(
     )
     from pikvm_agent.harness.server import build_harness_app
 
+    bind: dict[str, Any]
+    # Checked before the config is read: this is about the arguments, and a
+    # contradiction in them should be reported as itself rather than as
+    # whatever the config file turns out to say.
+    if uds and listen:
+        typer.echo(
+            "harness serve refused: --uds and --listen name two different "
+            "places to listen; pass one",
+            err=True,
+        )
+        raise typer.Exit(2)
     settings = load_harness_settings(config)
-    if listen:
-        # For this run only. The config file carries the operator's provider
-        # settings, so a caller routing around a listener that already owns the
-        # configured port moves the bind rather than rewriting that file. It is
-        # still a bind, so it goes through the same loopback check as the
-        # configured value, and the derived allowed origins follow it.
-        settings = settings.model_copy(update={"listen": listen})
+    if uds:
+        # The same reasoning as the daemon's --uds. A socket file outlives the
+        # process that made it and uvicorn will not bind over an existing path,
+        # so a harness killed rather than closed would leave one behind that
+        # stops every later start - the socket version of exactly the
+        # stale-listener problem this move is meant to end.
         try:
-            ensure_safe_bind(settings)
-        except ValueError as exc:
-            typer.echo(f"harness serve refused: --listen {listen}: {exc}", err=True)
+            if os.path.exists(uds):
+                os.unlink(uds)
+        except OSError as exc:
+            typer.echo(
+                f"harness serve refused: cannot clear {uds}: {exc}", err=True
+            )
             raise typer.Exit(2)
-    else:
+        parent = os.path.dirname(uds)
+        if parent:
+            os.makedirs(parent, exist_ok=True)
+        # Still checked, even though no port is bound here. The second half of
+        # that check is what guarantees resolved_origins() is non-empty, and the
+        # workspace's cross-origin gate is built from it: skip the check and a
+        # config that would have been refused loudly at startup instead serves a
+        # workspace that refuses every request it is sent.
+        #
+        # NOT a private socket, either. uvicorn hardcodes uds_perms = 0o666 and
+        # chmods the socket AFTER binding (uvicorn/server.py), so a umask here
+        # would simply be overwritten, and because the unlink above means the
+        # path never pre-exists, its branch that would have preserved an
+        # existing mode never runs. What gates access is the DIRECTORY the
+        # caller chose, and the caller is the one who has to make that private:
+        # we cannot chmod it from here without risking doing it to something
+        # like /tmp that was passed in by mistake. The bearer tokens remain the
+        # real check either way.
         ensure_safe_bind(settings)
-    host, port = settings.host_port()
-    typer.echo(f"Chat workspace: http://{host}:{port}/app/")
+        typer.echo(f"Chat workspace: unix:{uds} (/app/)")
+        bind = {"uds": uds}
+    else:
+        if listen:
+            # For this run only. The config file carries the operator's provider
+            # settings, so a caller routing around a listener that already owns
+            # the configured port moves the bind rather than rewriting that
+            # file. It is still a bind, so it goes through the same loopback
+            # check as the configured value, and the derived allowed origins
+            # follow it.
+            settings = settings.model_copy(update={"listen": listen})
+            try:
+                ensure_safe_bind(settings)
+            except ValueError as exc:
+                typer.echo(f"harness serve refused: --listen {listen}: {exc}", err=True)
+                raise typer.Exit(2)
+        else:
+            ensure_safe_bind(settings)
+        host, port = settings.host_port()
+        typer.echo(f"Chat workspace: http://{host}:{port}/app/")
+        bind = {"host": host, "port": port}
     operator_app = build_harness_app(
         settings,
         settings_path=config,
@@ -187,8 +241,7 @@ def harness_serve(
     server = HarnessServer(
         uvicorn.Config(
             operator_app,
-            host=host,
-            port=port,
+            **bind,
             log_level="info",
             # Event streams should exit from shutdown_requested within 200 ms.
             # This remains a hard upper bound if an adapter ignores cancellation.
