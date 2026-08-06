@@ -54,8 +54,13 @@ def version() -> None:
 def daemon(
     host: str = typer.Option("", help="Override listen host (default: config)."),
     port: int = typer.Option(0, help="Override listen port (default: config)."),
+    uds: str = typer.Option(
+        "",
+        help="Listen on this unix socket instead of a host:port.",
+    ),
 ) -> None:
     """Run the FastAPI daemon (owns sessions, watchers, execution)."""
+    import os
     import uvicorn
 
     from pikvm_agent.config import load_config
@@ -67,6 +72,29 @@ def daemon(
         typer.echo(f"daemon refused: {exc}", err=True)
         raise typer.Exit(2)
     cfg = load_config()
+    if uds:
+        # A socket file survives the process that made it. uvicorn will not bind
+        # over an existing path, so a daemon killed rather than closed would
+        # otherwise leave one that stops every later start - the socket version
+        # of exactly the stale-port problem this move is meant to end.
+        try:
+            if os.path.exists(uds):
+                os.unlink(uds)
+        except OSError as exc:
+            typer.echo(f"daemon refused: cannot clear {uds}: {exc}", err=True)
+            raise typer.Exit(2)
+        parent = os.path.dirname(uds)
+        if parent:
+            os.makedirs(parent, exist_ok=True)
+        # Ours alone: the socket is the capability boundary now that there is no
+        # port for the token to be the only thing guarding.
+        os.umask(0o077)
+        uvicorn.run(
+            "pikvm_agent.daemon:app",
+            uds=uds,
+            log_level="info",
+        )
+        return
     uvicorn.run(
         "pikvm_agent.daemon:app",
         host=host or cfg.daemon.host,
