@@ -23,6 +23,8 @@ import httpx
 from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.exceptions import ToolError
 
+from pikvm_agent.endpoint import httpx_client_kwargs
+
 _OBSERVE_MODE_TOOLS = frozenset(
     {
         "pikvm_screenshot",
@@ -154,8 +156,7 @@ class DirectCallReporter:
         self, path: str, payload: dict[str, Any]
     ) -> dict[str, Any]:
         async with httpx.AsyncClient(
-            base_url=self.base_url,
-            transport=self.transport,
+            **httpx_client_kwargs(self.base_url, self.transport),
             timeout=3.0,
             headers={
                 "Authorization": f"Bearer {self.observer_token}",

@@ -24,6 +24,7 @@ from typing import Literal, Protocol
 
 import httpx
 
+from pikvm_agent.endpoint import httpx_client_kwargs
 from pikvm_agent.harness.client_config_audit import (
     ClientConfigAuditReport,
     ClientConfigDocument,
@@ -214,12 +215,13 @@ class HarnessTaskCompletionWatch:
     ) -> object:
         try:
             with httpx.Client(
-                base_url=self._base_url,
+                **httpx_client_kwargs(
+                    self._base_url, self._transport, sync=True
+                ),
                 headers={
                     "Authorization": f"Bearer {self._agent_token}",
                 },
                 timeout=5.0,
-                transport=self._transport,
             ) as client:
                 response = client.get(path, params=params)
                 response.raise_for_status()

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import tomllib
 from collections.abc import Mapping, Sequence
@@ -16,10 +17,16 @@ from pikvm_agent.daemon_access import (
     DAEMON_TOKEN_ENV,
     action_token_from_environment,
 )
+from pikvm_agent.endpoint import (
+    endpoint_socket_path,
+    httpx_client_kwargs,
+    is_unix_endpoint,
+)
 from pikvm_agent.harness.config import HarnessSettings
 
 ClientKind = Literal["codex", "claude", "gemini", "opencode"]
 ControlMode = Literal["managed", "direct"]
+HARNESS_ENDPOINT_ENV = "PIKVM_HARNESS_ENDPOINT"
 _CALLER_LABEL = re.compile(r"[A-Za-z0-9_-]{1,64}")
 
 
@@ -64,7 +71,42 @@ def valid_active_managed_mcp_arguments(
     return True
 
 
-def harness_base_url(settings: HarnessSettings) -> str:
+def harness_base_url(
+    settings: HarnessSettings,
+    *,
+    environ: Mapping[str, str] | None = None,
+) -> str:
+    """Where the running harness actually answers.
+
+    The config's ``listen`` is only where the harness would bind by default, and
+    for two reasons that is no longer where it necessarily is.  ``harness serve
+    --listen`` moves one run's bind without rewriting a config file that carries
+    the operator's provider settings, and ``harness serve --uds`` takes it off a
+    port entirely.  Both are decided by whoever starts the harness - the desktop
+    app - and a child that derived the address from the YAML instead would send
+    every managed and direct MCP call at an address nothing is listening on.
+
+    So the process that knows says so, in ``PIKVM_HARNESS_ENDPOINT``.  It holds
+    either form described in ``pikvm_agent/endpoint.py``.  With it unset nothing
+    changes: the config's listen address is still the answer.
+    """
+
+    env = os.environ if environ is None else environ
+    selected = env.get(HARNESS_ENDPOINT_ENV, "").strip()
+    if selected:
+        if is_unix_endpoint(selected):
+            socket_path = endpoint_socket_path(selected)
+            if socket_path is None or not os.path.isabs(socket_path):
+                raise ValueError(
+                    f"{HARNESS_ENDPOINT_ENV} must name an absolute socket path "
+                    "when it selects a unix socket harness"
+                )
+        elif not selected.startswith(("http://", "https://")):
+            raise ValueError(
+                f"{HARNESS_ENDPOINT_ENV} must be an HTTP(S) origin or a "
+                "unix:/path/to/harness.sock socket selection"
+            )
+        return selected.rstrip("/")
     host, port = settings.host_port()
     connect_host = "127.0.0.1" if host in {"0.0.0.0", "::"} else host
     rendered_host = (
@@ -104,7 +146,7 @@ def managed_mcp_environment(
     """Resolve the scoped managed-harness connection at process start."""
 
     return {
-        "PIKVM_HARNESS_URL": harness_base_url(settings),
+        "PIKVM_HARNESS_URL": harness_base_url(settings, environ=environ),
         "PIKVM_HARNESS_AGENT_TOKEN": settings.agent_token(
             validate_distinct=False,
             environ=environ,
@@ -123,10 +165,9 @@ def _verify_scope(
     transport: httpx.BaseTransport | None,
 ) -> None:
     with httpx.Client(
-        base_url=base_url,
+        **httpx_client_kwargs(base_url, transport, sync=True),
         headers={"Authorization": f"Bearer {token}"},
         timeout=timeout_s,
-        transport=transport,
     ) as client:
         health = client.get(path)
         if health.status_code == 503:
@@ -163,7 +204,7 @@ def verify_managed_harness_ready(
     """Fail before MCP startup unless scoped managed control is reachable."""
 
     _verify_scope(
-        base_url=harness_base_url(settings),
+        base_url=harness_base_url(settings, environ=environ),
         token=settings.agent_token(
             validate_distinct=False,
             environ=environ,

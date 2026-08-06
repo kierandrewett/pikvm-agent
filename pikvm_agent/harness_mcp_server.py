@@ -15,6 +15,7 @@ import httpx
 from mcp.server.fastmcp import FastMCP
 from mcp.types import ToolAnnotations
 
+from pikvm_agent.endpoint import httpx_client_kwargs
 from pikvm_agent.harness.client_setup import normalize_caller_label
 
 _INSTRUCTIONS = """\
@@ -57,7 +58,11 @@ async def _request(
     if approval_id:
         headers["X-PiKVM-Approval-Intent"] = approval_id
     try:
-        async with httpx.AsyncClient(base_url=url, timeout=300.0) as client:
+        # The harness may be on a unix socket rather than a port; see
+        # pikvm_agent/endpoint.py.
+        async with httpx.AsyncClient(
+            **httpx_client_kwargs(url), timeout=300.0
+        ) as client:
             response = await client.request(
                 method, path, headers=headers, json=body
             )
