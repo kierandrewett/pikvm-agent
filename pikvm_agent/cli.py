@@ -86,9 +86,19 @@ def daemon(
         parent = os.path.dirname(uds)
         if parent:
             os.makedirs(parent, exist_ok=True)
-        # Ours alone: the socket is the capability boundary now that there is no
-        # port for the token to be the only thing guarding.
-        os.umask(0o077)
+        # NOT a private socket, and saying so because the obvious assumption is
+        # wrong. uvicorn sets uds_perms = 0o666 and chmods the socket AFTER
+        # binding (uvicorn/server.py), so a umask here is simply overwritten -
+        # and because the unlink above means the path never pre-exists, its
+        # branch that would have preserved an existing mode never runs either.
+        # A socket that survived this ends up srw-rw-rw-.
+        #
+        # What gates access is therefore the DIRECTORY the caller chose, and the
+        # caller is the one who has to make that private - we cannot chmod it
+        # from here without the risk of doing it to something like /tmp that was
+        # passed in by mistake. The bearer token remains the real check either
+        # way; this note exists so nobody reads "unix socket" as "already
+        # protected" and drops it.
         uvicorn.run(
             "pikvm_agent.daemon:app",
             uds=uds,
