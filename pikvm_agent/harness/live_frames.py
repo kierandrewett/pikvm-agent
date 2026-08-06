@@ -10,6 +10,8 @@ from urllib.parse import quote
 
 import httpx
 
+from pikvm_agent.endpoint import httpx_client_kwargs
+
 MAX_LIVE_FRAME_BYTES = 4 * 1024 * 1024
 MAX_LIVE_FRAME_DIMENSION = 8192
 MAX_CACHED_LIVE_SESSIONS = 8
@@ -60,9 +62,8 @@ class DaemonLiveFrameSource:
         if max_cached_sessions < 1:
             raise ValueError("max_cached_sessions must be positive")
         self._client = httpx.AsyncClient(
-            base_url=daemon_url.rstrip("/"),
+            **httpx_client_kwargs(daemon_url, transport),
             timeout=timeout_s,
-            transport=transport,
             headers=(
                 {"Authorization": f"Bearer {bearer_token}"}
                 if bearer_token

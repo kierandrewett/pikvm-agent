@@ -8,6 +8,7 @@ from urllib.parse import quote
 
 import httpx
 
+from pikvm_agent.endpoint import httpx_client_kwargs
 from pikvm_agent.harness.media_transaction import (
     MediaMutationAmbiguousError,
     MediaMutationDefiniteError,
@@ -26,8 +27,7 @@ class DaemonMediaTransport:
         timeout: float = 180.0,
     ) -> None:
         self._client = httpx.AsyncClient(
-            base_url=daemon_url.rstrip("/"),
-            transport=transport,
+            **httpx_client_kwargs(daemon_url, transport),
             timeout=timeout,
         )
 

@@ -24,6 +24,7 @@ import yaml
 from pydantic import BaseModel, Field
 
 from pikvm_agent.core.errors import ConfigError
+from pikvm_agent.endpoint import endpoint_socket_path, is_unix_endpoint
 
 _DATA_HOME = Path(
     os.environ.get("XDG_DATA_HOME", str(Path.home() / ".local" / "share"))
@@ -47,6 +48,12 @@ def require_daemon_url(
     The MCP facade and emergency brake are separate processes from the daemon.
     Guessing a loopback port here can therefore control the wrong computer.  An
     explicit argument or environment-owned selection is mandatory.
+
+    A ``unix:/path/to/daemon.sock`` selection is accepted alongside an HTTP(S)
+    origin, because ``daemon --uds`` is how the desktop app stops racing for a
+    fixed loopback port.  It is still an explicit selection - more so, in fact:
+    a socket path names one daemon on this machine and cannot be reached from
+    anywhere else at all.
     """
 
     value = (explicit if explicit is not None else os.environ.get(env_name, "")).strip()
@@ -55,6 +62,18 @@ def require_daemon_url(
             f"{env_name} must point to the explicitly selected PiKVM agent "
             "daemon; there is no implicit target"
         )
+    if is_unix_endpoint(value):
+        # Parsed by prefix, not by urlsplit: the path may contain a space (the
+        # desktop app keeps its sockets beside its settings, in "PiKVM
+        # Desktop"), and URL parsing would encode that into a path no
+        # filesystem call can open.
+        socket_path = endpoint_socket_path(value)
+        if socket_path is None or not os.path.isabs(socket_path):
+            raise ValueError(
+                f"{env_name} must name an absolute socket path when it selects "
+                "a unix socket daemon"
+            )
+        return value.rstrip("/")
     parsed = urlsplit(value)
     if (
         parsed.scheme not in {"http", "https"}
@@ -66,7 +85,8 @@ def require_daemon_url(
     ):
         raise ValueError(
             f"{env_name} must be an HTTP(S) daemon URL without embedded "
-            "credentials, query parameters, or a fragment"
+            "credentials, query parameters, or a fragment, or a "
+            "unix:/path/to/daemon.sock socket selection"
         )
     return value.rstrip("/")
 

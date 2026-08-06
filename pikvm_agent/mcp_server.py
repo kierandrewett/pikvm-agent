@@ -24,6 +24,7 @@ from mcp.types import ToolAnnotations
 from pydantic import Field
 
 from pikvm_agent.config import require_daemon_url
+from pikvm_agent.endpoint import httpx_client_kwargs
 from pikvm_agent.daemon_access import (
     DaemonAccessError,
     action_token_from_environment,
@@ -88,8 +89,10 @@ def _daemon_client(timeout: float) -> httpx.AsyncClient:
         if _PRIVATE_HARNESS_CHILD
         else action_token_from_environment()
     )
+    # The selection may be a socket path rather than a host:port; see
+    # pikvm_agent/endpoint.py.
     return httpx.AsyncClient(
-        base_url=daemon_url,
+        **httpx_client_kwargs(daemon_url),
         timeout=timeout,
         headers={"Authorization": f"Bearer {token}"},
     )
