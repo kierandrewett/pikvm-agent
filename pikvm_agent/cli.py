@@ -132,6 +132,11 @@ def harness_serve(
         readable=True,
         help="Harness YAML (provider routes and env-var names; no secrets).",
     ),
+    listen: str = typer.Option(
+        "",
+        "--listen",
+        help="Bind this host:port for this run instead of the config's.",
+    ),
 ) -> None:
     """Run the authenticated local chat workspace and control API."""
     import uvicorn
@@ -143,7 +148,20 @@ def harness_serve(
     from pikvm_agent.harness.server import build_harness_app
 
     settings = load_harness_settings(config)
-    ensure_safe_bind(settings)
+    if listen:
+        # For this run only. The config file carries the operator's provider
+        # settings, so a caller routing around a listener that already owns the
+        # configured port moves the bind rather than rewriting that file. It is
+        # still a bind, so it goes through the same loopback check as the
+        # configured value, and the derived allowed origins follow it.
+        settings = settings.model_copy(update={"listen": listen})
+        try:
+            ensure_safe_bind(settings)
+        except ValueError as exc:
+            typer.echo(f"harness serve refused: --listen {listen}: {exc}", err=True)
+            raise typer.Exit(2)
+    else:
+        ensure_safe_bind(settings)
     host, port = settings.host_port()
     typer.echo(f"Chat workspace: http://{host}:{port}/app/")
     operator_app = build_harness_app(
